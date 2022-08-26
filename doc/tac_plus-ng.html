@@ -1,0 +1,4320 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content=
+"HTML Tidy for HTML5 for Linux version 5.6.0">
+<title>TACACS+ NG</title>
+<meta name="GENERATOR" content=
+"Modular DocBook HTML Stylesheet Version 1.79">
+</head>
+<body class="article" bgcolor="#FFFFFF" text="#000000" link=
+"#0000FF" vlink="#840084" alink="#0000FF">
+<div class="ARTICLE">
+<div class="TITLEPAGE">
+<h1 class="title"><a name="AEN2" id="AEN2">TACACS+ NG</a></h1>
+<h3 class="author"><a name="AEN4" id="AEN4">Marc Huber</a></h3>
+<span class="releaseinfo">$Id:
+088d224b9af74421e9b1b02f7658b894f6a18a52 $<br></span>
+<hr></div>
+<div class="TOC">
+<dl>
+<dt><b>Table of Contents</b></dt>
+<dt>1. <a href="#AEN9">Introduction</a></dt>
+<dd>
+<dl>
+<dt>1.1. <a href="#AEN42">Download</a></dt>
+</dl>
+</dd>
+<dt>2. <a href="#AEN46">Definitions and Terms</a></dt>
+<dt>3. <a href="#AEN76">Operation</a></dt>
+<dd>
+<dl>
+<dt>3.1. <a href="#AEN90">Command line syntax</a></dt>
+<dt>3.2. <a href="#AEN111">Signals</a></dt>
+<dt>3.3. <a href="#AEN126">Event mechanism selection</a></dt>
+</dl>
+</dd>
+<dt>4. <a href="#AEN152">Configuration</a></dt>
+<dd>
+<dl>
+<dt>4.1. <a href="#AEN155">Sample Configuration</a></dt>
+<dt>4.2. <a href="#AEN206">Configuration directives</a></dt>
+<dd>
+<dl>
+<dt>4.2.1. <a href="#AEN246">Global options</a></dt>
+<dt>4.2.2. <a href="#AEN323">Realms</a></dt>
+<dt>4.2.3. <a href="#AEN351">Realm attribtes</a></dt>
+</dl>
+</dd>
+<dt>4.3. <a href="#AEN2058">MAVIS Backends</a></dt>
+<dd>
+<dl>
+<dt>4.3.1. <a href="#AEN2066">LDAP Backends</a></dt>
+<dt>4.3.2. <a href="#AEN2268">PAM back-end</a></dt>
+<dt>4.3.3. <a href="#AEN2273">System Password Backends</a></dt>
+<dt>4.3.4. <a href="#AEN2280">Shadow Backend</a></dt>
+<dt>4.3.5. <a href="#AEN2303">RADIUS Backends</a></dt>
+<dt>4.3.6. <a href="#AEN2337">Experimental Backends</a></dt>
+<dt>4.3.7. <a href="#AEN2341">Error Handling</a></dt>
+</dl>
+</dd>
+</dl>
+</dd>
+<dt>5. <a href="#AEN2349">Debugging</a></dt>
+<dd>
+<dl>
+<dt>5.1. <a href="#AEN2352">Debugging Configuration Files</a></dt>
+<dt>5.2. <a href="#AEN2360">Trace Options</a></dt>
+</dl>
+</dd>
+<dt>6. <a href="#AEN2518">Frequently Asked Questions</a></dt>
+<dt>7. <a href="#AEN2614">Bugs</a></dt>
+<dt>8. <a href="#AEN2628">References</a></dt>
+<dt>9. <a href="#AEN2638">Copyrights and Acknowledgements</a></dt>
+</dl>
+</div>
+<div class="section">
+<h2 class="section"><a name="AEN9" id="AEN9">1.
+Introduction</a></h2>
+<p><span class="bold"><b class="emphasis">tac_plus-ng</b></span> is
+a TACACS+ daemon. It provides networking components like router and
+switches with authentication, authorisation and accounting
+services.</p>
+<p>This version is a major rewrite of the original Cisco source
+code and is largely based on <span class="bold"><b class=
+"emphasis">tac_plus</b></span>, which comes with the same
+distribution. Key features include:</p>
+<ul>
+<li>
+<p>NAS specific host keys, prompts, enable passwords</p>
+</li>
+<li>
+<p>Rule-based permission assignment</p>
+</li>
+<li>
+<p>Flexible external back-ends for user profiles (e.g. via PERL
+scripts or C; LDAP (including ActiveDirectory), RADIUS and others
+are included)</p>
+</li>
+<li>
+<p>Connection multiplexing (multiple concurrent NAS clients per
+process)</p>
+</li>
+<li>
+<p>Session multiplexing (multiple concurrent sessions per
+connection, <span class="emphasis"><i class=
+"emphasis">single-connection</i></span>)</p>
+</li>
+<li>
+<p>Scalable, no limit on users, clients or servers.</p>
+</li>
+<li>
+<p>CLI context aware.</p>
+</li>
+<li>
+<p>Full support for both IPv4 and IPv6</p>
+</li>
+<li>
+<p>Implements and auto-detects <a href="https://www.haproxy.org/"
+target="_top">HAProxy</a> protocol 2.</p>
+</li>
+<li>
+<p>Supports TLS</p>
+</li>
+<li>
+<p>Compliant to RFC8907</p>
+</li>
+<li>
+<p>Supports Linux VRFs</p>
+</li>
+</ul>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN42" id="AEN42">1.1.
+Download</a></h3>
+<p>Source and documentation are available from <a href=
+"https://www.pro-bono-publico.de/projects/" target=
+"_top">https://www.pro-bono-publico.de/projects/</a>.</p>
+</div>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN46" id="AEN46">2. Definitions and
+Terms</a></h2>
+<p>The following chapters utilize a couple of terms that may need
+further explanation:</p>
+<div class="informaltable"><a name="AEN49" id="AEN49"></a>
+<table border="1" class="CALSTABLE">
+<col width="20%" title="col1">
+<col width="80%" title="col2">
+<tbody>
+<tr>
+<td>NAC</td>
+<td>A Network Access Client, e.g. the source host of a <tt class=
+"literal">telnet</tt> connection.</td>
+</tr>
+<tr>
+<td>NAS</td>
+<td>A Network Access Server, e.g. a Cisco box, or any other client
+which makes TACACS+ authentication and authorization requests, or
+generates TACACS+ accounting packets.</td>
+</tr>
+<tr>
+<td>Daemon</td>
+<td>A program which services network requests for authentication
+and authorization, verifies identities, grants or denies
+authorizations, and logs accounting records.</td>
+</tr>
+<tr>
+<td>AV pairs</td>
+<td>Strings of text in the form <tt class=
+"literal">attribute=value</tt>, sent between a NAS and a TACACS+
+daemon as part of the TACACS+ protocol.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Since a <span class="emphasis"><i class=
+"emphasis">NAS</i></span> is sometimes referred to as a
+<span class="emphasis"><i class="emphasis">server</i></span>, and a
+<span class="emphasis"><i class="emphasis">daemon</i></span> is
+also often referred to as a <span class="emphasis"><i class=
+"emphasis">server</i></span>, the term <span class=
+"emphasis"><i class="emphasis">server</i></span> has been avoided
+here in favor of the less ambiguous terms <span class=
+"emphasis"><i class="emphasis">NAS</i></span> and <span class=
+"emphasis"><i class="emphasis">Daemon</i></span>.</p>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN76" id="AEN76">3.
+Operation</a></h2>
+<p>This section gives a brief and basic overview how to run
+<span class="bold"><b class="emphasis">tac_plus-ng</b></span>.</p>
+<p>In earlier versions, <span class="bold"><b class=
+"emphasis">tac_plus</b></span> wasn't a standalone program but had
+to be invoked by <span class="bold"><b class=
+"emphasis">spawnd</b></span>. This has changed, as <span class=
+"bold"><b class="emphasis">spawnd</b></span> functionality is now
+part of the <span class="bold"><b class=
+"emphasis">tac_plus</b></span> binary. However, using a dedicated
+<span class="bold"><b class="emphasis">spawnd</b></span> process is
+still possible and, more importantly, the <span class=
+"bold"><b class="emphasis">spawnd</b></span> configuration options
+and documentation remain valid.</p>
+<p><span class="bold"><b class="emphasis">tac_plus</b></span> may
+use auxiliary <span class="bold"><b class=
+"emphasis">MAVIS</b></span> back-end modules for authentication and
+authorization.</p>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN90" id="AEN90">3.1. Command line
+syntax</a></h3>
+<p>The only mandatory argument is the path to the configuration
+file:</p>
+<pre class="screen">tac_plus-ng [ <span class="emphasis"><i class=
+"emphasis">-P</i></span> ] [ <span class="emphasis"><i class=
+"emphasis">-d level</i></span> ] [ <span class="emphasis"><i class=
+"emphasis">-i child_id</i></span> ] <span class=
+"emphasis"><i class="emphasis">configuration-file</i></span> [ <span class="emphasis"><i class="emphasis">id</i></span> ]</pre>
+<p>If the program was compiled with CURL support, <span class=
+"emphasis"><i class="emphasis">configuration-file</i></span> may be
+an URL.</p>
+<p>Keep the <tt class="literal">-P</tt> option in mind &#8208; it
+is imperative that the configuration file supplied is syntactically
+correct, as the daemon won't start if there are any parsing
+errors.</p>
+<p>The <tt class="literal">-d</tt> switch enables debugging. You
+most likely don't want to use this. Read the source if you need
+to.</p>
+<p>The <tt class="literal">-i</tt> option is only honoured if the
+build-in <span class="bold"><b class="emphasis">spawnd</b></span>
+functionality is used. In that case, it selects the configuration
+ID for <span class="bold"><b class="emphasis">tac_plus</b></span>,
+while the optional last argument <span class="emphasis"><i class=
+"emphasis">id</i></span> sets the ID of the <span class=
+"bold"><b class="emphasis">spawnd</b></span> configuration
+section.</p>
+</div>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN111" id="AEN111">3.2.
+Signals</a></h3>
+<p>Both the master (that's the process running the <span class=
+"bold"><b class="emphasis">spawnd</b></span> code) and the child
+processes (running the <span class="bold"><b class=
+"emphasis">tac_plus-ng</b></span> code) intercept the <tt class=
+"literal">SIGHUP</tt> signal:</p>
+<ul>
+<li>
+<p>The master process will restart upon reception of <tt class=
+"literal">SIGHUP</tt>, re-reading the configuration file. The child
+processes will recognize that the master process is no longer
+available. It will continue to serve the existing connections and
+terminate when idle.</p>
+</li>
+<li>
+<p>If <tt class="literal">SIGHUP</tt> is sent to a child process it
+will stop accepting new connections from its master process. It
+will continue to serve the existing connections and terminate when
+idle.</p>
+</li>
+</ul>
+<p>Sending <tt class="literal">SIGUSR1</tt> to the master process
+will cause it to abandon existing child processes (these will
+continue to serve the existing connections only) and start new
+child processes.</p>
+</div>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN126" id="AEN126">3.3. Event
+mechanism selection</a></h3>
+<p>Several level-triggered event mechanisms are supported. By
+default, the one best suited for your operating system will be
+used. However, you may set the environment variable <tt class=
+"literal">IO_POLL_MECHANISM</tt> to select a specific one.</p>
+<p>The following event mechanisms are supported (in order of
+preference):</p>
+<ul>
+<li>
+<p>port (Sun Solaris 10 and higher only, <tt class=
+"literal">IO_POLL_MECHANISM=32</tt>)</p>
+</li>
+<li>
+<p>kqueue (*BSD and Darwin only, <tt class=
+"literal">IO_POLL_MECHANISM=1</tt>)</p>
+</li>
+<li>
+<p>/dev/poll (Sun Solaris only, <tt class=
+"literal">IO_POLL_MECHANISM=2</tt>)</p>
+</li>
+<li>
+<p>epoll (Linux only, <tt class=
+"literal">IO_POLL_MECHANISM=4</tt>)</p>
+</li>
+<li>
+<p>poll (<tt class="literal">IO_POLL_MECHANISM=8</tt>)</p>
+</li>
+<li>
+<p>select (<tt class="literal">IO_POLL_MECHANISM=16</tt>)</p>
+</li>
+</ul>
+<p>Environment variables can be set in the configuration file at
+top-level:</p>
+<pre class="screen">setenv IO_POLL_MECHANISM = 4</pre></div>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN152" id="AEN152">4.
+Configuration</a></h2>
+<p>The daemon is configured using a text file. Let's have a look at
+a sample configuration first, before digging into the various
+configuration directives.</p>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN155" id="AEN155">4.1. Sample
+Configuration</a></h3>
+<p>A single configuration file is sufficient for configuring quite
+everything: the <span class="bold"><b class=
+"emphasis">spawnd</b></span> connection broker, <span class=
+"bold"><b class="emphasis">tac_plus-ng</b></span> and the
+<span class="emphasis"><i class="emphasis">MAVIS</i></span>
+authentication and authorization back-end.</p>
+<p>The daemon supports <span class="emphasis"><i class=
+"emphasis">shebang</i></span> syntax. If the configuration file is
+executable and starts with</p>
+<pre class="screen">#!/usr/local/sbin/tac_plus-ng</pre>
+<p>then it can be started directly.</p>
+<p>The first step is to configure the <span class="bold"><b class=
+"emphasis">spawnd</b></span> portion to tell the daemon the
+addresses and TCP ports to listen on and to, eventually pass
+<span class="emphasis"><i class="emphasis">realms</i></span>:</p>
+<pre class="screen">id = spawnd {
+    listen { port = 49 }
+    listen { port = 4949 }
+    listen { address = ::0 port = 4950 realm = customer1 }
+    listen { address = 10.0.0.1 port = 4951 realm = customer2 }
+    # listen { address = 10.0.0.1 port = 4951 realm = customer2 tls = yes }
+    #
+    # See the spawnd configuration guide for further configuration options.
+}</pre>
+<p>The thing that needs some explanation here is <span class=
+"emphasis"><i class="emphasis">realms</i></span>. A <span class=
+"emphasis"><i class="emphasis">realm</i></span> in <span class=
+"bold"><b class="emphasis">tac_plus-ng</b></span> summarizes a set
+of configuration options. Realms inherit configurations from their
+parent realm, including the parent ruleset, which will be evaluated
+if the local ruleset doesn't exist or doesn't return a verdict.</p>
+<p>The default realm is internaly named <tt class=
+"literal">default</tt>. Using <span class="emphasis"><i class=
+"emphasis">realms</i></span> is optional.</p>
+<p>Now to the actual <span class="bold"><b class=
+"emphasis">tac_plus-ng</b></span> configuration which starts
+with</p>
+<pre class="screen">id = tac_plus-ng {
+    # This is the top-level realm, actually.</pre>
+<p>The second line above starts a comment. Comments can appear
+anywhere in the configuration file, starting with the <tt class=
+"literal">#</tt> character and extending to the end of the current
+line. Should you need to disable this special meaning of the
+<tt class="literal">#</tt> character, e.g. if you have a password
+containing a <tt class="literal">#</tt> character, simply enclose
+the string containing it within double quotes.</p>
+<p>Typically, the next step is to define log destinations and tell
+the daemon to use them. This sample logs to disk, but other
+destinations (syslog, pipe) are available, too.</p>
+<pre class=
+"screen">    log authzlog { destination = /var/log/tac_plus/authz/%Y/%m/%d.log }
+    log authclog { destination = /var/log/tac_plus/authc/%Y/%m/%d.log }
+    log acctlog  { destination = /var/log/tac_plus/acct/%Y/%m/%d.log }
+    accounting log = acctlog
+    authentication log = authclog
+    authorization log log = authzlog</pre>
+<p>Logs are interited to sub-realms and while sub-realms can define
+their own logging that won't override the parent realm
+definitions.</p>
+<p>You can specify a retire limit to have the server auto-terminate
+and restart its worker processes:</p>
+<pre class="screen">    retire limit = 1000</pre>
+<p>Then, there's the <span class="emphasis"><i class=
+"emphasis">MAVIS</i></span> part:</p>
+<pre class="screen">    mavis module = groups {
+        resolve gids = yes
+        groups filter = /^(guest|staff|ubuntu)$/
+        script out = {
+                # copy the already filtered UNIX group access list to TACMEMBER
+                eval $GIDS =~ /^(.*)$/
+                set $TACMEMBER = $1
+        }
+    }
+
+    mavis module = external {
+        exec = /usr/local/sbin/pammavis pammavis -s sshd
+    }
+
+    user backend = mavis
+    login backend = mavis chpass
+    pap backend = mavis</pre>
+<p>which defines interaction with external external back-ends.</p>
+<p>You can define network objects for later use in ACLs:</p>
+<pre class=
+"screen">    net outThere { address = 100.65.3.1 address = 100.66.0.0/16 }</pre>
+<p>Networks can be hierarchic, too:</p>
+<pre class="screen">    net all {
+        net north {
+            address = 100.67.0.0/16
+        }
+        net south {
+            address = 100.68.0.0/16 }
+    }</pre>
+<p>Now, define host objects for your network access devices. Just
+like realms and networks these can be hierarchic:</p>
+<pre class="screen">    host world {
+        welcome banner = "\nHitherto shalt thou come, but no further. (Job 38.11)\n\n"
+        key = QaWsEdRfTgY
+        enable 15 = clear test
+        address = ::/0
+        host south {
+            address = 100.99.0.0/16
+        }
+        host west {
+            address = 100.100.0.0/16
+        }
+    }
+
+    host localhost {
+        address = 127.0.0.1
+        prompt = "Welcome home\n"
+        parent = world # for key and other definitions not set here
+    }
+
+    host rfc {
+        address = 172.16.0.0/12
+        prompt = "Welcome private\n"
+        key = labKey
+    }</pre>
+<p>Now, define some profiles. These will be assigned to users
+later:</p>
+<pre class="screen">    profile readwrite {
+        script {
+            if (service == shell) {
+                if (cmd == "") {
+                    set priv-lvl = 15
+                    permit
+                }
+            }
+        }
+    }
+
+    profile getconfig {
+        script {
+            if (service == shell) {
+                if (cmd == "") {
+                    set autocmd = "sho run"
+                    set priv-lvl = 15
+                    permit
+                }
+            }
+        }
+    }
+
+    profile engineering {
+        script {
+            if (service == shell) {
+                if (cmd == "") {
+                    set priv-lvl = 7
+                    permit
+                }
+                if (cmd =~ /^ping/) deny
+                permit
+            }
+        }
+    }
+
+    profile guest {
+        script {
+            if (service == shell) {
+                if (cmd == "") {
+                    set priv-lvl = 1
+                    permit
+                }
+            }
+            permit
+        }
+    }
+    </pre>
+<p>Your can define groups to implement a role-based access control
+scheme ...</p>
+<pre class="screen">    group admin {
+        group north # "admin" is a member
+        group south # of both
+    }
+
+    group engineering {
+    }
+
+    group guest {
+    }</pre>
+<p>... and add users:</p>
+<pre class="screen">    user demo {
+        password = clear demo
+        groups = engineering,admin
+    }
+
+    user readonly {
+        password = clear readonly
+        groups = guest
+    }</pre>
+<p>Finally, implement a rule-set to assign profiles to users:</p>
+<pre class="screen">    ruleset {
+        rule from-localhost {
+            enabled = yes
+            script {
+                if (nas == localhost) {
+                    if (group ==  admin) {
+                        profile = admin
+                        permit
+                    }
+                    if (group ==  engineering ) {
+                        profile = engineering
+                        permit
+                    }
+               }
+          }
+        }
+        rule from-rfc {
+            enabled = yes
+            script {
+                if (nas == rfc) {
+                    if (group ==  south) {
+                        profile = admin
+                        permit
+                    }
+                    if (group ==  engineering ) {
+                        profile = engineering
+                        permit
+                    }
+                }
+            }
+        }
+    }
+}</pre></div>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN206" id="AEN206">4.2. Configuration
+directives</a></h3>
+<p>Configuration options include</p>
+<ol type="1">
+<li>
+<p>global options</p>
+</li>
+<li>
+<p>realms</p>
+</li>
+<li>
+<p>hosts</p>
+</li>
+<li>
+<p>time specifications</p>
+</li>
+<li>
+<p>profiles</p>
+</li>
+<li>
+<p>groups</p>
+</li>
+<li>
+<p>users</p>
+</li>
+<li>
+<p>access lists</p>
+</li>
+<li>
+<p>rules</p>
+</li>
+</ol>
+The reasoning behind that non-random order is that parts of the
+configuration may use other parts, and these need to exist before
+being used.
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/TacplusConfig.svg"></p>
+<div class="caption">
+<p>Railroad diagram: TacPlusConfig</p>
+</div>
+</div>
+<div class="note">
+<table class="note" width="100%" border="0">
+<tr>
+<td width="25" align="center" valign="top"><img src=
+"../images/note.gif" hspace="5" alt="Note"></td>
+<th align="left" valign="middle"><b>Including Files</b></th>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td align="left" valign="top">
+<p>Configuration files may refer to other configuration files:</p>
+<p><tt class="literal">include =</tt> <span class=
+"emphasis"><i class="emphasis">file</i></span></p>
+<p>will read and parse <span class="emphasis"><i class=
+"emphasis">file</i></span>. Shell wildcard patterns are expanded by
+<tt class="literal">glob</tt><span class="emphasis"><i class=
+"emphasis">(3)</i></span>. The <tt class="literal">include</tt>
+statement will be accepted virtually everywhere (but not in
+comments or textual strings).</p>
+</td>
+</tr>
+</table>
+</div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN246" id="AEN246">4.2.1. Global
+options</a></h4>
+<p>The global configuration section may contain the following
+configuration directives, plus the <span class="emphasis"><i class=
+"emphasis">realm</i></span> options detailed in the next section.
+<span class="emphasis"><i class="emphasis">realm</i></span>
+confiurations at global level are implicitely assigned to the
+<span class="emphasis"><i class="emphasis">default</i></span> realm
+and will be inherited by sub-realms.</p>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN252" id="AEN252">4.2.1.1. Limits
+and timeouts</a></h5>
+<p>A number of global limits and timeouts may be specified
+exclusively at global level:</p>
+<ul>
+<li>
+<p><tt class="literal">retire limit =</tt> <span class=
+"emphasis"><i class="emphasis">n</i></span></p>
+<p>The particular daemon instance will terminate after processing
+<span class="emphasis"><i class="emphasis">n</i></span> requests.
+The <span class="bold"><b class="emphasis">spawnd</b></span>
+instance will spawn a new instance if necessary.</p>
+<p>Default: unset</p>
+</li>
+<li>
+<p><tt class="literal">retire timeout =</tt> <span class=
+"emphasis"><i class="emphasis">s</i></span></p>
+<p>The particular daemon instance will terminate after <span class=
+"emphasis"><i class="emphasis">s</i></span> seconds. <span class=
+"bold"><b class="emphasis">spawnd</b></span> will spawn a new
+instance if necessary.</p>
+<p>Default: unset</p>
+</li>
+</ul>
+<div class="note">
+<table class="note" width="100%" border="0">
+<tr>
+<td width="25" align="center" valign="top"><img src=
+"../images/note.gif" hspace="5" alt="Note"></td>
+<th align="left" valign="middle"><b>Time units</b></th>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td align="left" valign="top">
+<p>Appending <tt class="literal">s</tt>, <tt class=
+"literal">m</tt>, <tt class="literal">h</tt> or <tt class=
+"literal">d</tt> to any timeout value will scale the value as
+expected.</p>
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN279" id="AEN279">4.2.1.2.
+DNS</a></h5>
+<p><span class="bold"><b class="emphasis">tac_plus</b></span> can
+make use of static DNS entries. The relevant global configuration
+options at global level are:</p>
+<ul>
+<li>
+<p><tt class="literal">dns preload address</tt> <span class=
+"emphasis"><i class="emphasis">address</i></span> <tt class=
+"literal">=</tt> <span class="emphasis"><i class=
+"emphasis">hostname</i></span></p>
+<p>Preload DNS cache with <span class="emphasis"><i class=
+"emphasis">address</i></span>-to-<span class="emphasis"><i class=
+"emphasis">hostname</i></span> mapping.</p>
+</li>
+<li>
+<p><tt class="literal">dns preload file =</tt> <span class=
+"emphasis"><i class="emphasis">filename</i></span></p>
+<p>Preload DNS cache with <span class="emphasis"><i class=
+"emphasis">address</i></span>-to-<span class="emphasis"><i class=
+"emphasis">hostname</i></span> mappings from <span class=
+"emphasis"><i class="emphasis">filename</i></span> (see your
+<tt class="literal">hosts</tt>(5) manpage for syntax). DNS lookups
+via lwresd are no longer supported.</p>
+<p>Example:</p>
+<pre class=
+"screen">dns preload address 1.2.3.4 = router.example.com
+dns preload file = /etc/hosts
+
+host router.example.com {
+    # "address = 1.2.3.4" is implied
+    key = mykey
+}</pre></li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN304" id="AEN304">4.2.1.3.
+Process-specific options</a></h5>
+<p>There are a couple of process-specific options available:</p>
+<ul>
+<li>
+<p><tt class="literal">coredump directory =</tt> <span class=
+"emphasis"><i class="emphasis">directory</i></span></p>
+<p>Dump cores to <span class="emphasis"><i class=
+"emphasis">directory</i></span>. You really shouldn't need
+this.</p>
+</li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN314" id="AEN314">4.2.1.4. Railroad
+Diagrams</a></h5>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/GlobalDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: GlobalDecl</p>
+</div>
+</div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN323" id="AEN323">4.2.2.
+Realms</a></h4>
+<p>Bascially, realms are containers to logically separate
+configuration sets. At top-level, there's the default realm (called
+<tt class="literal">default</tt> internally). Realms pass on most
+configurations (e.g. logging, users (if there are no users defined
+in that realm scope), groups, profiles) to their sub-realms.</p>
+<p>Realm selection is based on <span class="bold"><b class=
+"emphasis">spawnd</b></span> configuration:</p>
+<pre class="screen">spawnd = {
+    listen { port = 49 }   # implied realm is "default"
+    listen { port = 3939 } # implied realm is "default"
+    listen { port = 4949 realm = realmOne }
+    listen { port = 5959 realm = realmTwo }
+}</pre>
+<p>If <span class="emphasis"><i class="emphasis">VRFs</i></span>
+are used and no <tt class="literal">realm</tt> is specified in the
+<span class="bold"><b class="emphasis">spawnd</b></span> section,
+the daemon will try to use the <span class="emphasis"><i class=
+"emphasis">VRF name</i></span> as <tt class="literal">realm</tt>
+and fall back to the <tt class="literal">default</tt> realm if that
+"vrf realm" isn't defined.</p>
+<p>The syntax to use (and define) realms is</p>
+<pre class="screen">realm <span class="emphasis"><i class=
+"emphasis">realmName</i></span> { ... }</pre>
+<p>at top configuration level. Realms cover hosts, users, groups,
+profiles, rulesets, timespecs, <span class="emphasis"><i class=
+"emphasis">MAVIS</i></span> configurations other configuration
+options.</p>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN342" id="AEN342">4.2.2.1. Railroad
+Diagrams</a></h5>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/RealmDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: RealmDecl</p>
+</div>
+</div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN351" id="AEN351">4.2.3. Realm
+attribtes</a></h4>
+<p>The following options may be specified at <span class=
+"emphasis"><i class="emphasis">realm</i></span> level. This
+includes the <tt class="literal">default</tt> <span class=
+"emphasis"><i class="emphasis">realm</i></span>:</p>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN357" id="AEN357">4.2.3.1.
+Logging</a></h5>
+<p>Logging options defined in the top-level <tt class=
+"literal">default</tt> realm will be shared with sub-realms unless
+the sub-realm has its own logging configuration. The software
+provides logs for</p>
+<ul>
+<li>
+<p>Authentication</p>
+<pre class="screen">  authentication log = <span class=
+"emphasis"><i class=
+"emphasis">log_destination</i></span></pre></li>
+<li>
+<p>Authorization</p>
+<pre class="screen">  authorization log = <span class=
+"emphasis"><i class=
+"emphasis">log_destination</i></span></pre></li>
+<li>
+<p>Accounting</p>
+<pre class="screen">  accounting log = <span class=
+"emphasis"><i class=
+"emphasis">log_destination</i></span></pre></li>
+<li>
+<p>Connections</p>
+<pre class="screen">  connection log = <span class=
+"emphasis"><i class=
+"emphasis">log_destination</i></span></pre></li>
+</ul>
+<p>Logs may be written to multiple destinations:</p>
+<p>Valid log destinations are "named":</p>
+<pre class="screen">  log mylog {
+    destination = 169.254.0.23                     # UDP syslog
+    # or one of the following:
+    # destination = [fe80::123:4567:89ab:cdef]:514 # IPv6 UDP, with non-standard UDP port
+    # destination = "/tmp/x.log"                   # plain file, async writes
+    # destination = "&gt;/tmp/x.log"                  # plain file, sync writes
+    # destination = "|my_script.sh"                # script
+    # destination = syslog                         # syslog(3)
+    #
+    syslog facility = MAIL                         # sets log facility
+    syslog level = DEBUG                           # sets log level
+  }
+  authentication log = mylog
+  accounting log = mylog
+  authorization log = mylog</pre>
+<div class="note">
+<table class="note" width="100%" border="0">
+<tr>
+<td width="25" align="center" valign="top"><img src=
+"../images/note.gif" hspace="5" alt="Note"></td>
+<th align="left" valign="middle"><b>Syslog</b></th>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td align="left" valign="top">
+<p>Logging non-session related output to <tt class=
+"literal">syslogd</tt><span class="emphasis"><i class=
+"emphasis">(8)</i></span> can be disabled using</p>
+<pre class="screen">syslog default = deny</pre></td>
+</tr>
+</table>
+</div>
+<p>Log destinations may contain <tt class=
+"literal">strftime(3)</tt>-style character sequences, e.g.:</p>
+<pre class=
+"screen">      destination = /var/log/tac_plus/%Y/%m/%d.auth</pre>
+<p>to automate time-based log file switching. By default, the
+daemon will use your local time zone for time conversion. You can
+switch to a different one by using the <tt class="literal">time
+zone</tt> option (see below).</p>
+<p>A couple of other configuration options that may be useful in
+<tt class="literal">log</tt> context include:</p>
+<ul>
+<li>
+<p>( <tt class="literal">authentication</tt> | <tt class=
+"literal">authorization</tt> | <tt class="literal">accounting</tt>
+) <tt class="literal">format =</tt> <span class=
+"emphasis"><i class="emphasis">string</i></span></p>
+<p>This defines the logging format. <tt class=
+"literal">strftime(3)</tt> conversions are recognized. The
+following variables are resolved:</p>
+<div class="informaltable"><a name="AEN404" id="AEN404"></a>
+<table border="1" class="CALSTABLE">
+<col width="35%" title="col1">
+<col width="65%" title="col2">
+<tbody>
+<tr>
+<td><tt class="literal">${cmd}</tt>, <tt class=
+"literal">${cmd,</tt><span class="emphasis"><i class=
+"emphasis">separator</i></span><tt class="literal">}</tt></td>
+<td>values of <tt class="literal">cmd=</tt> and <tt class=
+"literal">cmd-arg=</tt> attribute-value pairs, separated by
+whitespace or <span class="emphasis"><i class=
+"emphasis">separator</i></span></td>
+</tr>
+<tr>
+<td><tt class="literal">${args}</tt>, <tt class=
+"literal">${args,</tt><span class="emphasis"><i class=
+"emphasis">separator</i></span><tt class="literal">}</tt></td>
+<td>input attribute-value pairs, separated by whitespace or
+<span class="emphasis"><i class=
+"emphasis">separator</i></span></td>
+</tr>
+<tr>
+<td><tt class="literal">${rargs}</tt>, <tt class=
+"literal">${rargs,</tt><span class="emphasis"><i class=
+"emphasis">separator</i></span><tt class="literal">}</tt></td>
+<td>output attribute value pairs, separated by whitespace or
+<span class="emphasis"><i class=
+"emphasis">separator</i></span></td>
+</tr>
+<tr>
+<td><tt class="literal">${nas}</tt></td>
+<td>NAS IP address</td>
+</tr>
+<tr>
+<td><tt class="literal">${nac}</tt></td>
+<td>NAC IP address</td>
+</tr>
+<tr>
+<td><tt class="literal">${user}</tt></td>
+<td>user name</td>
+</tr>
+<tr>
+<td><tt class="literal">${profile}</tt></td>
+<td>profile assigned to user</td>
+</tr>
+<tr>
+<td><tt class="literal">${service}</tt></td>
+<td>service type (e.g. <tt class="literal">shell</tt>)</td>
+</tr>
+<tr>
+<td><tt class="literal">${result}</tt></td>
+<td>typically <tt class="literal">permit</tt> or <tt class=
+"literal">deny</tt></td>
+</tr>
+<tr>
+<td><tt class="literal">${port}</tt></td>
+<td>NAS port</td>
+</tr>
+<tr>
+<td><tt class="literal">${hint}</tt></td>
+<td><tt class="literal">added</tt>/<tt class=
+"literal">replaced</tt> for authorization, informal text for
+accounting</td>
+</tr>
+<tr>
+<td><tt class="literal">${host}</tt></td>
+<td>Host name of matching host declaration</td>
+</tr>
+<tr>
+<td><tt class="literal">${hostname}</tt></td>
+<td>system hostname</td>
+</tr>
+<tr>
+<td><tt class="literal">${msgid}</tt></td>
+<td>A message ID, perhaps suitable for RFC5424 logs. These are
+listed somewhere below.</td>
+</tr>
+<tr>
+<td><tt class="literal">${accttype}</tt></td>
+<td>accounting type (<tt class="literal">start</tt>/<tt class=
+"literal">stop</tt>/<tt class="literal">update</tt>)</td>
+</tr>
+<tr>
+<td><tt class="literal">${priority}</tt></td>
+<td>syslog priority</td>
+</tr>
+<tr>
+<td><tt class="literal">${action}</tt></td>
+<td>authentication info (e.g. <tt class="literal">pap
+login</tt>)</td>
+</tr>
+<tr>
+<td><tt class="literal">${privlvl}</tt></td>
+<td>privilege level</td>
+</tr>
+<tr>
+<td><tt class="literal">${authen-action}</tt></td>
+<td><tt class="literal">login</tt> or <tt class=
+"literal">chpass</tt></td>
+</tr>
+<tr>
+<td><tt class="literal">${authen-type}</tt></td>
+<td>authorization type, e.g. <tt class=
+"literal">AUTHOR/PASS_ADD</tt></td>
+</tr>
+<tr>
+<td><tt class="literal">${authen-service}</tt></td>
+<td><tt class="literal">ascii</tt><tt class=
+"literal">ascii</tt>/<tt class="literal">pap</tt>/<tt class=
+"literal">chap</tt>/<tt class="literal">mschap</tt>/<tt class=
+"literal">mschapv2</tt></td>
+</tr>
+<tr>
+<td><tt class="literal">${authen-method}</tt></td>
+<td><tt class="literal">krb5</tt>/<tt class=
+"literal">line</tt>/<tt class="literal">enable</tt>/<tt class=
+"literal">local</tt>/<tt class="literal">tacacs+</tt>/<tt class=
+"literal">guest</tt>/<tt class="literal">radius</tt>/<tt class=
+"literal">krb4</tt>/<tt class="literal">rcmd</tt></td>
+</tr>
+<tr>
+<td><tt class="literal">${rule}</tt></td>
+<td>Name of the matching rule.</td>
+</tr>
+<tr>
+<td><tt class="literal">${label}</tt></td>
+<td>Ruleset label, if any.</td>
+</tr>
+<tr>
+<td><tt class="literal">${config-file}</tt></td>
+<td>Configuration file name</td>
+</tr>
+<tr>
+<td><tt class="literal">${config-line}</tt></td>
+<td>Configuration file line number</td>
+</tr>
+<tr>
+<td><tt class="literal">${vrf}</tt></td>
+<td>Name of the current socket IPv4 vrf, supported on Linux
+(requires <tt class="literal">sysctl
+net.ipv4.tcp_l3mdev_accept=1</tt>) and possibly OpenBSD.</td>
+</tr>
+<tr>
+<td><tt class="literal">${uid}</tt></td>
+<td>UID from PAM backend</td>
+</tr>
+<tr>
+<td><tt class="literal">${gid}</tt></td>
+<td>GID from PAM backend</td>
+</tr>
+<tr>
+<td><tt class="literal">${gids}</tt></td>
+<td>GIDs from PAM backend</td>
+</tr>
+<tr>
+<td><tt class="literal">${home}</tt></td>
+<td>Home directory from PAM backend</td>
+</tr>
+<tr>
+<td><tt class="literal">${shell}</tt></td>
+<td>Shell from PAM backend</td>
+</tr>
+<tr>
+<td><tt class="literal">${dn}</tt></td>
+<td>Raw <tt class="literal">dn</tt> backend value, typically from
+LDAP</td>
+</tr>
+<tr>
+<td><tt class="literal">${memberof}</tt></td>
+<td>Raw <tt class="literal">memberOf</tt> backend value, typically
+from LDAP</td>
+</tr>
+<tr>
+<td><tt class="literal">${tls-conn-version}</tt></td>
+<td>TLS Connection Version (requires LibTLS)</td>
+</tr>
+<tr>
+<td><tt class="literal">${tls-conn-cipher}</tt></td>
+<td>TLS Connection Cipher (requires LibTLS)</td>
+</tr>
+<tr>
+<td><tt class="literal">${tls-peer-cert-issuer}</tt></td>
+<td>TLS Peer Certificate Issuer (requires LibTLS)</td>
+</tr>
+<tr>
+<td><tt class="literal">${tls-peer-cert-subject}</tt></td>
+<td>TLS Peer Certificate Subject (requires LibTLS)</td>
+</tr>
+<tr>
+<td><tt class="literal">${tls-conn-cipher-strength}</tt></td>
+<td>TLS Connection Cipher Strength (requires LibTLS)</td>
+</tr>
+<tr>
+<td><tt class="literal">${tls-peer-cn}</tt></td>
+<td>TLS peer certificate Common Name(requires LibTLS)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>The built-in defaults as of writing this are:</p>
+<pre class="screen"># Accounting to file/pipe:
+"%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${service}\t${cmd}\n"
+# Accounting to UDP syslog:
+"&lt;${priority}&gt;%Y-%m-%d %H:%M:%S %z ${hostname} ${nas}|${user}|${port}|${nac}|${accttype}|${service}|${args}"
+# Accounting to syslog(3):
+"${nas}|${user}|${port}|${nac}|${accttype}|${service}|${args}"
+# Authorization to file/pipe:
+"%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${profile}\t${result}\t${service}\t${cmd}\n"
+# Authorization to UDP syslog:
+"&lt;${priority}&gt;%Y-%m-%d %H:%M:%S %z ${hostname} ${nas}|${user}|${port}|${nac}|${profile}|${result}|${service}|${cmd}"
+# Authorization to syslog(3):
+"${nas}|${user}|${port}|${nac}|${profile}|${result}|${service}|${cmd}"
+# Authentication to file/pipe:
+"%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${action} ${hint}\n"
+# Authentication to UDP syslog:
+"&lt;${priority}&gt;%Y-%m-%d %H:%M:%S %z ${hostname} ${nas}|${user}|${port}|${nac}|${action} ${hint}"
+# Authentication to syslog(3):
+"${nas}|${user}|${port}|${nac}|${action} ${hint}"
+# Connections to file/pipe:
+"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${tls-conn-version}\t${tls-peer-cert-issuer}\t${tls-peer-cert-subject}\n"
+# Connections to UDP syslog:
+"&lt;${priority}&gt;%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${tls-conn-version}|${tls-peer-cert-issuer}|${tls-peer-cert-subject}"
+# Connections to syslog(3):
+"${accttype}|${nas}|${tls-conn-version}|${tls-peer-cert-issuer}|${tls-peer-cert-subject}"</pre>
+<div class="informaltable"><a name="AEN615" id="AEN615"></a>
+<table border="1" class="CALSTABLE">
+<col width="35%" title="col1">
+<col width="65%" title="col2">
+<thead>
+<tr>
+<th>Message ID</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><tt class="literal">AUTHZPASS</tt></td>
+<td>authorization succeeded</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHZPASS-ADD</tt></td>
+<td>authorization succeeded, attribute-value-pairs were added</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHZPASS-REPL</tt></td>
+<td>authorization succeeded, attribute-value-pairs were
+replaced</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHZFAIL</tt></td>
+<td>authorization failed</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHCFAIL</tt></td>
+<td>generic authentication failure</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHCFAIL-ABORT</tt></td>
+<td>authentication was aborted</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHCFAIL-BACKEND</tt></td>
+<td>the authentication backend failed</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHCFAIL-BUG</tt></td>
+<td>authentication failed due some programming error</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHCFAIL-DENY</tt></td>
+<td>authentication was denied</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHCFAIL-WEAKPASSWORD</tt></td>
+<td>the password used didn't met minimum criteria</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHCFAIL-ACL</tt></td>
+<td>access was denied due to ruleset or acl</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHCFAIL-DENY-RETRY</tt></td>
+<td>the user tried the same wrong password once more</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHCFAIL-PASSWORD-NOT_TEXT</tt></td>
+<td>the password isn't specified as clear-text</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHCFAIL-BAD-CHALLENGE-LENGTH</tt></td>
+<td>the MSCHAP challenge length didn't match</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHCFAIL-NOPASS</tt></td>
+<td>there's no passwort set for the user</td>
+</tr>
+<tr>
+<td><tt class="literal">AUTHCPASS</tt></td>
+<td>authentication passed</td>
+</tr>
+<tr>
+<td><tt class="literal">ACCT-START</tt></td>
+<td>accounting start</td>
+</tr>
+<tr>
+<td><tt class="literal">ACCT-STOP</tt></td>
+<td>accounting stop</td>
+</tr>
+<tr>
+<td><tt class="literal">ACCT-UNKNOWN</tt></td>
+<td>unknown (non-compliant) accounting data</td>
+</tr>
+<tr>
+<td><tt class="literal">ACCT-UPDATE</tt></td>
+<td>accounting update/watchdog</td>
+</tr>
+<tr>
+<td><tt class="literal">CONN-REJECT</tt></td>
+<td>connection was rejected</td>
+</tr>
+<tr>
+<td><tt class="literal">CONN-START</tt></td>
+<td>connection was started</td>
+</tr>
+<tr>
+<td><tt class="literal">CONN-STOP</tt></td>
+<td>connection was terminated</td>
+</tr>
+</tbody>
+</table>
+</div>
+</li>
+<li>
+<p><tt class="literal">time zone =</tt> <span class=
+"emphasis"><i class="emphasis">time-zone</i></span></p>
+<p>By default, the daemon uses your local system time zone to
+convert the internal system time to calendar time. This option sets
+the <tt class="literal">TZ</tt> environment variable to the
+<span class="emphasis"><i class="emphasis">time-zone</i></span>
+argument. See your local <tt class="literal">tzset</tt> man page
+for details.</p>
+</li>
+<li>
+<p><tt class="literal">umask =</tt> <span class=
+"emphasis"><i class="emphasis">mode</i></span></p>
+<p>This sets the file creation mode mask. Example:</p>
+<pre class="screen">umask = 0640</pre></li>
+</ul>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN730" id="AEN730">4.2.3.1.1.
+Accounting</a></h6>
+<p>All accounting records are written, as text, to the file (or
+command) specified with the <tt class="literal">accounting log</tt>
+directive.</p>
+<p>Accounting records are text lines containing tab-separated
+fields. The first 6 fields are always the same. These are:</p>
+<ul>
+<li>
+<p>timestamp</p>
+</li>
+<li>
+<p>NAS address</p>
+</li>
+<li>
+<p>username</p>
+</li>
+<li>
+<p>port</p>
+</li>
+<li>
+<p>NAC address</p>
+</li>
+<li>
+<p>record type</p>
+</li>
+</ul>
+<p>Following these, a variable number of fields are written,
+depending on the accounting record type. All are of the form
+<tt class="literal">attribute=value</tt>. There will always be a
+<tt class="literal">task_id</tt> field.</p>
+<p>Attributes, as sent by the NAS, might be:</p>
+<p><tt class="literal">unknown service start_time port elapsed_time
+status priv_level cmd protocol cmd-arg bytes_in bytes_out paks_in
+paks_out address task_id callback-dialstring nocallback-verify
+callback-line callback-rotary</tt></p>
+<p>More may appear,. randomly..</p>
+<p>Example records (lines wrapped for legibility) are thus:</p>
+<pre class=
+"screen">1995-07-13 13:35:28 -0500  172.16.1.4  chein  tty5   198.51.100.141
+        stop   task_id=12028  service=exec  port=5   elapsed_time=875
+1995-07-13 13:37:04 -0500  172.16.1.4  lol    tty18  198.51.100.129
+        stop   task_id=11613  service=exec  port=18  elapsed_time=909
+1995-07-13 14:09:02 -0500  172.16.1.4  billw  tty18  198.51.100.152
+        start  task_id=17150  service=exec  port=18
+1995-07-13 14:09:02 -0500  172.16.1.4  billw  tty18  198.51.100.152
+        start  task_id=17150  service=exec  port=18</pre>
+<p>Elapsed time is in seconds, and is the field most people are
+usually interested in.</p>
+</div>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN758" id="AEN758">4.2.3.1.2.
+Spoofing Syslog Packets</a></h6>
+<p>The script <tt class="literal">tacspooflog.pl</tt> (which comes
+bundled with this distribution) may be used to make <tt class=
+"literal">syslogd</tt> believe that logs come straight from your
+router, not from <tt class="literal">tac_plus</tt>.</p>
+<p>E.g., if your <tt class="literal">syslogd</tt> is listening on
+<tt class="literal">127.0.0.1</tt>, you may try:</p>
+<pre class=
+"screen">  access log = "|exec sudo /path/to/tacspooflog.pl 127.0.0.1"</pre>
+<p>This may be useful if you want to keep logs in a common
+place.</p>
+<p>Please note that this will work for IPv4 destinations only.</p>
+</div>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN770" id="AEN770">4.2.3.2. Limits
+and timeouts</a></h5>
+<p>A number of global limits and timeouts may be specified at realm
+and global level:</p>
+<ul>
+<li>
+<p><tt class="literal">connection timeout =</tt> <span class=
+"emphasis"><i class="emphasis">s</i></span></p>
+<p>Terminate a connection to a NAS after an idle period of at least
+<span class="emphasis"><i class="emphasis">s</i></span>
+seconds.</p>
+<p>Default: 600</p>
+</li>
+<li>
+<p><tt class="literal">context timeout =</tt> <span class=
+"emphasis"><i class="emphasis">s</i></span></p>
+<p>Clears context cache entries after <span class=
+"emphasis"><i class="emphasis">s</i></span> seconds of inactivity.
+Default: 3600 seconds.</p>
+<p>Default: 3600</p>
+</li>
+<li>
+<p><tt class="literal">warning period =</tt> <span class=
+"emphasis"><i class="emphasis">d</i></span></p>
+<p>Set warning period for password expiry to <span class=
+"emphasis"><i class="emphasis">d</i></span> days.</p>
+<p>Default: 14</p>
+</li>
+</ul>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN795" id="AEN795">4.2.3.2.1.
+Authentication</a></h6>
+<ul>
+<li>
+<p><tt class="literal">password</tt> ( <tt class="literal">acl
+=</tt> <span class="emphasis"><i class="emphasis">acl</i></span>
+)</p>
+<p><tt class="literal">password acl</tt> may be used to perform
+simple compliance checks on user passwords. For example, to enforce
+a minimum password length of 6 characters you may try</p>
+<pre class="screen">acl password-compliance {
+    if (password =~ /^....../)
+        permit
+    deny
+}
+password acl = password-compliance</pre>
+<p>Authentications using passwords that fail the check will be
+rejected.</p>
+</li>
+<li>
+<p><tt class="literal">anonymous-enable =</tt> ( <tt class=
+"literal">permit</tt> | <tt class="literal">deny</tt> )</p>
+<p>Several broken <span class="emphasis"><i class=
+"emphasis">TACACS+</i></span> implementations send no or an invalid
+username in <tt class="literal">enable</tt> packets. Setting this
+option to <tt class="literal">deny</tt> tries to enforce user
+authentication before enabling. This option defaults to <tt class=
+"literal">permit</tt>.</p>
+<p>Alas, this may or may not work. In theory, the enable dialog
+should look somewhat like:</p>
+<pre class="screen">Router&gt; enable
+Username: me
+Password: *******
+Enable Password: **********
+Router#</pre>
+<p>However, some implementations may resend the user password at
+the <tt class="literal">Enable Password:</tt> prompt. In that case
+you've got only two options: Either try</p>
+<pre class="screen">    enable = login</pre>
+<p>at user profile level, which will omit the secondary password
+query and let the user enable with his login password, or permit
+anonymous <tt class="literal">enable</tt> (which is disabled by
+default) with</p>
+<pre class="screen">    anonymous-enable = permit</pre>
+<p>in host context to use the enable passwords defined there.</p>
+</li>
+<li>
+<p><tt class="literal">augmented-enable =</tt> ( <tt class=
+"literal">permit</tt> | <tt class="literal">deny</tt> )</p>
+<p>For outdated <span class="emphasis"><i class=
+"emphasis">TACACS+</i></span> client implementations that send
+<tt class="literal">$enable$</tt> instead of the real username in
+an enable request, this will permit user specific authentication
+using a concatenation of username and login password, separated
+with a single space character:</p>
+<pre class="screen">&gt; enable
+Password: myusername mypassword
+#</pre>
+<p><tt class="literal">enable</tt> [ <span class=
+"emphasis"><i class="emphasis">level</i></span> ] <tt class=
+"literal">= login</tt> needs to be set in the users' profile for
+this option to take effect.</p>
+<p>Default: <tt class="literal">augmented-enable = deny</tt></p>
+<p><tt class="literal">augmented-enable</tt> will only take effect
+if the NAS tries to authenticate a username matching the regex</p>
+<pre class="screen">^\$enab..\$$</pre>
+<p>(e.g.: <tt class="literal">$enable$</tt>, <tt class=
+"literal">$enab15$</tt>). That matching criteria may be changed
+using an ACL:</p>
+<pre class=
+"screen">acl custom_enable_acl { if (user =~ ^demo$) permit deny }
+enable user acl = custom_enable_acl</pre></li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN848" id="AEN848">4.2.3.2.2. User
+back-end options</a></h6>
+<p>These options are relevant for configuring the MAVIS user
+back-end:</p>
+<ul>
+<li>
+<p><tt class="literal">pap password</tt> [ <tt class=
+"literal">default</tt> ] <tt class="literal">=</tt> ( <tt class=
+"literal">login</tt> | <tt class="literal">pap</tt> )</p>
+<p>When set to <tt class="literal">login</tt>, the PAP password
+default for new users will be set to use the login password.</p>
+</li>
+<li>
+<p><tt class="literal">pap password mapping =</tt> ( <tt class=
+"literal">login</tt> | <tt class="literal">pap</tt> )</p>
+<p>When set to <tt class="literal">login</tt>, PAP authentication
+requests will be mapped to ASCII Login requests. You may wish to
+uses this for NEXUS devices.</p>
+<p>May be overridden at host level.</p>
+</li>
+<li>
+<p><tt class="literal">user backend = mavis</tt></p>
+<p>Get user data from the MAVIS back-end. Without that directive,
+only locally defined users will be available and the MAVIS back-end
+may be used for authenticating known users (with <tt class=
+"literal">password = mavis</tt> or simlar) only.</p>
+</li>
+<li>
+<p><tt class="literal">pap backend = mavis</tt> [ <tt class=
+"literal">prefetch</tt> ]</p>
+<p>Verify PAP passwords using the MAVIS back-end. This needs to be
+set to either <tt class="literal">mavis</tt> or <tt class=
+"literal">prefetch</tt> in order to authenticate PAP requests using
+the MAVIS back-end. If unset, the PAP password from the users'
+profile will be used.</p>
+<p>If <tt class="literal">prefetch</tt> is specified, the daemon
+will first retrieve the users' profile from the back-end and then
+authenticate the user based on information eventually found
+there.</p>
+<p>This directive implies <tt class="literal">user backend =
+mavis</tt>.</p>
+</li>
+<li>
+<p><tt class="literal">login backend = mavis</tt> [ <tt class=
+"literal">prefetch</tt> ] [ <tt class="literal">chalresp</tt> [
+<tt class="literal">noecho</tt> ] ] [ <tt class=
+"literal">chpass</tt> ]</p>
+<p>Verify Login passwords using the MAVIS back-end. This needs to
+be set to either <tt class="literal">mavis</tt> or <tt class=
+"literal">prefetch</tt> in order to authenticate login requests
+using the MAVIS back-end. If unset, the login password from the
+users' profile will be used.</p>
+<p>If <tt class="literal">prefetch</tt> is specified, the daemon
+will first retrieve the users' profile from the back-end and then
+authenticate the user based on information eventually found
+there.</p>
+<p>This directive implies <tt class="literal">user backend =
+mavis</tt>.</p>
+<p>For use with OPIE-enabled MAVIS modules, add the <tt class=
+"literal">chalresp</tt> keyword (and, optionally, add <tt class=
+"literal">noecho</tt>, unless you want the typed-in response to
+display on the screen). Example:</p>
+<pre class="screen">login backend = mavis chalresp noecho</pre>
+<p>For non-local users, if the <tt class="literal">chpass</tt>
+attribute is set and the user provides an empty password at login,
+the user is given the option to change his password. This requires
+appropriate support in the MAVIS back-end modules.</p>
+</li>
+<li>
+<p><tt class="literal">mavis module =</tt> <span class=
+"emphasis"><i class="emphasis">module</i></span> <tt class=
+"literal">{</tt> ... <tt class="literal">}</tt></p>
+<p>Load MAVIS module <span class="emphasis"><i class=
+"emphasis">module</i></span>. See the MAVIS documentation for
+configuration guidance.</p>
+</li>
+<li>
+<p><tt class="literal">mavis path =</tt> <span class=
+"emphasis"><i class="emphasis">path</i></span></p>
+<p>Add <span class="emphasis"><i class="emphasis">path</i></span>
+to the search-path for MAVIS modules.</p>
+</li>
+<li>
+<p><tt class="literal">mavis cache timeout =</tt> <span class=
+"emphasis"><i class="emphasis">s</i></span></p>
+<p>Cache MAVIS authentication data for <span class=
+"emphasis"><i class="emphasis">s</i></span> seconds. If
+<span class="emphasis"><i class="emphasis">s</i></span> is set to a
+value smaller than <tt class="literal">11</tt>, the dynamic user
+object is valid for the current TACACS+ session only. Default is
+<tt class="literal">120</tt> seconds.</p>
+</li>
+<li>
+<p><tt class="literal">mavis noauthcache</tt></p>
+<p>Disables password caching for MAVIS modules.</p>
+</li>
+<li>
+<p><tt class="literal">mavis user filter =</tt> <span class=
+"emphasis"><i class="emphasis">acl</i></span></p>
+<p>Query MAVIS user back-end only if <span class=
+"emphasis"><i class="emphasis">acl</i></span> matches. Defaults
+to:</p>
+<pre class=
+"screen">acl __internal__username_acl__ { if (user =~ "[]&lt;&gt;/()|=[]+") deny permit }
+mavis user filter = __internal__username_acl__ </pre></li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN939" id="AEN939">4.2.3.2.3.
+TLS</a></h6>
+<p>If compiled with LibTLS support the following configuration
+options are available:</p>
+<ul>
+<li>
+<p><tt class="literal">tls cert-file =</tt> <span class=
+"emphasis"><i class="emphasis">cert-file</i></span></p>
+<p>Specifies the public part of a TLS server certificate in PEM
+format.</p>
+</li>
+<li>
+<p><tt class="literal">tls key-file =</tt> <span class=
+"emphasis"><i class="emphasis">key-file</i></span></p>
+<p>Specifies the private part (the key) of a TLS server certificate
+in PEM format.</p>
+</li>
+<li>
+<p><tt class="literal">tls passphrase =</tt> <span class=
+"emphasis"><i class="emphasis">passphrase</i></span></p>
+<p>Specifies the optional passphrase to decrypt <span class=
+"emphasis"><i class="emphasis">key-file</i></span>.</p>
+</li>
+<li>
+<p><tt class="literal">tls cafile =</tt> <span class=
+"emphasis"><i class="emphasis">cafile</i></span></p>
+<p>Specifies a file with the CAs to use.</p>
+</li>
+</ul>
+<p>Example:</p>
+<pre class="screen">id = spawnd {
+    listen { port = 4949 realm = heck }
+    listen { port = 4950 realm = heck tls = yes }
+    spawn { instances min = 1 instances max = 32 }
+    id = tac_plus-ng {
+            ...
+        realm heck {
+            tls cert-file = /somewhere/tac-ca/server.tacacstest.crt
+            tls key-file = /somewhere/tac-ca/server.key
+            tls ca-file = /somewhere/tac-ca/ca.crt
+            ...
+        }
+    }
+}
+</pre></div>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN966" id="AEN966">4.2.3.2.4.
+Miscellaneous</a></h6>
+<p>In <span class="bold"><b class="emphasis">spawnd
+listen</b></span> context,</p>
+<ul>
+<li>
+<p><tt class="literal">haproxy =</tt> ( <tt class=
+"literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p>will will tell <span class="bold"><b class=
+"emphasis">tac_plus-ng</b></span> to auto-detect that a connection
+is proxied via HAProxy protocol 2.</p>
+<p>A suitable HAProxy configuration could look similar to:</p>
+<pre class="screen">frontend tacplus
+    bind *:49
+    mode tcp
+    default_backend backendtacplus
+
+backend backendtacplus
+    balance source
+    server tacserver1 127.0.0.1:4949 no-check send-proxy-v2
+</pre></li>
+<li>
+<p><tt class="literal">tls =</tt> ( <tt class="literal">yes</tt> |
+<tt class="literal">no</tt> )</p>
+<p>will tell <span class="bold"><b class=
+"emphasis">tac_plus-ng</b></span> whether the connection is TLS
+encrypted.</p>
+</li>
+<li>
+<p><tt class="literal">vrf =</tt> ( <span class=
+"emphasis"><i class="emphasis">vrf-name</i></span> | <span class=
+"emphasis"><i class="emphasis">vrf-number</i></span> )</p>
+<p>will tell <span class="bold"><b class="emphasis">spawnd
+listen</b></span> to <span class="emphasis"><i class=
+"emphasis">bind(2)</i></span> to the requested VRF (<span class=
+"emphasis"><i class="emphasis">vrf-name</i></span> on Linux,
+<span class="emphasis"><i class="emphasis">vrf-number</i></span> on
+OpenBSD).</p>
+</li>
+</ul>
+<p>Example:</p>
+<pre class="screen">id = spawnd {
+    ...
+    listen {
+        port = 49
+        vrf = vrf-blue
+        tls = true
+        haproxy = true
+    }
+    ....
+}</pre></div>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN999" id="AEN999">4.2.3.2.5. Realm
+Inheritance</a></h6>
+<p>Realms inherit quite some configuration from their parent
+realm:</p>
+<div class="informaltable"><a name="AEN1002" id="AEN1002"></a>
+<table border="1" frame="border" class="CALSTABLE">
+<col width="20%" title="col1">
+<col width="80%" title="col2">
+<thead>
+<tr>
+<th>Declaration of ...</th>
+<th>is taken from parent realm ...</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>acl</td>
+<td>if not found in current realm</td>
+</tr>
+<tr>
+<td>dns forward mapping</td>
+<td>if not found in current realm</td>
+</tr>
+<tr>
+<td>group</td>
+<td>if not found in current realm</td>
+</tr>
+<tr>
+<td>host (IP lookup)</td>
+<td>if no hosts defined in current realm</td>
+</tr>
+<tr>
+<td>host (name lookup)</td>
+<td>if not found in current realm</td>
+</tr>
+<tr>
+<td>log</td>
+<td>always</td>
+</tr>
+<tr>
+<td>mavis module</td>
+<td>if not set and no users defined in current realm</td>
+</tr>
+<tr>
+<td>network</td>
+<td>if not found in current realm</td>
+</tr>
+<tr>
+<td>profile</td>
+<td>if not found in current realm</td>
+</tr>
+<tr>
+<td>ruleset</td>
+<td>if not set or undefined result in current realm</td>
+</tr>
+<tr>
+<td>timespec</td>
+<td>if not found in current realm</td>
+</tr>
+<tr>
+<td>user</td>
+<td>if no users defined in current realm</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN1047" id="AEN1047">4.2.3.2.6.
+Railroad Diagrams</a></h6>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/RealmAttr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: RealmAttr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/RealmAttrAuthen.svg"></p>
+<div class="caption">
+<p>Railroad diagram: RealmAttrAuthen</p>
+</div>
+</div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1063" id="AEN1063">4.2.3.3.
+Networks</a></h5>
+<p>Networks consist of IP addresses or other networks. They may
+overlap. Networks can be used in ACLs. The parent of a network may
+be set either implicitly (by defining it it parent context) or
+explicitly.</p>
+<pre class="screen">  net home {
+        address = 172.16.0.0/23
+        net dev {
+            address = 172.16.0.15
+        }
+        parent = ...
+
+  }</pre>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN1067" id="AEN1067">4.2.3.3.1.
+Railroad Diagrams</a></h6>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/NetDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: NetDecl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/NetAttr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: NetAttr</p>
+</div>
+</div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1083" id="AEN1083">4.2.3.4.
+Hosts</a></h5>
+<p>The daemon will talk to known NAS addresses only. Connections
+from unknown addresses will be rejected.</p>
+<p>If you want <span class="bold"><b class=
+"emphasis">tac_plus</b></span> to encrypt its packets (and you
+almost certainly <span class="emphasis"><i class=
+"emphasis">do</i></span> want this, as there can be usernames and
+passwords contained in there), then you'll have to specify an
+(non-empty) encryption key. The identical key must also be
+configured on any NAS which communicates with tac_plus.</p>
+<p>To specify a global key, use a statement similar to</p>
+<pre class="screen">  host world4 {
+    key = "your key here"
+    address = 0.0.0.0/0
+  }</pre>
+<p>(where <tt class="literal">world</tt> is <span class=
+"emphasis"><i class="emphasis">not</i></span> a keyword, but just
+some arbitrary character string).</p>
+<div class="tip">
+<table class="tip" width="100%" border="0">
+<tr>
+<td width="25" align="center" valign="top"><img src=
+"../images/tip.gif" hspace="5" alt="Tip"></td>
+<th align="left" valign="middle"><b>Double Quotes</b></th>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td align="left" valign="top">
+<p>You only need double quotes on the daemon if your key contains
+spaces. Confusingly, even if your key does contain spaces, you
+should <span class="emphasis"><i class="emphasis">never</i></span>
+use double quotes when you configure the matching key on the
+NAS.</p>
+<p>The daemon will reject connections from hosts that have no
+encryption key defined.</p>
+<p>Double quotes within double-quoted strings may be escaped using
+the backslash character <tt class="literal">\</tt> (which can be
+escaped by itself), e.g.:</p>
+<pre class="screen">key = "quo\\te me\"."</pre>
+<p>translates to the ASCII sequence</p>
+<pre class="screen">quo\te me".</pre></td>
+</tr>
+</table>
+</div>
+<p>Any CIDR range within a host definition needs to to be unique,
+and the most specific definition will match. The requirement for
+unambiguousness is quite simply based on the fact that certain host
+object attributes (key, prompt, enable passwords) may only exist
+once.</p>
+<p>If compiled with TLS support, primary criteria for host object
+selection with TLS is no longer the NAS IP address but the
+certificate subject and/or the common name. E.g., <tt class=
+"literal">CN=server.tacacstest.demo,OU=org,OU=local</tt> will check
+for host objects named <tt class=
+"literal">CN=server.tacacstest.demo,OU=org,OU=local</tt>,
+<tt class="literal">OU=org,OU=local</tt>, <tt class=
+"literal">OU=local</tt> and then for <tt class=
+"literal">server.tacacstest.demo</tt>, <tt class=
+"literal">tacacstest.demo</tt> and <tt class="literal">demo</tt>
+before falling back to IP based selection.</p>
+<p>On the NAS, you also need to configure the <span class=
+"emphasis"><i class="emphasis">same</i></span> key. Do this by
+issuing the current variant of:</p>
+<pre class="screen">aaa new-model
+tacacs-server host 192.168.0.1 single-connection key your key here</pre>
+<p>The optional <tt class="literal">single-connection</tt>
+parameter specifies that multiple sessions may use the same TCP/IP
+connection to the server.</p>
+<p>Generally, the syntax for host declarations conforms to</p>
+<p><tt class="literal">host</tt> <span class="emphasis"><i class=
+"emphasis">name</i></span> { <span class="emphasis"><i class=
+"emphasis">key-value pairs</i></span> }</p>
+<p>The key-value pairs permitted in host sections of the
+configuration file are explained below.</p>
+<ul>
+<li>
+<p><tt class="literal">key</tt> [<tt class="literal">warn</tt>] (
+<span class="emphasis"><i class=
+"emphasis">YYYY</i></span><tt class="literal">-</tt><span class=
+"emphasis"><i class="emphasis">MM</i></span><tt class=
+"literal">-</tt><span class="emphasis"><i class=
+"emphasis">DD</i></span> | <span class="emphasis"><i class=
+"emphasis">s</i></span> ) ] <tt class="literal">=</tt> <span class=
+"emphasis"><i class="emphasis">string</i></span></p>
+<p>This sets the key used for encrypting the communication between
+server and NAS. Multiple keys may be set, making key migration from
+one key to another pretty easy. If the <tt class=
+"literal">warn</tt> keyword is specified, a warning message is
+logged when a NAS actually uses the key. Optionally, the <tt class=
+"literal">warn</tt> keyword accepts a date argument that specifies
+when the warnings should start to appear in the logs.</p>
+<p>During debugging, it may be convenient to temporarily switch off
+encryption by using an empty key:</p>
+<pre class="screen">key = ""</pre>
+<p>Be careful to remember to switch encryption back on again after
+you've finished debugging.</p>
+</li>
+<li>
+<p><tt class="literal">address =</tt> <span class=
+"emphasis"><i class="emphasis">cidr</i></span></p>
+<p>Adds the address range specified by <span class=
+"emphasis"><i class="emphasis">cidr</i></span> to the current host
+definition.</p>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/CIDR.svg"></p>
+<div class="caption">
+<p>Railroad diagram: CIDR</p>
+</div>
+</div>
+</li>
+<li>
+<p><tt class="literal">address file =</tt> <span class=
+"emphasis"><i class="emphasis">file</i></span></p>
+<p>Add the addresses from <span class="emphasis"><i class=
+"emphasis">file</i></span> to the current host definition. Shell
+wildcard patterns are expanded by <tt class=
+"literal">glob(3)</tt>.</p>
+</li>
+<li>
+<p><tt class="literal">single-connection</tt> ( <tt class=
+"literal">may-close</tt> ) <tt class="literal">=</tt> ( <tt class=
+"literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p>This directive may be used to permit or deny the
+single-connection feature for a particular host object. The
+<tt class="literal">may-close</tt> keyword tells the daemon to
+close the connection if it's unused.</p>
+<div class="note">
+<table class="note" width="100%" border="0">
+<tr>
+<td width="25" align="center" valign="top"><img src=
+"../images/note.gif" hspace="5" alt="Note"></td>
+<th align="left" valign="middle"><b>Caveat Emptor</b></th>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td align="left" valign="top">
+<p>There's a slight chance that single-connection doesn't work as
+expected. The single-connection implementation in your router or
+even the one implemented in this daemon (or possibly both) may be
+buggy. If you're noticing weird AAA behaviour that can't be
+explained otherwise, then try disabling single-connection on the
+router.</p>
+</td>
+</tr>
+</table>
+</div>
+</li>
+<li>
+<p><tt class="literal">parent =</tt> hostName</p>
+<p>This sets the the parent hosts. Definitions not found in the
+current host will be looked up there, recursively.</p>
+</li>
+<li>
+<p><tt class="literal">host</tt> hostName <tt class=
+"literal">{</tt> HostAttr <tt class="literal">}</tt></p>
+<p>Hosts can be defined in host context, too.</p>
+</li>
+</ul>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN1185" id="AEN1185">4.2.3.4.1.
+Timeouts</a></h6>
+<p>The connection timeout may be specified:</p>
+<ul>
+<li>
+<p><tt class="literal">connection timeout =</tt> <span class=
+"emphasis"><i class="emphasis">s</i></span></p>
+<p>Terminate a connection to this NAS after an idle period of at
+least <span class="emphasis"><i class="emphasis">s</i></span>
+seconds. Defaults to the global option.</p>
+</li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN1195" id="AEN1195">4.2.3.4.2.
+Authentication</a></h6>
+<p>The following authentication related directives are available at
+host object level:</p>
+<ul>
+<li>
+<p><tt class="literal">pap password mapping =</tt> ( <tt class=
+"literal">login</tt> | <tt class="literal">pap</tt> )</p>
+<p>When set to <tt class="literal">login</tt>, PAP authentication
+requests will be mapped to ASCII Login requests. You may wish to
+uses this for NEXUS devices.</p>
+</li>
+<li>
+<p><tt class="literal">enable</tt> [ <span class=
+"emphasis"><i class="emphasis">level</i></span> ] <tt class=
+"literal">=</tt> ( <tt class="literal">permit</tt> | <tt class=
+"literal">deny</tt> | <tt class="literal">login</tt> | ( <tt class=
+"literal">clear</tt> | <tt class="literal">crypt</tt>) <span class=
+"emphasis"><i class="emphasis">password</i></span> )</p>
+<p>This directive may be used to set host specific enable
+passwords, to use the <span class="emphasis"><i class=
+"emphasis">login</i></span> password, or to permit (without
+password) or refuse any enable attempt. <span class=
+"emphasis"><i class="emphasis">level</i></span> defaults to 15.</p>
+<p>Enable passwords specified at host level have a lower precedence
+as those defined at user or profile level.</p>
+<div class="note">
+<table class="note" width="100%" border="0">
+<tr>
+<td width="25" align="center" valign="top"><img src=
+"../images/note.gif" hspace="5" alt="Note"></td>
+<th align="left" valign="middle"><b>Password Hashes</b></th>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td align="left" valign="top">
+<p>You can use the <tt class="literal">openssl passwd</tt> utility
+to compute password hashes.</p>
+</td>
+</tr>
+</table>
+</div>
+<p>You can enable via TACACS+ by configuring on the NAS:</p>
+<pre class=
+"screen">aaa authentication enable default group tacacs+ enable</pre></li>
+<li>
+<p><tt class="literal">anonymous-enable =</tt> ( <tt class=
+"literal">permit</tt> | <tt class="literal">deny</tt> )</p>
+<p>Several broken <span class="emphasis"><i class=
+"emphasis">TACACS+</i></span> implementations send no or an invalid
+username in <tt class="literal">enable</tt> packets. Setting this
+option to <tt class="literal">deny</tt> enforces user
+authentication before enabling. Setting this option here has
+precedence over the global option.</p>
+</li>
+<li>
+<p><tt class="literal">augmented-enable =</tt> ( <tt class=
+"literal">permit</tt> | <tt class="literal">deny</tt> )</p>
+<p>For <span class="emphasis"><i class=
+"emphasis">TACACS+</i></span> client implementations that send
+<tt class="literal">$enable$</tt> instead of the real username in
+an enable request, this will permit user specific authentication
+using a concatenation of username and login password, separated
+with a single space character. Setting this option here has
+precedence over the global option.</p>
+<p><tt class="literal">enable</tt> [ <span class=
+"emphasis"><i class="emphasis">level</i></span> ] <tt class=
+"literal">= login</tt> needs to be set in the users' profile for
+this option to take effect.</p>
+</li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN1248" id="AEN1248">4.2.3.4.3.
+Authorization</a></h6>
+<p>The following authorization related directives are available at
+host object level:</p>
+<ul>
+<li>
+<p><tt class="literal">permit if-authenticated =</tt> ( <tt class=
+"literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p>This will cause authorization for users unknown to the daemon to
+succeed (e.g. when logging in locally while the daemon is down or
+while initially configuring TACACS+ support and messing up).</p>
+</li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN1258" id="AEN1258">4.2.3.4.4.
+Banners and Messages</a></h6>
+<p>The daemon allows for various banners to be displayed to the
+user:</p>
+<ul>
+<li>
+<p><tt class="literal">welcome banner</tt> ( <span class=
+"emphasis"><i class="emphasis">fallback</i></span> ) <tt class=
+"literal">=</tt> <span class="emphasis"><i class=
+"emphasis">string</i></span></p>
+</li>
+<li>
+<p><tt class="literal">motd banner =</tt> <span class=
+"emphasis"><i class="emphasis">string</i></span></p>
+</li>
+<li>
+<p><tt class="literal">reject banner =</tt> <span class=
+"emphasis"><i class="emphasis">string</i></span></p>
+<p>The <tt class="literal">reject banner</tt> gets displayed in
+place of the welcome message if a connection was rejected by an
+<tt class="literal">access</tt> ACL defined at host, user or group
+level.</p>
+</li>
+<li>
+<p><tt class="literal">message =</tt> <span class=
+"emphasis"><i class="emphasis">string</i></span></p>
+</li>
+</ul>
+<p>The time when those texts get displayed largely depends on the
+actual login method:</p>
+<div class="informaltable"><a name="AEN1284" id="AEN1284"></a>
+<table border="1" frame="border" class="CALSTABLE">
+<col>
+<col>
+<col>
+<col>
+<col>
+<thead>
+<tr>
+<th>Context</th>
+<th>Directive</th>
+<th>Telnet</th>
+<th>SSHv1</th>
+<th>SSHv2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><tt class="literal">host</tt></td>
+<td><tt class="literal">welcome banner</tt></td>
+<td>
+<p>displayed before</p>
+<p><tt class="literal">Username:</tt></p>
+</td>
+<td>not displayed</td>
+<td>
+<p>displayed before</p>
+<p><tt class="literal">Password:</tt></p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">host</tt></td>
+<td><tt class="literal">reject banner</tt></td>
+<td>displayed before closing connection</td>
+<td>not displayed</td>
+<td>not displayed</td>
+</tr>
+<tr>
+<td><tt class="literal">host</tt></td>
+<td><tt class="literal">motd banner</tt></td>
+<td>displayed after successful login</td>
+<td>not displayed</td>
+<td>displayed after successful login</td>
+</tr>
+<tr>
+<td><tt class="literal">host</tt></td>
+<td><tt class="literal">failed authentication banner</tt></td>
+<td>displayed after unsuccessful login</td>
+<td>not displayed</td>
+<td>displayed after unsuccessful login</td>
+</tr>
+<tr>
+<td><tt class="literal">user</tt> or <tt class=
+"literal">group</tt></td>
+<td><tt class="literal">message</tt></td>
+<td>
+<p>displayed after</p>
+<p><tt class="literal">motd banner</tt></p>
+</td>
+<td>not displayed</td>
+<td>
+<p>displayed after</p>
+<p><tt class="literal">motd banner</tt></p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Neither the <tt class="literal">motd banner</tt> nor a
+<tt class="literal">message</tt> defined in the users' profile will
+be displayed if <tt class="literal">hushlogin</tt> is set for the
+user.</p>
+<p>Both banners and messages support the same conversions as logs,
+unless specified as user level.</p>
+<p>Example:</p>
+<pre class="screen">  host <span class="emphasis"><i class=
+"emphasis">...</i></span> {
+    <span class="emphasis"><i class="emphasis">...</i></span>
+    welcome banner = "Welcome. Today is %A.\n"
+    <span class="emphasis"><i class="emphasis">...</i></span>
+  }</pre></div>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN1357" id="AEN1357">4.2.3.4.5.
+Workarounds for Client Bugs</a></h6>
+<p>The directive</p>
+<p><tt class="literal">bug compatibility =</tt> <span class=
+"emphasis"><i class="emphasis">value</i></span></p>
+<p>may improve compatibility with clients that violate the TACACS+
+protocol. Currently, the following bit values (yes, you can use
+bitwise OR here) are recognized:</p>
+<div class="informaltable"><a name="AEN1364" id="AEN1364"></a>
+<table border="1" frame="border" class="CALSTABLE">
+<col width="5%" title="col1">
+<col width="5%" title="col2">
+<col width="90%" title="col3">
+<thead>
+<tr>
+<th>Bit</th>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>1</td>
+<td>Ignore invalid AUTHEN/START data, seen with ZTE devices that
+put their MAC address there.</td>
+</tr>
+<tr>
+<td>1</td>
+<td>2</td>
+<td>Accept version 1 for authorization and accounting packets, seen
+with Palo Alto systems.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Example:</p>
+<pre class="screen">  host <span class="emphasis"><i class=
+"emphasis">...</i></span> {
+    <span class="emphasis"><i class="emphasis">...</i></span>
+    bug compatibility = 2
+    <span class="emphasis"><i class="emphasis">...</i></span>
+  }</pre></div>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN1388" id="AEN1388">4.2.3.4.6.
+Inheritance and Hosts</a></h6>
+<p>For address based host lookups, the daemon looks for the most
+specific host definition. Values that aren't defined (if any) will
+be lookup up in the host's parent, which may be either set
+implicitely by defining a host in the context of it's parent host,
+or expliitely, using the <tt class="literal">parent</tt>
+statement.</p>
+</div>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN1392" id="AEN1392">4.2.3.4.7.
+Railroad Diagrams</a></h6>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/HostDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: HostDecl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/HostAttr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: HostAttr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/EnableExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: EnableExpr</p>
+</div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN1415" id="AEN1415">4.2.3.4.8.
+Example</a></h6>
+<pre class="screen">host = customer1 {
+    address = 10.0.0.0/8
+    key = "your key here"
+    welcome banner = "\nHitherto shalt thou come, but no further. (Job 38.11)\n\n"
+    enable 15 = clear whatever
+}
+
+host = test123 {
+    address = 10.1.2.0/28
+    address = 10.12.1.30/28
+    address = 10.1.1.2
+    # key/banners/enable will be inherited from 10.0.0.0/8 by default,
+    # unless you specify "inherit = no"
+    address file = /some/path/test123.cidr
+    prompt = "\nGo away.\n\n"
+}</pre></div>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1418" id="AEN1418">4.2.3.5. Time
+Ranges</a></h5>
+<p><tt class="literal">timespec</tt> objects may be used for time
+based profile assignments. Both <tt class="literal">cron</tt> and
+<tt class="literal">Taylor-UUCP</tt> syntax are supported; see you
+local <tt class="literal">crontab</tt><span class=
+"emphasis"><i class="emphasis">(5)</i></span> and/or UUCP man pages
+for details. Syntax:</p>
+<p><tt class="literal">timespec =</tt> <span class=
+"emphasis"><i class="emphasis">timespec_name</i></span> <tt class=
+"literal">{ "</tt><span class="emphasis"><i class=
+"emphasis">entry</i></span><tt class="literal">"</tt> [ ... ]
+<tt class="literal">}</tt></p>
+<p>Example:</p>
+<pre class=
+"screen"># Working hours are from Mo-Fr from 9 to 16:59, and
+# on Saturdays from 9 to 12:59:
+timespec workinghours {
+    "* 9-16 * * 1-5"   # or: "* 9-16 * * Mon-Fri"
+    "* 9-12 * * 6"     # or: "* 9-12 * * Sat"
+}
+
+timespec sunday { "* * * * 0" }
+
+timespec example {
+    Wk2305-0855,Sa,Su2305-1655
+    Wk0905-2255,Su1705-2255
+    Any
+}</pre>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN1435" id="AEN1435">4.2.3.5.1.
+Railroad Diagrams</a></h6>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/TimespecDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: TimespecDecl</p>
+</div>
+</div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1444" id="AEN1444">4.2.3.6. Access
+Control Lists</a></h5>
+<p>Access Control Lists (or, more exactly, Access Control Scripts)
+are the main component of ruleset evaluation.</p>
+<p>Scripts may currently be used for ACLs, in service declaration
+scope and for rule sets:</p>
+<ul>
+<li>
+<p><tt class="literal">acl</tt> acl_name <tt class="literal">{</tt>
+tac_action ... <tt class="literal">}</tt></p>
+<p>Example:</p>
+<pre class="screen">    acl myacl123 {
+        if (nas == 1.2.3.4 || nac = SomeHostName || nac-dns =~ /\\.example\\.com$/) deny
+    }</pre></li>
+<li>
+<p><tt class="literal">script = {</tt> tac_action ... <tt class=
+"literal">}</tt></p>
+<p>Example:</p>
+<pre class="screen">    profile messUp {
+        service shell {
+            script {
+                if (cmd == "") permit # required for shell startup
+                if (cmd =~ /^(no\s)?shutdown\s/) permit }
+                deny
+        }
+    }
+
+    user joe {
+        password = ...
+        member = ops
+    }
+    ruleset {
+        rule opsRule {
+            script {
+                if (group == ops)
+                    profile = messUp
+                    permit
+            }
+        }
+    }</pre></li>
+</ul>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN1462" id="AEN1462">4.2.3.6.1.
+Syntax</a></h6>
+<p>A script consists of a series of actions:</p>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/TacAction.svg"></p>
+<div class="caption">
+<p>Railroad diagram: TacAction</p>
+</div>
+</div>
+<p>The actions <tt class="literal">return</tt>, <tt class=
+"literal">permit</tt> and <tt class="literal">deny</tt> are final.
+At the end of a script, <tt class="literal">return</tt> is implied,
+at which the daemon continues processing the configured <tt class=
+"literal">cmd</tt> statements in <tt class="literal">shell</tt>
+context) or standard ACLs (in ACL context). The assignment
+operations (<tt class="literal">context =</tt>, <tt class=
+"literal">message =</tt>) do make sense in <tt class=
+"literal">shell</tt> context only.</p>
+<p>Setting the <tt class="literal">context</tt> variable makes
+sense in <tt class="literal">shell</tt> context only. See the
+example in the corresponding section.</p>
+<p>Attribute-related directives are:</p>
+<ul>
+<li>
+<p><tt class="literal">default attribute =</tt> ( <tt class=
+"literal">permit</tt> | <tt class="literal">deny</tt> )</p>
+<p>This directive specifies whether the daemon is to accept or
+reject unknown attributes sent by the NAS (default: <tt class=
+"literal">deny</tt>).</p>
+</li>
+<li>
+<p>( <tt class="literal">set</tt> | <tt class="literal">add</tt> |
+<tt class="literal">optional</tt> ) <span class=
+"emphasis"><i class="emphasis">attribute</i></span> <tt class=
+"literal">=</tt> <span class="emphasis"><i class=
+"emphasis">value</i></span></p>
+<p>Defines mandatory and optional attribute-value pairs:</p>
+<ul>
+<li>
+<p><tt class="literal">set</tt> unconditionally returns a mandatory
+AV pair to the NAS</p>
+</li>
+<li>
+<p><tt class="literal">optional</tt> returns a NAS-requested (and
+perhaps modified) optional AV pair to the NAS unless the attribute
+was already in the mandatory list</p>
+</li>
+<li>
+<p><tt class="literal">add</tt> returns an optional AV pair to the
+client even if the client didn't request it (and it was neither in
+the mandatory nor optional list)</p>
+</li>
+</ul>
+Example:
+<pre class="screen">set priv-lvl = 15</pre>
+<p>For a detailed description on mandatory and optional AV-pairs,
+see the "The Authorization Algorithm" section somewhere below.</p>
+<div class="tip">
+<table class="tip" width="100%" border="0">
+<tr>
+<td width="25" align="center" valign="top"><img src=
+"../images/tip.gif" hspace="5" alt="Tip"></td>
+<th align="left" valign="middle"><b>Variables</b></th>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td align="left" valign="top">
+<p>The same variables supported for logging can be used as
+attribute values, too. Example: <tt class="literal">set uid =
+"${uid}"</tt></p>
+</td>
+</tr>
+</table>
+</div>
+</li>
+<li>
+<p><tt class="literal">return</tt></p>
+<p>Use the current service definition as-is. This stops the daemon
+from checking for the same service in the groups the current user
+(or group) is a member of.</p>
+</li>
+</ul>
+<p>Condition syntax is:</p>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/TacCond.svg"></p>
+<div class="caption">
+<p>Railroad diagram: TacCond</p>
+</div>
+</div>
+<p><tt class="literal">cmd</tt> and <tt class=
+"literal">context</tt> may be used in <tt class=
+"literal">shell</tt> context only. <tt class="literal">tls_*</tt>
+conditions require <span class="emphasis"><i class=
+"emphasis">libtls</i></span>.</p>
+</div>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1537" id="AEN1537">4.2.3.7.
+Rewriting User Names</a></h5>
+<p>This is experimental. It requires the binary to be built with
+PCRE v2 support (using the <tt class="literal">--with-pcre2</tt>
+configure option).</p>
+<p>A host may refer to a rewrite profile defined at realm level to
+substitute user names. The following sample code will map both
+<tt class="literal">admin</tt> and <tt class="literal">root</tt> to
+<tt class="literal">marc</tt>, and convert all other usernames to
+lower-case:</p>
+<pre class="screen">rewrite rewriteRule {
+    rewrite /^admin$/ jane.doe
+    rewrite /^root$/ jane.doe
+    rewrite /^.*$/ \L$0
+}
+
+host ... {
+    ...
+    rewrite user = rewriteRule
+    ...
+}</pre>
+<p>Please keep in mind that this is experimental ...</p>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1547" id="AEN1547">4.2.3.8.
+Users</a></h5>
+<p>The basic form of a user declarations is</p>
+<pre class="screen">user <span class="emphasis"><i class=
+"emphasis">username</i></span> { <span class="emphasis"><i class=
+"emphasis">... </i></span> }</pre>
+<p>A user or group declaration may contain key-value pairs and
+service declarations.</p>
+<p>The following declarations are valid in <span class=
+"emphasis"><i class="emphasis">user</i></span> context only:</p>
+<ul>
+<li>
+<p><tt class="literal">password login =</tt> ( ( <tt class=
+"literal">clear</tt> | <tt class="literal">crypt</tt> )
+<span class="emphasis"><i class="emphasis">password</i></span> |
+<tt class="literal">mavis</tt> | <tt class="literal">permit</tt> |
+<tt class="literal">deny</tt> )</p>
+<p>The <tt class="literal">login</tt> password authenticates
+<tt class="literal">shell</tt> log-ins to the server.</p>
+<pre class="screen">password login = crypt aFtFBT4e5muQE
+password login = clear Ci5c0</pre>
+<p>For the argument after <tt class="literal">crypt</tt> you may
+use whatever hashes your <span class="emphasis"><i class=
+"emphasis">crypt(3)</i></span> implementation supports.</p>
+<p>If the <tt class="literal">mavis</tt> keyword is used instead,
+the password will be looked up via the <span class="bold"><b class=
+"emphasis">MAVIS</b></span> back-end. It will not be cached. This
+functionality may be useful if you want to authenticate at external
+systems, despite static user declarations in the configuration
+file.</p>
+</li>
+<li>
+<p><tt class="literal">password pap =</tt> ( ( <tt class=
+"literal">clear</tt> | <tt class="literal">crypt</tt> )
+<span class="emphasis"><i class="emphasis">password</i></span> |
+<tt class="literal">login|mavis</tt> | <tt class=
+"literal">permit</tt> | <tt class="literal">deny</tt> )</p>
+<p>The <tt class="literal">pap</tt> authenticates PAP log-ins to
+the server. Just like with <tt class="literal">login</tt>, the
+password doesn't need to be in clear text, but may be hashed, or
+may be looked up via the <span class="bold"><b class=
+"emphasis">MAVIS</b></span> back-end. You can even map pap to login
+globally by configuring pap <tt class="literal">password =
+login</tt> in realm context.</p>
+</li>
+<li>
+<p><tt class="literal">password chap =</tt> ( <tt class=
+"literal">clear</tt> <span class="emphasis"><i class=
+"emphasis">password</i></span> | <tt class="literal">permit</tt> |
+<tt class="literal">deny</tt> )</p>
+<p>For CHAP authentication, a cleartext password is required.</p>
+</li>
+<li>
+<p><tt class="literal">password ms-chap =</tt> ( <tt class=
+"literal">clear</tt> <span class="emphasis"><i class=
+"emphasis">password</i></span> | <tt class="literal">permit</tt> |
+<tt class="literal">deny</tt> )</p>
+<p>For MS-CHAP authentication, a cleartext password is
+required.</p>
+</li>
+<li>
+<p><tt class="literal">password</tt> [ <tt class="literal">acl</tt>
+<span class="emphasis"><i class="emphasis">acl</i></span> ]
+<tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
+<p>This directive allows specification of ACL-dependent passwords.
+Example:</p>
+<pre class=
+"screen">acl jumpstation { if (nac == 10.255.0.85) permit deny }
+
+user marc {
+    password acl jumpstation {
+        login = permit
+        pap = permit
+    }
+    password {
+        login = clear myLoginPassword
+        pap = clear myPapPassword
+    }
+}</pre></li>
+<li>
+<p><tt class="literal">enable</tt> [ <span class=
+"emphasis"><i class="emphasis">level</i></span> ] <tt class=
+"literal">=</tt> ( <tt class="literal">permit</tt> | <tt class=
+"literal">deny</tt> | <tt class="literal">login</tt> | ( <tt class=
+"literal">clear</tt> | <tt class="literal">crypt</tt> )
+<span class="emphasis"><i class="emphasis">password</i></span>
+)</p>
+<p>This directive may be used to set user specific enable
+passwords, to use the <span class="emphasis"><i class=
+"emphasis">login</i></span> password, or to permit (without
+password) or refuse any enable attempt. Enable secrets defined at
+user level have precedence over those defined at host level.
+<span class="emphasis"><i class="emphasis">level</i></span>
+defaults to 15.</p>
+<p>The default privilege level for an ordinary user on the NAS is
+usually 1. When a user enables, she can reset this level to a value
+between 0 and 15 by using the NAS <tt class="literal">enable</tt>
+command. If she doesn't specify a level, the default level she
+enables to is 15.</p>
+</li>
+<li>
+<p><tt class="literal">message =</tt> <span class=
+"emphasis"><i class="emphasis">string</i></span></p>
+<p>A message displayed to the user upon log-in.</p>
+</li>
+<li>
+<p><tt class="literal">hushlogin =</tt> ( <tt class=
+"literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p>Setting <tt class="literal">hushlogin</tt> to <tt class=
+"literal">yes</tt> keeps the daemon from displaying <tt class=
+"literal">motd</tt> and <tt class="literal">user</tt> messages upon
+login.</p>
+</li>
+<li>
+<p><tt class="literal">valid from =</tt> ( <span class=
+"emphasis"><i class="emphasis">YYYY</i></span><tt class=
+"literal">-</tt><span class="emphasis"><i class=
+"emphasis">MM</i></span><tt class="literal">-</tt><span class=
+"emphasis"><i class="emphasis">DD</i></span> | <span class=
+"emphasis"><i class="emphasis">s</i></span> )</p>
+<p>The user profile will be valid starting at the given date, which
+can be specified either in ISO8601 date format or as in seconds
+since January 1, 1970, UTC.</p>
+</li>
+<li>
+<p><tt class="literal">valid until =</tt> ( <span class=
+"emphasis"><i class="emphasis">YYYY</i></span><tt class=
+"literal">-</tt><span class="emphasis"><i class=
+"emphasis">MM</i></span><tt class="literal">-</tt><span class=
+"emphasis"><i class="emphasis">DD</i></span> | <span class=
+"emphasis"><i class="emphasis">s</i></span> )</p>
+<p>The user profile will be invalid after the given date.</p>
+</li>
+<li>
+<p><tt class="literal">member =</tt> <span class=
+"emphasis"><i class="emphasis">groupOne</i></span>[<tt class=
+"literal">,</tt><span class="emphasis"><i class=
+"emphasis">groupTwo</i></span>]*</p>
+<p>This specifies group membership. A user can be a member of
+multiple groups and groups can be members of a parent group.</p>
+</li>
+</ul>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN1673" id="AEN1673">4.2.3.8.1.
+Railroad Diagrams</a></h6>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/UserDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: UserDecl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/UserAttr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ServiceDecl</p>
+</div>
+</div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1689" id="AEN1689">4.2.3.9.
+Groups</a></h5>
+<p>A user can be a member of multiple groups. A user that is a
+member of a group that comes with a parent group is a member of the
+latter, too. Group are defined using</p>
+<pre class="screen">group <span class="emphasis"><i class=
+"emphasis">groupname</i></span> { <span class="emphasis"><i class=
+"emphasis"> ... </i></span> }</pre>
+<p>The following key-value pairs are valid for groups:</p>
+<ul>
+<li>
+<p><tt class="literal">member =</tt> <span class=
+"emphasis"><i class="emphasis">groupOne</i></span>[<tt class=
+"literal">,</tt><span class="emphasis"><i class=
+"emphasis">groupTwo</i></span>]*</p>
+<p>This specifies group membership.</p>
+</li>
+<li>
+<p><tt class="literal">parent =</tt> groupName</p>
+<p>The parent of a group can be set explicitly.</p>
+</li>
+<li>
+<p><tt class="literal">group</tt> groupName <tt class=
+"literal">{</tt> GroupAttr <tt class="literal">}</tt></p>
+<p>Groups may be parents of other groups.</p>
+</li>
+</ul>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN1714" id="AEN1714">4.2.3.9.1.
+Railroad Diagrams</a></h6>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/GroupDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: GroupDecl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/GroupAttr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: GroupAttr</p>
+</div>
+</div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1730" id="AEN1730">4.2.3.10.
+Profiles</a></h5>
+<p>Profiles are collections of services that can be assigned to
+users via the policy rule-set. Syntax is</p>
+<p><tt class="literal">profile</tt> <span class=
+"emphasis"><i class="emphasis">profileName</i></span> <tt class=
+"literal">{</tt> <span class="emphasis"><i class=
+"emphasis">profileAttr</i></span> <tt class="literal"> }</tt></p>
+<p>Profiles are collections of services available to a user. A
+couple of configuration attributes are service specific and only
+valid in certain contexts:</p>
+<p><span class="bold"><b class="emphasis">SHELL (EXEC)
+Service</b></span></p>
+<p>Shell startup should have an appropriate service</p>
+<pre class="screen">service shell { }</pre>
+<p>defined. Valid configuration directive within the curly brackets
+are:</p>
+<ul>
+<li>
+<p><tt class="literal">message</tt> ( <tt class=
+"literal">permit</tt> | <tt class="literal">deny</tt> ) <tt class=
+"literal">=</tt> <span class="emphasis"><i class=
+"emphasis">string</i></span></p>
+<p>This specifies a message to be presented to the user on
+accepting or rejecting a command. Recognized string substitutions
+within <span class="emphasis"><i class="emphasis">string</i></span>
+are <tt class="literal">%c</tt> for the command name, <tt class=
+"literal">%a</tt> for the command arguments and <tt class=
+"literal">%C</tt> for the currenly set context. Example:</p>
+<pre class="screen">message permit "Permitted '%c %a'"
+message deny "Denied '%c %a'"</pre>
+<p>This directive may appear in <tt class="literal">cmd</tt>
+sections, too, where it overrides the <tt class=
+"literal">service</tt> section definitions.</p>
+</li>
+<li>
+<p><tt class="literal">script {</tt> <span class=
+"emphasis"><i class="emphasis">tacAction</i></span> <tt class=
+"literal">}</tt></p>
+<p>Commands can be permitted or denied using script syntax:</p>
+<pre class="screen">service shell
+    script {
+        if (cmd =~ /^write term/) deny
+        if (cmd =~ /^configure /) deny
+        permit
+    }
+}</pre></li>
+</ul>
+<p>Have a look at the authorization log in case you're unsure what
+commands and arguments the router actually sends for verification.
+E.g.,</p>
+<p><span class="bold"><b class="emphasis">Non-Shell
+Services</b></span></p>
+<p>E.g. for PPP, <span class="emphasis"><i class=
+"emphasis">protocol</i></span> definitions may be used:</p>
+<pre class="screen">service ppp {
+    protocol = ip { set addr = 1.2.3.4 }
+}</pre>
+<p>Use</p>
+<pre class="screen">    default protocol = permit</pre>
+<p>or</p>
+<pre class="screen">    default protocol = deny</pre>
+<p>to specify the default for protocols not explicitly defined
+within a service declaration. (default: <tt class=
+"literal">deny</tt>).</p>
+<p>For a Juniper Networks-specific authorization service, use:</p>
+<pre class="screen">service junos-exec {
+   set local-user-name = NOC
+   # see the Junos documentation for more attributes
+}</pre>
+<p>Likewise, for Raritan Dominion SX IP Console Servers:</p>
+<pre class="screen">service dominionsx {
+    set port-list = "1 3 4 15"
+    set user-type = administator # or operator, or observer
+}</pre>
+<div class="tip">
+<table class="tip" width="100%" border="0">
+<tr>
+<td width="25" align="center" valign="top"><img src=
+"../images/tip.gif" hspace="5" alt="Tip"></td>
+<th align="left" valign="middle"><b>Quotes</b></th>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td align="left" valign="top">
+<p>If your router expects double-quoted values (e.g. Cisco Nexus
+devices do), you can advise the parser to automatically add
+these:</p>
+<pre class="screen">service shell {
+    set shell:roles="\"network-admin\""
+}</pre>
+<p>and</p>
+<pre class="screen">service shell {
+    double-quote-values = yes
+    set shell:roles="network-admin"
+}</pre>
+<p>are equivalent, but the latter is more readable.</p>
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1792" id="AEN1792">4.2.3.11.
+Railroad Diagrams</a></h5>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/UserMessage.svg"></p>
+<div class="caption">
+<p>Railroad diagram: UserMessage</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/ProfileDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ProfileDecl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/ProfileAttr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ProfileAttr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/PasswordExprHash.svg"></p>
+<div class="caption">
+<p>Railroad diagram: PasswordExprHash</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/TopLevelAttr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: TopLevelAttr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/Debug.svg"></p>
+<div class="caption">
+<p>Railroad diagram: Debug</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/Acl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: Acl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/ServiceDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ServiceDecl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/ServiceAttr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ServiceAttr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/AttrDefault.svg"></p>
+<div class="caption">
+<p>Railroad diagram: AttrDefault</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/AVPair.svg"></p>
+<div class="caption">
+<p>Railroad diagram: AVPair</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/ShellDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ShellDecl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/ShellAttr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ShellAttr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/TacScript.svg"></p>
+<div class="caption">
+<p>Railroad diagram: TacScript</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/ShellCommandDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ShellCommandDecl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/ProtoDefault.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ProtoDefault</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/tac_plus-ng/ProtoDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ProtoDecl</p>
+</div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1913" id="AEN1913">4.2.3.12.
+Configuring Non-local Users via MAVIS</a></h5>
+<p><span class="bold"><b class="emphasis">MAVIS</b></span>
+configuration is optional. You don't need it if you're content with
+user configuration in the main configuration file.</p>
+<p><span class="bold"><b class="emphasis">MAVIS</b></span>
+back-ends may dynamically create user entries, based, e.g., on LDAP
+information.</p>
+<p>For PAP and LOGIN,</p>
+<pre class="screen">pap backend = mavis
+login backend = mavis</pre>
+<p>in the global section delegate authentiation to the MAVIS
+sub-system. Statically defined users are still valid, and have a
+higher precedence.</p>
+<p>By default, MAVIS user data will be cached for 120 seconds. You
+may change that period using</p>
+<pre class="screen">cache timeout = <span class=
+"emphasis"><i class="emphasis">seconds</i></span>
+</pre>
+<p>in the global configuration section.</p>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1926" id="AEN1926">4.2.3.13.
+Configuring Local Users for MAVIS authentication</a></h5>
+<p>Under certain circumstances you may wish to keep the user
+definitions in the plain text configuration file, but authenticate
+against some external system nevertheless, e.g. LDAP or RADIUS. To
+do so, just specify one of</p>
+<pre class="screen">    login = mavis
+    pap = mavis
+    password = mavis</pre>
+<p>in the corresponding user definition.</p>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1931" id="AEN1931">4.2.3.14.
+Configuring User Authentication</a></h5>
+<p>User Authentication can be specified separately for PAP, CHAP,
+and normal logins. CHAP and global user authentication must be
+given in clear text.</p>
+<p>The following assigns the user mary five different passwords for
+inbound and outbound CHAP, inbound PAP, outbound PAP, and normal
+login respectively:</p>
+<pre class="screen">user mary {
+    password chap = clear "chap password"
+    password pap  = clear "inbound pap password"
+    password login = crypt XQj4892fjk
+}</pre>
+<p>If</p>
+<pre class="screen">user backend = mavis</pre>
+<p>is configured in the global section, users not found in the
+configuration file will be looked up by the MAVIS back-end. You
+should consider using this option in conjuction with the more
+sophisticated back-ends (LDAP and ActiveDirectory, in particular),
+or whenever you're not willing to duplicate your pre-existing
+database user data to the configuration file. For users looked up
+by the MAVIS back-end,</p>
+<pre class="screen">pap backend = mavis</pre>
+<p>and/or</p>
+<pre class="screen">login backend = mavis</pre>
+<p>(again, in the global section of the configuration file) will
+cause PAP and/or Login authentication to be performed by the MAVIS
+back-end (e.g. by performing an LDAP bind), ignoring any
+corresponding password definitions in the users' profile.</p>
+<p>If you just want the users defined in your configuration file to
+authenticate using the MAVIS back-end, simply set the corresponding
+PAP or Login password field to <tt class="literal">mavis</tt>
+(there's no need to add the <tt class="literal">user backend =
+mavis</tt> directive in this case):</p>
+<pre class="screen">user mary { login = mavis }</pre></div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1947" id="AEN1947">4.2.3.15.
+Configuring Expiry Dates</a></h5>
+<p>An entry of the form:</p>
+<pre class="screen">user lol {
+    valid until = <span class="emphasis"><i class=
+"emphasis">YYYY</i></span>-<span class="emphasis"><i class=
+"emphasis">MM</i></span>-<span class="emphasis"><i class=
+"emphasis">DD</i></span>
+    password login = clear "bite me"
+}</pre>
+<p>will cause the user profile to become invalid, starting after
+the <tt class="literal">valid until</tt> date. Valid date formats
+are both ISO8601 and the absolute number of seconds since
+1970-01-01.</p>
+<p>A expiry warning message is sent to the user when she logs in,
+by default starting at 14 days before the expiration date, but
+configurable via the <tt class="literal">warning period</tt>
+directive.</p>
+<p>Complementary to profile expiry,</p>
+<pre class="screen">    valid from = <span class=
+"emphasis"><i class="emphasis">YYYY</i></span>-<span class=
+"emphasis"><i class="emphasis">MM</i></span>-<span class=
+"emphasis"><i class="emphasis">DD</i></span></pre>
+<p>activates a profile at the given date.</p>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1964" id="AEN1964">4.2.3.16.
+Configuring Authentication on the NAS</a></h5>
+<p>On the NAS, to configure login authentication, try</p>
+<pre class="screen">aaa new-model
+aaa authentication login default group tacacs+ local</pre>
+<p>(Alternatively, you can try a <span class="emphasis"><i class=
+"emphasis">named authentication list</i></span> instead of
+<tt class="literal">default</tt>. Please see the IOS documentation
+for details.)</p>
+<div class="caution">
+<table class="caution" width="100%" border="0">
+<tr>
+<td width="25" align="center" valign="top"><img src=
+"../images/caution.gif" hspace="5" alt="Caution"></td>
+<th align="left" valign="middle"><b>Don't lock yourself
+out.</b></th>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td align="left" valign="top">
+<p>As soon as you issue this command, you will no longer be able to
+create new logins to your NAS without a functioning TACACS+ daemon
+appropriately configured with usernames and password, so make sure
+you have this ready.</p>
+<p>As a safety measure while setting up, you should configure an
+enable secret and make it the last resort authentication method, so
+if your TACACS+ daemon fails to respond you will be able to use the
+NAS enable password to login. To do this, configure:</p>
+<pre class=
+"screen">aaa authentication login default group tacacs+ enable</pre>
+<p>or, to if you have local accounts:</p>
+<pre class=
+"screen">aaa authentication login default group tacacs+ local</pre>
+<p>If all else fails, and you find yourself locked out of the NAS
+due to a configuration problem, the section on <span class=
+"emphasis"><i class="emphasis">recovering from lost
+passwords</i></span> on Cisco's CCO web page will help you dig your
+way out.</p>
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1980" id="AEN1980">4.2.3.17.
+Configuring Authorization</a></h5>
+<p>Authorization must be configured on both the NAS and the daemon
+to operate correctly. By default, the NAS will allow everything
+until you configure it to make authorization requests to the
+daemon.</p>
+<p>On the daemon, the opposite is true: The daemon will, by
+default, deny authorization of anything that isn't explicitly
+permitted.</p>
+<p>Authorization allows the daemon to deny commands and services
+outright, or to modify commands and services on a per-user basis.
+Authorization on the daemon is divided into two separate parts:
+commands and services.</p>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1985" id="AEN1985">4.2.3.18.
+Authorizing Commands</a></h5>
+<p>Exec commands are those commands which are typed at a NAS exec
+prompt. When authorization is requested by the NAS, the entire
+command is sent to the tac_plus daemon for authorization.</p>
+<p>Command authorization is configured by telling the ruleset to
+apply a profile to the user. See the Profile section for
+details.</p>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN1989" id="AEN1989">4.2.3.19. The
+Authorization Process</a></h5>
+<p>Authorizing a single session can result in multiple requests
+being sent to the daemon. For example, in order to authorize a
+dialin PPP user for IP, the following authorization requests will
+be made from the NAS:</p>
+<ol type="1">
+<li>
+<p>An initial authorization request to startup PPP from the exec,
+using the AV pairs <tt class="literal">service=ppp</tt>, <tt class=
+"literal">protocol=ip</tt>, will be made (Note: this initial
+request will be omitted if you are autoselecting PPP, since you
+won't know the username yet).</p>
+<p>This request is really done to find the address for dumb PPP (or
+SLIP) clients who can't do address negotiation. Instead, they
+expect you to tell them what address to use before PPP starts up,
+via a text message e.g. "Entering PPP. Your address is 1.2.3.4".
+They rely on parsing this address from the message to know their
+address.</p>
+</li>
+<li>
+<p>Next, an authorization request is made from the PPP subsystem to
+see if PPP's LCP layer is authorized. LCP parameters can be set at
+this time (e.g. callback). This request contains the AV pairs
+<tt class="literal">service=ppp</tt>, <tt class=
+"literal">protocol=lcp</tt>.</p>
+</li>
+<li>
+<p>Next an authorization request to startup PPP's IPCP layer is
+made using the AV pairs <tt class="literal">service=ppp</tt>,
+<tt class="literal">protocol=ipcp</tt>. Any parameters returned by
+the daemon are cached.</p>
+</li>
+<li>
+<p>Next, during PPP's address negotiation phase, each time the
+remote peer requests a specific address, if that address isn't in
+the cache obtained in step 3, a new authorization request is made
+to see if the peers requested address is allowable. This step can
+be repeated multiple times until both sides agree on the remote
+peer's address or until the NAS (or client) decide they're never
+going to agree and they shut down PPP instead.</p>
+</li>
+</ol>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN2008" id="AEN2008">4.2.3.20.
+Authorization Relies on Authentication</a></h5>
+<p>Since we pretty much rely on having a username in authorization
+requests to decide which addresses etc. to hand out, it is
+important to know where the username for a PPP user comes from.
+There are generally 2 possible sources:</p>
+<ol type="1">
+<li>
+<p>You force the user to authenticate by making her login to the
+exec and you use that login name in authorization requests. This
+username isn't propagated to PPP by default. To have this happen,
+you generally need to configure the <tt class=
+"literal">if-needed</tt> method, e.g.</p>
+<pre class="screen">aaa authentication login default tacacs+
+aaa authentication ppp default if-needed</pre></li>
+<li>
+<p>Alternatively, you can run an authentication protocol, PAP or
+CHAP (CHAP is much preferred), to identify the user. You don't need
+an explicit login step if you do this (so it's the only possibility
+if you are using autoselect). This authentication gets done before
+you see the first LCP authorization request of course. Typically
+you configure this by doing:</p>
+<pre class="screen">aaa authentication ppp default tacacs+ 
+int async 1
+  ppp authentication chap</pre></li>
+</ol>
+<p>If you omit either of these authentication schemes, you will
+start to see authorization requests in which the username is
+missing.</p>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN2020" id="AEN2020">4.2.3.21.
+Configuring Service Authorization</a></h5>
+<p>A list of AV pairs is placed in the daemon's configuration file
+in order to authorize services. The daemon compares each NAS AV
+pair to its configured AV pairs and either allows or denies the
+service. If the service is allowed, the daemon may add, change or
+delete AV pairs before returning them to the NAS, thereby
+restricting what the user is permitted to do.</p>
+<div class="section">
+<hr>
+<h6 class="section"><a name="AEN2023" id="AEN2023">4.2.3.21.1. The
+Authorization Algorithm</a></h6>
+<p>The complete algorithm by which the daemon processes its
+configured AV pairs against the list the NAS sends, is given
+below.</p>
+<p>Find the user (or group) entry for this service (and protocol),
+then for each AV pair sent from the NAS:</p>
+<ol type="1">
+<li>
+<p>If the AV pair from the NAS is mandatory:</p>
+<ol type="a">
+<li>
+<p>look for an exact attribute,value match in the user's mandatory
+list. If found, add the AV pair to the output.</p>
+</li>
+<li>
+<p>If an exact match doesn't exist, look in the user's optional
+list for the first attribute match. If found, add the NAS AV pair
+to the output.</p>
+</li>
+<li>
+<p>If no attribute match exists, deny the command if the default is
+to deny, or,</p>
+</li>
+<li>
+<p>If the default is permit, add the NAS AV pair to the output.</p>
+</li>
+</ol>
+</li>
+<li>
+<p>If the AV pair from the NAS is optional:</p>
+<ol type="a">
+<li>
+<p>look for an exact attribute,value match in the user's mandatory
+list. If found, add DAEMON's AV pair to output.</p>
+</li>
+<li>
+<p>If not found, look for the first attribute match in the user's
+mandatory list. If found, add DAEMON's AV pair to output.</p>
+</li>
+<li>
+<p>If no mandatory match exists, look for an exact attribute,value
+pair match among the daemon's optional AV pairs. If found add the
+DAEMON's matching AV pair to the output.</p>
+</li>
+<li>
+<p>If no exact match exists, locate the first attribute match among
+the daemon's optional AV pairs. If found add the DAEMON's matching
+AV pair to the output.</p>
+</li>
+<li>
+<p>If no match is found, delete the AV pair if the default is deny,
+or</p>
+</li>
+<li>
+<p>If the default is permit add the NAS AV pair to the output.</p>
+</li>
+</ol>
+</li>
+<li>
+<p>After all AV pairs have been processed, for each mandatory
+DAEMON AV pair, if there is no attribute match already in the
+output list, add the AV pair (but add only ONE AV pair for each
+mandatory attribute).</p>
+</li>
+<li>
+<p>After all AV pairs have been processed, for each optional
+unrequested DAEMON AV pair, if there is no attribute match already
+in the output list, add that AV pair (but add only ONE AV pair for
+each optional attribute).</p>
+</li>
+</ol>
+</div>
+</div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN2058" id="AEN2058">4.3. MAVIS
+Backends</a></h3>
+<p>The distribution comes with various <span class=
+"emphasis"><i class="emphasis">MAVIS</i></span> modules, of which
+the <span class="emphasis"><i class="emphasis">external</i></span>
+module is probably the most interesting, as it interacts with
+simple Perl scripts to authenticate and authorize requests. You'll
+find sample scripts in the <tt class="literal">mavis/perl</tt>
+directory. Have a close look at them, as you may (or will) need to
+perform some trivial customizations to make them match your local
+environment.</p>
+<p>You should really have a look at the <span class=
+"emphasis"><i class="emphasis">MAVIS</i></span> documentation. It
+gives examples for RADIUS and PAM authentication, too.</p>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN2066" id="AEN2066">4.3.1. LDAP
+Backends</a></h4>
+<p><tt class="literal">mavis_tacplus_ldap.pl</tt> is an
+authentication/authorization back-end for the <span class=
+"emphasis"><i class="emphasis">external</i></span> module. It
+interfaces to various kinds of LDAP servers, e.g. OpenLDAP, Fedora
+DS and Active Directory. Its behaviour is controlled by a list of
+environmental variables:</p>
+<div class="informaltable"><a name="AEN2071" id="AEN2071"></a>
+<table border="1" frame="border" class="CALSTABLE">
+<col width="30%" title="col1">
+<col width="70%" title="col2">
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><tt class="literal">LDAP_SERVER_TYPE</tt></td>
+<td>
+<p>One of: <tt class="literal">generic</tt>, <tt class=
+"literal">tacacs_schema</tt>, <tt class=
+"literal">microsoft</tt>.</p>
+<p>Default: <tt class="literal">tacacs_schema</tt></p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">LDAP_HOSTS</tt></td>
+<td>
+<p>Space-separated list of LDAP URLs or IP addresses or
+hostnames</p>
+<p>Examples:</p>
+<p><tt class="literal">"ldap01 ldap02"</tt>, <tt class=
+"literal">"ldaps://ads01:636 ldaps://ads02:636"</tt></p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">LDAP_SCOPE</tt></td>
+<td>
+<p>LDAP search scope (<tt class="literal">base</tt>, <tt class=
+"literal">one</tt>, <tt class="literal">sub</tt>)</p>
+<p>Default: <tt class="literal">sub</tt></p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">LDAP_BASE</tt></td>
+<td>
+<p>Base DN of your LDAP server</p>
+<p>Example: <tt class="literal">dc=example,dc=com</tt></p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">LDAP_FILTER</tt></td>
+<td>
+<p>LDAP search filter. Defaults:</p>
+<ul>
+<li>
+<p>for <tt class="literal">LDAP_SERVER_TYPE=generic</tt>:</p>
+<p><tt class="literal">"(uid=%s)"</tt></p>
+</li>
+<li>
+<p>for <tt class="literal">LDAP_SERVER_TYPE=tacacs_schema</tt>:</p>
+<p><tt class=
+"literal">"(&amp;(uid=%s)(objectClass=tacacsAccount))"</tt></p>
+</li>
+<li>
+<p>for <tt class="literal">LDAP_SERVER_TYPE=microsoft</tt>:</p>
+<p><tt class=
+"literal">"(&amp;(objectclass=user)(sAMAccountName=%s))"</tt></p>
+</li>
+</ul>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">LDAP_FILTER_CHPW</tt></td>
+<td>
+<p>LDAP search filter for password changes. Defaults:</p>
+<ul>
+<li>
+<p>for <tt class="literal">LDAP_SERVER_TYPE=generic</tt>:</p>
+<p><tt class="literal">"(uid=%s)"</tt></p>
+</li>
+<li>
+<p>for <tt class="literal">LDAP_SERVER_TYPE=tacacs_schema</tt>:</p>
+<p><tt class=
+"literal">"(&amp;(uid=%s)(objectClass=tacacsAccount)(!(tacacsFlag=staticpasswd)))"</tt></p>
+</li>
+<li>
+<p>for <tt class="literal">LDAP_SERVER_TYPE=microsoft</tt>:</p>
+<p><tt class=
+"literal">"(&amp;(objectclass=user)(sAMAccountName=%s))"</tt></p>
+</li>
+</ul>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">LDAP_USER</tt></td>
+<td>
+<p>User to use for LDAP bind if server doesn't permit anonymous
+searches.</p>
+<p>Default: unset</p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">LDAP_PASSWD</tt></td>
+<td>
+<p>Password for <tt class="literal">LDAP_USER</tt></p>
+<p>Default: unset</p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">AD_GROUP_PREFIX</tt></td>
+<td>
+<p>An AD group starting with this prefix will be used as the user's
+TACACS+ group membership. The value of <tt class=
+"literal">AD_GROUP_PREFIX</tt> will be stripped from the group
+name.</p>
+<p>Example: With <tt class="literal">AD_GROUP_PREFIX</tt> set to
+<tt class="literal">tacacs</tt> (which is actually the default), an
+AD group membership of <tt class="literal">TacacsNOC</tt> will
+assign the user to the <tt class="literal">NOC</tt> TACACS+ group.
+Note that TACACS+ group names are case-sensitive.</p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">REQUIRE_AD_GROUP_PREFIX</tt></td>
+<td>
+<p>If set, user needs to be in one of the <tt class=
+"literal">AD_GROUP_PREFIX</tt> groups.</p>
+<p>Default: unset</p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">USE_TLS</tt></td>
+<td>
+<p>If set, the server is required to support <tt class=
+"literal">start_tls</tt>.</p>
+<p>Default: unset</p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">FLAG_CHPW</tt></td>
+<td>
+<p>Permit password changes via this back-end.</p>
+<p>Default: unset</p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">FLAG_PWPOLICY</tt></td>
+<td>
+<p>Try to enforce a simplicistic password policy.</p>
+<p>Default: unset</p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">FLAG_CACHE_CONNECTION</tt></td>
+<td>
+<p>Keep connection to LDAP server open.</p>
+<p>Default: unset</p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">FLAG_FALLTHROUGH</tt></td>
+<td>
+<p>If searching for the user in LDAP fails, try the next MAVIS
+module (if any).</p>
+<p>Default: unset</p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">FLAG_USE_MEMBEROF</tt></td>
+<td>
+<p>Use the <tt class="literal">memberOf</tt> attribute for
+determining group membership. Setting <tt class=
+"literal">LDAP_SERVER_TYPE</tt> to <tt class=
+"literal">microsoft</tt> implies this. May be used if you're
+running <span class="emphasis"><i class=
+"emphasis">OpenLDAP</i></span> with <span class="bold"><b class=
+"emphasis">memberof</b></span> overlay enabled.</p>
+<p>Default: unset</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN2231" id="AEN2231">4.3.1.1. LDAP
+Custom Schema Backend</a></h5>
+<p>For <tt class="literal">LDAP_SERVER_TYPE</tt> set to <tt class=
+"literal">tacacs_schema</tt>, the program expects the LDAP server
+to support the experimental <tt class="literal">ldap.schema</tt>,
+included for OpenLDAP and Fedora-DS. The schema files are located
+in the <tt class="literal">mavis/perl</tt> directory.</p>
+<p>The new schema allows for a <span class="emphasis"><i class=
+"emphasis">auxiliary</i></span> object class</p>
+<pre class="screen">objectClass: tacacsAccount</pre>
+<p>which introduces a couple of new attributes. A sample user entry
+could then look similar to the following LDIF snippet:</p>
+<pre class="screen">dn: uid=marc,ou=people,dc=example,dc=com
+uid: marc
+cn: Marc Huber
+objectClass: posixAccount
+objectClass: inetOrgPerson
+objectClass: shadowAccount
+<span class="bold"><b class=
+"emphasis">objectClass: tacacsAccount</b></span>
+shadowMax: 10000
+uidNumber: 1000
+gecos: Marc Huber
+givenName: Marc
+sn: Huber
+gidNumber: 500
+shadowLastChange: 14012
+loginShell: /bin/bash
+homeDirectory: /Users/marc
+mail: marc@example.com
+userPassword:: abcdefghijklmnopqrstuvwxyz=
+<span class="bold"><b class="emphasis">tacacsClient: 192.168.0.0/24
+tacacsClient: management
+tacacsMember: readonly,readwrite
+tacacsProfile: { valid until = 2010-01-30 chap = clear ahzoi5Ue }</b></span>
+</pre>
+<p>As <tt class="literal">tacacsProfile</tt> may (and most probably
+will) contain sensitive data, you should consider setting up LDAP
+ACLs to restrict access.</p>
+<p>You should be pretty familiar with OpenLDAP (or, for that
+matter, Fedora-DS) if you're willing to go this route. For current
+versions of OpenLDAP: Use <tt class="literal">ldapadd</tt> to add
+<tt class="literal">tacacs_schema.ldif</tt> to the <tt class=
+"literal">cn=config</tt> tree. For older versions, add <tt class=
+"literal">tacacs.schema</tt> to the list of <tt class=
+"literal">include</tt>d schema and objectClass definitions in
+<tt class="literal">slapd.conf</tt>.</p>
+</div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN2254" id="AEN2254">4.3.1.2. Active
+Directory Backend</a></h5>
+<p>If <tt class="literal">LDAP_SERVER_TYPE</tt> is set to
+<tt class="literal">microsoft</tt>, the script back-ends to AD
+servers. Sample configuration:</p>
+<pre class="screen">id = spawnd {
+    listen = {
+        port = 49
+    }
+    spawn = {
+        instances min = 1
+        instances max = 10
+    }
+    background = yes
+}
+
+id = tac_plus {
+
+    mavis module = external {
+        # Optionally:
+        # script out = {
+        #     # Require group membership:
+        #     if (undef($TACMEMBER) &amp;&amp; $RESULT == ACK) set $RESULT = NAK
+        #
+        #     # Don't cache passwords:
+        #     if ($RESULT == ACK) set $PASSWORD_ONESHOT = 1
+        # }
+
+        setenv LDAP_SERVER_TYPE = "microsoft"
+        # setenv LDAP_HOSTS = "ldaps://ads01:636 ldaps://ads02:636"
+        setenv LDAP_HOSTS = "ads01:3268 ads02:3268"
+        setenv LDAP_SCOPE = sub
+        setenv LDAP_BASE = "dc=example,dc=com"
+        setenv LDAP_FILTER = "(&amp;(objectclass=user)(sAMAccountName=%s))";
+        setenv LDAP_USER = tacacs@example.com
+        setenv LDAP_PASSWD = Secret123
+        setenv AD_GROUP_PREFIX = tacacs
+        # setenv REQUIRE_AD_GROUP_PREFIX = 1
+        setenv USE_TLS = 0
+        exec = /usr/local/lib/mavis/mavis_tacplus_ldap.pl
+    }
+
+    login backend = mavis
+    pap backend = mavis
+
+    host world {
+        address = ::/0
+        welcome banner = "Welcome\n"
+        key = demo
+    }
+
+    host helpdesklab {
+        address = 192.168.34.16/28
+        parent = world
+    }
+
+    # A user will be in the "admin" group if he's member of the
+    # corresponding "tacacsadmin" ADS group.
+
+    profile admin {
+        default service = permit
+        service shell {
+            if (cmd == "") {
+                set priv-lvl = 15
+            }
+            permit
+        }
+    }
+
+    group helpdesk { }
+
+    ruleset {
+        rule help { if (member == helpdesk) profile = admin permit
+    }
+}</pre></div>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN2260" id="AEN2260">4.3.1.3. Generic
+LDAP Backend</a></h5>
+<p>If <tt class="literal">LDAP_SERVER_TYPE</tt> is set to
+<tt class="literal">generic</tt>, the script won't require any
+modification to your LDAP server, but only authenticates users
+(with <tt class="literal">login = mavis</tt>, <tt class=
+"literal">pap = mavis</tt> or <tt class="literal">password =
+mavis</tt> declaration) defined in the configuration file. No
+authorization is done by this back-end.</p>
+</div>
+</div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN2268" id="AEN2268">4.3.2. PAM
+back-end</a></h4>
+<p>Example configuration for using <span class="emphasis"><i class=
+"emphasis">Pluggable Authentication Modules</i></span>:</p>
+<pre class="screen">id = spawnd { listen = { port = 49 } }
+
+id = tac_plus {
+  mavis module = groups {
+    resolve gids = yes
+    groups filter = /^(guest|staff)$/
+    script out = {
+      # copy the already filtered UNIX group access list to TACMEMBER
+      eval $GIDS =~ /^(.*)$/
+      set $TACMEMBER = $1
+    }
+  }
+  mavis module = external {
+    exec = /usr/local/sbin/pammavis pammavis -s sshd
+  }
+  user backend = mavis
+  login backend = mavis
+  host = global { address = 0.0.0.0/0 key = demo }
+
+  profile staff {
+    service shell {
+      script {
+          if (cmd == "") {
+            set priv-lvl = 15
+            permit
+          }
+    }
+  }
+  group = guest {
+    service shell {
+      script {
+          set priv-lvl = 15
+          if (cmd =~ ^/show /)
+            permit
+          deny
+      }
+    }
+  }
+}</pre></div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN2273" id="AEN2273">4.3.3. System
+Password Backends</a></h4>
+<p><tt class="literal">mavis_tacplus_passwd.pl</tt> authenticates
+against your local password database. Alas, to use this
+functionality, the script may have to run as root, as it needs
+access to the encrypted passwords. Primary and auxiliary UNIX group
+memberships will be mapped to TACACS+ groups.</p>
+<p><tt class="literal">mavis_tacplus_opie.pl</tt> is based on
+<tt class="literal">mavis_tacplus_passwd.pl</tt>, but uses OPIE
+one-time passwords for authentication.</p>
+</div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN2280" id="AEN2280">4.3.4. Shadow
+Backend</a></h4>
+<p><tt class="literal">mavis_tacplus_shadow.pl</tt> may be used to
+keep user passwords out of the <span class="bold"><b class=
+"emphasis">tac_plus</b></span>configuration file, enabling users to
+change their passwords via the password change dialog. Passwords
+are stored in an auxiliary, <tt class=
+"literal">/etc/shadow</tt>-like ASCII file, one user per line:</p>
+<pre class="screen"><span class="emphasis"><i class=
+"emphasis">username</i></span>:<span class="emphasis"><i class=
+"emphasis">encryptedPassword</i></span>:<span class=
+"emphasis"><i class="emphasis">lastChange</i></span>:<span class=
+"emphasis"><i class="emphasis">minAge</i></span>:<span class=
+"emphasis"><i class="emphasis">maxAge</i></span>:<span class=
+"emphasis"><i class="emphasis">reserved</i></span></pre>
+<p><tt class="literal">lastChange</tt> is the number of days since
+1970-01-01 when the password was last changed, and <tt class=
+"literal">minAge</tt> and <tt class="literal">maxAge</tt> determine
+whether the password may/may not/needs to be changed. Setting
+<tt class="literal">lastChange</tt> to <tt class="literal">0</tt>
+enforces a password change upon first login.</p>
+<p>Example shadow file:</p>
+<pre class=
+"screen">marc:$1$q5/vUEsR$jVwHmEw8zAmgkjMShLBg/.:15218:0:99999:
+newuser:$1$pQtQsMuj$GKpIr5r2GNaZNfDfnCBtw.:0:0:99999:
+test:$1$pQtQsMuj$GKpIr5r2GNaZNfDfnCBtw.:15218:1:30:
+</pre>
+<p>Sample daemon configuration:</p>
+<pre class="screen">...
+  id = tac_plus {
+    ...
+    mavis module = external {
+      setenv SHADOWFILE = /path/to/shadow
+      # setenv FLAG_PWPOLICY=y
+      # setenv ci=/usr/bin/ci
+      exec = /usr/local/lib/mavis/mavis_tacplus_shadow.pl
+    }
+    ...
+    login backend = mavis chpass
+    ...
+    user marc {
+      login = mavis
+      ...
+    }
+  ...
+  }
+...</pre></div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN2303" id="AEN2303">4.3.5. RADIUS
+Backends</a></h4>
+<p><tt class="literal">mavis_tacplus_radius.pl</tt> authenticates
+against a RADIUS server. No authorization is done, unless the
+<tt class="literal">RADIUS_GROUP_ATTR</tt> environment variable is
+set (see below). This module may, for example, be useful if you
+have static user account definitions in the configuration file, but
+authentication passwords should be verified by RADIUS. Use the
+<tt class="literal">login = mavis</tt> or <tt class=
+"literal">password = mavis</tt> statement in the user profile for
+this to work.</p>
+<p>If the <tt class="literal">Authen::Radius</tt> Perl module is
+installed, the value of the RADIUS attribute specified by
+<tt class="literal">RADIUS_GROUP_ATTR</tt> will be used to create a
+<tt class="literal">TAC_MEMBER</tt> definition which uses the
+attribute value as group membership. E.g., an attribute value of
+<tt class="literal">Administrator</tt> would result in a</p>
+<pre class="screen">  member = Administrator</pre>
+<p>declaration for the authenticated user, enabling authorization
+and omitting the need for static users in the configuration
+file.</p>
+<p>Keep in mind that authorization will only work well if
+either</p>
+<ul>
+<li>
+<p>the <tt class="literal">tacplus_info_cache</tt> module is being
+used (it will cache authentication AV pairs locally, so subsequent
+authorizations should work fine unless you're switching to a
+tac_plus server running elsewhere).</p>
+</li>
+</ul>
+<p>or</p>
+<ul>
+<li>
+<p><tt class="literal">single-connection</tt> is used and</p>
+</li>
+<li>
+<p><tt class="literal">mavis cache timeout</tt> is set to a
+sufficiently high value that covers the user's (expected) maximum
+login time.</p>
+</li>
+</ul>
+<p>Alternatively to <tt class=
+"literal">mavis_tacplus_radius.pl</tt> the <tt class=
+"literal">pamradius</tt> program may called by the <tt class=
+"literal">external</tt> module. Results should be roughly
+equivalent.</p>
+<div class="section">
+<hr>
+<h5 class="section"><a name="AEN2334" id="AEN2334">4.3.5.1. Sample
+Configuration</a></h5>
+<pre class=
+"screen">## Use tacinfo_cache to cache authorization data to disk:
+mavis module = tacinfo_cache {
+    directory = /tmp/tacinfo
+}
+
+## You can use either the Perl module ...
+#mavis module = external {
+#   exec = /usr/local/lib/mavis_tacplus_radius.pl
+#   setenv RADIUS_HOST = 1.2.3.4:1812 # could add more hosts here, comma-separated
+#   setenv RADIUS_SECRET = "mysecret"
+#   setenv RADIUS_GROUP_ATTR = Class
+#   setenv RADIUS_PASSWORD_ATTR = Password # defaults to: User-Password
+# }
+## ... or the freeradius-client based code:
+mavis module = external {
+    exec = /usr/local/sbin/radmavis radmavis "group_attribute=Class" "authserver=1.2.3.4:1812:mysecret"
+}</pre></div>
+</div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN2337" id="AEN2337">4.3.6.
+Experimental Backends</a></h4>
+<p><tt class="literal">mavis_tacplus_sms.pl</tt> is a sample
+(skeleton) script to send One-Time Passwords via a SMS
+back-end.</p>
+</div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN2341" id="AEN2341">4.3.7. Error
+Handling</a></h4>
+<p>If a back-end script fails due to an external problem (e.g. LDAP
+server unavailability), your router may or may not fall back to
+local authentication (if configured). Chances are, that the
+fallback doesn't work. If you still want to be able to authenticate
+via TACACS+ in that case, you can do so with a non-MAVIS user which
+will only be valid in case of a back-end error:</p>
+<pre class="screen">    ...
+    # set the time interval you want the user to be valid if the back-end fails:
+    authentication fallback period = 60 # that's actually the default value
+    ...
+    # add a local user for emergencies:
+    user = cisco {
+        ...
+        fallback-only
+        ...
+    }</pre>
+<p>To indicate that fallback mode is actually active, you may a
+display a different login prompt to your users:</p>
+<pre class="screen">    host = ... {
+        ...
+        welcome banner = "Welcome\n"
+        welcome banner fallback = "Welcome\nEmergency accounts are currently enabled.\n"
+        ...
+    }</pre>
+<p>Fallback can be enabled/disabled globally an on a per-host
+basis. Default is enabled.</p>
+<pre class="screen">    authentication fallback = permit
+    host = ... {
+        ...
+        authentication fallback = deny
+        ...
+    }</pre></div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN2349" id="AEN2349">5.
+Debugging</a></h2>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN2352" id="AEN2352">5.1. Debugging
+Configuration Files</a></h3>
+<p>When creating configuration files, it is convenient to check
+their syntax using the <tt class="literal">-P</tt> flag to
+<tt class="literal">tac_plus</tt>; e.g:</p>
+<pre class="screen">tac_plus -P <span class="emphasis"><i class=
+"emphasis">config-file</i></span> </pre>
+<p>will syntax check the configuration file and print any error
+messages on the terminal.</p>
+</div>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN2360" id="AEN2360">5.2. Trace
+Options</a></h3>
+<p>Trace (or debugging) options may be specified in <span class=
+"emphasis"><i class="emphasis">global</i></span>, <span class=
+"emphasis"><i class="emphasis">host</i></span>, <span class=
+"emphasis"><i class="emphasis">user</i></span> and <span class=
+"emphasis"><i class="emphasis">group</i></span> context. The
+current debugging level is a combination (read: <tt class=
+"literal">OR</tt>) of all those. Generic syntax is:</p>
+<pre class="screen">debug = <span class="emphasis"><i class=
+"emphasis">option ...</i></span></pre>
+<p>For example, getting command authorization to work in a
+predictable way can be tricky &#8208; the exact attributes the NAS
+sends to the daemon may depend on the IOS version, and may in
+general not match your expectations. If your regular expressions
+don't work, add</p>
+<pre class="screen">debug = REGEX</pre>
+<p>where appropriate, and the daemon may log some useful
+information to <tt class="literal">syslog</tt>.</p>
+<p>Multiple trace options may be specified. Example:</p>
+<pre class="screen">debug = REGEX CMD</pre>
+<p>Trace options may be removed by prefixing them with<tt class=
+"literal">-</tt>. Example:</p>
+<pre class="screen">debug = ALL -PARSE</pre>
+<p>The debugging options available are summarized in the following
+table:</p>
+<div class="informaltable"><a name="AEN2380" id="AEN2380"></a>
+<table border="1" frame="border" class="CALSTABLE">
+<col width="5%" title="col1">
+<col width="15%" title="col2">
+<col width="30%" title="col3">
+<col width="50%" title="col4">
+<thead>
+<tr>
+<th>Bit</th>
+<th>Value</th>
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>1</td>
+<td>PARSE</td>
+<td>Configuration file parsing</td>
+</tr>
+<tr>
+<td>1</td>
+<td>2</td>
+<td>AUTHOR</td>
+<td>Authorization related</td>
+</tr>
+<tr>
+<td>2</td>
+<td>4</td>
+<td>AUTHEN</td>
+<td>Authentication related</td>
+</tr>
+<tr>
+<td>3</td>
+<td>8</td>
+<td>ACCT</td>
+<td>Accounting related</td>
+</tr>
+<tr>
+<td>4</td>
+<td>16</td>
+<td>CONFIG</td>
+<td>Configuration related</td>
+</tr>
+<tr>
+<td>5</td>
+<td>32</td>
+<td>PACKET</td>
+<td>Packet dump</td>
+</tr>
+<tr>
+<td>6</td>
+<td>64</td>
+<td>HEX</td>
+<td>Packet hex-dump</td>
+</tr>
+<tr>
+<td>7</td>
+<td>128</td>
+<td>LOCK</td>
+<td>File locking</td>
+</tr>
+<tr>
+<td>8</td>
+<td>256</td>
+<td>REGEX</td>
+<td>Regular expressions</td>
+</tr>
+<tr>
+<td>9</td>
+<td>512</td>
+<td>ACL</td>
+<td>Access Control Lists</td>
+</tr>
+<tr>
+<td>10</td>
+<td>1024</td>
+<td>RADIUS</td>
+<td>unused</td>
+</tr>
+<tr>
+<td>11</td>
+<td>2048</td>
+<td>CMD</td>
+<td>Command lookups</td>
+</tr>
+<tr>
+<td>12</td>
+<td>4096</td>
+<td>BUFFER</td>
+<td>Buffer handling</td>
+</tr>
+<tr>
+<td>13</td>
+<td>8192</td>
+<td>PROC</td>
+<td>Procedural traces</td>
+</tr>
+<tr>
+<td>14</td>
+<td>16384</td>
+<td>NET</td>
+<td>Network related</td>
+</tr>
+<tr>
+<td>15</td>
+<td>32768</td>
+<td>PATH</td>
+<td>File system path related</td>
+</tr>
+<tr>
+<td>16</td>
+<td>65536</td>
+<td>CONTROL</td>
+<td>Control connection related</td>
+</tr>
+<tr>
+<td>17</td>
+<td>131072</td>
+<td>INDEX</td>
+<td>Directory index related</td>
+</tr>
+<tr>
+<td>18</td>
+<td>262144</td>
+<td>AV</td>
+<td>Attribute-Value pair handling</td>
+</tr>
+<tr>
+<td>19</td>
+<td>524288</td>
+<td>MAVIS</td>
+<td>MAVIS related</td>
+</tr>
+<tr>
+<td>20</td>
+<td>1048576</td>
+<td>LWRES</td>
+<td>DNS related</td>
+</tr>
+<tr>
+<td>21</td>
+<td>2097152</td>
+<td>USERINPUT</td>
+<td>Show user input (this may include passwords)</td>
+</tr>
+<tr>
+<td>31</td>
+<td>2147483648</td>
+<td>NONE</td>
+<td>Disable debugging</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Some of those debugging options are not used and trigger no
+output at all.</p>
+<div class="tip">
+<table class="tip" width="100%" border="0">
+<tr>
+<td width="25" align="center" valign="top"><img src=
+"../images/tip.gif" hspace="5" alt="Tip"></td>
+<th align="left" valign="middle"><b>Debugging User Input</b></th>
+</tr>
+<tr>
+<td>&nbsp;</td>
+<td align="left" valign="top">
+<p>The daemon will (starting with snapshot 202012051554) by default
+no longer outputs user input from authentication packets sent by
+the NAS. You can explicitly change this using the <tt class=
+"literal">USERINPUT</tt> debug flag. Something like</p>
+<pre class="screen">debug = ALL</pre>
+<p>or using a numeric value will <span class="emphasis"><i class=
+"emphasis">not</i></span> work, it needs to be enabled explicitly,
+e.g.:</p>
+<pre class="screen">debug = ALL USERINPUT</pre>
+<p>Be prepared to see plain text user passwords if you enable this
+option.</p>
+</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN2518" id="AEN2518">6. Frequently
+Asked Questions</a></h2>
+<ul>
+<li>
+<p><span class="bold"><b class="emphasis">Is there a Graphical User
+Interface of any kind?</b></span></p>
+<p>Old answer: No, unless your favourite text editor does qualify.
+The configuration syntax is too complex and flexible to be
+coverable using a GUI. If you're looking for a way to manage your
+user database then have a look at Webmin, ActiveDirectory,
+whatever. It's trivial to use those as authentication/authorization
+back-ends.</p>
+<p>Updated answer: Yes, various, and unrelated. Search for
+"tacacsgui". There are other adaptors, too.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">I'm using the
+<span class="emphasis"><i class=
+"emphasis">single-connection</i></span> feature. How can I force my
+router to close the TCP connections to the TACACS+
+server?</b></span></p>
+<p>On IOS, <tt class="literal">show tcp brief</tt> will display the
+TCP connections. Search for the ones terminating at your server,
+and kill them using <tt class="literal">clear tcp tcb ...</tt>.
+Example:</p>
+<pre class="screen">Router#sho tcp brief | incl 10.0.0.1.49  
+633BB794  10.0.0.2.17326              10.0.0.1.49                 ESTAB
+6287E4C4  10.0.0.2.24880              10.0.0.1.49                 ESTAB
+Router#clear tcp tcb 633BB794            
+[confirm]
+ [OK]
+Router#clear tcp tcb 6287E4C4
+[confirm]
+ [OK]
+Router#</pre></li>
+<li>
+<p><span class="bold"><b class="emphasis">Is there any way to avoid
+having clear text versions of the CHAP secrets in the configuration
+file?</b></span></p>
+<p>CHAP requires that the server knows the cleartext password (or
+equivalently, something from which the server can generate the
+cleartext password). Note that this is part of the definition of
+CHAP, not just the whim of some Cisco engineer who drank too much
+coffee late one night.</p>
+<p>If we encrypted the CHAP passwords in the database, then we'd
+need to keep a key around so that the server can decrypt them when
+CHAP needs them. So this only ends up being a slight obfuscation
+and not much more secure than the original scheme.</p>
+<p>In extended TACACS, the CHAP secrets were separated from the
+password file because the password file may be a system password
+file and hence world readable. But with TACACS+'s native database,
+there is no such requirement, so we think the best solution is to
+read-protect the files. Note that this is the same problem that a
+Kerberos server has. If your security is compromised on the
+Kerberos server, then your database is wide open. Kerberos does
+encrypt the database, but if you want your server to automatically
+restart, then you end up having to "kstash" the key in a file
+anyway and you're back to the same security problem.</p>
+<p>So storing the cleartext password on the security server is
+really an absolute requirement of the CHAP protocols, not something
+imposed by TACACS+.</p>
+<p>With the scheme choosen for newer TACACS+ protocol revisions,
+the NAS sends the challenge information to the TACACS+ daemon and
+the daemon uses the cleartext password to generate the response and
+returns that.</p>
+<p>The original TACACS+ protocol included specific protocol
+knowledge for CHAP. Please note that this version of the daemon
+implementation no longer supports SENDPASS, SENDAUTH and ARAP to
+comply to RFC8907.</p>
+<p>However, the above doesn't apply to PAP. You can keep an inbound
+PAP password DES- or MD5-encrypted, since all you need to do with
+it is verify that the password the principal gave you is
+correct.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">How is the typical login
+authentication sequence done?</b></span></p>
+<ol type="1">
+<li>
+<p>NAS sends START packet to daemon</p>
+</li>
+<li>
+<p>Daemon send GETUSER containing login prompt to NAS</p>
+</li>
+<li>
+<p>NAS prompts user for username</p>
+</li>
+<li>
+<p>NAS sends packet to daemon</p>
+</li>
+<li>
+<p>Daemon sends GETPASS containing password prompt to the NAS</p>
+</li>
+<li>
+<p>NAS prompts user for password</p>
+</li>
+<li>
+<p>NAS sends packet to daemon</p>
+</li>
+<li>
+<p>Daemon sends accept, reject or error to NAS</p>
+</li>
+</ol>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">What does "<tt class=
+"literal">default service = permit</tt>" really do?</b></span></p>
+<p>When a request comes in to authorize exec startup, or ppp (with
+protocol lcp, ip, ipx), or slip or a specific command, the daemon
+looks for a matching declarations for the user (or groups the user
+is a member of).</p>
+<p>For exec startup, it looks for a <tt class=
+"literal">service=shell</tt>.</p>
+<p>For PPP, it looks for a <tt class="literal">service=ppp</tt> and
+<tt class="literal">protocol=</tt> one of <tt class=
+"literal">lcp</tt>, <tt class="literal">ip</tt>, <tt class=
+"literal">ipx</tt>.</p>
+<p>For commands, the <tt class="literal">script</tt> defined must
+permit the command.</p>
+<p>If these aren't found, authorization will fail, <span class=
+"emphasis"><i class="emphasis">unless</i></span> you say <tt class=
+"literal">default service = permit</tt>.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">How do I limit the number
+of sessions a user can have?</b></span></p>
+<p>With this version of the daemon you can't.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">How can I configure
+time-outs on an interface via TACACS+?</b></span></p>
+<p>Certain per-user/per-interface timeouts may be set by TACACS+
+during authorization. As of 11.0, you can set an exec timeout. As
+of 11.1 you can also set an exec idle timeout.</p>
+<p>There are currently no settable timeouts for PPP or SLIP
+sessions, but there is a workaround which applies to ASYNC PPP/SLIP
+idle timeouts started via exec sessions only: This workaround is to
+set an EXEC (idletime) timeout on an exec session which is later
+used to start up PPP or SLIP (either via a TACACS+ autocommand or
+via the user explicitly invoking PPP or SLIP). In this case, the
+exec idle timeout will correctly terminate an idle PPP or SLIP
+session. Note that this workaround cannot be used for sessions
+which autoselect PPP or SLIP.</p>
+<p>An idle timeout terminates a connection when the interface is
+idle for a given period of time (this is equivalent to the
+"session-timeout" Cisco IOS configuration directive). The other
+timeouts are absolute. Of course, any timeouts set by TACACS+ apply
+only to the current connection.</p>
+<pre class="screen">profile ... {
+    ...
+    service shell {
+        set idletime = 5 # disconnect lol if there is no traffic for 5 minutes
+        set timeout = 60 # disconnect lol unconditionally after one hour
+        ...
+    }
+}</pre>
+<p>You also need to configure exec authorization on the NAS for the
+above timeouts, e.g.</p>
+<pre class=
+"screen">aaa authorization exec default group tacacs+</pre>
+<p>Note that these timeouts only work for async lines, not for ISDN
+currently.</p>
+<p>Note also that you cannot use the authorization <tt class=
+"literal">if-authenticated</tt> option with these parameters, since
+that skips authorization if the user has successfully
+authenticated.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">Can someone expand on the
+use of the <tt class="literal">optional</tt>
+keyword?</b></span></p>
+<p>Most attributes are mandatory i.e. if the daemon sends them to
+the NAS, the NAS must obey them or deny the authorization. This is
+the default. It is possible to mark attributes as optional, in
+which case a NAS which cannot support the attribute is free to
+simply ignore it without causing the authorization to fail.</p>
+<p>This was intended to be useful in cutover situations where you
+have multiple NASes running different versions of IOS, some of
+which support more attributes than others. If you make the new
+attributes optional, older NASes could ignore the optional
+attributes while new NASes could apply them. Note that this weakens
+your security a little, since you are no longer guaranteed that
+attributes are always applied on successful authorization, so it
+should be used judiciously.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">What about
+MSCHAP?</b></span></p>
+<p>The daemon comes with mschap support. Mschap is configured the
+same way as chap, only using the <tt class="literal">mschap</tt>
+keyword in place of the <tt class="literal">chap</tt> keyword.</p>
+<p>MSCHAP requires DES support. Use the <tt class=
+"literal">--with-ssl</tt> flag when configuring the package.</p>
+<p>Marc Huber thinks that MSCHAP relevance is less than zero and
+expects it to be removed from the standard, as nobody uses it
+anyway.</p>
+</li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN2614" id="AEN2614">7. Bugs</a></h2>
+<ul>
+<li>
+<p>There may still be some nasty bugs lurking in the code. Please
+contact the author via the "Event-Driven Servers" Google Group at
+<code class="email">&lt;<a href=
+"mailto:event-driven-servers@googlegroups.com">event-driven-servers@googlegroups.com</a>&gt;</code>
+or <a href="http://groups.google.com/group/event-driven-servers"
+target=
+"_top">http://groups.google.com/group/event-driven-servers</a> if
+you think you've found one.</p>
+</li>
+<li>
+<p>This documentation isn't well structured.</p>
+</li>
+<li>
+<p>The examples given are too IPv4-centric. However, the daemon
+handles IPv6 just fine.</p>
+</li>
+<li>
+<p>Some of the NAS configuration examples aren't recently tested.
+Refer to the IOS documentation for IOS configuration syntax
+guidance.</p>
+</li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN2628" id="AEN2628">8.
+References</a></h2>
+<ul>
+<li>
+<p><a href="https://tools.ietf.org/html/draft-grant-tacacs-02"
+target="_top">draft-grant-tacacs-02.txt &#8208; The TACACS+
+Protocol (Version 1.78)</a></p>
+</li>
+<li>
+<p><a href="https://tools.ietf.org/html/rfc8907" target=
+"_top">RFC8907: The Terminal Access Controller Access-Control
+System Plus (TACACS+) Protocol</a></p>
+</li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN2638" id="AEN2638">9. Copyrights
+and Acknowledgements</a></h2>
+<p>Please see the source for copyright and licensing information of
+individual files.</p>
+<ul>
+<li>
+<p><span class="bold"><b class="emphasis">The following applies if
+the software was compiled with OpenSSL support:</b></span></p>
+<p>This product includes software developed by the OpenSSL Project
+for use in the OpenSSL Toolkit (<a href="http://www.openssl.org/"
+target="_top">http://www.openssl.org/</a>).</p>
+<p>This product includes cryptographic software written by Eric
+Young (<code class="email">&lt;<a href=
+"mailto:eay@cryptsoft.com">eay@cryptsoft.com</a>&gt;</code>).</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">MD4
+algorithm:</b></span></p>
+<p>The software uses the RSA Data Security, Inc. MD4 Message-Digest
+Algorithm.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">MD5
+algorithm:</b></span></p>
+<p>The software uses the RSA Data Security, Inc. MD5 Message-Digest
+Algorithm.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">If the software was
+compiled with PCRE (Perl Compatible Regular Expressions) support,
+the following applies:</b></span></p>
+<p>Regular expression support is provided by the PCRE library
+package, which is open source software, written by Philip Hazel,
+and copyright by the University of Cambridge, England. (<a href=
+"ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/" target=
+"_top">ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/</a>).</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">The original tac_plus
+code (which this software and considerable parts of the
+documentation are based on) is distributed under the following
+license:</b></span></p>
+<p>Copyright (c) 1995-1998 by Cisco systems, Inc.</p>
+<p>Permission to use, copy, modify, and distribute this software
+for any purpose and without fee is hereby granted, provided that
+this copyright and permission notice appear on all copies of the
+software and supporting documentation, the name of Cisco Systems,
+Inc. not be used in advertising or publicity pertaining to
+distribution of the program without specific prior permission, and
+notice be given in supporting documentation that modification,
+copying and distribution is by permission of Cisco Systems,
+Inc.</p>
+<p>Cisco Systems, Inc. makes no representations about the
+suitability of this software for any purpose. THIS SOFTWARE IS
+PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
+INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">The code written by Marc
+Huber is distributed under the following license:</b></span></p>
+<p>Copyright (C) 1999-2022 Marc Huber (<code class=
+"email">&lt;<a href=
+"mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>). All
+rights reserved.</p>
+<p>Redistribution and use in source and binary forms, with or
+without modification, are permitted provided that the following
+conditions are met:</p>
+<ol type="1">
+<li>
+<p>Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.</p>
+</li>
+<li>
+<p>Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following
+disclaimer in the documentation and/or other materials provided
+with the distribution.</p>
+</li>
+<li>
+<p>The end-user documentation included with the redistribution, if
+any, must include the following acknowledgment:</p>
+<a name="AEN2681" id="AEN2681"></a>
+<blockquote class="BLOCKQUOTE">
+<p>This product includes software developed by Marc Huber
+(<code class="email">&lt;<a href=
+"mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>).</p>
+</blockquote>
+<p>Alternately, this acknowledgment may appear in the software
+itself, if and wherever such third-party acknowledgments normally
+appear.</p>
+</li>
+</ol>
+<p>THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL ITS AUTHOR BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+OF THE POSSIBILITY OF SUCH DAMAGE.</p>
+</li>
+</ul>
+</div>
+</div>
+</body>
+</html>

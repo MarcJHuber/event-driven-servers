@@ -1,0 +1,946 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content=
+"HTML Tidy for HTML5 for Linux version 5.6.0">
+<title>spawnd</title>
+<meta name="GENERATOR" content=
+"Modular DocBook HTML Stylesheet Version 1.79">
+</head>
+<body class="article" bgcolor="#FFFFFF" text="#000000" link=
+"#0000FF" vlink="#840084" alink="#0000FF">
+<div class="ARTICLE">
+<div class="TITLEPAGE">
+<h1 class="title"><a name="AEN2" id="AEN2">spawnd</a></h1>
+<h3 class="author"><a name="AEN4" id="AEN4">Marc Huber</a></h3>
+<span class="releaseinfo">$Id:
+000a06e6c7d5b81e0b6b21916454d43624a78f43 $<br></span>
+<hr></div>
+<div class="TOC">
+<dl>
+<dt><b>Table of Contents</b></dt>
+<dt>1. <a href="#AEN9">Introduction</a></dt>
+<dd>
+<dl>
+<dt>1.1. <a href="#AEN13">Download</a></dt>
+</dl>
+</dd>
+<dt>2. <a href="#AEN17">Operation</a></dt>
+<dd>
+<dl>
+<dt>2.1. <a href="#AEN22">Command line syntax</a></dt>
+</dl>
+</dd>
+<dt>3. <a href="#AEN54">Configuration file syntax</a></dt>
+<dd>
+<dl>
+<dt>3.1. <a href="#AEN366">Railroad Diagrams</a></dt>
+</dl>
+</dd>
+<dt>4. <a href="#AEN425">Signals</a></dt>
+<dt>5. <a href="#AEN431">Load balancing algorithm</a></dt>
+<dt>6. <a href="#AEN442">Event mechanism selection</a></dt>
+<dt>7. <a href="#AEN468">Sample configuration</a></dt>
+<dt>8. <a href="#AEN472">Startup examples</a></dt>
+<dd>
+<dl>
+<dt>8.1. <a href="#AEN484">Manual startup</a></dt>
+<dt>8.2. <a href="#AEN497">Startup on demand</a></dt>
+<dd>
+<dl>
+<dt>8.2.1. <a href="#AEN504">inetd</a></dt>
+<dt>8.2.2. <a href="#AEN512">xinetd</a></dt>
+<dt>8.2.3. <a href="#AEN520">launchd</a></dt>
+</dl>
+</dd>
+<dt>8.3. <a href="#AEN532">Startup at system boot</a></dt>
+<dd>
+<dl>
+<dt>8.3.1. <a href="#AEN535">Init scripts</a></dt>
+<dt>8.3.2. <a href="#AEN540">launchd</a></dt>
+<dt>8.3.3. <a href="#AEN551">systemd</a></dt>
+</dl>
+</dd>
+</dl>
+</dd>
+<dt>9. <a href="#AEN560">Copyrights and Acknowledgements</a></dt>
+</dl>
+</div>
+<div class="section">
+<h2 class="section"><a name="AEN9" id="AEN9">1.
+Introduction</a></h2>
+<p><span class="bold"><b class="emphasis">spawnd</b></span> is a
+broker with load-balancing functionality that listens for incoming
+TCP (or SCTP) connections on IP, UNIX or possibly IPv6 sockets,
+accepts them and finally forwards them (using ancillary messages
+over UNIX domain sockets) to the spawned server processes.</p>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN13" id="AEN13">1.1.
+Download</a></h3>
+<p>Source and documentation are available from <a href=
+"https://www.pro-bono-publico.de/projects/" target=
+"_top">https://www.pro-bono-publico.de/projects/</a>.</p>
+</div>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN17" id="AEN17">2.
+Operation</a></h2>
+<p><span class="bold"><b class="emphasis">spawnd</b></span> is now
+actually implemented as a shared library, and the programs that had
+to be invoked by it are now utilizing that library and are, as
+such, standalone. This in no way implies that <span class=
+"bold"><b class="emphasis">spawnd</b></span> configuration would be
+obsolete; only the binary is.</p>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN22" id="AEN22">2.1. Command line
+syntax</a></h3>
+<p>Command line syntax is:</p>
+<pre class="screen">spawnd [ <tt class=
+"literal">-b</tt> | <tt class="literal">-f</tt> ] [ <tt class=
+"literal">-p</tt> <span class="emphasis"><i class=
+"emphasis">pidfile-name</i></span> ] [ <tt class=
+"literal">-P</tt> ] [ <tt class="literal">-d</tt> <span class=
+"emphasis"><i class="emphasis">level</i></span> ] <span class=
+"emphasis"><i class=
+"emphasis">configuration-file</i></span> [ <span class=
+"emphasis"><i class="emphasis">id</i></span> ]</pre>
+<p>The path to the configuration file is the only command line
+argument mandatory. If compiled with CURL support, <span class=
+"emphasis"><i class="emphasis">configuration-file</i></span> may be
+an URL.</p>
+<p><span class="emphasis"><i class="emphasis">id</i></span>
+defaults to <tt class="literal">spawnd</tt>. It may be used to
+select a non-default section of the configuration file.</p>
+<p>The <tt class="literal">-b</tt> switch will tell the daemon to
+release its controlling terminal on startup and fork itself to the
+background (just like <tt class="literal">background = yes</tt> in
+the configuration does, but with higher precedence). Likewise,
+<tt class="literal">-f</tt> keeps the daemon from forking to the
+background.</p>
+<p>The <tt class="literal">-p</tt> <span class="emphasis"><i class=
+"emphasis">pidfile-name</i></span> option is equivalent to the
+<tt class="literal">pidfile =</tt> <span class="emphasis"><i class=
+"emphasis">pidfile-name</i></span> configuration directive.</p>
+<p>The <tt class="literal">-P</tt> option enables <span class=
+"emphasis"><i class="emphasis">config parse mode</i></span>. Keep
+this one in mind; it is imperative that the configuration file
+supplied is syntactically correct, as the daemon won't start if
+there are any parsing errors at start-up.</p>
+<p>The <tt class="literal">-d</tt> switch enables debugging. You
+most likely don't want to use this. Read the source if you need
+to.</p>
+</div>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN54" id="AEN54">3. Configuration
+file syntax</a></h2>
+<p>A typical <span class="bold"><b class=
+"emphasis">spawnd</b></span> configuration file consists of
+multiple <tt class="literal">id</tt> sections: one for <span class=
+"bold"><b class="emphasis">spawnd</b></span> itself, and one for
+the spawned server process (e.g. <span class="bold"><b class=
+"emphasis">tac_plus</b></span> or <span class="bold"><b class=
+"emphasis">ftpd</b></span>. The actual configuration section used
+is, by default, the one named after the program evaluating the
+configuration file. However, a different section may be selected by
+specifying an <tt class="literal">id</tt> parameter via command
+line or <span class="bold"><b class="emphasis">spawnd</b></span>
+directive.</p>
+<div class="mediaobject">
+<p><img src="railroad/spawnd/Config.svg"></p>
+<div class="caption">
+<p>Railroad diagram: Config</p>
+</div>
+</div>
+<p>For example, have a look at the following configuration
+snippet:</p>
+<pre class="screen">id = spawnd { exec = /path/to/ftpd }
+id = spawnd2 { exec = /path/to/ftpd id = myftpd }
+id = myftpd { }
+id = ftpd { }</pre>
+<p>A <span class="bold"><b class="emphasis">spawnd</b></span>
+started with this will default to evaluating the <tt class=
+"literal">id = spawnd</tt> section, and any <span class=
+"bold"><b class="emphasis">ftpd</b></span> instance started will
+default to the corresponding <tt class="literal">ftpd</tt> stanza.
+However, starting <span class="bold"><b class=
+"emphasis">spawnd</b></span> with an additional argument, e.g.</p>
+<pre class=
+"screen">/path/to/spawnd /path/to/configuration_file spawnd2</pre>
+<p>will choose the <tt class="literal">spawnd2</tt> section
+instead, which in turn tells the <span class="bold"><b class=
+"emphasis">ftpd</b></span> to evaluate the <tt class=
+"literal">myftpd</tt> part of the configuration.</p>
+<p>Comments within configuration files start with <tt class=
+"literal">#</tt>. At top-level, other configuration files may be
+included using <tt class="literal">include =</tt> <span class=
+"emphasis"><i class="emphasis">file</i></span> syntax. Glob pattern
+matching applies (typical <tt class="literal">sh</tt>(1) wildcards
+are evaluated).</p>
+<p>All the configuration directives given below need to be enclosed
+in an appropriate <tt class="literal">id { ... }</tt> section.</p>
+<ul>
+<li>
+<p>(<tt class="literal">permit</tt> | <tt class=
+"literal">deny</tt>) [ <tt class="literal">not</tt> ] <span class=
+"emphasis"><i class="emphasis">cidr</i></span></p>
+<p>Accept or reject request from specific IP address ranges. This
+directive may appear multiple times. Matches are tried in order.
+IPv6 ACLs are supported. Default is to accept everything.</p>
+<p>Example:</p>
+<pre class="screen">permit 127.0.0.1/8
+deny 192.168.5.0/8
+permit 192.168.0.0/16
+acl accept ::1</pre></li>
+<li>
+<p><tt class="literal">background =</tt> ( <tt class=
+"literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p>If set, the daemon will release its controlling terminal on
+startup and fork itself to the background (default: <tt class=
+"literal">no</tt>).</p>
+</li>
+<li>
+<p><tt class="literal">listen {</tt> ... <tt class=
+"literal">}</tt></p>
+<p>This directives determines the connection end points the daemon
+is listening on. For IP, valid configuration directives inside the
+curly brackets are:</p>
+<ul>
+<li>
+<p><tt class="literal">port =</tt> <span class="emphasis"><i class=
+"emphasis">TCPPort</i></span></p>
+<p>TCPPort can be either numerical or a service name.</p>
+</li>
+<li>
+<p><tt class="literal">address =</tt> <span class=
+"emphasis"><i class="emphasis">IPAddress</i></span></p>
+<p>This is optional; by default the daemon listens on all available
+IP addresses, both v4 and v6.</p>
+</li>
+<li>
+<p><tt class="literal">protocol =</tt> ( <tt class=
+"literal">TCP</tt> | <tt class="literal">SCTP</tt> )</p>
+<p>Default protocol is TCP.</p>
+</li>
+<li>
+<p><tt class="literal">bind retry delay =</tt> <span class=
+"emphasis"><i class="emphasis">Seconds</i></span></p>
+<p>On <span class="emphasis"><i class="emphasis">bind(2)</i></span>
+failure, wait the specified number of <span class=
+"emphasis"><i class="emphasis">Seconds</i></span>, then try again.
+Default: 0 seconds (no retries).</p>
+</li>
+</ul>
+<p>For listening on UNIX domain sockets, a different syntax
+applies:</p>
+<ul>
+<li>
+<p><tt class="literal">path =</tt> <span class="emphasis"><i class=
+"emphasis">Path</i></span></p>
+<p>This directive specifies the path to the UNIX domain socket.</p>
+</li>
+<li>
+<p><tt class="literal">mode =</tt> <span class="emphasis"><i class=
+"emphasis">Mode</i></span></p>
+<p>This sets the file creation mode.</p>
+</li>
+<li>
+<p><tt class="literal">userid =</tt> <span class=
+"emphasis"><i class="emphasis">"UserID"</i></span></p>
+<p>This specifies the user ID for socket creation.</p>
+</li>
+<li>
+<p><tt class="literal">groupid =</tt> <span class=
+"emphasis"><i class="emphasis">GroupID</i></span></p>
+<p>This specifies the group ID for socket creation.</p>
+</li>
+</ul>
+<p>Directives which may be used in both cases are:</p>
+<ul>
+<li>
+<p><tt class="literal">tls =</tt> ( <tt class="literal">yes</tt> |
+<tt class="literal">no</tt> )</p>
+<p>This directive tells a child process if the connection is
+encrypted using TLS.</p>
+</li>
+<li>
+<p><tt class="literal">haproxy =</tt> ( <tt class=
+"literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p>This directive tells a child process whether the connection is
+permitted to use the <span class="emphasis"><i class=
+"emphasis">haproxy</i></span> protocol (currently <span class=
+"bold"><b class="emphasis">tac_plus-ng</b></span> only).</p>
+</li>
+<li>
+<p><tt class="literal">backlog =</tt> <span class=
+"emphasis"><i class="emphasis">Number</i></span></p>
+<p>This sets the maximum number of pending connections (default:
+128); see <tt class="literal">listen</tt>(2) for details.</p>
+</li>
+<li>
+<p><tt class="literal">overload backlog =</tt> <span class=
+"emphasis"><i class="emphasis">Number</i></span></p>
+<p>This sets the maximum number of pending connections in overload
+situations (default: 128); see <tt class="literal">listen</tt>(2)
+for details.</p>
+</li>
+<li>
+<p><tt class="literal">realm =</tt> <span class=
+"emphasis"><i class="emphasis">String</i></span></p>
+<p>Sends <span class="emphasis"><i class=
+"emphasis">String</i></span> to the client process when forwarding
+a connection. The client process may be able to use this value to
+differentiate between connection endpoints. Use this option only
+with clients that actually support it (currently: <tt class=
+"literal">tac_plus</tt>).</p>
+</li>
+<li>
+<p><tt class="literal">vrf =</tt> <span class="emphasis"><i class=
+"emphasis">id</i></span></p>
+<p>Sets the VRF to <span class="emphasis"><i class=
+"emphasis">id</i></span> on systems that support it. <span class=
+"emphasis"><i class="emphasis">id</i></span> is the VRF name on
+Linux, or the numeric VRF id on OpenBSD.</p>
+</li>
+<li>
+<p><tt class="literal">bind retry delay =</tt> <span class=
+"emphasis"><i class="emphasis">Seconds</i></span></p>
+<p>On <tt class="literal">bind</tt>(2) failure, wait the specified
+number of <span class="emphasis"><i class=
+"emphasis">Seconds</i></span>, then try again. Defaults to the
+global <tt class="literal">bind retry delay</tt> value.</p>
+</li>
+<li>
+<p><tt class="literal">tcp keepalive</tt> ( <tt class=
+"literal">count</tt> | <tt class="literal">idle</tt> | <tt class=
+"literal">interval</tt> ) <tt class="literal">=</tt> <span class=
+"emphasis"><i class="emphasis">Number</i></span></p>
+<p>Sets various options for TCP keepalive probes, if supported by
+the operating system.</p>
+</li>
+<li>
+<p><tt class="literal">tcp bufsize</tt> <span class=
+"emphasis"><i class="emphasis">Number</i></span></p>
+<p>Overrides the system default input/output buffer sizes
+(SO_SNDBUF, SO_RCVBUF) for communication with child processes.</p>
+</li>
+</ul>
+<p>The <span class="emphasis"><i class="emphasis">listen</i></span>
+directive is mandatory unless the daemon is started via an
+<tt class="literal">inetd</tt>(8) (or compatible) process, in which
+case</p>
+<ul>
+<li>
+<p>the <span class="emphasis"><i class="emphasis">inetd</i></span>
+<tt class="literal">wait</tt> option needs to be used</p>
+</li>
+<li>
+<p><tt class="literal">argv[0]</tt> needs to be the absolute path
+to the binary</p>
+</li>
+</ul>
+<p>For standard <tt class="literal">inetd</tt>(8), configuration
+syntax for <tt class="literal">ftpd</tt> or any other <tt class=
+"literal">spawnd</tt> compliant application would look like:</p>
+<pre class=
+"screen">ftp  stream  tcp  wait root /usr/local/sbin/ftpd /usr/local/sbin/ftpd /usr/local/etc/ftpd.cfg</pre>
+<p>or, with explicit specification of the spawned program's name in
+the configuration,</p>
+<pre class=
+"screen">ftp  stream  tcp  wait root /usr/local/sbin/spawnd ftpd -f /usr/local/etc/ftpd.cfg</pre>
+<p>The equivalent <tt class="literal">xinetd</tt>(8) would (or
+could) be:</p>
+<pre class="screen">service ftp
+{
+    flags       = NAMEINARGS NOLIBWRAP
+    socket_type = stream
+    protocol    = tcp
+    wait        = yes
+    user        = root
+    server      = /usr/local/sbin/ftpd
+    server_args = /usr/local/sbin/ftpd -f /usr/local/etc/ftpd.cfg
+    instances   = 1
+}</pre></li>
+<li>
+<p><tt class="literal">pidfile =</tt> <span class=
+"emphasis"><i class="emphasis">file</i></span></p>
+<p>The process id will be written to <span class=
+"emphasis"><i class="emphasis">file</i></span>.</p>
+</li>
+<li>
+<p><tt class="literal">spawn {</tt> ... <tt class=
+"literal">}</tt></p>
+<p>The <tt class="literal">spawn</tt> section defines various
+aspects related to the actual server processes:</p>
+<ul>
+<li>
+<p><tt class="literal">exec =</tt> Path</p>
+<p>Defines the path the server process. This is mandatory when
+running the standalone <span class="bold"><b class=
+"emphasis">spawnd</b></span> process, but may be omitted else.</p>
+<p>Magic cookie substitution applies. The available conversions
+are</p>
+<ul>
+<li>
+<p><tt class="literal">%o</tt> &#8208; run-time OS type</p>
+</li>
+<li>
+<p><tt class="literal">%O</tt> &#8208; compile-time OS type</p>
+</li>
+</ul>
+<p>The "OS type" string inserted is identical to the output of:</p>
+<pre class=
+"screen">uname -srm | tr ' [:upper:]' '\-[:lower:]'</pre>
+<p>Example: For "Linux 2.3.35 i686",</p>
+<pre class="screen">exec = /some/where/%O/ftpd</pre>
+<p>resolves to</p>
+<pre class=
+"screen">exec = /some/where/linux-2.3.35-i686/ftpd</pre></li>
+<li>
+<p><tt class="literal">id =</tt> ID</p>
+<p>Optionally defines a different ID for configuration file
+parsing. Defaults to the executables basename.</p>
+</li>
+<li>
+<p><tt class="literal">config =</tt> ConfigurationFile</p>
+<p>Optionally assigns a configuration file. Defaults to the
+configuration file <span class="bold"><b class=
+"emphasis">spawnd</b></span> is started with.</p>
+</li>
+<li>
+<p><tt class="literal">instances</tt> ( <tt class=
+"literal">min</tt> | <tt class="literal">max</tt> ) <tt class=
+"literal">=</tt> Number</p>
+<p>Sets the minimum or maximum number of server processes to start.
+Defaults to 2 and 8.</p>
+</li>
+<li>
+<p><tt class="literal">sticky cache period =</tt> Seconds</p>
+<p>This option tells the daemon to try to forward all connections
+from a particular source address to the same worker process.
+Defaults to 0 (disabled).</p>
+</li>
+<li>
+<p><tt class="literal">sticky cache size =</tt> Number</p>
+<p>This option sets the maximum number of entries in the "sticky"
+cache. Defaults to 1024.</p>
+</li>
+<li>
+<p><tt class="literal">users</tt> ( <tt class="literal">min</tt> |
+<tt class="literal">max</tt> ) <tt class="literal">=</tt>
+Number</p>
+<p>This directive limits the number of users per process. The
+distribution algorithm attempts to assign at least <span class=
+"emphasis"><i class="emphasis">min</i></span> (default: 5) and at
+most <span class="emphasis"><i class="emphasis">max</i></span>
+(default: 40) users to each process, while attempting to keep the
+total number of processes at a reasonable limit.</p>
+<p>The spawned processes may have their own idea about the maximum
+number of users permitted and may lower the specified maximum
+number of users to a more suitable value.</p>
+</li>
+<li>
+<p><tt class="literal">userid =</tt> UserID</p>
+<p>Change UID to <span class="emphasis"><i class=
+"emphasis">UserID</i></span> for spawned processes.</p>
+</li>
+<li>
+<p><tt class="literal">groupid =</tt> GroupID</p>
+<p>Change GID to <span class="emphasis"><i class=
+"emphasis">GroupID</i></span> for spawned processes.</p>
+</li>
+<li>
+<p><tt class="literal">working directory =</tt> Directory</p>
+<p>Change directory to <span class="emphasis"><i class=
+"emphasis">Directory</i></span> for spawned processes.</p>
+</li>
+<li>
+<p><tt class="literal">ipc key =</tt> Number</p>
+<p>If this is set and the program was compiled with IPC support,
+then the configuration file will be cached in a shared memory
+segment and will only be loaded once. This may be of advantage if
+the configuration file given as an URL that will be retrieved using
+CURL.</p>
+</li>
+</ul>
+</li>
+<li>
+<p><tt class="literal">overload =</tt> ( <tt class=
+"literal">close</tt> | <tt class="literal">queue</tt> | <tt class=
+"literal">reset</tt>)</p>
+<p>If the maximum number of users is reached, either close, reset
+or queue new connections. The latter is the default.</p>
+</li>
+<li>
+<p><tt class="literal">tcp keepalive</tt> ( <tt class=
+"literal">count</tt> | <tt class="literal">idle</tt> | <tt class=
+"literal">interval</tt> ) <tt class="literal">=</tt> Number</p>
+<p>Sets various options for TCP keepalive probes, if supported by
+the operating system.</p>
+</li>
+<li>
+<p><tt class="literal">syslog</tt> ( ( <tt class="literal">ident
+=</tt> Ident) | ( <tt class="literal">level =</tt> Level ) | (
+<tt class="literal">facility =</tt> Facility))</p>
+<p>Selects syslog <span class="emphasis"><i class=
+"emphasis">ident</i></span>, <span class="emphasis"><i class=
+"emphasis">level</i></span> and <span class="emphasis"><i class=
+"emphasis">facility</i></span>. Defaults to:</p>
+<pre class="screen">syslog ident = <span class="emphasis"><i class=
+"emphasis">program-name</i></span>
+syslog facility = UUCP
+syslog level = INFO</pre></li>
+<li>
+<p><tt class="literal">single process =</tt> ( <tt class=
+"literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p>Changes the execution model to <span class="emphasis"><i class=
+"emphasis">single process</i></span> mode. Connections will be
+accepted and processed by one single instance of the process, and
+not, as it's the default, be forwarded to child processes. Useful
+for systems that lack file descriptor passing capabilities.</p>
+<p>Default: <tt class="literal">yes</tt> (and not changeable) on
+Cygwin, <tt class="literal">no</tt> everywhere else.</p>
+</li>
+</ul>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN366" id="AEN366">3.1. Railroad
+Diagrams</a></h3>
+<div class="mediaobject">
+<p><img src="railroad/spawnd/SpawndConfig.svg"></p>
+<div class="caption">
+<p>Railroad diagram: SpawndConfig</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/spawnd/ListenDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ListenDecl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/spawnd/ChildDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: Child</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/spawnd/AclDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: AclDecl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/spawnd/CIDR.svg"></p>
+<div class="caption">
+<p>Railroad diagram: CIDR</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/spawnd/MiscDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: MiscDecl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/spawnd/SyslogDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: SyslogDecl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/spawnd/Debug.svg"></p>
+<div class="caption">
+<p>Railroad diagram: Debug</p>
+</div>
+</div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN425" id="AEN425">4.
+Signals</a></h2>
+<p><span class="bold"><b class="emphasis">spawnd</b></span> will
+terminate upon receiving a SIGTERM or SIGINT signal. SIGHUP will
+cause <span class="bold"><b class="emphasis">spawnd</b></span> to
+restart itself from scratch.</p>
+<p>The daemon is only checking for signals every couple of seconds,
+so actions aren't necessarily immediate.</p>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN431" id="AEN431">5. Load balancing
+algorithm</a></h2>
+<p><span class="bold"><b class="emphasis">spawnd</b></span> allows
+configuration of upper and lower limits for users and processes.
+The distribution algorithm will try to assign new connections to
+one of the running servers with less than <span class=
+"emphasis"><i class="emphasis">users_min</i></span> connections. If
+all servers already have at least <span class="emphasis"><i class=
+"emphasis">users_min</i></span> active connections and the total
+number of servers doesn't exceed <span class="emphasis"><i class=
+"emphasis">servers_max</i></span>, an additional server process is
+started, and the connection is assigned to that process. If no more
+processes may be started, the connection is assigned to the server
+process with less than <span class="emphasis"><i class=
+"emphasis">users_max</i></span> users, which serves the lowest
+number of connections. Otherwise, the connection will stall until
+an existing connection terminates.</p>
+<p>If the <span class="emphasis"><i class=
+"emphasis">sticky</i></span> feature is enabled, <span class=
+"bold"><b class="emphasis">spawnd</b></span> will try to assign
+connections to server processes based on the remote IP address of
+the peer. Please not that this will not work in combination with
+HAProxy.</p>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN442" id="AEN442">6. Event mechanism
+selection</a></h2>
+<p>Several level-triggered event mechanisms are supported. By
+default, the one best suited for your operating system will be
+used. However, you may use the environment variable <tt class=
+"literal">IO_POLL_MECHANISM</tt> to select a specific one.</p>
+<p>The following event mechanisms are supported (in order of
+preference):</p>
+<ul>
+<li>
+<p>port (Sun Solaris 10 and higher only, <tt class=
+"literal">IO_POLL_MECHANISM=32</tt>)</p>
+</li>
+<li>
+<p>kqueue (*BSD and Darwin only, <tt class=
+"literal">IO_POLL_MECHANISM=1</tt>)</p>
+</li>
+<li>
+<p>/dev/poll (Sun Solaris only, <tt class=
+"literal">IO_POLL_MECHANISM=2</tt>)</p>
+</li>
+<li>
+<p>epoll (Linux only, <tt class=
+"literal">IO_POLL_MECHANISM=4</tt>)</p>
+</li>
+<li>
+<p>poll (<tt class="literal">IO_POLL_MECHANISM=8</tt>)</p>
+</li>
+<li>
+<p>select (<tt class="literal">IO_POLL_MECHANISM=16</tt>)</p>
+</li>
+</ul>
+<p>Environment variables can be set in the configuration file at
+top-level:</p>
+<pre class="screen">setenv IO_POLL_MECHANISM = 4</pre></div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN468" id="AEN468">7. Sample
+configuration</a></h2>
+<pre class="screen">id = spawnd {
+    listen { port 21 }
+    listen { address = ::0 port = 2121 tls }
+    spawn {
+        users minimum = 10
+        users maximum = 100
+        instances minimum = 10
+        instances maximum = 100
+        exec = /usr/local/libexec/ftpd
+        id = ftpd
+        config = /usr/local/etc/ftpd.conf
+    }
+    background = true
+}</pre></div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN472" id="AEN472">8. Startup
+examples</a></h2>
+<p><span class="bold"><b class="emphasis">spawnd</b></span> (either
+standalone, or utilized via the <tt class="literal">MAVIS</tt>
+library, which is what <span class="bold"><b class=
+"emphasis">ftpd</b></span>, <span class="bold"><b class=
+"emphasis">tac_plus</b></span> and <span class="bold"><b class=
+"emphasis">tcprelay</b></span> do) is a long-running process. It
+may be started either manually, on demand, or at system boot
+time.</p>
+<p>The examples in this section focus on <span class=
+"bold"><b class="emphasis">tac_plus</b></span>, but are easily
+adaptable to the <span class="bold"><b class=
+"emphasis">ftpd</b></span> and <span class="bold"><b class=
+"emphasis">tcprelay</b></span> daemons.</p>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN484" id="AEN484">8.1. Manual
+startup</a></h3>
+<p>Starting a daemon manually is fine for testing, but, generally,
+undesireable for production. A configuration file that specifies at
+least a port the daemon should listen to is required:</p>
+<pre class="screen">id = spawnd {
+    listen {
+        port = 49
+    }
+}
+id = tac_plus {
+  ...
+}</pre>
+<p>Copy this to, e.g., <tt class="literal">./tac_plus.cfg</tt>,
+then start the daemon:</p>
+<pre class="screen"># /usr/local/sbin/tac/plus ./tac_plus.cfg</pre>
+<p>The daemon will now run in the foreground, blocking your shell
+until interrupted or being send to the background. If you want to
+run the daemon in the background, you can either add</p>
+<pre class="screen">    background = yes</pre>
+<p>to the <tt class="literal">spawnd</tt> section, or use the
+<tt class="literal">-b</tt> command line option:</p>
+<pre class=
+"screen"># /usr/local/sbin/tac/plus -b /usr/local/etc/tac_plus.cfg</pre></div>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN497" id="AEN497">8.2. Startup on
+demand</a></h3>
+<p>The daemon may be started on demand by <tt class=
+"literal">inetd</tt>(8) or compatible applications. The
+configuration file should <span class="bold"><b class=
+"emphasis">not</b></span> specify a port to bind to, as <tt class=
+"literal">inetd</tt> will pass an already bound socket to the
+daemon:</p>
+<pre class="screen">id = spawnd {
+    listen {
+    }
+}
+id = tac_plus {
+  ...
+}</pre>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN504" id="AEN504">8.2.1.
+inetd</a></h4>
+<p>For stock <tt class="literal">inetd</tt>, adding the following
+line to <tt class="literal">/etc/inetd.conf</tt> and sending a
+<tt class="literal">HUP</tt> to <tt class="literal">inetd</tt> will
+activate the daemon:</p>
+<pre class=
+"screen">tacacs  stream  tcp  wait root /usr/local/sbin/tac_plus /usr/local/sbin/tac_plus /usr/local/etc/tac_plus.cfg</pre></div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN512" id="AEN512">8.2.2.
+xinetd</a></h4>
+<p>The equivalent <tt class="literal">xinetd</tt>(8)
+configuration:</p>
+<pre class="screen">service tacacs
+{
+    flags       = NAMEINARGS NOLIBWRAP
+    socket_type = stream
+    protocol    = tcp
+    wait        = yes
+    user        = root
+    server      = /usr/local/sbin/tac_plus
+    server_args = /usr/local/sbin/tac_plus /usr/local/etc/tac_plus.cfg
+    instances   = 1
+}</pre>
+<p>Depending on your setup this could either be added to <tt class=
+"literal">/etc/xinetd.conf</tt> or be written to <tt class=
+"literal">/etc/xinetd.d/tacacs</tt>.</p>
+</div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN520" id="AEN520">8.2.3.
+launchd</a></h4>
+<p>Mac OS X comes with <tt class="literal">launchd</tt>(8), and
+here's a suitable <tt class=
+"literal">/Library/LaunchDaemons/de.pro-bono-publico.tac_plus.plist</tt>:</p>
+<pre class="screen">&lt;xml version="1.0" encoding="UTF-8"?&gt;
+&lt;DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
+&lt;plist version="1.0"&gt;
+&lt;dict&gt;
+    &lt;key&gt;Label&lt;key&gt;
+    &lt;string&gt;de.pro-bono-publico.tac_plus&lt;string&gt;
+    &lt;key&gt;ProgramArguments&lt;key&gt;
+    &lt;array&gt;
+        &lt;string&gt;/usr/local/sbin/tac_plus&lt;string&gt;
+        &lt;string&gt;-p&lt;string&gt;
+        &lt;string&gt;/var/run/tac_plus.pid&lt;string&gt;
+        &lt;string&gt;/usr/local/etc/tac_plus.cfg&lt;string&gt;
+    &lt;array&gt;
+    &lt;key&gt;KeepAlive&lt;key&gt; &lt;true/&gt;
+    &lt;key&gt;Sockets&lt;key&gt;
+        &lt;dict&gt;
+            &lt;key&gt;Listeners&lt;key&gt;
+            &lt;dict&gt; &lt;key&gt;SockServiceName&lt;key&gt; &lt;string&gt;tacacs&lt;string&gt; &lt;dict&gt;
+        &lt;dict&gt;
+    &lt;key&gt;inetdCompatibility&lt;key&gt;
+        &lt;dict&gt; &lt;key&gt;Wait&lt;key&gt; &lt;true/&gt; &lt;dict&gt;
+    &lt;key&gt;KeepAlive&lt;key&gt;
+        &lt;dict&gt; &lt;key&gt;NetworkState&lt;key&gt; &lt;true/&gt; &lt;dict&gt;
+&lt;dict&gt;
+&lt;plist&gt;</pre>
+<p>This needs to be activated using</p>
+<pre class=
+"screen"># sudo launchctl load -w /Library/LaunchDaemons/de.pro-bono-publico.tac_plus.plist</pre>
+<p>The daemon will write its process id to <tt class=
+"literal">/var/run/tac_plus.pid</tt>, and</p>
+<pre class="screen"># sudo kill `cat /var/run/tac_plus.pid`</pre>
+<p>will cause it to restart (and, implicitly, to re-read the
+configuration file).</p>
+</div>
+</div>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN532" id="AEN532">8.3. Startup at
+system boot</a></h3>
+<p>The daemons may be started at system boot time. Alas, that's
+very specific to your system. You should definitely know what
+you're doing, or you may render your system unbootable.</p>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN535" id="AEN535">8.3.1. Init
+scripts</a></h4>
+<p>The distribution comes with a couple of System V style init
+scripts, e.g. <tt class=
+"literal">tac_plus/doc/etc_init.d_tac_plus</tt>. Copy this script
+to a location appropriate to your system (e.g. <tt class=
+"literal">/etc/init.d/tac_plus</tt> and create the relevant
+symbolic or hardlinks. See your systems documentation for
+details.</p>
+</div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN540" id="AEN540">8.3.2.
+launchd</a></h4>
+<p>On MacOS, create a file <tt class=
+"literal">/Library/LaunchDaemons/de.pro-bono-publico.tac_plus.plist</tt>
+that consists of:</p>
+<pre class="screen">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
+&lt;plist version="1.0"&gt;
+&lt;dict&gt;
+    &lt;key&gt;Label&lt;/key&gt;
+    &lt;string&gt;de.pro-bono-publico.tac_plus&lt;/string&gt;
+    &lt;key&gt;ProgramArguments&lt;/key&gt;
+    &lt;array&gt;
+        &lt;string&gt;/usr/local/sbin/tac_plus&lt;/string&gt;
+        &lt;string&gt;-f&lt;/string&gt;
+        &lt;string&gt;-p&lt;/string&gt;
+        &lt;string&gt;/var/run/tac_plus.pid&lt;/string&gt;
+        &lt;string&gt;/usr/local/etc/tac_plus.cfg&lt;/string&gt;
+    &lt;/array&gt;
+    &lt;key&gt;KeepAlive&lt;/key&gt;
+        &lt;dict&gt; &lt;key&gt;NetworkState&lt;/key&gt; &lt;true/&gt; &lt;/dict&gt;
+&lt;/dict&gt;
+&lt;/plist&gt;</pre>
+<p>Then tell <tt class="literal">launchd</tt> about this
+configuration:</p>
+<pre class=
+"screen"># sudo launchctl load -w /Library/LaunchDaemons/de.pro-bono-publico.tac_plus.plist</pre>
+<p>The daemon will write its process id to <tt class=
+"literal">/var/run/tac_plus.pid</tt>, and you may make it re-read
+its configuration file by issuing</p>
+<pre class=
+"screen"># sudo kill -HUP `cat /var/run/tac_plus.pid`</pre></div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN551" id="AEN551">8.3.3.
+systemd</a></h4>
+<p>For <tt class="literal">systemd</tt> you'll have to create an
+appropriate <span class="emphasis"><i class=
+"emphasis">configuration unit</i></span>. Copy</p>
+<pre class="screen">[Unit]
+Description=TACACS+ Service
+After=syslog.target
+
+[Service]
+ExecStart=/usr/local/sbin/tac_plus -f /usr/local/etc/tac_plus.cfg
+KillMode=process
+Restart=always
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target</pre>
+<p>to <tt class=
+"literal">/etc/systemd/system/tac_plus.service</tt>, then enable
+and start the service:</p>
+<pre class="screen"># sudo systemctl enable tac_plus.service
+# sudo systemctl start tac_plus.service</pre></div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN560" id="AEN560">9. Copyrights and
+Acknowledgements</a></h2>
+<p>Please see the source for copyright and licensing information of
+individual files.</p>
+<ul>
+<li>
+<p><span class="bold"><b class="emphasis">Portions of the parsing
+code are taken from Cisco's tac_plus developers kit which is
+distributed under the following license:</b></span></p>
+<p>Copyright (c) 1995-1998 by Cisco systems, Inc.</p>
+<p>Permission to use, copy, modify, and distribute this software
+for any purpose and without fee is hereby granted, provided that
+this copyright and permission notice appear on all copies of the
+software and supporting documentation, the name of Cisco Systems,
+Inc. not be used in advertising or publicity pertaining to
+distribution of the program without specific prior permission, and
+notice be given in supporting documentation that modification,
+copying and distribution is by permission of Cisco Systems,
+Inc.</p>
+<p>Cisco Systems, Inc. makes no representations about the
+suitability of this software for any purpose. THIS SOFTWARE IS
+PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
+INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">The code written by Marc
+Huber is distributed under the following license:</b></span></p>
+<p>Copyright (C) 1999-2022 Marc Huber (<code class=
+"email">&lt;<a href=
+"mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>). All
+rights reserved.</p>
+<p>Redistribution and use in source and binary forms, with or
+without modification, are permitted provided that the following
+conditions are met:</p>
+<ol type="1">
+<li>
+<p>Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.</p>
+</li>
+<li>
+<p>Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following
+disclaimer in the documentation and/or other materials provided
+with the distribution.</p>
+</li>
+<li>
+<p>The end-user documentation included with the redistribution, if
+any, must include the following acknowledgment:</p>
+<a name="AEN583" id="AEN583"></a>
+<blockquote class="BLOCKQUOTE">
+<p>This product includes software developed by Marc Huber
+(<code class="email">&lt;<a href=
+"mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>).</p>
+</blockquote>
+<p>Alternately, this acknowledgment may appear in the software
+itself, if and wherever such third-party acknowledgments normally
+appear.</p>
+</li>
+</ol>
+<p>THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL ITS AUTHOR BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+OF THE POSSIBILITY OF SUCH DAMAGE.</p>
+</li>
+</ul>
+</div>
+</div>
+</body>
+</html>

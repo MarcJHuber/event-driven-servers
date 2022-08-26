@@ -1,0 +1,2384 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta name="generator" content=
+"HTML Tidy for HTML5 for Linux version 5.6.0">
+<title>FTP Daemon</title>
+<meta name="GENERATOR" content=
+"Modular DocBook HTML Stylesheet Version 1.79">
+</head>
+<body class="article" bgcolor="#FFFFFF" text="#000000" link=
+"#0000FF" vlink="#840084" alink="#0000FF">
+<div class="ARTICLE">
+<div class="TITLEPAGE">
+<h1 class="title"><a name="AEN2" id="AEN2">FTP Daemon</a></h1>
+<h3 class="author"><a name="AEN4" id="AEN4">Marc Huber</a></h3>
+<span class="releaseinfo">$Id: manual.xml,v 1.25 2015/02/01
+09:29:01 marc Exp $<br></span>
+<hr></div>
+<div class="TOC">
+<dl>
+<dt><b>Table of Contents</b></dt>
+<dt>1. <a href="#AEN9">Introduction</a></dt>
+<dd>
+<dl>
+<dt>1.1. <a href="#AEN37">Download</a></dt>
+</dl>
+</dd>
+<dt>2. <a href="#AEN41">Supported commands</a></dt>
+<dt>3. <a href="#AEN131">Operation</a></dt>
+<dd>
+<dl>
+<dt>3.1. <a href="#AEN145">Command line syntax</a></dt>
+<dt>3.2. <a href="#AEN166">Signals</a></dt>
+<dt>3.3. <a href="#AEN179">Event mechanism selection</a></dt>
+</dl>
+</dd>
+<dt>4. <a href="#AEN205">Configuration directives</a></dt>
+<dd>
+<dl>
+<dt>4.1. <a href="#AEN231">Global Configuration</a></dt>
+<dd>
+<dl>
+<dt>4.1.1. <a href="#AEN463">Access Control Lists</a></dt>
+</dl>
+</dd>
+<dt>4.2. <a href="#AEN565">ACL-based Configuration</a></dt>
+<dt>4.3. <a href="#AEN1256">Path-rewriting using PCRE</a></dt>
+<dt>4.4. <a href="#AEN1272">TLS support</a></dt>
+<dt>4.5. <a href="#AEN1328">MAVIS Configuration</a></dt>
+</dl>
+</dd>
+<dt>5. <a href="#AEN1346">Wildcard patterns</a></dt>
+<dt>6. <a href="#AEN1370">Magic cookie substitution</a></dt>
+<dt>7. <a href="#AEN1479">Sample configuration</a></dt>
+<dt>8. <a href="#AEN1484">Railroad Diagrams</a></dt>
+<dt>9. <a href="#AEN1781">Bugs</a></dt>
+<dt>10. <a href="#AEN1803">References</a></dt>
+<dt>11. <a href="#AEN1845">Copyrights and Acknowledgements</a></dt>
+</dl>
+</div>
+<div class="section">
+<h2 class="section"><a name="AEN9" id="AEN9">1.
+Introduction</a></h2>
+<p>This FTP daemon was written from scratch. The list of supported
+features includes:</p>
+<ul>
+<li>
+<p>Small memory footprint</p>
+</li>
+<li>
+<p>Event-driven, pre-forking</p>
+</li>
+<li>
+<p>Not called by inetd</p>
+</li>
+<li>
+<p>Supports traffic shaping</p>
+</li>
+<li>
+<p>Highly configurable using access control lists for commands and
+configuration variables</p>
+</li>
+<li>
+<p>Utilizes the MAVIS modular authentication system</p>
+</li>
+<li>
+<p>A couple of <span class="bold"><b class=
+"emphasis">wu-ftpd</b></span>-like features (banners, checksum
+calculation, ...) are available</p>
+</li>
+<li>
+<p>DNS resolving is done if the daemon is compiled with
+<span class="emphasis"><i class="emphasis">lwres</i></span>
+support</p>
+</li>
+<li>
+<p>Asynchronous RFC1413 ident lookups</p>
+</li>
+<li>
+<p>Large File support.</p>
+</li>
+<li>
+<p>64bit clean</p>
+</li>
+</ul>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN37" id="AEN37">1.1.
+Download</a></h3>
+<p>Source and documentation are available from <a href=
+"https://www.pro-bono-publico.de/projects/" target=
+"_top">https://www.pro-bono-publico.de/projects/</a>.</p>
+</div>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN41" id="AEN41">2. Supported
+commands</a></h2>
+<p>The daemon support several standards and drafts:</p>
+<ul>
+<li>
+<p>Standard RFC959 FTP commands supported are:</p>
+<pre class=
+"screen">ABOR, APPE, CWD,  CDUP, DELE, HELP, LIST, NLST, MDTM, MKD,  NOOP, PASS,
+PASV, PORT, PWD,  QUIT, REIN, REST, RETR, RMD,  RNFR, RNTO, SITE, SIZE,
+STAT, STOR, STOU, SYST, TYPE, USER, XCUP, XCWD, XMKD, XPWD, XRMD
+</pre></li>
+<li>
+<p>IPv6 support is available. Both the RFC1639 (aka. FOOBAR)
+extensions (<tt class="literal">LPRT</tt>, <tt class=
+"literal">LPSV</tt>) and the more recent ones defined in RFC2428
+(<tt class="literal">EPRT</tt>, <tt class="literal">EPSV</tt>) are
+supported.</p>
+</li>
+<li>
+<p>The feature negotiation commands <tt class="literal">FEAT</tt>
+and <tt class="literal">OPTS</tt> introduced in RFC2389 are
+supported.</p>
+</li>
+<li>
+<p>The command <tt class="literal">LANG</tt> (RFC2640) allows
+negotiation of a language for greetings and error messages.
+Currently supported languages include English and German.</p>
+</li>
+<li>
+<p>RFC4217 (Securing FTP with TLS) is supported, If the daemon was
+compiled with TLS support. <tt class="literal">AUTH TLS</tt> et al.
+may then be used to switch to a secure channel; certificate
+authentication is supported. This may or may not be legal in your
+country</p>
+</li>
+<li>
+<p><tt class="literal">MDTM</tt> and <tt class="literal">SIZE</tt>
+aren't specified in RFC959, but may become part of a revised FTP
+specification.</p>
+</li>
+<li>
+<p><tt class="literal">MLST</tt> and <tt class="literal">MLSD</tt>
+are supported, but the specification is still in draft status.</p>
+</li>
+<li>
+<p>The proposed fact modification commands <tt class=
+"literal">MFMT</tt> and <tt class="literal">MFF</tt> are
+supported.</p>
+</li>
+<li>
+<p>Virtual host support is available using the <tt class=
+"literal">HOST</tt> command (requires explicit support via
+<span class="bold"><b class="emphasis">MAVIS</b></span>
+backends).</p>
+</li>
+<li>
+<p>The experimental commands <tt class="literal">ESTA</tt> and
+<tt class="literal">ESTP</tt> are available.</p>
+</li>
+<li>
+<p><tt class="literal">MODE Z</tt> enables deflate transmission
+mode. Alternatively, just add <tt class="literal">.gz</tt> to a
+file name for on-the-fly compression.</p>
+</li>
+</ul>
+<p>Various <tt class="literal">SITE</tt> commands are
+available:</p>
+<ul>
+<li>
+<p><tt class="literal">SITE CHMOD</tt> changes permission
+modes.</p>
+</li>
+<li>
+<p><tt class="literal">SITE GROUP</tt> may be used to switch to
+another group id.</p>
+</li>
+<li>
+<p><tt class="literal">SITE GROUPS</tt> displays the available
+group ids in <span class="bold"><b class=
+"emphasis">wu-ftpd</b></span> style.</p>
+</li>
+<li>
+<p><tt class="literal">SITE ID</tt> displays both user id and the
+available group ids.</p>
+</li>
+<li>
+<p><tt class="literal">SITE IDLE</tt> displays or changes the idle
+timeout.</p>
+</li>
+<li>
+<p><tt class="literal">SITE UMASK</tt> displays or changes the
+current <span class="bold"><b class=
+"emphasis">umask</b></span>.</p>
+</li>
+<li>
+<p><tt class="literal">SITE CHECKMETHOD</tt> selects a checksum
+method (either CRC or MD5), as does <tt class="literal">OPTS
+HASH</tt>.</p>
+</li>
+<li>
+<p><tt class="literal">SITE CHECKSUM</tt> calculates and displays
+checksum values, as does <tt class="literal">HASH</tt>. The
+<tt class="literal">RANG</tt> command for specifying byte ranges is
+supported. <span class="bold"><b class=
+"emphasis">wu-ftpd</b></span>-like file conversions for <tt class=
+"literal">.md5</tt> and <tt class="literal">.crc</tt> are
+implemented.</p>
+</li>
+<li>
+<p><tt class="literal">SITE HTPWD</tt> may be useful for
+maintaining .htpasswd compliant password files.</p>
+</li>
+<li>
+<p><tt class="literal">SITE HELP</tt> or <tt class="literal">SITE
+HELP</tt> <span class="emphasis"><i class=
+"emphasis">COMMAND</i></span> display information about available
+commands and command syntax.</p>
+</li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN131" id="AEN131">3.
+Operation</a></h2>
+<p>This section gives a brief and basic overview how to run
+<span class="bold"><b class="emphasis">ftpd</b></span>.</p>
+<p>In earlier versions, <span class="bold"><b class=
+"emphasis">ftpd</b></span> wasn't a standalone program but had to
+be invoked by <span class="bold"><b class=
+"emphasis">spawnd</b></span>. This has changed, as <span class=
+"bold"><b class="emphasis">spawnd</b></span> is now part of the
+<span class="bold"><b class="emphasis">ftpd</b></span> binary.
+However, using a dedicated <span class="bold"><b class=
+"emphasis">spawnd</b></span> process is still possible and, more
+importantly, the <span class="bold"><b class=
+"emphasis">spawnd</b></span> configuration options and
+documentation remain valid.</p>
+<p><span class="bold"><b class="emphasis">ftpd</b></span> may use
+auxilliary <span class="bold"><b class="emphasis">MAVIS</b></span>
+backend modules for authentication and authorization.</p>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN145" id="AEN145">3.1. Command line
+syntax</a></h3>
+<p>The only mandatory argument is the path to the configuration
+file:</p>
+<pre class="screen">ftpd [ <span class="emphasis"><i class=
+"emphasis">-P</i></span> ] [ <span class="emphasis"><i class=
+"emphasis">-d level</i></span> ]  [ <span class=
+"emphasis"><i class="emphasis">-i child_id</i></span> ] <span class="emphasis"><i class="emphasis">configuration-file</i></span> [ <span class="emphasis"><i class="emphasis">id</i></span> ]</pre>
+<p>If the program was compiled with CURL support, <span class=
+"emphasis"><i class="emphasis">configuration-file</i></span> may be
+an URL.</p>
+<p>Keep the <tt class="literal">-P</tt> option in mind &#8208; it
+is imperative that the configuration file supplied is syntactically
+correct, as the daemon won't start if there are any parsing errors
+at start-up.</p>
+<p>The <tt class="literal">-d</tt> switch enables debugging. You
+most likely don't want to use this. Read the source if you need
+to.</p>
+<p>The <tt class="literal">-i</tt> option is only honoured if the
+build-in <span class="bold"><b class="emphasis">spawnd</b></span>
+functionality is used. In that case, it selects the configuration
+ID for <span class="bold"><b class="emphasis">ftpd</b></span>,
+while the optional last argument <span class="emphasis"><i class=
+"emphasis">id</i></span> sets the ID of the <span class=
+"bold"><b class="emphasis">spawnd</b></span> configuration
+section.</p>
+</div>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN166" id="AEN166">3.2.
+Signals</a></h3>
+<p>Both the master (that's the process running the <span class=
+"bold"><b class="emphasis">spawnd</b></span> code) and the child
+processes (running the <span class="bold"><b class=
+"emphasis">ftpd</b></span> code) intercept the <tt class=
+"literal">SIGHUP</tt> signal:</p>
+<ul>
+<li>
+<p>The master process will restart upon reception of <tt class=
+"literal">SIGHUP</tt>, re-reading the configuration file. The child
+processes will recognize that the master process is no longer
+available. It will continue to serve the existing connections and
+terminate when idle.</p>
+</li>
+<li>
+<p>If <tt class="literal">SIGHUP</tt> is sent to a child process it
+will stop accepting new connections from its master process. It
+will continue to serve the existing connections and terminate when
+idle.</p>
+</li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN179" id="AEN179">3.3. Event
+mechanism selection</a></h3>
+<p>Several level-triggered event mechanisms are supported. By
+default, the one best suited for your operating system will be
+used. However, you may use the environment variable <tt class=
+"literal">IO_POLL_MECHANISM</tt> to select a specific one.</p>
+<p>The following event mechanisms are supported (in order of
+preference):</p>
+<ul>
+<li>
+<p>port (Sun Solaris 10 and higher only, <tt class=
+"literal">IO_POLL_MECHANISM=32</tt>)</p>
+</li>
+<li>
+<p>kqueue (*BSD and Darwin only, <tt class=
+"literal">IO_POLL_MECHANISM=1</tt>)</p>
+</li>
+<li>
+<p>/dev/poll (Sun Solaris only, <tt class=
+"literal">IO_POLL_MECHANISM=2</tt>)</p>
+</li>
+<li>
+<p>epoll (Linux only, <tt class=
+"literal">IO_POLL_MECHANISM=4</tt>)</p>
+</li>
+<li>
+<p>poll (<tt class="literal">IO_POLL_MECHANISM=8</tt>)</p>
+</li>
+<li>
+<p>select (<tt class="literal">IO_POLL_MECHANISM=16</tt>)</p>
+</li>
+</ul>
+<p>Environment variables can be set in the configuration file at
+top-level:</p>
+<pre class="screen">setenv IO_POLL_MECHANISM = 4</pre></div>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN205" id="AEN205">4. Configuration
+directives</a></h2>
+<p>Several configuration options are very similar in syntax. For
+that reason, I'll use a couple of shortcuts below:</p>
+<ul>
+<li>
+<p><span class="bold"><b class="emphasis">Boolean</b></span>:
+<tt class="literal">yes</tt>/<tt class="literal">permit</tt> or
+<tt class="literal">no</tt>/<tt class="literal">deny</tt></p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">Path</b></span>: A valid
+file file path on your system.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">Number</b></span>: A
+positive integer number.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">Directory</b></span>: A
+valid directory path on your system.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">CIDR</b></span>: A single
+IP address or network the latter in Classless Inter-Domain Routing
+notation (<span class="emphasis"><i class=
+"emphasis">Address</i></span><tt class="literal">/</tt><span class=
+"emphasis"><i class="emphasis">MaskLength</i></span>).</p>
+</li>
+</ul>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN231" id="AEN231">4.1. Global
+Configuration</a></h3>
+<p>The following table summarizes configuration options with
+plain</p>
+<p><span class="emphasis"><i class="emphasis">Variable</i></span>
+<tt class="literal">=</tt> <span class="emphasis"><i class=
+"emphasis">Argument</i></span></p>
+<p>syntax:</p>
+<div class="informaltable"><a name="AEN239" id="AEN239"></a>
+<table border="1" class="CALSTABLE">
+<col width="1%" title="1">
+<col width="1%" title="2">
+<col width="1%" title="3">
+<thead>
+<tr>
+<th>Variable</th>
+<th colspan="2">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td rowspan="5"><tt class="literal">mimetypes</tt></td>
+<td colspan="2">This specifies the path to a <tt class=
+"literal">mime.types</tt> file. Mime-types are used for the
+<span class="emphasis"><i class="emphasis">media-type</i></span>
+fact in <tt class="literal">MLST</tt>/<tt class="literal">MLSD</tt>
+replies.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class="emphasis">Path</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class="emphasis">none</i></span></td>
+</tr>
+<tr>
+<td colspan="2"><span class="bold"><b class=
+"emphasis">Example:</b></span></td>
+</tr>
+<tr>
+<td colspan="2">
+<pre class="screen">mimetypes = /etc/mime.types</pre></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">buffer size</tt></td>
+<td colspan="2">Permits tuning of buffer allocation size.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Integer</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">32k</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">buffer mmap-size</tt></td>
+<td colspan="2">Permits tuning of buffer allocation size. Setting
+<span class="emphasis"><i class="emphasis">mmap-size</i></span> to
+0 will cause whole files to be memory-mapped. However, if you do so
+on a 32bit system, it may run out of address space.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Integer</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">256k</tt> (on 64bit systems:
+unlimited)</td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">hide-version</tt></td>
+<td colspan="2">This options controls whether the daemon will omit
+its version number in the <tt class="literal">HELP</tt>
+response.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">no</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">retire</tt></td>
+<td colspan="2">If set, the daemon will terminate after processing
+<span class="emphasis"><i class="emphasis">count</i></span>
+sessions, what may be useful to remedy the effects of memory
+leaks.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Integer</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">log-format command</tt></td>
+<td colspan="2">Sets format for logging to syslog.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">String</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">"CMD|%i|%r|%I|%t|%u|%C|%c"</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">log-format event</tt></td>
+<td colspan="2">Sets format for logging to syslog.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">String</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">"EVE|%i|%r|%I|%u|%t|%d"</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">log-format transfer</tt></td>
+<td colspan="2">Sets format for logging to syslog.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">String</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class=
+"literal">"XFR|%i|%r|%I|%t|%u|%d|%m|%b/%s|%D|%c"</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">log-format delimiter</tt></td>
+<td colspan="2">All occurrences of the <span class=
+"emphasis"><i class="emphasis">delimiter</i></span> character will
+be replaced by the <span class="emphasis"><i class=
+"emphasis">substitute</i></span> character before logging.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Character</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">"|"</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">log-format substitute</tt></td>
+<td colspan="2">All occurrences of the <span class=
+"emphasis"><i class="emphasis">delimiter</i></span> character will
+be replaced by the <span class="emphasis"><i class=
+"emphasis">substitute</i></span> character before logging.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Character</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">"_"</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">nlst</tt></td>
+<td colspan="2">This directive may be used to limit output of the
+<tt class="literal">NLST</tt> command to regular files. It is
+provided for <span class="bold"><b class=
+"emphasis">wu-ftpd</b></span> compatibility.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Argument</b></span></td>
+<td><tt class="literal">files-only</tt></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">use-mmap</tt></td>
+<td colspan="2">On systems supporting memory-mapped I/O, the daemon
+may use <tt class="literal">mmap</tt>(2) for read-only file access.
+Preliminary tests indicated that <tt class=
+"literal">mmap</tt>(2)/<tt class="literal">write</tt>(2) improves
+binary file transfer performance by about 12% compared to
+<tt class="literal">read</tt>(2)/<tt class="literal">write</tt>(2).
+ASCII transfers and checksum calculations show better performance,
+too. The daemon will automatically fall back to standard I/O if the
+<tt class="literal">mmap</tt>(2) syscall fails.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">yes</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">use-sendfile</tt></td>
+<td colspan="2">On systems supporting <tt class=
+"literal">sendfile</tt>(2), the daemon may use that syscall for
+binary file transfers. Preliminary tests indicated that <tt class=
+"literal">sendfile</tt>(2) improves performance by about 18%
+compared to <tt class="literal">read</tt>(2)/<tt class=
+"literal">write</tt>(2), and by about 5% compared to <tt class=
+"literal">mmap</tt>(2)/<tt class="literal">write</tt>(2). The
+daemon will automatically fall back to memory mapped or standard
+I/O if the <tt class="literal">sendfile</tt>(2) syscall fails.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">yes</tt></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN463" id="AEN463">4.1.1. Access
+Control Lists</a></h4>
+<p>Various configuration directives may depend on ACLs. ACL syntax
+is</p>
+<p><tt class="literal">acl</tt> <span class="emphasis"><i class=
+"emphasis">ACLName</i></span> <tt class="literal">= {</tt> ...
+<tt class="literal">}</tt></p>
+<p>To be more precisely, the above doesn't specify a complete ACL,
+but adds a ACL rule to <span class="emphasis"><i class=
+"emphasis">ACLName</i></span>. As such, an <tt class=
+"literal">acl</tt> declaration may be used multiple times, and the
+ACL rule will just be added to the end of the current rule list.
+Likewise, ACL rules are evaluated sequentially, in the order of
+definition.</p>
+<p>Inside the curly brackets, recognized matching criteria are:</p>
+<ul>
+<li>
+<p><tt class="literal">src =</tt> [ <tt class="literal">not</tt> ]
+<span class="emphasis"><i class="emphasis">CIDR</i></span></p>
+<p>(matches source address of client)</p>
+</li>
+<li>
+<p><tt class="literal">dst =</tt> [ <tt class="literal">not</tt> ]
+<span class="emphasis"><i class="emphasis">CIDR</i></span></p>
+<p>(matches local destination address)</p>
+</li>
+<li>
+<p><tt class="literal">authenticated =</tt> [ <tt class=
+"literal">not</tt> ] ( <tt class="literal">yes</tt> | <tt class=
+"literal">no</tt> | <tt class="literal">real</tt> | <tt class=
+"literal">anon</tt> )</p>
+<p>(matches if the user has authenticated as a <tt class=
+"literal">real</tt> or <tt class="literal">anon</tt>ymous user;
+<tt class="literal">yes</tt> matches both)</p>
+</li>
+<li>
+<p><tt class="literal">protected =</tt> <span class=
+"emphasis"><i class="emphasis">Boolean</i></span></p>
+<p>(matches according to the TLS protection status)</p>
+</li>
+<li>
+<p><tt class="literal">time =</tt> [ <tt class="literal">not</tt> ]
+<span class="emphasis"><i class=
+"emphasis">TimeSpecName</i></span></p>
+<p>Matches depending on current time.</p>
+<p><tt class="literal">timespec</tt> objects may be used for time
+based profile assignments. Both <tt class="literal">cron</tt> and
+<tt class="literal">Taylor-UUCP</tt> syntax are supported, see you
+local <tt class="literal">crontab</tt><span class=
+"emphasis"><i class="emphasis">(5)</i></span> and/or UUCP man pages
+for details. Syntax:</p>
+<p><tt class="literal">timespec =</tt> <span class=
+"emphasis"><i class="emphasis">timespec_name</i></span><tt class=
+"literal">{ "</tt><span class="emphasis"><i class=
+"emphasis">entry</i></span><tt class="literal">"</tt> [ ... ]
+<tt class="literal">}</tt></p>
+<p>Example:</p>
+<pre class=
+"screen"># Working hours are from Mo-Fr from 9 to 16:59, and
+# on Saturdays from 9 to 12:59:
+timespec = workinghours {
+    "* 9-16 * * 1-5"   # or: "* 9-16 * * Mon-Fri"
+    "* 9-12 * * 6"     # or: "* 9-12 * * Sat"
+}
+
+timespec = sunday { "* * * * 0" }
+
+timespec = example {
+    Wk2305-0855,Sa,Su2305-1655
+    Wk0905-2255,Su1705-2255
+    Any
+}</pre></li>
+<li>
+<p><tt class="literal">user =</tt> [ <tt class="literal">not</tt> ]
+[ <tt class="literal">regex</tt> ] [ <tt class=
+"literal">caseless</tt> ] <span class="emphasis"><i class=
+"emphasis">User</i></span></p>
+<p>(matches current user name verbatim or as POSIX regular
+expression)</p>
+</li>
+<li>
+<p><tt class="literal">arg =</tt> [ <tt class="literal">not</tt> ]
+[ <tt class="literal">regex</tt> ] [ <tt class=
+"literal">caseless</tt> ] <span class="emphasis"><i class=
+"emphasis">Arg</i></span></p>
+<p>(matches command argument verbatim or as POSIX regular
+expression)</p>
+</li>
+<li>
+<p><tt class="literal">path =</tt> [ <tt class="literal">not</tt> ]
+[ <tt class="literal">regex</tt> ] [ <tt class=
+"literal">caseless</tt> ] <span class="emphasis"><i class=
+"emphasis">Path</i></span></p>
+<p>(matches path verbatim or as POSIX regular expression)</p>
+</li>
+<li>
+<p><tt class="literal">host =</tt> [ <tt class="literal">not</tt> ]
+[ <tt class="literal">regex</tt> ] [ <tt class=
+"literal">caseless</tt> ] <span class="emphasis"><i class=
+"emphasis">Host</i></span></p>
+<p>(matches virtual host name verbatim or as POSIX regular
+expression)</p>
+</li>
+</ul>
+<p>For <tt class="literal">src</tt> and <tt class=
+"literal">dst</tt> multiple definitions may be given within the
+same rule.</p>
+<p>Example:</p>
+<pre class="screen">acl rfc1918 = {
+    src = 127.0.0.1
+    src = 10.0.0.0/8
+    src = 172.16.0.0/12
+    src = 192.168.0.0/16
+}
+
+acl ipv6_any = {
+    src = ::0
+}
+
+acl notsunday = {
+    time = workinghours
+}
+
+acl test001 = {
+    arg regex = ^.cshrc$
+    authenticated = real
+}
+
+acl test002 = {
+    user = root
+    authenticated = real
+}</pre>
+<p>These are predefined:</p>
+<pre class="screen">acl = secure { protected = yes }
+acl = any { }
+acl = connect { }
+acl = real { authenticated = real }
+acl = anon { authenticated = anon }
+acl = login { authenticated = yes }</pre></div>
+</div>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN565" id="AEN565">4.2. ACL-based
+Configuration</a></h3>
+<p>The following table summarizes configuration options with</p>
+<p><span class="emphasis"><i class="emphasis">Variable</i></span> [
+<tt class="literal">acl</tt> [ <tt class="literal">not</tt> ]
+<span class="emphasis"><i class="emphasis">AclName</i></span> ]
+<tt class="literal">=</tt> <span class="emphasis"><i class=
+"emphasis">Argument</i></span></p>
+<p>syntax. Example:</p>
+<pre class="screen">access acl not someacl = permit
+access acl otheracl = permit
+access = deny</pre>
+<div class="informaltable"><a name="AEN577" id="AEN577"></a>
+<table border="1" class="CALSTABLE">
+<col width="1%" title="1">
+<col width="1%" title="2">
+<col width="1%" title="3">
+<thead>
+<tr>
+<th>Variable</th>
+<th colspan="2">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td rowspan="3"><tt class="literal">access</tt></td>
+<td colspan="2">Grants initial connection setup based on ACLs.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">permit</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">address-mismatch</tt></td>
+<td colspan="2">Permit or deny address mismatches between data and
+control channel, only necessary for server-to-server
+transfers.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">deny</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">ascii-size-limit</tt></td>
+<td colspan="2">Sets an upper file size limit for size calculations
+in ASCII transfer mode.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Number</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">authentication-failures
+max</tt></td>
+<td colspan="2">Sets an upper limit for authentication failures.
+Stop verifiying authentication after limit is exceeded, just
+reject.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Number</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">5</tt></td>
+</tr>
+<tr>
+<td rowspan="5"><tt class="literal">authentication-failures
+bye</tt></td>
+<td colspan="2">Terminate connection after the specified number of
+authentication failures.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Number</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">10</tt></td>
+</tr>
+<tr>
+<td colspan="2"><span class="bold"><b class=
+"emphasis">Example:</b></span></td>
+</tr>
+<tr>
+<td colspan="2">
+<pre class="screen">authentication-failures bye = 5</pre></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">auto-conversion
+checksum</tt></td>
+<td colspan="2">Allow or deny on-the-fly calculation of checksum
+(*.md5, *.crc) files.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">deny</tt></td>
+</tr>
+<tr>
+<td rowspan="5"><tt class="literal">auto-conversion</tt> (
+<tt class="literal">gzip</tt> | <tt class=
+"literal">deflate</tt>)</td>
+<td colspan="2">Allow or deny on-the-fly compression to gzip
+(deflate) format by appending <tt class="literal">.gz</tt> to the
+filename.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">deny</tt></td>
+</tr>
+<tr>
+<td colspan="2"><span class="bold"><b class=
+"emphasis">Example:</b></span></td>
+</tr>
+<tr>
+<td colspan="2">
+<pre class=
+"screen">acl may-compress = { path = regex "\.(txt|doc)$" }
+auto-conversion gzip acl may-compress = permit</pre></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">banner</tt></td>
+<td colspan="2">Specifies a file to be displayed before the initial
+greeting message. Magic cookie substitution applies.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class="emphasis">Path</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">banner-action</tt></td>
+<td colspan="2">Terminates the session after displaying a
+banner.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Argument</b></span></td>
+<td><tt class="literal">logout</tt></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td rowspan="5"><tt class="literal">binary-only</tt></td>
+<td colspan="2">Rejects non-binary file transfers. Will also be
+evaluated for <tt class="literal">SIZE</tt> calculations in ASCII
+mode.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">deny</tt></td>
+</tr>
+<tr>
+<td colspan="2"><span class="bold"><b class=
+"emphasis">Example:</b></span></td>
+</tr>
+<tr>
+<td colspan="2">
+<pre class=
+"screen">acl binary = { path = regex "\.(gif|jpg|mp3)$" }
+binary-only acl binary = permit</pre></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">check-uid</tt></td>
+<td colspan="2">If enabled, only files belonging to the actual user
+are accessible.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">no</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">check-gid</tt></td>
+<td colspan="2">If enabled, only files belonging to the actual
+user's group are accessible.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">no</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">check-perm</tt></td>
+<td colspan="2">If enabled, only publicly accessible files are
+permitted.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">no</tt></td>
+</tr>
+<tr>
+<td rowspan="5"><tt class="literal">chmod-mask</tt> ( <tt class=
+"literal">file</tt> | <tt class="literal">directory</tt> )</td>
+<td colspan="2">Bits set in <span class="emphasis"><i class=
+"emphasis">mask</i></span> can not be removed using the <tt class=
+"literal">SITE UMASK</tt> or <tt class="literal">SITE CHMOD</tt>
+commands.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Octal</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td colspan="2"><span class="bold"><b class=
+"emphasis">Example:</b></span></td>
+</tr>
+<tr>
+<td colspan="2">
+<pre class="screen">chmod-mask file = 0600</pre></td>
+</tr>
+<tr>
+<td rowspan="5"><tt class="literal">deflate-level</tt> ( <tt class=
+"literal">min</tt> | <tt class="literal">max</tt> | <tt class=
+"literal">default</tt> )</td>
+<td colspan="2">These parameters set and/or limit the deflate
+compression level for both <tt class="literal">transmission-mode =
+z</tt> and <tt class="literal">auto-conversion gzip</tt>. Valid
+levels are from <tt class="literal">0</tt> to <tt class=
+"literal">9</tt>.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Number</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td colspan="2"><span class="bold"><b class=
+"emphasis">Example:</b></span></td>
+</tr>
+<tr>
+<td colspan="2">
+<pre class="screen">deflate-level default = 7</pre></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">dotfiles</tt></td>
+<td colspan="2">Permit or deny access to files starting with a
+dot.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">deny</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">fake-group</tt></td>
+<td colspan="2">Sets the group name to display in directory
+listings if resolving the GID is not possible or deactivated with
+the <span class="emphasis"><i class=
+"emphasis">resolve-ids</i></span> clause.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">String</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">ftp</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">fake-owner</tt></td>
+<td colspan="2">Sets the user name to display in directory listings
+if resolving the UID is not possible or deactivated with the
+<span class="emphasis"><i class="emphasis">resolve-ids</i></span>
+clause.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">String</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">ftp</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">goodbye</tt></td>
+<td colspan="2">Specifies the absolute path to some file to be
+displayed at logout time. Magic cookie substitution applies.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class="emphasis">Path</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td rowspan="5"><tt class="literal">greeting</tt></td>
+<td colspan="2">Specifies the initial greeting message in 220
+response. Magic cookie substitution applies.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">String</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">"Welcome, pilgrim."</tt></td>
+</tr>
+<tr>
+<td colspan="2"><span class="bold"><b class=
+"emphasis">Example:</b></span></td>
+</tr>
+<tr>
+<td colspan="2">
+<pre class=
+"screen">greeting = "%L FTP server (Version %V)"</pre></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">hostname</tt></td>
+<td colspan="2">Sets the the virtual hostname for the current
+session.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">String</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">"misconfigured.host"</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">ident</tt></td>
+<td colspan="2">If enabled, <span class="bold"><b class=
+"emphasis">ftpd</b></span> will attempt to query the remote RFC1413
+daemon (if any) for the remote user name, which is informal only
+and may be used in banners using the <tt class="literal">%u</tt>
+modifier. The ident query is performed asynchronously and doesn't
+defer the login process.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">no</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">maintainer</tt></td>
+<td colspan="2">Sets the site maintainers email address.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">String</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td rowspan="5"><tt class="literal">log</tt></td>
+<td colspan="2">Enables logging for the specified <span class=
+"emphasis"><i class="emphasis">LogType</i></span>s (<tt class=
+"literal">command</tt>, <tt class="literal">transfer</tt>,
+<tt class="literal">event</tt>, <tt class=
+"literal">ident</tt>)</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">LogType</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td colspan="2"><span class="bold"><b class=
+"emphasis">Example:</b></span></td>
+</tr>
+<tr>
+<td colspan="2">
+<pre class=
+"screen">log acl someacl = ident command transfer</pre></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">passive address</tt></td>
+<td colspan="2">Specify the IP address used in <tt class=
+"literal">PASV</tt> replies. Might be useful for NAT.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">IPAddress</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">passive port</tt> ( <tt class=
+"literal">min</tt> | <tt class="literal">max</tt> )</td>
+<td colspan="2">Specify the port range for <tt class=
+"literal">PASV</tt> replies.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Number</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">readme</tt></td>
+<td colspan="2">Specifies the file to be displayed upon entering a
+directory. That file needs to be world-readable, or it may or may
+not be displayed. If <span class="emphasis"><i class=
+"emphasis">File</i></span>contains '%s', the daemon will substitute
+that character sequence with and '-' plus the current language
+abbreviation, e.g. '-en' or '-de'. If that fails, '%s' will be
+substituted with an empty string. More than one occurence of '%s'
+in <span class="emphasis"><i class="emphasis">file</i></span> will
+most likely result in a segmentation fault. Magic cookie
+substitution applies.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class="emphasis">File</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">readme-once</tt></td>
+<td colspan="2">Display the <tt class="literal">readme</tt> file
+only once.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">readme-notify</tt></td>
+<td colspan="2">Notify that the <tt class="literal">readme</tt>
+file exists, but don't display it.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">resolve-ids</tt></td>
+<td colspan="2">If set to <tt class="literal">deny</tt> hides real
+file ownerships.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">deny</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">shape-bandwidth</tt></td>
+<td colspan="2">Establish a session-based upper limit for outgoing
+bandwidth. The argument is the absolute bandwidth available for the
+session.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Number</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td rowspan="5"><tt class="literal">symlinks</tt></td>
+<td colspan="2">
+<p>Specify which symbolic links to trust. This option is quite
+critical for system security and defaults to <tt class=
+"literal">none</tt>. Recognized keywords:</p>
+<ul>
+<li>
+<p><tt class="literal">all</tt> &#8208; accept all symbolic
+links</p>
+</li>
+<li>
+<p><tt class="literal">none</tt> &#8208; ignore all symbolic
+links</p>
+</li>
+<li>
+<p><tt class="literal">root</tt> &#8208; accept symbolic links
+owned by root</p>
+</li>
+<li>
+<p><tt class="literal">same</tt> &#8208; accept symbolic links
+owned by owner of target</p>
+</li>
+<li>
+<p><tt class="literal">real</tt> &#8208; accept symbolic links for
+non-anonymous users</p>
+</li>
+</ul>
+</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">SymlinkType</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td colspan="2"><span class="bold"><b class=
+"emphasis">Example:</b></span></td>
+</tr>
+<tr>
+<td colspan="2">
+<pre class="screen">symlinks = root same real</pre></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">accept timeout</tt></td>
+<td colspan="2">Sets the timeout for establishing incoming data
+connections.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Seconds</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">30</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">connect timeout</tt></td>
+<td colspan="2">Sets the timeout for establishing outgoing data
+connections.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Seconds</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">30</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">idle timeout</tt> ( <tt class=
+"literal">default</tt> | <tt class="literal">min</tt> | <tt class=
+"literal">max</tt> )</td>
+<td colspan="2">This option sets the default, minimum and maximum
+session timeouts, the latter two for <tt class="literal">SITE
+IDLE</tt>.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Seconds</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">600</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">transmission-mode z</tt></td>
+<td colspan="2">Enables/disables the <tt class="literal">Z</tt>
+transmission mode. When enabled, <span class="emphasis"><i class=
+"emphasis">deflate</i></span> data transfer compression may be
+used. This option is only available if the software was compiled
+with zlib support.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Boolean</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">deny</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">umask</tt></td>
+<td colspan="2">Specifies the default umask. Both MAVIS derived
+umasks and umasks set with the <tt class="literal">SITE UMASK</tt>
+command have higher priority. Defaults to 022</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">Octal</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><tt class="literal">022</tt></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">welcome</tt></td>
+<td colspan="2">Specifies a file to be displayed just after login.
+Magic cookie substitution applies.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Type of
+Argument</b></span></td>
+<td><span class="emphasis"><i class="emphasis">Path</i></span></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+<tr>
+<td rowspan="3"><tt class="literal">welcome-action</tt></td>
+<td colspan="2">Terminates the session after displaying the welcome
+message.</td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Argument</b></span></td>
+<td><tt class="literal">logout</tt></td>
+</tr>
+<tr>
+<td><span class="bold"><b class="emphasis">Default
+Value</b></span></td>
+<td><span class="emphasis"><i class=
+"emphasis">unset</i></span></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>FTP commands may depend on ACLs, too. Syntax for that is:</p>
+<p><tt class="literal">command =</tt> [ <tt class=
+"literal">site</tt> ] <span class="emphasis"><i class=
+"emphasis">Command</i></span> <tt class="literal">{</tt> (
+<tt class="literal">acl</tt> [ <tt class="literal">not</tt> ]
+<span class="emphasis"><i class="emphasis">ACLName</i></span>
+<tt class="literal">=</tt> [ <tt class="literal">log</tt> ] (
+<tt class="literal">permit</tt> | <tt class="literal">deny</tt> )
+)* <tt class="literal">}</tt></p>
+<p>Example:</p>
+<pre class=
+"screen">command = site chmod { acl connect = log permit }
+command = pass { acl not real = log permit }
+</pre></div>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN1256" id="AEN1256">4.3.
+Path-rewriting using PCRE</a></h3>
+<p>If compiled with PCRE (Perl Compatible Regular Expressions)
+support,</p>
+<p><tt class="literal">rewrite</tt> <span class=
+"emphasis"><i class="emphasis">perl-regex replacement [ flags
+]</i></span></p>
+<p>may be used to implement Perl-like file path rewriting rules.
+Valid flags are <tt class="literal">L</tt> (last), <tt class=
+"literal">N</tt> (next) and <tt class="literal">R</tt> (reject).
+<tt class="literal">$n</tt> (or <tt class="literal">${n}</tt> for
+<tt class="literal">n</tt> &gt; 9) in <span class=
+"emphasis"><i class="emphasis">replacement</i></span> will be
+substituted by the corresponding match in <span class=
+"emphasis"><i class="emphasis">perl-regex</i></span>. This option
+is available only if PCRE support is compiled in. Example:</p>
+<pre class="screen">rewrite ^/ftp/mirror-(.*)$    /ftp/mirror/$1
+rewrite ^/tmp/test/(..)$      /tmp/test
+rewrite ^/tmp/test/../.*$     $0                     L
+rewrite ^/tmp/test/(..)(.*)   /tmp/gaga/${1}/${1}$2  L
+rewrite ^/tmp/test123         $0                     R</pre></div>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN1272" id="AEN1272">4.4. TLS
+support</a></h3>
+<p>If compiled with TLS support, various TLS related parameters may
+be specified. Most of the options should obvious enough:</p>
+<ul>
+<li>
+<p><tt class="literal">tls certfile =</tt> <span class=
+"emphasis"><i class="emphasis">CertFile</i></span></p>
+</li>
+<li>
+<p><tt class="literal">tls keyfile =</tt> <span class=
+"emphasis"><i class="emphasis">KeyFile</i></span></p>
+</li>
+<li>
+<p><tt class="literal">tls passphrase =</tt> <span class=
+"emphasis"><i class="emphasis">PassPhrase</i></span></p>
+</li>
+<li>
+<p><tt class="literal">tls auth =</tt> <span class=
+"emphasis"><i class="emphasis">Boolean</i></span></p>
+</li>
+<li>
+<p><tt class="literal">tls required =</tt> <span class=
+"emphasis"><i class="emphasis">Boolean</i></span></p>
+</li>
+<li>
+<p><tt class="literal">tls cafile =</tt> <span class=
+"emphasis"><i class="emphasis">CAFile</i></span></p>
+</li>
+<li>
+<p><tt class="literal">tls capath =</tt> <span class=
+"emphasis"><i class="emphasis">CAPath</i></span></p>
+</li>
+<li>
+<p><tt class="literal">tls depth =</tt> <span class=
+"emphasis"><i class="emphasis">Depth</i></span></p>
+</li>
+<li>
+<p><tt class="literal">tls ciphers =</tt> <span class=
+"emphasis"><i class="emphasis">Ciphers</i></span></p>
+</li>
+<li>
+<p><tt class="literal">tls old-draft =</tt> <span class=
+"emphasis"><i class="emphasis">Boolean</i></span></p>
+</li>
+</ul>
+<p>The <tt class="literal">auth</tt> keyword enables client
+certificate based authentication. This requires some further
+configuration within the <tt class="literal">auth</tt> MAVIS
+module. Certificate based authentication will require at least
+OpenSSL version 0.9.7.</p>
+<p>If <tt class="literal">old-draft</tt> is specified, the daemon
+responds with a <tt class="literal">234</tt> instead of a
+<tt class="literal">334</tt> message after successfully negotiating
+TLS. This enables use of clients conforming to older versions of
+<tt class="literal">draft-murray-auth-ftp-ssl</tt>. It is
+recommended not to use that option, but to fix the client.</p>
+<p><tt class="literal">keyfile</tt> may be omitted, it defaults to
+<span class="emphasis"><i class="emphasis">CertFile</i></span>.</p>
+<p>All this is unset by default.</p>
+</div>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN1328" id="AEN1328">4.5. MAVIS
+Configuration</a></h3>
+<p>Directives to configure the MAVIS backends are:</p>
+<ul>
+<li>
+<p><tt class="literal">mavis module =</tt> <span class=
+"emphasis"><i class="emphasis">module</i></span> <tt class=
+"literal">{</tt> ... <tt class="literal">}</tt></p>
+<p>Load MAVIS module <span class="emphasis"><i class=
+"emphasis">module</i></span>. See the MAVIS documentation for confi
+guration guidance.</p>
+</li>
+<li>
+<p><tt class="literal">mavis path =</tt> <span class=
+"emphasis"><i class="emphasis">path</i></span></p>
+<p>Add <span class="emphasis"><i class="emphasis">path</i></span>
+to the search-path for MAVIS modules.</p>
+</li>
+</ul>
+</div>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN1346" id="AEN1346">5. Wildcard
+patterns</a></h2>
+<p>Limited file name globbing for the <tt class="literal">LIST</tt>
+and <tt class="literal">NLST</tt> commands is implemented for files
+in the current working directory.</p>
+<p>Recognized glob patterns are:</p>
+<ul>
+<li>
+<p><tt class="literal">*</tt> matches any string, including the
+empty string</p>
+</li>
+<li>
+<p><tt class="literal">?</tt> matches any single character</p>
+</li>
+<li>
+<p><tt class="literal">[</tt>...<tt class="literal">]</tt> matches
+exactly one single character between the brackets. If the first
+character inside the brackets is a <tt class="literal">!</tt>, the
+expression matches the complement. If it is a <tt class=
+"literal">]</tt> it matches the literal <tt class="literal">]</tt>.
+Two characters separated by <tt class="literal">-</tt> denote a
+range.</p>
+</li>
+</ul>
+<p>For the <tt class="literal">CWD</tt> command only, a tilde
+(<tt class="literal">~</tt>) character at the beginning of the
+argument expands to the users home directory.</p>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN1370" id="AEN1370">6. Magic cookie
+substitution</a></h2>
+<p>The magic cookies used are partially compatible to those
+utilized by <span class="bold"><b class=
+"emphasis">wu-ftpd</b></span>. Text and files specified using the
+configuration directives <span class="bold"><b class=
+"emphasis">banner</b></span>, <span class="bold"><b class=
+"emphasis">goodbye</b></span>, <span class="bold"><b class=
+"emphasis">greeting</b></span>, <span class="bold"><b class=
+"emphasis">readme</b></span> and <span class="bold"><b class=
+"emphasis">welcome</b></span> are subject to cookie
+substitution.</p>
+<p>Available conversions are:</p>
+<ul>
+<li>
+<p><tt class="literal">%A</tt> &#8208; number of transfers</p>
+</li>
+<li>
+<p><tt class="literal">%B</tt> &#8208; build time</p>
+</li>
+<li>
+<p><tt class="literal">%C</tt> &#8208; current working directory as
+displayed to user</p>
+</li>
+<li>
+<p><tt class="literal">%D</tt> &#8208; time for last transfer</p>
+</li>
+<li>
+<p><tt class="literal">%E</tt> &#8208; maintainer</p>
+</li>
+<li>
+<p><tt class="literal">%F</tt> &#8208; number of files
+transfered</p>
+</li>
+<li>
+<p><tt class="literal">%H</tt> &#8208; virtual host if set, local
+hostname else</p>
+</li>
+<li>
+<p><tt class="literal">%I</tt> &#8208; identity &#8208; user name
+for real users, email or empty else</p>
+</li>
+<li>
+<p><tt class="literal">%L</tt> &#8208; local hostname</p>
+</li>
+<li>
+<p><tt class="literal">%P</tt> &#8208; email for anonymous users,
+empty string else</p>
+</li>
+<li>
+<p><tt class="literal">%R</tt> &#8208; remote host name, <tt class=
+"literal">[%r]</tt> if unavailable</p>
+</li>
+<li>
+<p><tt class="literal">%T</tt> &#8208; local time</p>
+</li>
+<li>
+<p><tt class="literal">%U</tt> &#8208; user name</p>
+</li>
+<li>
+<p><tt class="literal">%V</tt> &#8208; version number</p>
+</li>
+<li>
+<p><tt class="literal">%a</tt> &#8208; total number of bytes
+transfered</p>
+</li>
+<li>
+<p><tt class="literal">%b</tt> &#8208; bytes transferred during
+last transfer</p>
+</li>
+<li>
+<p><tt class="literal">%c</tt> &#8208; command or file name</p>
+</li>
+<li>
+<p><tt class="literal">%d</tt> &#8208; direction of transfer
+(<span class="bold"><b class="emphasis">I</b></span>n, <span class=
+"bold"><b class="emphasis">O</b></span>ut, <span class=
+"bold"><b class="emphasis">i</b></span>n failed, <span class=
+"bold"><b class="emphasis">o</b></span>ut failed, <span class=
+"bold"><b class="emphasis">X</b></span>: aborted)</p>
+</li>
+<li>
+<p><tt class="literal">%e</tt> &#8208; event (<tt class=
+"literal">login</tt>, <tt class="literal">logout</tt> or <tt class=
+"literal">reject</tt>)</p>
+</li>
+<li>
+<p><tt class="literal">%f</tt> &#8208; number of bytes for file
+transfers</p>
+</li>
+<li>
+<p><tt class="literal">%i</tt> &#8208; unique session id</p>
+</li>
+<li>
+<p><tt class="literal">%l</tt> &#8208; local ip address</p>
+</li>
+<li>
+<p><tt class="literal">%m</tt> &#8208; transfer mode (<span class=
+"bold"><b class="emphasis">a</b></span>scii or <span class=
+"bold"><b class="emphasis">b</b></span>inary)</p>
+</li>
+<li>
+<p><tt class="literal">%r</tt> &#8208; remote ip address</p>
+</li>
+<li>
+<p><tt class="literal">%s</tt> &#8208; file size of last
+transferred file</p>
+</li>
+<li>
+<p><tt class="literal">%t</tt> &#8208; type of user (<span class=
+"bold"><b class="emphasis">r</b></span>eal, <span class=
+"bold"><b class="emphasis">a</b></span>nonymous or <span class=
+"bold"><b class="emphasis">u</b></span>nknown)</p>
+</li>
+<li>
+<p><tt class="literal">%u</tt> &#8208; user name from RFC1413
+lookup</p>
+</li>
+<li>
+<p><tt class="literal">%%</tt> &#8208; literal percent sign</p>
+</li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN1479" id="AEN1479">7. Sample
+configuration</a></h2>
+<p>This is from the <tt class="literal">ftpd/sample</tt>
+directory:</p>
+<pre class="screen">#!../obj.darwin-9.6.0-i386/ftpd
+id = spawnd {
+        listen = { port = 2121 }
+        spawn = {
+                instances min = 1
+        }
+        background = no
+}
+
+id = ftpd {
+        debug = NET CMD
+        mavis path = ../../mavis/obj.darwin-9.6.0-i386
+
+        mavis module = anonftp {
+                userid = 100
+                groupid = mail
+                home = /
+                root = /tmp/
+                upload = /tmp/incoming/
+        }
+        symlinks = all
+        check-uid = no
+        check-gid = no
+        check-perm = no
+}</pre></div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN1484" id="AEN1484">8. Railroad
+Diagrams</a></h2>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/AcceptExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: AcceptExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/AccessExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: AccessExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/AclDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: AclDecl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/AclExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: AclExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/AddressMismatchExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: AddressMismatchExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/AllowDotfilesExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: AllowDotfilesExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/AsciiSizeExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: AsciiSizeExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/AuthFailExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: AuthFailExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/AutoConvExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: AutoConvExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/BannerActionExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: BannerActionExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/BannerExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: BannerExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/BinaryOnlyExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: BinaryOnlyExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/CheckExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: CheckExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/ChmodMaskExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ChmodMaskExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/CmdAuth.svg"></p>
+<div class="caption">
+<p>Railroad diagram: CmdAuth</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/CmdAuthExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: CmdAuthExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/ConnectExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ConnectExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/DeflateLevelExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: DeflateLevelExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/FakeIdExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: FakeIdExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/FtpdConfig.svg"></p>
+<div class="caption">
+<p>Railroad diagram: FtpdConfig</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/GlobalDecl.svg"></p>
+<div class="caption">
+<p>Railroad diagram: GlobalDecl</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/GoodbyeExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: GoodbyeExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/GreetingExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: GreetingExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/HostnameExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: HostnameExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/IdentExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: IdentExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/IdleExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: IdleExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/LogExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: LogExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/LogFormatExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: LogFormatExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/MaintainerExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: MaintainerExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/PassiveExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: PassiveExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/ReadmeNotifyExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ReadmeNotifyExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/ReadmeOnceExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ReadmeOnceExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/ResolveIDsExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ResolveIDsExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/RetireExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: RetireExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/RewriteExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: RewriteExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/ShapeBwExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: ShapeBwExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/SymlinksExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: SymlinksExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/SyslogExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: SyslogExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/TLSExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: TLSExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/TransModeExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: TransModeExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/UmaskExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: UmaskExpr</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="railroad/ftpd/WelcomeActionExpr.svg"></p>
+<div class="caption">
+<p>Railroad diagram: WelcomeActionExpr</p>
+</div>
+</div>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN1781" id="AEN1781">9. Bugs</a></h2>
+<ul>
+<li>
+<p>The server doesn't perform a <tt class=
+"literal">chroot</tt>(2).</p>
+</li>
+<li>
+<p>Ftpd has to be started by the super-user unless a non-privileged
+(and such non-standard) port is used.</p>
+</li>
+<li>
+<p>The <tt class="literal">LIST</tt> algorithm doesn't permit
+recursive directory listings, and output differs from POSIX (no
+<tt class="literal">total</tt> line at start of directory listing).
+However, I don't consider this a serious deficiency, as <tt class=
+"literal">LIST</tt> output isn't standardized anyway.</p>
+</li>
+<li>
+<p>TLS re-negotiation is currently untested and may or may not
+work.</p>
+</li>
+<li>
+<p>UTF-8 support is likely to be incomplete or plain broken.</p>
+</li>
+<li>
+<p>There may still be some nasty bugs lurking in the code. Please
+contact the author via the "Event-Driven Servers" Google Group at
+<code class="email">&lt;<a href=
+"mailto:event-driven-servers@googlegroups.com">event-driven-servers@googlegroups.com</a>&gt;</code>
+or <a href="http://groups.google.com/group/event-driven-servers"
+target=
+"_top">http://groups.google.com/group/event-driven-servers</a> if
+you think you've found one.</p>
+</li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN1803" id="AEN1803">10.
+References</a></h2>
+<p>The FTP Daemon hopefully conforms to the following standards and
+drafts:</p>
+<ul>
+<li>
+<p>RFC959 &#8208; File Transfer Protocol</p>
+</li>
+<li>
+<p>RFC1123 &#8208; Requirements for Internet hosts - application
+and support</p>
+</li>
+<li>
+<p>RFC1321 &#8208; The MD5 Message-Digest Algorithm</p>
+</li>
+<li>
+<p>RFC1413 &#8208; Identification Protocol</p>
+</li>
+<li>
+<p>RFC1639 &#8208; FTP Operation Over Big Address Records
+(FOOBAR)</p>
+</li>
+<li>
+<p>RFC2044 &#8208; UTF-8, a transformation format of Unicode and
+ISO 10646</p>
+</li>
+<li>
+<p>RFC2228 &#8208; FTP Security Extensions</p>
+</li>
+<li>
+<p>RFC2389 &#8208; Feature negotiation mechanism for the File
+Transfer Protocol</p>
+</li>
+<li>
+<p>RFC2428 &#8208; FTP Extensions for IPv6 and NATs</p>
+</li>
+<li>
+<p>RFC2577 &#8208; FTP Security Considerations</p>
+</li>
+<li>
+<p>RFC2640 &#8208; Internationalization of the File Transfer
+Protocol</p>
+</li>
+<li>
+<p>RFC4217 &#8208; Securing FTP with TLS</p>
+</li>
+<li>
+<p>draft-ietf-ftpext-mlst-15.txt &#8208; Extensions to FTP</p>
+</li>
+<li>
+<p>draft-ftpext-data-connection-assurance-00.txt &#8208; FTP Data
+Connection Assurance</p>
+</li>
+<li>
+<p>draft-somers-ftp-mfxx-03.txt &#8208; The "MFMT", "MFCT", and
+"MFF" Command Extensions for FTP</p>
+</li>
+<li>
+<p>draft-preston-ftpext-deflate-03.txt &#8208; Deflate transmission
+mode for FTP</p>
+</li>
+<li>
+<p>draft-hethmon-mcmurray-ftp-hosts-02.txt &#8208; File Transfer
+Protocol HOST Command</p>
+</li>
+<li>
+<p>draft-ietf-ftpext2-hash-01 &#8208; File Transfer Protocol HASH
+Command for Cryptographic Hashes</p>
+</li>
+<li>
+<p>draft-bryan-ftp-range-01 &#8208; File Transfer Protocol RANG
+Command for Byte Ranges</p>
+</li>
+</ul>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN1845" id="AEN1845">11. Copyrights
+and Acknowledgements</a></h2>
+<p>Please see the source for copyright and licensing information of
+individual files.</p>
+<ul>
+<li>
+<p><span class="bold"><b class="emphasis">The following applies if
+the software was compiled with TLS support:</b></span></p>
+<p>This product includes software developed by the OpenSSL Project
+for use in the OpenSSL Toolkit (<a href="http://www.openssl.org/"
+target="_top">http://www.openssl.org/</a>).</p>
+<p>This product includes cryptographic software written by Eric
+Young (<code class="email">&lt;<a href=
+'mailto:eay@cryptsoft.com"'>eay@cryptsoft.com"</a>&gt;</code>).</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">If the software was
+compiled with PCRE (Perl Compatible Regular Expressions) support,
+the following applies:</b></span></p>
+<p>Regular expression support is provided by the PCRE library
+package, which is open source software, written by Philip Hazel,
+and copyright by the University of Cambridge, England.</p>
+<p>(<a href=
+"ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/" target=
+"_top">ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre</a>).</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">MD5
+algorithm:</b></span></p>
+<p>The software uses the RSA Data Security, Inc. MD5 Message-Digest
+Algorithm.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">Deflate (gzip)
+compression support</b></span> is implemented using the <tt class=
+"literal">zlib</tt> library written by Jean-loup Gailly
+(<code class="email">&lt;<a href=
+"mailto:jloup@gzip.org">jloup@gzip.org</a>&gt;</code>) and Mark
+Adler (<code class="email">&lt;<a href=
+"mailto:madler@alumni.caltech.edu">madler@alumni.caltech.edu</a>&gt;</code>).</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">The original tac_plus
+code (which this software and considerable parts of the
+documentation are based on) is distributed under the following
+license:</b></span></p>
+<p>Copyright (c) 1995-1998 by Cisco systems, Inc.</p>
+<p>Permission to use, copy, modify, and distribute this software
+for any purpose and without fee is hereby granted, provided that
+this copyright and permission notice appear on all copies of the
+software and supporting documentation, the name of Cisco Systems,
+Inc. not be used in advertising or publicity pertaining to
+distribution of the program without specific prior permission, and
+notice be given in supporting documentation that modification,
+copying and distribution is by permission of Cisco Systems,
+Inc.</p>
+<p>Cisco Systems, Inc. makes no representations about the
+suitability of this software for any purpose. THIS SOFTWARE IS
+PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
+INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.</p>
+</li>
+<li>
+<p><span class="bold"><b class="emphasis">The code written by Marc
+Huber is distributed under the following license:</b></span></p>
+<p>Copyright (C) 1999-2022 Marc Huber (<code class=
+"email">&lt;<a href=
+"mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>). All
+rights reserved.</p>
+<p>Redistribution and use in source and binary forms, with or
+without modification, are permitted provided that the following
+conditions are met:</p>
+<ol type="1">
+<li>
+<p>Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.</p>
+</li>
+<li>
+<p>Redistributions in binary form must reproduce the above
+copyright notice, this list of conditions and the following
+disclaimer in the documentation and/or other materials provided
+with the distribution.</p>
+</li>
+<li>
+<p>The end-user documentation included with the redistribution, if
+any, must include the following acknowledgment:</p>
+<a name="AEN1891" id="AEN1891"></a>
+<blockquote class="BLOCKQUOTE">
+<p>This product includes software developed by Marc Huber
+(<code class="email">&lt;<a href=
+"mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>).</p>
+</blockquote>
+<p>Alternately, this acknowledgment may appear in the software
+itself, if and wherever such third-party acknowledgments normally
+appear.</p>
+</li>
+</ol>
+<p>THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL ITS AUTHOR BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+OF THE POSSIBILITY OF SUCH DAMAGE.</p>
+</li>
+</ul>
+</div>
+</div>
+</body>
+</html>
