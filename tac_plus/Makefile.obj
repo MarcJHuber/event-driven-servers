@@ -1,0 +1,53 @@
+################################################################################
+# GNU Makefile for tac_plus
+# (C) 1999-2008 by Marc Huber <Marc.Huber@web.de>
+################################################################################
+
+include $(BASE)/Makefile.inc
+
+PROG=tac_plus
+
+LIB	+= $(LIB_MAVIS) $(LIBCRYPT) $(LIB_NET) $(LIB_SSL_CRYPTO) $(LIB_PCRE)
+
+CFLAGS	+= $(DEF) $(INC) $(INC_SSL) $(INC_PCRE) $(INC_LWRES)
+VPATH	= $(BASE)/$(PROG):$(BASE)/misc
+
+ALL = $(PROG)$(EXEC_EXT) install_stage
+
+all: $(ALL)
+
+main.o: main.c $(BASE)/misc/version.h
+
+OBJ += acct.o authen.o author.o buffer.o config.o dump.o main.o mavis.o
+OBJ += packet.o report.o utils.o context.o
+
+$(PROG)$(EXEC_EXT): $(OBJ)
+	$(CC) -o $@ $^ $(LIB)
+
+clean:
+	@rm -f *.o *.bak *~ $(PROG) core.[0-9]* core
+
+$(INSTALLROOT)$(SBINDIR_DEST):
+	@mkdir -p -m 0755 $@
+
+$(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT): $(PROG)$(EXEC_EXT)
+	$(INSTALL) -m 0755 $< $@
+
+$(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/:
+	@mkdir -p $@
+
+$(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/$(PROG).cfg: sample/$(PROG).cfg
+	$(INSTALL) -m 0755 $< $@
+
+install:  $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT) $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/ $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/$(PROG).cfg install_extra
+
+install_extra:
+	@$(MAKE) -C $(BASE)/$(PROG)/extra INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+install_doc:
+	@$(MAKE) -C $(BASE)/$(PROG)/doc INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+install_stage:
+	@$(MAKE) -f $(BASE)/$(PROG)/Makefile.obj INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+

@@ -1,0 +1,10 @@
+*.c ident
+*.pl ident
+*.cgi ident
+*.xml ident
+Makefile ident
+Makefile.obj ident
+GNUmakefile ident
+*.gif binary
+*.pdf binary
+

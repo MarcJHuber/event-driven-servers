@@ -1,0 +1,45 @@
+################################################################################
+# GNU Makefile for mavisd
+# (C) 2001-2011 by Marc Huber <Marc.Huber@web.de>
+################################################################################
+
+include $(BASE)/Makefile.inc
+
+PROG=mavisd
+
+LIB	+= $(LIB_MAVIS) $(LIBPROCTITLE) $(LIB_NET)
+CFLAGS  += $(DEF) $(INC) $(INC_SSL)
+VPATH = $(BASE)/$(PROG)
+
+PROGS=$(PROG)
+
+all: $(PROG)$(EXEC_EXT) install_stage
+
+main.o: main.c headers.h $(BASE)/misc/version.h
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+
+OBJS+=main.o conf.o signals.o
+
+
+$(PROG)$(EXEC_EXT): $(OBJS)
+	$(CC) -o $@ $^ $(LIB)
+
+clean:
+	@rm -f *.o *.so *.so *~ *.a core $(PROGS)
+
+$(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT): $(PROG)$(EXEC_EXT)
+	$(INSTALL) -m 0755 $< $@
+
+$(INSTALLROOT)$(SBINDIR_DEST):
+	@mkdir -m -p 0755 $@
+
+install: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT)
+
+install_doc:
+	@$(MAKE) -C $(BASE)/$(PROG)/doc INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+install_stage:
+	@$(MAKE) -f $(BASE)/$(PROG)/Makefile.obj INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+
+

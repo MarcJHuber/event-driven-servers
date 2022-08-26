@@ -1,0 +1,147 @@
+20160713 mavis/perl/mavis_tacplus_radius.pl: RADIUS_DICTIONARY environment variable may be used to specify alternate RADIUS dictionary file
+20160730 tac_plus: Don't segfault for misconfigured log destinations
+20160730 tac_plus: "default group = ..." in host context sets group membership for users that don't have any. See the documentation for details.
+20160731 tac_plus: Issue a warning if default group is not found
+20160731 mavis/perl: rewrite hardcoded paths on install
+20161018 tac_plus: ACLs: switch realm comparision to aaa realm
+20161029 mavis/perl/mavis_tacplus_ldap.pl: Only request required LDAP attributes to speed up ldapsearch. Thanks to Garry Harthill <gazzerh@gmail.com>.
+20170414 mavis/perl/mavis_tacplus_ldap.pl: Unbreak "tacacs_scheme" mode by requesting the custom attributes, too.
+20170507 tac_plus: fix new logging code
+20170624 tac_plus: services that are ACL bound weren't evaluated correctly and basically didn't work
+20170802 tac_plus: introduce a default setting for "mavis user filter" to protect the mavis backend against potential injection attacks
+20170805 allow for evaluation of environmental variables in strings enclosed in double quotes
+20170809 tac_plus: ignore host realm when creating host-based group memberships
+20171019 tac_plus: fix member acl processing bug
+20171102 tac_plus: fix Apple LLVM 7.3.0 warnings
+20171104 tac_plus: if compiled without PCRE support: abort if PCRE syntax is detected
+20171217 scripts/install_ascii.pl: Switch to Getopt::Long to support multiple "-S" options. Thanks to Anton Castelli <ac14112@gmail.com>.
+20181129 tac_plus: fix packet checks (issue reported by Daniel Hartmeier <daniel@benzedrine.ch>
+20190331 make send/rcv buffer size for spawnd communication adjustable. Previous default was 65535, now set to system default.
+20190331 tac_plus: use non-default file number for spawnd communication to safeguard against spurious write, e.g. by libraries)
+20190529 tac_plus: fix single-process mode (the 20190331 changes broke that)
+20190607 configure: adjust Ubuntu 19 build
+20190610 pammavis: simplify code, accept whitespace in values
+20190614 configure: adjust Ubuntu 19 build/multiarch support
+20190825 tac_plus: CHPASS should now work as expected. Untested.
+20191203 tac_plus: Don't let a client downgrade a connection to clear mode if a encryption key is defined (I see no scenario where that could ever happen, but anyway ...)
+20191203 tac_plus: "key warn" now accepts a date argument ("key warn 2019-11-29 = foobar")
+20200118 spawnd/tac_plus master: SIGUSR1 now restarts child processes
+20200121 spawnd/tac_plus master: SIGUSR1: restart handler
+20200302 Add PCRE2 support. Disabled by default, for now. Needs more testing. Use "configure --with-pcre2 ..." to give it a try.
+20200305 Add experimental support for username rewriting. Requires PCRE v2.
+20200311 PCRE2 related fixes
+20200402 Check ld search path for libcrypt.so, too
+20200407 tac_plus: change S_null to S_unkown to avoid segv on fatal parsing error
+20200422 pammavis: Fix authorization-only handling. Found & fixed by Kartik Subbarao <kartik.subbarao@gmail.com>
+20200426 mavis_tacplus_shadow.pl: Use custom fgrep instead of Perl grep
+20200428 libmavis_groups: Add PCRE2 default. Disabled by default, and untested for now.
+20200502 tac_plus: Adjust user filter to include wildcard, again.
+20200523 mavis_tacplus_ldap.pl, mavis_ldap_authonly.pl: Improve handling of broken LDAP connections
+20200602 ftpd/h_site_checksum.c: add untested support for OpenSSL >= 1.1.0
+20200606 ftpd: more changes to support OpenSSL >= 1.1.0
+20200620 tac_plus: Always use TAC_PLUS_AUTHEN_STATUS_GETDATA in password change dialog when asking for old password. Merely cosmetic, no functional change.
+20201106 mavis_tacplus_ldap.pl, mavis_ldap_authonly.pl: handle LDAP_CONSTRAINT_VIOLATION
+20201108 Makefile.inc: Add C dependency on token.h
+20201108 tac_plus: Introduce "add" keyword for sending unrequested optional AV pairs to the NAS (thanks to Dmitriy Ivanisko <ivanisko.dmitriy@gmail.com>)
+20201108 ftpd/h_site_checksum.c: Fix compile error
+20201111 tac_plus: add client bug directive (yet undocumented)
+20201118 tac_plus/mavis.c: handle pap>login>mavis password redirection correctly
+20201120 tac_plus/packet.c: Fix authorization bug (probably introduced at 20201111)
+20201122 tac_plus/config.c: Fix client realm parsing bug (probably introduced at 20201111, too)
+20201129 tac_plus: fflush debug output
+20201129 mavis_tacplus_ldap.pl: Add LDAP_CONNECT_TIMEOUT environment variable
+20201205 tac_plus debugging: User input will now only show up in debug output if the USERINPUT flag is set. That one needs to be set explicitly, ALL will not work.
+20201206 tac_plus/packet.c: Simplify code.
+20201206 tac_plus: Disable SENDAUTH support. Disable FOLLOW support. Disable ARAP and OPAP password support. Adjust documentation accordingly. The actual code is currently just #ifdef'ed out but will be removed in future iterations.
+20201208: ftpd/h_site_checksum: compile fix for OpenSSL >= 1.1.0
+20201208: Makefile: Use pkg-config when available
+20201212: tac_plus/authen.c: Implement MSCHAPv2 support, adjust MSCHAPv1 support. Compiles for me, but may or may not work, I've no way to test this code due to lack of a suitable client.
+20201215: tac_plus/authen.c: Log mavis user message value to access log.
+20201220: tac_plus/acct.c: Fix username rewriting
+20201226: tac_plus/author.c: Implement "permit if-authenticated"
+20201229: tac_plus: add documentation for "client bug" directive
+20210107: mavis/radmavis.c: Update parsing code to avoid Protocol Violation errors.
+20210107: mavis/libmavis.c: Sanitize av_set values
+20210108: Updated docs.
+20210109: tac_plus/authen.c: Abort password change for empty passwords.
+20210110: tac_plus: Implement password policy to enforce minimum password requirements.
+20210118: tac_plus/authen.c: Fix use-after-free (thanks to Dmitriy Ivanisko <ivanisko.dmitriy@gmail.com>)
+20210126: mavis/mavis_parse.c: Fix regex case handling.
+20210127: tac_plus: normalize cmd names to lower-case.
+20210318: mavis/radmavis.c: add experimental group support. Untested.
+20210319: mavis/libmavis_groups: fix PCRE2 support
+20210319: added mavis/libmavis_tacinfo_cache.c for on-disk caching
+20210320: mavis/libmavis_tacinfo_cache: minor adjustments
+20210321: mavis/libmavis_*: enhance debug output
+20210328: mavis/perl/mavis_tacplus_radius.pl, mavis/radmavis: Align features, fix radmavis group attribute evaluation code (for radmavis, add "group_attribute=Class" to have attribute 25 entries mapped to TACMEMBER)
+20210328: mavis/mavis_parse.c: Use correct offsets for result pattern matching
+20210328: tac_plus: implement group ranking (yet undocumented)
+20210418: mavis/mavis_parse.c: Work around char vs. int compiler warnings
+20210923: mavis/perl/mavis_tacplus_radius.pl: Fix syntax error (reported by m4ttj1@gmail.com)
+20210924: mavis/perl/mavis_tacplus_radius.pl: add RADIUS_TIMEOUT (by m4ttj1@gmail.com)
+20210926: tac_plus: fix user rewriting
+20220424: mavis: support chaining of multiple "external" type modules
+20220505: mavis/perl/mavis_tacplus_ldap.pl: Accept shadowExpire value of "-1" (thanks to Jamie Murphy <2shae.mail@gmail.com>)
+20220524: moved railroad diagrams to svg format
+20220605: tac_plus: Add experimental support for HAProxy protocol v2.
+20220606: tac_plus: Auto-detect HAProxy protocol v2.
+20220607: tac_plus: Fix a stability issue introduced in snapshot 202206061636
+20220607: tac_plus: Update init script (thanks to Ilya Kondratvev <addicted2network@gmail.com>)
+20220607: tac_plus: Documentation update
+20220629: fix epoll handling code (thanks to Dmitriy Ivanisko <ivanisko.dmitriy@gmail.com>)
+20220702: mavis: fix module callback code/script evaluation
+20220704: tac_plus-ng: added to build
+20220704: tac_plus-ng: add enable stanza to profile
+20220705: tac_plus, tac_plus-ng: "enable = permit" now works
+20220708: tac_plus-ng: New logging code with customizable log format
+20220710: tac_plus-ng: Streamline authorization and banner code
+20220714: tac_plus-ng: Optimized memory handling
+20220717: tac_plus-ng: Various bug fixes in new authorization code
+20220717: tac_plus-ng: Documentation update
+20220718: tac_plus-ng: Logging code fix
+20220719: tac_plus-ng: Update condition parsing code to check for missing ")" earlier
+20220719: tac_plus-ng: update extra/tac_plus-ng.cfg-ads
+20220721: mavis: Documentation update regarding Cisco Duo
+20220723: spawnd: Documentation update
+20220723: misc/sig_segv.c: properly end popen() with pclose()
+20220723: mavis/radmavis.c: auto-detect libradcli if freeradius-client isn't available. Untested.
+20220724: Add -Wno-deprecated-declarations to avoid issues with OpenSSL 3.0
+20220727: tcprelay: move to libtls 
+20220731: tac_plus-ng: libtls support
+20220731: tac_plus-ng: fix realm-related segv when canceling mavis request
+20220731: tac_plus, tac_plus-ng: fix clang warning in MSCHAPv2 code.
+20220731: fix building without libtls
+20220801: tac_plus-ng: add connection log feature
+20220802: tac_plus-ng: unbreak connection log feature
+20220803: tac_plus-ng: introduce memberof attribute
+20220804: tac_plus-ng: drop "memberof" debug lines
+20220804: libmavis_groups: implement memberof filtering [currently untested]
+20220804: tac_plus-ng: experimental Linux vrf support
+20220804: tac_plus-ng: auto-detect Linux vrf support
+20220805: tac_plus-ng: Linux vrf support finalized
+20220805: tac_plus-ng: drop acl caching code
+20220805: tac_plus-ng: introduce "label" ruleset attribute
+20220805: tac_plus-ng: add more logging variables
+20220806: tac_plus-ng: add user profile caching (requires single-connection)
+20220806: tac_plus-ng: experimental OpenBSD vrf support [currently untested]
+20220806: tac_plus-ng: Compile fixes for OpenBSD "long long" time_t
+20220807: tac_plus-ng: re-arrange VRF code
+20220807: tac_plus-ng: Clarify inheritance documentation, somewhat
+20220807: tac_plus-ng: introduce dn attribute
+20220807: tac_plus-ng: dns forward mappings are now per-realm
+20220808: tac_plus-ng, spawnd: re-arrange VRF code
+20220809: tac_plus-ng: streamline connection handling
+20220809: tac_plus-ng: document message-id values
+20220810: tac_plus-ng: simplify connection reject handling/remove code duplication
+20220810: tac_plus-ng: move haproxy flag to spawnd context
+20220811: tac_plus-ng: certificate expiration warning corrected
+20220811: tac_plus-ng: optimize sub-realm TLS handling
+20220813: tac_plus-ng: adjust default connection logging if compiled without TLS support
+20220814: tac_plus-ng: adjust default connection logging if compiled without TLS support. Reverts yesterdays change and simply ignores the tls-* log variables.
+20220814: Drop PCC definitions
+20220814: tac_plus-ng: Convert hostnames with '=' to lower case, most likely those should map to a certificate subject
+20220814: tac_plus-ng: use DN to search for matching host, too.
+20220814: tac_plus-ng: report tls_config_error() output
+20220821: documentation typos corrected
+20220828: moved to public GIT, this list will be only updated sporadically
+

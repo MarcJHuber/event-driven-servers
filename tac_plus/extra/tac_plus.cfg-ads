@@ -1,0 +1,69 @@
+#!/usr/local/sbin/tac_plus
+id = spawnd {
+	listen = { port = 49 }
+	spawn = {
+		instances min = 1
+		instances max = 10
+	}
+	background = yes
+}
+
+id = tac_plus {
+	# access log = /var/log/tac_plus/access/%Y%m%d.log
+	# accounting log = /var/log/tac_plus/acct/%Y%m%d.log
+
+	mavis module = external {
+		setenv LDAP_SERVER_TYPE = "microsoft"
+		setenv LDAP_HOSTS = "ads01:3268 ads02:3268"
+		setenv LDAP_BASE = "dc=your,dc=ad,dc=domain"
+		setenv LDAP_USER = "tacacs@your.ad.domain"
+		setenv LDAP_PASSWD = "secretpassword"
+		setenv REQUIRE_TACACS_GROUP_PREFIX = 1
+		exec = /usr/local/lib/mavis/mavis_tacplus_ldap.pl
+	}
+
+	login backend = mavis
+	user backend = mavis
+	pap backend = mavis
+
+	host = world {
+		address = ::/0
+		prompt = "Welcome\n"
+		enable 15 = clear secret
+		key = cisco
+	}
+
+	group = admin {
+		default service = permit
+		service = shell {
+			default command = permit
+			default attribute = permit
+			set priv-lvl = 15
+		}
+	}
+
+	group = guest {
+		default service = permit
+		enable = deny
+		service = shell {
+			default command = permit
+			default attribute = permit
+			set priv-lvl = 1
+		}
+	}
+
+	user = cisco {
+		password = clear cisco
+		member = admin
+		service = shell {
+			default command = permit
+			default attribute = permit
+			set priv-lvl = 15
+		}
+	}
+
+	user = readonly {
+		password = clear readonly
+		member = guest
+	}
+}

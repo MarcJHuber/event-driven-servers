@@ -1,0 +1,89 @@
+################################################################################
+# GNU Makefile for FTPD
+# (C) 1997-2011 by Marc Huber <Marc.Huber@web.de)
+################################################################################
+
+include $(BASE)/Makefile.inc
+
+PROG=ftpd
+
+ifeq ($(OSTYPE), sunos)
+	ifneq ($(wildcard /usr/lib/libsendfile.so*),)
+		CFLAGS	+= -DWITH_SENDFILE
+		LIB	+= -lsendfile
+	endif
+endif
+
+LIB += $(LIB_MAVIS) $(LIBSCTP) $(LIBPROCTITLE) $(LIB_ZLIB) $(LIB_PCRE) $(LIB_SSL) $(LIBCRYPT) $(LIB_NET)
+INC += $(INC_ZLIB) $(INC_PCRE) $(INC_SSL) $(INC_LWRES)
+
+ifeq ($(WITH_PCRE), 1)
+	OBJ += pcre_rewrite.o
+endif
+
+ifeq ($(WITH_PCRE2), 1)
+	OBJ += pcre_rewrite.o
+endif
+
+ifeq ($(WITH_SSL), 1)
+	OBJ += h_auth.o ssl_init.o ssl_verify.o h_pbsz.o h_prot.o h_ccc.o
+endif
+
+CFLAGS	+= $(DEFCRYPT)
+
+VPATH = $(BASE)/$(PROG):$(BASE)/misc
+CFLAGS += $(DEF) $(INC)
+
+all: $(PROG)$(EXEC_EXT) install_stage
+
+h_port.o: foobar.h
+h_pasv.o: foobar.h
+foobar.o: foobar.h
+
+main.o: main.c headers.h $(BASE)/misc/version.h defaults.h
+
+h_help.o: $(BASE)/misc/version.h
+
+OBJ +=	h_abor.o h_cwd.o h_help.o h_list.o h_mdtm.o h_noop.o h_pass.o h_pasv.o
+OBJ +=	h_port.o h_pwd.o h_quit.o h_rein.o h_rest.o h_retr.o h_size.o h_stat.o
+OBJ +=	h_syst.o h_rnfr.o h_rnto.o h_type.o h_user.o h_stor.o h_dele.o h_mkd.o
+OBJ +=	h_rmd.o h_site_chmod.o h_site_group.o h_site_checksum.o h_rang.o
+OBJ +=	h_site_id.o h_site_umask.o h_site_idle.o h_site_groups.o h_feat.o log.o
+OBJ +=	h_host.o h_lang.o h_mode.o main.o reply.o list.o readcmd.o parse.o
+OBJ +=	path.o buffer2socket.o cleanup.o pickystat.o readme.o signals.o chunk.o
+OBJ +=	file2buffer.o control2socket.o accept_data.o buffer.o auth.o quota.o
+OBJ +=	accept_control.o glob.o	socket2buffer.o foobar.o structs.o messages.o
+OBJ +=	conversions.o tohex.o ident_buffer2socket.o ident_connect_out.o
+OBJ +=	ident_connected.o conf.o ident_socket2buffer.o sig_bus.o
+OBJ +=	h_esta.o h_mfmt.o h_mff.o mysendfile.o bug.o
+
+$(PROG)$(EXEC_EXT): $(OBJ)
+	$(CC) -o $@ $^ $(LIB)
+
+clean:
+	@rm -f *.o *.bak *~ $(PROG) core.[0-9]* core
+
+$(INSTALLROOT)$(SBINDIR_DEST):
+	@mkdir -p -m 0755 $@
+
+$(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT): $(PROG)$(EXEC_EXT)
+	$(INSTALL) -m 0755 $< $@
+
+$(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/:
+	@mkdir -p -m 0755 $@
+
+$(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/$(PROG).cfg: sample/$(PROG).cfg
+	$(INSTALL) -m 0755 $< $@
+
+install:  $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT) $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/ $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/$(PROG).cfg install_extra
+
+install_extra:
+	@$(MAKE) -C $(BASE)/$(PROG)/extra INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+install_doc:
+	@$(MAKE) -C $(BASE)/$(PROG)/doc INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+install_stage:
+	@$(MAKE) -f $(BASE)/$(PROG)/Makefile.obj INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+

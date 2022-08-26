@@ -1,0 +1,64 @@
+################################################################################
+# GNU Makefile for TCPRELAY
+# (C) 1997-2008 by Marc Huber <Marc.Huber@web.de>
+################################################################################
+
+include $(BASE)/Makefile.inc
+
+PROG=tcprelay
+
+ifeq ($(WITH_TLS),1)
+	LIB += $(LIB_MAVIS) $(LIBPROCTITLE) $(LIB_TLS) $(LIB_NET)
+else
+ifeq ($(WITH_SSL),1)
+	LIB += $(LIB_MAVIS) $(LIBPROCTITLE) $(LIB_SSL) $(LIB_NET)
+	OBJ += ssl_init.o
+else
+	LIB += $(LIB_MAVIS) $(LIBPROCTITLE) $(LIB_NET)
+endif
+endif
+#LIB += $(LIB_MAVIS) $(LIBPROCTITLE) $(LIB_SSL) $(LIB_NET)
+#OBJ += ssl_init.o
+
+CFLAGS += $(DEF) $(INC) $(INC_SSL)
+VPATH = $(BASE)/$(PROG):$(BASE)/misc
+
+ALL = $(PROG)$(EXEC_EXT) install_stage
+
+all: $(ALL)
+
+main.o: main.c headers.h $(BASE)/misc/version.h
+
+OBJ +=	main.o buffer2socket.o socket2buffer.o cleanup.o accepted.o
+OBJ +=	buffer.o connect_out.o connected.o signals.o conf.o structs.o
+
+$(PROG)$(EXEC_EXT): $(OBJ)
+	$(CC) -o $@ $^ $(LIB)
+
+clean:
+	@rm -f *.o *.bak *~ $(PROG) core.[0-9]* core
+
+$(INSTALLROOT)$(SBINDIR_DEST):
+	@mkdir -p -m 0755 $@
+
+$(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT): $(PROG)$(EXEC_EXT)
+	$(INSTALL) -m 0755 $< $@
+
+$(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/:
+	@mkdir -p $@
+
+$(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/$(PROG).cfg: sample/$(PROG).cfg
+	$(INSTALL) -m 0755 $< $@
+
+install:  $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT) $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/ $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/$(PROG).cfg install_extra
+
+install_extra:
+	@$(MAKE) -C $(BASE)/$(PROG)/extra INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+install_doc:
+	@$(MAKE) -C $(BASE)/$(PROG)/doc INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+install_stage:
+	@$(MAKE) -f $(BASE)/$(PROG)/Makefile.obj INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+

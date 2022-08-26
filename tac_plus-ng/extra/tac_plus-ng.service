@@ -1,0 +1,22 @@
+# systemd configuration unit for tac_plus-ng.
+# $Id: tac_plus-ng.service,v 1.1 2011/07/22 17:04:03 marc Exp $
+#
+# To enable the service:
+#   sudo cp tac_plus-ng.service /etc/systemd/system/
+#   sudo systemctl enable tac_plus-ng.service
+#   sudo systemctl start tac_plus-ng.service
+#
+
+[Unit]
+Description=TACACS+ NG Service
+After=syslog.target
+
+[Service]
+ExecStart=/usr/local/sbin/tac_plus-ng -f /usr/local/etc/tac_plus-ng.cfg
+KillMode=process
+Restart=always
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target
+

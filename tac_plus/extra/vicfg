@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# sample script to safeguard against syntax errors in tac_plus.cfg
+
+PROG=/usr/local/sbin/tac_plus
+CFG=/usr/local/etc/tac_plus.cfg
+
+if [ "x$VISUAL" == "x" ]
+then
+	VISUAL=vi
+	export VISUAL
+fi
+
+TMP=`mktemp`
+cp $CFG $TMP
+
+$VISUAL $TMP
+while ! $PROG -P $TMP 2>/dev/null
+do
+	$PROG -P $TMP
+	read A
+	$VISUAL $TMP
+done
+sudo ci -l $CFG </dev/null
+sudo cp $TMP $CFG
+sudo ci -l $CFG </dev/null
+sudo /etc/init.d/tac_plus restart
+rm $TMP
+

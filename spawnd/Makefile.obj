@@ -1,0 +1,41 @@
+################################################################################
+# GNU Makefile for spawnd
+# (C) 1997-2011 by Marc Huber <Marc.Huber@web.de>
+################################################################################
+
+include $(BASE)/Makefile.inc
+
+PROG=spawnd
+
+LIB	+= $(LIB_MAVIS) $(LIB_NET)
+CFLAGS	+= $(DEF) $(INC_SSL) $(INC)
+VPATH	= $(BASE)/$(PROG)
+
+all: $(PROG)$(EXEC_EXT) install_stage
+
+main.o: main.c
+	$(CC) -c $(CFLAGS) $(CPPFLAGS) $< -o $@
+
+OBJ +=	main.o
+
+$(PROG)$(EXEC_EXT): $(OBJ)
+	$(CC) -o $@ $(OBJ) $(LIB) $(LIB_NET)
+
+clean:
+	@rm -f *.o *.bak *~ $(PROG) core.[0-9]* core
+
+$(INSTALLROOT)$(SBINDIR_DEST):
+	@mkdir -p -m 0755 $@
+
+$(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT): $(PROG)$(EXEC_EXT)
+	$(INSTALL) -m 0755 $< $@
+
+install: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT)
+
+install_doc:
+	@$(MAKE) -C $(BASE)/$(PROG)/doc INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+install_stage:
+	@$(MAKE) -f $(BASE)/$(PROG)/Makefile.obj INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+

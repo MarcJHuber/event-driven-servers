@@ -1,0 +1,22 @@
+# systemd configuration unit for tac_plus.
+# $Id: tac_plus.service,v 1.1 2011/07/22 17:04:03 marc Exp $
+#
+# To enable the service:
+#   sudo cp tac_plus.service /etc/systemd/system/
+#   sudo systemctl enable tac_plus.service
+#   sudo systemctl start tac_plus.service
+#
+
+[Unit]
+Description=TACACS+ Service
+After=syslog.target
+
+[Service]
+ExecStart=/usr/local/sbin/tac_plus -f /usr/local/etc/tac_plus.cfg
+KillMode=process
+Restart=always
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target
+

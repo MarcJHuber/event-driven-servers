@@ -1,0 +1,29 @@
+# Experimental OpenLDAP (slapd > 1.3) schema for Tacacs+
+#
+# Uses experimental OID space:
+# 1.3.6.1.3.1.1: experimental space
+# 1.3.6.1.3.1.1.1: experimental vendor 1 space
+# 1.3.6.1.3.1.1.1.1: subclass 1 space
+# 1.3.6.1.3.1.1.1.1.1: objectClass space
+# 1.3.6.1.3.1.1.1.1.2: attributetype space
+#
+#
+# Sample LDIF:
+#   objectClass: tacacsAccount
+#   tacacsClient: 192.168.0.0/24
+#   tacacsClient: management
+#   tacacsMember: readonly@172.16.5.0/24
+#   tacacsMember: readwrite@nasgroup
+#   tacacsProfile: { expires = 2009-01-30 }
+#
+# Converted to LDIF format by Paul Marin (pmarinh45 at gmail dot com)
+
+dn: cn=tacacs,cn=schema,cn=config
+objectClass: olcSchemaConfig
+cn: tacacs
+olcAttributeTypes: {0}( 1.3.6.1.3.1.1.1.1.2.1 NAME 'tacacsClient' DESC 'Valid client address range for this user, in CIDR notation' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{20} )
+olcAttributeTypes: {1}( 1.3.6.1.3.1.1.1.1.2.2 NAME 'tacacsMember' DESC 'Tacacs group membership' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{40} )
+olcAttributeTypes: {2}( 1.3.6.1.3.1.1.1.1.2.3 NAME 'tacacsProfile' DESC 'Tacacs user profile' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{1024} SINGLE-VALUE )
+olcAttributeTypes: {3}( 1.3.6.1.3.1.1.1.1.2.8 NAME 'tacacsFlag' DESC 'Arbitrary text, may be used by LDAP filters' EQUALITY caseExactIA5Match SYNTAX 1.3.6.1.4.1.1466.115.121.1.26{40} )
+olcObjectClasses: {0}( 1.3.6.1.3.1.1.1.1.2 NAME 'tacacsAccount' DESC 'Tacacs user object' SUP top AUXILIARY MUST cn MAY ( tacacsClient $ tacacsMember $ tacacsProfile $ tacacsFlag ) )
+

@@ -1,0 +1,915 @@
+MSG 530_Not_logged_in
+EN "530 Not logged in.\r\n"
+DE "530 Nicht eingeloggt.\r\n"
+
+MSG 501_Syntax_error_arg_req
+EN "501 Syntax error, argument required.\r\n"
+DE "501 Fehlerhafter Aufruf, Argument wird benötigt.\r\n"
+
+MSG 502_Command_not_implemented
+EN "502 Command not implemented.\r\n"
+DE "502 Befehl nicht implementiert.\r\n"
+
+MSG 500_Syntax_cmd_unrec
+EN "500 Syntax error, command unrecognized.\r\n"
+DE "500 Syntax-Fehler, Befehl nicht erkannt.\r\n"
+
+MSG 530_Login_incorrect
+EN "530 Login incorrect\r\n"
+DE "530 Login fehlgeschlagen\r\n"
+
+MSG 550_Permission_denied
+EN "550 Permission denied.\r\n"
+DE "550 Keine Berechtigung.\r\n"
+
+MSG 250_File_renamed
+EN "250 File renamed.\r\n"
+DE "250 Datei umbenannt.\r\n"
+
+MSG 503_Use_RNFR_first
+EN "503 Use RNFR first.\r\n"
+DE "503 Erst RNFR benutzen.\r\n"
+
+MSG 550_No_such_file_or_directory
+EN "550 No such file or directory.\r\n"
+DE "550 Datei oder Verzeichnis existiert nicht.\r\n"
+
+MSG 250_Directory_created
+EN "250 Directory created.\r\n"
+DE "250 Verzeichnis erzeugt.\r\n"
+
+MSG 250_Directory_removed
+EN "250 Directory removed.\r\n"
+DE "250 Verzeichnis gelöscht.\r\n"
+
+MSG 250_File_removed
+EN "250 File removed.\r\n"
+DE "250 Datei gelöscht.\r\n"
+
+MSG 550_Command_unsupported
+EN "550 Command unsupported.\r\n"
+DE "550 Befehl nicht unterstützt.\r\n"
+
+MSG 200_User_listing_follows
+EN "200-User listing follows\r\n"
+DE "200-Benutzerliste folgt\r\n"
+
+MSG 200_End_of_listing
+EN "200 End of listing\r\n"
+DE "200 Ende der Liste\r\n"
+
+MSG 200_User_added
+EN "200 User added.\r\n"
+DE "200 Benutzer hinzugefügt.\r\n"
+
+MSG 200_User_removed
+EN "200 User removed.\r\n"
+DE "200 Benutzer entfernt.\r\n"
+
+MSG 200_User_changed
+EN "200 User changed.\r\n"
+DE "200 Benutzer geändert.\r\n"
+
+MSG 421_Too_many_users
+EN "421 Too many users. Please try again later.\r\n"
+DE "421 Zu viele Benutzer. Probieren Sie es bitte später nochmals.\r\n"
+
+MSG 550_No_access_to_rootdir
+EN "550 No access to root directory.\r\n"
+DE "550 Kein Zugriff auf Root-Verzeichnis.\r\n"
+
+MSG 550_No_access_to_homedir
+EN "550 No access to home directory!\r\n"
+DE "550 Kein Zugriff auf Home-Verzeichnis.\r\n"
+
+MSG 550_No_response_from_auth
+EN "550 No response from authentication sub-system. Please try again later.\r\n"
+DE "550 Keine Antwort vom Authentisierung-System. Probieren Sie es bitte später nochmals.\r\n"
+
+MSG 230_Anonymous_logged_in
+EN "230 Anonymous user logged in, proceed.\r\n"
+DE "230 Anonymer Benutzer eingeloggt.\r\n"
+
+MSG 230_User_logged_in
+EN "230 User logged in, proceed.\r\n"
+DE "230 Benutzer eingeloggt.\r\n"
+
+MSG 226_Transfer_complete
+EN "226 Transfer complete.\r\n"
+DE "226 Übertragung beendet.\r\n"
+
+MSG 226_Transfer_completeZ
+EN "226 Transfer complete (compression ratio: %d%%, saved %lld bytes).\r\n"
+DE "226 Übertragung beendet (Kompression: %d%%, %lld Byte eingespart).\r\n"
+
+MSG 451_Transfer_incomplete_quota
+EN "451 Transfer incomplete. Quota exceeded. Closing data connection.\r\n"
+DE "451 Übertragung unvollständig. Quotas überschritten. Schliesse Datenverbindung.\r\n"
+
+MSG 451_Transfer_incomplete
+EN "451 Transfer incomplete. Closing data connection.\r\n"
+DE "451 Übertragung unvollständig. Schliesse Datenverbindung.\r\n"
+
+MSG 426_Transfer_aborted
+EN "426 Connection closed: Transfer aborted.\r\n"
+DE "426 Verbindung geschlossen: Übertragung abgebrochen.\r\n"
+
+MSG 225_ABOR_successful
+EN "225 ABOR command successful.\r\n"
+DE "225 ABOR-Kommando erfolgreich.\r\n"
+
+MSG 226_ABOR_successful
+EN "226 ABOR command successful.\r\n"
+DE "226 ABOR-Kommando erfolgreich.\r\n"
+
+MSG 500_AUTH_not_supported
+EN "500 AUTH not supported.\r\n"
+DE "500 AUTH nicht unterstützt.\r\n"
+
+MSG 504_AUTH_type_not_supported
+EN "504 AUTH type not supported.\r\n"
+DE "504 AUTH-Verfahren nicht unterstützt.\r\n"
+
+MSG 501_AUTH_SSL_already_active
+EN "501 AUTH TLS already active.\r\n"
+DE "501 AUTH TLS bereits aktiv.\r\n"
+
+MSG 234_AUTH_SSL_OK
+EN "234 AUTH TLS OK.\r\n"
+
+MSG 501_No_such_dir
+EN "501 No such directory.\r\n"
+DE "501 Verzeichis existiert nicht.\r\n"
+
+MSG 250_Dir_changed
+EN "250 Directory changed to %s\r\n"
+DE "250 Aktuelles Verzeichnis ist %s\r\n"
+
+MSG 211_Extensions
+EN "211-Extensions supported:\r\n"
+DE "211-Unterstützte Erweiterungen:\r\n"
+
+MSG 211_End
+EN "211 End.\r\n"
+DE "211 Ende.\r\n"
+
+MSG 200_Done
+EN "200 Done.\r\n"
+DE "200 Fertig.\r\n"
+
+MSG 501_Unknown_fact
+EN "501 Unknown fact %s.\r\n"
+DE "501 Unbekannte Option %s.\r\n"
+
+MSG 501_Unknown_transfer_mode
+EN "501 Unknown transfer mode.\r\n"
+DE "501 Unbekannter Übertragungsmodus.\r\n"
+
+MSG 501_No_options
+EN "501 No options for command.\r\n"
+DE "501 Keine Optionen für Befehl.\r\n"
+
+MSG 214_Command_not_implemented
+EN "214 %s: Command not implemented.\r\n"
+DE "214 %s: Befehl nicht implementiert.\r\n"
+
+MSG 214_Syntax
+EN "214 Syntax: %s\r\n"
+
+MSG 502_Unknown_command
+EN "502 %s: Unknown command.\r\n"
+DE "502 %s: Unbekannter Befehl.\r\n"
+
+MSG 214_supported_SITE_commands
+EN "214-The following SITE commands are available:\r\n"
+DE "214-Die folgenden SITE Befehle werden unterstützt:\r\n"
+
+MSG 214_try_SITE_HELP
+EN "214 Try SITE HELP <command> for command specific information.\r\n"
+DE "214 SITE HELP <Kommando> liefert kommandospezifische Details.\r\n"
+
+MSG 503_Already_logged_in
+EN "503 Already logged in.\r\n"
+DE "503 Bereits eingeloggt.\r\n"
+
+MSG 220_Virtual_host_set
+EN  "220 Virtual host set.\r\n"
+DE  "220 Virtueller Host gesetzt.\r\n"
+
+MSG 200_Language_set
+EN "200 Language set to English.\r\n"
+DE "200 Rückmeldungen erfolgen nun in Deutsch.\r\n"
+FR "200 Le response sera changez au francais.\r\n"
+
+MSG 501_Language_not_supported
+EN "501 Language %s not supported.\r\n"
+DE "501 Sprache %s nicht unterstützt.\r\n"
+
+MSG 501_Transfer_in_progress
+EN "501 Transfer already in progress.\r\n"
+DE "501 Datenübertragung läuft bereits.\r\n"
+
+MSG 550_Not_plain_file
+EN "550 Not a plain file.\r\n"
+DE "550 Keine Datei.\r\n"
+
+MSG 200_Command_okay
+EN "200 Command okay.\r\n"
+DE "200 Befehl ausgeführt.\r\n"
+
+MSG 503_USER_before_PASS
+EN "503 Need USER before PASS.\r\n"
+DE "503 USER muss vor PASS ausgeführt werden.\r\n"
+
+MSG 500_EPSV_only
+EN "500 Only accepting EPSV for this session.\r\n"
+DE "500 Nur EPSV wird akzeptiert.\r\n"
+
+MSG 500_PASV_is_V4
+EN "500 PASV is supported for IPv4 only.\r\n"
+DE "500 PASV ist nur für IPv4 spezifiziert.\r\n"
+
+MSG 200_EPSV_only
+EN "200 Rejecting data connection setup commands other than EPSV.\r\n"
+DE "200 Nur EPSV wird für Verbindungsaufbau akzeptiert.\r\n"
+
+MSG 522_Network_proto_unsupported
+EN "522 Network protocol not supported, use (%s).\r\n"
+DE "522 Netzwerk-Protokoll nicht unterstützt, verwende (%s).\r\n"
+
+MSG 200_Using_network_proto
+EN "200 Using network protocol %d for data connection.\r\n"
+DE "200 Verwende Netzwerk-Protokoll %d für Datenverbindung.\r\n"
+
+MSG 501_Protocol_mismatch
+EN "501 Protocol mismatch.\r\n"
+DE "501 Protokoll passt nicht.\r\n"
+
+MSG 227_Entering_PASV
+EN "227 Entering Passive Mode (%s).\r\n"
+DE "227 Schalte auf passiven Übertragungsmodus (%s).\r\n"
+
+MSG 228_Entering_LPSV
+EN "228 Entering Long Passive Mode (%s).\r\n"
+DE "228 Schalte auf Long Passive Modus (%s).\r\n"
+
+MSG 229_Entering_EPSV
+EN "229 Entering Extended Passive Mode (|||%u|).\r\n"
+DE "229 Schalte auf Extended Passive Modus (|||%u|).\r\n"
+
+MSG 501_Data_connection_active
+EN "501 Data connection already active.\r\n"
+DE "501 Datenverbindung bereits aktiv.\r\n\r\n"
+
+MSG 501_PORT_is_V4
+EN "501 PORT not supported for address families other than IPv4\r\n"
+DE "501 PORT wird für IPv4 nicht untertützt.\r\n"
+
+MSG 504_Command_not_implemented
+EN "504 Command not implemented for that parameter.\r\n"
+DE "504 Kommando für diesen Parameter nicht implementiert.\r\n"
+
+MSG 521_Supported_AF
+EN "521 Supported address families are (%s).\r\n"
+DE "521 Unterstützte Adressfamilien sind (%s).\r\n"
+
+MSG 522_Supported_AF
+EN "522 Address family not supported, use (%s).\r\n"
+DE "522 Adressierungsart nicht unterstützt, verwende (%s).\r\n"
+
+MSG 501_Syntax_error
+EN "501 Syntax error in argument.\r\n"
+DE "501 Syntax-Fehler im Argument.\r\n"
+
+MSG 501_port_denied
+EN "501 %s command denied (address mismatch).\r\n"
+DE "501 %s-Befehl verweigert (keine Übereinstimmung bei Adressen).\r\n"
+
+MSG 200_port_successful
+EN "200 %s command successful.\r\n"
+DE "200 %s Kommando erfolgreich.\r\n"
+
+MSG 257_current_dir
+EN "257 \"%s\" is current directory.\r\n"
+DE "257 \"%s\" ist das aktuelle Verzeichnis.\r\n"
+
+MSG 221_Control
+EN "221-Control connection will be closed on file transfer completion.\r\n"
+DE "221-Kontrollverbindung wird nach Tranferende geschlossen.\r\n"
+
+MSG 221_Goodbye
+EN "221 Goodbye.\r\n"
+DE "221 Auf Wiedersehen.\r\n"
+
+MSG 350_Restarting_rang
+EN "350 Restarting at %llu. End Byte range at %llu.\r\n"
+DE "350 Wiederaufsetzpunkt bei %llu. End-Byte Bereich bei %llu.\r\n"
+
+MSG 350_Restarting
+EN "350 Restarting at %llu\r\n"
+DE "350 Wiederaufsetzpunkt ist %llu\r\n"
+
+MSG 350_Reset_rang
+EN "350 Range has been reset.\r\n"
+DE "350 Bereich wurde zurückgesetzt.\r\n"
+
+MSG 431_Opening_datacon_failed
+EN "431 Opening data connection failed.\r\n"
+DE "431 Datenverbindung konnte nicht geöffnet werden.\r\n"
+
+MSG 150_Opening_dc_bytes
+EN "150 Opening binary mode %sdata connection (%llu bytes).\r\n"
+DE "150 Öffne binäre %sDatenverbindung (%llu Byte).\r\n"
+
+MSG 150_Opening_dc
+EN "150 Opening %s mode %sdata connection.\r\n"
+DE "150 Öffne %s %sDatenverbindung.\r\n"
+
+MSG 550_No_such_file
+EN "550 No such file.\r\n"
+DE "550 Datei existiert nicht.\r\n"
+
+MSG 350_Awaiting_dest
+EN "350 Awaiting destination name.\r\n"
+DE "350 Erwarte Namen der Zieldatei.\r\n"
+
+MSG 500_arguments_required
+EN "500 Syntax error: arguments required.\r\n"
+DE "500 Syntax-Fehler: Argumente notwendig.\r\n"
+
+MSG 500_invalid_mode
+EN "500 Syntax error: invalid mode.\r\n"
+DE "500 Syntax-Fehler: mode ungültig.\r\n"
+
+MSG 500_missing_filename
+EN "500 Syntax error: missing file name.\r\n"
+DE "500 Syntax-Fehler: Dateiname fehlt.\r\n"
+
+MSG 200_permissions_changed
+EN "200 Permission mode changed.\r\n"
+DE "200 Berechtigungen geändert.\r\n"
+
+MSG 200_list_mode
+EN "200 Switched to %s LIST mode.\r\n"
+DE "200 In %s LIST Modus geschaltet.\r\n"
+
+MSG 200_Group_id_changed
+EN "200 Group id changed.\r\n"
+DE "200 Gruppen-Id geändert.\r\n"
+
+MSG 550_Group_id_deny
+EN "550 Group id change denied.\r\n"
+DE "550 Änderung der Gruppen-Id verweigert.\r\n"
+
+MSG 200_umask
+EN "200 umask is 0%o\r\n"
+DE "200 umask ist 0%o\r\n"
+
+MSG 212_status_of
+EN "212-Status of %s:\r\n"
+DE "212-Status von %s:\r\n"
+
+MSG 212_status_end
+EN "212 End of status.\r\n"
+DE "212 Status-Ende.\r\n"
+
+MSG 213_status_of
+EN "213-Status of %s:\r\n"
+DE "213-Status von %s:\r\n"
+
+MSG 213_status_end
+EN "213 End of status.\r\n"
+DE "213 Status-Ende.\r\n"
+
+MSG 451_quota_exceeded
+EN "451 Quota limit exceeded.\r\n"
+DE "451 Quota-Grenze überschritten.\r\n"
+
+MSG 451_unique_file_failure
+EN "451 Unique file name generation failed.\r\n"
+DE "451 Eindeutige Dateinamen-Erzeugung fehlgeschlagen.\r\n"
+
+MSG 200_transfer_type
+EN "200 Expecting to transfer %s type data.\r\n"
+DE "200 Übertragung von Daten im %s-Format.\r\n"
+
+MSG 200_transfer_mode
+EN "200 Using %s mode to transfer data.\r\n"
+DE "200 Verwende %s Modus für Datenübertragung.\r\n"
+
+MSG 501_mode_z_error
+EN "501 MODE Z %s%s%s is not available.\r\n"
+DE "501 MODE Z %s%s%s ist nicht verfügbar.\r\n"
+
+MSG 331_anon
+EN "331 Anonymous FTP login okay, send email address as password.\r\n"
+DE "331 Anonymer FTP Login gestattet, sende Email-Addresse als Passwort.\r\n"
+
+MSG 331_user
+EN "331 FTP login okay, send password.\r\n"
+DE "331 FTP-Login gestattet, sende Passwort.\r\n"
+
+MSG 250_listing_start
+EN "250-Listing %s:\r\n"
+DE "250-Anzeige von %s:\r\n"
+
+MSG 250_listing_end
+EN "250 End.\r\n"
+DE "250 Ende.\r\n"
+
+MSG 452_Command_not_for_ascii
+EN "452 Command not available in ASCII transfer mode.\r\n"
+DE "452 Kommando im ASCII-Übertragungsmodus nicht verfügbar.\r\n"
+
+MSG 452_Command_not_during_transfers
+EN "452 Command not available during data transfers.\r\n"
+DE "452 Kommando während Datenübertragung nicht verfügbar.\r\n"
+
+MSG 501_No_such_file_or_directory
+EN "501 No such file or directory.\r\n"
+DE "501 Datei oder Verzeichnis existiert nicht.\r\n"
+
+MSG 421_Service_not_available
+EN "421 Service not available, closing control connection.\r\n"
+DE "421 Dienst nicht verfügbar, schliesse Kontrollverbindung.\r\n"
+
+MSG 451_Internal_error
+EN "451 Internal error, please try again.\r\n"
+DE "451 Interner Fehler, bitte nochmals probieren.\r\n"
+
+MSG 211_Server_status
+EN "211-Session status:\r\n"
+DE "211-Session-Status:\r\n"
+
+MSG 211_Server_status_END
+EN "211 End of session status.\r\n"
+DE "211 Ende Session-Status.\r\n"
+
+MSG protected_cipher
+EN "Enabled (%s, %d bits, %s)\r\n"
+DE "Aktiv (%s, %d Bit, %s)\r\n"
+
+MSG protected
+EN "Enabled\r\n"
+DE "Aktiv\r\n"
+
+MSG unprotected
+EN "Disabled\r\n"
+DE "Inaktiv\r\n"
+
+MSG handshake
+EN "Handshake in progress\r\n"
+DE "Aushandlungsphase\r\n"
+
+MSG Protection_control
+EN "    Control channel protection: "
+DE "    Schutz Kontroll-Verbindung: "
+
+MSG Protection_data
+EN "    Data channel protection:    "
+DE "    Schutz Daten-Verbindung:    "
+
+MSG Transport_protocol
+EN "    Transport protocol:         %s\r\n"
+DE "    Transport-Protokoll:        %s\r\n"
+
+MSG Transfer_type
+EN "    Transfer type:              %s\r\n"
+DE "    Übertragungsart:            %s\r\n"
+
+MSG Transfer_mode
+EN "    Transfer mode:              %s\r\n"
+DE "    Übertragungsmodus:          %s\r\n"
+
+MSG Idle_timeout
+EN "    Idle timeout:               %lu seconds\r\n"
+DE "    Inaktivitäts-Timeout:       %lu Sekunden\r\n"
+
+MSG Data_transfer
+EN "    Current data transfer:      %llu out of %llu bytes transfered\r\n"
+DE "    Aktueller Daten-Transfer:   %llu von %llu Byte übertragen\r\n"
+
+MSG Data_transfer_ascii
+EN "    Current data transfer:      %llu bytes transfered\r\n"
+DE "    Aktueller Daten-Transfer:   %llu Byte übertragen\r\n"
+
+MSG Data_idle
+EN "    Current data transfer:      Data connection open, but idle.\r\n"
+DE "    Aktueller Daten-Transfer:   Daten-Verbindung offen, jedoch unbenutzt.\r\n"
+
+MSG Data_total
+EN "    Total data transfered:      %llu bytes\r\n"
+DE "    Übertragene Daten gesamt:   %llu Byte\r\n"
+
+MSG 200_Checkmethod
+EN "200 Checksum method is %s.\r\n"
+DE "200 Checksum-Verfahren ist %s.\r\n"
+
+MSG 504_Unknown_checkmethod
+EN "504 Checksum method not recognized.\r\n"
+DE "504 Unbekanntes Checksum-Verfahren.\r\n"
+
+MSG 200_Checkmethod_set
+EN "200 Checksum method set to %s.\r\n"
+DE "200 Checksum-Verfahren auf %s gesetzt.\r\n"
+
+MSG Supported_commands
+EN "  The following FTP commands are available:\r\n"
+DE "  Die folgenden FTP-Kommandos sind verfügbar:\r\n"
+
+MSG 214_Thats_all
+EN "214 That's all, folks.\r\n"
+DE "214 Das war's, Leute.\r\n"
+
+MSG ABOR
+EN "ABOR               (abort previous FTP service command)"
+DE "ABOR               (Abbrechen des vorherigen Kommandos)"
+
+MSG APPE
+EN "APPE <file>        (append to file)"
+DE "APPE <Datei>       (Anhängen an Datei)"
+
+MSG AUTH
+EN "AUTH <auth-type>   (enable specified authentication/security mechanism)"
+DE "AUTH <auth-type>   (Aktiviert angegebenen Authentisierungs-Mechanismus)"
+
+MSG CWD
+EN "CWD <directory>    (change working directory)"
+DE "CWD <Verzeichnis>  (Wechsel des Arbeitsverzeichnisses)"
+
+MSG CDUP
+EN "CDUP               (change to parent directory)"
+DE "CDUP               (Wechsel ins Vaterverzeichnis)"
+
+MSG DELE
+EN "DELE <file>        (remove file)"
+DE "DELE <Datei>       (Datei löschen)"
+
+MSG EPRT
+EN "EPRT <host-port>   (specify extended host ip and data port)"
+DE "EPRT <host-port>   (Spezifikation von IP und Port)"
+
+MSG EPSV
+EN "EPSV [<proto>|ALL] (switch to extended passive mode)"
+DE "EPSV [<proto>|ALL] (Umschalten auf Extended Passive Mode)"
+
+MSG HELP
+EN "HELP [<string>]    (send helpful information)"
+DE "HELP [<string>]    (Ausgabe hilfreicher Informationen)"
+
+MSG HOST
+EN "HOST <host>        (set virtual host name)"
+DE "HOST <host>        (Namen des virtuellen Hosts setzen)"
+
+MSG FEAT
+EN "FEAT               (send features supported)"
+DE "FEAT               (Unterstützte Features anzeigen)"
+
+MSG LANG
+EN "LANG [<language>]  (set language)"
+DE "LANG [<Sprache>]   (Sprache setzen)"
+
+MSG LIST
+EN "LIST [<pathname>]  (send long directory listing)"
+DE "LIST [<Pfad>]      (Verzeichnis detailliert auflisten)"
+
+MSG LPRT
+EN "LPRT <host-port>   (specify long host ip and data port)"
+DE "LPRT <host-port>   (Spezifikation von IP und Port)"
+
+MSG LPSV
+EN "LPSV               (switch to long passive mode)"
+DE "LPSV               (Umschalten auf Long Passive Mode)"
+
+MSG NLST
+EN "NLST [<pathname>]  (send directory listing)"
+DE "NLST [<pathname>]  (Verzeichnis auflisten)"
+
+MSG MDTM
+EN "MDTM <pathname>    (send modification time)"
+DE "MDTM <Datei>       (Modifikationszeitpunkt anzeigen)"
+
+MSG MKD
+EN "MKD <pathname>     (create directory)"
+DE "MKD <Verzeichnis>  (Verzeichnis erzeugen)"
+
+MSG MLSD
+EN "MLSD [<pathname>]         (list directory)"
+DE "MLSD [<Verzeichnis>]      (Verzeichnis anzeigen)"
+
+MSG MLST
+EN "MLST <pathname>    (list file)"
+DE "MLST <pathname>    (Pfad anzeigen)"
+
+MSG NOOP
+EN "NOOP               (do nothing)"
+DE "NOOP               (Keine Operation)"
+
+MSG OPTS
+EN "OPTS <command> [<opts>]   (set options for command)"
+DE "OPTS <command> [<opts>]   (Optionen für Kommando setzen)"
+
+MSG PASS
+EN "PASS <password>    (send user's password)"
+DE "PASS <Passwort>    (Passwort des Benutzers senden)"
+
+MSG PASV
+EN "PASV               (switch to passive mode)"
+DE "PASV               (Auf Passive Mode schalten)"
+
+MSG PORT
+EN "PORT <host-port>   (specify host ip and data port)"
+DE "PORT <host-port>   (Spezifikation von Host und Port)"
+
+MSG PWD
+EN "PWD                (print working directory)"
+DE "PWD                (Arbeitsverzeichnis anzeigen)"
+
+MSG QUIT
+EN "QUIT               (logout)"
+DE "QUIT               (Beenden)"
+
+MSG REIN
+EN "REIN               (reinitialize)"
+DE "REIN               (Neustart)"
+
+MSG REST
+EN "REST <marker>      (restart filetransfer)"
+DE "REST <marker>      (Dateiübertragung fortführen)"
+
+MSG RANG
+EN "RANG <from> <to>   (specifies start and end point for STREAM mode transfer)"
+DE "RANG <von> <bis>   (legt Start- und Endpunkt für STREAM-Transfer fest)"
+
+MSG RETR
+EN "RETR <pathname>    (retrieve file specified in pathname)"
+DE "RETR <Datei>       (Datei empfangen)"
+
+MSG RMD
+EN "RMD <pathname>     (remove directory)"
+DE "RMD <Verzeichnis>  (Verzeichnis löschen)"
+
+MSG RNFR
+EN "RNFR <pathname>    (set old pathname for rename)"
+DE "RNFR <pathname>    (Alten Pfad für Umbenennung setzen)"
+
+MSG RNTO
+EN "RNTO <pathname>    (set new pathname for rename)"
+DE "RNTO <pathname>    (Neuen Pfad für Umbenennung setzen)"
+
+MSG SITE
+EN "SITE <string>      (site specific commands)"
+DE "SITE <string>      (Site-spezifische Kommandos)"
+
+MSG SIZE
+EN "SIZE <pathname>    (send file size)"
+DE "SIZE <pathname>    (Dateigröße senden)"
+
+MSG STAT
+EN "STAT [<pathname>]  (send server or file status)"
+DE "STAT [<pathname>]  (Server- oder Dateistatus senden)"
+
+MSG STOR
+EN "STOR <pathname>    (store file specified in pathname)"
+DE "STOR <pathname>    (Datei speichern)"
+
+MSG STOU
+EN "STOU               (store file under unique name)"
+DE "STOU               (Datei unter eindeutigem Namen speichern)"
+
+MSG SYST
+EN "SYST               (send type of operating system)"
+DE "SYST               (Betriebssystem-Typ senden)"
+
+MSG TYPE
+EN "TYPE <type-code>   (specify representation type)"
+DE "TYPE <type-code>   (Darstellungstyp setzen)"
+
+MSG MODE
+EN "MODE <S|Z>         (specify transfer type)"
+DE "MODE <S|Z>         (Transfer-Modus setzen)"
+
+MSG USER
+EN "USER <username>    (send user identification)"
+DE "USER <username>    (Benutzer-Identifikation senden)"
+
+MSG SITE_CHECKMTH
+EN "SITE CHECKMETHOD [CRC|MD5|...]  (select checksum method)"
+DE "SITE CHECKMETHOD [CRC|MD5|...]  (Checksummen-Verfahren wählen)"
+
+MSG SITE_CHECKSUM
+EN "SITE CHECKSUM [<pathname>]  (calculate checksum)"
+DE "SITE CHECKSUM [<pathname>]  (Checksumme berechnen)"
+
+MSG SITE_CHMOD
+EN "SITE CHMOD <mode> <path>    (change permissions of path to mode)"
+DE "SITE CHMOD <mode> <path>    (Berechtigungen ändern)"
+
+MSG SITE_HELP
+EN "SITE HELP <string>          (send helpful information)"
+DE "SITE HELP <string>          (Ausgabe hilfreicher Informationen)"
+
+MSG SITE_HTPWD
+EN "SITE HTPWD (add|del|chg|list) [<username> [<password>]]"
+
+MSG SITE_ID
+EN "SITE ID                     (display UID and GID information)"
+DE "SITE ID                     (UID- und GID-Information ausgeben)"
+
+MSG SITE_GROUP
+EN "SITE GROUP <groupid>        (change current group id)"
+DE "SITE GROUP <groupid>        (Gruppenzugehörigkeit ändern)"
+
+MSG SITE_GROUPS
+EN "SITE GROUPS                 (display GID information)"
+DE "SITE GROUPS                 (GID-Informationen ausgeben)"
+
+MSG SITE_UMASK
+EN "SITE UMASK [<umask>]        (display/change umask)"
+DE "SITE UMASK [<umask>]        (umask anzeigen/ändern)"
+
+MSG SITE_IDLE
+EN "SITE IDLE [<seconds>]       (display/change inactivity timeout)"
+DE "SITE IDLE [<Sekunden>]      (Inaktivitäts-Timeout anzeigen/ändern)"
+
+MSG PBSZ
+EN "PBSZ <size>        (negotiate protected buffer size)"
+DE "PBSZ <Größe>       (Protected-Buffer-Größe vereinbaren)"
+
+MSG PROT
+EN "PROT <C|P>         (set data channel protection level)"
+DE "PROT <C|P          (Data Channel Protection Level setzen)"
+
+MSG ESTA
+EN "ESTA               (establish active connection)"
+DE "ESTA               (Aufbau aktiver Verbindung)"
+
+MSG ESTP
+EN "ESTP <host-port>   (establish passive connection)"
+DE "ESTP <host-port>   (Aufbau passiver Verbindung)"
+
+MSG 200_Current_inactivity
+EN "200 Current inactivity timeout is %lu seconds.\r\n"
+DE "200 Inaktivitäts-Timeout liegt bei %lu Sekunden.\r\n"
+
+MSG 200_Inactivity_set
+EN "200 Inactivity timeout set to %lu seconds.\r\n"
+DE "200 Inaktivitäts-Timeout auf %lu Sekunden gesetzt.\r\n"
+
+MSG 501_Inactivity_range
+EN "501 Inactivity timeout must be between %lu and %lu seconds.\r\n"
+DE "501 Inaktivitäts-Timeout muss zwischen %lu und %lu Sekunden liegen.\r\n"
+
+MSG 500_Inactivity
+EN "500 Inactivity timeout must be a number.\r\n"
+DE "500 Inaktivitäts-Timeout muss numerisch sein.\r\n"
+
+MSG Readme_notify_1
+EN "Please read the file \"%s\".\r\n"
+DE "Bitte lesen Sie die Datei \"%s\".\r\n"
+
+MSG Readme_notify_2
+EN "It was last modified on %a %b %d %T %Z %Y"
+DE "Letzte Änderung am %a %b %d %T %Z %Y"
+
+MSG Readme_notify_3n
+EN " - %ld days ago.\r\n"
+DE " - vor %ld Tagen.\r\n"
+
+MSG Readme_notify_31
+EN " - 1 day ago.\r\n"
+DE " - vor 1 Tag.\r\n"
+
+MSG 200_Command_okay_remaining_n
+EN "200 Command okay. Not resetting inactivity timer. %d seconds left.\r\n"
+DE "200 Befehl ausgeführt. Inaktivitäts-Timeout in %d Sekunden.\r\n"
+
+MSG 200_Command_okay_remaining_1
+EN "200 Command okay. Not resetting inactivity timer. 1 second left.\r\n"
+DE "200 Befehl ausgeführt. Inaktivitäts-Timeout in 1 Sekunde.\r\n"
+
+MSG 214_Direct_comments
+EN "214 Direct comments to %s.\r\n"
+DE "214 Kommentare bitte an %s.\r\n"
+
+MSG 504_no_ascii
+EN "504 Please switch to image (binary) file transfer type.\r\n"
+DE "504 Bitte übertragen Sie die Datei im IMAGE-Modus.\r\n"
+
+MSG 501_Syntax
+EN "501 Syntax: %s\r\n"
+
+MSG 125_Starting_ASCII
+EN "125 ASCII mode %sdata connection already open; starting transfer.\r\n"
+DE "125 ASCII %sDatenverbindung bereits geöffnet; starte Transfer.\r\n"
+
+MSG 125_Starting_Binary
+EN "125 Binary mode %sdata connection already open; starting transfer.\r\n"
+DE "125 Binäre %sDatenverbindung bereits geöffnet; starte Transfer.\r\n"
+
+MSG 125_Starting_dc_bytes
+EN "125 Binary mode %sdata connection already open; starting transfer (%llu bytes).\r\n"
+DE "125 Binäre %sDatenverbindung bereits geöffnet; starte Transfer (%llu Byte).\r\n"
+
+MSG 125_Starting_dc
+EN "125 %s mode %sdata connection already open; starting transfer.\r\n"
+DE "125 %s %sDatenverbindung bereits geöffnet; starte Transfer.\r\n"
+
+MSG 503_PBSZ_INCOMPLETE
+EN "503 No previous PBSZ command was issued.\r\n"
+DE "503 Das PBSZ-Kommando steht noch aus.\r\n"
+
+MSG 200_PROT_P_APPLIED
+EN "200 Switched to protected data transfer mode.\r\n"
+DE "200 Auf geschützten Transfermodus geschaltet.\r\n"
+
+MSG 200_PROT_C_APPLIED
+EN "200 Switched to clear data transfer mode.\r\n"
+DE "200 Auf ungeschützten Transfermodus geschaltet.\r\n"
+
+MSG 536_PROT_UNDEFINED
+EN "536 Requested PROT level not supported.\r\n"
+DE "536 Dieser Schutz-Level wird nicht unterstützt.\r\n"
+
+MSG 503_Security_data_exchange_incomplete
+EN "503 Security data exchange is incomplete.\r\n"
+DE "503 Austausch der Sicherheits-Daten ist unvollständig.\r\n"
+
+MSG 214_Group_membership
+EN "214-Group membership is:\r\n"
+DE "214-Gruppenzugehörigkeit:\r\n"
+
+MSG 551_Internal_error
+EN "551 Internal error, please contact the server administrator.\r\n"
+DE "551 Interner Fehler, bitte den Adminstrator benachrichtigen.\r\n"
+
+MSG 504_size_no_ascii
+EN "504 This is binary data. It's no use to calculate the ASCII size.\r\n"
+DE "504 Dies sind binäre Daten. Die ASCII-Größe zu berechnen ist sinnlos.\r\n"
+
+MSG 504_size_ascii_exceeded
+EN "504 The configuration prohibits ASCII size calculation for this file.\r\n"
+DE "504 Die Datei ist zu groß, um ihre ASCII-Transfergröße zu berechnen.\r\n"
+
+MSG 225_Connected_from
+EN "225 Connected from (%s)\r\n"
+DE "225 Verbunden von (%s)\r\n"
+
+MSG 225_Connected_to
+EN "225 Connected to (%s)\r\n"
+DE "225 Verbunden mit (%s)\r\n"
+
+MSG 425_Dataconnection_not_open
+EN "425 Data connection not open.\r\n"
+DE "425 Datenverbindung besteht nicht.\r\n"
+
+MSG 425_Cant_open_dataconnection
+EN "425 Can't open data connection.\r\n"
+DE "425 Kann Datenverbindung nicht herstellen.\r\n"
+
+MSG 520_Not_passive
+EN "520 Server not in passive transfer mode.\r\n"
+DE "520 Server nicht in passivem Übertragungsmodus.\r\n"
+
+MSG 520_Not_active
+EN "520 Server not in active transfer mode.\r\n"
+DE "520 Server nicht in aktivem Übertragungsmodus.\r\n"
+
+MSG MFMT
+EN "MFMT <time> <pathname>    (modify modification time)"
+DE "MLSD <Zeit> <Pfad>        (Modifikationszeit setzen)"
+
+MSG MFF
+EN "MFF <facts> <pathname>    (modify file facts)"
+DE "MFF <facts> <Pfad>        (Dateiattribute ändern)"
+
+MSG 504_Parameter_not_implemented
+EN "504 Parameter not implemented (%s)\r\n"
+DE "504 Parameter nicht implementiert (%s)\r\n"
+
+MSG 556_Not_hashable
+EN "556 Hashing of this file is denied by server policy.\r\n"
+DE "556 Berechnung dieses Hash-Wertes ist nicht gestattet.\r\n"
+
+MSG 334_AUTH_SSL_OK
+EN "334 AUTH TLS OK.\r\n"
+
+MSG CCC
+EN "CCC                       (Clear Command Channel)"
+
+MSG 534_Denied
+EN "534 Unable to deactivate implicit protection\r\n"
+DE "534 Impliziter Schutz ist nicht aufhebbar\r\n"
+
+MSG 533_Denied
+EN "533 Command unsupported.\r\n"
+DE "533 Befehl nicht unterstützt.\r\n"
+
+MSG HASH
+EN "HASH [<pathname>]  (calculate checksum)"
+DE "HASH [<pathname>]  (Checksumme berechnen)"
+
+MSG 501_unknown_checksum_algorithm
+EN "501 Unknown algorithm, current selection not changed.\r\n"
+DE "501 Unbekannter Algorithmus, keine Änderung der aktuellen Auswahl.\r\n"
+

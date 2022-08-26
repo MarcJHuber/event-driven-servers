@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+   $Id: de.pro-bono-publico.tac_plus.plist,v 1.1 2011/07/22 17:04:03 marc Exp $
+
+   This is a launchd daemon configuration file. Don't bother if you don't have
+   an Apple Macintosh running OS X.
+
+   To start the daemon at boot time, first copy this file to the appropriate
+   location:
+
+   # sudo cp de.pro-bono-publico.tac_plus.plist /Library/LaunchDaemons/
+
+   Then either reboot or start the daemon manually:
+
+   # sudo launchctl load -w /Library/LaunchDaemons/de.pro-bono-publico.tac_plus.plist
+
+   The daemon will write its process id to /var/run/tac_plus.pid.
+
+   # sudo kill -HUP `cat /var/run/tac_plus.pid`
+
+   will cause it to gracefully restart and to re-read the configuration file.
+-->
+<dict>
+    <key>Label</key>
+    <string>de.pro-bono-publico.tac_plus</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/sbin/tac_plus</string>
+        <string>-f</string>
+        <string>-p</string>
+        <string>/var/run/tac_plus.pid</string>
+        <string>/usr/local/etc/tac_plus.cfg</string>
+    </array>
+    <key>KeepAlive</key>
+        <dict> <key>NetworkState</key> <true/> </dict>
+</dict>
+<!--
+   Alternative approach: Start the daemon in inetd style:
+-->
+<!--
+<dict>
+    <key>Label</key>
+    <string>de.pro-bono-publico.tac_plus</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/sbin/tac_plus</string>
+        <string>-p</string>
+        <string>/var/run/tac_plus.pid</string>
+        <string>/usr/local/etc/tac_plus.cfg</string>
+    </array>
+    <key>KeepAlive</key> <true/>
+    <key>Sockets</key>
+        <dict>
+            <key>Listeners</key>
+            <dict> <key>SockServiceName</key> <string>tacacs</string> </dict>
+        </dict>
+    <key>inetdCompatibility</key>
+        <dict> <key>Wait</key> <true/> </dict>
+    <key>KeepAlive</key>
+        <dict> <key>NetworkState</key> <true/> </dict>
+</dict>
+-->
+</plist>
