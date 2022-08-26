@@ -3,10 +3,5 @@ RCS
 *,v
 .DS_Store
 /build
-/doc
-/doc/*
-/doc/railroad
 /mavis/token.h
 /mavis/token.c
-*.pdf
-*.svg
