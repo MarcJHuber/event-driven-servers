@@ -26,37 +26,37 @@
 <dt>1.1. <a href="#AEN37">Download</a></dt>
 </dl>
 </dd>
-<dt>2. <a href="#AEN41">Supported commands</a></dt>
-<dt>3. <a href="#AEN131">Operation</a></dt>
+<dt>2. <a href="#AEN42">Supported commands</a></dt>
+<dt>3. <a href="#AEN132">Operation</a></dt>
 <dd>
 <dl>
-<dt>3.1. <a href="#AEN145">Command line syntax</a></dt>
-<dt>3.2. <a href="#AEN166">Signals</a></dt>
-<dt>3.3. <a href="#AEN179">Event mechanism selection</a></dt>
+<dt>3.1. <a href="#AEN146">Command line syntax</a></dt>
+<dt>3.2. <a href="#AEN167">Signals</a></dt>
+<dt>3.3. <a href="#AEN180">Event mechanism selection</a></dt>
 </dl>
 </dd>
-<dt>4. <a href="#AEN205">Configuration directives</a></dt>
+<dt>4. <a href="#AEN206">Configuration directives</a></dt>
 <dd>
 <dl>
-<dt>4.1. <a href="#AEN231">Global Configuration</a></dt>
+<dt>4.1. <a href="#AEN232">Global Configuration</a></dt>
 <dd>
 <dl>
-<dt>4.1.1. <a href="#AEN463">Access Control Lists</a></dt>
+<dt>4.1.1. <a href="#AEN464">Access Control Lists</a></dt>
 </dl>
 </dd>
-<dt>4.2. <a href="#AEN565">ACL-based Configuration</a></dt>
-<dt>4.3. <a href="#AEN1256">Path-rewriting using PCRE</a></dt>
-<dt>4.4. <a href="#AEN1272">TLS support</a></dt>
-<dt>4.5. <a href="#AEN1328">MAVIS Configuration</a></dt>
+<dt>4.2. <a href="#AEN566">ACL-based Configuration</a></dt>
+<dt>4.3. <a href="#AEN1257">Path-rewriting using PCRE</a></dt>
+<dt>4.4. <a href="#AEN1273">TLS support</a></dt>
+<dt>4.5. <a href="#AEN1329">MAVIS Configuration</a></dt>
 </dl>
 </dd>
-<dt>5. <a href="#AEN1346">Wildcard patterns</a></dt>
-<dt>6. <a href="#AEN1370">Magic cookie substitution</a></dt>
-<dt>7. <a href="#AEN1479">Sample configuration</a></dt>
-<dt>8. <a href="#AEN1484">Railroad Diagrams</a></dt>
-<dt>9. <a href="#AEN1781">Bugs</a></dt>
-<dt>10. <a href="#AEN1803">References</a></dt>
-<dt>11. <a href="#AEN1845">Copyrights and Acknowledgements</a></dt>
+<dt>5. <a href="#AEN1347">Wildcard patterns</a></dt>
+<dt>6. <a href="#AEN1371">Magic cookie substitution</a></dt>
+<dt>7. <a href="#AEN1480">Sample configuration</a></dt>
+<dt>8. <a href="#AEN1485">Railroad Diagrams</a></dt>
+<dt>9. <a href="#AEN1782">Bugs</a></dt>
+<dt>10. <a href="#AEN1804">References</a></dt>
+<dt>11. <a href="#AEN1846">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -108,14 +108,16 @@ support</p>
 <hr>
 <h3 class="section"><a name="AEN37" id="AEN37">1.1.
 Download</a></h3>
-<p>Source and documentation are available from <a href=
+<p>Source and documentation are available from both <a href=
+"https://github.com/MarcJHuber/event-driven-servers/" target=
+"_top">the GitHub repository</a> and <a href=
 "https://www.pro-bono-publico.de/projects/" target=
 "_top">https://www.pro-bono-publico.de/projects/</a>.</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN41" id="AEN41">2. Supported
+<h2 class="section"><a name="AEN42" id="AEN42">2. Supported
 commands</a></h2>
 <p>The daemon support several standards and drafts:</p>
 <ul>
@@ -237,7 +239,7 @@ commands and command syntax.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN131" id="AEN131">3.
+<h2 class="section"><a name="AEN132" id="AEN132">3.
 Operation</a></h2>
 <p>This section gives a brief and basic overview how to run
 <span class="bold"><b class="emphasis">ftpd</b></span>.</p>
@@ -257,7 +259,7 @@ auxilliary <span class="bold"><b class="emphasis">MAVIS</b></span>
 backend modules for authentication and authorization.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN145" id="AEN145">3.1. Command line
+<h3 class="section"><a name="AEN146" id="AEN146">3.1. Command line
 syntax</a></h3>
 <p>The only mandatory argument is the path to the configuration
 file:</p>
@@ -286,7 +288,7 @@ section.</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN166" id="AEN166">3.2.
+<h3 class="section"><a name="AEN167" id="AEN167">3.2.
 Signals</a></h3>
 <p>Both the master (that's the process running the <span class=
 "bold"><b class="emphasis">spawnd</b></span> code) and the child
@@ -311,7 +313,7 @@ idle.</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN179" id="AEN179">3.3. Event
+<h3 class="section"><a name="AEN180" id="AEN180">3.3. Event
 mechanism selection</a></h3>
 <p>Several level-triggered event mechanisms are supported. By
 default, the one best suited for your operating system will be
@@ -349,7 +351,7 @@ top-level:</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN205" id="AEN205">4. Configuration
+<h2 class="section"><a name="AEN206" id="AEN206">4. Configuration
 directives</a></h2>
 <p>Several configuration options are very similar in syntax. For
 that reason, I'll use a couple of shortcuts below:</p>
@@ -381,7 +383,7 @@ notation (<span class="emphasis"><i class=
 </ul>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN231" id="AEN231">4.1. Global
+<h3 class="section"><a name="AEN232" id="AEN232">4.1. Global
 Configuration</a></h3>
 <p>The following table summarizes configuration options with
 plain</p>
@@ -389,7 +391,7 @@ plain</p>
 <tt class="literal">=</tt> <span class="emphasis"><i class=
 "emphasis">Argument</i></span></p>
 <p>syntax:</p>
-<div class="informaltable"><a name="AEN239" id="AEN239"></a>
+<div class="informaltable"><a name="AEN240" id="AEN240"></a>
 <table border="1" class="CALSTABLE">
 <col width="1%" title="1">
 <col width="1%" title="2">
@@ -645,7 +647,7 @@ Value</b></span></td>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN463" id="AEN463">4.1.1. Access
+<h4 class="section"><a name="AEN464" id="AEN464">4.1.1. Access
 Control Lists</a></h4>
 <p>Various configuration directives may depend on ACLs. ACL syntax
 is</p>
@@ -787,7 +789,7 @@ acl = login { authenticated = yes }</pre></div>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN565" id="AEN565">4.2. ACL-based
+<h3 class="section"><a name="AEN566" id="AEN566">4.2. ACL-based
 Configuration</a></h3>
 <p>The following table summarizes configuration options with</p>
 <p><span class="emphasis"><i class="emphasis">Variable</i></span> [
@@ -799,7 +801,7 @@ Configuration</a></h3>
 <pre class="screen">access acl not someacl = permit
 access acl otheracl = permit
 access = deny</pre>
-<div class="informaltable"><a name="AEN577" id="AEN577"></a>
+<div class="informaltable"><a name="AEN578" id="AEN578"></a>
 <table border="1" class="CALSTABLE">
 <col width="1%" title="1">
 <col width="1%" title="2">
@@ -1601,7 +1603,7 @@ command = pass { acl not real = log permit }
 </pre></div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN1256" id="AEN1256">4.3.
+<h3 class="section"><a name="AEN1257" id="AEN1257">4.3.
 Path-rewriting using PCRE</a></h3>
 <p>If compiled with PCRE (Perl Compatible Regular Expressions)
 support,</p>
@@ -1624,7 +1626,7 @@ rewrite ^/tmp/test/(..)(.*)   /tmp/gaga/${1}/${1}$2  L
 rewrite ^/tmp/test123         $0                     R</pre></div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN1272" id="AEN1272">4.4. TLS
+<h3 class="section"><a name="AEN1273" id="AEN1273">4.4. TLS
 support</a></h3>
 <p>If compiled with TLS support, various TLS related parameters may
 be specified. Most of the options should obvious enough:</p>
@@ -1687,7 +1689,7 @@ recommended not to use that option, but to fix the client.</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN1328" id="AEN1328">4.5. MAVIS
+<h3 class="section"><a name="AEN1329" id="AEN1329">4.5. MAVIS
 Configuration</a></h3>
 <p>Directives to configure the MAVIS backends are:</p>
 <ul>
@@ -1710,7 +1712,7 @@ to the search-path for MAVIS modules.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1346" id="AEN1346">5. Wildcard
+<h2 class="section"><a name="AEN1347" id="AEN1347">5. Wildcard
 patterns</a></h2>
 <p>Limited file name globbing for the <tt class="literal">LIST</tt>
 and <tt class="literal">NLST</tt> commands is implemented for files
@@ -1740,7 +1742,7 @@ argument expands to the users home directory.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1370" id="AEN1370">6. Magic cookie
+<h2 class="section"><a name="AEN1371" id="AEN1371">6. Magic cookie
 substitution</a></h2>
 <p>The magic cookies used are partially compatible to those
 utilized by <span class="bold"><b class=
@@ -1865,7 +1867,7 @@ lookup</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1479" id="AEN1479">7. Sample
+<h2 class="section"><a name="AEN1480" id="AEN1480">7. Sample
 configuration</a></h2>
 <p>This is from the <tt class="literal">ftpd/sample</tt>
 directory:</p>
@@ -1896,7 +1898,7 @@ id = ftpd {
 }</pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1484" id="AEN1484">8. Railroad
+<h2 class="section"><a name="AEN1485" id="AEN1485">8. Railroad
 Diagrams</a></h2>
 <div class="mediaobject">
 <p><img src="railroad/ftpd/AcceptExpr.svg"></p>
@@ -2153,7 +2155,7 @@ Diagrams</a></h2>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1781" id="AEN1781">9. Bugs</a></h2>
+<h2 class="section"><a name="AEN1782" id="AEN1782">9. Bugs</a></h2>
 <ul>
 <li>
 <p>The server doesn't perform a <tt class=
@@ -2191,7 +2193,7 @@ you think you've found one.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1803" id="AEN1803">10.
+<h2 class="section"><a name="AEN1804" id="AEN1804">10.
 References</a></h2>
 <p>The FTP Daemon hopefully conforms to the following standards and
 drafts:</p>
@@ -2268,7 +2270,7 @@ Command for Byte Ranges</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1845" id="AEN1845">11. Copyrights
+<h2 class="section"><a name="AEN1846" id="AEN1846">11. Copyrights
 and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of
 individual files.</p>
@@ -2354,7 +2356,7 @@ with the distribution.</p>
 <li>
 <p>The end-user documentation included with the redistribution, if
 any, must include the following acknowledgment:</p>
-<a name="AEN1891" id="AEN1891"></a>
+<a name="AEN1892" id="AEN1892"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber
 (<code class="email">&lt;<a href=

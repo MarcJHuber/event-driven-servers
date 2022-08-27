@@ -26,45 +26,45 @@
 <dt>1.1. <a href="#AEN13">Download</a></dt>
 </dl>
 </dd>
-<dt>2. <a href="#AEN17">Operation</a></dt>
+<dt>2. <a href="#AEN18">Operation</a></dt>
 <dd>
 <dl>
-<dt>2.1. <a href="#AEN22">Command line syntax</a></dt>
+<dt>2.1. <a href="#AEN23">Command line syntax</a></dt>
 </dl>
 </dd>
-<dt>3. <a href="#AEN54">Configuration file syntax</a></dt>
+<dt>3. <a href="#AEN55">Configuration file syntax</a></dt>
 <dd>
 <dl>
-<dt>3.1. <a href="#AEN366">Railroad Diagrams</a></dt>
+<dt>3.1. <a href="#AEN367">Railroad Diagrams</a></dt>
 </dl>
 </dd>
-<dt>4. <a href="#AEN425">Signals</a></dt>
-<dt>5. <a href="#AEN431">Load balancing algorithm</a></dt>
-<dt>6. <a href="#AEN442">Event mechanism selection</a></dt>
-<dt>7. <a href="#AEN468">Sample configuration</a></dt>
-<dt>8. <a href="#AEN472">Startup examples</a></dt>
+<dt>4. <a href="#AEN426">Signals</a></dt>
+<dt>5. <a href="#AEN432">Load balancing algorithm</a></dt>
+<dt>6. <a href="#AEN443">Event mechanism selection</a></dt>
+<dt>7. <a href="#AEN469">Sample configuration</a></dt>
+<dt>8. <a href="#AEN473">Startup examples</a></dt>
 <dd>
 <dl>
-<dt>8.1. <a href="#AEN484">Manual startup</a></dt>
-<dt>8.2. <a href="#AEN497">Startup on demand</a></dt>
+<dt>8.1. <a href="#AEN485">Manual startup</a></dt>
+<dt>8.2. <a href="#AEN498">Startup on demand</a></dt>
 <dd>
 <dl>
-<dt>8.2.1. <a href="#AEN504">inetd</a></dt>
-<dt>8.2.2. <a href="#AEN512">xinetd</a></dt>
-<dt>8.2.3. <a href="#AEN520">launchd</a></dt>
+<dt>8.2.1. <a href="#AEN505">inetd</a></dt>
+<dt>8.2.2. <a href="#AEN513">xinetd</a></dt>
+<dt>8.2.3. <a href="#AEN521">launchd</a></dt>
 </dl>
 </dd>
-<dt>8.3. <a href="#AEN532">Startup at system boot</a></dt>
+<dt>8.3. <a href="#AEN533">Startup at system boot</a></dt>
 <dd>
 <dl>
-<dt>8.3.1. <a href="#AEN535">Init scripts</a></dt>
-<dt>8.3.2. <a href="#AEN540">launchd</a></dt>
-<dt>8.3.3. <a href="#AEN551">systemd</a></dt>
+<dt>8.3.1. <a href="#AEN536">Init scripts</a></dt>
+<dt>8.3.2. <a href="#AEN541">launchd</a></dt>
+<dt>8.3.3. <a href="#AEN552">systemd</a></dt>
 </dl>
 </dd>
 </dl>
 </dd>
-<dt>9. <a href="#AEN560">Copyrights and Acknowledgements</a></dt>
+<dt>9. <a href="#AEN561">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -79,14 +79,16 @@ over UNIX domain sockets) to the spawned server processes.</p>
 <hr>
 <h3 class="section"><a name="AEN13" id="AEN13">1.1.
 Download</a></h3>
-<p>Source and documentation are available from <a href=
+<p>Source and documentation are available from both <a href=
+"https://github.com/MarcJHuber/event-driven-servers/" target=
+"_top">the GitHub repository</a> and <a href=
 "https://www.pro-bono-publico.de/projects/" target=
 "_top">https://www.pro-bono-publico.de/projects/</a>.</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN17" id="AEN17">2.
+<h2 class="section"><a name="AEN18" id="AEN18">2.
 Operation</a></h2>
 <p><span class="bold"><b class="emphasis">spawnd</b></span> is now
 actually implemented as a shared library, and the programs that had
@@ -96,7 +98,7 @@ such, standalone. This in no way implies that <span class=
 obsolete; only the binary is.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN22" id="AEN22">2.1. Command line
+<h3 class="section"><a name="AEN23" id="AEN23">2.1. Command line
 syntax</a></h3>
 <p>Command line syntax is:</p>
 <pre class="screen">spawnd [ <tt class=
@@ -137,7 +139,7 @@ to.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN54" id="AEN54">3. Configuration
+<h2 class="section"><a name="AEN55" id="AEN55">3. Configuration
 file syntax</a></h2>
 <p>A typical <span class="bold"><b class=
 "emphasis">spawnd</b></span> configuration file consists of
@@ -509,7 +511,7 @@ Cygwin, <tt class="literal">no</tt> everywhere else.</p>
 </ul>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN366" id="AEN366">3.1. Railroad
+<h3 class="section"><a name="AEN367" id="AEN367">3.1. Railroad
 Diagrams</a></h3>
 <div class="mediaobject">
 <p><img src="railroad/spawnd/SpawndConfig.svg"></p>
@@ -563,7 +565,7 @@ Diagrams</a></h3>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN425" id="AEN425">4.
+<h2 class="section"><a name="AEN426" id="AEN426">4.
 Signals</a></h2>
 <p><span class="bold"><b class="emphasis">spawnd</b></span> will
 terminate upon receiving a SIGTERM or SIGINT signal. SIGHUP will
@@ -574,7 +576,7 @@ so actions aren't necessarily immediate.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN431" id="AEN431">5. Load balancing
+<h2 class="section"><a name="AEN432" id="AEN432">5. Load balancing
 algorithm</a></h2>
 <p><span class="bold"><b class="emphasis">spawnd</b></span> allows
 configuration of upper and lower limits for users and processes.
@@ -600,7 +602,7 @@ HAProxy.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN442" id="AEN442">6. Event mechanism
+<h2 class="section"><a name="AEN443" id="AEN443">6. Event mechanism
 selection</a></h2>
 <p>Several level-triggered event mechanisms are supported. By
 default, the one best suited for your operating system will be
@@ -637,7 +639,7 @@ top-level:</p>
 <pre class="screen">setenv IO_POLL_MECHANISM = 4</pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN468" id="AEN468">7. Sample
+<h2 class="section"><a name="AEN469" id="AEN469">7. Sample
 configuration</a></h2>
 <pre class="screen">id = spawnd {
     listen { port 21 }
@@ -655,7 +657,7 @@ configuration</a></h2>
 }</pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN472" id="AEN472">8. Startup
+<h2 class="section"><a name="AEN473" id="AEN473">8. Startup
 examples</a></h2>
 <p><span class="bold"><b class="emphasis">spawnd</b></span> (either
 standalone, or utilized via the <tt class="literal">MAVIS</tt>
@@ -672,7 +674,7 @@ adaptable to the <span class="bold"><b class=
 "emphasis">tcprelay</b></span> daemons.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN484" id="AEN484">8.1. Manual
+<h3 class="section"><a name="AEN485" id="AEN485">8.1. Manual
 startup</a></h3>
 <p>Starting a daemon manually is fine for testing, but, generally,
 undesireable for production. A configuration file that specifies at
@@ -698,7 +700,7 @@ run the daemon in the background, you can either add</p>
 "screen"># /usr/local/sbin/tac/plus -b /usr/local/etc/tac_plus.cfg</pre></div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN497" id="AEN497">8.2. Startup on
+<h3 class="section"><a name="AEN498" id="AEN498">8.2. Startup on
 demand</a></h3>
 <p>The daemon may be started on demand by <tt class=
 "literal">inetd</tt>(8) or compatible applications. The
@@ -715,7 +717,7 @@ id = tac_plus {
 }</pre>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN504" id="AEN504">8.2.1.
+<h4 class="section"><a name="AEN505" id="AEN505">8.2.1.
 inetd</a></h4>
 <p>For stock <tt class="literal">inetd</tt>, adding the following
 line to <tt class="literal">/etc/inetd.conf</tt> and sending a
@@ -725,7 +727,7 @@ activate the daemon:</p>
 "screen">tacacs  stream  tcp  wait root /usr/local/sbin/tac_plus /usr/local/sbin/tac_plus /usr/local/etc/tac_plus.cfg</pre></div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN512" id="AEN512">8.2.2.
+<h4 class="section"><a name="AEN513" id="AEN513">8.2.2.
 xinetd</a></h4>
 <p>The equivalent <tt class="literal">xinetd</tt>(8)
 configuration:</p>
@@ -746,7 +748,7 @@ configuration:</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN520" id="AEN520">8.2.3.
+<h4 class="section"><a name="AEN521" id="AEN521">8.2.3.
 launchd</a></h4>
 <p>Mac OS X comes with <tt class="literal">launchd</tt>(8), and
 here's a suitable <tt class=
@@ -788,14 +790,14 @@ configuration file).</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN532" id="AEN532">8.3. Startup at
+<h3 class="section"><a name="AEN533" id="AEN533">8.3. Startup at
 system boot</a></h3>
 <p>The daemons may be started at system boot time. Alas, that's
 very specific to your system. You should definitely know what
 you're doing, or you may render your system unbootable.</p>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN535" id="AEN535">8.3.1. Init
+<h4 class="section"><a name="AEN536" id="AEN536">8.3.1. Init
 scripts</a></h4>
 <p>The distribution comes with a couple of System V style init
 scripts, e.g. <tt class=
@@ -807,7 +809,7 @@ details.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN540" id="AEN540">8.3.2.
+<h4 class="section"><a name="AEN541" id="AEN541">8.3.2.
 launchd</a></h4>
 <p>On MacOS, create a file <tt class=
 "literal">/Library/LaunchDaemons/de.pro-bono-publico.tac_plus.plist</tt>
@@ -841,7 +843,7 @@ its configuration file by issuing</p>
 "screen"># sudo kill -HUP `cat /var/run/tac_plus.pid`</pre></div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN551" id="AEN551">8.3.3.
+<h4 class="section"><a name="AEN552" id="AEN552">8.3.3.
 systemd</a></h4>
 <p>For <tt class="literal">systemd</tt> you'll have to create an
 appropriate <span class="emphasis"><i class=
@@ -867,7 +869,7 @@ and start the service:</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN560" id="AEN560">9. Copyrights and
+<h2 class="section"><a name="AEN561" id="AEN561">9. Copyrights and
 Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of
 individual files.</p>
@@ -916,7 +918,7 @@ with the distribution.</p>
 <li>
 <p>The end-user documentation included with the redistribution, if
 any, must include the following acknowledgment:</p>
-<a name="AEN583" id="AEN583"></a>
+<a name="AEN584" id="AEN584"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber
 (<code class="email">&lt;<a href=

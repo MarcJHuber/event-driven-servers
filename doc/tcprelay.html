@@ -26,23 +26,23 @@
 <dt>1.1. <a href="#AEN13">Download</a></dt>
 </dl>
 </dd>
-<dt>2. <a href="#AEN17">Operation</a></dt>
+<dt>2. <a href="#AEN18">Operation</a></dt>
 <dd>
 <dl>
-<dt>2.1. <a href="#AEN31">Command line syntax</a></dt>
-<dt>2.2. <a href="#AEN52">Signals</a></dt>
-<dt>2.3. <a href="#AEN65">Event mechanism selection</a></dt>
-<dt>2.4. <a href="#AEN91">Configuration Syntax</a></dt>
+<dt>2.1. <a href="#AEN32">Command line syntax</a></dt>
+<dt>2.2. <a href="#AEN53">Signals</a></dt>
+<dt>2.3. <a href="#AEN66">Event mechanism selection</a></dt>
+<dt>2.4. <a href="#AEN92">Configuration Syntax</a></dt>
 <dd>
 <dl>
-<dt>2.4.1. <a href="#AEN187">Railroad Diagram</a></dt>
+<dt>2.4.1. <a href="#AEN188">Railroad Diagram</a></dt>
 </dl>
 </dd>
-<dt>2.5. <a href="#AEN197">Sample configuration</a></dt>
+<dt>2.5. <a href="#AEN198">Sample configuration</a></dt>
 </dl>
 </dd>
-<dt>3. <a href="#AEN201">Bugs</a></dt>
-<dt>4. <a href="#AEN211">Copyrights and Acknowledgements</a></dt>
+<dt>3. <a href="#AEN202">Bugs</a></dt>
+<dt>4. <a href="#AEN212">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -56,14 +56,16 @@ wrapper.</p>
 <hr>
 <h3 class="section"><a name="AEN13" id="AEN13">1.1.
 Download</a></h3>
-<p>Source and documentation are available from <a href=
+<p>Source and documentation are available from both <a href=
+"https://github.com/MarcJHuber/event-driven-servers/" target=
+"_top">the GitHub repository</a> and <a href=
 "https://www.pro-bono-publico.de/projects/" target=
 "_top">https://www.pro-bono-publico.de/projects/</a>.</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN17" id="AEN17">2.
+<h2 class="section"><a name="AEN18" id="AEN18">2.
 Operation</a></h2>
 <p>This section gives a brief and basic overview how to run
 <span class="bold"><b class="emphasis">tcprelay</b></span>.</p>
@@ -84,7 +86,7 @@ use auxilliary <span class="bold"><b class=
 authorization.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN31" id="AEN31">2.1. Command line
+<h3 class="section"><a name="AEN32" id="AEN32">2.1. Command line
 syntax</a></h3>
 <p>The only mandatory argument is the path to the configuration
 file:</p>
@@ -113,7 +115,7 @@ section.</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN52" id="AEN52">2.2.
+<h3 class="section"><a name="AEN53" id="AEN53">2.2.
 Signals</a></h3>
 <p>Both the master (that's the process running the <span class=
 "bold"><b class="emphasis">spawnd</b></span> code) and the child
@@ -138,7 +140,7 @@ idle.</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN65" id="AEN65">2.3. Event mechanism
+<h3 class="section"><a name="AEN66" id="AEN66">2.3. Event mechanism
 selection</a></h3>
 <p>Several level-triggered event mechanisms are supported. By
 default, the one best suited for your operating system will be
@@ -175,7 +177,7 @@ top-level:</p>
 <pre class="screen">setenv IO_POLL_MECHANISM = 4</pre></div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN91" id="AEN91">2.4. Configuration
+<h3 class="section"><a name="AEN92" id="AEN92">2.4. Configuration
 Syntax</a></h3>
 <p>A single configuration file is sufficient for configuring both
 <span class="bold"><b class="emphasis">spawnd</b></span> and
@@ -287,7 +289,7 @@ may be omitted, it defaults to <span class="emphasis"><i class=
 </ul>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN187" id="AEN187">2.4.1. Railroad
+<h4 class="section"><a name="AEN188" id="AEN188">2.4.1. Railroad
 Diagram</a></h4>
 <div class="mediaobject">
 <p><img src="railroad/tcprelay/Config.svg"></p>
@@ -299,7 +301,7 @@ Diagram</a></h4>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN197" id="AEN197">2.5. Sample
+<h3 class="section"><a name="AEN198" id="AEN198">2.5. Sample
 configuration</a></h3>
 <pre class="screen">#!/usr/local/sbin/spawnd
 id = spawnd {
@@ -323,7 +325,7 @@ id = tcprelay {
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN201" id="AEN201">3. Bugs</a></h2>
+<h2 class="section"><a name="AEN202" id="AEN202">3. Bugs</a></h2>
 <ul>
 <li>
 <p>TLS re-negotiation is currently untested and may or may not
@@ -343,7 +345,7 @@ you think you've found one.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN211" id="AEN211">4. Copyrights and
+<h2 class="section"><a name="AEN212" id="AEN212">4. Copyrights and
 Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of
 individual files.</p>
@@ -402,7 +404,7 @@ with the distribution.</p>
 <li>
 <p>The end-user documentation included with the redistribution, if
 any, must include the following acknowledgment:</p>
-<a name="AEN241" id="AEN241"></a>
+<a name="AEN242" id="AEN242"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber
 (<code class="email">&lt;<a href=

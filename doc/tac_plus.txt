@@ -116,8 +116,8 @@ Marc Huber
 
 1.1. Download
 
-   Source and documentation are available from
-   https://www.pro-bono-publico.de/projects/.
+   Source and documentation are available from both the GitHub
+   repository and https://www.pro-bono-publico.de/projects/.
      __________________________________________________________
 
 2. Definitions and Terms
