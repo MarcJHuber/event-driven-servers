@@ -9,6 +9,8 @@
 
 #ifndef __MAVIS_H_
 #define __MAVIS_H_
+#define MAVIS_API_VERSION "5"
+
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/time.h>

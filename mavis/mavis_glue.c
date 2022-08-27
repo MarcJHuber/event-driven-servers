@@ -22,7 +22,7 @@ static int Mavis_init(mavis_ctx * mcx)
 #endif
     DebugIn(DEBUG_MAVIS);
 
-    mavis_check_version(VERSION);
+    mavis_check_version(MAVIS_API_VERSION);
 
 #ifdef HAVE_mavis_init_in
     result = mavis_init_in(mcx);

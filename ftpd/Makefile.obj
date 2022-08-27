@@ -44,6 +44,10 @@ main.o: main.c headers.h $(BASE)/misc/version.h defaults.h
 
 h_help.o: $(BASE)/misc/version.h
 
+log.o: $(BASE)/misc/version.h
+
+main.o: $(BASE)/misc/version.h
+
 OBJ +=	h_abor.o h_cwd.o h_help.o h_list.o h_mdtm.o h_noop.o h_pass.o h_pasv.o
 OBJ +=	h_port.o h_pwd.o h_quit.o h_rein.o h_rest.o h_retr.o h_size.o h_stat.o
 OBJ +=	h_syst.o h_rnfr.o h_rnto.o h_type.o h_user.o h_stor.o h_dele.o h_mkd.o

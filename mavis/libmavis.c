@@ -406,8 +406,8 @@ void av_free_private(av_ctx * ac)
 
 int mavis_check_version(char *version)
 {
-    if (strcmp(version, VERSION)) {
-	logmsg("Warning: MAVIS library version mismatch (%s vs. %s). Expect trouble.", version, VERSION);
+    if (strcmp(version, MAVIS_API_VERSION)) {
+	logmsg("Warning: MAVIS library API version mismatch (%s vs. %s). Expect trouble.", version, MAVIS_API_VERSION);
 	return -1;
     }
     return 0;

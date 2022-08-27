@@ -294,7 +294,7 @@ void init_mcx(void)
     for (rbn = RB_first(config.realms); rbn; rbn = RB_next(rbn)) {
 	tac_realm *r = RB_payload(rbn, tac_realm *);
 	if (r->mcx && (r->mcx_inherited == BISTATE_NO))
-	    mavis_init(r->mcx, VERSION);
+	    mavis_init(r->mcx, MAVIS_API_VERSION);
     }
 }
 

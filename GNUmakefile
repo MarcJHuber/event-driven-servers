@@ -13,7 +13,10 @@ OSr	:= $(shell uname -r | sed "s/(.*)//" | env -i $(TR) "[:upper:]/ " "[:lower:]
 OSm	:= $(shell uname -m | env -i $(TR) "[:upper:]/ " "[:lower:]--")
 OS	:= $(OSs)-$(OSr)-$(OSm)
 
-all: dirs install_fakeroot_doc
+all: misc/version.h dirs install_fakeroot_doc
+
+misc/version.h: .git/HEAD
+	@test -f .git/HEAD && set `git rev-parse HEAD` && printf "#define VERSION \"$$1\"\n" > $@
 
 build:
 	mkdir -p -m 0755 $@
@@ -58,7 +61,7 @@ clean:
 	@-rm -rf build/$(OS) */Makefile */*/Makefile
 
 distclean: clean
-	@mv build/doc build-doc 2>/dev/null ; rm -rf *~ */*~ */*/*~ build ; mkdir -m 0755 build ; mv build-doc build 2>/dev/null ; exit 0
+	@rm -rf *~ */*~ */*/*~ build ; mkdir -m 0755 build
 
 tidy:
 	@-rm -rf build */Makefile */*/Makefile *~ */*~ */*/*~

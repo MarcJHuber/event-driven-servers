@@ -103,6 +103,7 @@ BEGIN {
 		AV_V_TYPE_TRANSPORT
 		AV_V_TYPE_VIRTUAL
 		AV_V_TYPE_WWW
+		MAVIS_API_VERSION
 		MAVIS_CONF_ERR
 		MAVIS_CONF_OK
 		MAVIS_DEFERRED
@@ -209,6 +210,7 @@ use constant AV_V_TYPE_TACPLUS => "TACPLUS";
 use constant AV_V_TYPE_TRANSPORT => "TRANSPORT";
 use constant AV_V_TYPE_VIRTUAL => "VIRTUAL";
 use constant AV_V_TYPE_WWW => "WWW";
+use constant MAVIS_API_VERSION => "5";
 use constant MAVIS_CONF_ERR => 1;
 use constant MAVIS_CONF_OK => 0;
 use constant MAVIS_DEFERRED => 1;

@@ -65,8 +65,12 @@ radmavis$(EXEC_EXT): radmavis.o
 
 pammavis.o: CFLAGS += $(INC_PAM)
 
+pammavis.o: $(BASE)/misc/version.h
+
 pammavis$(EXEC_EXT): pammavis.o
 	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PAM) $(LIB_NET)
+
+spawnd_main.o: $(BASE)/misc/version.h
 
 LIBMAVISOBJS	+= libmavis.o log.o debug.o blowfish.o radix.o
 LIBMAVISOBJS	+= net.o scm.o groups.o rb.o crc32.o tokenize.o base64.o

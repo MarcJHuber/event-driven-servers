@@ -392,7 +392,7 @@ void init_mcx(tac_realm * r)
 {
     rb_node_t *rbn;
     if (r->mcx)
-	mavis_init(r->mcx, VERSION);
+	mavis_init(r->mcx, MAVIS_API_VERSION);
     if (r->realms)
 	for (rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    init_mcx(RB_payload(rbn, tac_realm *));

@@ -338,7 +338,7 @@ int main(int argc, char **argv, char **envp)
 	io_sched_add(io, s, (void *) log_statistics, stat_period, 0);
     }
 
-    mavis_init(mcx, VERSION);
+    mavis_init(mcx, MAVIS_API_VERSION);
 
     setproctitle("%s: backlog: %d", common_data.progname, backlog);
 
