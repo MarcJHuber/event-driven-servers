@@ -93,7 +93,7 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     session->pak_authen_method = pak->authen_method;
     session->username_len = (size_t) pak->user_len;
     session->username = memlist_strndup(session->memlist, p, session->username_len);
-    tac_rewrite_user(session);
+    tac_rewrite_user(session, NULL);
     p += pak->user_len;
     session->nas_port = memlist_strndup(session->memlist, p, (size_t) pak->port_len);
     session->nas_port_len = pak->port_len;
