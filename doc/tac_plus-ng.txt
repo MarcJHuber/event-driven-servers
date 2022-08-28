@@ -43,8 +43,12 @@ Marc Huber
 
    6. Frequently Asked Questions
    7. Bugs
-   8. References
-   9. Copyrights and Acknowledgements
+   8. Multi-tenant setups
+
+        8.1. AD, Realms and Tenants
+
+   9. References
+   10. Copyrights and Acknowledgements
 
 1. Introduction
 
@@ -2832,7 +2836,108 @@ aaa authorization exec default group tacacs+
        configuration syntax guidance.
      __________________________________________________________
 
-8. References
+8. Multi-tenant setups
+
+   While using a dedictated tac_plus-ng installation per tenant is
+   certainly possible it lacks some elegance. There are other
+   ways:
+
+   A single daemon can tell tenants apart by
+
+     * host identity, either
+          + by NAD IP address or
+          + by certificate common name (currently irrelevant, as
+            there's no NAD support)
+     * realms, which are determined
+          + by tacacs+ destination port or
+          + by VRF (Linux, mostly)
+
+   Using the IP-based host identity should be sufficient for
+   simple setups, but these don't scale and don't handle IP
+   address conflicts. Options to cope with the latter involve
+   realms. A realm is most basicly a text string the tcp listener
+   (spawnd) assigns to a connection based on TCP destination port:
+id = spawnd {
+    ...
+    listen { port = 49001 realm = customer1 }
+    listen { port = 49002 realm = customer2 }
+    ...
+}
+
+   In case VRFs aren't an option you can use HAProxy instances to
+   transparently relay TACACS+ connections to tac_plus-ng:
+id = spawnd {
+    ...
+    listen { port = 49001 realm = customer1 haproxy = yes }
+    listen { port = 49002 realm = customer2 haproxy = yes }
+    ....
+}
+
+   tac_plus-ng will then take the NAD IP from the HAProxy protocol
+   v2 header.
+
+   Otherwise, the "listen" directive can be limite to your locally
+   defined VRFs:
+id = spawnd {
+    ...
+    listen { port = 49000 realm = customer1 vrf = blue }
+    listen { port = 49000 realm = customer2 vrf = red }
+    ...
+}
+
+   On Linux, if you set net.ipv4.tcp_l3mdev_accept=1, you can even
+   get away with
+id = spawnd { ... listen { port = 49000 } ... }
+
+   and the daemon will use the VRF name your clients did connect
+   from as realm name.
+     __________________________________________________________
+
+8.1. AD, Realms and Tenants
+
+   The suggested setup for giving customers limited access to NADs
+   is:
+id = tac_plus-ng {
+    mavis module = external { your AD configuration goes here }
+
+    profile ... { ... }
+
+    realm customer1 {
+
+        net custsrc { the IP ranges the end customer may log in from  }
+
+        rewrite normalizeCustomerAccount {
+           rewrite /^.*$/ cust1-\L$0
+        }
+
+        net custnet { the IP ranges the end customer may log in from  }
+
+        host customer1 {
+            ....
+            script {  if (nac == custsrc) rewrite user = normalizeCustom
+erAccount
+        }
+
+        ruleset {
+            rule customer {
+                if (nac == custnet) {
+                   if (member == ...) { profile = ... permit }
+                   deny
+                }
+               if (member == ...) profile = ... permit
+               deny
+        }
+}
+
+   In this example, you can easily share your LDAP (or AD) server
+   between your own admin users and multiple tenants. The daemon
+   will automatically prefix the customer accounts with a prefix
+   and convert them to lower case. Note that the username
+   rewriting happens using a script in host context. Rewriting
+   won't work in scripts anywhere else.
+     __________________________________________________________
+
+9. References
 
      * draft-grant-tacacs-02.txt ‐ The TACACS+ Protocol (Version
        1.78)
@@ -2840,7 +2945,7 @@ aaa authorization exec default group tacacs+
        System Plus (TACACS+) Protocol
      __________________________________________________________
 
-9. Copyrights and Acknowledgements
+10. Copyrights and Acknowledgements
 
    Please see the source for copyright and licensing information
    of individual files.

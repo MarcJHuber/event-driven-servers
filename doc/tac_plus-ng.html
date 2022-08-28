@@ -70,8 +70,14 @@
 </dd>
 <dt>6. <a href="#AEN2524">Frequently Asked Questions</a></dt>
 <dt>7. <a href="#AEN2620">Bugs</a></dt>
-<dt>8. <a href="#AEN2634">References</a></dt>
-<dt>9. <a href="#AEN2644">Copyrights and Acknowledgements</a></dt>
+<dt>8. <a href="#AEN2634">Multi-tenant setups</a></dt>
+<dd>
+<dl>
+<dt>8.1. <a href="#AEN2665">AD, Realms and Tenants</a></dt>
+</dl>
+</dd>
+<dt>9. <a href="#AEN2670">References</a></dt>
+<dt>10. <a href="#AEN2680">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -4204,7 +4210,121 @@ guidance.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2634" id="AEN2634">8.
+<h2 class="section"><a name="AEN2634" id="AEN2634">8. Multi-tenant
+setups</a></h2>
+<p>While using a dedictated tac_plus-ng installation per tenant is
+certainly possible it lacks some elegance. There are other
+ways:</p>
+<p>A single daemon can tell tenants apart by</p>
+<ul>
+<li>
+<p>host identity, either</p>
+<ul>
+<li>
+<p>by NAD IP address or</p>
+</li>
+<li>
+<p>by certificate common name (currently irrelevant, as there's no
+NAD support)</p>
+</li>
+</ul>
+</li>
+<li>
+<p>realms, which are determined</p>
+<ul>
+<li>
+<p>by tacacs+ destination port or</p>
+</li>
+<li>
+<p>by VRF (Linux, mostly)</p>
+</li>
+</ul>
+</li>
+</ul>
+<p>Using the IP-based host identity should be sufficient for simple
+setups, but these don't scale and don't handle IP address
+conflicts. Options to cope with the latter involve <span class=
+"emphasis"><i class="emphasis">realms</i></span>. A realm is most
+basicly a text string the tcp listener (spawnd) assigns to a
+connection based on TCP destination port:</p>
+<pre class="screen">id = spawnd {
+    ...
+    listen { port = 49001 realm = customer1 }
+    listen { port = 49002 realm = customer2 }
+    ...
+}</pre>
+<p>In case VRFs aren't an option you can use HAProxy instances to
+transparently relay TACACS+ connections to tac_plus-ng:</p>
+<pre class="screen">id = spawnd {
+    ...
+    listen { port = 49001 realm = customer1 haproxy = yes }
+    listen { port = 49002 realm = customer2 haproxy = yes }
+    ....
+}</pre>
+<p>tac_plus-ng will then take the NAD IP from the HAProxy protocol
+v2 header.</p>
+<p>Otherwise, the "listen" directive can be limite to your locally
+defined VRFs:</p>
+<pre class="screen">id = spawnd {
+    ...
+    listen { port = 49000 realm = customer1 vrf = blue }
+    listen { port = 49000 realm = customer2 vrf = red }
+    ...
+}</pre>
+<p>On Linux, if you set <tt class=
+"literal">net.ipv4.tcp_l3mdev_accept=1</tt>, you can even get away
+with</p>
+<pre class=
+"screen">id = spawnd { ... listen { port = 49000 } ... }</pre>
+<p>and the daemon will use the VRF name your clients did connect
+from as realm name.</p>
+<div class="section">
+<hr>
+<h3 class="section"><a name="AEN2665" id="AEN2665">8.1. AD, Realms
+and Tenants</a></h3>
+<p>The suggested setup for giving customers limited access to NADs
+is:</p>
+<pre class="screen">id = tac_plus-ng {
+    mavis module = external { your AD configuration goes here }
+
+    profile ... { ... }
+   
+    realm customer1 {
+
+        net custsrc { the IP ranges the end customer may log in from  }
+
+        rewrite normalizeCustomerAccount {
+           rewrite /^.*$/ cust1-\L$0
+        }
+
+        net custnet { the IP ranges the end customer may log in from  }
+    
+        host customer1 {
+            ....
+            script {  if (nac == custsrc) rewrite user = normalizeCustomerAccount
+        }
+    
+        ruleset {
+            rule customer {
+                if (nac == custnet) {
+                   if (member == ...) { profile = ... permit }
+                   deny
+                }
+               if (member == ...) profile = ... permit
+               deny
+        }
+}</pre>
+<p>In this example, you can easily share your LDAP (or AD) server
+between your own admin users and multiple tenants. The daemon will
+automatically prefix the customer accounts with a prefix and
+convert them to lower case. Note that the username rewriting
+happens using a script in host context. Rewriting won't work in
+scripts anywhere else.</p>
+</div>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN2670" id="AEN2670">9.
 References</a></h2>
 <ul>
 <li>
@@ -4221,7 +4341,7 @@ System Plus (TACACS+) Protocol</a></p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2644" id="AEN2644">9. Copyrights
+<h2 class="section"><a name="AEN2680" id="AEN2680">10. Copyrights
 and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of
 individual files.</p>
@@ -4303,7 +4423,7 @@ with the distribution.</p>
 <li>
 <p>The end-user documentation included with the redistribution, if
 any, must include the following acknowledgment:</p>
-<a name="AEN2687" id="AEN2687"></a>
+<a name="AEN2723" id="AEN2723"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber
 (<code class="email">&lt;<a href=
