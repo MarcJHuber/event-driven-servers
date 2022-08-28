@@ -2074,7 +2074,7 @@ void io_clr_cb_h(struct io_context *io, int fd)
 }
 
 #ifdef WITH_TLS
-static ssize_t io_TLS_rw(struct io_context *io, int fd, void *cb, int res)
+static ssize_t io_TLS_rw(struct tls *ssl __attribute__((unused)), struct io_context *io, int fd, void *cb, int res)
 {
     DebugIn(DEBUG_PROC | DEBUG_NET);
     if (io->handler[fd].reneg && res != TLS_WANT_POLLIN && res != TLS_WANT_POLLOUT) {
@@ -2105,12 +2105,12 @@ static ssize_t io_TLS_rw(struct io_context *io, int fd, void *cb, int res)
 
 ssize_t io_TLS_read(struct tls *ssl, void *buf, size_t num, struct io_context *io, int fd, void *cb)
 {
-    return io_TLS_rw(io, fd, cb, tls_read(ssl, buf, (int) num));
+    return io_TLS_rw(ssl, io, fd, cb, tls_read(ssl, buf, (int) num));
 }
 
 ssize_t io_TLS_write(struct tls *ssl, void *buf, size_t num, struct io_context *io, int fd, void *cb)
 {
-    return io_TLS_rw(io, fd, cb, tls_write(ssl, buf, (int) num));
+    return io_TLS_rw(ssl, io, fd, cb, tls_write(ssl, buf, (int) num));
 }
 
 int io_TLS_shutdown(struct tls *ssl, struct io_context *io, int fd, void *cb)
@@ -2118,13 +2118,13 @@ int io_TLS_shutdown(struct tls *ssl, struct io_context *io, int fd, void *cb)
     Debug((DEBUG_PROC | DEBUG_NET, "%s\n", __func__));
     int res = tls_close(ssl);	// check res, might be TLS_WANT_POLL...
     Debug((DEBUG_PROC | DEBUG_NET, "SSL_shutdown = %d\n", res));
-    return (int) io_TLS_rw(io, fd, cb, res);
+    return (int) io_TLS_rw(ssl, io, fd, cb, res);
 }
 #endif
 #ifdef WITH_SSL
 #include <openssl/ssl.h>
 
-static ssize_t io_SSL_rw(SSL * ssl, struct io_context *io, int fd, void *cb, int res)
+static ssize_t io_SSL_rw(SSL * ssl __attribute__((unused)), struct io_context *io, int fd, void *cb, int res)
 {
     DebugIn(DEBUG_PROC | DEBUG_NET);
     if (io->handler[fd].reneg && !SSL_want_read(ssl)
