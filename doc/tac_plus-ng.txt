@@ -1195,6 +1195,10 @@ key = ""
        the current host will be looked up there, recursively.
      * host hostName { HostAttr }
        Hosts can be defined in host context, too.
+     * script { tacAction }
+       Scripts can be used in host context. These are run before
+       AAA and mey be used to permit or deny access, or to rewrite
+       usernames.
      __________________________________________________________
 
 4.2.3.4.1. Timeouts
@@ -1534,7 +1538,11 @@ rewrite rewriteRule {
 
 host ... {
     ...
+    # this is deprecated:
     rewrite user = rewriteRule
+    # please use
+    script { user = rewriteRule }
+    # instead
     ...
 }
 
