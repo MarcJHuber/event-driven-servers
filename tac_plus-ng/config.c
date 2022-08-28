@@ -465,12 +465,12 @@ static tac_profile *lookup_profile(char *name, tac_realm * r)
 
 static tac_rewrite *lookup_rewrite(char *name, tac_realm * r)
 {
-    tac_rewrite *rewrite = alloca(sizeof(tac_rewrite));
-    rewrite->name = name;
+    tac_rewrite rewrite;
+    rewrite.name = name;
     while (r) {
 	if (r->rewrite) {
 	    tac_rewrite *res;
-	    if ((res = RB_lookup(r->rewrite, rewrite)))
+	    if ((res = RB_lookup(r->rewrite, &rewrite)))
 		return res;
 	}
 	r = r->parent;
@@ -480,12 +480,12 @@ static tac_rewrite *lookup_rewrite(char *name, tac_realm * r)
 
 tac_host *lookup_host(char *name, tac_realm * r)
 {
-    tac_host *host = alloca(sizeof(tac_host));
-    host->name = name;
+    tac_host host;
+    host.name = name;
     while (r) {
 	if (r->hosttable) {
 	    tac_host *res;
-	    if ((res = RB_lookup(r->hosttable, host)))
+	    if ((res = RB_lookup(r->hosttable, &host)))
 		return res;
 	}
 	r = r->parent;
@@ -495,12 +495,12 @@ tac_host *lookup_host(char *name, tac_realm * r)
 
 static tac_net *lookup_net(char *name, tac_realm * r)
 {
-    tac_net *net = alloca(sizeof(tac_net));
-    net->name = name;
+    tac_net net;
+    net.name = name;
     while (r) {
 	if (r->nettable) {
 	    tac_net *res;
-	    if ((res = RB_lookup(r->nettable, net)))
+	    if ((res = RB_lookup(r->nettable, &net)))
 		return res;
 	}
 	r = r->parent;
