@@ -298,8 +298,8 @@ static enum token lookup_and_set_user(tac_session * session)
 static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&&( ( (session->ctx->realm->mavis_userdb == TRISTATE_YES) &&(session->ctx->realm->mavis_login_prefetch != TRISTATE_YES) && !session->user)
-	   ||(session->user && pw_ix == PW_MAVIS));
+	&& (((session->ctx->realm->mavis_userdb == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES) && !session->user)
+	    || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -308,7 +308,7 @@ static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *
 
 static int query_mavis_info_login(tac_session * session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->user &&(session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
+    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_LOGIN);
@@ -327,8 +327,8 @@ int query_mavis_info(tac_session * session, void (*f)(tac_session *), enum pw_ix
 static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
-	( ( (session->ctx->realm->mavis_userdb == TRISTATE_YES) &&(session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES) && !session->user)
-	 ||(session->user && pw_ix == PW_MAVIS));
+	(((session->ctx->realm->mavis_userdb == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES) && !session->user)
+	 || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_PAP);
@@ -337,7 +337,7 @@ static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *),
 
 static int query_mavis_info_pap(tac_session * session, void (*f)(tac_session *))
 {
-    int res = !session->user &&(session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
+    int res = !session->user && (session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_PAP);
@@ -349,7 +349,12 @@ static void do_chap(tac_session * session)
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
 
-    lookup_and_set_user(session);
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, "chap login", hint_denied_by_acl, res);
+	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	return;
+    }
+
     if (query_mavis_info(session, do_chap, PW_CHAP))
 	return;
 
@@ -552,7 +557,12 @@ static void do_chpass(tac_session * session)
 	return;
     }
 
-    lookup_and_set_user(session);
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, "password change", hint_denied_by_acl, res);
+	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	return;
+    }
+
     if (query_mavis_info_login(session, do_chpass))
 	return;
 
@@ -577,8 +587,8 @@ static void do_chpass(tac_session * session)
 
 static void send_password_prompt(tac_session * session, enum pw_ix pw_ix, void (*f)(tac_session *))
 {
-    if( (session->ctx->realm->chalresp == TRISTATE_YES) &&(!session->user ||( (pw_ix == PW_MAVIS) &&(TRISTATE_NO != session->user->chalresp)))) {
-	if(!session->flag_chalresp) {
+    if ((session->ctx->realm->chalresp == TRISTATE_YES) && (!session->user || ((pw_ix == PW_MAVIS) && (TRISTATE_NO != session->user->chalresp)))) {
+	if (!session->flag_chalresp) {
 	    session->flag_chalresp = 1;
 	    mavis_lookup(session, f, AV_V_TACTYPE_CHAL, PW_LOGIN);
 	    return;
@@ -619,7 +629,12 @@ static void do_enable_login(tac_session * session)
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     char buf[40];
 
-    lookup_and_set_user(session);
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, "enable login", hint_denied_by_acl, res);
+	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	return;
+    }
+
     if (query_mavis_info_login(session, do_enable_login))
 	return;
 
@@ -663,7 +678,11 @@ static void do_enable_augmented(tac_session * session)
     enum hint_enum hint = hint_nosuchuser;
     char *resp = "Permission denied.", *u;
 
-    lookup_and_set_user(session);
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, "enable login", hint_denied_by_acl, res);
+	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	return;
+    }
 
     if (query_mavis_info_login(session, do_enable_augmented))
 	return;
@@ -683,7 +702,11 @@ static void do_enable_augmented(tac_session * session)
 	    session->authen_data->msg = NULL;
 	    if (password_requirements_failed(session, "enable login"))
 		return;
-	    lookup_and_set_user(session);
+	    if (S_deny == lookup_and_set_user(session)) {
+		report_auth(session, "enable login", hint_denied_by_acl, res);
+		send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+		return;
+	    }
 	}
     }
 
@@ -731,7 +754,12 @@ static void do_enable(tac_session * session)
 	return;
     }
 
-    lookup_and_set_user(session);
+    if (S_deny == lookup_and_set_user(session)) {
+	snprintf(buf, sizeof(buf), "enable %d", session->priv_lvl);
+	report_auth(session, buf, hint_denied_by_acl, res);
+	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	return;
+    }
     if (query_mavis_info(session, do_enable, PW_LOGIN))
 	return;
 
@@ -791,7 +819,11 @@ static void do_ascii_login(tac_session * session)
 	return;
     }
 
-    lookup_and_set_user(session);
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, "shell login", hint_denied_by_acl, res);
+	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	return;
+    }
     if (query_mavis_info_login(session, do_ascii_login))
 	return;
     set_pwdat(session, &pwdat, &pw_ix);
@@ -901,7 +933,11 @@ static void do_enable_getuser(tac_session * session)
 	return;
     }
 
-    lookup_and_set_user(session);
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, "enforced enable login", hint_denied_by_acl, res);
+	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	return;
+    }
     if (query_mavis_info_login(session, do_enable_getuser))
 	return;
     set_pwdat(session, &pwdat, &pw_ix);
@@ -1038,7 +1074,11 @@ static void do_mschap(tac_session * session)
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
 
-    lookup_and_set_user(session);
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, "mchap login", hint_denied_by_acl, res);
+	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	return;
+    }
     if (query_mavis_info(session, do_mschap, PW_MSCHAP))
 	return;
 
@@ -1100,7 +1140,11 @@ static void do_mschapv2(tac_session * session)
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
 
-    lookup_and_set_user(session);
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, "mchapv2 login", hint_denied_by_acl, res);
+	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	return;
+    }
     if (query_mavis_info(session, do_mschapv2, PW_MSCHAP))
 	return;
 
@@ -1150,7 +1194,11 @@ static void do_login(tac_session * session)
 	    return;
     }
 
-    lookup_and_set_user(session);
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, "ascii login", hint_denied_by_acl, res);
+	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	return;
+    }
     if (query_mavis_info_login(session, do_login))
 	return;
     set_pwdat(session, &pwdat, &pw_ix);
@@ -1196,7 +1244,11 @@ static void do_pap(tac_session * session)
     if (password_requirements_failed(session, "pap login"))
 	return;
 
-    lookup_and_set_user(session);
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, "pap login", hint_denied_by_acl, res);
+	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	return;
+    }
     if (query_mavis_info_pap(session, do_pap))
 	return;
     set_pwdat(session, &pwdat, &pw_ix);
