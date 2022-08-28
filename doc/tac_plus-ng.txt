@@ -71,11 +71,11 @@ Marc Huber
         6.2. Trace Options
 
    7. Frequently Asked Questions
-   8. Bugs
-   9. Multi-tenant setups
+   8. Multi-tenant setups
 
-        9.1. AD, Realms and Tenants
+        8.1. AD, Realms and Tenants
 
+   9. Bugs
    10. References
    11. Copyrights and Acknowledgements
 
@@ -120,9 +120,10 @@ Marc Huber
 
    NAC A Network Access Client, e.g. the source host of a telnet
    connection.
-   NAS A Network Access Server, e.g. a Cisco box, or any other
-   client which makes TACACS+ authentication and authorization
-   requests, or generates TACACS+ accounting packets.
+   NAS or NAD A Network Access Server or Device, e.g. a Cisco box,
+   or any other client which makes TACACS+ authentication and
+   authorization requests, or generates TACACS+ accounting
+   packets.
    Daemon A program which services network requests for
    authentication and authorization, verifies identities, grants
    or denies authorizations, and logs accounting records.
@@ -2850,22 +2851,7 @@ aaa authorization exec default group tacacs+
        uses it anyway.
      __________________________________________________________
 
-8. Bugs
-
-     * There may still be some nasty bugs lurking in the code.
-       Please contact the author via the "Event-Driven Servers"
-       Google Group at <event-driven-servers@googlegroups.com> or
-       http://groups.google.com/group/event-driven-servers if you
-       think you've found one.
-     * This documentation isn't well structured.
-     * The examples given are too IPv4-centric. However, the
-       daemon handles IPv6 just fine.
-     * Some of the NAS configuration examples aren't recently
-       tested. Refer to the IOS documentation for IOS
-       configuration syntax guidance.
-     __________________________________________________________
-
-9. Multi-tenant setups
+8. Multi-tenant setups
 
    While using a dedictated tac_plus-ng installation per tenant is
    certainly possible it lacks some elegance. There are other
@@ -2922,7 +2908,7 @@ id = spawnd { ... listen { port = 49000 } ... }
    from as realm name.
      __________________________________________________________
 
-9.1. AD, Realms and Tenants
+8.1. AD, Realms and Tenants
 
    The suggested setup for giving customers limited access to NADs
    is:
@@ -2964,6 +2950,21 @@ erAccount
    and convert them to lower case. Note that the username
    rewriting happens using a script in host context. Rewriting
    won't work in scripts anywhere else.
+     __________________________________________________________
+
+9. Bugs
+
+     * There may still be some nasty bugs lurking in the code.
+       Please contact the author via the "Event-Driven Servers"
+       Google Group at <event-driven-servers@googlegroups.com> or
+       http://groups.google.com/group/event-driven-servers if you
+       think you've found one.
+     * This documentation isn't well structured.
+     * The examples given are too IPv4-centric. However, the
+       daemon handles IPv6 just fine.
+     * Some of the NAS configuration examples aren't recently
+       tested. Refer to the IOS documentation for IOS
+       configuration syntax guidance.
      __________________________________________________________
 
 10. References

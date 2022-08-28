@@ -106,13 +106,13 @@ Authorization</a></dt>
 </dl>
 </dd>
 <dt>7. <a href="#AEN2524">Frequently Asked Questions</a></dt>
-<dt>8. <a href="#AEN2620">Bugs</a></dt>
-<dt>9. <a href="#AEN2634">Multi-tenant setups</a></dt>
+<dt>8. <a href="#AEN2620">Multi-tenant setups</a></dt>
 <dd>
 <dl>
-<dt>9.1. <a href="#AEN2665">AD, Realms and Tenants</a></dt>
+<dt>8.1. <a href="#AEN2651">AD, Realms and Tenants</a></dt>
 </dl>
 </dd>
+<dt>9. <a href="#AEN2656">Bugs</a></dt>
 <dt>10. <a href="#AEN2670">References</a></dt>
 <dt>11. <a href="#AEN2680">Copyrights and Acknowledgements</a></dt>
 </dl>
@@ -200,10 +200,10 @@ further explanation:</p>
 "literal">telnet</tt> connection.</td>
 </tr>
 <tr>
-<td>NAS</td>
-<td>A Network Access Server, e.g. a Cisco box, or any other client
-which makes TACACS+ authentication and authorization requests, or
-generates TACACS+ accounting packets.</td>
+<td>NAS or NAD</td>
+<td>A Network Access Server or Device, e.g. a Cisco box, or any
+other client which makes TACACS+ authentication and authorization
+requests, or generates TACACS+ accounting packets.</td>
 </tr>
 <tr>
 <td>Daemon</td>
@@ -4219,35 +4219,7 @@ anyway.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2620" id="AEN2620">8. Bugs</a></h2>
-<ul>
-<li>
-<p>There may still be some nasty bugs lurking in the code. Please
-contact the author via the "Event-Driven Servers" Google Group at
-<code class="email">&lt;<a href=
-"mailto:event-driven-servers@googlegroups.com">event-driven-servers@googlegroups.com</a>&gt;</code>
-or <a href="http://groups.google.com/group/event-driven-servers"
-target=
-"_top">http://groups.google.com/group/event-driven-servers</a> if
-you think you've found one.</p>
-</li>
-<li>
-<p>This documentation isn't well structured.</p>
-</li>
-<li>
-<p>The examples given are too IPv4-centric. However, the daemon
-handles IPv6 just fine.</p>
-</li>
-<li>
-<p>Some of the NAS configuration examples aren't recently tested.
-Refer to the IOS documentation for IOS configuration syntax
-guidance.</p>
-</li>
-</ul>
-</div>
-<div class="section">
-<hr>
-<h2 class="section"><a name="AEN2634" id="AEN2634">9. Multi-tenant
+<h2 class="section"><a name="AEN2620" id="AEN2620">8. Multi-tenant
 setups</a></h2>
 <p>While using a dedictated tac_plus-ng installation per tenant is
 certainly possible it lacks some elegance. There are other
@@ -4317,7 +4289,7 @@ with</p>
 from as realm name.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN2665" id="AEN2665">9.1. AD, Realms
+<h3 class="section"><a name="AEN2651" id="AEN2651">8.1. AD, Realms
 and Tenants</a></h3>
 <p>The suggested setup for giving customers limited access to NADs
 is:</p>
@@ -4358,6 +4330,34 @@ convert them to lower case. Note that the username rewriting
 happens using a script in host context. Rewriting won't work in
 scripts anywhere else.</p>
 </div>
+</div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN2656" id="AEN2656">9. Bugs</a></h2>
+<ul>
+<li>
+<p>There may still be some nasty bugs lurking in the code. Please
+contact the author via the "Event-Driven Servers" Google Group at
+<code class="email">&lt;<a href=
+"mailto:event-driven-servers@googlegroups.com">event-driven-servers@googlegroups.com</a>&gt;</code>
+or <a href="http://groups.google.com/group/event-driven-servers"
+target=
+"_top">http://groups.google.com/group/event-driven-servers</a> if
+you think you've found one.</p>
+</li>
+<li>
+<p>This documentation isn't well structured.</p>
+</li>
+<li>
+<p>The examples given are too IPv4-centric. However, the daemon
+handles IPv6 just fine.</p>
+</li>
+<li>
+<p>Some of the NAS configuration examples aren't recently tested.
+Refer to the IOS documentation for IOS configuration syntax
+guidance.</p>
+</li>
+</ul>
 </div>
 <div class="section">
 <hr>
