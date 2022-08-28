@@ -174,6 +174,7 @@ struct tac_host {
     int context_timeout;	/* shell context idle timeout */
     tac_realm *realm;
     tac_rewrite *rewrite_user;
+    struct tac_script_action *action;
     u_int debug;
 };
 
@@ -815,7 +816,7 @@ struct upwdat *eval_passwd_acl(tac_session *);
 enum token eval_ruleset(tac_session *, tac_realm *);
 
 #ifdef WITH_PCRE2
-void tac_rewrite_user(tac_session *, tac_rewrite_expr *);
+void tac_rewrite_user(tac_session *, tac_rewrite *);
 #else
 #define tac_rewrite_user(A,B) /**/
 #endif

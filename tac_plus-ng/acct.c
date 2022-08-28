@@ -64,6 +64,8 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
 {
     struct acct *acct = tac_payload(hdr, struct acct *);
     u_char *p = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE + acct->arg_cnt;;
+    enum token res = S_unknown;
+    tac_host *h = session->ctx->host;
 
     report(session, LOG_DEBUG, DEBUG_ACCT_FLAG, "Start accounting request");
 
@@ -91,6 +93,22 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
 
     session->username = memlist_strndup(session->memlist, p, acct->user_len);
     session->username_len = acct->user_len;
+
+    while (res != S_permit && res != S_deny && h) {
+	if (h->action) {
+	    res = tac_script_eval_r(session, h->action);
+	    switch (res) {
+	    case S_deny:
+	    case S_permit:
+		break;
+	    default:
+		break;
+	    }
+	}
+	h = h->parent;
+    }
+
+
     tac_rewrite_user(session, NULL);
     p += acct->user_len;
     session->nas_port = memlist_strndup(session->memlist, p, acct->port_len);

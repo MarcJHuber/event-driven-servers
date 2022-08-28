@@ -78,6 +78,8 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     int i;
     struct author *pak = tac_payload(hdr, struct author *);
     struct author_data *data;
+    enum token res = S_unknown;
+    tac_host *h = session->ctx->host;
 
     report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "Start authorization request");
 
@@ -93,6 +95,25 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     session->pak_authen_method = pak->authen_method;
     session->username_len = (size_t) pak->user_len;
     session->username = memlist_strndup(session->memlist, p, session->username_len);
+
+    while (res != S_permit && res != S_deny && h) {
+	if (h->action) {
+	    res = tac_script_eval_r(session, h->action);
+	    switch (res) {
+	    case S_deny:
+		report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
+		log_exec(session, session->ctx, S_authorization, io_now.tv_sec);
+		send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, "Denied by ACL", 0, NULL);
+		return;
+	    case S_permit:
+		break;
+	    default:
+		break;
+	    }
+	}
+	h = h->parent;
+    }
+
     tac_rewrite_user(session, NULL);
     p += pak->user_len;
     session->nas_port = memlist_strndup(session->memlist, p, (size_t) pak->port_len);

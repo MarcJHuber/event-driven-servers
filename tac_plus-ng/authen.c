@@ -249,8 +249,27 @@ static int compare_pwdat(struct pwdat *a, char *b, enum hint_enum *hint)
     return TAC_PLUS_AUTHEN_STATUS_PASS;
 }
 
-static tac_user *lookup_and_set_user(tac_session * session)
+static enum token lookup_and_set_user(tac_session * session)
 {
+    enum token res = S_unknown;
+    tac_host *h = session->ctx->host;
+    while (res != S_permit && res != S_deny && h) {
+	if (h->action) {
+	    res = tac_script_eval_r(session, h->action);
+	    switch (res) {
+	    case S_deny:
+		report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
+		report_auth(session, "session", hint_denied_by_acl, S_deny);
+		return S_deny;
+	    case S_permit:
+		break;
+	    default:
+		break;
+	    }
+	}
+	h = h->parent;
+    }
+
     tac_rewrite_user(session, NULL);
     report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "looking for user %s realm %s", session->username, session->ctx->realm->name);
     if (!session->user_is_session_specific) {
@@ -273,7 +292,7 @@ static tac_user *lookup_and_set_user(tac_session * session)
 	session->passwdp = eval_passwd_acl(session);
     }
     report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "user lookup %s", session->user ? "succeded" : "failed");
-    return session->user;
+    return session->user ? S_permit : S_deny;
 }
 
 static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)

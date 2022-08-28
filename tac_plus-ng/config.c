@@ -2266,7 +2266,7 @@ static void parse_host(struct sym *sym, tac_realm * r, tac_host * parent)
 	    parse(sym, S_equal);
 	    host->context_timeout = parse_seconds(sym);
 	    continue;
-	case S_rewrite:{
+	case S_rewrite:{	// legacy option, will be removed late on
 		sym_get(sym);
 		parse(sym, S_user);
 		if (sym->code == S_equal)
@@ -2277,9 +2277,17 @@ static void parse_host(struct sym *sym, tac_realm * r, tac_host * parent)
 		sym_get(sym);
 		continue;
 	    }
+	case S_script:{
+		struct tac_script_action **p = &host->action;
+		sym_get(sym);
+		while (*p)
+		    p = &(*p)->n;
+		*p = tac_script_parse_r(sym, 0, r);
+		continue;
+	    }
 	default:
 	    parse_error_expect(sym, S_host, S_parent, S_authentication, S_permit, S_bug, S_pap, S_address, S_key, S_motd, S_welcome, S_reject, S_enable,
-			       S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_unknown);
+			       S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_script, S_unknown);
 	}
     sym_get(sym);
     RB_insert(r->hosttable, host);
@@ -2736,9 +2744,9 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
 	    return p ? p : m;
 	case S_tilde:
 	    {			//S_tilde
+		int errcode = 0;
 		m->type = S_regex;
 		sym->flag_parse_pcre = 1;
-		int errcode = 0;
 		sym_get(sym);
 		if (sym->code == S_slash) {
 #ifdef WITH_PCRE
@@ -2952,7 +2960,9 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
     case S_time:
 	return eval_timespec((struct mavis_timespec *) m->u.s.v, NULL);
     case S_member:
-	return tac_group_check(m->u.s.v, session->user->groups);
+	if (session->user)
+		return tac_group_check(m->u.s.v, session->user->groups);
+	return 0;
     case S_acl:
 	return S_permit == eval_tac_acl(session, (struct tac_acl *) m->u.s.v);
     case S_equal:
@@ -3143,7 +3153,7 @@ enum token tac_script_eval_r(tac_session * session, struct tac_script_action *m)
 	session->message = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->message_len);
 	break;
     case S_rewrite:
-	tac_rewrite_user(session, (tac_rewrite_expr *) m->b.v);
+	tac_rewrite_user(session, (tac_rewrite *) m->b.v);
 	break;
     case S_label:
 	session->label = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->label_len);
@@ -3285,9 +3295,12 @@ static struct tac_script_action *tac_script_parse_r(struct sym *sym, int section
 }
 
 #ifdef WITH_PCRE2
-void tac_rewrite_user(tac_session * session, tac_rewrite_expr * e)
+void tac_rewrite_user(tac_session * session, tac_rewrite * rewrite)
 {
     if (!session->username_rewritten) {
+	tac_rewrite_expr *e = NULL;
+	if (rewrite)
+	    e = rewrite->expr;
 	if (!e && session->ctx->host->rewrite_user)
 	    e = session->ctx->host->rewrite_user->expr;
 
