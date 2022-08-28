@@ -91,7 +91,7 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
 
     session->username = memlist_strndup(session->memlist, p, acct->user_len);
     session->username_len = acct->user_len;
-    tac_rewrite_user(session, NULL);
+    tac_rewrite_user(session);
     p += acct->user_len;
     session->nas_port = memlist_strndup(session->memlist, p, acct->port_len);
     session->nas_port_len = acct->port_len;

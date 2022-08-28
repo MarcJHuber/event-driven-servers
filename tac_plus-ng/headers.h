@@ -815,9 +815,9 @@ struct upwdat *eval_passwd_acl(tac_session *);
 enum token eval_ruleset(tac_session *, tac_realm *);
 
 #ifdef WITH_PCRE2
-void tac_rewrite_user(tac_session *, tac_rewrite_expr *);
+void tac_rewrite_user(tac_session *);
 #else
-#define tac_rewrite_user(A,B) /**/
+#define tac_rewrite_user(A) /**/
 #endif
 static __inline__ int minimum(int a, int b)
 {
