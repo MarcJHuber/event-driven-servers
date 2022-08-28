@@ -251,7 +251,7 @@ static int compare_pwdat(struct pwdat *a, char *b, enum hint_enum *hint)
 
 static tac_user *lookup_and_set_user(tac_session * session)
 {
-    tac_rewrite_user(session);
+    tac_rewrite_user(session, NULL);
     report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "looking for user %s realm %s", session->username, session->ctx->realm->name);
     if (!session->user_is_session_specific) {
 	session->user = lookup_user(session->username, session->ctx->realm);
