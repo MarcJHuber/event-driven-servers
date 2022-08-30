@@ -862,6 +862,7 @@ umask = 0640
        Clears context cache entries after s seconds of inactivity.
        Default: 3600 seconds.
        Default: 3600
+       This configuration will be accepted at realm level, too.
      * warning period = d
        Set warning period for password expiry to d days.
        Default: 14
@@ -1224,6 +1225,7 @@ key = ""
    may be buggy. If you're noticing weird AAA behaviour that can't
    be explained otherwise, then try disabling single-connection on
    the router.
+       This configuration will be accepted at realm level, too.
      * parent = hostName
        This sets the the parent hosts. Definitions not found in
        the current host will be looked up there, recursively.
@@ -1233,6 +1235,7 @@ key = ""
        Scripts can be used in host context. These are run before
        AAA and mey be used to permit or deny access, or to rewrite
        usernames.
+       This configuration will be accepted at realm level, too.
      __________________________________________________________
 
 4.2.5.1. Timeouts
@@ -1274,6 +1277,7 @@ aaa authentication enable default group tacacs+ enable
        invalid username in enable packets. Setting this option to
        deny enforces user authentication before enabling. Setting
        this option here has precedence over the global option.
+       This configuration will be accepted at realm level, too.
      * augmented-enable = ( permit | deny )
        For TACACS+ client implementations that send $enable$
        instead of the real username in an enable request, this
@@ -1283,6 +1287,8 @@ aaa authentication enable default group tacacs+ enable
        precedence over the global option.
        enable [ level ] = login needs to be set in the users'
        profile for this option to take effect.
+
+   This configuration will be accepted at realm level, too.
      __________________________________________________________
 
 4.2.5.3. Authorization
@@ -1295,6 +1301,7 @@ aaa authentication enable default group tacacs+ enable
        daemon to succeed (e.g. when logging in locally while the
        daemon is down or while initially configuring TACACS+
        support and messing up).
+       This configuration will be accepted at realm level, too.
      __________________________________________________________
 
 4.2.5.4. Banners and Messages
@@ -1308,6 +1315,7 @@ aaa authentication enable default group tacacs+ enable
        The reject banner gets displayed in place of the welcome
        message if a connection was rejected by an access ACL
        defined at host, user or group level.
+       These configurations will be accepted at realm level, too.
      * message = string
 
    The time when those texts get displayed largely depends on the
@@ -1377,6 +1385,8 @@ aaa authentication enable default group tacacs+ enable
     bug compatibility = 2
     ...
   }
+
+   This configuration will be accepted at realm level, too.
      __________________________________________________________
 
 4.2.5.6. Inheritance and Hosts
