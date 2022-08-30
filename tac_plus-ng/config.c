@@ -2044,6 +2044,206 @@ static void fixup_banner(struct log_item **li, char *file, int line)
     *li = parse_log_format_inline("\"${message}${umessage}\"", file, line);
 }
 
+static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
+{
+    switch (sym->code) {
+    case S_host:
+	parse_host(sym, r, host);
+	return;;
+    case S_parent:
+	sym_get(sym);
+	parse(sym, S_equal);
+	host->parent = lookup_host(sym->buf, r);
+	if (!host->parent)
+	    parse_error(sym, "Host '%s' not found.", sym->buf);
+	if (loopcheck_host(host))
+	    parse_error(sym, "'%s': circular reference rejected", sym->buf);
+	sym_get(sym);
+	return;;
+    case S_authentication:
+	sym_get(sym);
+	switch (sym->code) {
+	case S_fallback:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    host->authfallback = parse_tristate(sym);
+	    break;
+	default:
+	    parse_error_expect(sym, S_fallback, S_unknown);
+	}
+	return;;
+    case S_permit:
+	sym_get(sym);
+	parse(sym, S_ifauthenticated);
+	parse(sym, S_equal);
+	host->authz_if_authc = parse_tristate(sym);
+	return;;
+    case S_bug:
+	sym_get(sym);
+	parse(sym, S_compatibility);
+	parse(sym, S_equal);
+	host->bug_compatibility = parse_int(sym);
+	return;;
+    case S_pap:
+	sym_get(sym);
+	switch (sym->code) {
+	case S_password:
+	    sym_get(sym);
+	    parse(sym, S_mapping);
+	    parse(sym, S_equal);
+	    switch (sym->code) {
+	    case S_pap:
+		host->map_pap_to_login = TRISTATE_NO;
+		break;
+	    case S_login:
+		host->map_pap_to_login = TRISTATE_YES;
+		break;
+	    default:
+		parse_error_expect(sym, S_login, S_pap, S_unknown);
+	    }
+	    sym_get(sym);
+	    return;;
+	default:
+	    parse_error_expect(sym, S_password, S_unknown);
+	}
+    case S_address:
+	sym_get(sym);
+	if (sym->code == S_file) {
+	    glob_t globbuf;
+	    int i;
+
+	    memset(&globbuf, 0, sizeof(globbuf));
+	    sym_get(sym);
+	    parse(sym, S_equal);
+
+	    globerror_sym = sym;
+
+	    switch (glob(sym->buf, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOMAGIC | GLOB_BRACE, globerror, &globbuf)) {
+	    case 0:
+		for (i = 0; i < (int) globbuf.gl_pathc; i++)
+		    parse_file(globbuf.gl_pathv[i], r->hosttree, host, NULL);
+		break;
+#ifdef GLOB_NOMATCH
+	    case GLOB_NOMATCH:
+		globerror(sym->buf, ENOENT);
+		break;
+#endif				/* GLOB_NOMATCH */
+	    default:
+		parse_file(sym->buf, r->hosttree, host, NULL);
+		globfree(&globbuf);
+	    }
+	    sym_get(sym);
+	} else {
+	    parse(sym, S_equal);
+	    do {
+		add_host(sym, r->hosttree, host);
+		sym_get(sym);
+	    }
+	    while (parse_comma(sym));
+	}
+	return;;
+    case S_key:
+	parse_key(sym, &host->key);
+	return;;
+    case S_motd:
+	sym_get(sym);
+	parse(sym, S_banner);
+	parse(sym, S_equal);
+	host->motd = parse_log_format(sym);
+	fixup_banner(&host->motd, __FILE__, __LINE__);
+	return;;
+    case S_welcome:
+	sym_get(sym);
+	parse(sym, S_banner);
+	if (sym->code == S_fallback) {
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    host->welcome_banner_fallback = parse_log_format(sym);
+	    fixup_banner(&host->welcome_banner_fallback, __FILE__, __LINE__);
+	} else {
+	    parse(sym, S_equal);
+	    host->welcome_banner = parse_log_format(sym);
+	    fixup_banner(&host->welcome_banner, __FILE__, __LINE__);
+	}
+	return;;
+    case S_reject:
+	sym_get(sym);
+	parse(sym, S_banner);
+	parse(sym, S_equal);
+	host->reject_banner = parse_log_format(sym);
+	fixup_banner(&host->reject_banner, __FILE__, __LINE__);
+	return;;
+    case S_enable:
+	parse_enable(sym, NULL, host->enable, host->enable_implied);
+	return;;
+    case S_anonenable:
+	sym_get(sym);
+	parse(sym, S_equal);
+	host->anon_enable = parse_tristate(sym);
+	return;;
+    case S_augmented_enable:
+	sym_get(sym);
+	parse(sym, S_equal);
+	host->augmented_enable = parse_tristate(sym);
+	return;;
+    case S_singleconnection:
+	sym_get(sym);
+	switch (sym->code) {
+	case S_mayclose:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    host->cleanup_when_idle = parse_tristate(sym);
+	    break;
+	case S_equal:
+	    sym_get(sym);
+	    host->single_connection = parse_tristate(sym);
+	    break;
+	default:
+	    parse_error_expect(sym, S_mayclose, S_equal, S_unknown);
+	}
+	return;;
+    case S_debug:
+	sym_get(sym);
+	parse(sym, S_equal);
+	parse_debug(sym, &host->debug);
+	return;;
+    case S_connection:
+	sym_get(sym);
+	parse(sym, S_timeout);
+	parse(sym, S_equal);
+	host->tcp_timeout = parse_seconds(sym);
+	return;;
+    case S_context:
+	sym_get(sym);
+	parse(sym, S_timeout);
+	parse(sym, S_equal);
+	host->context_timeout = parse_seconds(sym);
+	return;;
+    case S_rewrite:{		// legacy option, will be removed late on
+	    sym_get(sym);
+	    parse(sym, S_user);
+	    if (sym->code == S_equal)
+		sym_get(sym);
+	    host->rewrite_user = lookup_rewrite(sym->buf, r);
+	    if (!host->rewrite_user)
+		parse_error(sym, "Rewrite set '%s' not found", sym->buf);
+	    sym_get(sym);
+	    return;;
+	}
+    case S_script:{
+	    struct tac_script_action **p = &host->action;
+	    sym_get(sym);
+	    while (*p)
+		p = &(*p)->n;
+	    *p = tac_script_parse_r(sym, 0, r);
+	    return;;
+	}
+    default:
+	parse_error_expect(sym, S_host, S_parent, S_authentication, S_permit, S_bug, S_pap, S_address, S_key, S_motd, S_welcome, S_reject, S_enable,
+			   S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_script, S_unknown);
+    }
+}
+
 static void parse_host(struct sym *sym, tac_realm * r, tac_host * parent)
 {
     tac_host *host = (tac_host *) calloc(1, sizeof(tac_host)), *hp;
@@ -2093,202 +2293,7 @@ static void parse_host(struct sym *sym, tac_realm * r, tac_host * parent)
     parse(sym, S_openbra);
 
     while (sym->code != S_closebra)
-	switch (sym->code) {
-	case S_host:
-	    parse_host(sym, r, host);
-	    continue;
-	case S_parent:
-	    sym_get(sym);
-	    parse(sym, S_equal);
-	    host->parent = lookup_host(sym->buf, r);
-	    if (!host->parent)
-		parse_error(sym, "Host '%s' not found.", sym->buf);
-	    if (loopcheck_host(host))
-		parse_error(sym, "'%s': circular reference rejected", sym->buf);
-	    sym_get(sym);
-	    continue;
-	case S_authentication:
-	    sym_get(sym);
-	    switch (sym->code) {
-	    case S_fallback:
-		sym_get(sym);
-		parse(sym, S_equal);
-		host->authfallback = parse_tristate(sym);
-		break;
-	    default:
-		parse_error_expect(sym, S_fallback, S_unknown);
-	    }
-	    continue;
-	case S_permit:
-	    sym_get(sym);
-	    parse(sym, S_ifauthenticated);
-	    parse(sym, S_equal);
-	    host->authz_if_authc = parse_tristate(sym);
-	    continue;
-	case S_bug:
-	    sym_get(sym);
-	    parse(sym, S_compatibility);
-	    parse(sym, S_equal);
-	    host->bug_compatibility = parse_int(sym);
-	    continue;
-	case S_pap:
-	    sym_get(sym);
-	    switch (sym->code) {
-	    case S_password:
-		sym_get(sym);
-		parse(sym, S_mapping);
-		parse(sym, S_equal);
-		switch (sym->code) {
-		case S_pap:
-		    host->map_pap_to_login = TRISTATE_NO;
-		    break;
-		case S_login:
-		    host->map_pap_to_login = TRISTATE_YES;
-		    break;
-		default:
-		    parse_error_expect(sym, S_login, S_pap, S_unknown);
-		}
-		sym_get(sym);
-		continue;
-	    default:
-		parse_error_expect(sym, S_password, S_unknown);
-	    }
-	case S_address:
-	    sym_get(sym);
-	    if (sym->code == S_file) {
-		glob_t globbuf;
-		int i;
-
-		memset(&globbuf, 0, sizeof(globbuf));
-		sym_get(sym);
-		parse(sym, S_equal);
-
-		globerror_sym = sym;
-
-		switch (glob(sym->buf, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOMAGIC | GLOB_BRACE, globerror, &globbuf)) {
-		case 0:
-		    for (i = 0; i < (int) globbuf.gl_pathc; i++)
-			parse_file(globbuf.gl_pathv[i], ht, host, NULL);
-		    break;
-#ifdef GLOB_NOMATCH
-		case GLOB_NOMATCH:
-		    globerror(sym->buf, ENOENT);
-		    break;
-#endif				/* GLOB_NOMATCH */
-		default:
-		    parse_file(sym->buf, ht, host, NULL);
-		    globfree(&globbuf);
-		}
-		sym_get(sym);
-	    } else {
-		parse(sym, S_equal);
-		do {
-		    add_host(sym, ht, host);
-		    sym_get(sym);
-		}
-		while (parse_comma(sym));
-	    }
-	    continue;
-	case S_key:
-	    parse_key(sym, &host->key);
-	    continue;
-	case S_motd:
-	    sym_get(sym);
-	    parse(sym, S_banner);
-	    parse(sym, S_equal);
-	    host->motd = parse_log_format(sym);
-	    fixup_banner(&host->motd, __FILE__, __LINE__);
-	    continue;
-	case S_welcome:
-	    sym_get(sym);
-	    parse(sym, S_banner);
-	    if (sym->code == S_fallback) {
-		sym_get(sym);
-		parse(sym, S_equal);
-		host->welcome_banner_fallback = parse_log_format(sym);
-		fixup_banner(&host->welcome_banner_fallback, __FILE__, __LINE__);
-	    } else {
-		parse(sym, S_equal);
-		host->welcome_banner = parse_log_format(sym);
-		fixup_banner(&host->welcome_banner, __FILE__, __LINE__);
-	    }
-	    continue;
-	case S_reject:
-	    sym_get(sym);
-	    parse(sym, S_banner);
-	    parse(sym, S_equal);
-	    host->reject_banner = parse_log_format(sym);
-	    fixup_banner(&host->reject_banner, __FILE__, __LINE__);
-	    continue;
-	case S_enable:
-	    parse_enable(sym, NULL, host->enable, host->enable_implied);
-	    continue;
-	case S_anonenable:
-	    sym_get(sym);
-	    parse(sym, S_equal);
-	    host->anon_enable = parse_tristate(sym);
-	    continue;
-	case S_augmented_enable:
-	    sym_get(sym);
-	    parse(sym, S_equal);
-	    host->augmented_enable = parse_tristate(sym);
-	    continue;
-	case S_singleconnection:
-	    sym_get(sym);
-	    switch (sym->code) {
-	    case S_mayclose:
-		sym_get(sym);
-		parse(sym, S_equal);
-		host->cleanup_when_idle = parse_tristate(sym);
-		break;
-	    case S_equal:
-		sym_get(sym);
-		host->single_connection = parse_tristate(sym);
-		break;
-	    default:
-		parse_error_expect(sym, S_mayclose, S_equal, S_unknown);
-	    }
-	    continue;
-	case S_debug:
-	    sym_get(sym);
-	    parse(sym, S_equal);
-	    parse_debug(sym, &host->debug);
-	    continue;
-	case S_connection:
-	    sym_get(sym);
-	    parse(sym, S_timeout);
-	    parse(sym, S_equal);
-	    host->tcp_timeout = parse_seconds(sym);
-	    continue;
-	case S_context:
-	    sym_get(sym);
-	    parse(sym, S_timeout);
-	    parse(sym, S_equal);
-	    host->context_timeout = parse_seconds(sym);
-	    continue;
-	case S_rewrite:{	// legacy option, will be removed late on
-		sym_get(sym);
-		parse(sym, S_user);
-		if (sym->code == S_equal)
-		    sym_get(sym);
-		host->rewrite_user = lookup_rewrite(sym->buf, r);
-		if (!host->rewrite_user)
-		    parse_error(sym, "Rewrite set '%s' not found", sym->buf);
-		sym_get(sym);
-		continue;
-	    }
-	case S_script:{
-		struct tac_script_action **p = &host->action;
-		sym_get(sym);
-		while (*p)
-		    p = &(*p)->n;
-		*p = tac_script_parse_r(sym, 0, r);
-		continue;
-	    }
-	default:
-	    parse_error_expect(sym, S_host, S_parent, S_authentication, S_permit, S_bug, S_pap, S_address, S_key, S_motd, S_welcome, S_reject, S_enable,
-			       S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_script, S_unknown);
-	}
+	parse_host_attr(sym, r, host);
     sym_get(sym);
     RB_insert(r->hosttable, host);
 }
@@ -2961,7 +2966,7 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 	return eval_timespec((struct mavis_timespec *) m->u.s.v, NULL);
     case S_member:
 	if (session->user)
-		return tac_group_check(m->u.s.v, session->user->groups);
+	    return tac_group_check(m->u.s.v, session->user->groups);
 	return 0;
     case S_acl:
 	return S_permit == eval_tac_acl(session, (struct tac_acl *) m->u.s.v);
