@@ -2116,7 +2116,7 @@ static void parse_host(struct sym *sym, tac_realm * r, tac_host * parent)
 		host->authfallback = parse_tristate(sym);
 		break;
 	    default:
-		parse_error_expect(sym, S_fallback, S_realm, S_unknown);
+		parse_error_expect(sym, S_fallback, S_unknown);
 	    }
 	    continue;
 	case S_permit:
