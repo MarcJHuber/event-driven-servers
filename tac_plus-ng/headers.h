@@ -304,7 +304,6 @@ struct realm {
 
      BISTATE(complete);
 
-     TRISTATE(pap_login);
      TRISTATE(chalresp);	/* enable challenge-response authentication */
      TRISTATE(chalresp_noecho);	/* enable local echo for response */
      TRISTATE(chpass);		/* enable password change dialogue */

@@ -160,7 +160,7 @@ static struct tac_acl *tac_acl_lookup(char *, tac_realm *);
 
 struct tac_groups {
     u_int count;
-    u_int allocated;;		/* will be incfremented on demand */
+    u_int allocated;		/* will be incfremented on demand */
     tac_group **groups;		/* array will be reallocated on demand */
     tac_group ***groupsp;	/* array will be reallocated on demand */
 };
@@ -202,8 +202,6 @@ void complete_realm(tac_realm * r)
 	tac_realm *rp = r->parent;
 	r->complete = 1;
 
-	if (r->pap_login == TRISTATE_DUNNO)
-	    r->pap_login = rp->pap_login;
 	if (r->chalresp == TRISTATE_DUNNO)
 	    r->chalresp = rp->chalresp;
 	if (r->chalresp_noecho == TRISTATE_DUNNO)
@@ -753,6 +751,8 @@ tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent)
     return nrealm;
 }
 
+static void parse_host_attr(struct sym *, tac_realm *, tac_host *);
+
 void parse_decls_real(struct sym *sym, tac_realm * r)
 {
     /* Top level of parser */
@@ -794,10 +794,10 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		parse(sym, S_equal);
 		switch (sym->code) {
 		case S_pap:
-		    r->pap_login = TRISTATE_NO;
+		    r->default_host->map_pap_to_login = TRISTATE_NO;
 		    break;
 		case S_login:
-		    r->pap_login = TRISTATE_YES;
+		    r->default_host->map_pap_to_login = TRISTATE_YES;
 		    break;
 		default:
 		    parse_error_expect(sym, S_login, S_pap, S_unknown);
@@ -846,6 +846,21 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	    sym_get(sym);
 	    continue;
 	case S_authentication:
+	    sym_get(sym);
+	    switch (sym->code) {
+	    case S_log:
+		parse(sym, S_equal);
+		log_add(sym, &r->accesslog, sym->buf, r);
+		sym_get(sym);
+		continue;
+	    case S_fallback:
+		sym_get(sym);
+		parse(sym, S_equal);
+		r->default_host->authfallback = parse_tristate(sym);
+		continue;
+	    default:
+		parse_error_expect(sym, S_log, S_fallback, S_unknown);
+	    }
 	case S_access:
 	    sym_get(sym);
 	    parse(sym, S_log);
@@ -953,12 +968,6 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	    default:
 		parse_error_expect(sym, S_preload, S_unknown);
 	    }
-	    continue;
-	case S_context:
-	    sym_get(sym);
-	    parse(sym, S_timeout);
-	    parse(sym, S_equal);
-	    r->default_host->context_timeout = parse_seconds(sym);
 	    continue;
 	case S_cache:
 	    sym_get(sym);
@@ -1122,6 +1131,19 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_rewrite:
 	    sym_get(sym);
 	    parse_rewrite(sym, r);
+	    continue;
+	case S_anonenable:
+	case S_key:
+	case S_motd:
+	case S_welcome:
+	case S_reject:
+	case S_permit:
+	case S_bug:
+	case S_augmented_enable:
+	case S_singleconnection:
+	case S_context:
+	case S_script:
+	    parse_host_attr(sym, r, r->default_host);
 	    continue;
 #ifdef WITH_TLS
 	case S_tls:
@@ -1603,7 +1625,7 @@ static struct upwdat *new_upwdat(memlist_t * memlist, tac_realm * r)
 	pp->passwd[PW_LOGIN] = passwd_mavis_dflt;
     if (r->mavis_pap == TRISTATE_YES)
 	pp->passwd[PW_PAP] = passwd_mavis_dflt;
-    if (r->pap_login == TRISTATE_YES) {
+    if (r->default_host->map_pap_to_login == TRISTATE_YES) {
 	if (r->mavis_login == TRISTATE_YES)
 	    pp->passwd[PW_PAP] = passwd_mavis_dflt;
 	else
@@ -1765,7 +1787,7 @@ static void parse_member(struct sym *sym, tac_groups ** groups, memlist_t * meml
 
     parse(sym, S_equal);
     if (!*groups)
-	*groups = memlist ? memlist_malloc(memlist, sizeof(tac_groups)) : calloc(1, sizeof(tac_groups));;
+	*groups = memlist ? memlist_malloc(memlist, sizeof(tac_groups)) : calloc(1, sizeof(tac_groups));
 
     do {
 	tac_group *g = lookup_group(sym->buf, r);
@@ -2049,7 +2071,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
     switch (sym->code) {
     case S_host:
 	parse_host(sym, r, host);
-	return;;
+	return;
     case S_parent:
 	sym_get(sym);
 	parse(sym, S_equal);
@@ -2059,7 +2081,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	if (loopcheck_host(host))
 	    parse_error(sym, "'%s': circular reference rejected", sym->buf);
 	sym_get(sym);
-	return;;
+	return;
     case S_authentication:
 	sym_get(sym);
 	switch (sym->code) {
@@ -2071,19 +2093,19 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	default:
 	    parse_error_expect(sym, S_fallback, S_unknown);
 	}
-	return;;
+	return;
     case S_permit:
 	sym_get(sym);
 	parse(sym, S_ifauthenticated);
 	parse(sym, S_equal);
 	host->authz_if_authc = parse_tristate(sym);
-	return;;
+	return;
     case S_bug:
 	sym_get(sym);
 	parse(sym, S_compatibility);
 	parse(sym, S_equal);
 	host->bug_compatibility = parse_int(sym);
-	return;;
+	return;
     case S_pap:
 	sym_get(sym);
 	switch (sym->code) {
@@ -2102,7 +2124,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 		parse_error_expect(sym, S_login, S_pap, S_unknown);
 	    }
 	    sym_get(sym);
-	    return;;
+	    return;
 	default:
 	    parse_error_expect(sym, S_password, S_unknown);
 	}
@@ -2141,17 +2163,17 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    }
 	    while (parse_comma(sym));
 	}
-	return;;
+	return;
     case S_key:
 	parse_key(sym, &host->key);
-	return;;
+	return;
     case S_motd:
 	sym_get(sym);
 	parse(sym, S_banner);
 	parse(sym, S_equal);
 	host->motd = parse_log_format(sym);
 	fixup_banner(&host->motd, __FILE__, __LINE__);
-	return;;
+	return;
     case S_welcome:
 	sym_get(sym);
 	parse(sym, S_banner);
@@ -2165,27 +2187,27 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    host->welcome_banner = parse_log_format(sym);
 	    fixup_banner(&host->welcome_banner, __FILE__, __LINE__);
 	}
-	return;;
+	return;
     case S_reject:
 	sym_get(sym);
 	parse(sym, S_banner);
 	parse(sym, S_equal);
 	host->reject_banner = parse_log_format(sym);
 	fixup_banner(&host->reject_banner, __FILE__, __LINE__);
-	return;;
+	return;
     case S_enable:
 	parse_enable(sym, NULL, host->enable, host->enable_implied);
-	return;;
+	return;
     case S_anonenable:
 	sym_get(sym);
 	parse(sym, S_equal);
 	host->anon_enable = parse_tristate(sym);
-	return;;
+	return;
     case S_augmented_enable:
 	sym_get(sym);
 	parse(sym, S_equal);
 	host->augmented_enable = parse_tristate(sym);
-	return;;
+	return;
     case S_singleconnection:
 	sym_get(sym);
 	switch (sym->code) {
@@ -2201,24 +2223,24 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	default:
 	    parse_error_expect(sym, S_mayclose, S_equal, S_unknown);
 	}
-	return;;
+	return;
     case S_debug:
 	sym_get(sym);
 	parse(sym, S_equal);
 	parse_debug(sym, &host->debug);
-	return;;
+	return;
     case S_connection:
 	sym_get(sym);
 	parse(sym, S_timeout);
 	parse(sym, S_equal);
 	host->tcp_timeout = parse_seconds(sym);
-	return;;
+	return;
     case S_context:
 	sym_get(sym);
 	parse(sym, S_timeout);
 	parse(sym, S_equal);
 	host->context_timeout = parse_seconds(sym);
-	return;;
+	return;
     case S_rewrite:{		// legacy option, will be removed late on
 	    sym_get(sym);
 	    parse(sym, S_user);
@@ -2228,7 +2250,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    if (!host->rewrite_user)
 		parse_error(sym, "Rewrite set '%s' not found", sym->buf);
 	    sym_get(sym);
-	    return;;
+	    return;
 	}
     case S_script:{
 	    struct tac_script_action **p = &host->action;
@@ -2236,7 +2258,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    while (*p)
 		p = &(*p)->n;
 	    *p = tac_script_parse_r(sym, 0, r);
-	    return;;
+	    return;
 	}
     default:
 	parse_error_expect(sym, S_host, S_parent, S_authentication, S_permit, S_bug, S_pap, S_address, S_key, S_motd, S_welcome, S_reject, S_enable,
@@ -3109,7 +3131,7 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 			v = memlist_strndup(session->memlist, argp + len + 1, l - len - 1);
 			break;
 		    }
-		    argp += (size_t) *arg_len;;
+		    argp += (size_t) *arg_len;
 		}
 	    }
 	    break;
