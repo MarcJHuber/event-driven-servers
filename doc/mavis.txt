@@ -53,8 +53,10 @@ Marc Huber
 
 1.1. Download
 
-   Source and documentation are available from both the GitHub
-   repository and https://www.pro-bono-publico.de/projects/.
+   You can download the source code from the GitHub repository at
+   https://github.com/MarcJHuber/event-driven-servers/.
+   Documentation is available on the original site,
+   https://www.pro-bono-publico.de/projects/, too.
      __________________________________________________________
 
 2. Design overview
@@ -1027,7 +1029,9 @@ t:
    defaults to mavis. PAMs that perform queries other than the
    standard username/password aren't supported.
 
-   Tip Cisco Duo will work just fine with pammavisif you're using
+   Tip
+
+   Cisco Duo will work just fine with pammavis if you're using
    autopush = yes. Example configuration (for Ubuntu):
 # cat /etc/security/pam_duo.conf
 [duo]**

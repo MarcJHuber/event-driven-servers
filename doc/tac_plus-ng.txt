@@ -109,8 +109,10 @@ Marc Huber
 
 1.1. Download
 
-   Source and documentation are available from both the GitHub
-   repository and https://www.pro-bono-publico.de/projects/.
+   You can download the source code from the GitHub repository at
+   https://github.com/MarcJHuber/event-driven-servers/.
+   Documentation is available on the original site,
+   https://www.pro-bono-publico.de/projects/, too.
      __________________________________________________________
 
 2. Definitions and Terms
@@ -1287,8 +1289,7 @@ aaa authentication enable default group tacacs+ enable
        precedence over the global option.
        enable [ level ] = login needs to be set in the users'
        profile for this option to take effect.
-
-   This configuration will be accepted at realm level, too.
+       This configuration will be accepted at realm level, too.
      __________________________________________________________
 
 4.2.5.3. Authorization

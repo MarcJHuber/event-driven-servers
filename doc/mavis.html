@@ -74,9 +74,9 @@ Directives</a></dt>
 <dt>5.3. <a href="#AEN919">MAVIS Scripting Language</a></dt>
 </dl>
 </dd>
-<dt>6. <a href="#AEN1104">Testing your MAVIS configuration</a></dt>
-<dt>7. <a href="#AEN1109">Environmental Variables</a></dt>
-<dt>8. <a href="#AEN1114">Copyrights and Acknowledgements</a></dt>
+<dt>6. <a href="#AEN1105">Testing your MAVIS configuration</a></dt>
+<dt>7. <a href="#AEN1110">Environmental Variables</a></dt>
+<dt>8. <a href="#AEN1115">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -92,11 +92,13 @@ available.</p>
 <hr>
 <h3 class="section"><a name="AEN13" id="AEN13">1.1.
 Download</a></h3>
-<p>Source and documentation are available from both <a href=
-"https://github.com/MarcJHuber/event-driven-servers/" target=
-"_top">the GitHub repository</a> and <a href=
+<p>You can download the source code from the GitHub repository at
+<a href="https://github.com/MarcJHuber/event-driven-servers/"
+target=
+"_top">https://github.com/MarcJHuber/event-driven-servers/</a>.
+Documentation is available on the original site, <a href=
 "https://www.pro-bono-publico.de/projects/" target=
-"_top">https://www.pro-bono-publico.de/projects/</a>.</p>
+"_top">https://www.pro-bono-publico.de/projects/</a>, too.</p>
 </div>
 </div>
 <div class="section">
@@ -1642,9 +1644,11 @@ standard username/password aren't supported.</p>
 <tr>
 <td width="25" align="center" valign="top"><img src=
 "../images/tip.gif" hspace="5" alt="Tip"></td>
-<td align="left" valign="top">Cisco Duo will work just fine with
-<tt class="literal">pammavis</tt>if you're using <tt class=
-"literal">autopush = yes</tt>. Example configuration (for Ubuntu):
+<td align="left" valign="top">
+<p>Cisco Duo will work just fine with <tt class=
+"literal">pammavis</tt> if you're using <tt class=
+"literal">autopush = yes</tt>. Example configuration (for
+Ubuntu):</p>
 <pre class="screen"># cat /etc/security/pam_duo.conf
 [duo]**
 host = api-&lt;snip&gt;.duosecurity.com
@@ -1724,7 +1728,7 @@ supported attributes.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1104" id="AEN1104">6. Testing your
+<h2 class="section"><a name="AEN1105" id="AEN1105">6. Testing your
 MAVIS configuration</a></h2>
 <p>You'll almost certainly want to validate that your backend
 configuration behaves as expected. You can do so using the
@@ -1742,7 +1746,7 @@ Sample usage: mavistest -d -1  /usr/local/etc/tac_plus.cfg tac_plus TACPLUS joe 
 </pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1109" id="AEN1109">7. Environmental
+<h2 class="section"><a name="AEN1110" id="AEN1110">7. Environmental
 Variables</a></h2>
 <p>Text enclosed in double quotes may make use of environment
 variables, e.g.:</p>
@@ -1751,7 +1755,7 @@ variables, e.g.:</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1114" id="AEN1114">8. Copyrights
+<h2 class="section"><a name="AEN1115" id="AEN1115">8. Copyrights
 and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of
 individual files.</p>
@@ -1840,7 +1844,7 @@ with the distribution.</p>
 <li>
 <p>The end-user documentation included with the redistribution, if
 any, must include the following acknowledgment:</p>
-<a name="AEN1163" id="AEN1163"></a>
+<a name="AEN1164" id="AEN1164"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber
 (<code class="email">&lt;<a href=
