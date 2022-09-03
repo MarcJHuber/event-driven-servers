@@ -1263,6 +1263,49 @@ static void do_pap(tac_session * session)
     send_authen_reply(session, res, resp, 0, NULL, 0, 0);
 }
 
+#ifdef TPNG_EXPERIMENTAL
+// This is proof-of-concept code for SSH key validation with minor protocol changes.
+// Clients just need to use TAC_PLUS_AUTHEN_TYPE_SSHKEYHASH (8) and put the ssh public
+// key hash into the data field. This should be really easy to implement.
+//
+static void do_sshkeyhash(tac_session * session)
+{
+    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum hint_enum hint = hint_nosuchuser;
+    char *resp = NULL;
+
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, "ssh-key-hash login", hint_denied_by_acl, res);
+	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	return;
+    }
+    if (query_mavis_info(session, do_sshkeyhash, PW_LOGIN))
+	return;
+
+    if (session->user && session->authen_data->data) {
+	res = validate_ssh_hash(session->user, (char *) session->authen_data->data);
+
+	if (S_permit != eval_ruleset(session, session->ctx->realm)) {
+	    res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+	    hint = hint_denied_by_acl;
+	}
+
+	if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
+	    // memlist_free(session->pool, &session->password);
+	    session->password = NULL;
+	    if (res != TAC_PLUS_AUTHEN_STATUS_PASS && session->ctx->host->reject_banner)
+		resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
+	    if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
+		res = user_invalid(session->user, &hint);
+	}
+    }
+
+    report_auth(session, "ssh-key-hash login", hint, res);
+
+    send_authen_reply(session, res, resp, 0, NULL, 0, 0);
+}
+#endif
+
 void authen(tac_session * session, tac_pak_hdr * hdr)
 {
     int username_required = 1;
@@ -1315,6 +1358,12 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 		case TAC_PLUS_AUTHEN_TYPE_MSCHAPV2:
 		    if (hdr->version == TAC_PLUS_VER_ONE)
 			session->authen_data->authfn = do_mschapv2;
+		    break;
+#endif
+#ifdef TPNG_EXPERIMENTAL
+		case TAC_PLUS_AUTHEN_TYPE_SSHKEYHASH:
+		    // limit to hdr->version? 1.2 perhaps?
+		    session->authen_data->authfn = do_sshkeyhash;
 		    break;
 #endif
 		}

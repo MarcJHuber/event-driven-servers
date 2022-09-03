@@ -1887,6 +1887,25 @@ static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm
     sym_get(sym);
 }
 
+#ifdef TPNG_EXPERIMENTAL
+struct ssh_key_hash {
+    struct ssh_key_hash *next;
+    char hash[1];
+};
+
+enum token validate_ssh_hash(tac_user * user, char *hash)
+{
+    struct ssh_key_hash **ssh_key_hash = &user->ssh_key_hash;
+    while (*ssh_key_hash) {
+	if (!strcmp((*ssh_key_hash)->hash, hash))
+	    return S_permit;
+	ssh_key_hash = &((*ssh_key_hash)->next);
+    }
+    return S_deny;
+}
+
+#endif
+
 static void parse_user_attr(struct sym *sym, tac_user * user)
 {
     tac_realm *r = user->realm;
@@ -1940,6 +1959,21 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	    parse(sym, S_equal);
 	    user->hushlogin = parse_tristate(sym);
 	    continue;
+#ifdef TPNG_EXPERIMENTAL
+	case S_ssh_key_hash:{
+		struct ssh_key_hash **ssh_key_hash = &user->ssh_key_hash;
+		size_t len;
+		sym_get(sym);
+		parse(sym, S_equal);
+		while (*ssh_key_hash)
+		    ssh_key_hash = &((*ssh_key_hash)->next);
+		len = strlen(sym->buf);
+		*ssh_key_hash = memlist_malloc(user->memlist, sizeof(struct ssh_key_hash) + len);
+		memcpy((*ssh_key_hash)->hash, sym->buf, len + 1);
+		sym_get(sym);
+		continue;
+	    }
+#endif
 	default:
 	    parse_error_expect(sym, S_member, S_valid, S_debug, S_message, S_password, S_enable, S_fallback_only, S_hushlogin, S_unknown);
 	}
