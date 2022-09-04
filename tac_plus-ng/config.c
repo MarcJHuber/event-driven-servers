@@ -1904,6 +1904,23 @@ enum token validate_ssh_hash(tac_user * user, char *hash)
     return S_deny;
 }
 
+static void parse_sshkeyhash(struct sym *sym, tac_user * user)
+{
+    struct ssh_key_hash **ssh_key_hash = &user->ssh_key_hash;
+    while (*ssh_key_hash)
+	ssh_key_hash = &((*ssh_key_hash)->next);
+
+    do {
+	size_t len;
+	len = strlen(sym->buf);
+	*ssh_key_hash = memlist_malloc(user->memlist, sizeof(struct ssh_key_hash) + len);
+	memcpy((*ssh_key_hash)->hash, sym->buf, len + 1);
+	sym_get(sym);
+	ssh_key_hash = &((*ssh_key_hash)->next);
+    } while (parse_comma(sym));
+}
+
+
 #endif
 
 static void parse_user_attr(struct sym *sym, tac_user * user)
@@ -1961,16 +1978,9 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	    continue;
 #ifdef TPNG_EXPERIMENTAL
 	case S_ssh_key_hash:{
-		struct ssh_key_hash **ssh_key_hash = &user->ssh_key_hash;
-		size_t len;
 		sym_get(sym);
 		parse(sym, S_equal);
-		while (*ssh_key_hash)
-		    ssh_key_hash = &((*ssh_key_hash)->next);
-		len = strlen(sym->buf);
-		*ssh_key_hash = memlist_malloc(user->memlist, sizeof(struct ssh_key_hash) + len);
-		memcpy((*ssh_key_hash)->hash, sym->buf, len + 1);
-		sym_get(sym);
+		parse_sshkeyhash(sym, user);
 		continue;
 	    }
 #endif

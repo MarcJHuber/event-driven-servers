@@ -64,10 +64,10 @@ AV_CHAR_START
 
 #define AV_A_TYPE               0
 AV_CHAR("TYPE",)
-#define AV_A_MEMBEROF	1
+#define AV_A_MEMBEROF		1
     AV_CHAR("MEMBEROF",)
-#define AV_A_UDATA		2
-    AV_CHAR("UDATA",)
+#define AV_A_SSHKEYHASH		2
+    AV_CHAR("SSHKEYHASH",)
 #define AV_A_TIMESTAMP		3
     AV_CHAR("TIMESTAMP",)
 #define AV_A_USER		4

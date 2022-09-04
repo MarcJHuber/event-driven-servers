@@ -52,6 +52,7 @@ BEGIN {
 		AV_A_SERIAL
 		AV_A_SERVERIP
 		AV_A_SHELL
+		AV_A_SSHKEYHASH
 		AV_A_TACCLIENT
 		AV_A_TACMEMBER
 		AV_A_TACPROFILE
@@ -62,7 +63,6 @@ BEGIN {
 		AV_A_TRANSPORT
 		AV_A_TUNNEL
 		AV_A_TYPE
-		AV_A_UDATA
 		AV_A_UID
 		AV_A_UMASK
 		AV_A_USER
@@ -159,6 +159,7 @@ use constant AV_A_SCRAM_SERVER_PROOF => 39;
 use constant AV_A_SERIAL => 21;
 use constant AV_A_SERVERIP => 25;
 use constant AV_A_SHELL => 54;
+use constant AV_A_SSHKEYHASH => 2;
 use constant AV_A_TACCLIENT => 46;
 use constant AV_A_TACMEMBER => 47;
 use constant AV_A_TACPROFILE => 48;
@@ -169,7 +170,6 @@ use constant AV_A_TRAFFICSHAPING => 13;
 use constant AV_A_TRANSPORT => 12;
 use constant AV_A_TUNNEL => 43;
 use constant AV_A_TYPE => 0;
-use constant AV_A_UDATA => 2;
 use constant AV_A_UID => 9;
 use constant AV_A_UMASK => 31;
 use constant AV_A_USER => 4;

@@ -228,6 +228,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	av_set(*ac, AV_A_HOME, av_get(a, AV_A_HOME));
 	av_set(*ac, AV_A_ROOT, av_get(a, AV_A_ROOT));
 	av_set(*ac, AV_A_SHELL, av_get(a, AV_A_SHELL));
+	av_set(*ac, AV_A_SHELL, av_get(a, AV_A_SSHKEYHASH));
 	av_free(a);
 	av_set(*ac, AV_A_RESULT, AV_V_RESULT_OK);
 	mcx->cached = 1;
