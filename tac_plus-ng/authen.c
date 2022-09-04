@@ -298,8 +298,8 @@ static enum token lookup_and_set_user(tac_session * session)
 static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&& (((session->ctx->realm->mavis_userdb == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES) && !session->user)
-	    || (session->user && pw_ix == PW_MAVIS));
+	&&( ( (session->ctx->realm->mavis_userdb == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES) && !session->user)
+	   || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -380,7 +380,6 @@ static void do_chap(tac_session * session)
 		} else {
 		    res = TAC_PLUS_AUTHEN_STATUS_PASS;
 		    hint = hint_succeeded;
-
 		}
 	    }
 	}
@@ -1268,11 +1267,16 @@ static void do_pap(tac_session * session)
 // Clients just need to use TAC_PLUS_AUTHEN_TYPE_SSHKEYHASH (8) and put the ssh public
 // key hash into the data field. This should be really easy to implement.
 //
+// The key has can easily retrieved using
+//     ssh-keygen -lf ~/.ssh/id_rsa.pub
+// (obviously, you may need to adjust the path)
+//
 static void do_sshkeyhash(tac_session * session)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
+    char *ssh_key_hash;
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "ssh-key-hash login", hint_denied_by_acl, res);
@@ -1282,13 +1286,25 @@ static void do_sshkeyhash(tac_session * session)
     if (query_mavis_info(session, do_sshkeyhash, PW_LOGIN))
 	return;
 
-    if (session->user && session->authen_data->data) {
-	res = validate_ssh_hash(session->user, (char *) session->authen_data->data);
+    // for testing only
+    if (session->version == TAC_PLUS_VER_ONE)
+	ssh_key_hash = (char *) session->authen_data->data;
+    else
+	ssh_key_hash = (char *) session->authen_data->msg;
 
-	if (S_permit != eval_ruleset(session, session->ctx->realm)) {
-	    res = TAC_PLUS_AUTHEN_STATUS_FAIL;
-	    hint = hint_denied_by_acl;
-	}
+    if (session->user && ssh_key_hash) {
+	enum token token = validate_ssh_hash(session->user, (char *) ssh_key_hash);
+
+	if (token == S_permit) {
+	    token = eval_ruleset(session, session->ctx->realm);
+	    if (token == S_permit) {
+		res = TAC_PLUS_AUTHEN_STATUS_PASS;
+		hint = hint_permitted;
+	    } else {
+		hint = hint_denied_by_acl;
+	    }
+	} else
+	    hint = hint_denied;
 
 	if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
 	    // memlist_free(session->pool, &session->password);
@@ -1300,6 +1316,8 @@ static void do_sshkeyhash(tac_session * session)
 	}
     }
 
+    if (res == S_permit)
+	hint = hint_permitted;
     report_auth(session, "ssh-key-hash login", hint, res);
 
     send_authen_reply(session, res, resp, 0, NULL, 0, 0);
@@ -1422,8 +1440,8 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	username_required = 0;
 	// memlist_free(session->mempool, &session->authen_data);
 	// memlist_free(session->mempool, &session->authen_msg);
-	session->authen_data->msg = NULL;
-	session->authen_data->data = NULL;
+	// session->authen_data->msg = NULL;
+	// session->authen_data->data = NULL;
 	session->authen_data->msg = memlist_strndup(session->memlist, (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE, ntohs(cont->user_msg_len));
 	session->authen_data->msg_len = ntohs(cont->user_msg_len);
 	session->authen_data->data = (u_char *)
