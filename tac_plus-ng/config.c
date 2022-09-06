@@ -1897,6 +1897,23 @@ enum token validate_ssh_hash(tac_user * user, char *hash)
 {
     struct ssh_key_hash **ssh_key_hash = &user->ssh_key_hash;
     while (*ssh_key_hash) {
+
+	// FIXME
+	//
+	// MD5 hashing is what IOS currently uses internally. In the CLI config the
+	// hash gets represented as a sequence of hex bytes.
+	//
+	// As there's no standard representation for SSH hashes it might be advisable
+	// to run a normalizing compare function instead of just strcmp().
+	//
+	// Sample Perl normalization code (and probably reusable for PCRE) for MD5 hash normalization:
+	//
+	// if ($key =~ /(([\da-f]{2}:?){16})( |$)/i) {
+	//     my $raw = lc $1;
+	//     $raw =~ s/://g;
+	// }
+	//
+
 	if (!strcmp((*ssh_key_hash)->hash, hash))
 	    return S_permit;
 	ssh_key_hash = &((*ssh_key_hash)->next);

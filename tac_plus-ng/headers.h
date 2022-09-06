@@ -634,6 +634,9 @@ struct tac_session {
     u_int priv_lvl;		/* requested privilege level */
     char privlvl[4];
     int privlvl_len;
+#ifdef TPNG_EXPERIMENTAL
+    char *ssh_key_hash;
+#endif
     int session_id;
     time_t session_timeout;
     struct author_data *author_data;
