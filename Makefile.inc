@@ -731,13 +731,13 @@ ifeq ($(WITH_PAM),)
 	endif
 endif
 
+HAVE_SECURITY_PAM_APPL_H=0
 ifeq ($(WITH_PAM),)
 	ifneq ($(wildcard /usr/include/security/pam_appl.h),)
-		DEF += -DHAVE_SECURITY_PAM_APPL_H
 		WITH_PAM=1
+		HAVE_SECURITY_PAM_APPL_H=1
 	endif
 endif
-
 
 ifeq ($(WITH_PAM),)
 	ifneq ($(wildcard /usr/lib$(LIBARCH)/libpam$(SHLIB_EXT)*),)
@@ -748,6 +748,9 @@ ifeq ($(WITH_PAM),)
 endif
 
 ifeq ($(WITH_PAM),1)
+	ifeq ($(HAVE_SECURITY_PAM_APPL_H),1)
+		DEF += -DHAVE_SECURITY_PAM_APPL_H
+	endif
 	ifneq ($(INCDIR_PAM),)
 		INC_PAM	= -I$(INCDIR_PAM)
 	endif

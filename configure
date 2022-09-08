@@ -274,7 +274,7 @@ foreach $a (keys %A)
 $DIRS = $DIRS_DEFAULT if $DIRS eq "";
 
 if ($DIRS !~ /^mavis /){
-		$DIRS = "mavis$DIRS";
+	$DIRS = "mavis$DIRS";
 }
 
 my $out = "build/Makefile.inc" . "." . lc
@@ -288,7 +288,7 @@ $content .= "BASE=" . $cwd . "\n";
 
 if (exists $A{"--with-devpoll"})
 {
-	$content .= "WITH_DEVPOLL=1\n";
+	$content .= "WITH_DEVPOLL=" . $A{"--with-devpoll"} . "\n";
 	delete $A{"--with-devpoll"};
 }
 
