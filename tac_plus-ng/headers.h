@@ -158,6 +158,9 @@ struct tac_host {
      TRISTATE(augmented_enable);	/* one-step enable for $enab.* user */
      TRISTATE(map_pap_to_login);
      TRISTATE(authz_if_authc);
+#ifdef TPNG_EXPERIMENTAL
+     TRISTATE(ssh_key_check_all);
+#endif
      BISTATE(complete);
      BISTATE(visited);
     u_int bug_compatibility;
@@ -871,7 +874,7 @@ void init_mcx(tac_realm *);
 void complete_realm(tac_realm *);
 
 #ifdef TPNG_EXPERIMENTAL
-enum token validate_ssh_hash(tac_user *, char *);
+enum token validate_ssh_hash(tac_session *, char *);
 #endif
 
 extern radixtree_t *dns_tree_ptr_static;

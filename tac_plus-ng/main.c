@@ -662,6 +662,11 @@ static void complete_host(tac_host * h)
 	if (h->map_pap_to_login == TRISTATE_DUNNO)
 	    h->map_pap_to_login = hp->map_pap_to_login;
 
+#ifdef TPNG_EXPERIMENTAL
+	if (h->ssh_key_check_all == TRISTATE_DUNNO)
+	    h->ssh_key_check_all = hp->ssh_key_check_all;
+#endif
+
 	if (!h->welcome_banner)
 	    h->welcome_banner = hp->welcome_banner;
 

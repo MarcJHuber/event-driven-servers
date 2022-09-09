@@ -1292,7 +1292,7 @@ static void do_sshkeyhash(tac_session * session)
 	session->ssh_key_hash = (char *) session->authen_data->msg;
 
     if (session->user && session->ssh_key_hash && *session->ssh_key_hash) {
-	enum token token = validate_ssh_hash(session->user, session->ssh_key_hash);
+	enum token token = validate_ssh_hash(session, session->ssh_key_hash);
 
 	if (token == S_permit) {
 	    token = eval_ruleset(session, session->ctx->realm);

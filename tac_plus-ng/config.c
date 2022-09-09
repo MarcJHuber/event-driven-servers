@@ -1143,6 +1143,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_singleconnection:
 	case S_context:
 	case S_script:
+	case S_ssh_key_check:
 	    parse_host_attr(sym, r, r->default_host);
 	    continue;
 #ifdef WITH_TLS
@@ -1893,32 +1894,51 @@ struct ssh_key_hash {
     char hash[1];
 };
 
-enum token validate_ssh_hash(tac_user * user, char *hash)
+// FIXME
+//
+// MD5 hashing is what IOS currently uses internally. In the CLI config the
+// hash gets represented as a sequence of hex bytes.
+//
+// As there's no standard representation for SSH hashes it might be advisable
+// to run a normalizing compare function instead of just strcmp().
+//
+// Sample Perl normalization code (and probably reusable for PCRE) for MD5 hash normalization:
+//
+// if ($key =~ /(([\da-f]{2}:?){16})( |$)/i) {
+//     my $raw = lc $1;
+//     $raw =~ s/://g;
+// }
+//
+
+enum token validate_ssh_hash(tac_session *session, char *hash)
 {
-    struct ssh_key_hash **ssh_key_hash = &user->ssh_key_hash;
-    while (*ssh_key_hash) {
+    enum token res = S_deny;
+    if (!hash)
+	return S_deny;
 
-	// FIXME
-	//
-	// MD5 hashing is what IOS currently uses internally. In the CLI config the
-	// hash gets represented as a sequence of hex bytes.
-	//
-	// As there's no standard representation for SSH hashes it might be advisable
-	// to run a normalizing compare function instead of just strcmp().
-	//
-	// Sample Perl normalization code (and probably reusable for PCRE) for MD5 hash normalization:
-	//
-	// if ($key =~ /(([\da-f]{2}:?){16})( |$)/i) {
-	//     my $raw = lc $1;
-	//     $raw =~ s/://g;
-	// }
-	//
-
-	if (!strcmp((*ssh_key_hash)->hash, hash))
-	    return S_permit;
-	ssh_key_hash = &((*ssh_key_hash)->next);
+    while (*hash) {
+	// assumption: NAD may return multiple keys, separated by comma or semicolon
+	struct ssh_key_hash **ssh_key_hash = &session->user->ssh_key_hash;
+	char *next;
+	size_t len;
+	for (next = hash; *next && *next != ',' && *next != ';'; next++);
+	len = next - hash;
+	if (*next)
+	    next++;
+	while (*ssh_key_hash) {
+	    if (!strncmp((*ssh_key_hash)->hash, hash, len) && (!hash[len] || hash[len] == ',')) {
+		if (session->ctx->host->ssh_key_check_all != TRISTATE_YES)
+		    return S_permit;
+		res = S_permit;
+		break; // while
+	    }
+	    ssh_key_hash = &((*ssh_key_hash)->next);
+	}
+	if ((session->ctx->host->ssh_key_check_all == TRISTATE_YES) && !*ssh_key_hash)
+	    return S_deny;
+	hash = next;
     }
-    return S_deny;
+    return res;
 }
 
 static void parse_sshkeyhash(struct sym *sym, tac_user * user)
@@ -2321,6 +2341,23 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    *p = tac_script_parse_r(sym, 0, r);
 	    return;
 	}
+#ifdef TPNG_EXPERIMENTAL
+    case S_ssh_key_check:
+	sym_get(sym);
+	parse(sym, S_equal);
+	switch (sym->code) {
+	    case S_any:
+		host->ssh_key_check_all = TRISTATE_NO;
+		break;
+	    case S_all:
+		host->ssh_key_check_all = TRISTATE_YES;
+		break;
+	    default:
+		parse_error_expect(sym, S_all, S_any, S_unknown);
+	}
+	sym_get(sym);
+	return;
+#endif
     default:
 	parse_error_expect(sym, S_host, S_parent, S_authentication, S_permit, S_bug, S_pap, S_address, S_key, S_motd, S_welcome, S_reject, S_enable,
 			   S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_script, S_unknown);

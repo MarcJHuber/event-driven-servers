@@ -428,4 +428,4 @@ config-file	S_config_file
 config-line	S_config_line
 dn		S_dn
 ssh-key-hash	S_ssh_key_hash
-
+ssh-key-check	S_ssh_key_check
