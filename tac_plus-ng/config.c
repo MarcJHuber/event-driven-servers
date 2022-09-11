@@ -2032,6 +2032,7 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	size_t slen = strlen(sym->buf);
 	unsigned char *t = alloca(slen);
 	char *hash;
+	size_t hash_len;
 	int len = EVP_DecodeBlock(t, (const unsigned char *) sym->buf, slen);
 
 	if (len < -0)
@@ -2043,6 +2044,7 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	hash = calc_ssh_key_hash("MD5", t, len);
 	if (!hash)
 	    parse_error(sym, "MD5 hashing failed.");
+	hash_len = strlen(hash);
 	*ssh_key_hash = memlist_malloc(user->memlist, sizeof(struct ssh_key_hash) + len);
 	memcpy((*ssh_key_hash)->hash, hash, len + 1);
 	ssh_key_hash = &((*ssh_key_hash)->next);
@@ -2050,6 +2052,11 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	hash = calc_ssh_key_hash("SHA256", t, len);
 	if (!hash)
 	    parse_error(sym, "SHA256 hashing failed.");
+	hash_len = strlen(hash);
+	if (hash[hash_len - 1] == '=') {
+	    hash_len--;
+	    hash[hash_len] = 0;
+	}
 	*ssh_key_hash = memlist_malloc(user->memlist, sizeof(struct ssh_key_hash) + len);
 	memcpy((*ssh_key_hash)->hash, hash, len + 1);
 
