@@ -1909,8 +1909,17 @@ struct ssh_key_hash {
 //     $raw =~ s/://g;
 // }
 //
+// On the other hand, it might make sense to ignore what routers currently do and
+// take the ssh-keygen fingerprint as a reference:
+// MD5:00:01:02:03:04:...:0E:0F
+// SHA256:<base64>
+//
+// Also, giving the router the option to send more than one fingerprint seems appropriate.
+// The server then has the option to require one or more fingerprints to match, e.g.
+// MD5 *and* SHA256.
+//
 
-enum token validate_ssh_hash(tac_session *session, char *hash)
+enum token validate_ssh_hash(tac_session * session, char *hash)
 {
     enum token res = S_deny;
     if (!hash)
@@ -1930,7 +1939,7 @@ enum token validate_ssh_hash(tac_session *session, char *hash)
 		if (session->ctx->host->ssh_key_check_all != TRISTATE_YES)
 		    return S_permit;
 		res = S_permit;
-		break; // while
+		break;		// while
 	    }
 	    ssh_key_hash = &((*ssh_key_hash)->next);
 	}
@@ -1957,6 +1966,95 @@ static void parse_sshkeyhash(struct sym *sym, tac_user * user)
     } while (parse_comma(sym));
 }
 
+#ifdef WITH_SSL
+#include <openssl/evp.h>
+
+static char *calc_ssh_key_hash(char *hashname, unsigned char *in, size_t in_len)
+{
+    static unsigned char out[512];
+    unsigned char md[256];
+    size_t md_len = sizeof(md);
+    size_t hashname_len;
+    unsigned char *o;
+    char *t = strchr(hashname, ':');
+    if (t) {
+	// <HASHNAME>:<HASH> => <HASHNAME>
+	ssize_t len = t - hashname;
+	t = alloca(len);
+	len--;
+	t[len] = 0;
+	while (len > -1) {
+	    len--;
+	    t[len] = hashname[len];
+	}
+	hashname = t;
+    }
+    if (!in_len)
+	in_len = strlen((char *) in);
+    if (!EVP_Q_digest(NULL, hashname, NULL, in, in_len, md, &md_len))
+	return NULL;
+
+    if (!strcmp(hashname, "MD5")) {
+	char hex[] = "0123456789abcdef";
+	o = out;
+	int i;
+	*o++ = 'M';
+	*o++ = 'D';
+	*o++ = '5';
+	*o++ = ':';
+	for (i = 0; i < 16; i++) {
+	    *o++ = hex[md[i] >> 8];
+	    *o++ = hex[md[i] & 7];
+	    *o++ = (i < 15) ? ':' : 0;
+	}
+	*o = 0;
+	return (char *) out;
+    }
+
+    hashname_len = strlen(hashname);
+    strncpy((char *) out, hashname, hashname_len);
+    o = out + hashname_len;
+    *o++ = ':';
+    if (EVP_EncodeBlock(o, md, md_len))
+	return (char *) out;
+
+    return NULL;
+}
+
+static void parse_sshkey(struct sym *sym, tac_user * user)
+{
+    struct ssh_key_hash **ssh_key_hash = &user->ssh_key_hash;
+
+    while (*ssh_key_hash)
+	ssh_key_hash = &((*ssh_key_hash)->next);
+
+    do {
+	size_t slen = strlen(sym->buf);
+	unsigned char *t = alloca(slen);
+	char *hash;
+	int len = EVP_DecodeBlock(t, (const unsigned char *) sym->buf, slen);
+	if (len < -0)
+	    parse_error(sym, "BASE64 decode of SSH key failed.\n");
+
+	hash = calc_ssh_key_hash("MD5", t, len);
+	if (!hash)
+	    parse_error(sym, "Calculating MD5 hash failed.\n");
+	*ssh_key_hash = memlist_malloc(user->memlist, sizeof(struct ssh_key_hash) + len);
+	memcpy((*ssh_key_hash)->hash, hash, len + 1);
+	sym_get(sym);
+	ssh_key_hash = &((*ssh_key_hash)->next);
+
+	hash = calc_ssh_key_hash("SHA256", t, len);
+	if (!hash)
+	    parse_error(sym, "Calculating SHA256 hash failed.\n");
+	*ssh_key_hash = memlist_malloc(user->memlist, sizeof(struct ssh_key_hash) + len);
+	memcpy((*ssh_key_hash)->hash, hash, len + 1);
+	sym_get(sym);
+	ssh_key_hash = &((*ssh_key_hash)->next);
+
+    } while (parse_comma(sym));
+}
+#endif				// WITH_SSL
 
 #endif
 
@@ -2014,12 +2112,18 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	    user->hushlogin = parse_tristate(sym);
 	    continue;
 #ifdef TPNG_EXPERIMENTAL
-	case S_ssh_key_hash:{
-		sym_get(sym);
-		parse(sym, S_equal);
-		parse_sshkeyhash(sym, user);
-		continue;
-	    }
+	case S_ssh_key_hash:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    parse_sshkeyhash(sym, user);
+	    continue;
+#ifdef WITH_SSL
+	case S_ssh_key:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    parse_sshkey(sym, user);
+	    continue;
+#endif
 #endif
 	default:
 	    parse_error_expect(sym, S_member, S_valid, S_debug, S_message, S_password, S_enable, S_fallback_only, S_hushlogin, S_unknown);
@@ -2346,14 +2450,14 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	sym_get(sym);
 	parse(sym, S_equal);
 	switch (sym->code) {
-	    case S_any:
-		host->ssh_key_check_all = TRISTATE_NO;
-		break;
-	    case S_all:
-		host->ssh_key_check_all = TRISTATE_YES;
-		break;
-	    default:
-		parse_error_expect(sym, S_all, S_any, S_unknown);
+	case S_any:
+	    host->ssh_key_check_all = TRISTATE_NO;
+	    break;
+	case S_all:
+	    host->ssh_key_check_all = TRISTATE_YES;
+	    break;
+	default:
+	    parse_error_expect(sym, S_all, S_any, S_unknown);
 	}
 	sym_get(sym);
 	return;
