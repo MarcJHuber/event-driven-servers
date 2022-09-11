@@ -2007,7 +2007,6 @@ static char *calc_ssh_key_hash(char *hashname, unsigned char *in, size_t in_len)
 	    *o++ = hex[md[i] & 15];
 	    *o++ = (i < 15) ? ':' : 0;
 	}
-	*o = 0;
 	return (char *) out;
     }
 
