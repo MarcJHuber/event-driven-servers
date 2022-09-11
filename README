@@ -2,7 +2,11 @@ This is a collection of high-performance and scalable event-driven servers
 (notably tac_plus-ng, tac_plus, ftpd, tcprelay). Please have a look at the
 documentation for configuration details.
 
-Please direct support queries to the mailing list at
+Issues can be reported via
+
+  https://github.com/MarcJHuber/event-driven-servers/issues
+
+or the mailing list at
 
    event-driven-servers@googlegroups.com
 
