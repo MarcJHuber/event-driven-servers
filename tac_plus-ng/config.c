@@ -2003,8 +2003,8 @@ static char *calc_ssh_key_hash(char *hashname, unsigned char *in, size_t in_len)
 	*o++ = '5';
 	*o++ = ':';
 	for (i = 0; i < 16; i++) {
-	    *o++ = hex[md[i] >> 8];
-	    *o++ = hex[md[i] & 7];
+	    *o++ = hex[md[i] >> 4];
+	    *o++ = hex[md[i] & 15];
 	    *o++ = (i < 15) ? ':' : 0;
 	}
 	*o = 0;
@@ -2033,22 +2033,26 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	unsigned char *t = alloca(slen);
 	char *hash;
 	int len = EVP_DecodeBlock(t, (const unsigned char *) sym->buf, slen);
+
 	if (len < -0)
 	    parse_error(sym, "BASE64 decode of SSH key failed.\n");
 
+	if (sym->buf[slen - 1] == '=')
+		len--;
+
 	hash = calc_ssh_key_hash("MD5", t, len);
 	if (!hash)
-	    parse_error(sym, "Calculating MD5 hash failed.\n");
+	    parse_error(sym, "MD5 hashing failed.\n");
 	*ssh_key_hash = memlist_malloc(user->memlist, sizeof(struct ssh_key_hash) + len);
 	memcpy((*ssh_key_hash)->hash, hash, len + 1);
-	sym_get(sym);
 	ssh_key_hash = &((*ssh_key_hash)->next);
 
 	hash = calc_ssh_key_hash("SHA256", t, len);
 	if (!hash)
-	    parse_error(sym, "Calculating SHA256 hash failed.\n");
+	    parse_error(sym, "SHA256 hashing failed.\n");
 	*ssh_key_hash = memlist_malloc(user->memlist, sizeof(struct ssh_key_hash) + len);
 	memcpy((*ssh_key_hash)->hash, hash, len + 1);
+
 	sym_get(sym);
 	ssh_key_hash = &((*ssh_key_hash)->next);
 
