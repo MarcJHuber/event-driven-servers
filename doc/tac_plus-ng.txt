@@ -884,6 +884,68 @@ acl password-compliance {
 password acl = password-compliance
        Authentications using passwords that fail the check will be
        rejected.
+     * password max-attempts = integer
+       The max-attempts parameter limits the number of Password:
+       prompts per TACACS+ session at login. It currently defaults
+       to 1, meaning that a typical login sequence with bad
+       passwords would look like:
+> telnet 10.0.0.2
+Trying 10.0.0.2...
+Connected to 10.0.0.2.
+Escape character is '^]'.
+
+Welcome. Authorized Use Only.
+
+Username: admin
+Password: ***
+Password incorrect.
+
+
+Welcome. Authorized Use Only.
+
+Username: admin
+Password: ****
+Password incorrect.
+
+
+Welcome. Authorized Use Only.
+
+Username: admin
+Password: *
+Password incorrect.
+
+Connection closed by foreign host.
+       Using, for example,
+password max-attempts = 3
+       (the actual default in earlier versions was 4) would change
+       this dialog to:
+> telnet 10.0.0.2
+Trying 10.0.0.2...
+Connected to 10.0.0.2.
+Escape character is '^]'.
+
+Welcome. Authorized Use Only.
+
+Username: admin
+Password: ***
+
+Password incorrect.
+Password: ****
+
+Password incorrect.
+Password: *****
+
+Password incorrect. Go away.
+
+
+Welcome. Authorized Use Only.
+
+Username:
+       It's at the NAS's discretion to restart the authentication
+       dialog with a new TACACS+ session or to close the
+       (Telnet/SSH/...) session to the user if TACACS+
+       authentication fails.
+       Thid directive can be used at host level, too.
      * anonymous-enable = ( permit | deny )
        Several broken TACACS+ implementations send no or an
        invalid username in enable packets. Setting this option to
@@ -1290,6 +1352,11 @@ aaa authentication enable default group tacacs+ enable
        enable [ level ] = login needs to be set in the users'
        profile for this option to take effect.
        This configuration will be accepted at realm level, too.
+     * password max-attempts = integer
+       The max-attempts parameter limits the number of Password:
+       prompts per TACACS+ session at login. It currently defaults
+       to 1.
+       This configuration will be accepted at realm level, too.
      __________________________________________________________
 
 4.2.5.3. Authorization
@@ -1567,6 +1634,9 @@ set priv-lvl = 15
      __________________________________________________________
 
 4.2.8. Rewriting User Names
+
+   Configuration syntax is deprecated. Please use the rewrite user
+   script action.
 
    This is experimental. It requires the binary to be built with
    PCRE v2 support (using the --with-pcre2 configure option).
