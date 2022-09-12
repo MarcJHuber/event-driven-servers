@@ -2040,12 +2040,16 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	char *hash;
 	size_t hash_len;
 	int len = EVP_DecodeBlock(t, (const unsigned char *) sym->buf, slen);
+	int pad = 0;
 
-	if (len < -0)
+	if (len < 4)
 	    parse_error(sym, "BASE64 decode of SSH key failed.");
 
 	if (sym->buf[slen - 1] == '=')
-	    len--;
+	    pad++;
+	if (sym->buf[slen - 2] == '=')
+	    pad++;
+	len = (slen * 3) / 4 - pad;
 
 	hash = calc_ssh_key_hash("MD5", t, len);
 	if (!hash)
@@ -2059,7 +2063,7 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	if (!hash)
 	    parse_error(sym, "SHA256 hashing failed.");
 	hash_len = strlen(hash);
-	if (hash[hash_len - 1] == '=') {
+	while (hash[hash_len - 1] == '=') {
 	    hash_len--;
 	    hash[hash_len] = 0;
 	}
