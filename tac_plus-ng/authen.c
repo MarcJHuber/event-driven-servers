@@ -1116,12 +1116,21 @@ static void do_mschap(tac_session * session)
 static void mschapv2_chalhash(u_char * peerChal, u_char * authChal, char *user, u_char * chal)
 {
     u_char md[SHA_DIGEST_LENGTH];
+#if OPENSSL_VERSION_NUMBER < 0x30000000
     SHA_CTX c;
     SHA1_Init(&c);
     SHA1_Update(&c, peerChal, 16);
     SHA1_Update(&c, authChal, 16);
     SHA1_Update(&c, user, strlen(user));
     SHA1_Final(md, &c);
+#else
+    size_t len = strlen(user);
+    u_char *d = alloca(32 + len);
+    memcpy(d, peerChal, 16);
+    memcpy(d + 16, authChal, 16);
+    memcpy(d + 32, user, len);
+    EVP_Q_digest(NULL, "SHA1", NULL, d, 32 + len, md, NULL);
+#endif
     memcpy(chal, md, 8);
 }
 
