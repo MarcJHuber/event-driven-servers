@@ -72,8 +72,13 @@
 #include "misc/md5crypt.h"
 
 #if defined(WITH_SSL)
-#include <openssl/des.h>
-#include <openssl/sha.h>
+# if OPENSSL_VERSION_NUMBER < 0x30000000
+#  include <openssl/des.h>
+#  include <openssl/sha.h>
+# else
+#  include <openssl/types.h>
+#  include <openssl/evp.h>
+# endif
 #endif
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
@@ -981,7 +986,6 @@ static void do_enable_getuser(tac_session * session)
 static void mschap_desencrypt(u_char * clear, u_char * str __attribute__((unused)), u_char * cypher)
 {
     unsigned char key[8];
-    struct DES_ks ks;
 
     /*
      * Copy the key inserting parity bits. This is a little cryptic:
@@ -1000,9 +1004,24 @@ static void mschap_desencrypt(u_char * clear, u_char * str __attribute__((unused
     /* copy clear to cypher, cause our des encrypts in place */
     memcpy(cypher, clear, (size_t) 8);
 
-    memset(&ks, 0, sizeof(ks));
-    DES_set_key((DES_cblock *) key, &ks);
-    DES_ecb_encrypt((DES_cblock *) clear, (DES_cblock *) cypher, &ks, DES_ENCRYPT);
+#if OPENSSL_VERSION_NUMBER < 0x30000000
+    {
+	struct DES_ks ks;
+	memset(&ks, 0, sizeof(ks));
+	DES_set_key((DES_cblock *) key, &ks);
+	DES_ecb_encrypt((DES_cblock *) clear, (DES_cblock *) cypher, &ks, DES_ENCRYPT);
+    }
+#else
+    {
+	// I've no idea whether this will work, and I've a strong tendency to drop both MSCHAPv1 and MSCHAPv2 support
+	int out_len = 8;
+	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+	EVP_EncryptInit(ctx, EVP_des_ecb(), key, NULL);
+	EVP_EncryptUpdate(ctx, cypher, &out_len, clear, 8);
+	EVP_EncryptFinal(ctx, cypher, &out_len);
+	EVP_CIPHER_CTX_free(ctx);
+    }
+#endif
 }
 
 static void mschap_deshash(u_char * clear, u_char * cypher)
