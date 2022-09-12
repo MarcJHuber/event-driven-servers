@@ -903,7 +903,7 @@ static void do_ascii_login(tac_session * session)
 	}
     }
 
-    if (++session->authen_data->iterations <= 4) {
+    if (++session->authen_data->iterations < session->ctx->host->authen_max_attempts) {
 	m = (session->user && (session->user->chalresp == TRISTATE_YES)) ? "Response incorrect.\nResponse: " : "Password incorrect.\nPassword: ";
 	session->flag_mavis_auth = 0;
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS, m, 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);

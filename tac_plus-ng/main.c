@@ -693,6 +693,9 @@ static void complete_host(tac_host * h)
 	if (h->context_timeout < 0)
 	    h->context_timeout = hp->context_timeout;
 
+	if (h->authen_max_attempts < 0)
+	    h->authen_max_attempts = hp->authen_max_attempts;
+
 	if (!h->rewrite_user)
 	    h->rewrite_user = hp->rewrite_user;
 

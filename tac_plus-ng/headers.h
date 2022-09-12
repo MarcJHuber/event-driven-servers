@@ -177,6 +177,7 @@ struct tac_host {
     int tcp_timeout;		/* tcp connection idle timeout */
     int session_timeout;	/* session idle timeout */
     int context_timeout;	/* shell context idle timeout */
+    int authen_max_attempts;	/* maximum number of password retries per session */
     tac_realm *realm;
     tac_rewrite *rewrite_user;
     struct tac_script_action *action;

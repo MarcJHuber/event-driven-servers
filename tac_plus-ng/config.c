@@ -379,6 +379,7 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
     r->mavis_login_prefetch = TRISTATE_DUNNO;
     r->default_host = calloc(1, sizeof(tac_host));
     r->default_host->name = "default";
+    r->default_host->authen_max_attempts = -1;
 #ifdef WITH_TLS
     r->tls_ciphers = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384";
 #endif
@@ -747,6 +748,7 @@ tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent)
 	nrealm->default_host->session_timeout = 240;
 	nrealm->default_host->tcp_timeout = 600;
 	nrealm->default_host->context_timeout = 3600;
+	nrealm->default_host->authen_max_attempts = 1;
     }
     return nrealm;
 }
@@ -772,8 +774,13 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		    parse_error(sym, "ACL '%s' not found)", sym->buf);
 		sym_get(sym);
 		continue;
+	    case S_maxattempts:
+		sym_get(sym);
+		parse(sym, S_equal);
+		r->default_host->authen_max_attempts = parse_int(sym);
+		return;
 	    default:
-		parse_error_expect(sym, S_acl, S_unknown);
+		parse_error_expect(sym, S_acl, S_maxattempts, S_unknown);
 	    }
 	case S_pap:
 	    sym_get(sym);
@@ -2038,7 +2045,7 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	    parse_error(sym, "BASE64 decode of SSH key failed.");
 
 	if (sym->buf[slen - 1] == '=')
-		len--;
+	    len--;
 
 	hash = calc_ssh_key_hash("MD5", t, len);
 	if (!hash)
@@ -2430,6 +2437,12 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	parse(sym, S_equal);
 	host->tcp_timeout = parse_seconds(sym);
 	return;
+    case S_password:
+	sym_get(sym);
+	parse(sym, S_maxattempts);
+	parse(sym, S_equal);
+	host->authen_max_attempts = parse_int(sym);
+	return;
     case S_context:
 	sym_get(sym);
 	parse(sym, S_timeout);
@@ -2522,6 +2535,7 @@ static void parse_host(struct sym *sym, tac_realm * r, tac_host * parent)
     host->tcp_timeout = -1;
     host->session_timeout = -1;
     host->context_timeout = -1;
+    host->authen_max_attempts = -1;
 
     sym_get(sym);
     parse(sym, S_openbra);
