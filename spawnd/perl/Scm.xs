@@ -10,7 +10,7 @@ PROTOTYPES: DISABLE
 int
 scm_sendmsg (sock, type, fd)
 	int sock
-	char *type
+	int type
 	int fd
     CODE:
 	struct scm_data sd;
@@ -21,18 +21,22 @@ scm_sendmsg (sock, type, fd)
 	RETVAL
 
 int
-scm_recvmsg (sock, type, fd)
+scm_recvmsg (sock, type, fd, realm)
 	int sock
-	SV *type
+	int type
 	int fd
+	char *realm
     CODE:
-    	char input[100];
-	RETVAL = scm_recv_msg (sock, input, sizeof(input), &fd);
-	if (!RETVAL)
-    		sv_setpv(type, input);
+    	struct scm_data_accept sd;
+	RETVAL = scm_recv_msg (sock, &sd, sizeof(sd), &fd);
+	if (!RETVAL) {
+    		type = sd.type;
+    		realm = sd.realm;
+	}
     OUTPUT:
 	type
 	fd
+	realm
 	RETVAL
 
 
