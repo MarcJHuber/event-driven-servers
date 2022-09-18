@@ -1778,6 +1778,7 @@ void common_usage(void)
 	    "-b                force going to background\n"
 	    "-f                force staying in foreground\n"
 	    "-i <child-id>     select child configuration id\n"
+	    "-I <spawnd-id>    select spawnd configuration id\n"
 	    "-p <pid-file>     write master process ID to the file specified\n"
 	    "-d <debug-level>  set debugging level\n"
 	    "\n"

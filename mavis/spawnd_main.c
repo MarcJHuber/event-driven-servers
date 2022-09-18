@@ -362,7 +362,7 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 	    spawnd_data.inetd = 1;
 	}
 
-    while ((c = getopt(argc, argv, "vPd:i:p:bf1")) != EOF)
+    while ((c = getopt(argc, argv, "vPd:i:p:bf1I:")) != EOF)
 	switch (c) {
 	case 'v':
 	    common_data.version_only = 1;
@@ -383,6 +383,9 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 	    break;
 	case 'i':
 	    strset(&spawnd_data.child_id, optarg);
+	    break;
+	case 'I':
+	    id = optarg;
 	    break;
 	case 'p':
 	    strset(&spawnd_data.pidfile, optarg);
