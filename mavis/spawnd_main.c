@@ -600,7 +600,7 @@ void scm_main(int argc, char **argv, char **envp)
 		if (i == DEBUG_TACTRACE_FLAG)
 		    common_data.debug |= i;
 		else
-		    common_data.debug = atoi(optarg) & DEBUG_ALL_FLAG;
+		    common_data.debug |= (i & DEBUG_ALL_FLAG);
 		break;
 	    }
 	default:
