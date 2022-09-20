@@ -1,1 +1,1 @@
-This code is unsupported and quite likely no longer works. 
+This code isn't fully supported.
