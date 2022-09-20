@@ -169,7 +169,7 @@ static void periodics_ctx(struct context *ctx, int cur __attribute__((unused)))
 
 static void accept_control(struct context *, int __attribute__((unused)));
 static void accept_control_final(struct context *);
-static void accept_control_common(int, struct scm_data_accept *, sockaddr_union * nac_address);
+static void accept_control_common(int, struct scm_data_accept *, sockaddr_union *);
 static void accept_control_singleprocess(int, struct scm_data_accept *);
 static void accept_control_raw(int, struct scm_data_accept *);
 static void accept_control_px(int, struct scm_data_accept *);
@@ -728,7 +728,7 @@ static void complete_host(tac_host * h)
 }
 
 
-static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_union * nac_address)
+static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_union * nad_address)
 {
     char afrom[256];
     char pfrom[256];
@@ -762,13 +762,16 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	return;
     }
 
-    if (nac_address)
-	peer = su_ntop(nac_address, pfrom, sizeof(pfrom)) ? pfrom : "<unknown>";
+    if (nad_address)
+	peer = su_ntop(&from, pfrom, sizeof(pfrom)) ? pfrom : "<unknown>";
     else
-	nac_address = &from;
+	nad_address = &from;
 
-    su_convert(nac_address, AF_INET);
-    su_ptoh(nac_address, &addr);
+    if (!peer || !*peer)
+	peer = "<unknown>";
+
+    su_convert(nad_address, AF_INET);
+    su_ptoh(nad_address, &addr);
 
 #ifdef SO_BINDTODEVICE		// Linux.
     {
@@ -822,7 +825,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 
     ctx = new_context(common_data.io, r);
     ctx->sock = s;
-    ctx->peer_addr_ascii = mempool_strdup(ctx->pool, su_ntop(nac_address, afrom, sizeof(afrom)) ? afrom : "<unknown>");
+    ctx->peer_addr_ascii = mempool_strdup(ctx->pool, su_ntop(nad_address, afrom, sizeof(afrom)) ? afrom : "<unknown>");
     ctx->peer_addr_ascii_len = strlen(ctx->peer_addr_ascii);
     if (h)
 	ctx->key = h->key;
