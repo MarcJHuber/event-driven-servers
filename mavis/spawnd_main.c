@@ -595,9 +595,14 @@ void scm_main(int argc, char **argv, char **envp)
 	case 'P':
 	    common_data.parse_only = 1;
 	    break;
-	case 'd':
-	    common_data.debug = atoi(optarg) & DEBUG_ALL_FLAG;
-	    break;
+	case 'd':{
+		int i = atoi(optarg);
+		if (i == DEBUG_TACTRACE_FLAG)
+		    common_data.debug |= i;
+		else
+		    common_data.debug = atoi(optarg) & DEBUG_ALL_FLAG;
+		break;
+	    }
 	default:
 	    common_usage();
 	}
