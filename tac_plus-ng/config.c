@@ -404,7 +404,7 @@ void drop_mcx(tac_realm * r)
 	mavis_drop(r->mcx);
     if (r->realms)
 	for (rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
-	    mavis_drop(r->mcx);
+	    drop_mcx(RB_payload(rbn, tac_realm *));
 }
 
 void expire_dynamic_users(tac_realm * r)
