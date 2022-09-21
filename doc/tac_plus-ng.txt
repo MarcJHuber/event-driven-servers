@@ -3070,7 +3070,7 @@ Options:
 fg]
   --id=<id>             id for configuration selection [tac_plus-ng]
 
-   Exemple:
+   Example:
 $ tactrace.pl --user=demo --defa  ~/tactest/demo.pl
 18:21:42.769: 10.0.0.1 New session
 18:21:42.769: 10.0.0.1 ---<start packet>---
