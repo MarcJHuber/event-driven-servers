@@ -114,8 +114,7 @@ if ($pid == 0) {
 	close $sock0;
 	POSIX::dup2 (fileno $sock1, 0) or die "POSIX::dup2: $!";
 	close $sock1;
-	POSIX::dup2 (1, 2);
-	exec($exec, "-d", "546", "-d", "4096", $conf, $id);
+	exec($exec, "-d", "546", "-d", "4194304", $conf, $id);
 	die "exec: $!";;
 }
 close $sock1;

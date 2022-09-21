@@ -75,7 +75,8 @@ static void cleanup_spawnd(struct context *ctx __attribute__((unused)), int cur 
 
     if (common_data.users_cur == 0 /*&& logs_flushed(config.default_realm) FIXME */ ) {
 	drop_mcx(config.default_realm);
-	report(NULL, LOG_INFO, ~0, "Terminating, no longer needed.");
+	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
+	    report(NULL, LOG_INFO, ~0, "Exiting.");
 	exit(EX_OK);
     }
 
@@ -124,20 +125,21 @@ static void periodics(struct context *ctx, int cur __attribute__((unused)))
     process_signals();
     io_child_reap();
 
-    sd.type = SCM_DYING;
-
-    if (!die_when_idle && config.suicide && (config.suicide < io_now.tv_sec)) {
-	report(NULL, LOG_INFO, ~0, "Retire timeout is up. Told parent about this.");
-	if (ctx_spawnd)
-	    common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
-	die_when_idle = -1;
+    if (!die_when_idle) {
+	if (config.suicide && (config.suicide < io_now.tv_sec)) {
+	    report(NULL, LOG_INFO, ~0, "Retire timeout is up. Told parent about this.");
+	    sd.type = SCM_DYING;
+	    if (ctx_spawnd)
+		common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
+	    die_when_idle = -1;
+	} else {
+	    sd.type = SCM_KEEPALIVE;
+	    if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1))
+		die_when_idle = -1;
+	}
     }
 
-    sd.type = SCM_KEEPALIVE;
-    if (ctx_spawnd && !die_when_idle && common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1))
-	die_when_idle = -1;
-
-    if (common_data.users_cur == 0 && die_when_idle)
+    if (die_when_idle)
 	cleanup_spawnd(ctx, -1 /* unused */ );
 
     expire_dynamic_users(config.default_realm);
@@ -217,7 +219,8 @@ int main(int argc, char **argv, char **envp)
     signal(SIGTERM, die);
     signal(SIGPIPE, SIG_IGN);
 
-    report(NULL, LOG_INFO, ~0, "Version " VERSION " initialized");
+    if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
+	report(NULL, LOG_INFO, ~0, "Version " VERSION " initialized");
 
     umask(022);
 
@@ -306,12 +309,15 @@ void cleanup(struct context *ctx, int cur)
     if (ctx_spawnd) {
 	struct scm_data sd;
 	sd.type = SCM_DONE;
-	common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
+	if (common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1) < 0)
+	    die_when_idle = 1;;
     }
     common_data.users_cur--;
+    if (common_data.debug & DEBUG_TACTRACE_FLAG)
+	die_when_idle = 1;
 
-    if (ctx_spawnd && common_data.users_cur == 0 && die_when_idle)
-	cleanup(ctx_spawnd, 0);
+    if (ctx_spawnd && die_when_idle)
+	cleanup_spawnd(ctx_spawnd, 0);
     set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 }
 
@@ -353,7 +359,7 @@ struct context_px {
     struct scm_data_accept sd;
 };
 
-static void cleanup_px(struct context_px *ctx, int cur __attribute__((unused)))
+static void cleanup_px(struct context_px *ctx, int cur)
 {
     struct scm_data sd;
 
@@ -361,10 +367,12 @@ static void cleanup_px(struct context_px *ctx, int cur __attribute__((unused)))
     io_close(ctx->io, ctx->sock);
 
     sd.type = SCM_DONE;
-    if (ctx_spawnd)
-	common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
+    if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1) < 0)
+	die_when_idle = 1;
     free(ctx);
     common_data.users_cur--;
+    if (ctx_spawnd && die_when_idle)
+	cleanup_spawnd(ctx_spawnd, cur);
     set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 }
 
@@ -466,10 +474,11 @@ static void read_px(struct context_px *ctx, int cur)
 
 static void reject_conn(struct context *ctx, char *hint, char *tls)
 {
-    if (ctx->proxy_addr_ascii)
-	report(NULL, LOG_INFO, ~0, "proxied %sconnection request from %s for %s (realm: %s%s%s) rejected%s%s", tls, ctx->proxy_addr_ascii,
-	       ctx->peer_addr_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", hint ? ": " : "", hint);
-    else
+    if (ctx->proxy_addr_ascii) {
+	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
+	    report(NULL, LOG_INFO, ~0, "proxied %sconnection request from %s for %s (realm: %s%s%s) rejected%s%s", tls, ctx->proxy_addr_ascii,
+		   ctx->peer_addr_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", hint ? ": " : "", hint);
+    } else
 	report(NULL, LOG_INFO, ~0, "%sconnection request from %s (realm: %s%s%s) rejected%s%s", tls, ctx->peer_addr_ascii, ctx->realm->name,
 	       ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", hint ? ": " : "", hint);
 
@@ -757,8 +766,10 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 
 	d.type = SCM_DONE;
-	if (ctx_spawnd)
-	    common_data.scm_send_msg(ctx_spawnd->sock, &d, -1);
+	if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &d, -1) < 0)
+	    die_when_idle = 1;
+	if (ctx_spawnd && die_when_idle)
+	    cleanup_spawnd(ctx_spawnd, -1);
 	return;
     }
 
@@ -871,10 +882,11 @@ static void accept_control_final(struct context *ctx)
     memset(&session, 0, sizeof(tac_session));
     session.ctx = ctx;
 
-    if (ctx->proxy_addr_ascii)
-	report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "proxied connection request from %s for %s (realm: %s%s%s)", ctx->proxy_addr_ascii,
-	       ctx->peer_addr_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "");
-    else
+    if (ctx->proxy_addr_ascii) {
+	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
+	    report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "proxied connection request from %s for %s (realm: %s%s%s)", ctx->proxy_addr_ascii,
+		   ctx->peer_addr_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "");
+    } else
 	report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "connection request from %s (realm: %s%s%s)", ctx->peer_addr_ascii, ctx->realm->name,
 	       ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "");
 
