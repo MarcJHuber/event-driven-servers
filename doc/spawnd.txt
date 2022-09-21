@@ -2,7 +2,7 @@ spawnd
 
 Marc Huber
 
-   $Id: 000a06e6c7d5b81e0b6b21916454d43624a78f43 $
+   $Id: 99a966c515ce42c5d4a47e0a7abe9b684c0484cf $
      __________________________________________________________
 
    Table of Contents
@@ -169,7 +169,7 @@ acl accept ::1
             socket.
           + mode = Mode
             This sets the file creation mode.
-          + userid = "UserID"
+          + userid = UserID
             This specifies the user ID for socket creation.
           + groupid = GroupID
             This specifies the group ID for socket creation.

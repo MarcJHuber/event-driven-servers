@@ -15,7 +15,7 @@
 <h1 class="title"><a name="AEN2" id="AEN2">TACACS+ NG</a></h1>
 <h3 class="author"><a name="AEN4" id="AEN4">Marc Huber</a></h3>
 <span class="releaseinfo">$Id:
-088d224b9af74421e9b1b02f7658b894f6a18a52 $<br></span>
+f7f6b4cc52a0911d055f2d4caf974bb8429e9c51 $<br></span>
 <hr></div>
 <div class="TOC">
 <dl>
@@ -112,9 +112,10 @@ Authorization</a></dt>
 <dt>8.1. <a href="#AEN2700">AD, Realms and Tenants</a></dt>
 </dl>
 </dd>
-<dt>9. <a href="#AEN2705">Bugs</a></dt>
-<dt>10. <a href="#AEN2719">References</a></dt>
-<dt>11. <a href="#AEN2729">Copyrights and Acknowledgements</a></dt>
+<dt>9. <a href="#AEN2705">Authorization rule tracing</a></dt>
+<dt>10. <a href="#AEN2722">Bugs</a></dt>
+<dt>11. <a href="#AEN2736">References</a></dt>
+<dt>12. <a href="#AEN2746">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -4422,7 +4423,106 @@ scripts anywhere else.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2705" id="AEN2705">9. Bugs</a></h2>
+<h2 class="section"><a name="AEN2705" id="AEN2705">9. Authorization
+rule tracing</a></h2>
+<p>The distribution includes the <tt class=
+"literal">tactrace.pl</tt> Perl script. It's usually not installed
+automatically, due to some Perl dependencies that need to be met.
+It requires a couple of CPAN Perl modules, and a custom one. You
+can try:</p>
+<pre class=
+"screen">sudo cpan install Net::IP Net::TacacsPlus::Packet</pre>
+<p>Then <tt class="literal">cd</tt> to <tt class=
+"literal">tac_plus-ng/perl</tt> and run <tt class=
+"literal">make</tt>. <tt class="literal">tactrace.pl</tt> should
+now be ready to use.</p>
+<p>Usage information:</p>
+<pre class="screen">tactrace.pl --help
+This is a TACACS+ authorization validator for tac_plus-ng.
+
+Usage: /usr/local/bin/tactrace.pl [ &lt;Options&gt; ] [ &lt;attributes&gt; ... ]
+
+&lt;attributes&gt; are the autorization AV pairs, default is:
+        "service=shell" "cmd*"
+
+Options:
+  --help                show this text
+  --defaults=&lt;file&gt;     read default settings from &lt;file&gt;
+  --username=&lt;username&gt; username [ubuntu]
+  --port=&lt;port&gt;         port [vty0]
+  --remote=&lt;client ip&gt;  remote client ip [127.0.0.1]
+  --key=&lt;key&gt;           encryption key [demo]
+  --realm=&lt;realm&gt;       realm [default]
+  --nad=&lt;address&gt;       NAD (router/switch/...) IP address [127.0.0.1]
+  --authentype=&lt;n&gt;      authen_type [1]
+  --authenmethod=&lt;n&gt;    authen_method [1]
+  --exec=&lt;path&gt;         executable path [/usr/local/sbin/tac_plus-ng]
+  --conf=&lt;config&gt;       configuration file [/usr/local/etc/tac_plus-ng.cfg]
+  --id=&lt;id&gt;             id for configuration selection [tac_plus-ng]</pre>
+<p>Exemple:</p>
+<pre class=
+"screen">$ tactrace.pl --user=demo --defa  ~/tactest/demo.pl
+18:21:42.769: 10.0.0.1 New session
+18:21:42.769: 10.0.0.1 ---&lt;start packet&gt;---
+18:21:42.769: 10.0.0.1 key used: demo
+18:21:42.769: 10.0.0.1 version: 192, type: 2, seq no: 1, flags: unencrypted
+18:21:42.769: 10.0.0.1 session id: 00000001, data length: 44
+18:21:42.769: 10.0.0.1 AUTHOR, priv_lvl=0
+18:21:42.769: 10.0.0.1 authen_type=ascii (1)
+18:21:42.769: 10.0.0.1 authen_method=none (1)
+18:21:42.769: 10.0.0.1 service=login (1)
+18:21:42.769: 10.0.0.1 user_len=4 port_len=4 rem_addr_len=9 arg_cnt=2
+18:21:42.769: 10.0.0.1 user (len: 4): demo
+18:21:42.769: 10.0.0.1 0000 64 65 6d 6f                                       demo
+18:21:42.769: 10.0.0.1 port (len: 4): vty0
+18:21:42.769: 10.0.0.1 0000 76 74 79 30                                       vty0
+18:21:42.769: 10.0.0.1 rem_addr (len: 9): 127.0.0.1
+18:21:42.769: 10.0.0.1 0000 31 32 37 2e 30 2e 30 2e  31                       127.0.0. 1
+18:21:42.769: 10.0.0.1 arg[0] (len: 13): service=shell
+18:21:42.769: 10.0.0.1 0000 73 65 72 76 69 63 65 3d  73 68 65 6c 6c           service= shell
+18:21:42.769: 10.0.0.1 arg[1] (len: 4): cmd=
+18:21:42.769: 10.0.0.1 0000 63 6d 64 3d                                       cmd=
+18:21:42.769: 10.0.0.1 ---&lt;end packet&gt;---
+18:21:42.769: 10.0.0.1 Start authorization request
+18:21:42.769: 10.0.0.1 user 'demo' found
+18:21:42.769: 10.0.0.1 demo@127.0.0.1: ACL from-rfc: permit (profile: engineering)
+18:21:42.769: 10.0.0.1 nas:service=shell (passed thru)
+18:21:42.769: 10.0.0.1 nas:cmd= (passed thru)
+18:21:42.769: 10.0.0.1 nas:absent srv:priv-lvl=15 -&gt; add priv-lvl=15 (k)
+18:21:42.769: 10.0.0.1 added 1 args
+18:21:42.769: 10.0.0.1 Writing AUTHOR/PASS_ADD size=42
+18:21:42.769: 10.0.0.1 ---&lt;start packet&gt;---
+18:21:42.769: 10.0.0.1 key used: demo
+18:21:42.769: 10.0.0.1 version: 192, type: 2, seq no: 2, flags: unencrypted
+18:21:42.769: 10.0.0.1 session id: 00000001, data length: 30
+18:21:42.769: 10.0.0.1 AUTHOR/REPLY, status=1 (AUTHOR/PASS_ADD)
+18:21:42.769: 10.0.0.1 msg_len=12, data_len=0, arg_cnt=1
+18:21:42.769: 10.0.0.1 msg (len: 12): commandline=
+18:21:42.769: 10.0.0.1 0000 63 6f 6d 6d 61 6e 64 6c  69 6e 65 3d              commandl ine=
+18:21:42.769: 10.0.0.1 data (len: 0):
+18:21:42.769: 10.0.0.1 arg[0] (len: 11): priv-lvl=15
+18:21:42.769: 10.0.0.1 0000 70 72 69 76 2d 6c 76 6c  3d 31 35                 priv-lvl =15
+18:21:42.769: 10.0.0.1 ---&lt;end packet&gt;---</pre>
+<p>The <tt class="literal">demo.pl</tt> file:</p>
+<pre class="screen">$ cat ~/tactest/demo.pl
+our $username = "demo";
+our $port = "vty0";
+our $remote = "172.16.0.10";
+our @args = ( "service=shell", "cmd=" );
+our $key = "demo";
+our $realm = "heck";
+our $nad = "10.0.0.1";
+our $authentype = 1;
+our $authenmethod = 1;
+our $exec = "/usr/local/sbin/tac_plus-ng";
+our $conf = "/where/ever/tac_plus-ng.cfg";
+our $cfgId = "tac_plus-ng";
+1;
+$</pre></div>
+<div class="section">
+<hr>
+<h2 class="section"><a name="AEN2722" id="AEN2722">10.
+Bugs</a></h2>
 <ul>
 <li>
 <p>There may still be some nasty bugs lurking in the code. Please
@@ -4450,7 +4550,7 @@ guidance.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2719" id="AEN2719">10.
+<h2 class="section"><a name="AEN2736" id="AEN2736">11.
 References</a></h2>
 <ul>
 <li>
@@ -4467,7 +4567,7 @@ System Plus (TACACS+) Protocol</a></p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2729" id="AEN2729">11. Copyrights
+<h2 class="section"><a name="AEN2746" id="AEN2746">12. Copyrights
 and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of
 individual files.</p>
@@ -4549,7 +4649,7 @@ with the distribution.</p>
 <li>
 <p>The end-user documentation included with the redistribution, if
 any, must include the following acknowledgment:</p>
-<a name="AEN2772" id="AEN2772"></a>
+<a name="AEN2789" id="AEN2789"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber
 (<code class="email">&lt;<a href=

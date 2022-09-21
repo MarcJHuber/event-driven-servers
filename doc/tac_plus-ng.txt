@@ -2,7 +2,7 @@ TACACS+ NG
 
 Marc Huber
 
-   $Id: 088d224b9af74421e9b1b02f7658b894f6a18a52 $
+   $Id: f7f6b4cc52a0911d055f2d4caf974bb8429e9c51 $
      __________________________________________________________
 
    Table of Contents
@@ -75,9 +75,10 @@ Marc Huber
 
         8.1. AD, Realms and Tenants
 
-   9. Bugs
-   10. References
-   11. Copyrights and Acknowledgements
+   9. Authorization rule tracing
+   10. Bugs
+   11. References
+   12. Copyrights and Acknowledgements
 
 1. Introduction
 
@@ -3033,7 +3034,115 @@ erAccount
    won't work in scripts anywhere else.
      __________________________________________________________
 
-9. Bugs
+9. Authorization rule tracing
+
+   The distribution includes the tactrace.pl Perl script. It's
+   usually not installed automatically, due to some Perl
+   dependencies that need to be met. It requires a couple of CPAN
+   Perl modules, and a custom one. You can try:
+sudo cpan install Net::IP Net::TacacsPlus::Packet
+
+   Then cd to tac_plus-ng/perl and run make. tactrace.pl should
+   now be ready to use.
+
+   Usage information:
+tactrace.pl --help
+This is a TACACS+ authorization validator for tac_plus-ng.
+
+Usage: /usr/local/bin/tactrace.pl [ <Options> ] [ <attributes> ... ]
+
+<attributes> are the autorization AV pairs, default is:
+        "service=shell" "cmd*"
+
+Options:
+  --help                show this text
+  --defaults=<file>     read default settings from <file>
+  --username=<username> username [ubuntu]
+  --port=<port>         port [vty0]
+  --remote=<client ip>  remote client ip [127.0.0.1]
+  --key=<key>           encryption key [demo]
+  --realm=<realm>       realm [default]
+  --nad=<address>       NAD (router/switch/...) IP address [127.0.0.1]
+  --authentype=<n>      authen_type [1]
+  --authenmethod=<n>    authen_method [1]
+  --exec=<path>         executable path [/usr/local/sbin/tac_plus-ng]
+  --conf=<config>       configuration file [/usr/local/etc/tac_plus-ng.c
+fg]
+  --id=<id>             id for configuration selection [tac_plus-ng]
+
+   Exemple:
+$ tactrace.pl --user=demo --defa  ~/tactest/demo.pl
+18:21:42.769: 10.0.0.1 New session
+18:21:42.769: 10.0.0.1 ---<start packet>---
+18:21:42.769: 10.0.0.1 key used: demo
+18:21:42.769: 10.0.0.1 version: 192, type: 2, seq no: 1, flags: unencryp
+ted
+18:21:42.769: 10.0.0.1 session id: 00000001, data length: 44
+18:21:42.769: 10.0.0.1 AUTHOR, priv_lvl=0
+18:21:42.769: 10.0.0.1 authen_type=ascii (1)
+18:21:42.769: 10.0.0.1 authen_method=none (1)
+18:21:42.769: 10.0.0.1 service=login (1)
+18:21:42.769: 10.0.0.1 user_len=4 port_len=4 rem_addr_len=9 arg_cnt=2
+18:21:42.769: 10.0.0.1 user (len: 4): demo
+18:21:42.769: 10.0.0.1 0000 64 65 6d 6f
+      demo
+18:21:42.769: 10.0.0.1 port (len: 4): vty0
+18:21:42.769: 10.0.0.1 0000 76 74 79 30
+      vty0
+18:21:42.769: 10.0.0.1 rem_addr (len: 9): 127.0.0.1
+18:21:42.769: 10.0.0.1 0000 31 32 37 2e 30 2e 30 2e  31
+      127.0.0. 1
+18:21:42.769: 10.0.0.1 arg[0] (len: 13): service=shell
+18:21:42.769: 10.0.0.1 0000 73 65 72 76 69 63 65 3d  73 68 65 6c 6c
+      service= shell
+18:21:42.769: 10.0.0.1 arg[1] (len: 4): cmd=
+18:21:42.769: 10.0.0.1 0000 63 6d 64 3d
+      cmd=
+18:21:42.769: 10.0.0.1 ---<end packet>---
+18:21:42.769: 10.0.0.1 Start authorization request
+18:21:42.769: 10.0.0.1 user 'demo' found
+18:21:42.769: 10.0.0.1 demo@127.0.0.1: ACL from-rfc: permit (profile: en
+gineering)
+18:21:42.769: 10.0.0.1 nas:service=shell (passed thru)
+18:21:42.769: 10.0.0.1 nas:cmd= (passed thru)
+18:21:42.769: 10.0.0.1 nas:absent srv:priv-lvl=15 -> add priv-lvl=15 (k)
+18:21:42.769: 10.0.0.1 added 1 args
+18:21:42.769: 10.0.0.1 Writing AUTHOR/PASS_ADD size=42
+18:21:42.769: 10.0.0.1 ---<start packet>---
+18:21:42.769: 10.0.0.1 key used: demo
+18:21:42.769: 10.0.0.1 version: 192, type: 2, seq no: 2, flags: unencryp
+ted
+18:21:42.769: 10.0.0.1 session id: 00000001, data length: 30
+18:21:42.769: 10.0.0.1 AUTHOR/REPLY, status=1 (AUTHOR/PASS_ADD)
+18:21:42.769: 10.0.0.1 msg_len=12, data_len=0, arg_cnt=1
+18:21:42.769: 10.0.0.1 msg (len: 12): commandline=
+18:21:42.769: 10.0.0.1 0000 63 6f 6d 6d 61 6e 64 6c  69 6e 65 3d
+      commandl ine=
+18:21:42.769: 10.0.0.1 data (len: 0):
+18:21:42.769: 10.0.0.1 arg[0] (len: 11): priv-lvl=15
+18:21:42.769: 10.0.0.1 0000 70 72 69 76 2d 6c 76 6c  3d 31 35
+      priv-lvl =15
+18:21:42.769: 10.0.0.1 ---<end packet>---
+
+   The demo.pl file:
+$ cat ~/tactest/demo.pl
+our $username = "demo";
+our $port = "vty0";
+our $remote = "172.16.0.10";
+our @args = ( "service=shell", "cmd=" );
+our $key = "demo";
+our $realm = "heck";
+our $nad = "10.0.0.1";
+our $authentype = 1;
+our $authenmethod = 1;
+our $exec = "/usr/local/sbin/tac_plus-ng";
+our $conf = "/where/ever/tac_plus-ng.cfg";
+our $cfgId = "tac_plus-ng";
+1;
+$
+     __________________________________________________________
+
+10. Bugs
 
      * There may still be some nasty bugs lurking in the code.
        Please contact the author via the "Event-Driven Servers"
@@ -3048,7 +3157,7 @@ erAccount
        configuration syntax guidance.
      __________________________________________________________
 
-10. References
+11. References
 
      * draft-grant-tacacs-02.txt ‐ The TACACS+ Protocol (Version
        1.78)
@@ -3056,7 +3165,7 @@ erAccount
        System Plus (TACACS+) Protocol
      __________________________________________________________
 
-11. Copyrights and Acknowledgements
+12. Copyrights and Acknowledgements
 
    Please see the source for copyright and licensing information
    of individual files.
