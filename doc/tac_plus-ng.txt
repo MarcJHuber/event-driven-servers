@@ -2,7 +2,7 @@ TACACS+ NG
 
 Marc Huber
 
-   $Id: f7f6b4cc52a0911d055f2d4caf974bb8429e9c51 $
+   $Id: 832e4b86ac6a7b1f8fdf15a6380438d3675d3df0 $
      __________________________________________________________
 
    Table of Contents
@@ -3046,7 +3046,7 @@ sudo cpan install Net::IP Net::TacacsPlus::Packet
    now be ready to use.
 
    Usage information:
-tactrace.pl --help
+$ tactrace.pl --help
 This is a TACACS+ authorization validator for tac_plus-ng.
 
 Usage: /usr/local/bin/tactrace.pl [ <Options> ] [ <attributes> ... ]
@@ -3072,57 +3072,51 @@ fg]
 
    Example:
 $ tactrace.pl --user=demo --defa  ~/tactest/demo.pl
-18:21:42.769: 10.0.0.1 New session
-18:21:42.769: 10.0.0.1 ---<start packet>---
-18:21:42.769: 10.0.0.1 key used: demo
-18:21:42.769: 10.0.0.1 version: 192, type: 2, seq no: 1, flags: unencryp
-ted
-18:21:42.769: 10.0.0.1 session id: 00000001, data length: 44
-18:21:42.769: 10.0.0.1 AUTHOR, priv_lvl=0
-18:21:42.769: 10.0.0.1 authen_type=ascii (1)
-18:21:42.769: 10.0.0.1 authen_method=none (1)
-18:21:42.769: 10.0.0.1 service=login (1)
-18:21:42.769: 10.0.0.1 user_len=4 port_len=4 rem_addr_len=9 arg_cnt=2
-18:21:42.769: 10.0.0.1 user (len: 4): demo
-18:21:42.769: 10.0.0.1 0000 64 65 6d 6f
-      demo
-18:21:42.769: 10.0.0.1 port (len: 4): vty0
-18:21:42.769: 10.0.0.1 0000 76 74 79 30
-      vty0
-18:21:42.769: 10.0.0.1 rem_addr (len: 9): 127.0.0.1
-18:21:42.769: 10.0.0.1 0000 31 32 37 2e 30 2e 30 2e  31
-      127.0.0. 1
-18:21:42.769: 10.0.0.1 arg[0] (len: 13): service=shell
-18:21:42.769: 10.0.0.1 0000 73 65 72 76 69 63 65 3d  73 68 65 6c 6c
-      service= shell
-18:21:42.769: 10.0.0.1 arg[1] (len: 4): cmd=
-18:21:42.769: 10.0.0.1 0000 63 6d 64 3d
-      cmd=
-18:21:42.769: 10.0.0.1 ---<end packet>---
-18:21:42.769: 10.0.0.1 Start authorization request
-18:21:42.769: 10.0.0.1 user 'demo' found
-18:21:42.769: 10.0.0.1 demo@127.0.0.1: ACL from-rfc: permit (profile: en
-gineering)
-18:21:42.769: 10.0.0.1 nas:service=shell (passed thru)
-18:21:42.769: 10.0.0.1 nas:cmd= (passed thru)
-18:21:42.769: 10.0.0.1 nas:absent srv:priv-lvl=15 -> add priv-lvl=15 (k)
-18:21:42.769: 10.0.0.1 added 1 args
-18:21:42.769: 10.0.0.1 Writing AUTHOR/PASS_ADD size=42
-18:21:42.769: 10.0.0.1 ---<start packet>---
-18:21:42.769: 10.0.0.1 key used: demo
-18:21:42.769: 10.0.0.1 version: 192, type: 2, seq no: 2, flags: unencryp
-ted
-18:21:42.769: 10.0.0.1 session id: 00000001, data length: 30
-18:21:42.769: 10.0.0.1 AUTHOR/REPLY, status=1 (AUTHOR/PASS_ADD)
-18:21:42.769: 10.0.0.1 msg_len=12, data_len=0, arg_cnt=1
-18:21:42.769: 10.0.0.1 msg (len: 12): commandline=
-18:21:42.769: 10.0.0.1 0000 63 6f 6d 6d 61 6e 64 6c  69 6e 65 3d
-      commandl ine=
-18:21:42.769: 10.0.0.1 data (len: 0):
-18:21:42.769: 10.0.0.1 arg[0] (len: 11): priv-lvl=15
-18:21:42.769: 10.0.0.1 0000 70 72 69 76 2d 6c 76 6c  3d 31 35
-      priv-lvl =15
-18:21:42.769: 10.0.0.1 ---<end packet>---
+10.0.0.1 New session
+10.0.0.1 ---<start packet>---
+10.0.0.1 key used: demo
+10.0.0.1 version: 192, type: 2, seq no: 1, flags: unencrypted
+10.0.0.1 session id: 00000001, data length: 44
+10.0.0.1 AUTHOR, priv_lvl=0
+10.0.0.1 authen_type=ascii (1)
+10.0.0.1 authen_method=none (1)
+10.0.0.1 service=login (1)
+10.0.0.1 user_len=4 port_len=4 rem_addr_len=9 arg_cnt=2
+10.0.0.1 user (len: 4): demo
+10.0.0.1 0000 64 65 6d 6f                                       demo
+10.0.0.1 port (len: 4): vty0
+10.0.0.1 0000 76 74 79 30                                       vty0
+10.0.0.1 rem_addr (len: 9): 127.0.0.1
+10.0.0.1 0000 31 32 37 2e 30 2e 30 2e  31                       127.0.0.
+ 1
+10.0.0.1 arg[0] (len: 13): service=shell
+10.0.0.1 0000 73 65 72 76 69 63 65 3d  73 68 65 6c 6c           service=
+ shell
+10.0.0.1 arg[1] (len: 4): cmd=
+10.0.0.1 0000 63 6d 64 3d                                       cmd=
+10.0.0.1 ---<end packet>---
+10.0.0.1 Start authorization request
+10.0.0.1 user 'demo' found
+10.0.0.1 demo@127.0.0.1: ACL from-rfc: permit (profile: engineering)
+10.0.0.1 nas:service=shell (passed thru)
+10.0.0.1 nas:cmd= (passed thru)
+10.0.0.1 nas:absent srv:priv-lvl=15 -> add priv-lvl=15 (k)
+10.0.0.1 added 1 args
+10.0.0.1 Writing AUTHOR/PASS_ADD size=42
+10.0.0.1 ---<start packet>---
+10.0.0.1 key used: demo
+10.0.0.1 version: 192, type: 2, seq no: 2, flags: unencrypted
+10.0.0.1 session id: 00000001, data length: 30
+10.0.0.1 AUTHOR/REPLY, status=1 (AUTHOR/PASS_ADD)
+10.0.0.1 msg_len=12, data_len=0, arg_cnt=1
+10.0.0.1 msg (len: 12): commandline=
+10.0.0.1 0000 63 6f 6d 6d 61 6e 64 6c  69 6e 65 3d              commandl
+ ine=
+10.0.0.1 data (len: 0):
+10.0.0.1 arg[0] (len: 11): priv-lvl=15
+10.0.0.1 0000 70 72 69 76 2d 6c 76 6c  3d 31 35                 priv-lvl
+ =15
+10.0.0.1 ---<end packet>---
 
    The demo.pl file:
 $ cat ~/tactest/demo.pl
