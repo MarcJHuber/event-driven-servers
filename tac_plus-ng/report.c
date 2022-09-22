@@ -80,8 +80,7 @@ void report(tac_session * session, int priority, int level, char *fmt, ...)
 
     if ((common_data.debug & level) || (session && (session->debug & level))) {
 	if (common_data.debug & DEBUG_TACTRACE_FLAG) {
-	    fprintf(stderr, "%s.%.3lu: %s %s\n",
-		    now, (u_long) io_now.tv_usec / 1000,
+	    fprintf(stderr, "%s %s\n",
 		    (session && session->ctx && session->ctx->nas_address_ascii) ? session->ctx->nas_address_ascii : "-", msg);
 	    fflush(stderr);
 	} else if (common_data.debugtty || common_data.debug_redirected || (common_data.debug & DEBUG_TACTRACE_FLAG)) {
