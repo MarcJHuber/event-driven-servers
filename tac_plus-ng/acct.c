@@ -69,6 +69,9 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
 
     report(session, LOG_DEBUG, DEBUG_ACCT_FLAG, "Start accounting request");
 
+    session->priv_lvl = acct->priv_lvl;
+    session->privlvl_len = snprintf(session->privlvl, sizeof(session->privlvl), "%u", session->priv_lvl);
+
     if (acct->flags & TAC_PLUS_ACCT_FLAG_STOP) {
 	session->acct_type = "stop";
 	session->acct_type_len = 4;
