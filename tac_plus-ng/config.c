@@ -2931,6 +2931,7 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
     case S_authen_type:
     case S_authen_service:
     case S_authen_method:
+    case S_privlvl:
     case S_vrf:
 #ifdef WITH_TLS
     case S_tls_conn_version:
@@ -3056,7 +3057,7 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
 
     default:
 	parse_error_expect(sym, S_leftbra, S_exclmark, S_acl, S_time, S_arg, S_cmd, S_context, S_nac, S_nas, S_nasname, S_nacname, S_port, S_user, S_member,
-			   S_memberof, S_password, S_service, S_protocol, S_authen_action, S_authen_type, S_authen_service, S_authen_method, S_vrf, S_dn,
+			   S_memberof, S_password, S_service, S_protocol, S_authen_action, S_authen_type, S_authen_service, S_authen_method, S_privlvl, S_vrf, S_dn,
 #ifdef WITH_TLS
 			   S_tls_conn_version, S_tls_conn_cipher, S_tls_peer_cert_issuer, S_tls_peer_cert_subject, S_tls_conn_cipher_strength, S_tls_peer_cn,
 #endif
@@ -3237,6 +3238,9 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 	    break;
 	case S_authen_method:
 	    v = session->authen_method;
+	    break;
+	case S_privlvl:
+	    v = session->privlvl;
 	    break;
 	case S_vrf:
 	    v = session->ctx->vrf;
