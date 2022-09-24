@@ -185,13 +185,16 @@ char *summarise_outgoing_packet_type(tac_pak_hdr * hdr)
 
 static void dump_header(tac_session * session, tac_pak_hdr * hdr, int bogus)
 {
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "key used: %s", session->ctx->key ? session->ctx->key->key : "<NULL>");
+    if (!(common_data.debug & DEBUG_TACTRACE_FLAG)) {
+	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "key used: %s", session->ctx->key ? session->ctx->key->key : "<NULL>");
 
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG,
-	   "version: %d, type: %d, seq no: %d, flags: %s%sencrypted%s%s",
-	   hdr->version, hdr->type, hdr->seq_no,
-	   common_data.font_blue,
-	   hdr->flags & TAC_PLUS_UNENCRYPTED_FLAG ? "un" : "", hdr->flags & TAC_PLUS_SINGLE_CONNECT_FLAG ? " single-connect" : "", common_data.font_plain);
+	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG,
+	       "version: %d, type: %d, seq no: %d, flags: %s%sencrypted%s%s",
+	       hdr->version, hdr->type, hdr->seq_no,
+	       common_data.font_blue,
+	       hdr->flags & TAC_PLUS_UNENCRYPTED_FLAG ? "un" : "", hdr->flags & TAC_PLUS_SINGLE_CONNECT_FLAG ? " single-connect" : "",
+	       common_data.font_plain);
+    }
 
     report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "session id: %.8x, data length: %d", (unsigned int) ntohl(hdr->session_id), (int) ntohl(hdr->datalength));
 
