@@ -59,6 +59,7 @@ AV_CHAR_START
 #define AV_CHAR(A,B) A,B
 #else
 #define AV_CHAR(A,B)
+extern char *av_char[];
 #endif
 
 

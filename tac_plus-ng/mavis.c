@@ -198,6 +198,34 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    if (tacmember && !*tacmember)
 		tacmember = NULL;
 
+	    if (common_data.debug & (DEBUG_MAVIS_FLAG | DEBUG_TACTRACE_FLAG)) {
+		int i;
+		report(session, LOG_INFO, ~0, "user found in MAVIS backend, av pairs:");
+		for (i = 0; i < AV_A_ARRAYSIZE; i++)
+		    switch (i) {
+		    case AV_A_USER:
+		    case AV_A_DN:
+		    case AV_A_MEMBEROF:
+		    case AV_A_USER_RESPONSE:
+		    case AV_A_SERVERIP:
+		    case AV_A_IPADDR:
+		    case AV_A_REALM:
+		    case AV_A_TACPROFILE:
+		    case AV_A_TACMEMBER:
+		    case AV_A_SSHKEYHASH:
+		    case AV_A_PATH:
+		    case AV_A_UID:
+		    case AV_A_GID:
+		    case AV_A_HOME:
+		    case AV_A_ROOT:
+		    case AV_A_SHELL:
+		    case AV_A_GIDS:
+			if (avc->arr[i])
+			    fprintf(stderr, "  %-20s%s\n", av_char[i], avc->arr[i]);
+		    default:;
+		    }
+	    }
+
 	    if (!u || tacmember
 #ifdef TPNG_EXPERIMENTAL
 		|| sshkeyhash
