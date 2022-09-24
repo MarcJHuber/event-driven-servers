@@ -1802,9 +1802,8 @@ static void parse_member(struct sym *sym, tac_groups ** groups, memlist_t * meml
 	tac_group *g = lookup_group(sym->buf, r);
 	if (g)
 	    tac_group_add(g, *groups, memlist);
-	else
+	else if (!setjmp(sym->env))
 	    parse_error(sym, "Group '%s' not found.", sym->buf);
-
 
 	sym_get(sym);
     }
