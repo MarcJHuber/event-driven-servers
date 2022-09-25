@@ -704,6 +704,7 @@ syslog default = deny
    ${vrf} Name of the current socket IPv4 vrf, supported on Linux
    (requires sysctl net.ipv4.tcp_l3mdev_accept=1) and possibly
    OpenBSD.
+   ${realm} realm name
    ${uid} UID from PAM backend
    ${gid} GID from PAM backend
    ${gids} GIDs from PAM backend
