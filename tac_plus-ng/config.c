@@ -3302,7 +3302,7 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 	    break;
 	case S_dn:
 	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_DN])
-		v = session->protocol;
+		v = session->user->avc->arr[AV_A_DN];
 	    break;
 	case S_memberof:
 	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_MEMBEROF]) {
