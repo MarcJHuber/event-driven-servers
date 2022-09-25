@@ -245,7 +245,7 @@ static void do_author(tac_session * session)
 
     if (session->mavisauth_res == TAC_PLUS_AUTHEN_STATUS_ERROR) {
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s': backend failure", session->username);
-	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_ERROR, NULL, NULL, 0, NULL);
+	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_ERROR, session->message, NULL, 0, NULL);
 	return;
     }
 
@@ -253,11 +253,11 @@ static void do_author(tac_session * session)
 	if ((session->ctx->host->authz_if_authc == TRISTATE_YES) && session->pak_authen_method != TAC_PLUS_AUTHEN_METH_TACACSPLUS
 	    && session->pak_authen_type == TAC_PLUS_AUTHEN_TYPE_ASCII) {
 	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s' not found but authenticated locally, permitted by default", session->username);
-	    send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_PASS_ADD, NULL, NULL, 0, NULL);
+	    send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_PASS_ADD, session->message, NULL, 0, NULL);
 	    return;
 	}
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s' not found, denied by default", session->username);
-	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, NULL, NULL, 0, NULL);
+	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
 	return;
     }
 
@@ -300,7 +300,7 @@ static void do_author(tac_session * session)
     session->cmdline_len = tlen;
 
     if (bad_nas_args(session, data)) {
-	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, NULL, NULL, 0, NULL);
+	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
 	return;
     }
 
@@ -313,13 +313,13 @@ static void do_author(tac_session * session)
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG,
 	       "%s@%s: svcname=%s protocol=%s denied", session->username, session->ctx->nas_address_ascii, session->service ? session->service : "",
 	       session->protocol ? session->protocol : "");
-	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, NULL, NULL, 0, NULL);
+	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
 	return;
     default:
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG,
 	       "%s@%s: svcname=%s protocol=%s not found",
 	       session->username, session->ctx->nas_address_ascii, session->service ? session->service : "", session->protocol ? session->protocol : "");;
-	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, NULL, NULL, 0, NULL);
+	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
 	return;
     case S_permit:
 	data->status = TAC_PLUS_AUTHOR_STATUS_PASS_ADD;
@@ -366,7 +366,7 @@ static void do_author(tac_session * session)
 	     * is to deny */
 	    if (session->attr_dflt != S_permit) {
 		report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "nas:%s svr:absent/deny -> denied (c)", na);
-		send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, NULL, NULL, 0, NULL);
+		send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
 		return;
 	    }
 	} else {
