@@ -811,10 +811,15 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
     r = config.default_realm;
     if (*sd->realm)
 	r = lookup_realm(sd->realm, r);
+    if (!r)
+	r = config.default_realm;
 
     // Still at the default realm? Try the VRF name:
     if (vrf_len && (r == config.default_realm))
 	r = lookup_realm(vrf, r);
+
+    if (!r)
+	r = config.default_realm;
 
     rxt = lookup_hosttree(r);
     if (rxt)
