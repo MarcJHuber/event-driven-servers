@@ -304,6 +304,16 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 	res |= write_av(*ac, fn, AV_A_TACPROFILE);
 	res |= write_av(*ac, fn, AV_A_TACCLIENT);
 	res |= write_av(*ac, fn, AV_A_TACMEMBER);
+	res |= write_av(*ac, fn, AV_A_UID);
+	res |= write_av(*ac, fn, AV_A_GID);
+	res |= write_av(*ac, fn, AV_A_GIDS);
+	res |= write_av(*ac, fn, AV_A_HOME);
+	res |= write_av(*ac, fn, AV_A_ROOT);
+	res |= write_av(*ac, fn, AV_A_SHELL);
+	res |= write_av(*ac, fn, AV_A_PATH);
+	res |= write_av(*ac, fn, AV_A_DN);
+	res |= write_av(*ac, fn, AV_A_MEMBEROF);
+	res |= write_av(*ac, fn, AV_A_SSHKEYHASH);
 	res |= (-1 == close(fn));
 	if (res)
 	    unlink(mcx->hashfile_tmp);
