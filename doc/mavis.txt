@@ -401,6 +401,9 @@ admin:whatever:10000:10001,10002:real:/home/customers:/admin
 
 5.2.4. The cache module
 
+   Please note that this module doesn't support
+   tac_plus/tac_plus-ng. These do their own caching.
+
    This module stores the most recently answered queries in RAM
    for faster processing of subsequent queries for the same data.
    For most applications, it has to be loaded after the auth
