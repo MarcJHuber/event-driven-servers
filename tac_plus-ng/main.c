@@ -778,9 +778,6 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
     else
 	nad_address = &from;
 
-    if (!peer || !*peer)
-	peer = "<unknown>";
-
     su_convert(nad_address, AF_INET);
     su_ptoh(nad_address, &addr);
 
@@ -845,6 +842,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	ctx->proxy_addr_ascii = mempool_strdup(ctx->pool, peer);
 	ctx->proxy_addr_ascii_len = strlen(peer);
     }
+
     ctx->nas_address = addr;	// FIXME, use origin
     ctx->nas_dns_name = radix_lookup(dns_tree_ptr_static, &addr, NULL);	// FIXME
     if (vrf_len)
