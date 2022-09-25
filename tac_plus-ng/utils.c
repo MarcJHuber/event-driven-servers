@@ -1093,7 +1093,7 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 			s = session->user->avc->arr[AV_A_GID];
 			break;
 		    case S_home:
-			s = av_get(session->user->avc, AV_A_HOME);
+			s = session->user->avc->arr[AV_A_HOME];
 			break;
 		    case S_root:
 			s = session->user->avc->arr[AV_A_ROOT];
