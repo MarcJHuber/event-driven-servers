@@ -860,6 +860,7 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_memberof:
 	    case S_dn:
 	    case S_vrf:
+	    case S_realm:
 	    case S_label:
 	    case S_tls_conn_version:
 	    case S_tls_conn_cipher:
@@ -1144,6 +1145,10 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	    case S_vrf:
 		s = ctx->vrf;
 		len = ctx->vrf_len;
+		break;
+	    case S_realm:
+		s = ctx->realm->name;
+		len = ctx->realm->name_len;
 		break;
 	    default:;
 	    }
