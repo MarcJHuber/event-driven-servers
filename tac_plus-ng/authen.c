@@ -297,7 +297,7 @@ static enum token lookup_and_set_user(tac_session * session)
 	session->passwdp = eval_passwd_acl(session);
     }
     report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "user lookup %s", session->user ? "succeded" : "failed");
-    return session->user ? S_permit : S_deny;
+    return session->user ? S_permit : S_unknown;
 }
 
 static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
@@ -414,7 +414,7 @@ static int check_access(tac_session * session, struct pwdat *pwdat, char *passwd
 		break;
 	    }
 	    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
-	} else if (pwdat)
+	} else if (pwdat && passwd)
 	    res = compare_pwdat(pwdat, passwd, hint);
 
 	if (S_permit != eval_ruleset(session, session->ctx->realm)) {
