@@ -112,7 +112,7 @@ Authorization</a></dt>
 <dt>8.1. <a href="#AEN2704">AD, Realms and Tenants</a></dt>
 </dl>
 </dd>
-<dt>9. <a href="#AEN2709">Authorization rule tracing</a></dt>
+<dt>9. <a href="#AEN2709">AAA rule tracing</a></dt>
 <dt>10. <a href="#AEN2728">Bugs</a></dt>
 <dt>11. <a href="#AEN2742">References</a></dt>
 <dt>12. <a href="#AEN2752">Copyrights and Acknowledgements</a></dt>
@@ -4427,8 +4427,8 @@ scripts anywhere else.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2709" id="AEN2709">9. Authorization
-rule tracing</a></h2>
+<h2 class="section"><a name="AEN2709" id="AEN2709">9. AAA rule
+tracing</a></h2>
 <p>The distribution includes the <tt class=
 "literal">tactrace.pl</tt> Perl script. It's usually not installed
 automatically, due to some Perl dependencies that need to be met.
@@ -4445,28 +4445,34 @@ sudo cpan install Net::TacacsPlus::Packet</pre>
 "literal">make</tt>. <tt class="literal">tactrace.pl</tt> should
 now be ready to use.</p>
 <p>Usage information:</p>
-<pre class="screen">$ tactrace.pl --help
-This is a TACACS+ authorization validator for tac_plus-ng.
+<pre class=
+"screen">$ This is a TACACS+ AAA validator for tac_plus-ng.
 
-Usage: /usr/local/bin/tactrace.pl [ &lt;Options&gt; ] [ &lt;attributes&gt; ... ]
+Usage: ./tactrace.pl [ &lt;Options&gt; ] [ &lt;attributes&gt; ... ]
 
-&lt;attributes&gt; are the autorization AV pairs, default is:
+attributes are authorization or accounting AV pairs, default is:
         "service=shell" "cmd*"
 
 Options:
   --help                show this text
   --defaults=&lt;file&gt;     read default settings from &lt;file&gt;
+  --mode=&lt;mode&gt;         authc, authz or acct [authz]
   --username=&lt;username&gt; username [ubuntu]
   --port=&lt;port&gt;         port [vty0]
   --remote=&lt;client ip&gt;  remote client ip [127.0.0.1]
   --key=&lt;key&gt;           encryption key [demo]
   --realm=&lt;realm&gt;       realm [default]
   --nad=&lt;address&gt;       NAD (router/switch/...) IP address [127.0.0.1]
-  --authentype=&lt;n&gt;      authen_type [1]
-  --authenmethod=&lt;n&gt;    authen_method [1]
+  --authentype=&lt;type&gt;   authen_type [ascii]
+  --authenmethod=&lt;n&gt;    authen_method [tacacsplus]
+  --authenservice=&lt;n&gt;   authen_method [login]
   --exec=&lt;path&gt;         executable path [/usr/local/sbin/tac_plus-ng]
   --conf=&lt;config&gt;       configuration file [/usr/local/etc/tac_plus-ng.cfg]
-  --id=&lt;id&gt;             id for configuration selection [tac_plus-ng]</pre>
+  --id=&lt;id&gt;             id for configuration selection [tac_plus-ng]
+
+For authc the password can be set either via the environment variable
+TACTRACEPASSWORD or the defaults file. Setting it via a CLI option isn't
+supported as the password would show up as clear text in the process listing.</pre>
 <p>Example:</p>
 <pre class=
 "screen">$ tactrace.pl --user=demo --defa  ~/tactest/demo.pl --user ubuntu
@@ -4564,8 +4570,6 @@ our @args = ( "service=shell", "cmd=" );
 our $key = "demo";
 our $realm = "heck";
 our $nad = "10.0.0.1";
-our $authentype = 1;
-our $authenmethod = 1;
 our $exec = "/usr/local/sbin/tac_plus-ng";
 our $conf = "/where/ever/tac_plus-ng.cfg";
 our $cfgId = "tac_plus-ng";

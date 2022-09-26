@@ -75,7 +75,7 @@ Marc Huber
 
         8.1. AD, Realms and Tenants
 
-   9. Authorization rule tracing
+   9. AAA rule tracing
    10. Bugs
    11. References
    12. Copyrights and Acknowledgements
@@ -3035,7 +3035,7 @@ erAccount
    won't work in scripts anywhere else.
      __________________________________________________________
 
-9. Authorization rule tracing
+9. AAA rule tracing
 
    The distribution includes the tactrace.pl Perl script. It's
    usually not installed automatically, due to some Perl
@@ -3052,29 +3052,35 @@ sudo cpan install Net::TacacsPlus::Packet
    now be ready to use.
 
    Usage information:
-$ tactrace.pl --help
-This is a TACACS+ authorization validator for tac_plus-ng.
+$ This is a TACACS+ AAA validator for tac_plus-ng.
 
-Usage: /usr/local/bin/tactrace.pl [ <Options> ] [ <attributes> ... ]
+Usage: ./tactrace.pl [ <Options> ] [ <attributes> ... ]
 
-<attributes> are the autorization AV pairs, default is:
+attributes are authorization or accounting AV pairs, default is:
         "service=shell" "cmd*"
 
 Options:
   --help                show this text
   --defaults=<file>     read default settings from <file>
+  --mode=<mode>         authc, authz or acct [authz]
   --username=<username> username [ubuntu]
   --port=<port>         port [vty0]
   --remote=<client ip>  remote client ip [127.0.0.1]
   --key=<key>           encryption key [demo]
   --realm=<realm>       realm [default]
   --nad=<address>       NAD (router/switch/...) IP address [127.0.0.1]
-  --authentype=<n>      authen_type [1]
-  --authenmethod=<n>    authen_method [1]
+  --authentype=<type>   authen_type [ascii]
+  --authenmethod=<n>    authen_method [tacacsplus]
+  --authenservice=<n>   authen_method [login]
   --exec=<path>         executable path [/usr/local/sbin/tac_plus-ng]
   --conf=<config>       configuration file [/usr/local/etc/tac_plus-ng.c
 fg]
   --id=<id>             id for configuration selection [tac_plus-ng]
+
+For authc the password can be set either via the environment variable
+TACTRACEPASSWORD or the defaults file. Setting it via a CLI option isn't
+supported as the password would show up as clear text in the process lis
+ting.
 
    Example:
 $ tactrace.pl --user=demo --defa  ~/tactest/demo.pl --user ubuntu
@@ -3183,8 +3189,6 @@ our @args = ( "service=shell", "cmd=" );
 our $key = "demo";
 our $realm = "heck";
 our $nad = "10.0.0.1";
-our $authentype = 1;
-our $authenmethod = 1;
 our $exec = "/usr/local/sbin/tac_plus-ng";
 our $conf = "/where/ever/tac_plus-ng.cfg";
 our $cfgId = "tac_plus-ng";
