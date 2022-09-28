@@ -72,7 +72,8 @@ Copyright (C) 2022 by Marc Huber <Marc.Huber\@web.de>
 
 Source code and documentation: http://www.pro-bono-publico.de/projects/
 
-Please direct support requests either to the "Event-Driven Servers" Google Group at
+Please direct support requests either to the "Event-Driven Servers" Google
+Group at
 
     event-driven-servers\@googlegroups.com
     http://groups.google.com/group/event-driven-servers
@@ -120,12 +121,11 @@ my %Authentype = ( "ascii" => 1, "pap" => 2 );
 die "--authentype=$authentype unknown, supported args are " . join(", ", keys %Authentype) unless exists $Authentype{$authentype};
 my %Authenmethod = ( "none" => 1, "krb5" => 2, "line" => 3, "enable" => 4, "local" => 5, "tacacsplus" => 6, "guest" => 8, "radius" => 0x10, "krb4" => 0x11, "rcmd" => 0x20 );
 die "--authenmethod=$authenmethod unknown, supported args are " . join(", ", keys %Authenmethod) unless exists $Authenmethod{$authenmethod};
-my %Authenservice = ( "login" => 1, "enable" => 2, "ppp" => 3, "pt"=> 5, "rcmd" => 6, "x25" => 7, "nasi" => 8 );
+my %Authenservice = ( "none" => 0, "login" => 1, "enable" => 2, "ppp" => 3, "pt"=> 5, "rcmd" => 6, "x25" => 7, "nasi" => 8 );
 die "--authenservice=$authenservice unknown, supported args are " . join(", ", keys %Authenservice) unless exists $Authenservice{$authenservice};
 
 # start tac_plus-ng:
-my($sock0, $sock1);
-socketpair($sock0, $sock1, AF_UNIX, SOCK_DGRAM, PF_UNIX) or die "socketpair: $!";
+socketpair(my $sock0, my $sock1, AF_UNIX, SOCK_DGRAM, PF_UNIX) or die "socketpair: $!";
 $sock0->autoflush(1);
 $sock1->autoflush(1);
 my $pid = fork();
@@ -134,14 +134,13 @@ if ($pid == 0) {
 	close $sock0;
 	POSIX::dup2 (fileno $sock1, 0) or die "POSIX::dup2: $!";
 	close $sock1;
-	exec($exec, "-d", "546", "-d", "4194304", $conf, $id);
+	exec($exec, "-d", "802", "-d", "4194304", $conf, $id);
 	die "exec: $!";;
 }
 close $sock1;
 
 # create a socket pair for packet injection and send the second fd to tac_plus-ng:
-my($conn0, $conn1);
-socketpair($conn0, $conn1, AF_UNIX, SOCK_STREAM, PF_UNIX) or die "socketpair: $!";
+socketpair(my $conn0, my $conn1, AF_UNIX, SOCK_STREAM, PF_UNIX) or die "socketpair: $!";
 Scm::scm_sendmsg_accept(fileno $sock0, 6, fileno $conn1, 1, $realm);
 
 # create a haproxy v2 header for NAD address simulation:
