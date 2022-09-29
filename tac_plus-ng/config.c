@@ -3178,8 +3178,8 @@ static int tac_script_cond_eval_res(tac_session * session, struct tac_script_con
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " eval line %u: %s => %s", m->line, codestring[m->type], r);
 	break;
     default:
-	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " eval line %u: %s '%s' %s '%s' => %s", m->line, codestring[m->u.s.token],
-	       m->u.s.lhs_txt ? m->u.s.lhs_txt : "", codestring[m->type], m->u.s.rhs_txt ? m->u.s.rhs_txt : "", r);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " eval line %u: [%s] %s%s%s '%s' => %s", m->line, codestring[m->u.s.token],
+	       m->u.s.lhs_txt ? m->u.s.lhs_txt : "",  m->u.s.lhs_txt ? " " : "", codestring[m->type], m->u.s.rhs_txt ? m->u.s.rhs_txt : "", r);
     }
 
     return res;
