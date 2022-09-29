@@ -3170,7 +3170,18 @@ static struct tac_script_cond *tac_script_cond_parse(struct sym *sym, tac_realm 
 
 static int tac_script_cond_eval_res(tac_session * session, struct tac_script_cond *m, int res)
 {
-    report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " eval line %u: => %s", m->line, res ? "true" : "false");
+    char *r = res ? "true" : "false";
+    switch (m->type) {
+    case S_exclmark:
+    case S_and:
+    case S_or:
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " eval line %u: %s => %s", m->line, codestring[m->type], r);
+	break;
+    default:
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " eval line %u: %s '%s' %s '%s' => %s", m->line, codestring[m->u.s.token],
+	       m->u.s.lhs_txt ? m->u.s.lhs_txt : "", codestring[m->type], m->u.s.rhs_txt ? m->u.s.rhs_txt : "", r);
+    }
+
     return res;
 }
 
@@ -3180,17 +3191,6 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
     char *v = NULL;
     if (!m)
 	return 0;
-
-    switch (m->type) {
-    case S_exclmark:
-    case S_and:
-    case S_or:
-	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " eval line %u: %s", m->line, codestring[m->type]);
-	break;
-    default:
-	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " eval line %u: %s '%s' %s '%s'", m->line, codestring[m->u.s.token], m->u.s.lhs_txt ? m->u.s.lhs_txt : "",
-	       codestring[m->type], m->u.s.rhs_txt ? m->u.s.rhs_txt : "");
-    }
 
     switch (m->type) {
     case S_exclmark:
