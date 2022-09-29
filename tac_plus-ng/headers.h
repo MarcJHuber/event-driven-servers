@@ -582,7 +582,6 @@ struct tac_session {
     struct in6_addr nac_address;	/* host byte order */
     char *username;
     size_t username_len;
-    char *final_match;
     char *password;
     char *password_new;
     char *password_bad;
@@ -594,6 +593,8 @@ struct tac_session {
     size_t nas_port_len;
     char *nac_address_ascii;
     size_t nac_address_ascii_len;
+    char *type;
+    size_t type_len;
     char *nac_dns_name;		/* DNS reverse mapping for NAC */
     size_t nac_dns_name_len;
     char *acct_type;
