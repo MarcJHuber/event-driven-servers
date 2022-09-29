@@ -659,6 +659,18 @@ void tac_write(struct context *ctx, int cur)
 	cleanup(ctx, cur);	// We only get here if shutdown(2) failed.
 }
 
+struct type_s {
+    char *str;
+    size_t str_len;
+};
+
+static struct type_s types[] = {
+    { "", 0 },
+    { "authen", 6 },
+    { "author", 6 },
+    { "acct", 4 }
+};
+
 static tac_session *new_session(struct context *ctx, tac_pak_hdr * hdr)
 {
     tac_session *session = mempool_malloc(ctx->pool, sizeof(tac_session));
@@ -670,7 +682,8 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr * hdr)
     session->seq_no = 1;
     session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     session->session_timeout = io_now.tv_sec + ctx->host->session_timeout;
-    session->final_match = NULL;
+    session->type = types[hdr->type & 3].str;
+    session->type_len = types[hdr->type & 3].str_len;
     RB_insert(ctx->sessions, session);
 
     if ((ctx->host->single_connection == TRISTATE_YES) && !ctx->single_connection_flag) {
