@@ -120,7 +120,7 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), char *type, e
     if (r->mavis_user_acl) {
 	enum token token = eval_tac_acl(session, r->mavis_user_acl);
 	if (token != S_permit) {
-	    report(session, LOG_ERR, ~0, "user %s looks bogus", session->username);
+	    report(session, LOG_ERR, ~0, "username '%s' looks bogus", session->username);
 	    f(session);
 	    return;
 	}
@@ -130,6 +130,8 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), char *type, e
 	f(session);
 	return;
     }
+
+    report(session, LOG_INFO, ~0, "looking for user %s in MAVIS backend", session->username);
 
     if (!session->mavis_data)
 	session->mavis_data = memlist_malloc(session->memlist, sizeof(struct mavis_data));
@@ -311,8 +313,10 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    session->user_is_session_specific = 1;
 		session->user = u;
 
-		if (strcmp(result, AV_V_RESULT_OK))
+		if (strcmp(result, AV_V_RESULT_OK)) {
+		    report(session, LOG_INFO, ~0, "verdict for user %s is %s", session->username, result);
 		    return;
+		}
 	    }
 	}
 
@@ -355,4 +359,6 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 	session->mavisauth_res_valid = 1;
     }
+    if (result)
+	report(session, LOG_INFO, ~0, "verdict for user %s is %s", session->username, result);
 }
