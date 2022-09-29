@@ -588,7 +588,7 @@ static void sym_from_file(struct sym *sym, char *url, struct sym *nsym)
 
     memset(sym, 0, sizeof(struct sym));
     sym->filename = strdup(url);
-    sym->line = 1;
+    sym->line = 0;
     sym->next = nsym;
 
     if (cfg_open_and_read(url, &buf, &buflen)) {
@@ -1003,7 +1003,7 @@ void cfg_read_config(char *url, void (*parsefunction)(struct sym *), char *id)
     clear_alias();
     memset(&sym, 0, sizeof(sym));
     sym.filename = url;
-    sym.line = 1;
+    sym.line = 0;
 
     sym.env_valid = 1;
     if (setjmp(sym.env)) {
