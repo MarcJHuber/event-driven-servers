@@ -835,6 +835,7 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_service:
 	    case S_result:
 	    case S_port:
+	    case S_type:
 	    case S_hint:
 	    case S_host:
 	    case S_hostname:
@@ -964,6 +965,10 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	    case S_port:
 		s = session->nas_port;
 		len = session->nas_port_len;
+		break;
+	    case S_type:
+		s = session->type;
+		len = session->type_len;
 		break;
 	    case S_hint:
 		s = session->hint;
