@@ -2667,18 +2667,18 @@ enum token eval_tac_acl(tac_session * session, struct tac_acl *acl)
 	enum token res = S_unknown;
 	struct tac_script_action *action = acl->action;
 	while (action) {
+	    report(session, LOG_DEBUG, DEBUG_ACL_FLAG, "evaluating ACL %s", acl->name);
 	    switch ((res = tac_script_eval_r(session, action))) {
 	    case S_permit:
 	    case S_deny:
+		report(session, LOG_DEBUG, DEBUG_ACL_FLAG | DEBUG_REGEX_FLAG, "ACL %s: %smatch%s", acl->name, res == S_permit ? "" : "no ", hint);
 		return res;
 	    default:
 		action = action->n;
 	    }
 	}
 
-	report(session, LOG_DEBUG,
-	       DEBUG_ACL_FLAG | DEBUG_REGEX_FLAG,
-	       "%s@%s: ACL %s: %smatch%s", session->username, session->nac_address_ascii, acl->name, res == S_permit ? "" : "no ", hint);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG | DEBUG_REGEX_FLAG, "ACL %s: %smatch%s", acl->name, res == S_permit ? "" : "no ", hint);
     }
     return S_unknown;
 }
@@ -3175,11 +3175,11 @@ static int tac_script_cond_eval_res(tac_session * session, struct tac_script_con
     case S_exclmark:
     case S_and:
     case S_or:
-	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " eval line %u: %s => %s", m->line, codestring[m->type], r);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] => %s", m->line, codestring[m->type], r);
 	break;
     default:
-	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " eval line %u: [%s] %s%s%s '%s' => %s", m->line, codestring[m->u.s.token],
-	       m->u.s.lhs_txt ? m->u.s.lhs_txt : "",  m->u.s.lhs_txt ? " " : "", codestring[m->type], m->u.s.rhs_txt ? m->u.s.rhs_txt : "", r);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] %s%s%s '%s' => %s", m->line, codestring[m->u.s.token],
+	       m->u.s.lhs_txt ? m->u.s.lhs_txt : "", m->u.s.lhs_txt ? " " : "", codestring[m->type], m->u.s.rhs_txt ? m->u.s.rhs_txt : "", r);
     }
 
     return res;
@@ -3414,22 +3414,29 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 	    res = !strcmp(v, (char *) (m->u.s.rhs));
 	    return tac_script_cond_eval_res(session, m, res);
 	}
-	if (m->type == S_slash) {
-	    res = -1;
+
+	{
+	    char *hint = "regex";
+	    if (m->type == S_slash) {
 #ifdef WITH_PCRE
-	    res = pcre_exec((pcre *) m->u.s.rhs, NULL, v, (int) strlen(v), 0, 0, NULL, 0);
-	    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre: '%s' <=> '%s' = %d", m->u.s.rhs_txt, v, res);
+		hint = "pcre";
+		res = pcre_exec((pcre *) m->u.s.rhs, NULL, v, (int) strlen(v), 0, 0, NULL, 0);
 #endif
 #ifdef WITH_PCRE2
-	    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.rhs, NULL);
-	    res = pcre2_match((pcre2_code *) m->u.s.rhs, (PCRE2_SPTR) v, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
-	    pcre2_match_data_free(match_data);
-	    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", m->u.s.rhs_txt, v, res);
+		hint = "pcre2";
+		pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.rhs, NULL);
+		res = pcre2_match((pcre2_code *) m->u.s.rhs, (PCRE2_SPTR) v, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
+		pcre2_match_data_free(match_data);
+		res = -1 < res;
 #endif
-	    res = -1 < res;
-	} else
-	    res = !regexec((regex_t *) m->u.s.rhs, v, 0, NULL, 0);
-	return tac_script_cond_eval_res(session, m, res);
+	    } else
+		res = !regexec((regex_t *) m->u.s.rhs, v, 0, NULL, 0);
+
+	    if (m->u.s.token == S_password && !(session->debug & DEBUG_USERINPUT_FLAG))
+		v = "<hidden>";
+	    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "%s: '%s' <=> '%s' = %d", hint, m->u.s.rhs_txt, v, res);
+	    return tac_script_cond_eval_res(session, m, res);
+	}
     default:;
     }
     return 0;
@@ -3441,29 +3448,35 @@ enum token tac_script_eval_r(tac_session * session, struct tac_script_action *m)
     char *v;
     if (!m)
 	return S_unknown;
-    report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " eval line %u: '%s'", m->line, codestring[m->code]);
     switch (m->code) {
     case S_return:
     case S_permit:
     case S_deny:
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s]", m->line, codestring[m->code]);
 	return m->code;
     case S_context:
 	tac_script_set_exec_context(session, session->username, session->nas_port, m->b.v);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s]", m->line, codestring[m->code]);
 	break;
     case S_message:
 	session->message = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->message_len);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code], session->message ? session->message : "");
 	break;
     case S_rewrite:
 	tac_rewrite_user(session, (tac_rewrite *) m->b.v);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s]", m->line, codestring[m->code]);
 	break;
     case S_label:
 	session->label = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->label_len);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code], session->label ? session->label : "");
 	break;
     case S_profile:
 	session->profile = (tac_profile *) (m->b.v);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code], session->profile->name);
 	break;
     case S_attr:
 	session->attr_dflt = (enum token) (long) (m->b.v);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code], codestring[session->attr_dflt]);
 	break;
     case S_add:
     case S_set:
@@ -3475,6 +3488,7 @@ enum token tac_script_eval_r(tac_session * session, struct tac_script_action *m)
 	    attr_add(session, &session->attrs_a, &session->cnt_a, v);
 	else			// S_optional
 	    attr_add(session, &session->attrs_o, &session->cnt_o, v);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code], v ? v : "");
 	break;
     case S_if:
 	if (tac_script_cond_eval(session, m->a.c)) {
@@ -3482,6 +3496,7 @@ enum token tac_script_eval_r(tac_session * session, struct tac_script_action *m)
 	    if (r != S_unknown)
 		return r;
 	} else if (m->c.a) {
+	    report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s]", m->line, codestring[S_else]);
 	    r = tac_script_eval_r(session, m->c.a);
 	    if (r != S_unknown)
 		return r;
