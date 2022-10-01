@@ -3091,7 +3091,7 @@ static void tac_script_cond_optimize(struct tac_script_cond **m)
     }
     if (*m)
 	for (i = 0; i < (*m)->u.m.n; i++)
-	    if ((*m)->type == S_or || (*m)->type == S_and)
+	    if ((*m)->type == S_or || (*m)->type == S_and || (*m)->type == S_exclmark)
 		tac_script_cond_optimize(&(*m)->u.m.e[i]);
 }
 
