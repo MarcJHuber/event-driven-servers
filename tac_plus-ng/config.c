@@ -3234,9 +3234,7 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 		res = radix_lookup(net->nettree, &session->ctx->nas_address, NULL) ? -1 : 0;
 		net = net->parent;
 	    }
-	    return tac_script_cond_eval_res(session, m, res);
-	}
-	if (session->nac_address_valid) {
+	} else if (session->nac_address_valid) {
 	    tac_net *net = (tac_net *) (m->u.s.rhs);
 	    while (!res && net) {
 		res = radix_lookup(net->nettree, &session->nac_address, NULL) ? -1 : 0;
@@ -3348,18 +3346,22 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 		memcpy(v, session->user->avc->arr[AV_A_MEMBEROF], l);
 		while (*v) {
 		    char *e;
-		    if (*v != '"')
-			return 0;
+		    if (*v != '"') {
+			report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " memberof attribute '%s' is malformed (missing '\"')",
+			       session->user->avc->arr[AV_A_MEMBEROF]);
+			return tac_script_cond_eval_res(session, m, 0);
+		    }
 		    v++;
 		    for (e = v; *e && *e != '"'; e++);
-		    if (*e != '"')
-			return 0;
+		    if (*e != '"') {
+			report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " memberof attribute '%s' is malformed (missing '\"')",
+			       session->user->avc->arr[AV_A_MEMBEROF]);
+			return tac_script_cond_eval_res(session, m, 0);
+		    }
 		    *e++ = 0;
 		    // perforv checks
 		    if (m->type == S_equal) {
 			res = !strcasecmp(v, (char *) (m->u.s.rhs));
-			if (res)
-			    return tac_script_cond_eval_res(session, m, res);
 		    } else if (m->type == S_slash) {
 			res = -1;
 #ifdef WITH_PCRE
@@ -3371,18 +3373,19 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 			res = pcre2_match((pcre2_code *) m->u.s.rhs, (PCRE2_SPTR) v, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
 			pcre2_match_data_free(match_data);
 			report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", m->u.s.rhs_txt, v, res);
-#endif
 			res = -1 < res;
-			if (res)
-			    return tac_script_cond_eval_res(session, m, res);
+#endif
 		    } else {
 			res = !regexec((regex_t *) m->u.s.rhs, v, 0, NULL, 0);
-			if (res)
-			    return tac_script_cond_eval_res(session, m, res);
 		    }
+		    if (res)
+			return tac_script_cond_eval_res(session, m, res);
 		    v = e;
-		    if (!*v || *v != ',')
-			return 0;
+		    if (!*v || *v != ',') {
+			report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " memberof attribute '%s' is malformed (expected a ',')",
+			       session->user->avc->arr[AV_A_MEMBEROF]);
+			return tac_script_cond_eval_res(session, m, 0);
+		    }
 		    v++;
 		}
 	    }
