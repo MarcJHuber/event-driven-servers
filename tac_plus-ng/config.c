@@ -3099,7 +3099,7 @@ static struct tac_script_cond *tac_script_cond_parse(struct sym *sym, tac_realm 
 {
     if (sym->code == S_leftbra) {
 	struct sym mysym;
-	char buf[4096];
+	char buf[40960];
 	char *b = buf, *p;
 	int bc = 1;
 	struct tac_script_cond *m;
