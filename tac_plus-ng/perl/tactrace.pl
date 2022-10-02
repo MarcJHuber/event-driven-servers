@@ -145,13 +145,12 @@ Scm::scm_sendmsg_accept(fileno $sock0, 6, fileno $conn1, 1, $realm);
 
 # create a haproxy v2 header for NAD address simulation:
 my $src = new Net::IP($nad) or die Net::IP::Error();
-my $hexip = $src->hexip();
-$hexip =~ s/^0x//;
+my @binip = ($src->binip() =~ /(.{8})/g);
 my ($pad, $fam, $famlen) = (8, 0x11, 12);
 ($pad, $fam, $famlen) = (20, 0x21, 36) if $src->version == 6;
-my $phdr = pack('W' x 16 . 'h*' . 'W' x $pad,
+my $phdr = pack('W' x 16 . 'B8' x ($#binip + 1) . 'W' x $pad,
 	0x0D, 0x0A, 0x0D, 0x0A, 0x00, 0x0D, 0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A, 0x20, 
-	$fam, $famlen >> 8, $famlen & 0xff, $hexip, 0 x $pad);
+	$fam, $famlen >> 8, $famlen & 0xff, @binip, 0 x $pad);
 syswrite($conn0, $phdr, 16 + $famlen) or die "syswrite: $!";;
 
 # create a TACACS+ $mode packet and send it to tac_plus-ng:
