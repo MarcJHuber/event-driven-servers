@@ -322,8 +322,6 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 			g = getgrgid((gid_t) u);
 			if (g) {
 			    ssize_t l;
-			    if (!good_name(mcx->groups_regex, g->gr_name))
-				continue;
 			    l = strlen(g->gr_name);
 			    if (b + sizeof(b) - p - 2 > l) {
 				if (b[0])
@@ -343,42 +341,86 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 	}
     }
 
+    s = av_get(*ac, AV_A_TACMEMBER);
+    if (s) {
+	size_t len = strlen(s) + 1;
+	char *v = alloca(len);
+	char *b = alloca(len);
+	char *p = b;
+	*p = 0;
+	memcpy(v, s, len);
+	while (*v) {
+	    char *e;
+	    int quoted = 0;
+
+	    quoted = (*v == '"');
+	    if (quoted)
+		v++;
+	    for (e = v; *e && *e != ','; e++);
+	    if (quoted && *(e - 1) != '"')
+		break;
+	    if (quoted)
+		*(e - 1) = 0;
+	    *e++ = 0;
+	    if (good_name(mcx->groups_regex, v)) {
+		if (*b)
+		    *p++ = ',';
+		if (quoted)
+		    *p++ = '"';
+		len = strlen(v);
+		strncpy(p, v, len);
+		p += len;
+		if (quoted)
+		    *p++ = '"';
+		*p = 0;
+	    }
+	    v = e;
+	    if (!*v || *v != ',')
+		break;
+	    v++;
+	}
+	if (b[0])
+	    av_set(*ac, AV_A_TACMEMBER, b);
+	else
+	    av_unset(*ac, AV_A_TACMEMBER);
+    }
+
     s = av_get(*ac, AV_A_MEMBEROF);
     if (s) {
-		size_t len = strlen(s) + 1;
-		char *v = alloca(len);
-		char *b = alloca(len);
-	    	char *p = b;
-	    	*p = 0;
-		memcpy(v, s, len);
-		while (*v) {
-			char *e;
-			if (*v != '"')
-				break;
-			v++;
-			for (e = v; *e && *e != '"'; e++);
-			if (*e != '"')
-				break;
-			*e++ = 0;
-		        if (good_name(mcx->memberof_regex, v)) {
-				if(*b)
-					*p++ = ',';
-				*p++ = '"';
-				len = strlen(v);
-				strncpy(p, v, len);
-				p += len;
-				*p++ = '"';
-				*p = 0;
-			}
-			v = e;
-			if (!*v || *v != ',')
-				break;
-			v++;
-		}
-	    	if (b[0])
-			av_set(*ac, AV_A_MEMBEROF, b);
-	    	else
-			av_unset(*ac, AV_A_MEMBEROF);
+	size_t len = strlen(s) + 1;
+	char *v = alloca(len);
+	char *b = alloca(len);
+	char *p = b;
+	*p = 0;
+	memcpy(v, s, len);
+	while (*v) {
+	    char *e;
+	    if (*v != '"')
+		break;
+	    v++;
+	    for (e = v; *e && *e != '"'; e++);
+	    if (*e != '"')
+		break;
+	    *e++ = 0;
+	    if (good_name(mcx->memberof_regex, v)) {
+		if (*b)
+		    *p++ = ',';
+		*p++ = '"';
+		len = strlen(v);
+		strncpy(p, v, len);
+		p += len;
+		*p++ = '"';
+		*p = 0;
+	    }
+	    v = e;
+	    if (!*v || *v != ',')
+		break;
+	    v++;
+	}
+	if (b[0])
+	    av_set(*ac, AV_A_MEMBEROF, b);
+	else
+	    av_unset(*ac, AV_A_MEMBEROF);
     }
 
     return MAVIS_FINAL;
