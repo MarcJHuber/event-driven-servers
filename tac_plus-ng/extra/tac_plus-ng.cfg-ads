@@ -12,13 +12,21 @@ id = tac_plus-ng {
 	# access log = /var/log/tac_plus-ng/access/%Y%m%d.log
 	# accounting log = /var/log/tac_plus-ng/acct/%Y%m%d.log
 
+	mavis module = groups {
+		groups filter = /^(admins|guest|readonly)$/ # these are defined below
+		memberof filter = /^CN=tacacs_/ # use this as a prefix
+	}
+
+
 	mavis module = external {
 		setenv LDAP_SERVER_TYPE = "microsoft"
-		setenv LDAP_HOSTS = "ads01:3268 ads02:3268"
-		setenv LDAP_BASE = "dc=your,dc=ad,dc=domain"
-		setenv LDAP_USER = "tacacs@your.ad.domain"
-		setenv LDAP_PASSWD = "secretpassword"
-		setenv REQUIRE_TACACS_GROUP_PREFIX = 1
+		setenv LDAP_HOSTS = "172.16.0.10:389"
+		setenv LDAP_BASE = "dc=example,dc=local"
+		setenv LDAP_USER = "tacacs@example.local"
+		setenv LDAP_PASSWD = "password"
+		setenv TACACS_GROUP_PREFIX = "tacacs_"
+		setenv UNLIMIT_AD_GROUP_MEMBERSHIP = 1
+		#setenv REQUIRE_TACACS_GROUP_PREFIX = 1
 		exec = /usr/local/lib/mavis/mavis_tacplus_ldap.pl
 	}
 
@@ -33,7 +41,7 @@ id = tac_plus-ng {
 		key = demo
 	}
 
-	profile admin {
+	profile admins {
 		script {
 			if (service == shell) {
 				if (cmd == "")
@@ -54,12 +62,12 @@ id = tac_plus-ng {
 		}
 	}
 
-	group admin
+	group admins
 	group guest
 
 	user demo {
 		password login = clear demo
-		member = admin
+		member = admins
 	}
 
 	user = readonly {
@@ -69,7 +77,8 @@ id = tac_plus-ng {
 	ruleset {
 		rule {
 			script { 
-				if (member == admin) { profile = admin permit }
+				if (memberof =~ /^CN=tacacs_admins,/) { profile = admins permit }
+				if (memberof =~ /^CN=tacacs_readonly,/) { profile = readonly permit }
 			}
 		}
 		rule {
