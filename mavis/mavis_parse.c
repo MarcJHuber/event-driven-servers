@@ -342,6 +342,7 @@ static void substitute_envvar(struct sym *sym)
 void getsym(struct sym *sym)
 {
     *sym->buf = 0;
+    sym->quoted = 0;
     sym->raw = sym->start;
     while (1)
 	switch (*sym->ch) {
@@ -498,6 +499,7 @@ void getsym(struct sym *sym)
 	    }
 	    buf_add(sym, 0);
 	    sym->code = S_string;
+	    sym->quoted = 1;
 	    sym_getchar(sym);
 	    substitute_envvar(sym);
 	    return;

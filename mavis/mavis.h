@@ -295,9 +295,10 @@ struct sym {
     char *start;
     char *raw;
     int pos;			/* current place in buf */
-    u_int line:30;		/* current line number for parsing */
+    u_int line:29;		/* current line number for parsing */
     u_int flag_parse_pcre:1;
     u_int flag_prohibit_include:1;
+    u_int quoted:1;
     char ch[4];			/* current parse character */
     char chlen;			/* current parse character length */
     enum token code;		/* parser output */
