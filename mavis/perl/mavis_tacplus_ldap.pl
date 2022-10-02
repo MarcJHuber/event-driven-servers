@@ -590,12 +590,13 @@ while ($in = <>) {
 					if defined $expand_ad_group_membership;
 				my $m;
 				foreach $m (sort grep { /^CN=$tacacsGroupPrefix[^,]*,/i } @$val) {
-					$m =~ s/^CN=$tacacsGroupPrefix([^,]*),.*$/$1/i;
-					if ($m) {
+					my $m2 = "$m";
+					$m2 =~ s/^CN=$tacacsGroupPrefix([^,]*),.*$/$1/i;
+					if ($m2) {
 						if (exists $V[AV_A_TACMEMBER]) {
-							$V[AV_A_TACMEMBER] .= ',"' . $m . '"';
+							$V[AV_A_TACMEMBER] .= ',"' . $m2 . '"';
 						} else {
-							$V[AV_A_TACMEMBER] = '"' . $m . '"';
+							$V[AV_A_TACMEMBER] = '"' . $m2 . '"';
 						}
 						last unless defined($unlimit_ad_group_membership);
 					}
