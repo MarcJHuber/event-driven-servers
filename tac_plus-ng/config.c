@@ -2951,6 +2951,11 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
 	m = tac_script_cond_new(sym, S_equal);
 	m->u.s.token = sym->code;
 
+	if (m->u.s.token == S_string) {
+	    if (!sym->quoted)
+		parse_error(sym, "token %s is not known, please put it in double-quotes if you really want to use it", sym->buf);
+	}
+
 	if (m->u.s.token == S_arg) {
 	    sym_get(sym);
 	    parse(sym, S_leftsquarebra);
