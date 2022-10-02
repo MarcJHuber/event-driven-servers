@@ -521,8 +521,8 @@ gid filter = 100,1000-1050
        resolving. Example:
 group filter = /^com/
      * groups filter = [ not ] regex[,regex]*
-       Establishes a filter on the GIDS MAVIS attribute after name
-       resolving. Example:
+       Establishes a filter on the GIDS and TACMEMBERMAVIS
+       attributes (for GIDS: after name resolving). Example:
 groups filter = /^com/
      * memberof filter = [ not ] regex[,regex]*
        Establishes a filter on the MEMBEROF MAVIS attribute after
