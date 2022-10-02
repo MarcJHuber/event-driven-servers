@@ -2408,76 +2408,101 @@ tacacsProfile: { valid until = 2010-01-30 chap = clear ahzoi5Ue }
 5.1.2. Active Directory Backend
 
    If LDAP_SERVER_TYPE is set to microsoft, the script back-ends
-   to AD servers. Sample configuration:
+   to AD servers. Sample configuration (you'll find that one in
+   the extra directory, too):
+#!/usr/local/sbin/tac_plus-ng
 id = spawnd {
-    listen = {
-        port = 49
-    }
-    spawn = {
-        instances min = 1
-        instances max = 10
-    }
-    background = yes
+        listen = { port = 49 }
+        spawn = {
+                instances min = 1
+                instances max = 10
+        }
+        background = yes
 }
 
-id = tac_plus {
+id = tac_plus-ng {
+        # access log = /var/log/tac_plus-ng/access/%Y%m%d.log
+        # accounting log = /var/log/tac_plus-ng/acct/%Y%m%d.log
 
-    mavis module = external {
-        # Optionally:
-        # script out = {
-        #     # Require group membership:
-        #     if (undef($TACMEMBER) && $RESULT == ACK) set $RESULT = NAK
-        #
-        #     # Don't cache passwords:
-        #     if ($RESULT == ACK) set $PASSWORD_ONESHOT = 1
-        # }
-
-        setenv LDAP_SERVER_TYPE = "microsoft"
-        # setenv LDAP_HOSTS = "ldaps://ads01:636 ldaps://ads02:636"
-        setenv LDAP_HOSTS = "ads01:3268 ads02:3268"
-        setenv LDAP_SCOPE = sub
-        setenv LDAP_BASE = "dc=example,dc=com"
-        setenv LDAP_FILTER = "(&(objectclass=user)(sAMAccountName=%s))";
-        setenv LDAP_USER = tacacs@example.com
-        setenv LDAP_PASSWD = Secret123
-        setenv AD_GROUP_PREFIX = tacacs
-        # setenv REQUIRE_AD_GROUP_PREFIX = 1
-        setenv USE_TLS = 0
-        exec = /usr/local/lib/mavis/mavis_tacplus_ldap.pl
-    }
-
-    login backend = mavis
-    pap backend = mavis
-
-    host world {
-        address = ::/0
-        welcome banner = "Welcome\n"
-        key = demo
-    }
-
-    host helpdesklab {
-        address = 192.168.34.16/28
-        parent = world
-    }
-
-    # A user will be in the "admin" group if he's member of the
-    # corresponding "tacacsadmin" ADS group.
-
-    profile admin {
-        default service = permit
-        service shell {
-            if (cmd == "") {
-                set priv-lvl = 15
-            }
-            permit
+        mavis module = groups {
+                groups filter = /^(admins|guest|readonly)$/ # these are
+defined below
+                memberof filter = /^CN=tacacs_/ # use this as a prefix
         }
-    }
 
-    group helpdesk { }
 
-    ruleset {
-        rule help { if (member == helpdesk) profile = admin permit
-    }
+        mavis module = external {
+                setenv LDAP_SERVER_TYPE = "microsoft"
+                setenv LDAP_HOSTS = "172.16.0.10:389"
+                setenv LDAP_BASE = "dc=example,dc=local"
+                setenv LDAP_USER = "tacacs@example.local"
+                setenv LDAP_PASSWD = "password"
+                setenv TACACS_GROUP_PREFIX = "tacacs_"
+                setenv UNLIMIT_AD_GROUP_MEMBERSHIP = 1
+                #setenv REQUIRE_TACACS_GROUP_PREFIX = 1
+                exec = /usr/local/lib/mavis/mavis_tacplus_ldap.pl
+        }
+
+        login backend = mavis
+        user backend = mavis
+        pap backend = mavis
+
+        host world {
+                address = ::/0
+                welcome banner = "Welcome\n"
+                enable 15 = clear secret
+                key = demo
+        }
+
+        profile admins {
+                script {
+                        if (service == shell) {
+                                if (cmd == "")
+                                        set priv-lvl = 15
+                                permit
+                        }
+                }
+        }
+
+        profile guest {
+                enable = deny
+                script {
+                        if (service == shell) {
+                                if (cmd == "")
+                                        set priv-lvl = 1
+                                permit
+                        }
+                }
+        }
+
+        group admins
+        group guest
+
+        user demo {
+                password login = clear demo
+                member = admins
+        }
+
+        user = readonly {
+                password login = clear readonly
+                member = guest
+        }
+        ruleset {
+                rule {
+                        script {
+                                if (memberof =~ /^CN=tacacs_admins,/) {
+profile = admins permit }
+                                if (memberof =~ /^CN=tacacs_readonly,/)
+{ profile = readonly permit }
+                        }
+                }
+                rule {
+                        script {
+                                if (member == guest) { profile = guest p
+ermit }
+                        }
+                }
+        }
 }
      __________________________________________________________
 
