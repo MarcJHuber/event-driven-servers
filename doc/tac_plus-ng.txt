@@ -688,6 +688,7 @@ syslog default = deny
    ${hostname} system hostname
    ${msgid} A message ID, perhaps suitable for RFC5424 logs. These
    are listed somewhere below.
+   ${type} packet type (authen/author/acct)
    ${accttype} accounting type (start/stop/update)
    ${priority} syslog priority
    ${action} authentication info (e.g. pap login)
