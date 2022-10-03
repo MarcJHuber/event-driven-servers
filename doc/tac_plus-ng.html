@@ -113,9 +113,9 @@ Authorization</a></dt>
 </dl>
 </dd>
 <dt>9. <a href="#AEN2717">AAA rule tracing</a></dt>
-<dt>10. <a href="#AEN2736">Bugs</a></dt>
-<dt>11. <a href="#AEN2750">References</a></dt>
-<dt>12. <a href="#AEN2760">Copyrights and Acknowledgements</a></dt>
+<dt>10. <a href="#AEN2733">Bugs</a></dt>
+<dt>11. <a href="#AEN2747">References</a></dt>
+<dt>12. <a href="#AEN2757">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -4501,109 +4501,65 @@ TACTRACEPASSWORD or the defaults file. Setting it via a CLI option isn't
 supported as the password would show up as clear text in the process listing.</pre>
 <p>Example:</p>
 <pre class=
-"screen">$ tactrace.pl --user=demo --defa  ~/tactest/demo.pl --user ubuntu
-10.0.0.1 ---&lt;start packet&gt;---
-10.0.0.1 session id: 00000001, data length: 46
-10.0.0.1 AUTHOR, priv_lvl=0
-10.0.0.1 authen_type=ascii (1)
-10.0.0.1 authen_method=none (1)
-10.0.0.1 service=login (1)
-10.0.0.1 user_len=6 port_len=4 rem_addr_len=9 arg_cnt=2
-10.0.0.1 user (len: 6): ubuntu
-10.0.0.1 0000 75 62 75 6e 74 75                                 ubuntu
-10.0.0.1 port (len: 4): vty0
-10.0.0.1 0000 76 74 79 30                                       vty0
-10.0.0.1 rem_addr (len: 9): 127.0.0.1
-10.0.0.1 0000 31 32 37 2e 30 2e 30 2e  31                       127.0.0. 1
-10.0.0.1 arg[0] (len: 13): service=shell
-10.0.0.1 0000 73 65 72 76 69 63 65 3d  73 68 65 6c 6c           service= shell
-10.0.0.1 arg[1] (len: 4): cmd=
-10.0.0.1 0000 63 6d 64 3d                                       cmd=
-10.0.0.1 ---&lt;end packet&gt;---
-10.0.0.1 Start authorization request
-10.0.0.1 user found in MAVIS backend, av pairs:
-  MEMBEROF            "CN=ubuntu,DC=company,DC=local","CN=dialout,DC=company.local"
-  USER                ubuntu
-  UID                 1000
-  GID                 1000
+"screen"># tactrace.pl --conf extra/tac_plus-ng.cfg-ads --user user01
+127.0.0.1 ---&lt;start packet&gt;---
+127.0.0.1 session id: 00000001, data length: 46
+127.0.0.1 AUTHOR, priv_lvl=0
+127.0.0.1 authen_type=ascii (1)
+127.0.0.1 authen_method=tacacs+ (6)
+127.0.0.1 service=login (1)
+127.0.0.1 user_len=6 port_len=4 rem_addr_len=9 arg_cnt=2
+127.0.0.1 user (len: 6): user01
+127.0.0.1 0000 75 73 65 72 30 31                                 user01
+127.0.0.1 port (len: 4): vty0
+127.0.0.1 0000 76 74 79 30                                       vty0
+127.0.0.1 rem_addr (len: 9): 127.0.0.1
+127.0.0.1 0000 31 32 37 2e 30 2e 30 2e  31                       127.0.0. 1
+127.0.0.1 arg[0] (len: 13): service=shell
+127.0.0.1 0000 73 65 72 76 69 63 65 3d  73 68 65 6c 6c           service= shell
+127.0.0.1 arg[1] (len: 4): cmd*
+127.0.0.1 0000 63 6d 64 2a                                       cmd*
+127.0.0.1 ---&lt;end packet&gt;---
+127.0.0.1 Start authorization request
+127.0.0.1 looking for user user01 in MAVIS backend
+127.0.0.1 user found by MAVIS backend, av pairs:
+  MEMBEROF            "CN=tacacs_admins,OU=Groups,DC=example,DC=local","CN=tacacs_readwrite,OU=Groups,DC=example,DC=local"
+  USER                user01
+  DN                  CN=user01,CN=Users,DC=example,DC=local
   IPADDR              127.0.0.1
-  HOME                /home/ubuntu
-  GIDS                ubuntu,dialout
-  SERVERIP            10.0.0.1
-  REALM               heck
-  TACMEMBER           ubuntu,dialout
-  SHELL               /bin/bash
-10.0.0.1 user 'ubuntu' found
-10.0.0.1 ubuntu@127.0.0.1: ACL from-rfc: permit (profile: engineering)
-10.0.0.1 nas:service=shell (passed thru)
-10.0.0.1 nas:cmd= (passed thru)
-10.0.0.1 nas:absent srv:priv-lvl=15 -&gt; add priv-lvl=15 (k)
-10.0.0.1 added 1 args
-10.0.0.1 Writing AUTHOR/PASS_ADD size=42
-10.0.0.1 ---&lt;start packet&gt;---
-10.0.0.1 session id: 00000001, data length: 30
-10.0.0.1 AUTHOR/REPLY, status=1 (AUTHOR/PASS_ADD)
-10.0.0.1 msg_len=12, data_len=0, arg_cnt=1
-10.0.0.1 msg (len: 12): commandline=
-10.0.0.1 0000 63 6f 6d 6d 61 6e 64 6c  69 6e 65 3d              commandl ine=
-10.0.0.1 data (len: 0):
-10.0.0.1 arg[0] (len: 11): priv-lvl=15
-10.0.0.1 0000 70 72 69 76 2d 6c 76 6c  3d 31 35                 priv-lvl =15
-10.0.0.1 ---&lt;end packet&gt;---
-ubuntu@pi4:~$ tactrace.pl --user=demo --defa  ~/tactest/demo.pl --user=demo
-10.0.0.1 ---&lt;start packet&gt;---
-10.0.0.1 session id: 00000001, data length: 44
-10.0.0.1 AUTHOR, priv_lvl=0
-10.0.0.1 authen_type=ascii (1)
-10.0.0.1 authen_method=none (1)
-10.0.0.1 service=login (1)
-10.0.0.1 user_len=4 port_len=4 rem_addr_len=9 arg_cnt=2
-10.0.0.1 user (len: 4): demo
-10.0.0.1 0000 64 65 6d 6f                                       demo
-10.0.0.1 port (len: 4): vty0
-10.0.0.1 0000 76 74 79 30                                       vty0
-10.0.0.1 rem_addr (len: 9): 127.0.0.1
-10.0.0.1 0000 31 32 37 2e 30 2e 30 2e  31                       127.0.0. 1
-10.0.0.1 arg[0] (len: 13): service=shell
-10.0.0.1 0000 73 65 72 76 69 63 65 3d  73 68 65 6c 6c           service= shell
-10.0.0.1 arg[1] (len: 4): cmd=
-10.0.0.1 0000 63 6d 64 3d                                       cmd=
-10.0.0.1 ---&lt;end packet&gt;---
-10.0.0.1 Start authorization request
-10.0.0.1 user 'demo' found
-10.0.0.1 demo@127.0.0.1: ACL from-rfc: permit (profile: engineering)
-10.0.0.1 nas:service=shell (passed thru)
-10.0.0.1 nas:cmd= (passed thru)
-10.0.0.1 nas:absent srv:priv-lvl=15 -&gt; add priv-lvl=15 (k)
-10.0.0.1 added 1 args
-10.0.0.1 Writing AUTHOR/PASS_ADD size=42
-10.0.0.1 ---&lt;start packet&gt;---
-10.0.0.1 session id: 00000001, data length: 30
-10.0.0.1 AUTHOR/REPLY, status=1 (AUTHOR/PASS_ADD)
-10.0.0.1 msg_len=12, data_len=0, arg_cnt=1
-10.0.0.1 msg (len: 12): commandline=
-10.0.0.1 0000 63 6f 6d 6d 61 6e 64 6c  69 6e 65 3d              commandl ine=
-10.0.0.1 data (len: 0):
-10.0.0.1 arg[0] (len: 11): priv-lvl=15
-10.0.0.1 0000 70 72 69 76 2d 6c 76 6c  3d 31 35                 priv-lvl =15
-10.0.0.1 ---&lt;end packet&gt;---</pre>
-<p>The <tt class="literal">demo.pl</tt> file:</p>
-<pre class="screen">$ cat ~/tactest/demo.pl
-our $username = "demo";
-our $port = "vty0";
-our $remote = "172.16.0.10";
-our @args = ( "service=shell", "cmd=" );
-our $key = "demo";
-our $realm = "heck";
-our $nad = "10.0.0.1";
-our $exec = "/usr/local/sbin/tac_plus-ng";
-our $conf = "/where/ever/tac_plus-ng.cfg";
-our $cfgId = "tac_plus-ng";
-1;
-$</pre></div>
+  SERVERIP            127.0.0.1
+  REALM               default
+  TACMEMBER           "admins"
+127.0.0.1 verdict for user user01 is ACK
+127.0.0.1 user 'user01' found
+127.0.0.1 evaluating ACL default#0
+127.0.0.1 pcre2: '^CN=tacacs_admins,' &lt; 'CN=tacacs_admins,OU=Groups,DC=example,DC=local' = 1
+127.0.0.1  line 79: [memberof] &lt;pcre-regex&gt; '^CN=tacacs_admins,' =&gt; true
+127.0.0.1  line 79: [profile] 'admins'
+127.0.0.1  line 79: [permit]
+127.0.0.1 ACL default#0: match
+127.0.0.1 user01@127.0.0.1: ACL default#0: permit (profile: admins)
+127.0.0.1  line 45: [service] = 'shell' =&gt; true
+127.0.0.1  line 47: [cmd] = '' =&gt; true
+127.0.0.1  line 47: [set] 'priv-lvl=15'
+127.0.0.1  line 48: [permit]
+127.0.0.1 nas:service=shell (passed thru)
+127.0.0.1 nas:cmd* (passed thru)
+127.0.0.1 nas:absent srv:priv-lvl=15 -&gt; add priv-lvl=15 (k)
+127.0.0.1 added 1 args
+127.0.0.1 Writing AUTHOR/PASS_ADD size=30
+127.0.0.1 ---&lt;start packet&gt;---
+127.0.0.1 session id: 00000001, data length: 18
+127.0.0.1 AUTHOR/REPLY, status=1 (AUTHOR/PASS_ADD)
+127.0.0.1 msg_len=0, data_len=0, arg_cnt=1
+127.0.0.1 msg (len: 0):
+127.0.0.1 data (len: 0):
+127.0.0.1 arg[0] (len: 11): priv-lvl=15
+127.0.0.1 0000 70 72 69 76 2d 6c 76 6c  3d 31 35                 priv-lvl =15
+127.0.0.1 ---&lt;end packet&gt;---</pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2736" id="AEN2736">10.
+<h2 class="section"><a name="AEN2733" id="AEN2733">10.
 Bugs</a></h2>
 <ul>
 <li>
@@ -4632,7 +4588,7 @@ guidance.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2750" id="AEN2750">11.
+<h2 class="section"><a name="AEN2747" id="AEN2747">11.
 References</a></h2>
 <ul>
 <li>
@@ -4649,7 +4605,7 @@ System Plus (TACACS+) Protocol</a></p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2760" id="AEN2760">12. Copyrights
+<h2 class="section"><a name="AEN2757" id="AEN2757">12. Copyrights
 and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of
 individual files.</p>
@@ -4731,7 +4687,7 @@ with the distribution.</p>
 <li>
 <p>The end-user documentation included with the redistribution, if
 any, must include the following acknowledgment:</p>
-<a name="AEN2803" id="AEN2803"></a>
+<a name="AEN2800" id="AEN2800"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber
 (<code class="email">&lt;<a href=
