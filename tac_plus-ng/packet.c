@@ -263,17 +263,12 @@ void send_authen_reply(tac_session * session, int status, char *msg, int msg_len
     struct authen_reply *reply;
     u_char *p;
     int len;
-    int user_msg_len = session->user_msg ? (int) strlen(session->user_msg) : 0;
 
     if (data && !data_len)
 	data_len = (int) strlen((char *) data);
     if (msg && !msg_len)
 	msg_len = (int) strlen(msg);
 
-    if ((user_msg_len + msg_len) & ~0xffff)
-	user_msg_len = 0;
-
-    msg_len += user_msg_len;
     msg_len = minimum(msg_len, 0xffff);
     data_len = minimum(data_len, 0xffff);
 
@@ -289,13 +284,8 @@ void send_authen_reply(tac_session * session, int status, char *msg, int msg_len
 
     p = (u_char *) reply + TAC_AUTHEN_REPLY_FIXED_FIELDS_SIZE;
 
-    if (user_msg_len) {
-	memcpy(p, session->user_msg, user_msg_len);
-	p += user_msg_len;
-    }
-    memcpy(p, msg, msg_len - user_msg_len);
-    p += msg_len - user_msg_len;
-    // memlist_free(session->mlist, &session->user_msg);
+    memcpy(p, msg, msg_len);
+    p += msg_len;
     memcpy(p, data, data_len);
 
     if (session->password_bad && !session->password_bad_again)
