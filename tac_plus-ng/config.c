@@ -3432,8 +3432,8 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 		pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.rhs, NULL);
 		res = pcre2_match((pcre2_code *) m->u.s.rhs, (PCRE2_SPTR) v, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
 		pcre2_match_data_free(match_data);
-		res = -1 < res;
 #endif
+		res = -1 < res;
 	    } else
 		res = !regexec((regex_t *) m->u.s.rhs, v, 0, NULL, 0);
 
