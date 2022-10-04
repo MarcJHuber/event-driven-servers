@@ -851,7 +851,7 @@ static void do_ascii_login(tac_session * session)
 	    session->password = NULL;
 	    session->authen_data->authfn = do_chpass;
 	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETDATA,
-			      "Entering password change dialog\n\n" "Old password: ", 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
+			      "Entering password change dialog\n\nOld password: ", 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
 	    return;
 	}
     }
