@@ -1202,7 +1202,11 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	if (s) {
 	    if (!len)
 		len = strlen(s);
-	    len = ememcpy(b, s, len, sizeof(buf) - total_len);
+	    if (li->token == S_umessage) {
+		if (sizeof(buf) - total_len > len + 20)
+		    memcpy(b, s, len);
+	    } else
+		    len = ememcpy(b, s, len, sizeof(buf) - total_len);
 	    total_len += len;
 	    b += len;
 	    if (total_len > sizeof(buf) - 20)
