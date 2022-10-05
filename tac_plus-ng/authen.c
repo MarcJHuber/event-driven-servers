@@ -72,13 +72,13 @@
 #include "misc/md5crypt.h"
 
 #if defined(WITH_SSL)
-# if OPENSSL_VERSION_NUMBER < 0x30000000
-#  include <openssl/des.h>
-#  include <openssl/sha.h>
-# else
-#  include <openssl/types.h>
-#  include <openssl/evp.h>
-# endif
+#if OPENSSL_VERSION_NUMBER < 0x30000000
+#include <openssl/des.h>
+#include <openssl/sha.h>
+#else
+#include <openssl/types.h>
+#include <openssl/evp.h>
+#endif
 #endif
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
@@ -303,8 +303,8 @@ static enum token lookup_and_set_user(tac_session * session)
 static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&&( ( (session->ctx->realm->mavis_userdb == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES) && !session->user)
-	   || (session->user && pw_ix == PW_MAVIS));
+	&& (((session->ctx->realm->mavis_userdb == TRISTATE_YES) &&(session->ctx->realm->mavis_login_prefetch != TRISTATE_YES) && !session->user)
+	    ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -313,7 +313,7 @@ static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *
 
 static int query_mavis_info_login(tac_session * session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
+    int res = !session->flag_mavis_info && !session->user &&(session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_LOGIN);
@@ -332,8 +332,8 @@ int query_mavis_info(tac_session * session, void (*f)(tac_session *), enum pw_ix
 static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
-	(((session->ctx->realm->mavis_userdb == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES) && !session->user)
-	 || (session->user && pw_ix == PW_MAVIS));
+	( ( (session->ctx->realm->mavis_userdb == TRISTATE_YES) &&(session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES) && !session->user)
+	 ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_PAP);
@@ -342,7 +342,7 @@ static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *),
 
 static int query_mavis_info_pap(tac_session * session, void (*f)(tac_session *))
 {
-    int res = !session->user && (session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
+    int res = !session->user &&(session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_PAP);
@@ -530,7 +530,15 @@ static void do_chpass(tac_session * session)
 	    return;
     }
     if (!session->password) {
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETDATA, "Old password: ", 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
+	static struct log_item *fmt = NULL;
+	char *msg;
+
+	if (!fmt)
+	    fmt = parse_log_format_inline("\"${umessage}\nOld password: \"", __FILE__, __LINE__);
+
+	msg = eval_log_format(session, session->ctx, NULL, fmt, io_now.tv_sec, NULL);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETDATA, msg, 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
+	session->user_msg = NULL;
 	return;
     }
     if (!session->password[0]) {
@@ -591,8 +599,8 @@ static void do_chpass(tac_session * session)
 
 static void send_password_prompt(tac_session * session, enum pw_ix pw_ix, void (*f)(tac_session *))
 {
-    if ((session->ctx->realm->chalresp == TRISTATE_YES) && (!session->user || ((pw_ix == PW_MAVIS) && (TRISTATE_NO != session->user->chalresp)))) {
-	if (!session->flag_chalresp) {
+    if( (session->ctx->realm->chalresp == TRISTATE_YES) &&(!session->user ||( (pw_ix == PW_MAVIS) &&(TRISTATE_NO != session->user->chalresp)))) {
+	if(!session->flag_chalresp) {
 	    session->flag_chalresp = 1;
 	    mavis_lookup(session, f, AV_V_TACTYPE_CHAL, PW_LOGIN);
 	    return;
