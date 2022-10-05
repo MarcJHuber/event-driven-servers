@@ -1,0 +1,50 @@
+#!/usr/local/sbin/tac_plus-ng
+
+id = spawnd {
+	listen = { port = 49 }
+	spawn = { instances min = 1 instances max = 1 }
+	background = no
+}
+
+id = tac_plus-ng {
+	mavis module = external {
+		# Sample Perl code to create a single SHADOWFILE line:
+		# perl -e 'print "demo:".crypt("demopass", qw($1$) . "demosalt" . qw($)) . ":0:0:99999:7:::\n"
+		#
+		setenv SHADOWFILE = "/whereever/shadow"
+		exec = /usr/local/lib/mavis/mavis_tacplus_shadow.pl
+	}
+
+	login backend = mavis chpass
+
+	host world {
+		address = ::/0
+		welcome banner = "Welcome\n\n"
+		enable 15 = clear secret
+		key = demo
+	}
+
+	profile admins {
+		script {
+			if (service == shell) {
+				if (cmd == "") set priv-lvl = 15
+				permit
+			}
+		}
+	}
+
+	group admins
+
+	user demo {
+		password login = mavis
+		member = admins
+	}
+
+	ruleset {
+		rule {
+			script { 
+				if (member == admins) { profile = admins permit }
+			}
+		}
+	}
+}
