@@ -5,7 +5,7 @@ WriteMakefile(
    NAME         => 'Scm',
    VERSION_FROM => 'Scm.pm',
    INC          => '-I../..',
-   LIBS         => [ '-L/usr/local/lib -lmavis' ],
+   LIBS         => '-L/usr/local/lib -L/usr/local/lib64 -lmavis',
    OBJECT	=> 'Scm.o',
 );
 
