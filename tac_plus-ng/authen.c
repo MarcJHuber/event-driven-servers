@@ -421,16 +421,14 @@ static int check_access(tac_session * session, struct pwdat *pwdat, char *passwd
 	    res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 	    *hint = hint_denied_by_acl;
 	}
-	// memlist_free(session->pool, &session->password_bad);
+
 	session->password_bad = NULL;
-	if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
-	    // memlist_free(session->pool, &session->password);
-	    session->password = NULL;
-	    if (res != TAC_PLUS_AUTHEN_STATUS_PASS && session->ctx->host->reject_banner)
+	if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
+	    res = user_invalid(session->user, hint);
+
+	if (res != TAC_PLUS_AUTHEN_STATUS_PASS) {
+	    if (session->ctx->host->reject_banner)
 		*resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
-	    if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
-		res = user_invalid(session->user, hint);
-	} else {
 	    session->password_bad = session->password;
 	    session->password = NULL;
 	}
@@ -492,8 +490,10 @@ static char *set_motd_banner(tac_session * session)
     }
 
     if (session->motd || (session->user->hushlogin == TRISTATE_YES)
-	|| (session->user->hushlogin == TRISTATE_DUNNO && session->profile->hushlogin == TRISTATE_YES))
+	|| (session->user->hushlogin == TRISTATE_DUNNO && session->profile->hushlogin == TRISTATE_YES)) {
+	session->motd = session->user_msg;
 	return NULL;
+    }
 
     session->motd = eval_log_format(session, session->ctx, NULL, fmt, io_now.tv_sec, NULL);
     return session->motd;
@@ -534,9 +534,10 @@ static void do_chpass(tac_session * session)
 	char *msg;
 
 	if (!fmt)
-	    fmt = parse_log_format_inline("\"${umessage}\nOld password: \"", __FILE__, __LINE__);
+	    fmt = parse_log_format_inline("\"${umessage}Old password: \"", __FILE__, __LINE__);
 
 	msg = eval_log_format(session, session->ctx, NULL, fmt, io_now.tv_sec, NULL);
+
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETDATA, msg, 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
 	session->user_msg = NULL;
 	return;
@@ -552,7 +553,16 @@ static void do_chpass(tac_session * session)
 	    return;
     }
     if (!session->password_new) {
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS, "New password: ", 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
+	static struct log_item *fmt = NULL;
+	char *msg;
+
+	if (!fmt)
+	    fmt = parse_log_format_inline("\"${umessage}New password: \"", __FILE__, __LINE__);
+
+	msg = eval_log_format(session, session->ctx, NULL, fmt, io_now.tv_sec, NULL);
+
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS, msg, 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
+	session->user_msg = NULL;
 	return;
     }
     if (!session->password_new[0]) {
@@ -858,8 +868,8 @@ static void do_ascii_login(tac_session * session)
 	    // memlist_free(session->memlist, &session->password);
 	    session->password = NULL;
 	    session->authen_data->authfn = do_chpass;
-	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETDATA,
-			      "Entering password change dialog\n\nOld password: ", 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
+	    session->user_msg = "Entering password change dialog\n\n";
+	    do_chpass(session);
 	    return;
 	}
     }
@@ -893,6 +903,8 @@ static void do_ascii_login(tac_session * session)
 	return;
     case TAC_PLUS_AUTHEN_STATUS_PASS:
 	if (session->passwd_mustchange) {
+	    if (!session->user_msg)
+		session->user_msg = "Please change your password.\n";
 	    session->flag_mavis_auth = 0;
 	    session->authen_data->authfn = do_chpass;
 	    do_chpass(session);
@@ -901,7 +913,7 @@ static void do_ascii_login(tac_session * session)
 
 	if (session->user->valid_until && session->user->valid_until < io_now.tv_sec + session->ctx->realm->warning_period) {
 	    static size_t l = 0;
-	    session->user_msg = "\nThis account will expire soon.\n";
+	    session->user_msg = "This account will expire soon.\n";
 	    if (!l)
 		l = strlen(session->user_msg);
 	    session->user_msg_len = l;
