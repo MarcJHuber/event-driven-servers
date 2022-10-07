@@ -663,6 +663,7 @@ struct tac_session {
      BISTATE(mavisauth_res_valid);
      BISTATE(user_is_session_specific);
      BISTATE(username_rewritten);
+     BISTATE(chpass);
     u_int mavisauth_res;
     u_int authfail_delay;
     u_int debug;

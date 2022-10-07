@@ -561,7 +561,8 @@ static void do_chpass(tac_session * session)
 
 	msg = eval_log_format(session, session->ctx, NULL, fmt, io_now.tv_sec, NULL);
 
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS, msg, 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
+	send_authen_reply(session, session->chpass ? TAC_PLUS_AUTHEN_STATUS_GETPASS : TAC_PLUS_AUTHEN_STATUS_GETDATA, msg, 0, NULL, 0,
+			  TAC_PLUS_REPLY_FLAG_NOECHO);
 	session->user_msg = NULL;
 	return;
     }
@@ -570,7 +571,8 @@ static void do_chpass(tac_session * session)
 	return;
     }
     if (!session->authen_data->msg) {
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS, "Retype new password: ", 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
+	send_authen_reply(session, session->chpass ? TAC_PLUS_AUTHEN_STATUS_GETPASS : TAC_PLUS_AUTHEN_STATUS_GETDATA, "Retype new password: ", 0, NULL, 0,
+			  TAC_PLUS_REPLY_FLAG_NOECHO);
 	return;
     }
 
@@ -1397,15 +1399,14 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	    default:
 		switch (start->type) {
 		case TAC_PLUS_AUTHEN_TYPE_ASCII:
-		    if (session->ctx->bug_compatibility & CLIENT_BUG_INVALID_START_DATA)
-			start->data_len = 0;
-		    if (start->user_len && start->data_len) {
-			/* PAP-like inbound login. Not in the drafts, but used by IOS-XR. */
+		    if ((session->ctx->bug_compatibility & CLIENT_BUG_INVALID_START_DATA) && start->user_len && start->data_len) {
+			/* PAP-like inbound login. Not in rfc8907, but used by IOS-XR. */
 			session->authen_data->authfn = do_login;
 		    } else {
 			/* Standard ASCII login */
 			session->authen_data->authfn = do_ascii_login;
 			username_required = 0;
+			start->data_len = 0;	/* rfc8907 5.4.2.1 says to ignore the data field */
 		    }
 		    break;
 		case TAC_PLUS_AUTHEN_TYPE_PAP:
@@ -1439,6 +1440,7 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 		switch (start->type) {
 		case TAC_PLUS_AUTHEN_TYPE_ASCII:
 		    session->authen_data->authfn = do_chpass;
+		    session->chpass = 1;
 		    username_required = 0;
 		    break;
 		}
