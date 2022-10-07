@@ -2268,8 +2268,9 @@ bitwise OR here) are recognized:</p>
 <tr>
 <td>0</td>
 <td>1</td>
-<td>Ignore invalid AUTHEN/START data, seen with ZTE devices that
-put their MAC address there.</td>
+<td>According to RFC8907 the data field should be ignored for ASCII
+authentications. Alas, IOS-XR puts the password exactly there. Set
+this if required.</td>
 </tr>
 <tr>
 <td>1</td>
@@ -4533,7 +4534,7 @@ supported as the password would show up as clear text in the process listing.</p
 127.0.0.1 verdict for user user01 is ACK
 127.0.0.1 user 'user01' found
 127.0.0.1 evaluating ACL default#0
-127.0.0.1 pcre2: '^CN=tacacs_admins,' &lt; 'CN=tacacs_admins,OU=Groups,DC=example,DC=local' = 1
+127.0.0.1 pcre2: '^CN=tacacs_admins,' &lt;=&gt; 'CN=tacacs_admins,OU=Groups,DC=example,DC=local' = 1
 127.0.0.1  line 79: [memberof] &lt;pcre-regex&gt; '^CN=tacacs_admins,' =&gt; true
 127.0.0.1  line 79: [profile] 'admins'
 127.0.0.1  line 79: [permit]

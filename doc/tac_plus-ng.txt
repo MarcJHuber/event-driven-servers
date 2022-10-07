@@ -1445,8 +1445,9 @@ aaa authentication enable default group tacacs+ enable
    bitwise OR here) are recognized:
 
    Bit Value Description
-   0 1 Ignore invalid AUTHEN/START data, seen with ZTE devices
-   that put their MAC address there.
+   0 1 According to RFC8907 the data field should be ignored for
+   ASCII authentications. Alas, IOS-XR puts the password exactly
+   there. Set this if required.
    1 2 Accept version 1 for authorization and accounting packets,
    seen with Palo Alto systems.
 
@@ -3144,8 +3145,8 @@ CN=tacacs_readwrite,OU=Groups,DC=example,DC=local"
 127.0.0.1 verdict for user user01 is ACK
 127.0.0.1 user 'user01' found
 127.0.0.1 evaluating ACL default#0
-127.0.0.1 pcre2: '^CN=tacacs_admins,' < 'CN=tacacs_admins,OU=Groups,DC=e
-xample,DC=local' = 1
+127.0.0.1 pcre2: '^CN=tacacs_admins,' <=> 'CN=tacacs_admins,OU=Groups,DC
+=example,DC=local' = 1
 127.0.0.1  line 79: [memberof] <pcre-regex> '^CN=tacacs_admins,' => true
 127.0.0.1  line 79: [profile] 'admins'
 127.0.0.1  line 79: [permit]
