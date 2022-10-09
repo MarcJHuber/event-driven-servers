@@ -1399,7 +1399,8 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	    default:
 		switch (start->type) {
 		case TAC_PLUS_AUTHEN_TYPE_ASCII:
-		    if ((session->ctx->bug_compatibility & CLIENT_BUG_INVALID_START_DATA) && start->user_len && start->data_len) {
+		    if (((session->ctx->bug_compatibility & CLIENT_BUG_INVALID_START_DATA) || (common_data.debug & DEBUG_TACTRACE_FLAG)) && start->user_len
+			&& start->data_len) {
 			/* PAP-like inbound login. Not in rfc8907, but used by IOS-XR. */
 			session->authen_data->authfn = do_login;
 		    } else {
