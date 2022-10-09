@@ -2938,6 +2938,7 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
     case S_authen_service:
     case S_authen_method:
     case S_privlvl:
+    case S_realm:
     case S_vrf:
     case S_string:
 #ifdef WITH_TLS
@@ -3010,6 +3011,16 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
 				    (m->u.s.token == S_nas) ? " or host" : "", sym->buf);
 		    m->type = S_address;
 		}
+		sym_get(sym);
+		return p ? p : m;
+	    }
+	    if (m->u.s.token == S_realm) {
+		tac_realm *r = lookup_realm(sym->buf, config.default_realm);
+		if (!r)
+		    parse_error(sym, "realm '%s' not found", sym->buf);
+		m->u.s.rhs = r;
+		m->u.s.rhs_txt = r->name;
+		m->type = S_realm;
 		sym_get(sym);
 		return p ? p : m;
 	    }
@@ -3254,6 +3265,15 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
     case S_acl:
 	res = S_permit == eval_tac_acl(session, (struct tac_acl *) m->u.s.rhs);
 	return tac_script_cond_eval_res(session, m, res);
+    case S_realm:
+	{
+	    tac_realm *r = session->ctx->realm;
+	    while (!res && r) {
+		res = (r == (tac_realm *) m->u.s.rhs);
+		r = r->parent;
+	    }
+	    return tac_script_cond_eval_res(session, m, res);
+	}
     case S_equal:
     case S_regex:
     case S_slash:
