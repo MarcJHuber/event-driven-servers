@@ -721,7 +721,7 @@ static int loopcheck_host(tac_host * h)
     return res;
 }
 
-tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent)
+static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent, int empty)
 {
     tac_realm *nrealm;
 
@@ -736,7 +736,8 @@ tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent)
     }
 #endif
 
-    parse_decls_real(sym, nrealm);
+    if (!empty)
+	parse_decls_real(sym, nrealm);
 
     /* might need to fix that: */
     if (!nrealm->parent)
@@ -1107,9 +1108,12 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		    r->realms = RB_tree_new(compare_realm, NULL);
 		name = strdup(sym->buf);
 		sym_get(sym);
-		parse(sym, S_openbra);
-		newrealm = parse_realm(sym, name, r);
-		parse(sym, S_closebra);
+		if (sym->code == S_openbra) {
+		    sym_get(sym);
+		    newrealm = parse_realm(sym, name, r, 0);
+		    parse(sym, S_closebra);
+		} else
+		    newrealm = parse_realm(sym, name, r, 1);
 		RB_insert(r->realms, newrealm);
 		continue;
 	    }
@@ -1218,7 +1222,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 
 void parse_decls(struct sym *sym)
 {
-    config.default_realm = parse_realm(sym, "default", NULL);
+    config.default_realm = parse_realm(sym, "default", NULL, 0);
 }
 
 static time_t parse_date(struct sym *sym, time_t offset)
