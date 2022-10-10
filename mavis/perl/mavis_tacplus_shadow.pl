@@ -48,6 +48,9 @@ SHADOWFILE
 	test:$1$oAY9rv/9$NuyhEqJNSROHmLlwCXv0T.:15213:0:99999:7:::
 	test2:$1$oAY9rv/9$NuyhEqJNSROHmLlwCXv0T.:0:0:99999:7:::
 
+	to use SHA512 hashes you should install:
+	cpan install Crypt::Passwd::XS
+
 	Add new users using vipw or any other editor that performs file locking.
 
 FLAG_PWPOLICY
@@ -73,12 +76,12 @@ use Fcntl ':flock';
 my $hashid = ''; # DES
 my $have_crypt_passwd_xs;
 
-if (crypt('test', '$1$q5/vUEsR$') eq '$1$q5/vUEsR$jVwHmEw8zAmgkjMShLBg/.') {
-	$hashid = '$1$'; # MD5
-} elsif (eval "require Crypt::Passwd::XS") {
+if (eval "require Crypt::Passwd::XS") {
 	import Crypt::Passwd::XS;
-	$hashid = '$1$';	# MD5
+	$hashid = '$6$'; # SHA512
 	$have_crypt_passwd_xs = 1;
+} elsif (crypt('test', '$1$q5/vUEsR$') eq '$1$q5/vUEsR$jVwHmEw8zAmgkjMShLBg/.') {
+	$hashid = '$1$'; # MD5
 } else {
 	print STDERR "Your system doesn't support MD5 hashes. Please consider running 'cpan install Crypt::Passwd::XS'\n";
 }
