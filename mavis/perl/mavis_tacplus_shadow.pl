@@ -55,23 +55,49 @@ FLAG_PWPOLICY
     Default: unset
 
 CI
-	Absolute path to the "ci" program, used for storing revisions of the
-	shadow file into RCS.
-	Default: ci
+    Absolute path to the "ci" program, used for storing revisions of the shadow file into RCS.
+    Default: ci
+
+MKPASSWD
+    Absolute path to the "mkpasswd" program, most likely /usr/bin/mkpasswd
+    Default: unset
+
+MKPASSWDMETHOD
+    method argument for mkpasswd, see "mkpasswd --m" for a list supported on your system.
+    Use this with care.
+    Default: unset
 
 ########
 
 =cut
 
 use lib '/usr/local/lib/mavis/';
-use lib '/Users/marc/DEVEL/PROJECTS/mavis/perl/'; # REMOVE #
 
 use strict;
+use POSIX qw(pipe dup2);
 use Mavis;
 use Fcntl ':flock';
 
 my $hashid = ''; # DES
 my $have_crypt_passwd_xs;
+
+my $flag_pwpolicy	= undef;
+my $shadow		= "/dev/null";
+my $ci			= "ci";
+my $mkpasswd		= undef;
+my @mkpasswdmethod	= ();
+
+$| = 1;
+
+$shadow			= $ENV{'SHADOWFILE'} if exists $ENV{'SHADOWFILE'};
+$flag_pwpolicy		= $ENV{'FLAG_PWPOLICY'} if exists $ENV{'FLAG_PWPOLICY'};
+$ci			= $ENV{'CI'} if exists $ENV{'CI'};
+$mkpasswd		= $ENV{'MKPASSWD'} if exists $ENV{'MKPASSWD'};
+@mkpasswdmethod		= ("-m", $ENV{'MKPASSWDMETHOD'}) if exists $ENV{'MKPASSWDMETHOD'};
+
+my $backup		= "$shadow.bak";
+
+undef $mkpasswd unless -x $mkpasswd;
 
 if (crypt('test', '$1$q5/vUEsR$') eq '$1$q5/vUEsR$jVwHmEw8zAmgkjMShLBg/.') {
 	$hashid = '$1$'; # MD5
@@ -79,16 +105,58 @@ if (crypt('test', '$1$q5/vUEsR$') eq '$1$q5/vUEsR$jVwHmEw8zAmgkjMShLBg/.') {
 	import Crypt::Passwd::XS;
 	$hashid = '$1$';	# MD5
 	$have_crypt_passwd_xs = 1;
-} else {
-	print STDERR "Your system doesn't support MD5 hashes. Please consider running 'cpan install Crypt::Passwd::XS'\n";
+} elsif (undef $mkpasswd) {
+	print STDERR "Your system doesn't support modern hashes. Please install the mkpasswd utility.\n";
 }
 
-sub mycrypt ($$) {
+sub run_mkpasswd($) {
+	my ($parent0, $child1) = POSIX::pipe();
+	my ($child0, $parent1) = POSIX::pipe();
+	my $childpid = fork();
+	if ($childpid eq 0) {
+		POSIX::close $parent0;
+		POSIX::close $parent1;
+		POSIX::dup2($child0, 0);
+		POSIX::dup2($child1, 1);
+		exec $mkpasswd, "--stdin", @mkpasswdmethod;
+	}
+	POSIX::close $child0;
+	POSIX::close $child1;
+	POSIX::write($parent1, $_[0] . "\n", length($_[0]) + 1) or printf STDERR "POSIX::write: $!";
+	my $cry;
+	my $crylen = 1000;
+	POSIX::read($parent0, $cry, $crylen) or printf STDERR "POSIX::read: $!";
+	chomp $cry;
+	POSIX::close $parent0;
+	POSIX::close $parent1;
+	waitpid($childpid, 0);
+	($? == 0) ? $cry : undef;
+}
+
+sub get_password_hash ($$) {
 	if ($have_crypt_passwd_xs) {
 			Crypt::Passwd::XS::crypt($_[0], $_[1]);
 	} else {
 			crypt($_[0], $_[1]);
 	}
+}
+
+sub new_password_hash ($) {
+	if (defined $mkpasswd) {
+		my $res = run_mkpasswd($_[0]);
+		if (defined $res) {
+			return $res;
+		} else {
+			print STDERR "mkpasswd returned an error and will now be disabled.\n";
+			undef $mkpasswd;
+		}
+	}
+	my $salt = "";
+	for (my $i = 0; $i < 16; $i++) {
+		$salt .= ('.', '/', 0..9, 'A'..'Z', 'a'..'z')[rand 64];
+	}
+
+	return get_password_hash($_[0], $salt);
 }
 
 sub fgrep ($$$) {
@@ -105,19 +173,6 @@ sub fgrep ($$$) {
 }
 
 umask 0177;
-
-my $flag_pwpolicy	= undef;
-my $shadow			= "/dev/null";
-my $ci				= "ci";
-
-$shadow				= "/Users/marc/tmp/shadow"; # REMOVE #
-$shadow				= $ENV{'SHADOWFILE'} if exists $ENV{'SHADOWFILE'};
-$flag_pwpolicy		= $ENV{'FLAG_PWPOLICY'} if exists $ENV{'FLAG_PWPOLICY'};
-$ci					= $ENV{'CI'} if exists $ENV{'CI'};
-
-my $backup			= "$shadow.bak";
-
-$| = 1;
 
 my ($in);
 
@@ -180,7 +235,7 @@ while ($in = <>) {
 
 	$warn = 0 if $warn !~ /^\d+$/;
 
-	if (mycrypt($V[AV_A_PASSWORD], $passwd) ne $passwd) {
+	if (get_password_hash($V[AV_A_PASSWORD], $passwd) ne $passwd) {
 		$V[AV_A_USER_RESPONSE] = "Permission denied.";
 		goto fail;
 	}
@@ -220,12 +275,7 @@ while ($in = <>) {
 		my @M = fgrep ($v, \@L, 1);
 	    goto fail if $#M + 1 != $#L;
 
-		my $salt = "";
-		for (my $i = 0; $i < 16; $i++) {
-			$salt .= ('.', '/', 0..9, 'A'..'Z', 'a'..'z')[rand 64];
-		}
-
-		my $encpw = mycrypt ($V[AV_A_PASSWORD_NEW], $hashid . $salt);
+		my $encpw = new_password_hash ($V[AV_A_PASSWORD_NEW]);
 
 		push @M, "$user:$encpw:$today:$minage:$maxage:$warn:$remainder";
 

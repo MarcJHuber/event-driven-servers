@@ -2600,6 +2600,11 @@ test:$1$pQtQsMuj$GKpIr5r2GNaZNfDfnCBtw.:15218:1:30:
       setenv SHADOWFILE = /path/to/shadow
       # setenv FLAG_PWPOLICY=y
       # setenv ci=/usr/bin/ci
+      #
+      # There are more modern password hashes available via mkpasswd:
+      # setenv MKPASSWD=/usr/bin/mkpasswd
+      # setenv MKPASSWDMETHOD=yescrypt
+      #
       exec = /usr/local/lib/mavis/mavis_tacplus_shadow.pl
     }
     ...
