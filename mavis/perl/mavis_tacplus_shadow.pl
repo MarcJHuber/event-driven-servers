@@ -260,7 +260,7 @@ while ($in = <>) {
 				goto fail;
 		}
 
-	    if (defined($flag_pwpolicy)) {
+		if (defined($flag_pwpolicy)) {
 			# Reject passwords that are obviously too weak:
 			if ($V[AV_A_PASSWORD_NEW] =~ /^.?.?.?.?.?.?.?$/ || $V[AV_A_PASSWORD_NEW] !~ /\d/
 			 || $V[AV_A_PASSWORD_NEW] !~ /[a-z]+/ || $V[AV_A_PASSWORD_NEW] !~ /[A-Z]+/){
@@ -269,6 +269,16 @@ while ($in = <>) {
 				"include an uppercase letter, a lowercase letter ".
 				"and a digit.";
 				goto fail;
+			}
+			if (eval "require String::Similarity") {
+				import String::Similarity;
+				my $sim = similarity ($V[AV_A_PASSWORD], $V[AV_A_PASSWORD_NEW]);
+				if ($sim > 0.5) {
+					$V[AV_A_USER_RESPONSE] = "Old and new password are too similar (factor: $sim).";
+					goto fail;
+				}
+			} else {
+				print STDERR "Adding  String::Similarity is recommended for password similiarity checking";
 			}
 		}
 
