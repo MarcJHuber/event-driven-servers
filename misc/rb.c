@@ -182,30 +182,30 @@ static void right_rotate(rb_tree_t * T, rb_node_t * x)
 
 static int tree_insert(rb_tree_t * T, rb_node_t * z)
 {
-	rb_node_t *x, *y;
-	y = rb_nil;
-	x = T->root;
-	while (x != rb_nil) {
-		y = x;
-		int i = T->compare(z->payload, x->payload);
-		if (i < 0)
-			x = x->left;
-		else if (i > 0)
-			x = x->right;
-		else {
+    rb_node_t *x, *y;
+    y = rb_nil;
+    x = T->root;
+    while (x != rb_nil) {
+	y = x;
+	int i = T->compare(z->payload, x->payload);
+	if (i < 0)
+	    x = x->left;
+	else if (i > 0)
+	    x = x->right;
+	else {
 #ifdef DEBUG_RB
-			fprintf(stderr, "dupe! %p\n", z->payload);
+	    fprintf(stderr, "dupe! %p\n", z->payload);
 #endif
-			return 0;		/* Duplicate! */
-		}
+	    return 0;		/* Duplicate! */
 	}
-	z->parent = y;
-	if (y == rb_nil)
-		T->root = z;
-	else if (T->compare(z->payload, y->payload) < 0)
-		y->left = z;
-	else
-		y->right = z;
+    }
+    z->parent = y;
+    if (y == rb_nil)
+	T->root = z;
+    else if (T->compare(z->payload, y->payload) < 0)
+	y->left = z;
+    else
+	y->right = z;
     z->prev = tree_predecessor(z);
     if (z->prev != rb_nil) {
 	z->next = z->prev->next;
@@ -222,7 +222,7 @@ static int tree_insert(rb_tree_t * T, rb_node_t * z)
     return -1;
 }
 
-rb_tree_t *RB_tree_new(int (*compare)(const void *, const void *), void(*freenode)(void *))
+rb_tree_t *RB_tree_new(int (*compare)(const void *, const void *), void (*freenode)(void *))
 {
     rb_tree_t *T = Xcalloc(1, sizeof(rb_tree_t));
 #ifdef DEBUG_RB
