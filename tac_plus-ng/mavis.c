@@ -247,6 +247,12 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		}
 
 		u = new_user(session->username, S_mavis, r);
+		if (r->usertable) {
+		    rb_node_t *rbn = RB_search(r->usertable, u);
+		    if (rbn)
+			RB_delete(r->usertable, rbn);
+		}
+
 		u->dynamic = io_now.tv_sec + r->caching_period;
 
 		if ((tacmember && parse_user_profile_fmt(&sym, u, "{ member = %s }", tacmember))
