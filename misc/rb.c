@@ -183,11 +183,12 @@ static void right_rotate(rb_tree_t * T, rb_node_t * x)
 static int tree_insert(rb_tree_t * T, rb_node_t * z)
 {
     rb_node_t *x, *y;
+    int i = 0;
     y = rb_nil;
     x = T->root;
     while (x != rb_nil) {
 	y = x;
-	int i = T->compare(z->payload, x->payload);
+	i = T->compare(z->payload, x->payload);
 	if (i < 0)
 	    x = x->left;
 	else if (i > 0)
@@ -202,7 +203,7 @@ static int tree_insert(rb_tree_t * T, rb_node_t * z)
     z->parent = y;
     if (y == rb_nil)
 	T->root = z;
-    else if (T->compare(z->payload, y->payload) < 0)
+    else if (i < 0)
 	y->left = z;
     else
 	y->right = z;
