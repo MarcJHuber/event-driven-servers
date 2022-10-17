@@ -532,8 +532,9 @@ ob 38.11)\n\n"
 
 4.2.1.2. DNS
 
-   tac_plus can make use of static DNS entries. The relevant
-   global configuration options at global level are:
+   tac_plus-ng can make use of bot static and dynamic DNS entries.
+   The relevant global configuration options at global (and realm)
+   level are:
 
      * dns preload address address = hostname
        Preload DNS cache with address-to-hostname mapping.
@@ -549,6 +550,19 @@ host router.example.com {
     # "address = 1.2.3.4" is implied
     key = mykey
 }
+     * dns cache period = seconds
+       This option specifies the minimum DNS response caching
+       time.
+
+   The following configuration options are available at global,
+   realm, host and net level.
+
+     * dns reverse-lookup [ nac | nas ] = ( yes | no )
+       This will perform a DNS reverse lookup on the NAC address,
+       the NAS address or (if unspecified) both.
+     * dns timeout = seconds
+       This option specifies the maximum amount of time to wait
+       for a DNS response.
      __________________________________________________________
 
 4.2.1.3. Process-specific options
