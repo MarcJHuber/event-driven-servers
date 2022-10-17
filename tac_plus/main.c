@@ -124,7 +124,7 @@ static void process_signals(void)
     sigprocmask(SIG_SETMASK, &master_set, NULL);
 }
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 struct io_dns_ctx *idc = NULL;
 radixtree_t *dns_tree_ptr_dynamic[2];
 static time_t dnspurge_last = 0;
@@ -156,7 +156,7 @@ static void periodics(struct context *ctx, int cur __attribute__((unused)))
 
     expire_dynamic_users();
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
     /* purge old DNS cache */
     if (dnspurge_last + config.dns_caching_period < io_now.tv_sec) {
 	dnspurge_last = io_now.tv_sec;
@@ -285,12 +285,12 @@ int main(int argc, char **argv, char **envp)
 
     io_sched_add(common_data.io, new_context(common_data.io, NULL), (void *) periodics, 60, 0);
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
     idc = io_dns_init(common_data.io);
     dns_tree_ptr_dynamic[0] = NULL;
     dns_tree_ptr_dynamic[1] = NULL;
     dnspurge_last = io_now.tv_sec;
-#endif				/* WITH_LWRES */
+#endif				/* WITH_DNS */
 
     init_mcx();
 
@@ -321,7 +321,7 @@ void cleanup(struct context *ctx, int cur)
     if (ctx->shellctxcache)
 	RB_tree_delete(ctx->shellctxcache);
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
     if (ctx->revmap_pending) {
 	io_dns_cancel(idc, ctx);
 	if (ctx->revmap_timedout)

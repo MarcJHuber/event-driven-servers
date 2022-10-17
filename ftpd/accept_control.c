@@ -34,13 +34,13 @@ void print_banner(struct context *ctx)
     }
 }
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 static void set_reverse(struct context *ctx, char *hostname)
 {
     if (hostname)
 	strset(&ctx->reverse, hostname);
 }
-#endif				/* WITH_LWRES */
+#endif				/* WITH_DNS */
 
 
 
@@ -107,10 +107,10 @@ void accept_control_raw(int s, struct scm_data_accept *sd)
 	Debug((DEBUG_NET, "- %s: getsockname failure\n", __func__));
 	return;
     }
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
     if (idc)
 	io_dns_add(idc, &ctx->sa_c_remote, (void *) set_reverse, ctx);
-#endif				/* WITH_LWRES */
+#endif				/* WITH_DNS */
 
     su_ptoh(&ctx->sa_c_remote, &ctx->in6_remote);
     su_ptoh(&ctx->sa_c_local, &ctx->in6_local);

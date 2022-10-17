@@ -98,7 +98,7 @@
 #include "mavis/mavis.h"
 #include "misc/net.h"
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 #include "misc/io_dns_revmap.h"
 #endif
 
@@ -769,7 +769,7 @@ tac_user *lookup_user(rb_tree_t *, char *);
 
 #define LOG_ACCESS 0x80000000
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 struct io_dns_ctx;
 #endif
 
@@ -789,7 +789,7 @@ void drop_mcx(void);
 void init_mcx(void);
 tac_realm *get_realm(char *);
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 extern struct io_dns_ctx *idc;
 extern radixtree_t *dns_tree_ptr_dynamic[2];
 #endif

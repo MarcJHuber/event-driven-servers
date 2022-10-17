@@ -273,12 +273,12 @@ static void cleanup_context(struct context *ctx, int cur __attribute__((unused))
     if (ctx->ifn > -1)
 	cleanup_ident(ctx, ctx->ifn);
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
     if (ctx->reverse)
 	Xfree(&ctx->reverse);
     else
 	io_dns_cancel(idc, ctx);
-#endif				/* WITH_LWRES */
+#endif				/* WITH_DNS */
 
 #ifdef WITH_SSL
     Xfree(&ctx->certsubj);

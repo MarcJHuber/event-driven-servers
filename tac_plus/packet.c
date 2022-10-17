@@ -645,7 +645,7 @@ void cleanup_session(tac_session * session)
     RB_search_and_delete(ctx->sessions, &s);
     if (session->mavis_pending && session->mavis_realm && session->mavis_realm->mcx)
 	mavis_cancel(session->mavis_realm->mcx, session);
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
     if (session->revmap_pending) {
 	io_dns_cancel(idc, session);
 	if (session->revmap_timedout)

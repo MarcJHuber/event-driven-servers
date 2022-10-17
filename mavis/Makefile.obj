@@ -9,7 +9,7 @@ PROG	= mavis
 
 CFLAGS	+= $(DEFCRYPT)
 
-LIB_MAVIS_LIB += $(LIB_SSL) $(LIB_PCRE) $(LIB_EXECINFO) $(LIB_CURL) $(LIB_LWRES) $(LIB_TLS)
+LIB_MAVIS_LIB += $(LIB_SSL) $(LIB_PCRE) $(LIB_EXECINFO) $(LIB_CURL) $(LIB_DNS) $(LIB_TLS)
 INC += $(INC_PCRE) $(INC_EXECINFO) $(INC_SSL) $(INC_EXECINFO) $(INC_CURL) $(INC_TLS)
 
 VPATH = $(BASE)/mavis:$(BASE)/misc
@@ -80,7 +80,7 @@ LIBMAVISOBJS	+= spawnd_accepted.o spawnd_conf.o spawnd_main.o
 LIBMAVISOBJS	+= spawnd_scm_spawn.o spawnd_signals.o pid_write.o
 LIBMAVISOBJS	+= sig_segv.o md5crypt.o av_send.o
 
-ifeq ($(WITH_LWRES), 1)
+ifeq ($(WITH_DNS), 1)
 	LIBMAVISOBJS += io_dns_revmap.o
 endif
 

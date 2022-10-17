@@ -334,6 +334,9 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 #ifdef WITH_LWRES
 	"/LWRES"
 #endif
+#ifdef WITH_LWRES
+	"/ARES"
+#endif
 #ifdef WITH_CURL
 	"/CURL"
 #endif
@@ -569,6 +572,9 @@ void scm_main(int argc, char **argv, char **envp)
 #endif
 #ifdef WITH_LWRES
 	"/LWRES"
+#endif
+#ifdef WITH_LWRES
+	"/ARES"
 #endif
 #ifdef WITH_CURL
 	"/CURL"

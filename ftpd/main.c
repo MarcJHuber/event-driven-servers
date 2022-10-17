@@ -147,9 +147,9 @@ int main(int argc, char **argv, char **envp)
 
     set_proctitle(ACCEPT_YES);
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
     idc = io_dns_init(io);
-#endif				/* WITH_LWRES */
+#endif				/* WITH_DNS */
 
     mavis_init(mcx, MAVIS_API_VERSION);
 

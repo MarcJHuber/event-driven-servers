@@ -1547,7 +1547,7 @@ static void do_pap_out(tac_session * session)
 }
 #endif
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 static void free_reverse(void *payload, void *data __attribute__((unused)))
 {
     free(payload);
@@ -1582,7 +1582,7 @@ static void set_revmap_nac(tac_session * session, char *hostname)
 void get_revmap_nac(tac_session * session, tac_host ** arr, int arr_min, int arr_max)
 {
     if (
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 	   idc &&
 #endif
 	   session->nac_address_valid) {
@@ -1603,7 +1603,7 @@ void get_revmap_nac(tac_session * session, tac_host ** arr, int arr_min, int arr
 
 	if (lookup_revmap == TRISTATE_YES) {
 	    char *t = radix_lookup(dns_tree_ptr_static, &session->nac_address, NULL);
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 	    if (!t && dns_tree_ptr_dynamic[0])	// current
 		t = radix_lookup(dns_tree_ptr_dynamic[0], &session->nac_address, NULL);
 	    if (!t && dns_tree_ptr_dynamic[1]) {	// old
@@ -1614,7 +1614,7 @@ void get_revmap_nac(tac_session * session, tac_host ** arr, int arr_min, int arr
 #endif
 	    if (t && *t)
 		session->nac_dns_name = mempool_strdup(session->pool, t);
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 	    else {
 		session->revmap_pending = 1;
 		report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "Querying NAC revmap (%s)", session->nac_address_ascii);
@@ -1625,7 +1625,7 @@ void get_revmap_nac(tac_session * session, tac_host ** arr, int arr_min, int arr
     }
 }
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 static void set_revmap_nas(struct context *ctx, char *hostname)
 {
     rb_node_t *rbn, *rbnext;
@@ -1653,12 +1653,12 @@ static void set_revmap_nas(struct context *ctx, char *hostname)
 void get_revmap_nas(struct context *ctx)
 {
     if (
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 	   idc &&
 #endif
 	   ctx->lookup_revmap == TRISTATE_YES) {
 	char *t = radix_lookup(dns_tree_ptr_static, &ctx->nas_address, NULL);
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 	if (!t && dns_tree_ptr_dynamic[0])	// current
 	    t = radix_lookup(dns_tree_ptr_dynamic[0], &ctx->nas_address, NULL);
 	if (!t && dns_tree_ptr_dynamic[1]) {	// old
@@ -1669,7 +1669,7 @@ void get_revmap_nas(struct context *ctx)
 #endif
 	if (t && *t)
 	    ctx->nas_dns_name = mempool_strdup(ctx->pool, t);
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 	else {
 	    ctx->revmap_pending = 1;
 	    report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "Querying NAS revmap (%s)", ctx->nas_address_ascii);
@@ -1870,7 +1870,7 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	if (username_required && !session->username[0])
 	    send_authen_error(session, "No username in packet");
 	else {
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 	    if ((hdr->seq_no == 1) && (session->dns_timeout > 0) && (session->revmap_pending || session->ctx->revmap_pending)) {
 		session->resumefn = session->authen_data->authfn;
 		io_sched_add(session->ctx->io, session, (void *) resume_session, session->dns_timeout, 0);

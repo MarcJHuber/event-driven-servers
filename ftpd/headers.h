@@ -51,7 +51,7 @@
 #include <zlib.h>
 #endif
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 #include "misc/io_dns_revmap.h"
 #endif
 
@@ -114,7 +114,7 @@ WHERE char *ssl_capath INITVAL(NULL);
 #define LOG_IDENT	8
 #define LOG_OVERRIDE	16
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 WHERE struct io_dns_ctx *idc INITVAL(NULL);
 #endif
 
@@ -475,7 +475,7 @@ struct context {
     char *user;			/* user name (from USER command) */
     char *email;		/* email address for anonymous ftp */
     char *ident_user;		/* user name (from RFC 1413 lookup) */
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
     char *reverse;		/* reverse mapping of client IP */
 #endif
     char *vhost;		/* virtual host (HOST vhost/USER user@vhost */

@@ -79,11 +79,11 @@ char *cook(struct context *ctx, char *format, char *direction, char *command, in
 		    t += snprintf(t, (size_t) (tmax - t), "%s", subst_delim(ctx->email, sub));
 		break;
 	    case 'R':
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
 		if (ctx->reverse)
 		    t += snprintf(t, (size_t) (tmax - t), "%s", subst_delim(ctx->reverse, sub));
 		else
-#endif				/* WITH_LWRES */
+#endif				/* WITH_DNS */
 		    t += snprintf(t, (size_t) (tmax - t), "[%s]", subst_delim(su_ntop(&ctx->sa_c_remote, buf, (socklen_t) sizeof(buf)), sub));
 		break;
 	    case 'T':

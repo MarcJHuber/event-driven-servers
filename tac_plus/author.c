@@ -144,7 +144,7 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     data->in_args = cmd_argp;	/* input command arguments */
     session->author_data = data;
 
-#ifdef WITH_LWRES
+#ifdef WITH_DNS
     if ((session->dns_timeout > 0) && (session->revmap_pending || session->ctx->revmap_pending)) {
 	session->resumefn = do_author;
 	io_sched_add(session->ctx->io, session, (void *) resume_session, session->dns_timeout, 0);

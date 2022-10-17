@@ -45,7 +45,7 @@ my @ALLDIRS = qw(mavis spawnd mavisd ftpd tac_plus tac_plus-ng tcprelay );
 my $DIRS_DEFAULT = join(" ", @DIRS_DEFAULT);
 my $ALLDIRS = join(" ", @ALLDIRS);
 
-my @options = qw(lwres pcre pcre2 ssl tls zlib radcli freeradius radcli pam execinfo sctp curl ipc);
+my @options = qw(lwres pcre pcre2 ssl tls zlib radcli freeradius radcli pam execinfo sctp curl ipc ares);
 my %COMMENT;
 
 my $sbin = "sbin";
@@ -64,8 +64,12 @@ autodetection, which may be useful if you're using a patched pre-sysepoll
 kernel.";
 
 $COMMENT{"lwres"} =
-"liblwres, the lightweight resolver library, comes with recent versions
+"liblwres, the lightweight resolver library, comes with older versions
 of bind, together with lwresd. Enabling this option enables ftpd and
+tac_plus to do perform DNS lookups.";
+
+$COMMENT{"ares"} =
+"c-ares is a library for asynchronous DNS requests. This option enables ftpd and
 tac_plus to do perform DNS lookups.";
 
 $COMMENT{"pcre"} =
