@@ -224,7 +224,6 @@ ifeq ($(WITH_ARES),)
 	endif
 endif
 
-WITH_ARES= # for now
 ifeq ($(WITH_ARES),1)
 	ifneq ($(INCDIR_ARES),)
 		INC_ARES	= -I$(INCDIR_ARES)

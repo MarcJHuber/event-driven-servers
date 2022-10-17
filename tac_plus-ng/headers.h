@@ -100,6 +100,10 @@
 #include "mavis/mavis.h"
 #include "misc/net.h"
 
+#ifdef WITH_DNS
+#include "misc/io_dns_revmap.h"
+#endif
+
 #define MD5_LEN           16
 #define MSCHAP_DIGEST_LEN 49
 
@@ -152,6 +156,8 @@ struct log_item {
 struct tac_host {
     u_int line;			/* configuration file line number */
      TRISTATE(anon_enable);	/* permit anonymous enable */
+     TRISTATE(lookup_revmap_nac);	/* lookup reverse mapping in DNS */
+     TRISTATE(lookup_revmap_nas);	/* lookup reverse mapping in DNS */
      TRISTATE(authfallback);	/* authentication fallback permitted? */
      TRISTATE(single_connection);	/* single-connection permitted? */
      TRISTATE(cleanup_when_idle);	/* cleanup context when idle */
@@ -177,6 +183,7 @@ struct tac_host {
     int tcp_timeout;		/* tcp connection idle timeout */
     int session_timeout;	/* session idle timeout */
     int context_timeout;	/* shell context idle timeout */
+    int dns_timeout;
     int authen_max_attempts;	/* maximum number of password retries per session */
     tac_realm *realm;
     tac_rewrite *rewrite_user;
@@ -323,7 +330,8 @@ struct realm {
      TRISTATE(mavis_pap_prefetch);
      TRISTATE(mavis_login_prefetch);
      BISTATE(visited);
-
+    int dns_caching_period;	/* dns caching period */
+    time_t dnspurge_last;
     int caching_period;		/* user caching period */
     int warning_period;		/* password expiration warning period */
     int backend_failure_period;
@@ -346,6 +354,8 @@ struct realm {
 #endif
     u_int debug;
     int rulecount;
+    struct io_dns_ctx *idc;
+    radixtree_t *dns_tree_ptr[3];	// 0: static, 1-2: dynamic
 };
 
 /* All tacacs+ packets have the same header format */
@@ -671,6 +681,7 @@ struct tac_session {
     u_char version;
     u_char pak_authen_type;
     u_char pak_authen_method;
+    void (*resumefn)(tac_session *);
     char **attrs_m;		/* mandatory */
     char **attrs_o;		/* optional (from NAS) */
     char **attrs_a;		/* add optinal (to NAS) */
@@ -738,7 +749,6 @@ struct context {
 #define USER_PROFILE_CACHE_SIZE 8
     struct user_profile_cache user_profile_cache[USER_PROFILE_CACHE_SIZE];
      TRISTATE(cleanup_when_idle);	/* cleanup context when idle */
-     TRISTATE(map_pap_to_login);
      BISTATE(unencrypted_flag);	/* not MD5 encryped ? */
      BISTATE(single_connection_flag);	/* single-connection enabled? */
      BISTATE(single_connection_test);	/* single-connection capable, but not telling? */
@@ -859,8 +869,10 @@ radixtree_t *lookup_hosttree(tac_realm *);
 
 #define LOG_ACCESS 0x80000000
 
-void get_revmap_nac(tac_session *, tac_host **, int, int);
-void get_revmap_nas(struct context *);
+void get_revmap_nac(tac_session *);
+void get_revmap_nas(tac_session *);
+void add_revmap(tac_realm *, struct in6_addr *, char *);
+void resume_session(tac_session *, int);
 void get_pkt_data(tac_session *, struct authen_start *, struct author *);
 
 enum token tac_script_eval_r(tac_session *, struct tac_script_action *);
@@ -880,7 +892,6 @@ void complete_realm(tac_realm *);
 enum token validate_ssh_hash(tac_session *, char *);
 #endif
 
-extern radixtree_t *dns_tree_ptr_static;
 extern struct config config;
 extern int die_when_idle;
 

@@ -303,8 +303,8 @@ static enum token lookup_and_set_user(tac_session * session)
 static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&& (((session->ctx->realm->mavis_userdb == TRISTATE_YES) &&(session->ctx->realm->mavis_login_prefetch != TRISTATE_YES) && !session->user)
-	    ||(session->user && pw_ix == PW_MAVIS));
+	&&( ( (session->ctx->realm->mavis_userdb == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES) && !session->user)
+	   || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -313,7 +313,7 @@ static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *
 
 static int query_mavis_info_login(tac_session * session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->user &&(session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
+    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_LOGIN);
@@ -332,8 +332,8 @@ int query_mavis_info(tac_session * session, void (*f)(tac_session *), enum pw_ix
 static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
-	( ( (session->ctx->realm->mavis_userdb == TRISTATE_YES) &&(session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES) && !session->user)
-	 ||(session->user && pw_ix == PW_MAVIS));
+	(((session->ctx->realm->mavis_userdb == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES) && !session->user)
+	 || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_PAP);
@@ -342,7 +342,7 @@ static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *),
 
 static int query_mavis_info_pap(tac_session * session, void (*f)(tac_session *))
 {
-    int res = !session->user &&(session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
+    int res = !session->user && (session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_PAP);
@@ -611,8 +611,8 @@ static void do_chpass(tac_session * session)
 
 static void send_password_prompt(tac_session * session, enum pw_ix pw_ix, void (*f)(tac_session *))
 {
-    if( (session->ctx->realm->chalresp == TRISTATE_YES) &&(!session->user ||( (pw_ix == PW_MAVIS) &&(TRISTATE_NO != session->user->chalresp)))) {
-	if(!session->flag_chalresp) {
+    if ((session->ctx->realm->chalresp == TRISTATE_YES) && (!session->user || ((pw_ix == PW_MAVIS) && (TRISTATE_NO != session->user->chalresp)))) {
+	if (!session->flag_chalresp) {
 	    session->flag_chalresp = 1;
 	    mavis_lookup(session, f, AV_V_TACTYPE_CHAL, PW_LOGIN);
 	    return;
@@ -1270,7 +1270,7 @@ static void do_pap(tac_session * session)
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
 
-    if (session->ctx->map_pap_to_login == TRISTATE_YES) {
+    if (session->ctx->host->map_pap_to_login == TRISTATE_YES) {
 	do_login(session);
 	return;
     }
@@ -1373,6 +1373,149 @@ static void do_sshkeyhash(tac_session * session)
 }
 #endif
 
+#ifdef WITH_DNS
+static void free_reverse(void *payload, void *data __attribute__((unused)))
+{
+    free(payload);
+}
+
+void add_revmap(tac_realm * r, struct in6_addr *address, char *hostname)
+{
+    while (r && !r->idc)
+	r = r->parent;
+    if (r) {
+	if (!hostname)
+	    hostname = "";
+	if (!r->dns_tree_ptr[1])
+	    r->dns_tree_ptr[1] = radix_new(free_reverse, NULL);
+	radix_add(r->dns_tree_ptr[1], address, 128, strdup(hostname));
+    }
+}
+
+static void set_revmap_nac(tac_session * session, char *hostname)
+{
+    report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAC revmap(%s) = %s", session->nac_address_ascii, hostname ? hostname : "(not found)");
+    if (hostname)
+	session->nac_dns_name = memlist_strdup(session->memlist, hostname);
+
+    session->revmap_pending = 0;
+    session->revmap_timedout = 0;
+
+    add_revmap(session->ctx->realm, &session->nac_address, hostname);
+
+    if (!session->ctx->revmap_pending && session->resumefn)
+	resume_session(session, -1);
+}
+#endif
+
+void get_revmap_nac(tac_session * session)
+{
+    tac_realm *r = session->ctx->realm;
+    if (session->nac_address_valid) {
+	while (r) {
+	    int i;
+	    for (i = 0; i < 3; i++) {
+		if (r->dns_tree_ptr[i]) {
+		    char *t = radix_lookup(r->dns_tree_ptr[i], &session->nac_address, NULL);
+		    if (t && *t) {
+			session->nac_dns_name = memlist_strdup(session->memlist, t);
+			session->nac_dns_name_len = strlen(session->nac_dns_name);
+			return;
+		    }
+		}
+	    }
+	    r = r->parent;
+	}
+    }
+#ifdef WITH_DNS
+    if (session->ctx->host->lookup_revmap_nac == BISTATE_YES) {
+	r = session->ctx->realm;
+	while (r && !r->idc)
+	    r = r->parent;
+	if (r) {
+	    session->revmap_pending = 1;
+	    report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "Querying NAC revmap (%s)", session->nac_address_ascii);
+	    io_dns_add_addr(config.default_realm->idc, &session->nac_address, (void *) set_revmap_nac, session);
+	}
+    }
+#endif
+}
+
+#ifdef WITH_DNS
+static void set_revmap_nas(struct context *ctx, char *hostname)
+{
+    rb_node_t *rbn, *rbnext;
+
+    report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAS revmap(%s) = %s", ctx->nas_address_ascii, hostname ? hostname : "(not found)");
+
+    if (hostname)
+	ctx->nas_dns_name = mempool_strdup(ctx->pool, hostname);
+
+    ctx->revmap_pending = 0;
+    ctx->revmap_timedout = 0;
+
+    add_revmap(ctx->realm, &ctx->nas_address, hostname);
+
+    for (rbn = RB_first(ctx->sessions); rbn; rbn = rbnext) {
+	tac_session *session = RB_payload(rbn, tac_session *);
+	rbnext = RB_next(rbn);
+
+	if (!session->revmap_pending && session->resumefn)
+	    resume_session(session, -1);
+    }
+}
+#endif
+
+
+void get_revmap_nas(tac_session * session)
+{
+    struct context *ctx = session->ctx;
+    if (!ctx->nas_dns_name) {
+	tac_realm *r = ctx->realm;
+	while (r) {
+	    int i;
+	    for (i = 0; i < 3; i++) {
+		if (r->dns_tree_ptr[i]) {
+		    char *t = radix_lookup(r->dns_tree_ptr[i], &ctx->nas_address, NULL);
+		    if (t && *t) {
+			ctx->nas_dns_name = mempool_strdup(ctx->pool, t);
+			ctx->nas_dns_name_len = strlen(ctx->nas_dns_name);
+			return;
+		    }
+		}
+	    }
+	    r = r->parent;
+	}
+#ifdef WITH_DNS
+	if (ctx->host->lookup_revmap_nas == BISTATE_YES) {
+	    r = ctx->realm;
+	    while (r && !r->idc)
+		r = r->parent;
+	    if (r->idc) {
+		ctx->revmap_pending = 1;
+		report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "Querying NAS revmap (%s)", ctx->nas_address_ascii);
+		io_dns_add_addr(config.default_realm->idc, &ctx->nas_address, (void *) set_revmap_nas, ctx);
+	    }
+	}
+#endif
+    }
+}
+
+#ifdef WITH_DNS
+void resume_session(tac_session * session, int cur __attribute__((unused)))
+{
+    void (*resumefn)(tac_session *) = session->resumefn;
+    report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "resuming");
+    session->resumefn = NULL;
+    if (session->revmap_pending)
+	session->revmap_timedout = 1;
+    if (session->ctx->revmap_pending)
+	session->ctx->revmap_timedout = 1;
+    io_sched_del(session->ctx->io, session, (void *) resume_session);
+    resumefn(session);
+}
+#endif
+
 void authen(tac_session * session, tac_pak_hdr * hdr)
 {
     int username_required = 1;
@@ -1461,9 +1604,7 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	    session->nac_address_ascii_len = start->rem_addr_len;
 	    session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
 	    if (session->nac_address_valid)
-		session->nac_dns_name = radix_lookup(dns_tree_ptr_static, &session->nac_address, NULL);
-	    if (session->nac_dns_name)
-		session->nac_dns_name_len = strlen(session->nac_dns_name);
+		get_revmap_nac(session);
 	    p += start->rem_addr_len;
 	    session->authen_data->data = (u_char *) memlist_strndup(session->memlist, p, start->data_len);
 	    session->authen_data->data_len = start->data_len;
@@ -1502,8 +1643,15 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
     if (session->authen_data->authfn) {
 	if (username_required && !session->username[0])
 	    send_authen_error(session, "No username in packet");
-	else
-	    session->authen_data->authfn(session);
+	else {
+#ifdef WITH_DNS
+	    if ((hdr->seq_no == 1) && (session->ctx->host->dns_timeout > 0) && (session->revmap_pending || session->ctx->revmap_pending)) {
+		session->resumefn = session->authen_data->authfn;
+		io_sched_add(session->ctx->io, session, (void *) resume_session, session->ctx->host->dns_timeout, 0);
+	    } else
+#endif
+		session->authen_data->authfn(session);
+	}
     } else
 	send_authen_error(session, "Invalid or unsupported AUTHEN/START (action=%d authen_type=%d)", start->action, start->type);
 }

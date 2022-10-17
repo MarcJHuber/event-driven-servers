@@ -706,6 +706,17 @@ void cleanup_session(tac_session * session)
 
     if (session->mavis_pending && mcx)
 	mavis_cancel(mcx, session);
+#ifdef WITH_DNS
+    if (session->revmap_pending) {
+	tac_realm *r = session->ctx->realm;
+	while (r && !r->idc)
+	    r = r->parent;
+	if (r)
+	    io_dns_cancel(r->idc, session);
+	if (session->revmap_timedout)
+	    add_revmap(session->ctx->realm, &session->nac_address, NULL);
+    }
+#endif
 
     memlist_destroy(session->memlist);
     mempool_free(ctx->pool, &session);

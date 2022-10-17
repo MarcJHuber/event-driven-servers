@@ -132,9 +132,7 @@ void author(tac_session * session, tac_pak_hdr * hdr)
 
     session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
     if (session->nac_address_valid)
-	session->nac_dns_name = radix_lookup(dns_tree_ptr_static, &session->nac_address, NULL);
-    if (session->nac_dns_name)
-	session->nac_dns_name_len = strlen(session->nac_dns_name);
+	get_revmap_nac(session);
 
     data = memlist_malloc(session->memlist, sizeof(struct author_data));
     data->in_cnt = pak->arg_cnt;
@@ -151,7 +149,13 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     session->author_data = data;
     session->in_length = session->ctx->in->length;
 
-    do_author(session);
+#ifdef WITH_DNS
+    if ((session->ctx->host->dns_timeout > 0) && (session->revmap_pending || session->ctx->revmap_pending)) {
+	session->resumefn = do_author;
+	io_sched_add(session->ctx->io, session, (void *) resume_session, session->ctx->host->dns_timeout, 0);
+    } else
+#endif
+	do_author(session);
 }
 
 #define is_separator(A) ((A) == '=' || (A) == '*')

@@ -163,7 +163,6 @@ struct tac_groups {
     u_int count;
     u_int allocated;		/* will be incfremented on demand */
     tac_group **groups;		/* array will be reallocated on demand */
-    tac_group ***groupsp;	/* array will be reallocated on demand */
 };
 
 struct tac_group;
@@ -223,6 +222,10 @@ void complete_realm(tac_realm * r)
 	    r->mavis_login_prefetch = rp->mavis_login_prefetch;
 	if (r->caching_period < 0)
 	    r->caching_period = rp->caching_period;
+#ifdef WITH_DNS
+	if (r->dns_caching_period < 0)
+	    r->dns_caching_period = rp->dns_caching_period;
+#endif
 	if (r->warning_period < 0)
 	    r->warning_period = rp->warning_period;
 	if (r->backend_failure_period < 0)
@@ -299,6 +302,8 @@ void complete_realm(tac_realm * r)
 	    r->mavis_pap_prefetch = TRISTATE_NO;
 	if (r->caching_period < 11)
 	    r->caching_period = 0;
+	if (r->dns_caching_period < 10)
+	    r->dns_caching_period = 10;
 
     }
     if (r->realms) {
@@ -352,12 +357,14 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
     if (parent) {
 	r->parent = parent;
 	r->caching_period = -1;
+	r->dns_caching_period = -1;
 	r->warning_period = -1;
 	r->backend_failure_period = -1;
     } else {
 	config.default_realm = r;
 	r->complete = 1;
 	r->caching_period = 120;
+	r->dns_caching_period = 600;
 	r->warning_period = 86400 * 14;
 	r->backend_failure_period = 60;
 	r->debug = common_data.debug;
@@ -649,7 +656,7 @@ static void parse_etc_hosts(char *url, tac_realm * r)
 	    sym_get(&sym);
 	    if (sym.line != line)
 		continue;
-	    radix_add(dns_tree_ptr_static, &a, cm, strdup(sym.buf));
+	    radix_add(r->dns_tree_ptr[0], &a, cm, strdup(sym.buf));
 	}
 
 	do {
@@ -918,7 +925,6 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	    r->default_host->session_timeout = parse_seconds(sym);
 	    continue;
 	case S_dns:
-	    top_only(sym, r);
 	    sym_get(sym);
 	    switch (sym->code) {
 	    case S_preload:
@@ -967,7 +973,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 			sym_get(sym);
 			parse(sym, S_equal);
 
-			radix_add(dns_tree_ptr_static, &a, cm, strdup(sym->buf));
+			radix_add(r->dns_tree_ptr[0], &a, cm, strdup(sym->buf));
 
 			sym_get(sym);
 			continue;
@@ -975,8 +981,47 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		default:
 		    parse_error_expect(sym, S_address, S_file, S_unknown);
 		}
+#ifdef WITH_DNS
+	    case S_timeout:
+		sym_get(sym);
+		parse(sym, S_equal);
+		r->default_host->dns_timeout = parse_seconds(sym);
+		continue;
+	    case S_reverselookup:
+		sym_get(sym);
+		switch (sym->code) {
+		case S_equal:
+		    sym_get(sym);
+		    r->default_host->lookup_revmap_nac = r->default_host->lookup_revmap_nas = parse_tristate(sym);
+		    break;
+		case S_nac:
+		    sym_get(sym);
+		    r->default_host->lookup_revmap_nac = parse_tristate(sym);
+		    break;
+		case S_nas:
+		    sym_get(sym);
+		    r->default_host->lookup_revmap_nas = parse_tristate(sym);
+		    break;
+		default:
+		    parse_error_expect(sym, S_equal, S_nac, S_nas, S_unknown);
+		}
+		//FIXME, add realm specific options
+		if ((r->default_host->lookup_revmap_nas == TRISTATE_YES || r->default_host->lookup_revmap_nac == TRISTATE_YES) && !r->idc)
+		    r->idc = io_dns_init(common_data.io);
+		continue;
+	    case S_cache:
+		sym_get(sym);
+		parse(sym, S_period);
+		parse(sym, S_equal);
+		r->dns_caching_period = parse_int(sym);
+		continue;
+#endif
 	    default:
-		parse_error_expect(sym, S_preload, S_unknown);
+		parse_error_expect(sym, S_preload,
+#ifdef WITH_DNS
+				   S_reverselookup, S_timeout,
+#endif
+				   S_unknown);
 	    }
 	    continue;
 	case S_cache:
@@ -2494,6 +2539,42 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	sym_get(sym);
 	return;
 #endif
+#ifdef WITH_DNS
+    case S_dns:
+	sym_get(sym);
+	switch (sym->code) {
+	case S_timeout:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    host->dns_timeout = parse_seconds(sym);
+	    return;
+	case S_reverselookup:
+	    sym_get(sym);
+	    switch (sym->code) {
+	    case S_equal:
+		sym_get(sym);
+		host->lookup_revmap_nac = host->lookup_revmap_nas = parse_tristate(sym);
+		break;
+	    case S_nac:
+		sym_get(sym);
+		host->lookup_revmap_nac = parse_tristate(sym);
+		break;
+	    case S_nas:
+		sym_get(sym);
+		host->lookup_revmap_nas = parse_tristate(sym);
+		break;
+	    default:
+		parse_error_expect(sym, S_equal, S_nac, S_nas, S_unknown);
+	    }
+	    //FIXME, add realm specific options
+	    if ((host->lookup_revmap_nas == TRISTATE_YES || host->lookup_revmap_nac == TRISTATE_YES) && !r->idc)
+		r->idc = io_dns_init(common_data.io);
+	    return;
+	default:
+	    parse_error_expect(sym, S_timeout, S_reverselookup, S_unknown);
+	}
+
+#endif
     default:
 	parse_error_expect(sym, S_host, S_parent, S_authentication, S_permit, S_bug, S_pap, S_address, S_key, S_motd, S_welcome, S_reject, S_enable,
 			   S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_script, S_unknown);
@@ -3718,8 +3799,6 @@ static int tac_group_add(tac_group * add, tac_groups * g, memlist_t * memlist)
     if (g->count == g->allocated) {
 	g->allocated += 32;
 	g->groups = (tac_group **) memlist_realloc(memlist, g->groups, g->allocated * sizeof(tac_group));
-	if (!g->groupsp)
-	    g->groupsp = (tac_group ***) memlist_add(memlist, &g->groups);
     }
     g->groups[g->count] = add;
     g->count++;

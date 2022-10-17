@@ -1206,7 +1206,7 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 		if (sizeof(buf) - total_len > len + 20)
 		    memcpy(b, s, len);
 	    } else
-		    len = ememcpy(b, s, len, sizeof(buf) - total_len);
+		len = ememcpy(b, s, len, sizeof(buf) - total_len);
 	    total_len += len;
 	    b += len;
 	    if (total_len > sizeof(buf) - 20)
@@ -1298,6 +1298,8 @@ void **memlist_add(memlist_t * list, void *p)
 {
     void **res = NULL;
     if (p && list) {
+	while (list->count == MEMLIST_ARR_SIZE && list->next)
+	    list = list->next;
 	if (list->count == MEMLIST_ARR_SIZE) {
 	    list->next = memlist_create();
 	    list = list->next;
@@ -1351,8 +1353,9 @@ void memlist_destroy(memlist_t * list)
     while (list) {
 	u_int i;
 	memlist_t *next = NULL;
-	for (i = 0; i < list->count; i++, next = list->next)
+	for (i = 0; i < list->count; i++)
 	    free(list->arr[i]);
+	next = list->next;
 	free(list);
 	list = next;
     }

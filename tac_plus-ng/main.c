@@ -115,7 +115,24 @@ static void process_signals(void)
     sigprocmask(SIG_SETMASK, &master_set, NULL);
 }
 
-radixtree_t *dns_tree_ptr_static = NULL;
+#ifdef WITH_DNS
+static void expire_dns(tac_realm * r)
+{
+    /* purge old DNS cache */
+    if (r->dnspurge_last + r->dns_caching_period < io_now.tv_sec) {
+	r->dnspurge_last = io_now.tv_sec;
+	if (r->dns_tree_ptr[2])
+	    radix_drop(&r->dns_tree_ptr[2], NULL);
+	r->dns_tree_ptr[2] = r->dns_tree_ptr[1];
+	r->dns_tree_ptr[1] = NULL;
+    }
+    if (r->realms) {
+	rb_node_t *rbn;
+	for (rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
+	    expire_dns(RB_payload(rbn, tac_realm *));
+    }
+}
+#endif
 
 static void periodics(struct context *ctx, int cur __attribute__((unused)))
 {
@@ -143,6 +160,10 @@ static void periodics(struct context *ctx, int cur __attribute__((unused)))
 	cleanup_spawnd(ctx, -1 /* unused */ );
 
     expire_dynamic_users(config.default_realm);
+
+#ifdef WITH_DNS
+    expire_dns(config.default_realm);
+#endif
 }
 
 static void periodics_ctx(struct context *ctx, int cur __attribute__((unused)))
@@ -196,8 +217,6 @@ int main(int argc, char **argv, char **envp)
     pwdat_unknown.type = S_unknown;
 
     buffer_setsize(0x8000, 0x10);
-
-    dns_tree_ptr_static = radix_new(NULL /* never freed */ , NULL);
 
 #ifdef WITH_TLS
     if (tls_init()) {
@@ -257,6 +276,7 @@ int main(int argc, char **argv, char **envp)
 	common_data.scm_send_msg(ctx_spawnd->sock, (struct scm_data *) &sd, -1);
 
     io_sched_add(common_data.io, new_context(common_data.io, NULL), (void *) periodics, 60, 0);
+
     init_mcx(config.default_realm);
 
     set_proctitle(ACCEPT_YES);
@@ -303,6 +323,16 @@ void cleanup(struct context *ctx, int cur)
 
     if (ctx->shellctxcache)
 	RB_tree_delete(ctx->shellctxcache);
+
+#ifdef WITH_DNS
+    if (ctx->revmap_pending) {
+	tac_realm *r = ctx->realm;
+	while (r && !r->idc)
+	    r = r->parent;
+	if (r && r->idc)
+	    io_dns_cancel(r->idc, ctx);
+    }
+#endif
 
     mempool_destroy(ctx->pool);
 
@@ -671,6 +701,27 @@ static void complete_host(tac_host * h)
 	if (h->map_pap_to_login == TRISTATE_DUNNO)
 	    h->map_pap_to_login = hp->map_pap_to_login;
 
+#ifdef WITH_DNS
+	if (h->lookup_revmap_nas == TRISTATE_DUNNO)
+	    h->lookup_revmap_nas = hp->lookup_revmap_nas;
+	if (h->lookup_revmap_nas == TRISTATE_DUNNO) {
+	    tac_realm *r = h->realm;
+	    while (r && (r->default_host->lookup_revmap_nas == TRISTATE_DUNNO))
+		r = r->parent;
+	    if (r)
+		h->lookup_revmap_nas = r->default_host->lookup_revmap_nas;
+	}
+	if (h->lookup_revmap_nac == TRISTATE_DUNNO)
+	    h->lookup_revmap_nac = hp->lookup_revmap_nac;
+	if (h->lookup_revmap_nac == TRISTATE_DUNNO) {
+	    tac_realm *r = h->realm;
+	    while (r && (r->default_host->lookup_revmap_nac == TRISTATE_DUNNO))
+		r = r->parent;
+	    if (r)
+		h->lookup_revmap_nac = r->default_host->lookup_revmap_nac;
+	}
+#endif
+
 #ifdef TPNG_EXPERIMENTAL
 	if (h->ssh_key_check_all == TRISTATE_DUNNO)
 	    h->ssh_key_check_all = hp->ssh_key_check_all;
@@ -701,6 +752,11 @@ static void complete_host(tac_host * h)
 
 	if (h->context_timeout < 0)
 	    h->context_timeout = hp->context_timeout;
+
+	if (h->dns_timeout < 0)
+	    h->dns_timeout = hp->dns_timeout;
+	if (h->dns_timeout < 0)
+	    h->dns_timeout = 0;
 
 	if (h->authen_max_attempts < 0)
 	    h->authen_max_attempts = hp->authen_max_attempts;
@@ -849,7 +905,6 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
     }
 
     ctx->nas_address = addr;	// FIXME, use origin
-    ctx->nas_dns_name = radix_lookup(dns_tree_ptr_static, &addr, NULL);	// FIXME
     if (vrf_len)
 	ctx->vrf = mempool_strndup(ctx->pool, (u_char *) vrf, vrf_len);
     ctx->vrf_len = vrf_len;
@@ -895,6 +950,7 @@ static void accept_control_final(struct context *ctx)
 
     ctx->nas_address_ascii = ctx->peer_addr_ascii;	//  FIXME, use origin
     ctx->nas_address_ascii_len = strlen(ctx->peer_addr_ascii);	// FIXME, use origin
+    get_revmap_nas(&session);
 
     io_register(ctx->io, ctx->sock, ctx);
     io_set_cb_i(ctx->io, ctx->sock, (void *) tac_read);
