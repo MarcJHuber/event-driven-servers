@@ -87,6 +87,7 @@ static void free_payload(void *v)
     free(v);
 }
 
+#ifdef WITH_LWRES
 static void io_dns_cb(struct io_dns_ctx *, int);
 
 static void udp_error(void *ctx __attribute__((unused)), int cur)
@@ -95,6 +96,7 @@ static void udp_error(void *ctx __attribute__((unused)), int cur)
     socklen_t sockerrlen = sizeof(sockerr);
     getsockopt(cur, SOL_SOCKET, SO_ERROR, (char *) &sockerr, &sockerrlen);
 }
+#endif
 
 #ifdef WITH_ARES
 static void io_ares_set(struct io_dns_ctx *);
@@ -246,11 +248,12 @@ void io_dns_cancel(struct io_dns_ctx *idc, void *app_ctx)
     if ((r = RB_search(idc->by_app_ctx, &i))) {
 #ifdef WITH_LWRES
 	RB_search_and_delete(idc->by_serial, RB_payload(r, void *));
+	RB_delete(idc->by_app_ctx, r);
 #endif
 #ifdef WITH_ARES
-	RB_search_and_delete(idc->by_addr, RB_payload(r, void *));
-#endif
 	RB_delete(idc->by_app_ctx, r);
+	RB_payload(r, struct io_dns_item *)->app_ctx = NULL;
+#endif
     }
 }
 
@@ -395,24 +398,21 @@ void io_dns_add(struct io_dns_ctx *idc, sockaddr_union * su, void *app_cb, void 
 static void a_callback(void *arg, int status, int timeouts __attribute__((unused)), unsigned char *abuf, int alen)
 {
     struct io_dns_item *idi = (struct io_dns_item *) arg;
-    rb_node_t *r = RB_search(idi->idc->by_addr, arg);
-    struct io_dns_item *p = r ? RB_payload(r, struct io_dns_item *) : NULL;
-    char *res = NULL;
-    struct hostent *host = NULL;
 
-    if (status == ARES_SUCCESS) {
-	status = ares_parse_ptr_reply(abuf, alen, NULL, 0, AF_INET, &host);
-	if (status == ARES_SUCCESS && p && host)
-	    res = host->h_name;
+    if (idi->app_ctx) {
+	char *res = NULL;
+	struct hostent *host = NULL;
+	if (status == ARES_SUCCESS) {
+	    status = ares_parse_ptr_reply(abuf, alen, NULL, 0, AF_INET, &host);
+	    if (status == ARES_SUCCESS && host)
+		res = host->h_name;
+	}
+	((void (*)(void *, char *)) idi->app_cb) (idi->app_ctx, res);
+	if (host)
+	    ares_free_hostent(host);
+	RB_search_and_delete(idi->idc->by_app_ctx, idi->app_ctx);
     }
-    if (p)
-	((void (*)(void *, char *)) p->app_cb) (p->app_ctx, res);
-    if (host)
-	ares_free_hostent(host);
-    if (p)
-	RB_search_and_delete(idi->idc->by_app_ctx, p);
-    if (r)
-	RB_delete(idi->idc->by_addr, r);
+    RB_search_and_delete(idi->idc->by_addr, idi);
 }
 #endif
 #ifdef WITH_LWRES
