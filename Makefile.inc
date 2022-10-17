@@ -185,54 +185,109 @@ LIB_MAVIS	+= "-L$(BASE)/build/$(OS)/mavis" "$(LDOPT_R)$(LIBARCHDIR_DEST)" -lmavi
 DIR_MISC	= $(BASE)/misc
 INC			+= -I$(BASE)
 
-# Check for lwres library:
+# Check for c-ares library:
 
 # Try pkg-config first:
-ifeq ($(WITH_LWRES),)
-	ifeq ($(shell pkg-config --exists liblwres 2>/dev/null ; echo $?),0)
-		WITH_LWRES=1
-		LIBDIR_LWRES=$(shell pkg-config --libs-only-L liblwres | cut -c3-)
-		INCDIR_LWRES=$(shell pkg-config --cflags-only-I liblwres | cut -c3-)
+ifeq ($(WITH_ARES),)
+	ifeq ($(shell pkg-config --exists libcares 2>/dev/null ; echo $$?),0)
+		WITH_ARES=1
+		LIBDIR_ARES=$(shell pkg-config --libs-only-L libcares | cut -c3-)
+		INCDIR_ARES=$(shell pkg-config --cflags-only-I libcares | cut -c3-)
 	endif
 endif
 
-ifeq ($(WITH_LWRES),)
-	ifneq ($(wildcard /lib$(LIBARCH)/liblwres$(SHLIB_EXT)* /usr/lib$(LIBARCH)/liblwres$(SHLIB_EXT)*),)
-		ifneq ($(wildcard /usr/include/lwres),)
-			WITH_LWRES=1
+ifeq ($(WITH_ARES),)
+	ifneq ($(wildcard /lib$(LIBARCH)/libares$(SHLIB_EXT)* /usr/lib$(LIBARCH)/libares$(SHLIB_EXT)*),)
+		ifneq ($(wildcard /usr/include/ares.h),)
+			WITH_ARES=1
 		endif
 	endif
 endif
 
-ifeq ($(WITH_LWRES),)
-	ifneq ($(wildcard /usr/local/lib$(LIBARCH)/liblwres$(SHLIB_EXT)*),)
-		ifneq ($(wildcard /usr/local/include/lwres),)
-			INCDIR_LWRES=/usr/local/include
-			LIBDIR_LWRES=/usr/local/lib/$(LIBARCH)
-			WITH_LWRES=1
+ifeq ($(WITH_ARES),)
+	ifneq ($(wildcard /usr/local/lib$(LIBARCH)/libares$(SHLIB_EXT)*),)
+		ifneq ($(wildcard /usr/local/include/ares.h),)
+			INCDIR_ARES=/usr/local/include
+			LIBDIR_ARES=/usr/local/lib/$(LIBARCH)
+			WITH_ARES=1
 		endif
 	endif
 endif
 
-ifeq ($(WITH_LWRES),)
-	ifneq ($(wildcard /usr/sfw/lib$(LIBARCH)/liblwres$(SHLIB_EXT)*),)
-		ifneq ($(wildcard /usr/sfw/include/lwres),)
-			INCDIR_LWRES=/usr/sfw/include
-			LIBDIR_LWRES=/usr/sfw/lib/$(LIBARCH)
-			WITH_LWRES=1
+ifeq ($(WITH_ARES),)
+	ifneq ($(wildcard /usr/sfw/lib$(LIBARCH)/libares$(SHLIB_EXT)*),)
+		ifneq ($(wildcard /usr/sfw/include/ares.h),)
+			INCDIR_ARES=/usr/sfw/include
+			LIBDIR_ARES=/usr/sfw/lib/$(LIBARCH)
+			WITH_ARES=1
 		endif
 	endif
 endif
 
-ifeq ($(WITH_LWRES),1)
-	ifneq ($(INCDIR_LWRES),)
-		INC_LWRES	= -I$(INCDIR_LWRES)
+WITH_ARES= # for now
+ifeq ($(WITH_ARES),1)
+	ifneq ($(INCDIR_ARES),)
+		INC_ARES	= -I$(INCDIR_ARES)
 	endif
-	ifneq ($(LIBDIR_LWRES),)
-		LIB_LWRES	= -L$(LIBDIR_LWRES) $(LDOPT_R)$(LIBDIR_LWRES)
+	ifneq ($(LIBDIR_ARES),)
+		LIB_DNS	= -L$(LIBDIR_ARES) $(LDOPT_R)$(LIBDIR_ARES)
 	endif
-	DEF += -DWITH_LWRES
-	LIB_LWRES	+= -llwres
+	DEF += -DWITH_ARES -DWITH_DNS
+	LIB_DNS	+= -lcares
+	WITH_DNS=1
+endif
+
+# Check for lwres library if c-ares is unavailable:
+
+ifeq ($(WITH_ARES),0)
+	# Try pkg-config first:
+	ifeq ($(WITH_LWRES),)
+		ifeq ($(shell pkg-config --exists liblwres 2>/dev/null ; echo $$?),0)
+			WITH_LWRES=1
+			LIBDIR_LWRES=$(shell pkg-config --libs-only-L liblwres | cut -c3-)
+			INCDIR_LWRES=$(shell pkg-config --cflags-only-I liblwres | cut -c3-)
+		endif
+	endif
+
+	ifeq ($(WITH_LWRES),)
+		ifneq ($(wildcard /lib$(LIBARCH)/liblwres$(SHLIB_EXT)* /usr/lib$(LIBARCH)/liblwres$(SHLIB_EXT)*),)
+			ifneq ($(wildcard /usr/include/lwres),)
+				WITH_LWRES=1
+			endif
+		endif
+	endif
+
+	ifeq ($(WITH_LWRES),)
+		ifneq ($(wildcard /usr/local/lib$(LIBARCH)/liblwres$(SHLIB_EXT)*),)
+			ifneq ($(wildcard /usr/local/include/lwres),)
+				INCDIR_LWRES=/usr/local/include
+				LIBDIR_LWRES=/usr/local/lib/$(LIBARCH)
+				WITH_LWRES=1
+			endif
+		endif
+	endif
+
+	ifeq ($(WITH_LWRES),)
+		ifneq ($(wildcard /usr/sfw/lib$(LIBARCH)/liblwres$(SHLIB_EXT)*),)
+			ifneq ($(wildcard /usr/sfw/include/lwres),)
+				INCDIR_LWRES=/usr/sfw/include
+				LIBDIR_LWRES=/usr/sfw/lib/$(LIBARCH)
+				WITH_LWRES=1
+			endif
+		endif
+	endif
+
+	ifeq ($(WITH_LWRES),1)
+		ifneq ($(INCDIR_LWRES),)
+			INC_LWRES	= -I$(INCDIR_LWRES)
+		endif
+		ifneq ($(LIBDIR_LWRES),)
+			LIB_DNS	= -L$(LIBDIR_LWRES) $(LDOPT_R)$(LIBDIR_LWRES)
+		endif
+		DEF += -DWITH_LWRES -DWITH_DNS
+		LIB_DNS	+= -llwres
+		WITH_DNS=1
+	endif
 endif
 
 # Check for OpenSSL library:
@@ -347,7 +402,7 @@ ifneq ($(WITH_PCRE2),1)
 
 	# Try pkg-config first:
 	ifeq ($(WITH_PCRE),)
-		ifeq ($(shell pkg-config --exists libpcre 2>/dev/null ; echo $?),0)
+		ifeq ($(shell pkg-config --exists libpcre 2>/dev/null ; echo $$?),0)
 			WITH_PCRE=1
 			LIBDIR_PCRE=$(shell pkg-config --libs-only-L libpcre | cut -c3-)
 			INCDIR_PCRE=$(shell pkg-config --cflags-only-I libpcre | cut -c3-)
@@ -409,7 +464,7 @@ ifneq ($(WITH_PCRE),1)
 
 	# Try pkg-config first:
 	ifeq ($(WITH_PCRE2),)
-		ifeq ($(shell pkg-config --exists libpcre2-8 2>/dev/null ; echo $?),0)
+		ifeq ($(shell pkg-config --exists libpcre2-8 2>/dev/null ; echo $$?),0)
 			WITH_PCRE2=1
 			LIBDIR_PCRE2=$(shell pkg-config --libs-only-L libpcre2-8 | cut -c3-)
 			INCDIR_PCRE2=$(shell pkg-config --cflags-only-I libpcre2-8 | cut -c3-)
@@ -470,7 +525,7 @@ endif
 
 # Try pkg-config first:
 ifeq ($(WITH_FREERADIUS),)
-	ifeq ($(shell pkg-config --exists libfreeradius-client 2>/dev/null ; echo $?),0)
+	ifeq ($(shell pkg-config --exists libfreeradius-client 2>/dev/null ; echo $$?),0)
 		WITH_FREERADIUS=1
 		LIBDIR_FREERADIUS=$(shell pkg-config --libs-only-L libfreeradius-client | cut -c3-)
 		INCDIR_FREERADIUS=$(shell pkg-config --cflags-only-I libfreeradius-client | cut -c3-)
@@ -519,7 +574,7 @@ endif
 
 # Try pkg-config first:
 ifeq ($(WITH_LIBRADCLI),)
-	ifeq ($(shell pkg-config --exists radcli 2>/dev/null ; echo $?),0)
+	ifeq ($(shell pkg-config --exists radcli 2>/dev/null ; echo $$?),0)
 		WITH_LIBRADCLI=1
 		LIBDIR_LIBRADCLI=$(shell pkg-config --libs-only-L radcli | cut -c3-)
 		INCDIR_LIBRADCLI=$(shell pkg-config --cflags-only-I radcli | cut -c3-)
@@ -559,7 +614,7 @@ endif
 
 # Try pkg-config first:
 ifeq ($(WITH_ZLIB),)
-	ifeq ($(shell pkg-config --exists libz 2>/dev/null ; echo $?),0)
+	ifeq ($(shell pkg-config --exists libz 2>/dev/null ; echo $$?),0)
 		WITH_ZLIB=1
 		LIBDIR_ZLIB=$(shell pkg-config --libs-only-L libz | cut -c3-)
 		INCDIR_ZLIB=$(shell pkg-config --cflags-only-I libz | cut -c3-)
@@ -599,7 +654,7 @@ endif
 
 # Try pkg-config first:
 ifeq ($(WITH_EXECINFO),)
-	ifeq ($(shell pkg-config --exists libexecinfo 2>/dev/null ; echo $?),0)
+	ifeq ($(shell pkg-config --exists libexecinfo 2>/dev/null ; echo $$?),0)
 		WITH_EXECINFO=$(
 		LIB_EXECINFO += $(shell pkg-config --libs-only-l libexecinfo)
 		LIBDIR_EXECINFO=$(shell pkg-config --libs-only-L libexecinfo | cut -c3-)
@@ -671,7 +726,7 @@ endif
 
 # Try pkg-config first:
 ifeq ($(WITH_CURL),)
-	ifeq ($(shell pkg-config --exists libcurl 2>/dev/null ; echo $?),0)
+	ifeq ($(shell pkg-config --exists libcurl 2>/dev/null ; echo $$?),0)
 		WITH_CURL=1
 		LIB_CURL += $(shell pkg-config --libs-only-l libcurl)
 		LIBDIR_CURL=$(shell pkg-config --libs-only-L libcurl | cut -c3-)
