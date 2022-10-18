@@ -553,6 +553,11 @@ host router.example.com {
      * dns cache period = seconds
        This option specifies the minimum DNS response caching
        time.
+     * dns servers = "string"
+       This option specifies the servers to use. This string will
+       be evaluated by ares_set_servers_ports_csv(3), please see
+       the corresponding man page for details. The option isn't
+       available if compiled without DNS support.
 
    The following configuration options are available at global,
    realm, host and net level.

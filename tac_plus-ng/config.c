@@ -1005,7 +1005,6 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		default:
 		    parse_error_expect(sym, S_equal, S_nac, S_nas, S_unknown);
 		}
-		//FIXME, add realm specific options
 		if ((r->default_host->lookup_revmap_nas == TRISTATE_YES || r->default_host->lookup_revmap_nac == TRISTATE_YES) && !r->idc)
 		    r->idc = io_dns_init(common_data.io);
 		continue;
@@ -1014,6 +1013,21 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		parse(sym, S_period);
 		parse(sym, S_equal);
 		r->dns_caching_period = parse_int(sym);
+		continue;
+	    case S_servers:
+		sym_get(sym);
+		if (sym->code == S_vrf) {
+		    sym_get(sym);
+		    if (!r->idc)
+			r->idc = io_dns_init(common_data.io);
+		    io_dns_set_vrf(r->idc, sym->buf);
+		    sym_get(sym);
+		}
+		parse(sym, S_equal);
+		if (!r->idc)
+		    r->idc = io_dns_init(common_data.io);
+		io_dns_set_servers(r->idc, sym->buf);
+		sym_get(sym);
 		continue;
 #endif
 	    default:

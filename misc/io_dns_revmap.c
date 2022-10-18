@@ -50,6 +50,13 @@ struct io_dns_ctx {
     lwres_context_t *ctx;
     int registered;
 #endif
+#ifdef SO_BINDTODEVICE		// Linux.
+    char *vrf;
+    size_t vrflen;
+#endif
+#ifdef SO_RTABLE		// OpenBSD, untested.
+    unsigned intvrf;
+#endif
 };
 
 #ifdef WITH_ARES
@@ -162,13 +169,21 @@ static ares_socket_t asocket(int domain, int type, int protocol, void *opaque)
 {
     struct io_dns_ctx *idc = (struct io_dns_ctx *) opaque;
     int fd = socket(domain, type, protocol);
-    if (fd > -1) {
-	io_register(idc->io, fd, idc);
-	io_set_cb_i(idc->io, fd, (void *) io_ares_read);
-	io_set_cb_o(idc->io, fd, (void *) io_ares_write);
-	io_set_cb_h(idc->io, fd, (void *) io_ares_readwrite);
-	io_set_cb_e(idc->io, fd, (void *) io_ares_readwrite);
-    }
+#ifdef SO_BINDTODEVICE		// Linux.
+    if (idc->vrf)
+	setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, idc->vrf, idc->vrflen);
+#endif
+#ifdef SO_RTABLE		// OpenBSD, untested.
+    if (idc->intvrf > 0)
+	setsockopt(fd, SOL_SOCKET, SO_RTABLE, &intvrf, sizeof(idc->intvrf))
+#endif
+	    if (fd > -1) {
+	    io_register(idc->io, fd, idc);
+	    io_set_cb_i(idc->io, fd, (void *) io_ares_read);
+	    io_set_cb_o(idc->io, fd, (void *) io_ares_write);
+	    io_set_cb_h(idc->io, fd, (void *) io_ares_readwrite);
+	    io_set_cb_e(idc->io, fd, (void *) io_ares_readwrite);
+	}
     return fd;
 }
 
@@ -201,7 +216,6 @@ struct io_dns_ctx *io_dns_init(struct io_context *io)
     struct io_dns_ctx *idc = Xcalloc(1, sizeof(struct io_dns_ctx));
 #ifdef WITH_ARES
     struct ares_options options;
-    static struct ares_socket_functions a_socket_functions;
     int res;
     memset(&options, 0, sizeof(options));
     options.flags = ARES_FLAG_STAYOPEN;
@@ -210,6 +224,7 @@ struct io_dns_ctx *io_dns_init(struct io_context *io)
     memset(&idc->channel, 0, sizeof(ares_channel));
     res = ares_init_options(&idc->channel, &options, ARES_OPT_LOOKUPS);
     if (res == ARES_SUCCESS) {
+	static struct ares_socket_functions a_socket_functions;
 	a_socket_functions.asocket = asocket;
 	a_socket_functions.aclose = aclose;
 	a_socket_functions.aconnect = aconnect;
@@ -456,6 +471,33 @@ static void io_dns_cb(struct io_dns_ctx *idc, int sock __attribute__((unused)))
     }
 }
 #endif
+
+#ifdef WITH_ARES
+int io_dns_set_servers(struct io_dns_ctx *idc, char *servers)
+{
+    return ares_set_servers_ports_csv(idc->channel, servers);
+}
+#endif
+
+#ifdef WITH_LWRES
+int io_dns_set_server(struct io_dns_ctx *idc __attribute__((unused)), char *servers __attribute__((unused)))
+{
+    return -1;
+}
+#endif
+
+void io_dns_set_vrf(struct io_dns_ctx *idc __attribute__((unused)), char *vrf __attribute__((unused)))
+{
+#ifdef SO_BINDTODEVICE		// Linux.
+    if (idc->vrf)
+	free(idc->vrf);
+    idc->vrf = vrf;
+    idc->vrflen = strlen(vrf) + 1;
+#endif
+#ifdef SO_RTABLE		// OpenBSD, untested.
+    idc->intvrf = (unsigned) atoi(vrf);
+#endif
+}
 
 #if 0
 static void testcb(void *ctx __attribute__((unused)), char *hostname)
