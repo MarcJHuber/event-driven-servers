@@ -251,6 +251,7 @@ same		S_same
 secure		S_secure
 separation	S_separation
 server		S_server
+servers		S_servers
 service		S_service
 set		S_set
 setenv		S_setenv
