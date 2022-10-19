@@ -318,9 +318,12 @@ foreach $a ("bin", "sbin", "etc", "libexec", "lib")
 	delete $A{"--$a"."dir"};
 }
 
+my $LIBARCHDIR_DEST;
+
 foreach $a ("libarch")
 {
 	$A{"--$a"."dir"} = $A{"--prefix"} . "/lib$LIBARCH" unless exists $A{"--$a"."dir"};
+	$LIBARCHDIR_DEST = $A{"--$a"."dir"};
 	$content .= uc($a)."DIR_DEST=" . $A{"--$a"."dir"} . "\n";
 	delete $A{"--$a"."dir"};
 }
@@ -455,6 +458,22 @@ ignored.
 
 EOT
 	;
+	$out = "spawnd/perl/Makefile.PL";
+	open OUT, ">$out" or die "open ($out): $!";
+	print OUT <<EOT
+use ExtUtils::MakeMaker;
+# See lib/ExtUtils/MakeMaker.pm for details of how to influence
+# the contents of the Makefile that is written.
+WriteMakefile(
+   NAMEi	=> 'Scm',
+   VERSION_FROM => 'Scm.pm',
+   INC		=> '-I../..',
+   LIBS		=> '-L$LIBARCHDIR_DEST -lmavis',
+   OBJECT	=> 'Scm.o',
+);
+EOT
+	;
+	close OUT;
 }
 
 # vim: ts=4
