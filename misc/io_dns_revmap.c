@@ -165,6 +165,7 @@ static void lwres_register(struct io_dns_ctx *idc)
 }
 #endif
 
+#ifdef WITH_ARES
 static ares_socket_t asocket(int domain, int type, int protocol, void *opaque)
 {
     struct io_dns_ctx *idc = (struct io_dns_ctx *) opaque;
@@ -177,7 +178,7 @@ static ares_socket_t asocket(int domain, int type, int protocol, void *opaque)
     if (idc->intvrf > 0)
 	setsockopt(fd, SOL_SOCKET, SO_RTABLE, &intvrf, sizeof(idc->intvrf))
 #endif
-	    if (fd > -1) {
+    if (fd > -1) {
 	    io_register(idc->io, fd, idc);
 	    io_set_cb_i(idc->io, fd, (void *) io_ares_read);
 	    io_set_cb_o(idc->io, fd, (void *) io_ares_write);
@@ -210,6 +211,7 @@ static ares_ssize_t asendv(ares_socket_t fd, const struct iovec *iov, int iovcnt
 {
     return writev(fd, iov, iovcnt);
 }
+#endif
 
 struct io_dns_ctx *io_dns_init(struct io_context *io)
 {
