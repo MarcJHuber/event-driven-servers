@@ -283,7 +283,7 @@ id = tac_plus-ng {
     log acctlog  { destination = /var/log/tac_plus/acct/%Y/%m/%d.log }
     accounting log = acctlog
     authentication log = authclog
-    authorization log log = authzlog
+    authorization log = authzlog
 
    Logs are interited to sub-realms and while sub-realms can
    define their own logging that won't override the parent realm
