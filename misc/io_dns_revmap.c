@@ -176,7 +176,7 @@ static ares_socket_t asocket(int domain, int type, int protocol, void *opaque)
 #endif
 #ifdef SO_RTABLE		// OpenBSD, untested.
     if (idc->intvrf > 0)
-	setsockopt(fd, SOL_SOCKET, SO_RTABLE, &intvrf, sizeof(idc->intvrf))
+	setsockopt(fd, SOL_SOCKET, SO_RTABLE, (unsigned int *) &idc->intvrf, sizeof(idc->intvrf));
 #endif
     if (fd > -1) {
 	    io_register(idc->io, fd, idc);
