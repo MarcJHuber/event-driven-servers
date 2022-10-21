@@ -46,7 +46,7 @@
 #include "misc/strops.h"
 #include "mavis/log.h"
 
-#ifdef SO_BINDTODEVICE
+#ifdef VRF_BINDTODEVICE
 #include <net/if.h>
 #endif
 #ifndef IFNAMSIZ
@@ -837,7 +837,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
     su_convert(nad_address, AF_INET);
     su_ptoh(nad_address, &addr);
 
-#ifdef SO_BINDTODEVICE		// Linux.
+#ifdef VRF_BINDTODEVICE
     {
 	// Reminder to myself:
 	//      sysctl -w net.ipv4.tcp_l3mdev_accept=1 
@@ -853,7 +853,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	}
     }
 #endif
-#ifdef SO_RTABLE		// OpenBSD, untested.
+#ifdef VRF_RTABLE
     {
 	unsigned int opt;
 	socklen_t optlen = sizeof(opt);

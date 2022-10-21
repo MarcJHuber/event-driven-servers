@@ -215,13 +215,13 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 	    unlink(ctx->sa.sun.sun_path);
 #endif				/* AF_UNIX */
 
-#ifdef SO_BINDTODEVICE
+#ifdef VRF_BINDTODEVICE
 	if (ctx->vrf && (ctx->sa.sa.sa_family == AF_INET || ctx->sa.sa.sa_family == AF_INET6)) {
 	    if (setsockopt(cur, SOL_SOCKET, SO_BINDTODEVICE, ctx->vrf, ctx->vrf_len))
 		logerr("setsockopt failed to set the VRF to \"%s\" [%s:%d]", ctx->vrf, __FILE__, __LINE__);
 	}
 #endif
-#ifdef SO_RTABLE		// OpenBSD, untested.
+#ifdef VRF_RTABLE
 	if (ctx->vrf_id > -1 && (ctx->sa.sa.sa_family == AF_INET || ctx->sa.sa.sa_family == AF_INET6)) {
 	    unsigned int opt = (unsigned int) ctx->vrf_id;
 	    socklen_t optlen = sizeof(opt);

@@ -98,11 +98,11 @@ struct spawnd_context {
     pid_t pid;			/* server only */
     char *tag;			/* listener only */
     ssize_t tag_len;		/* listener only */
-#ifdef SO_BINDTODEVICE
+#ifdef VRF_BINDTODEVICE
     char *vrf;			/* server only */
     ssize_t vrf_len;		/* server only */
 #endif
-#ifdef SO_RTABLE
+#ifdef VRF_RTABLE
     int vrf_id;
 #endif
     uid_t uid;

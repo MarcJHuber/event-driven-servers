@@ -93,7 +93,7 @@ static void parse_listen(struct sym *sym)
     ctx->overload_backlog = 128;
     ctx->socktype = SOCK_STREAM;
     ctx->protocol = IPPROTO_TCP;
-#ifdef SO_RTABLE
+#ifdef VRF_RTABLE
     ctx->vrf_id = -1;
 #endif
     sym_get(sym);
@@ -129,11 +129,11 @@ static void parse_listen(struct sym *sym)
 	case S_vrf:
 	    sym_get(sym);
 	    parse(sym, S_equal);
-#ifdef SO_BINDTODEVICE
+#ifdef VRF_BINDTODEVICE
 	    strset(&ctx->vrf, sym->buf);
 	    ctx->vrf_len = strlen(ctx->vrf) + 1;
 #endif
-#ifdef SO_RTABLE
+#ifdef VRF_RTABLE
 	    ctx->vrf_id = atoi(sym->buf);
 #endif
 	    sym_get(sym);

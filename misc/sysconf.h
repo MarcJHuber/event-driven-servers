@@ -467,6 +467,18 @@
 #define TIME_T_PRINTF "%ld"
 #endif
 /*******************************************************************************
+ * VRF handling
+ */
+#if defined(__linux__) && defined(SO_BINDTODEVICE)
+#define VRF_BINDTODEVICE
+#endif
+#if defined(__OpenBSD__) && defined(SO_RTABLE)
+#define VRF_RTABLE
+#endif
+#if defined(__FreeBSD__) && defined(SO_SETFIB)
+#define VRF_SETFIB
+#endif
+/*******************************************************************************
  * misc
  */
 #ifndef LOG_PRIMASK

@@ -50,11 +50,11 @@ struct io_dns_ctx {
     lwres_context_t *ctx;
     int registered;
 #endif
-#ifdef SO_BINDTODEVICE		// Linux.
+#ifdef VRF_BINDTODEVICE
     char *vrf;
     size_t vrflen;
 #endif
-#ifdef SO_RTABLE		// OpenBSD, untested.
+#if defined(VRF_RTABLE) || defined(VRF_SETFIB)
     unsigned intvrf;
 #endif
 };
@@ -170,21 +170,25 @@ static ares_socket_t asocket(int domain, int type, int protocol, void *opaque)
 {
     struct io_dns_ctx *idc = (struct io_dns_ctx *) opaque;
     int fd = socket(domain, type, protocol);
-#ifdef SO_BINDTODEVICE		// Linux.
+#ifdef VRF_BINDTODEVICE
     if (idc->vrf)
 	setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, idc->vrf, idc->vrflen);
 #endif
-#ifdef SO_RTABLE		// OpenBSD, untested.
-    if (idc->intvrf > 0)
+#ifdef VRF_RTABLE
+    if (idc->intvrf >= 0)
 	setsockopt(fd, SOL_SOCKET, SO_RTABLE, (unsigned int *) &idc->intvrf, sizeof(idc->intvrf));
 #endif
+#ifdef VRF_SETFIB
+    if (idc->intvrf >= 0)
+	setsockopt(fd, SOL_SOCKET, SO_SETFIB, (unsigned int *) &idc->intvrf, sizeof(idc->intvrf));
+#endif
     if (fd > -1) {
-	    io_register(idc->io, fd, idc);
-	    io_set_cb_i(idc->io, fd, (void *) io_ares_read);
-	    io_set_cb_o(idc->io, fd, (void *) io_ares_write);
-	    io_set_cb_h(idc->io, fd, (void *) io_ares_readwrite);
-	    io_set_cb_e(idc->io, fd, (void *) io_ares_readwrite);
-	}
+	io_register(idc->io, fd, idc);
+	io_set_cb_i(idc->io, fd, (void *) io_ares_read);
+	io_set_cb_o(idc->io, fd, (void *) io_ares_write);
+	io_set_cb_h(idc->io, fd, (void *) io_ares_readwrite);
+	io_set_cb_e(idc->io, fd, (void *) io_ares_readwrite);
+    }
     return fd;
 }
 
@@ -490,13 +494,13 @@ int io_dns_set_server(struct io_dns_ctx *idc __attribute__((unused)), char *serv
 
 void io_dns_set_vrf(struct io_dns_ctx *idc __attribute__((unused)), char *vrf __attribute__((unused)))
 {
-#ifdef SO_BINDTODEVICE		// Linux.
+#ifdef VRF_BINDTODEVICE
     if (idc->vrf)
 	free(idc->vrf);
     idc->vrf = vrf;
     idc->vrflen = strlen(vrf) + 1;
 #endif
-#ifdef SO_RTABLE		// OpenBSD, untested.
+#if defined(VRF_RTABLE) || defined(VRF_SETFIB)
     idc->intvrf = (unsigned) atoi(vrf);
 #endif
 }
