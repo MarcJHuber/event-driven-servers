@@ -102,7 +102,7 @@ struct spawnd_context {
     char *vrf;			/* server only */
     ssize_t vrf_len;		/* server only */
 #endif
-#ifdef VRF_RTABLE
+#if defined(VRF_RTABLE) || defined(VRF_SETFIB)
     int vrf_id;
 #endif
     uid_t uid;

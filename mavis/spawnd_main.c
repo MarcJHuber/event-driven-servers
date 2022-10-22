@@ -221,11 +221,18 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 		logerr("setsockopt failed to set the VRF to \"%s\" [%s:%d]", ctx->vrf, __FILE__, __LINE__);
 	}
 #endif
-#ifdef VRF_RTABLE
+#if defined(VRF_RTABLE) || defined(VRF_SETFIB)
 	if (ctx->vrf_id > -1 && (ctx->sa.sa.sa_family == AF_INET || ctx->sa.sa.sa_family == AF_INET6)) {
 	    unsigned int opt = (unsigned int) ctx->vrf_id;
 	    socklen_t optlen = sizeof(opt);
-	    if (setsockopt(cur, SOL_SOCKET, SO_RTABLE, &opt, optlen))
+	    if (setsockopt(cur, SOL_SOCKET,
+#ifdef VRF_RTABLE
+			   SO_RTABLE
+#endif
+#ifdef VRF_SETFIB
+			   SO_SETFIB
+#endif
+			   , &opt, optlen))
 		logerr("setsockopt failed to set the VRF to \"%d\" [%s:%d]", ctx->vrf_id, __FILE__, __LINE__);
 	}
 #endif
