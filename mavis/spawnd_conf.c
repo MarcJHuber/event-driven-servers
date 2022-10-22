@@ -133,7 +133,7 @@ static void parse_listen(struct sym *sym)
 	    strset(&ctx->vrf, sym->buf);
 	    ctx->vrf_len = strlen(ctx->vrf) + 1;
 #endif
-#ifdef VRF_RTABLE
+#if defined(VRF_RTABLE) || defined(VRF_SETFIB)
 	    ctx->vrf_id = atoi(sym->buf);
 #endif
 	    sym_get(sym);
