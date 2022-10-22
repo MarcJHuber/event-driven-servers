@@ -83,12 +83,12 @@ Marc Huber
 1. Introduction
 
    tac_plus-ng is a TACACS+ daemon. It provides networking
-   components like router and switches with authentication,
+   components like routers and switches with authentication,
    authorisation and accounting services.
 
-   This version is a major rewrite of the original Cisco source
-   code and is largely based on tac_plus, which comes with the
-   same distribution. Key features include:
+   This version is a major rewrite of the original public Cisco
+   source code and is in turn largely based on tac_plus, which
+   comes with the same distribution. Key features include:
 
      * NAS specific host keys, prompts, enable passwords
      * Rule-based permission assignment
