@@ -38,6 +38,7 @@
  */
 
 #include "headers.h"
+#include "misc/md5crypt.h"
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
@@ -354,9 +355,25 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    session->mavisauth_res_valid = 1;
 	    if ((TRISTATE_YES != u->chalresp) && session->password && !u->passwd_oneshot) {
 		char *pass = session->password_new ? session->password_new : session->password;
+#if 1
+		char *crypt, salt[13];
+		int i;
+		salt[0] = '$';
+		salt[1] = '1';
+		salt[2] = '$';
+		for (i = 3; i < 11; i++)
+		    salt[i] = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"[random() % 64];
+		salt[11] = '$';
+		salt[12] = 0;
+		crypt = md5crypt(pass, salt);
+		pp[PW_MAVIS] = memlist_malloc(u->memlist, sizeof(struct pwdat) + strlen(crypt));
+		strcpy(pp[PW_MAVIS]->value, crypt);
+		pp[PW_MAVIS]->type = S_crypt;
+#else
 		pp[PW_MAVIS] = memlist_malloc(u->memlist, sizeof(struct pwdat) + strlen(pass));
 		strcpy(pp[PW_MAVIS]->value, pass);
 		pp[PW_MAVIS]->type = S_clear;
+#endif
 	    }
 	}
     } else if (result && !strcmp(result, AV_V_RESULT_ERROR)) {
