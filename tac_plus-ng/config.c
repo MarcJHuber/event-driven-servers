@@ -2650,6 +2650,17 @@ static void parse_host(struct sym *sym, tac_realm * r, tac_host * parent)
     RB_insert(r->hosttable, host);
 }
 
+static void radix_copy_func(struct in6_addr *addr, int mask, void *payload, void *data)
+{
+    radix_add((radixtree_t *) data, addr, mask, payload);
+}
+
+static void net_complete(tac_net * net)
+{
+    if (net->parent)
+	radix_walk(net->nettree, radix_copy_func, net->parent->nettree);
+}
+
 static void parse_net(struct sym *sym, tac_realm * r, tac_net * parent)
 {
     tac_net *net = (tac_net *) calloc(1, sizeof(tac_net)), *np;
@@ -2738,6 +2749,7 @@ static void parse_net(struct sym *sym, tac_realm * r, tac_net * parent)
 	}
     sym_get(sym);
     RB_insert(r->nettable, net);
+    net_complete(net);
 }
 
 static struct tac_acllist *eval_tac_acllist(tac_session * session, struct tac_acllist **al)
@@ -3342,16 +3354,10 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
     case S_net:
 	if (m->u.s.token == S_nas) {
 	    tac_net *net = (tac_net *) (m->u.s.rhs);
-	    while (!res && net) {
-		res = radix_lookup(net->nettree, &session->ctx->nas_address, NULL) ? -1 : 0;
-		net = net->parent;
-	    }
+	    res = radix_lookup(net->nettree, &session->ctx->nas_address, NULL) ? -1 : 0;
 	} else if (session->nac_address_valid) {
 	    tac_net *net = (tac_net *) (m->u.s.rhs);
-	    while (!res && net) {
-		res = radix_lookup(net->nettree, &session->nac_address, NULL) ? -1 : 0;
-		net = net->parent;
-	    }
+	    res = radix_lookup(net->nettree, &session->nac_address, NULL) ? -1 : 0;
 	}
 	return tac_script_cond_eval_res(session, m, res);
     case S_time:

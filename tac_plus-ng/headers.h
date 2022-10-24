@@ -167,6 +167,7 @@ struct tac_host {
 #ifdef TPNG_EXPERIMENTAL
      TRISTATE(ssh_key_check_all);
 #endif
+     BISTATE(complete);
      BISTATE(visited);
     u_int bug_compatibility;
     char *name;			/* host name */
