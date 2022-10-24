@@ -76,13 +76,15 @@ $COMMENT{"pcre"} =
 "ftpd can use the PCRE (\"Perl Compatible Regular Expressions\") library
 for path rewriting, and tac_plus may use it as an alternative to POSIX
 regular expression matching. You don't need this library if you don't
-care for these features.";
+care for these features. Please note that this library is deprecated
+and no longer supported by upstream. Please switch to PCRE2.";
 
 $COMMENT{"pcre2"} =
 "ftpd can use the PCRE v2 (\"Perl Compatible Regular Expressions\" v2)
 library for path rewriting, and tac_plus may use it as an alternative to
-POSIX regular expression matching. You don't need this library if you
-don't care for these features.";
+POSIX regular expression matching. You don't need this library yet if you
+don't care for these features, but it's highly recommended and might
+become mandatory in the future.";
 
 $COMMENT{"freeradius"} =
 "If you have the freeradius-client library installed, you may authenticate
@@ -189,9 +191,8 @@ Default targets:
   $DIRS_DEFAULT
 
 The Makefile should be smart enough to figure out availability of most
-configuration options (OpenSSL, FreeRADIUS-Client, PCRE, LWRES, PAM, SCTP,
-ZLIB) by itself, so "./configure" without any arguments is sufficient
-in most cases.
+configuration options by itself, so "./configure" without any arguments
+is sufficient in most cases.
 
 EOT
 	;
@@ -448,10 +449,16 @@ directory structure. It's probably advisable to have a look there in any case,
 as you may or may not like the particular file system layout, and this will
 give you a chance to see it before installing.
 
-Please direct support requests to the "Event-Driven Servers" Google Group at:
+Please direct support requests to the "Event-Driven Servers" Google Group at
 
     event-driven-servers\@googlegroups.com
-    http://groups.google.com/group/event-driven-servers
+    https://groups.google.com/group/event-driven-servers
+
+or file an issue at
+
+    https://github.com/MarcJHuber/event-driven-servers
+
+if you need help.
 
 Support requests sent to the author's private email address may be silently
 ignored.
