@@ -167,14 +167,11 @@ struct tac_host {
 #ifdef TPNG_EXPERIMENTAL
      TRISTATE(ssh_key_check_all);
 #endif
-     BISTATE(complete);
      BISTATE(visited);
     u_int bug_compatibility;
     char *name;			/* host name */
     size_t name_len;
     tac_host *parent;
-    tac_host **childs;
-    int child_count;
     struct tac_key *key;
     struct log_item *motd;
     struct log_item *welcome_banner;	/* prompt */
