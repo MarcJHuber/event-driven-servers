@@ -374,6 +374,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		strcpy(pp[PW_MAVIS]->value, pass);
 		pp[PW_MAVIS]->type = S_clear;
 #endif
+		pp[session->mavis_data->pw_ix] = pp[PW_MAVIS];
 	    }
 	}
     } else if (result && !strcmp(result, AV_V_RESULT_ERROR)) {

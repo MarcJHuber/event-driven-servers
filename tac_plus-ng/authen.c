@@ -303,8 +303,8 @@ static enum token lookup_and_set_user(tac_session * session)
 static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&&( ( (session->ctx->realm->mavis_userdb == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES) && !session->user)
-	   || (session->user && pw_ix == PW_MAVIS));
+	&& ((!session->user && (session->ctx->realm->mavis_pap == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
+	    || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -332,7 +332,7 @@ int query_mavis_info(tac_session * session, void (*f)(tac_session *), enum pw_ix
 static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
-	(((session->ctx->realm->mavis_userdb == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES) && !session->user)
+	((!session->user && (session->ctx->realm->mavis_pap == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
 	 || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)

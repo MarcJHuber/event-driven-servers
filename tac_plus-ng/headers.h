@@ -167,7 +167,6 @@ struct tac_host {
 #ifdef TPNG_EXPERIMENTAL
      TRISTATE(ssh_key_check_all);
 #endif
-     BISTATE(complete);
      BISTATE(visited);
     u_int bug_compatibility;
     char *name;			/* host name */
@@ -326,7 +325,7 @@ struct realm {
      TRISTATE(mavis_userdb);	/* use MAVIS for user authentication, too */
      TRISTATE(mavis_noauthcache);	/* don't do backend password caching */
      TRISTATE(mavis_pap);
-     BISTATE(mavis_login);
+     TRISTATE(mavis_login);
      TRISTATE(mavis_pap_prefetch);
      TRISTATE(mavis_login_prefetch);
      BISTATE(visited);
