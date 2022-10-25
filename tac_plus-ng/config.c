@@ -2655,12 +2655,6 @@ static void radix_copy_func(struct in6_addr *addr, int mask, void *payload, void
     radix_add((radixtree_t *) data, addr, mask, payload);
 }
 
-static void net_complete(tac_net * net)
-{
-    if (net->parent)
-	radix_walk(net->nettree, radix_copy_func, net->parent->nettree);
-}
-
 static void parse_net(struct sym *sym, tac_realm * r, tac_net * parent)
 {
     tac_net *net = (tac_net *) calloc(1, sizeof(tac_net)), *np;
@@ -2749,7 +2743,8 @@ static void parse_net(struct sym *sym, tac_realm * r, tac_net * parent)
 	}
     sym_get(sym);
     RB_insert(r->nettable, net);
-    net_complete(net);
+    if (net->parent)
+	radix_walk(net->nettree, radix_copy_func, net->parent->nettree);
 }
 
 static struct tac_acllist *eval_tac_acllist(tac_session * session, struct tac_acllist **al)
