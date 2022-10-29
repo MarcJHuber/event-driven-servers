@@ -77,7 +77,7 @@ int spawnd_spawn_child(pid_t * pidp)
 
     switch ((pid = fork())) {
     case 0:
-	io_destroy(common_data.io, NULL);
+	// io_destroy(common_data.io, NULL);
 	close(socks[0]);
 	dup2(socks[1], 0);
 	close(socks[1]);
