@@ -356,7 +356,7 @@ static void log_start(struct logfile *lf, struct context_logfile *deadctx)
 	    }
 	    switch ((pid = io_child_fork((void (*)(pid_t, void *, int)) logdied, deadctx))) {
 	    case 0:
-		io_destroy(common_data.io, NULL);
+		// io_destroy(common_data.io, NULL);
 		close(fds[1]);
 		if (fds[0]) {
 		    dup2(fds[0], 0);
