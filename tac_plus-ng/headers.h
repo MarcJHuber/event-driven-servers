@@ -889,7 +889,7 @@ void init_mcx(tac_realm *);
 void complete_realm(tac_realm *);
 
 #ifdef TPNG_EXPERIMENTAL
-enum token validate_ssh_hash(tac_session *, char *);
+enum token validate_ssh_hash(tac_session *, char *, char **);
 #endif
 
 extern struct config config;

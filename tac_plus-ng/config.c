@@ -1962,6 +1962,7 @@ static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm
 #ifdef TPNG_EXPERIMENTAL
 struct ssh_key_hash {
     struct ssh_key_hash *next;
+    char *key;
     char hash[1];
 };
 
@@ -1990,7 +1991,7 @@ struct ssh_key_hash {
 // MD5 *and* SHA256.
 //
 
-enum token validate_ssh_hash(tac_session * session, char *hash)
+enum token validate_ssh_hash(tac_session * session, char *hash, char **key)
 {
     enum token res = S_deny;
     if (!hash)
@@ -2007,6 +2008,7 @@ enum token validate_ssh_hash(tac_session * session, char *hash)
 	    next++;
 	while (*ssh_key_hash) {
 	    if (!strncmp((*ssh_key_hash)->hash, hash, len) && (!hash[len] || hash[len] == ',')) {
+		*key = (*ssh_key_hash)->key;
 		if (session->ctx->host->ssh_key_check_all != TRISTATE_YES)
 		    return S_permit;
 		res = S_permit;
@@ -2101,7 +2103,7 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
     do {
 	size_t slen = strlen(sym->buf);
 	unsigned char *t = alloca(slen);
-	char *hash;
+	char *hash, *key;
 	size_t hash_len;
 	int len = EVP_DecodeBlock(t, (const unsigned char *) sym->buf, slen);
 	int pad = 0;
@@ -2115,12 +2117,16 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	    pad++;
 	len = (slen * 3) / 4 - pad;
 
+	key = memlist_strdup(user->memlist, sym->buf);
+
 	hash = calc_ssh_key_hash("MD5", t, len);
 	if (!hash)
 	    parse_error(sym, "MD5 hashing failed.");
 	hash_len = strlen(hash);
 	*ssh_key_hash = memlist_malloc(user->memlist, sizeof(struct ssh_key_hash) + len);
+	(*ssh_key_hash)->key = memlist_strdup(user->memlist, sym->buf);
 	memcpy((*ssh_key_hash)->hash, hash, len + 1);
+	(*ssh_key_hash)->key = key;
 	ssh_key_hash = &((*ssh_key_hash)->next);
 
 	hash = calc_ssh_key_hash("SHA256", t, len);
@@ -2133,6 +2139,7 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	}
 	*ssh_key_hash = memlist_malloc(user->memlist, sizeof(struct ssh_key_hash) + len);
 	memcpy((*ssh_key_hash)->hash, hash, len + 1);
+	(*ssh_key_hash)->key = key;
 
 	sym_get(sym);
 	ssh_key_hash = &((*ssh_key_hash)->next);

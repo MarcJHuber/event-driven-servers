@@ -1326,6 +1326,7 @@ static void do_sshkeyhash(tac_session * session)
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
+    char *key = NULL;
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "ssh-key-hash login", hint_denied_by_acl, res);
@@ -1342,7 +1343,7 @@ static void do_sshkeyhash(tac_session * session)
 	session->ssh_key_hash = (char *) session->authen_data->msg;
 
     if (session->user && session->ssh_key_hash && *session->ssh_key_hash) {
-	enum token token = validate_ssh_hash(session, session->ssh_key_hash);
+	enum token token = validate_ssh_hash(session, session->ssh_key_hash, &key);
 
 	if (token == S_permit) {
 	    token = eval_ruleset(session, session->ctx->realm);
@@ -1369,7 +1370,7 @@ static void do_sshkeyhash(tac_session * session)
 	hint = hint_permitted;
     report_auth(session, "ssh-key-hash login", hint, res);
 
-    send_authen_reply(session, res, resp, 0, NULL, 0, 0);
+    send_authen_reply(session, res, resp, 0, key, 0, 0);
 }
 #endif
 
