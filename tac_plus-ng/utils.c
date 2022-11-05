@@ -1002,11 +1002,6 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 		s = session->label;
 		len = session->label_len;
 		break;
-#ifdef TPNG_EXPERIMENTAL
-	    case S_ssh_key_hash:
-		s = session->ssh_key_hash;
-		break;
-#endif
 	    case S_cmd:
 	    case S_args:
 	    case S_rargs:

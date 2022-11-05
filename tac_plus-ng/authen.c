@@ -1370,7 +1370,7 @@ static void do_sshkeyhash(tac_session * session)
 	hint = hint_permitted;
     report_auth(session, "ssh-key-hash login", hint, res);
 
-    send_authen_reply(session, res, resp, 0, key, 0, 0);
+    send_authen_reply(session, res, resp, 0, (u_char *) key, 0, 0);
 }
 #endif
 
@@ -1572,7 +1572,7 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 		    break;
 #endif
 #ifdef TPNG_EXPERIMENTAL
-		case TAC_PLUS_AUTHEN_TYPE_SSHKEYHASH:
+		case TAC_PLUS_AUTHEN_TYPE_SSHKEY:
 		    // limit to hdr->version? 1.2 perhaps?
 		    session->authen_data->authfn = do_sshkeyhash;
 		    break;

@@ -722,11 +722,6 @@ static void complete_host(tac_host * h)
 	}
 #endif
 
-#ifdef TPNG_EXPERIMENTAL
-	if (h->ssh_key_check_all == TRISTATE_DUNNO)
-	    h->ssh_key_check_all = hp->ssh_key_check_all;
-#endif
-
 	if (!h->welcome_banner)
 	    h->welcome_banner = hp->welcome_banner;
 

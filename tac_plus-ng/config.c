@@ -1960,8 +1960,8 @@ static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm
 }
 
 #ifdef TPNG_EXPERIMENTAL
-struct ssh_key_hash {
-    struct ssh_key_hash *next;
+struct ssh_key {
+    struct ssh_key *next;
     char *key;
     char hash[1];
 };
@@ -1994,48 +1994,40 @@ struct ssh_key_hash {
 enum token validate_ssh_hash(tac_session * session, char *hash, char **key)
 {
     enum token res = S_deny;
-    if (!hash)
-	return S_deny;
-
-    while (*hash) {
-	// assumption: NAD may return multiple keys, separated by comma or semicolon
-	struct ssh_key_hash **ssh_key_hash = &session->user->ssh_key_hash;
-	char *next;
-	size_t len;
-	for (next = hash; *next && *next != ',' && *next != ';'; next++);
-	len = next - hash;
-	if (*next)
-	    next++;
-	while (*ssh_key_hash) {
-	    if (!strncmp((*ssh_key_hash)->hash, hash, len) && (!hash[len] || hash[len] == ',')) {
-		*key = (*ssh_key_hash)->key;
-		if (session->ctx->host->ssh_key_check_all != TRISTATE_YES)
-		    return S_permit;
-		res = S_permit;
-		break;		// while
-	    }
-	    ssh_key_hash = &((*ssh_key_hash)->next);
+    *key = NULL;
+    if (hash) {
+	// assumption: NAD sends a single hash
+	struct ssh_key **ssh_key = &session->user->ssh_key;
+	while (*ssh_key) {
+	    *key = (*ssh_key)->key;
+	    if (*key && !strcmp((*ssh_key)->hash, hash))
+		return S_permit;
+	    ssh_key = &((*ssh_key)->next);
 	}
-	if ((session->ctx->host->ssh_key_check_all == TRISTATE_YES) && !*ssh_key_hash)
-	    return S_deny;
-	hash = next;
+	// Try hashes without key.
+	ssh_key = &session->user->ssh_key;
+	while (*ssh_key) {
+	    if (!strcmp((*ssh_key)->hash, hash))
+		return S_permit;
+	    ssh_key = &((*ssh_key)->next);
+	}
     }
     return res;
 }
 
 static void parse_sshkeyhash(struct sym *sym, tac_user * user)
 {
-    struct ssh_key_hash **ssh_key_hash = &user->ssh_key_hash;
-    while (*ssh_key_hash)
-	ssh_key_hash = &((*ssh_key_hash)->next);
+    struct ssh_key **ssh_key = &user->ssh_key;
+    while (*ssh_key)
+	ssh_key = &((*ssh_key)->next);
 
     do {
 	size_t len;
 	len = strlen(sym->buf);
-	*ssh_key_hash = memlist_malloc(user->memlist, sizeof(struct ssh_key_hash) + len);
-	memcpy((*ssh_key_hash)->hash, sym->buf, len + 1);
+	*ssh_key = memlist_malloc(user->memlist, sizeof(struct ssh_key) + len);
+	memcpy((*ssh_key)->hash, sym->buf, len + 1);
 	sym_get(sym);
-	ssh_key_hash = &((*ssh_key_hash)->next);
+	ssh_key = &((*ssh_key)->next);
     } while (parse_comma(sym));
 }
 
@@ -2095,10 +2087,10 @@ static char *calc_ssh_key_hash(char *hashname, unsigned char *in, size_t in_len)
 
 static void parse_sshkey(struct sym *sym, tac_user * user)
 {
-    struct ssh_key_hash **ssh_key_hash = &user->ssh_key_hash;
+    struct ssh_key **ssh_key = &user->ssh_key;
 
-    while (*ssh_key_hash)
-	ssh_key_hash = &((*ssh_key_hash)->next);
+    while (*ssh_key)
+	ssh_key = &((*ssh_key)->next);
 
     do {
 	size_t slen = strlen(sym->buf);
@@ -2123,11 +2115,11 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	if (!hash)
 	    parse_error(sym, "MD5 hashing failed.");
 	hash_len = strlen(hash);
-	*ssh_key_hash = memlist_malloc(user->memlist, sizeof(struct ssh_key_hash) + len);
-	(*ssh_key_hash)->key = memlist_strdup(user->memlist, sym->buf);
-	memcpy((*ssh_key_hash)->hash, hash, len + 1);
-	(*ssh_key_hash)->key = key;
-	ssh_key_hash = &((*ssh_key_hash)->next);
+	*ssh_key = memlist_malloc(user->memlist, sizeof(struct ssh_key) + len);
+	(*ssh_key)->key = memlist_strdup(user->memlist, sym->buf);
+	memcpy((*ssh_key)->hash, hash, len + 1);
+	(*ssh_key)->key = key;
+	ssh_key = &((*ssh_key)->next);
 
 	hash = calc_ssh_key_hash("SHA256", t, len);
 	if (!hash)
@@ -2137,12 +2129,12 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	    hash_len--;
 	    hash[hash_len] = 0;
 	}
-	*ssh_key_hash = memlist_malloc(user->memlist, sizeof(struct ssh_key_hash) + len);
-	memcpy((*ssh_key_hash)->hash, hash, len + 1);
-	(*ssh_key_hash)->key = key;
+	*ssh_key = memlist_malloc(user->memlist, sizeof(struct ssh_key) + len);
+	memcpy((*ssh_key)->hash, hash, len + 1);
+	(*ssh_key)->key = key;
 
 	sym_get(sym);
-	ssh_key_hash = &((*ssh_key_hash)->next);
+	ssh_key = &((*ssh_key)->next);
 
     } while (parse_comma(sym));
 }
@@ -2543,23 +2535,6 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    *p = tac_script_parse_r(sym, 0, r);
 	    return;
 	}
-#ifdef TPNG_EXPERIMENTAL
-    case S_ssh_key_check:
-	sym_get(sym);
-	parse(sym, S_equal);
-	switch (sym->code) {
-	case S_any:
-	    host->ssh_key_check_all = TRISTATE_NO;
-	    break;
-	case S_all:
-	    host->ssh_key_check_all = TRISTATE_YES;
-	    break;
-	default:
-	    parse_error_expect(sym, S_all, S_any, S_unknown);
-	}
-	sym_get(sym);
-	return;
-#endif
 #ifdef WITH_DNS
     case S_dns:
 	sym_get(sym);

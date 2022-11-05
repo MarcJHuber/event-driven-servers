@@ -164,9 +164,6 @@ struct tac_host {
      TRISTATE(augmented_enable);	/* one-step enable for $enab.* user */
      TRISTATE(map_pap_to_login);
      TRISTATE(authz_if_authc);
-#ifdef TPNG_EXPERIMENTAL
-     TRISTATE(ssh_key_check_all);
-#endif
      BISTATE(complete);
      BISTATE(visited);
     u_int bug_compatibility;
@@ -243,7 +240,7 @@ typedef struct {
     struct pwdat *enable[TAC_PLUS_PRIV_LVL_MAX + 1];	/* enable passwords */
     struct tac_acllist *passwd_acllist;
 #ifdef TPNG_EXPERIMENTAL
-    struct ssh_key_hash *ssh_key_hash;
+    struct ssh_key *ssh_key;
 #endif
     tac_groups *groups;
     memlist_t *memlist;
@@ -405,7 +402,7 @@ struct authen_start {
 #define TAC_PLUS_AUTHEN_TYPE_MSCHAP 5
 #define TAC_PLUS_AUTHEN_TYPE_MSCHAPV2 6
 #ifdef TPNG_EXPERIMENTAL
-#define TAC_PLUS_AUTHEN_TYPE_SSHKEYHASH 8
+#define TAC_PLUS_AUTHEN_TYPE_SSHKEY 8
 #endif
 
     u_char service;
@@ -582,7 +579,7 @@ typedef struct tac_session tac_session;
 typedef struct tac_profile tac_profile;
 
 #ifdef TPNG_EXPERIMENTAL
-struct ssh_key_hash;
+struct ssh_key;
 #endif
 
 struct tac_session {
@@ -650,7 +647,7 @@ struct tac_session {
     char privlvl[4];
     int privlvl_len;
 #ifdef TPNG_EXPERIMENTAL
-    char *ssh_key_hash;
+    char *ssh_key;
 #endif
     int session_id;
     time_t session_timeout;
