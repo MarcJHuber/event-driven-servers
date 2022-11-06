@@ -1315,11 +1315,13 @@ static void do_pap(tac_session * session)
 #ifdef TPNG_EXPERIMENTAL
 // This is proof-of-concept code for SSH key validation with minor protocol changes.
 // Clients just need to use TAC_PLUS_AUTHEN_TYPE_SSHKEYHASH (8) and put the ssh public
-// key hash into the data field. This should be really easy to implement.
+// key hash into the data field. This should be really easy to implement. The daemon
+// will return the SSH key that matches the hash.
 //
 // The key has can easily retrieved using
 //     ssh-keygen -lf ~/.ssh/id_rsa.pub
-// (obviously, you may need to adjust the path)
+//
+// OpenSSH integration is easily possible, too, via AuthorizedKeysCommand.
 //
 static void do_sshkeyhash(tac_session * session)
 {
@@ -1336,14 +1338,10 @@ static void do_sshkeyhash(tac_session * session)
     if (query_mavis_info(session, do_sshkeyhash, PW_LOGIN))
 	return;
 
-    // for testing only
-    if (session->version == TAC_PLUS_VER_ONE)
-	session->ssh_key_hash = (char *) session->authen_data->data;
-    else
-	session->ssh_key_hash = (char *) session->authen_data->msg;
+    session->ssh_key = (char *) session->authen_data->data;
 
-    if (session->user && session->ssh_key_hash && *session->ssh_key_hash) {
-	enum token token = validate_ssh_hash(session, session->ssh_key_hash, &key);
+    if (session->user && session->ssh_key && *session->ssh_key) {
+	enum token token = validate_ssh_hash(session, session->ssh_key, &key);
 
 	if (token == S_permit) {
 	    token = eval_ruleset(session, session->ctx->realm);
