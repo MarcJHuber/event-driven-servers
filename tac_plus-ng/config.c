@@ -1999,9 +1999,10 @@ enum token validate_ssh_hash(tac_session * session, char *hash, char **key)
 	// assumption: NAD sends a single hash
 	struct ssh_key **ssh_key = &session->user->ssh_key;
 	while (*ssh_key) {
-	    *key = (*ssh_key)->key;
-	    if (*key && !strcmp((*ssh_key)->hash, hash))
+	    if (key && !strcmp((*ssh_key)->hash, hash)) {
+		*key = (*ssh_key)->key;
 		return S_permit;
+	    }
 	    ssh_key = &((*ssh_key)->next);
 	}
 	// Try hashes without key.
@@ -2097,15 +2098,32 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	unsigned char *t = alloca(slen);
 	char *hash, *key;
 	size_t hash_len;
-	int len = EVP_DecodeBlock(t, (const unsigned char *) sym->buf, slen);
+	int len = -1;
 	int pad = 0;
+	char *p = sym->buf;
 
-	if (len < 4)
+	while (*p) {
+	    char *space = strchr(p, ' ');
+	    if (space) {
+		slen = space - p;
+		while (*space == ' ')
+		    space++;
+	    } else
+		slen = strlen(sym->buf);
+	    len = EVP_DecodeBlock(t, (const unsigned char *) p, slen);
+
+	    if (len < 400)
+		p = space;
+	    else
+		break;
+	}
+
+	if (!p || len < 400)
 	    parse_error(sym, "BASE64 decode of SSH key failed.");
 
-	if (sym->buf[slen - 1] == '=')
+	if (p[slen - 1] == '=')
 	    pad++;
-	if (sym->buf[slen - 2] == '=')
+	if (p[slen - 2] == '=')
 	    pad++;
 	len = (slen * 3) / 4 - pad;
 
