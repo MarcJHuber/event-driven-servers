@@ -1732,7 +1732,7 @@ static void parse_member(struct sym *sym, tac_user * user, tac_realm * r)
 	    range = inet_any();
 	    rlen = strlen(range);
 	    hl = mempool_malloc(user->pool, sizeof(struct stringlist) + rlen);
-	    strncpy(hl->s, range, rlen);
+	    memcpy(hl->s, range, rlen);
 	}
 
 	while (hl) {
@@ -2059,7 +2059,7 @@ static void merge_svcs(tac_user * user, rb_tree_t ** to, rb_tree_t * from)
 		    if (!ct) {
 			size_t namelen = strlen(cf->name);
 			ct = calloc(1, sizeof(struct node_cmd) + namelen);
-			strncpy(ct->name, cf->name, namelen);
+			memcpy(ct->name, cf->name, namelen);
 			RB_insert(st->sub, ct);
 		    }
 		    if (cf->perm) {
@@ -3949,13 +3949,27 @@ static void parse_attrs(struct sym *sym, tac_user * user, struct node_svc *svc)
 	case S_set:
 	    tac_sym_get(sym);
 	    *buf = 0;
+#ifndef __clang__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
 	    strncat(buf, sym->buf, sizeof(buf) - 1);
+#ifndef __clang__
+# pragma GCC diagnostic pop
+#endif
 	    tac_sym_get(sym);
 	    strncat(buf, sep, sizeof(buf) - strlen(buf) - 1);
 	    parse(sym, S_equal);
 	    if (double_quote_values)
 		strncat(buf, "\"", sizeof(buf) - strlen(buf) - 1);
+#ifndef __clang__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
 	    strncat(buf, sym->buf, sizeof(buf) - strlen(buf) - 1);
+#ifndef __clang__
+# pragma GCC diagnostic pop
+#endif
 	    if (double_quote_values)
 		strncat(buf, "\"", sizeof(buf) - strlen(buf) - 1);
 	    tac_sym_get(sym);

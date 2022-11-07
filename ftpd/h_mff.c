@@ -101,11 +101,11 @@ void h_mff(struct context *ctx, char *arg)
 		    if (fn > -1) {
 			if (!fstat(fn, &st) && st.st_uid == ctx->uid) {
 			    if (flags & flag_unix_group) {
-				seteuid(0);
+				UNUSED_RESULT(seteuid(0));
 				if (fchown(fn, (uid_t) - 1, unix_group)) {
 				    // FIXME
 				}
-				seteuid(ctx->uid);
+				UNUSED_RESULT(seteuid(ctx->uid));
 			    }
 			    if (flags & flag_unix_mode)
 				fchmod(fn, unix_mode | (S_ISDIR(st.st_mode)

@@ -105,8 +105,8 @@ void catchsegv(int sig __attribute__((unused)))
 
 	snprintf(cdf, sizeof(cdf), "%s/core.%.8lx", coredumpdir, (u_long) time(NULL));
 
-	seteuid(getuid());
-	setegid(getgid());
+	UNUSED_RESULT(seteuid(getuid()));
+	UNUSED_RESULT(setegid(getgid()));
 
 	if (getrlimit(RLIMIT_CORE, &rlim)) {
 	    logerr("getrlimit (%s:%d)", __FILE__, __LINE__);

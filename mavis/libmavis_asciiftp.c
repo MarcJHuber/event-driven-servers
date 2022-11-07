@@ -131,9 +131,9 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	return MAVIS_DOWN;
 
     uid = geteuid();
-    seteuid(0);
+    UNUSED_RESULT(seteuid(0));
     line = find_user(mcx, *ac, buf, sizeof(buf), u);
-    seteuid(uid);
+    UNUSED_RESULT(seteuid(uid));
 
     if (!line)
 	return MAVIS_DOWN;

@@ -460,9 +460,9 @@ void spawnd_parse_decls(struct sym *sym)
 #ifdef WITH_IPC
 	    if (!common_data.parse_only && common_data.ipc_key) {
 		if (spawnd_data.gid)
-		    setegid(spawnd_data.gid);
+		    UNUSED_RESULT(setegid(spawnd_data.gid));
 		if (spawnd_data.uid)
-		    seteuid(spawnd_data.uid);
+		    UNUSED_RESULT(seteuid(spawnd_data.uid));
 		if (strcmp(spawnd_data.conffile, spawnd_data.child_config)) {
 		    char *buf;
 		    int buflen;
@@ -476,9 +476,9 @@ void spawnd_parse_decls(struct sym *sym)
 			strset(&spawnd_data.child_config, common_data.ipc_url);
 		}
 		if (spawnd_data.gid)
-		    setegid(getgid());
+		    UNUSED_RESULT(setegid(getgid()));
 		if (spawnd_data.uid)
-		    seteuid(getuid());
+		    UNUSED_RESULT(seteuid(getuid()));
 	    }
 #endif
 	    continue;

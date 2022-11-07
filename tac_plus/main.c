@@ -336,7 +336,7 @@ void cleanup(struct context *ctx, int cur)
 
     if (ctx_spawnd) {
 	struct scm_data sd;
-    	sd.type = SCM_DONE;
+	sd.type = SCM_DONE;
 	common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
     }
     set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
@@ -460,7 +460,7 @@ static void read_px(struct context_px *ctx, int cur)
 	try_raw(ctx, cur);
 	return;
     }
-    read(cur, &tmp, sizeof(struct proxy_hdr_v2) + hlen);
+    UNUSED_RESULT(read(cur, &tmp, sizeof(struct proxy_hdr_v2) + hlen));
 
     switch (hdr->fam) {
     case 0x11:

@@ -50,8 +50,8 @@ static int mavis_init_in(mavis_ctx * mcx)
 	uid_t euid = geteuid();
 	gid_t egid = getegid();
 
-	setegid(mcx->gid);
-	seteuid(mcx->uid);
+	UNUSED_RESULT(setegid(mcx->gid));
+	UNUSED_RESULT(seteuid(mcx->uid));
 
 	if (mcx->path_in) {
 	    mcx->fd_in = open(mcx->path_in, O_CREAT | O_WRONLY | O_APPEND, mcx->mode);
@@ -70,8 +70,8 @@ static int mavis_init_in(mavis_ctx * mcx)
 	    } else if (mcx->fd_in > -1)
 		mcx->fd_out = mcx->fd_in;
 	}
-	seteuid(euid);
-	setegid(egid);
+	UNUSED_RESULT(seteuid(euid));
+	UNUSED_RESULT(setegid(egid));
     }
 
     DebugOut(DEBUG_MAVIS);

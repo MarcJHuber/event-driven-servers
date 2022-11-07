@@ -166,7 +166,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
     sd.type = SCM_ACCEPT;
 
     if (ctx->tag)
-	strncpy(sd.realm, ctx->tag, SCM_REALM_SIZE);
+	memcpy(sd.realm, ctx->tag, SCM_REALM_SIZE);
     sd.haproxy = ctx->haproxy ? 1 : 0;
     sd.use_tls = ctx->use_ssl ? 1 : 0;
     sd.protocol = ctx->protocol;

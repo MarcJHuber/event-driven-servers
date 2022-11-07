@@ -185,9 +185,9 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
     }
 
     uid = geteuid();
-    seteuid(0);
+    UNUSED_RESULT(seteuid(0));
     res = check_auth(mcx, u, p);
-    seteuid(uid);
+    UNUSED_RESULT(seteuid(uid));
 
     /* The PAM routines may have spoiled our logging identity. */
     logopen();

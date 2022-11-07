@@ -2077,7 +2077,7 @@ static char *calc_ssh_key_hash(char *hashname, unsigned char *in, size_t in_len)
     }
 
     hashname_len = strlen(hashname);
-    strncpy((char *) out, hashname, hashname_len);
+    memcpy(out, hashname, hashname_len);
     o = out + hashname_len;
     *o++ = ':';
     if (EVP_EncodeBlock(o, md, md_len))

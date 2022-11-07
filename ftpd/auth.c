@@ -198,10 +198,10 @@ static void auth_mavis_sync(struct context *ctx, av_ctx * avc)
 	ctx->rootlen = i, ctx->root[i] = 0;
 
     if (current_uid != ctx->uid || current_gid != ctx->gid) {
-	seteuid(0);
+	UNUSED_RESULT(seteuid(0));
 	setgroups(ctx->gids_size, ctx->gids);
-	setegid(ctx->gid);
-	seteuid(ctx->uid);
+	UNUSED_RESULT(setegid(ctx->gid));
+	UNUSED_RESULT(seteuid(ctx->uid));
 	current_gid = ctx->gid;
 	current_uid = ctx->uid;
     }

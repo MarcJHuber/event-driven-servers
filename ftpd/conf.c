@@ -1246,7 +1246,7 @@ void parse_decls(struct sym *sym)
 	    continue;
 	case S_symlinks:{
 		char *acl = NULL;
-		char n[10];
+		char n[20];
 		int res = SYMLINKS_NO;
 		int loop = 1;
 		int negate = 0;
@@ -1297,7 +1297,7 @@ void parse_decls(struct sym *sym)
 	case S_log:{
 		char *acl = NULL;
 		int negate = 0;
-		char n[10];
+		char n[20];
 		int res = LOG_NONE;
 		int loop = 1;
 		sym_get(sym);

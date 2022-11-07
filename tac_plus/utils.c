@@ -411,7 +411,14 @@ static void log_start_one(struct logfile *lf, struct context_logfile *deadctx)
 		    lf->ctx = deadctx;
 		else {
 		    lf->ctx = calloc(1, sizeof(struct context_logfile));
+#ifndef __clang__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
 		    strncpy(lf->ctx->path, path, PATH_MAX);
+#ifndef __clang__
+# pragma GCC diagnostic pop
+#endif
 		    io_child_set(pid, (void (*)(pid_t, void *, int))
 				 logdied, (void *) lf->ctx);
 		}
@@ -428,7 +435,14 @@ static void log_start_one(struct logfile *lf, struct context_logfile *deadctx)
 	    }
 	    if (cur > -1 && !lf->ctx) {
 		lf->ctx = calloc(1, sizeof(struct context_logfile));
+#ifndef __clang__
+# pragma GCC diagnostic push
+# pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
 		strncpy(lf->ctx->path, path, PATH_MAX);
+#ifndef __clang__
+# pragma GCC diagnostic pop
+#endif
 	    }
 	}
 

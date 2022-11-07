@@ -477,7 +477,7 @@ static void read_px(struct context_px *ctx, int cur)
 	try_raw(ctx, cur);
 	return;
     }
-    read(cur, &tmp, sizeof(struct proxy_hdr_v2) + hlen);
+    UNUSED_RESULT(read(cur, &tmp, sizeof(struct proxy_hdr_v2) + hlen));
 
     switch (hdr->fam) {
     case 0x11:

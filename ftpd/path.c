@@ -134,10 +134,10 @@ int check_incoming(struct context *ctx, char *path, u_int mask)
 	return 0;
     }
     *t = '/';
-    seteuid(0);
+    UNUSED_RESULT(seteuid(0));
     setgroups(0, NULL);
-    setegid(st.st_gid);
-    seteuid(st.st_uid);
+    UNUSED_RESULT(setegid(st.st_gid));
+    UNUSED_RESULT(seteuid(st.st_uid));
     current_uid = st.st_uid;
     current_gid = st.st_gid;
     update_ids = -1;

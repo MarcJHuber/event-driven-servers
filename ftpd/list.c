@@ -614,10 +614,10 @@ static void list_dir_details(struct context *ctx, int cur __attribute__((unused)
     DebugIn(DEBUG_PROC);
 
     if ((ctx->uid != (uid_t) - 1) && (current_uid != ctx->uid || current_gid != ctx->gid || update_ids)) {
-	seteuid(0);
+	UNUSED_RESULT(seteuid(0));
 	setgroups(ctx->gids_size, ctx->gids);
-	setegid(ctx->gid);
-	seteuid(ctx->uid);
+	UNUSED_RESULT(setegid(ctx->gid));
+	UNUSED_RESULT(seteuid(ctx->uid));
 	current_gid = ctx->gid;
 	current_uid = ctx->uid;
 	update_ids = 0;

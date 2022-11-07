@@ -119,7 +119,10 @@ static struct remote_addr_s *av_recv(mavis_ctx * mcx, av_ctx * ac, int sock, soc
 	for (ra = mcx->remote_addr; ra && !su_equal(&ra->sa, sa); ra = ra->next);
 
 	if (ra) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
 	    av_buffer->s[buflen] = 0;
+#pragma GCC diagnostic pop
 	    if (ra->blowfish)
 		blowfish_dec(ra->blowfish, av_buffer, buflen);
 	    av_char_to_array(ac, av_buffer->s, NULL);

@@ -166,10 +166,10 @@ void checkcmd(struct context *ctx, char *cmd)
     }
 
     if (cmds[i].changeuid && (current_uid != ctx->uid || current_gid != ctx->gid || update_ids)) {
-	seteuid(0);
+	UNUSED_RESULT(seteuid(0));
 	setgroups(ctx->gids_size, ctx->gids);
-	setegid(ctx->gid);
-	seteuid(ctx->uid);
+	UNUSED_RESULT(setegid(ctx->gid));
+	UNUSED_RESULT(seteuid(ctx->uid));
 	current_gid = ctx->gid;
 	current_uid = ctx->uid;
 	update_ids = 0;

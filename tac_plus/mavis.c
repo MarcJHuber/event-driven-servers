@@ -63,7 +63,7 @@ static void mavis_switch(tac_session * session, av_ctx * avc, int result)
 	    if (comment) {
 		size_t len = strlen(comment);
 		session->user_msg = mempool_malloc(session->pool, len + 2);
-		strncpy(session->user_msg, comment, len);
+		memcpy(session->user_msg, comment, len);
 		if (len && session->user_msg[len - 1] != '\n')
 		    session->user_msg[len] = '\n';
 	    }

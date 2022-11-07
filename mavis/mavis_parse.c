@@ -669,7 +669,7 @@ void sym_get(struct sym *sym)
     if (aliastable && sym->code == S_string) {
 	int len = strlen(sym->buf);
 	struct alias *a = alloca(sizeof(struct alias) + len);
-	strncpy(a->name, sym->buf, len + 1);
+	memcpy(a->name, sym->buf, len + 1);
 	a = RB_lookup(aliastable, (void *) a);
 	if (a) {
 	    struct token_chain *chain = calloc(1, sizeof(struct token_chain));
@@ -1628,7 +1628,7 @@ void add_token_to_alias(struct token_list **p, struct sym *sym)
     len = strlen(sym->buf);
     n = calloc(1, sizeof(struct alias) + len);
     n->code = sym->code;
-    strncpy(n->buf, sym->buf, len + 1);
+    memcpy(n->buf, sym->buf, len + 1);
     n->line = sym->line;
     n->filename = sym->filename;
     *p = n;
@@ -1654,7 +1654,7 @@ struct token_list **add_alias(char *name)
 {
     int len = strlen(name);
     struct alias *a = calloc(1, sizeof(struct alias) + len);
-    strncpy(a->name, name, len + 1);
+    memcpy(a->name, name, len + 1);
     if (!aliastable)
 	aliastable = RB_tree_new(compare_alias, free_alias);
     RB_insert(aliastable, a);

@@ -155,19 +155,19 @@ void connect_port(struct context *ctx)
      * Solaris weirdness: Binding to a privileged port requires the
      * socket to be created by root.
      */
-    seteuid(0);
+    UNUSED_RESULT(seteuid(0));
 
     s = su_socket(su.sa.sa_family, SOCK_STREAM, ctx->protocol);
     if (s < 0) {
 	logerr("socket (%s:%d)", __FILE__, __LINE__);
-	seteuid(ctx->uid);
+	UNUSED_RESULT(seteuid(ctx->uid));
 	DebugOut(DEBUG_COMMAND);
 	return;
     }
 
     if (0 > su_bind(s, &su)) {
 	logerr("bind (%s:%d)", __FILE__, __LINE__);
-	seteuid(ctx->uid);
+	UNUSED_RESULT(seteuid(ctx->uid));
 
 	/* Binding to privileged port failed. Try some random port. */
 	su_set_port(&su, 0);
@@ -178,7 +178,7 @@ void connect_port(struct context *ctx)
 	    return;
 	}
     } else
-	seteuid(ctx->uid);
+	UNUSED_RESULT(seteuid(ctx->uid));
 
     if (0 > su_connect(s, &ctx->sa_d_remote))
 	switch (errno) {

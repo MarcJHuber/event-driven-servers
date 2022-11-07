@@ -24,8 +24,8 @@ void quota_add(struct context *ctx, long long q)
     if (!ctx->quota_path)
 	return;
 
-    setegid(real_uid);
-    seteuid(real_gid);
+    UNUSED_RESULT(setegid(real_uid));
+    UNUSED_RESULT(seteuid(real_gid));
     f = open(ctx->quota_path, O_RDWR | O_CREAT | O_NOFOLLOW, 0644);
     if (f > -1) {
 	if (!lock(f)) {
@@ -57,8 +57,8 @@ void quota_add(struct context *ctx, long long q)
 	    logmsg("Updating quota file %s failed (%lld).", ctx->quota_path, q);
 	close(f);
     }
-    setegid(ctx->gid);
-    seteuid(ctx->uid);
+    UNUSED_RESULT(setegid(ctx->gid));
+    UNUSED_RESULT(seteuid(ctx->uid));
 }
 
 static int lock(int fn)

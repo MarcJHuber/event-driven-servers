@@ -368,7 +368,7 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 		if (quoted)
 		    *p++ = '"';
 		len = strlen(v);
-		strncpy(p, v, len);
+		memcpy(p, v, len);
 		p += len;
 		if (quoted)
 		    *p++ = '"';
@@ -407,7 +407,7 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 		    *p++ = ',';
 		*p++ = '"';
 		len = strlen(v);
-		strncpy(p, v, len);
+		memcpy(p, v, len);
 		p += len;
 		*p++ = '"';
 		*p = 0;

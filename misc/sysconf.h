@@ -63,6 +63,8 @@
 #if defined(__INTEL_COMPILER) && __INTEL_COMPILER > 1000
 #undef __attribute__
 #endif
+
+#define UNUSED_RESULT(A) if(A){}
 /*******************************************************************************
  * For SUN Solaris, XPG-4.2 (aka. UNIX-95) extensions need to be enabled
  * for ancillary messages. We only want XPG-4.2 to be defined for one

@@ -64,17 +64,17 @@ static int mavis_init_in(mavis_ctx * mcx)
 	    dirlen--;
 	mcx->hashdir[dirlen] = 0;
 
-	setegid(mcx->gid);
-	seteuid(mcx->uid);
+	UNUSED_RESULT(setegid(mcx->gid));
+	UNUSED_RESULT(seteuid(mcx->uid));
 
 	if (stat(mcx->hashdir, &st))
 	    mkdir(mcx->hashdir, 0700);
 
-	seteuid(mcx->euid);
-	setegid(mcx->egid);
+	UNUSED_RESULT(seteuid(mcx->euid));
+	UNUSED_RESULT(setegid(mcx->egid));
 
 	if (stat(mcx->hashdir, &st) && (!mkdir(mcx->hashdir, 0700) && errno != EEXIST))
-	    chown(mcx->hashdir, mcx->uid, mcx->gid);
+	    UNUSED_RESULT(chown(mcx->hashdir, mcx->uid, mcx->gid));
 
 	if (stat(mcx->hashdir, &st) || !S_ISDIR(st.st_mode))
 	    logerr("module %s: directory %s doesn not exist", MAVIS_name, mcx->hashdir);
@@ -86,8 +86,8 @@ static int mavis_init_in(mavis_ctx * mcx)
 	mcx->hashfile_tmp[dirlen + 35] = '-';
 	tohex((u_char *) & pid, sizeof(pid), mcx->hashfile_tmp + dirlen + 36);
 	memcpy(mcx->hashfile_tmp + dirlen, mcx->hashfile_tmp + dirlen + 36, 8);
-	setegid(mcx->gid);
-	seteuid(mcx->uid);
+	UNUSED_RESULT(setegid(mcx->gid));
+	UNUSED_RESULT(seteuid(mcx->uid));
 	fn = open(mcx->hashfile_tmp, O_CREAT | O_WRONLY, 0600);
 	if (fn > -1) {
 	    close(fn);
@@ -100,8 +100,8 @@ static int mavis_init_in(mavis_ctx * mcx)
 	    mcx->hashfile_tmp = NULL;
 
 	}
-	setegid(mcx->gid);
-	seteuid(mcx->uid);
+	UNUSED_RESULT(setegid(mcx->gid));
+	UNUSED_RESULT(seteuid(mcx->uid));
 	mcx->hashfile_tmp[dirlen + 2] = '/';
 	mcx->hashfile = calloc(1, dirlen + 39 + 10 /* safety margin, see above */ );
 	memcpy(mcx->hashfile, mcx->hashfile_tmp, 36);
@@ -203,12 +203,12 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
     get_hash(*ac, mcx->hashfile + mcx->hashfile_offset + 3);
     mcx->hashfile[mcx->hashfile_offset] = mcx->hashfile[mcx->hashfile_offset + 3];
     mcx->hashfile[mcx->hashfile_offset + 1] = mcx->hashfile[mcx->hashfile_offset + 4];
-    setegid(mcx->gid);
-    seteuid(mcx->uid);
+    UNUSED_RESULT(setegid(mcx->gid));
+    UNUSED_RESULT(seteuid(mcx->uid));
 
     fn = open(mcx->hashfile, O_RDONLY);
-    seteuid(mcx->euid);
-    setegid(mcx->egid);
+    UNUSED_RESULT(seteuid(mcx->euid));
+    UNUSED_RESULT(setegid(mcx->egid));
     if (fn > -1) {
 	char *c;
 	av_ctx *a = av_new(NULL, NULL);
@@ -216,7 +216,8 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	fstat(fn, &st);
 	c = alloca(st.st_size + 1);
 	c[st.st_size] = 0;
-	read(fn, c, st.st_size);
+	if (read(fn, c, st.st_size)) {
+	}
 	close(fn);
 	av_char_to_array(a, c, NULL);
 	av_set(*ac, AV_A_TACPROFILE, av_get(a, AV_A_TACPROFILE));
@@ -293,8 +294,8 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
     memcpy(mcx->hashfile_tmp + mcx->hashfile_offset + 3, mcx->hashfile + mcx->hashfile_offset + 3, 32);
     mcx->hashfile_tmp[mcx->hashfile_offset + 3] = 0;
 
-    setegid(mcx->gid);
-    seteuid(mcx->uid);
+    UNUSED_RESULT(setegid(mcx->gid));
+    UNUSED_RESULT(seteuid(mcx->uid));
 
     mkdir(mcx->hashfile_tmp, 0700);
     mcx->hashfile_tmp[mcx->hashfile_offset + 3] = '/';
@@ -321,8 +322,8 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 	    rename(mcx->hashfile_tmp, mcx->hashfile);
     }
 
-    seteuid(mcx->euid);
-    setegid(mcx->egid);
+    UNUSED_RESULT(seteuid(mcx->euid));
+    UNUSED_RESULT(setegid(mcx->egid));
 
     DebugOut(DEBUG_MAVIS);
     return MAVIS_DOWN;

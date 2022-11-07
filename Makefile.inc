@@ -66,11 +66,7 @@ else
 endif
 
 ifeq ($(CC_GCC),1)
-	ifeq ($(findstring "4.8.2",$CCV),)
-			CFLAGS		?= -Wall -W -Wno-strict-prototypes -Wno-implicit-fallthrough
-	else
-			CFLAGS		?= -O -Wall -W -Wno-strict-prototypes -Wno-implicit-fallthrough
-	endif
+	CFLAGS		?= -O2 -Wall -W -Wno-strict-prototypes -Wno-implicit-fallthrough
 	CFLAGS_PIC	?= -fPIC
 
 	LDOPT_R		?= -Wl,-rpath,

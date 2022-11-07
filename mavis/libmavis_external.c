@@ -673,9 +673,9 @@ static int fork_child(mavis_ctx * mcx, int i)
 	    //FIXME
 	}
 	if (mcx->gid)
-	    setgid(mcx->gid);
+	    UNUSED_RESULT(setgid(mcx->gid));
 	if (mcx->uid)
-	    setuid(mcx->uid);
+	    UNUSED_RESULT(setuid(mcx->uid));
 
 	if (mcx->env)
 	    execve(mcx->path, mcx->argv, mcx->env);
