@@ -1998,17 +1998,18 @@ enum token validate_ssh_hash(tac_session * session, char *hash, char **key)
     if (hash) {
 	// assumption: NAD sends a single hash
 	struct ssh_key **ssh_key = &session->user->ssh_key;
+	// Check hashes with key first:
 	while (*ssh_key) {
-	    if (key && !strcmp((*ssh_key)->hash, hash)) {
+	    if ((*ssh_key)->key && !strcmp((*ssh_key)->hash, hash)) {
 		*key = (*ssh_key)->key;
 		return S_permit;
 	    }
 	    ssh_key = &((*ssh_key)->next);
 	}
-	// Try hashes without key.
+	// Try hashes without key:
 	ssh_key = &session->user->ssh_key;
 	while (*ssh_key) {
-	    if (!strcmp((*ssh_key)->hash, hash))
+	    if (!(*ssh_key)->key && !strcmp((*ssh_key)->hash, hash))
 		return S_permit;
 	    ssh_key = &((*ssh_key)->next);
 	}
