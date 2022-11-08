@@ -4,9 +4,9 @@
 # (C) 2022 by Marc Huber <Marc.Huber@web.de>
 #
 # Sample AuthorizedKeysCommand OpenSSH script for key lookup via tac_plus-ng. This is a PoC only
-# and requires that tac_plus-ng is a compiled with #define TPNG_EXPERIMENTAL in headers.h
+# and requires that tac_plus-ng is compiled with #define TPNG_EXPERIMENTAL in headers.h
 #
-# Usage: tac_akc.pl <user> <fingerprint>
+# Usage: tac_akc.pl [options] <user> <fingerprint>
 #
 # Suitable sshd_config snippet:
 #  AuthorizedKeysCommand /where/ever/tac_akc.pl %u %f
@@ -17,21 +17,72 @@
 #     ...
 #        ssh-key = "ssh-rsa YourPublicRSAKeyInBase64Endcoding="
 #     ...
+# }
+#
 
+my $version = '$Id$';
 
-my $key = "demo";
-my $host = "172.16.0.238";
-my $port = 4949;
-my $username = $ARGV[0];
-my $password = $ARGV[1]; # the fingerprint, actually
+our $key = "demo";
+our $host = "127.0.0.1";
+our $port = 49;
 my $rem_addr = ""; # not exposed by OpenSSH
 my $rem_port = ""; # not exposed by OpenSSH
 
 use Net::TacacsPlus::Client;
 use Net::TacacsPlus::Constants;
 use Net::TacacsPlus::Packet;
+use Getopt::Long;
 
+sub help {
+	print <<EOT
+Sample AuthorizedKeysCommand OpenSSH script for key lookup via tac_plus-ng.
+
+Usage: $0 [ <Options> ] <user> <fingerprint>
+
+Options:
+  --help		show this text
+  --defaults=<file>	read default settings from <file>, where <file>
+                        is a valid Perl script. Example:
+			  our \$key = "demo";
+                          our \$host = "127.0.0.1";
+                          our \$port = 49;
+                          1;
+
+Version: $version
+
+Copyright (C) 2022 by Marc Huber <Marc.Huber\@web.de>
+
+Source code and documentation: http://www.pro-bono-publico.de/projects/
+
+Please direct support requests either to the "Event-Driven Servers" Google
+Group at
+
+    event-driven-servers\@googlegroups.com
+    http://groups.google.com/group/event-driven-servers
+
+or open an issue at the GitHub page at
+
+    https://github.com/MarcJHuber/event-driven-servers/issues
+
+Support requests sent to the author's private email address may be silently ignored.
+EOT
+	;
+	exit(0);
+};
+
+sub read_defaults {
+	my ($a, $v) = @_;
+	require $v or die "require: $!";
+}
+
+GetOptions (
+	"help"		=> \&help,
+	"defaults=s"	=> \&read_defaults,
+) or help();
+
+my ($username, $password)  = @ARGV;
 my $tac = new Net::TacacsPlus::Client(host => $host, port => $port, key => $key);
+$tac->init_tacacs_session();
 
 my $pkt = Net::TacacsPlus::Packet->new(
 	'type' => 1,
@@ -48,14 +99,10 @@ my $pkt = Net::TacacsPlus::Packet->new(
 	'data' => $password,
 	'minor_version' => 1
 );
-
-$tac->init_tacacs_session();
 $pkt->send($tac->tacacsserver);
+
 my $reply = $tac->recv_reply(TAC_PLUS_AUTHEN);
 Net::TacacsPlus::Packet->check_reply($pkt, $reply);
-if ($reply->status() == TAC_PLUS_AUTHEN_STATUS_PASS) {
-	print $reply->body->{'data'}, "\n";
-}
+print $reply->body->{'data'}, "\n" if $reply->status() == TAC_PLUS_AUTHEN_STATUS_PASS;
+
 exit 0;
-
-
