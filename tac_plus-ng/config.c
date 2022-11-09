@@ -1215,7 +1215,6 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_singleconnection:
 	case S_context:
 	case S_script:
-	case S_ssh_key_check:
 	    parse_host_attr(sym, r, r->default_host);
 	    continue;
 #ifdef WITH_TLS
