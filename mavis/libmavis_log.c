@@ -44,8 +44,6 @@ static int mavis_recv_out(void *pcx __attribute__((unused)), av_ctx ** ac)
     char *avtype = av_get(*ac, AV_A_TYPE);
     char *avuser = av_get(*ac, AV_A_USER);
     char *avipaddr = av_get(*ac, AV_A_IPADDR);
-    char *avtransport = av_get(*ac, AV_A_TRANSPORT);
-    char *avpath = av_get(*ac, AV_A_PATH);
 
     if (!avresult)
 	avresult = AV_V_RESULT_NOTFOUND;
@@ -66,31 +64,6 @@ static int mavis_recv_out(void *pcx __attribute__((unused)), av_ctx ** ac)
 		logmsg("%s %s: %s (%s)", avtype, avresult, avuser, avcomment);
 	    else
 		logmsg("%s %s: %s", avtype, avresult, avuser);
-	} else if (!strcmp(avtype, AV_V_TYPE_TRANSPORT)
-		   || !strcmp(avtype, AV_V_TYPE_VIRTUAL)) {
-	    if (avcomment) {
-		if (avtransport && !strcmp(avresult, AV_V_RESULT_OK))
-		    logmsg("%s %s: '%s' -> '%s%s%s' (%s)", avtype, avresult, avuser, avtransport, avpath ? ":" : "", avpath ? avpath : "", avcomment);
-		else
-		    logmsg("%s %s: '%s' (%s)", avtype, avresult, avuser, avcomment);
-	    } else {
-		if (avtransport && !strcmp(avresult, AV_V_RESULT_OK))
-		    logmsg("%s %s: '%s' -> '%s%s%s'", avtype, avresult, avuser, avtransport, avpath ? ":" : "", avpath ? avpath : "");
-		else
-		    logmsg("%s %s: '%s'", avtype, avresult, avuser);
-	    }
-	} else if (!strcmp(avtype, AV_V_TYPE_CANONICAL)) {
-	    if (avcomment) {
-		if (avtransport && !strcmp(avresult, AV_V_RESULT_OK))
-		    logmsg("%s %s: '%s' -> '%s' (%s)", avtype, avresult, avuser, avpath ? avpath : "", avcomment);
-		else
-		    logmsg("%s %s: '%s' (%s)", avtype, avresult, avuser, avcomment);
-	    } else {
-		if (avtransport && !strcmp(avresult, AV_V_RESULT_OK))
-		    logmsg("%s %s: '%s' -> '%s'", avtype, avresult, avuser, avpath ? avpath : "");
-		else
-		    logmsg("%s %s: '%s'", avtype, avresult, avuser);
-	    }
 	}
     }
     return MAVIS_FINAL;

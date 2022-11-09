@@ -272,7 +272,6 @@ static int mavis_init_in(mavis_ctx * mcx)
     C(AV_A_USER);
     A(AV_A_RESULT);
     A(AV_A_PATH);
-    A(AV_A_TRANSPORT);
     A(AV_A_TUNNEL);
     A(AV_A_CLASS);
     i++;
@@ -295,7 +294,6 @@ static int mavis_init_in(mavis_ctx * mcx)
     A(AV_A_RESULT);
     A(AV_A_PATH);
     A(AV_A_QUOTA_LIMIT);
-    A(AV_A_TRANSPORT);
     A(AV_A_CLASS);
     A(AV_A_MAILCHECK_PRE);
     A(AV_A_MAILCHECK_POST);

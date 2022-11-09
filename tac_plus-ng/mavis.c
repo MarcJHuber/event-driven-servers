@@ -193,8 +193,11 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    char *tacmember = av_get(avc, AV_A_TACMEMBER);
 #ifdef TPNG_EXPERIMENTAL
 	    char *sshkeyhash = av_get(avc, AV_A_SSHKEYHASH);
+	    char *sshkey = av_get(avc, AV_A_SSHKEY);
 	    if (sshkeyhash && !*sshkeyhash)
 		sshkeyhash = NULL;
+	    if (sshkey && !*sshkey)
+		sshkey= NULL;
 #endif
 	    if (tacprofile && !*tacprofile)
 		tacprofile = NULL;
@@ -215,6 +218,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    case AV_A_REALM:
 		    case AV_A_TACPROFILE:
 		    case AV_A_TACMEMBER:
+		    case AV_A_SSHKEY:
 		    case AV_A_SSHKEYHASH:
 		    case AV_A_PATH:
 		    case AV_A_UID:
@@ -259,7 +263,8 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		if ((tacmember && parse_user_profile_fmt(&sym, u, "{ member = %s }", tacmember))
 		    || (tacprofile && parse_user_profile_fmt(&sym, u, "%s", tacprofile))
 #ifdef TPNG_EXPERIMENTAL
-		    || (sshkeyhash && parse_user_profile_fmt(&sym, u, "%s", sshkeyhash))
+		    || (sshkey && parse_user_profile_fmt(&sym, u, "ssh-key = %s", sshkey))
+		    || (sshkeyhash && parse_user_profile_fmt(&sym, u, "ssh-key-hash = %s", sshkeyhash))
 #endif
 		    ) {
 		    char *errbuf = NULL;
