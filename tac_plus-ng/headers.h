@@ -61,7 +61,7 @@
 #ifndef __HEADERS_H_
 #define __HEADERS_H_
 
-//#define TPNG_EXPERIMENTAL
+#define TPNG_EXPERIMENTAL
 
 #include "misc/sysconf.h"
 
