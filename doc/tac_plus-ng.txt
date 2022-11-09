@@ -106,6 +106,7 @@ Marc Huber
      * Supports TLS
      * Compliant to RFC8907
      * Supports Linux VRFs
+     * Supports (non-standard) SSH Public Key Authentication
      __________________________________________________________
 
 1.1. Download
