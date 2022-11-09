@@ -87,8 +87,8 @@ AV_CHAR("TYPE",)
     AV_CHAR("GID",)
 #define AV_A_LIMIT		11
     AV_CHAR("LIMIT",)
-#define AV_A_TRANSPORT		12
-    AV_CHAR("TRANSPORT",)
+#define AV_A_SSHKEY		12
+    AV_CHAR("SSHKEY",)
 #define AV_A_TRAFFICSHAPING	13
     AV_CHAR("TRAFFICSHAPING",)
 #define AV_A_IPADDR             14
