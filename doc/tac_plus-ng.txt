@@ -1009,6 +1009,20 @@ Password: myusername mypassword
        changed using an ACL:
 acl custom_enable_acl { if (user =~ ^demo$) permit deny }
 enable user acl = custom_enable_acl
+
+   There are also experimental options for (non-standard) SSH
+   public key authentication available. These may or may not
+   supported by your vender:
+
+     * ssh-key = public-ssh-key-in-OpenSSL-authorized_keys-format
+       Example: ssh-key =
+       "AAAAB3NzO4S6C/SAu9E90P3n9dfbe3iNiK...STPC6V1fffa123OxmK3hh
+       zwbl"
+     * ssh-key-hash = ssh-key-in-OpenSSL-format
+       There's no use in specifying the hash if you've configured
+       the public key, the daemon will care for that itself.
+       Example: ssh-key-hash =
+       SHA256:kOkclqivcjludf/jdsfkyqpddffdk38U12+CkA8fBAC
      __________________________________________________________
 
 4.2.3.2.2. User back-end options
