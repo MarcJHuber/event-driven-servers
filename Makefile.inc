@@ -66,7 +66,8 @@ else
 endif
 
 ifeq ($(CC_GCC),1)
-	CFLAGS		?= -O2 -Wall -W -Wno-strict-prototypes -Wno-implicit-fallthrough
+	#CFLAGS		?= -O2 -Wall -W -Wno-strict-prototypes -Wno-implicit-fallthrough
+	CFLAGS		?= -Wall -W -Wno-strict-prototypes -Wno-implicit-fallthrough
 	CFLAGS_PIC	?= -fPIC
 
 	LDOPT_R		?= -Wl,-rpath,
