@@ -35,26 +35,27 @@ endif
 
 include $(MF_OBJ)
 
-CC	?= gcc
+ifeq ($(origin CC),default)
+	ifeq ($(shell clang $$1 -v 2>&1),)
+	else
+		CC = clang
+		CC_GCC		= 1
+		CC_CLANG	= 1
+	endif
+endif
+
+ifeq ($(origin CC),default)
+	ifeq ($(shell gcc $$1 -v 2>&1),)
+	else
+		CC = gcc
+		CC_GCC		= 1
+	endif
+endif
 
 CCV = $(shell set $(CC); $$1 -v 2>&1)
 
-ifneq ($(findstring clang,$(CCV)),)
-	CC_GCC		= 1
-	CC_CLANG	= 1
-else
-	ifeq ($(findstring gcc,$(CCV)),)
-		CC_GCC	=	0
-		CCV = $(shell $(CC) -V 2>&1)
-		ifneq ($(findstring Intel,$(CCV)),)
-			CC_INTEL	= 1
-		endif
-		ifneq ($(findstring "Sun C",$(CCV)),)
-			CC_SUN		= 1
-		endif
-	else
-		CC_GCC	= 1
-	endif
+ifneq ($(findstring "Sun C",$(CCV)),)
+	CC_SUN		= 1
 endif
 
 LD	?= ld
@@ -89,28 +90,6 @@ ifeq ($(CC_SUN),1)
 	CFLAGS_PIC	?= -G
 	LDOPT_R		?= -Wl,-rpath,
 	LD_SHARED	= $(CC) $(CFLAGS_PIC)
-endif
-
-ifeq ($(CC_INTEL),1)
-	# May work, or possibly not.
-	ifeq ($(findstring "Version 11.0",$CCV),)
-# mostly GCC compatible, apparently ...
-#		CFLAGS		?= -O
-#		CFLAGS_PIC	?= -KPIC
-#		LDOPT_R		?= -Qoption,link,-R
-#		LD_SHARED	= $(CC) -shared
-	else
-		ifneq ($(findstring "Version 7.0",$(CCV)),)
-			CFLAGS	+= -restrict
-		endif
-		CFLAGS		?= -O -Wall -Wno-strict-prototypes -wd981 -wd2259 -wd1684
-		CFLAGS_PIC	?= -fPIC
-		LDOPT_R		?= -Wl,-rpath,
-		LD_SHARED	= $(CC) -shared
-		ifeq ($(DEBUG),1)
-			CFLAGS	+= -Werror
-		endif
-	endif
 endif
 
 SHLIB_PRE	= lib
