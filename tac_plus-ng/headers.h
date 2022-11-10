@@ -61,8 +61,6 @@
 #ifndef __HEADERS_H_
 #define __HEADERS_H_
 
-#define TPNG_EXPERIMENTAL
-
 #include "misc/sysconf.h"
 
 #include <ctype.h>
@@ -239,9 +237,7 @@ typedef struct {
     char enable_implied[TAC_PLUS_PRIV_LVL_MAX + 1];
     struct pwdat *enable[TAC_PLUS_PRIV_LVL_MAX + 1];	/* enable passwords */
     struct tac_acllist *passwd_acllist;
-#ifdef TPNG_EXPERIMENTAL
     struct ssh_key *ssh_key;
-#endif
     tac_groups *groups;
     memlist_t *memlist;
     tac_realm *realm;
@@ -401,9 +397,7 @@ struct authen_start {
 #define TAC_PLUS_AUTHEN_TYPE_ARAP   4
 #define TAC_PLUS_AUTHEN_TYPE_MSCHAP 5
 #define TAC_PLUS_AUTHEN_TYPE_MSCHAPV2 6
-#ifdef TPNG_EXPERIMENTAL
 #define TAC_PLUS_AUTHEN_TYPE_SSHKEY 8
-#endif
 
     u_char service;
 #define TAC_PLUS_AUTHEN_SVC_LOGIN  1
@@ -578,9 +572,7 @@ struct log_item;
 typedef struct tac_session tac_session;
 typedef struct tac_profile tac_profile;
 
-#ifdef TPNG_EXPERIMENTAL
 struct ssh_key;
-#endif
 
 struct tac_session {
     struct context *ctx;
@@ -646,9 +638,7 @@ struct tac_session {
     u_int priv_lvl;		/* requested privilege level */
     char privlvl[4];
     int privlvl_len;
-#ifdef TPNG_EXPERIMENTAL
     char *ssh_key;
-#endif
     int session_id;
     time_t session_timeout;
     struct author_data *author_data;
@@ -885,9 +875,7 @@ void drop_mcx(tac_realm *);
 void init_mcx(tac_realm *);
 void complete_realm(tac_realm *);
 
-#ifdef TPNG_EXPERIMENTAL
 enum token validate_ssh_hash(tac_session *, char *, char **);
-#endif
 
 extern struct config config;
 extern int die_when_idle;

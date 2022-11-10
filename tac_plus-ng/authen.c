@@ -1312,7 +1312,6 @@ static void do_pap(tac_session * session)
     send_authen_reply(session, res, resp, 0, NULL, 0, 0);
 }
 
-#ifdef TPNG_EXPERIMENTAL
 // This is proof-of-concept code for SSH key validation with minor protocol changes.
 // Clients just need to use TAC_PLUS_AUTHEN_TYPE_SSHKEYHASH (8) and put the ssh public
 // key hash into the data field. This should be really easy to implement. The daemon
@@ -1370,7 +1369,6 @@ static void do_sshkeyhash(tac_session * session)
 
     send_authen_reply(session, res, resp, 0, (u_char *) key, 0, 0);
 }
-#endif
 
 #ifdef WITH_DNS
 static void free_reverse(void *payload, void *data __attribute__((unused)))
@@ -1569,12 +1567,10 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 			session->authen_data->authfn = do_mschapv2;
 		    break;
 #endif
-#ifdef TPNG_EXPERIMENTAL
 		case TAC_PLUS_AUTHEN_TYPE_SSHKEY:
 		    // limit to hdr->version? 1.2 perhaps?
 		    session->authen_data->authfn = do_sshkeyhash;
 		    break;
-#endif
 		}
 	    }
 	    break;

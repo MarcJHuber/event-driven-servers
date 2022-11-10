@@ -191,14 +191,12 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	if ((r->mavis_userdb == TRISTATE_YES) && (!u || u->dynamic)) {
 	    char *tacprofile = av_get(avc, AV_A_TACPROFILE);
 	    char *tacmember = av_get(avc, AV_A_TACMEMBER);
-#ifdef TPNG_EXPERIMENTAL
-	    char *sshkeyhash = av_get(avc, AV_A_SSHKEYHASH);
 	    char *sshkey = av_get(avc, AV_A_SSHKEY);
+	    char *sshkeyhash = av_get(avc, AV_A_SSHKEYHASH);
 	    if (sshkeyhash && !*sshkeyhash)
 		sshkeyhash = NULL;
 	    if (sshkey && !*sshkey)
-		sshkey= NULL;
-#endif
+		sshkey = NULL;
 	    if (tacprofile && !*tacprofile)
 		tacprofile = NULL;
 	    if (tacmember && !*tacmember)
@@ -234,11 +232,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    }
 	    }
 
-	    if (!u || tacmember
-#ifdef TPNG_EXPERIMENTAL
-		|| sshkeyhash
-#endif
-		) {
+	    if (!u || tacmember || sshkey || sshkeyhash) {
 		struct sym sym;
 
 		memset(&sym, 0, sizeof(sym));
@@ -262,10 +256,8 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 
 		if ((tacmember && parse_user_profile_fmt(&sym, u, "{ member = %s }", tacmember))
 		    || (tacprofile && parse_user_profile_fmt(&sym, u, "%s", tacprofile))
-#ifdef TPNG_EXPERIMENTAL
 		    || (sshkey && parse_user_profile_fmt(&sym, u, "ssh-key = %s", sshkey))
 		    || (sshkeyhash && parse_user_profile_fmt(&sym, u, "ssh-key-hash = %s", sshkeyhash))
-#endif
 		    ) {
 		    char *errbuf = NULL;
 		    time_t tt = (time_t) io_now.tv_sec;

@@ -1958,7 +1958,6 @@ static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm
     sym_get(sym);
 }
 
-#ifdef TPNG_EXPERIMENTAL
 struct ssh_key {
     struct ssh_key *next;
     char *key;
@@ -2158,8 +2157,6 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 }
 #endif				// WITH_SSL
 
-#endif
-
 static void parse_user_attr(struct sym *sym, tac_user * user)
 {
     tac_realm *r = user->realm;
@@ -2213,7 +2210,6 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	    parse(sym, S_equal);
 	    user->hushlogin = parse_tristate(sym);
 	    continue;
-#ifdef TPNG_EXPERIMENTAL
 	case S_ssh_key_hash:
 	    sym_get(sym);
 	    parse(sym, S_equal);
@@ -2225,7 +2221,6 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	    parse(sym, S_equal);
 	    parse_sshkey(sym, user);
 	    continue;
-#endif
 #endif
 	default:
 	    parse_error_expect(sym, S_member, S_valid, S_debug, S_message, S_password, S_enable, S_fallback_only, S_hushlogin, S_unknown);
