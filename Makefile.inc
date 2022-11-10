@@ -39,20 +39,22 @@ CC	?= gcc
 
 CCV = $(shell set $(CC); $$1 -v 2>&1)
 
-ifeq ($(findstring gcc,$(CCV)),)
-	CC_GCC	=	0
-	ifneq ($(findstring clang,$(CCV)),)
-		CC_GCC		= 1
-	endif
-	CCV = $(shell $(CC) -V 2>&1)
-	ifneq ($(findstring Intel,$(CCV)),)
-		CC_INTEL	= 1
-	endif
-	ifneq ($(findstring "Sun C",$(CCV)),)
-		CC_SUN		= 1
-	endif
+ifneq ($(findstring clang,$(CCV)),)
+	CC_GCC		= 1
+	CC_CLANG	= 1
 else
-	CC_GCC	= 1
+	ifeq ($(findstring gcc,$(CCV)),)
+		CC_GCC	=	0
+		CCV = $(shell $(CC) -V 2>&1)
+		ifneq ($(findstring Intel,$(CCV)),)
+			CC_INTEL	= 1
+		endif
+		ifneq ($(findstring "Sun C",$(CCV)),)
+			CC_SUN		= 1
+		endif
+	else
+		CC_GCC	= 1
+	endif
 endif
 
 LD	?= ld
@@ -66,8 +68,10 @@ else
 endif
 
 ifeq ($(CC_GCC),1)
-	#CFLAGS		?= -O2 -Wall -W -Wno-strict-prototypes -Wno-implicit-fallthrough
 	CFLAGS		?= -Wall -W -Wno-strict-prototypes -Wno-implicit-fallthrough
+	ifeq ($(CC_CLANG),1)
+		CFLAGS		+= -O2
+	endif
 	CFLAGS_PIC	?= -fPIC
 
 	LDOPT_R		?= -Wl,-rpath,
