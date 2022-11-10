@@ -441,17 +441,17 @@ ifneq ($(WITH_PCRE2),1)
 			endif
 		endif
 	endif
+endif
 
-	ifeq ($(WITH_PCRE),1)
-		ifneq ($(INCDIR_PCRE),)
-			INC_PCRE	= -I$(INCDIR_PCRE)
-		endif
-		ifneq ($(LIBDIR_PCRE),)
-			LIB_PCRE	= -L$(LIBDIR_PCRE) $(LDOPT_R)$(LIBDIR_PCRE)
-		endif
-		DEF += -DWITH_PCRE
-		LIB_PCRE	+= -lpcre
+ifeq ($(WITH_PCRE),1)
+	ifneq ($(INCDIR_PCRE),)
+		INC_PCRE	= -I$(INCDIR_PCRE)
 	endif
+	ifneq ($(LIBDIR_PCRE),)
+		LIB_PCRE	= -L$(LIBDIR_PCRE) $(LDOPT_R)$(LIBDIR_PCRE)
+	endif
+	DEF += -DWITH_PCRE
+	LIB_PCRE	+= -lpcre
 endif
 
 ifneq ($(WITH_PCRE),1)
@@ -503,17 +503,17 @@ ifneq ($(WITH_PCRE),1)
 			endif
 		endif
 	endif
+endif
 
-	ifeq ($(WITH_PCRE2),1)
-		ifneq ($(INCDIR_PCRE2),)
-			INC_PCRE	= -I$(INCDIR_PCRE2)
-		endif
-		ifneq ($(LIBDIR_PCRE2),)
-			LIB_PCRE	= -L$(LIBDIR_PCRE2) $(LDOPT_R)$(LIBDIR_PCRE2)
-		endif
-		DEF += -DWITH_PCRE2 -DPCRE2_CODE_UNIT_WIDTH=8
-		LIB_PCRE	+= -lpcre2-8
+ifeq ($(WITH_PCRE2),1)
+	ifneq ($(INCDIR_PCRE2),)
+		INC_PCRE	= -I$(INCDIR_PCRE2)
 	endif
+	ifneq ($(LIBDIR_PCRE2),)
+		LIB_PCRE	= -L$(LIBDIR_PCRE2) $(LDOPT_R)$(LIBDIR_PCRE2)
+	endif
+	DEF += -DWITH_PCRE2 -DPCRE2_CODE_UNIT_WIDTH=8
+	LIB_PCRE	+= -lpcre2-8
 endif
 
 # Check for FreeRADIUS client library:
