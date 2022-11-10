@@ -58,6 +58,15 @@ ifneq ($(findstring "Sun C",$(CCV)),)
 	CC_SUN		= 1
 endif
 
+ifneq ($(findstring "clang",$(CCV)),)
+	CC_CLANG		= 1
+	CC_GCC		= 1
+endif
+
+ifneq ($(findstring "gcc",$(CCV)),)
+	CC_GCC		= 1
+endif
+
 LD	?= ld
 
 LDV = $(shell set $(LD); $$1 -v 2>&1)
