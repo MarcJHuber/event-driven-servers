@@ -180,14 +180,16 @@ static int bad_nas_args(tac_session * session, struct author_data *data)
     int i;
     /* Check the nas args for well-formedness */
     for (i = 0; i < data->in_cnt; i++) {
-	size_t k = strcspn(data->in_args[i], "=*");
-	if (!k || !data->in_args[i][k]) {
-	    char buf[MAX_INPUT_LINE_LEN];
-	    snprintf(buf, sizeof(buf), "Illegal arg from NAS: %s", data->in_args[i]);
-	    data->status = TAC_PLUS_AUTHOR_STATUS_ERROR;
-	    data->admin_msg = memlist_strdup(session->memlist, buf);
-	    report(session, LOG_ERR, ~0, "%s: %s", session->ctx->nas_address_ascii, buf);
-	    return -1;
+	if (*(data->in_args[i])) {
+	    size_t k = strcspn(data->in_args[i], "=*");
+	    if (!k || !data->in_args[i][k]) {
+		char buf[MAX_INPUT_LINE_LEN];
+		snprintf(buf, sizeof(buf), "Illegal arg from NAS: %s", data->in_args[i]);
+		data->status = TAC_PLUS_AUTHOR_STATUS_ERROR;
+		data->admin_msg = memlist_strdup(session->memlist, buf);
+		report(session, LOG_ERR, ~0, "%s: %s", session->ctx->nas_address_ascii, buf);
+		return -1;
+	    }
 	}
     }
     return 0;
