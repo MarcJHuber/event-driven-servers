@@ -36,8 +36,7 @@ endif
 include $(MF_OBJ)
 
 ifeq ($(origin CC),default)
-	ifeq ($(shell clang $$1 -v 2>&1),)
-	else
+	ifneq ($(shell clang $$1 -v 2>&1),)
 		CC = clang
 		CC_GCC		= 1
 		CC_CLANG	= 1
@@ -45,8 +44,7 @@ ifeq ($(origin CC),default)
 endif
 
 ifeq ($(origin CC),default)
-	ifeq ($(shell gcc $$1 -v 2>&1),)
-	else
+	ifneq ($(shell gcc $$1 -v 2>&1),)
 		CC = gcc
 		CC_GCC		= 1
 	endif
@@ -80,7 +78,7 @@ endif
 ifeq ($(CC_GCC),1)
 	CFLAGS		?= -Wall -W -Wno-strict-prototypes -Wno-implicit-fallthrough
 	ifeq ($(CC_CLANG),1)
-		CFLAGS		+= -O2
+		CFLAGS		+= -O2 # CLANG output correct code, GGC doesn't.
 	endif
 	CFLAGS_PIC	?= -fPIC
 
@@ -223,6 +221,9 @@ ifeq ($(WITH_ARES),1)
 	DEF += -DWITH_ARES -DWITH_DNS
 	LIB_DNS	+= -lcares
 	WITH_DNS=1
+	FOUND += LIBC-ARES
+else
+	NOT_FOUND += LIBC-ARES
 endif
 
 # Check for lwres library if c-ares is unavailable:
@@ -275,6 +276,11 @@ ifeq ($(WITH_ARES),0)
 		DEF += -DWITH_LWRES -DWITH_DNS
 		LIB_DNS	+= -llwres
 		WITH_DNS=1
+		FOUND += LIB-LWRES
+	else
+		ifeq ($(WITH_ARES),0)
+			NOT_FOUND += LIB-LWRES
+		endif
 	endif
 endif
 
@@ -334,6 +340,9 @@ ifeq ($(WITH_SSL),1)
 	DEF += -DWITH_SSL
 	LIB_SSL	+= -lssl -lcrypto
 	LIB_SSL_CRYPTO	+= -lcrypto
+	FOUND += LIB-SSL
+else
+	NOT_FOUND += LIB-SSL
 endif
 
 # Check for LibTLS library:
@@ -377,9 +386,73 @@ ifeq ($(WITH_TLS),1)
 	endif
 	DEF += -DWITH_TLS
 	LIB_TLS += -ltls
+	FOUND += LIB_TLS
+else
+	NOT_FOUND += LIB_TLS
 endif
 
-# Check for PCRE library:
+ifneq ($(WITH_PCRE),1)
+	# Try to auto-detect PCRE v2
+
+	# Try pkg-config first:
+	ifeq ($(WITH_PCRE2),)
+		ifeq ($(shell pkg-config --exists libpcre2-8 2>/dev/null ; echo $$?),0)
+			WITH_PCRE2=1
+			LIBDIR_PCRE2=$(shell pkg-config --libs-only-L libpcre2-8 | cut -c3-)
+			INCDIR_PCRE2=$(shell pkg-config --cflags-only-I libpcre2-8 | cut -c3-)
+		endif
+	endif
+
+	ifeq ($(WITH_PCRE2),)
+		ifneq ($(wildcard /lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)* /usr/lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)* "/usr/lib/*/libpcre2-8$(SHLIB_EXT)*",)
+			ifneq ($(wildcard /usr/include/pcre2.h),)
+				WITH_PCRE2=1
+			endif
+		endif
+	endif
+
+	ifeq ($(WITH_PCRE2),)
+		ifneq ($(wildcard /usr/local/lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)*),)
+			ifneq ($(wildcard /usr/local/include/pcre2.h),)
+				INCDIR_PCRE2=/usr/local/include
+				LIBDIR_PCRE2=/usr/local/lib$(LIBARCH)
+				WITH_PCRE2=1
+			endif
+		endif
+	endif
+
+	ifeq ($(WITH_PCRE2),)
+		ifneq ($(wildcard /opt/local/lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)*),)
+			ifneq ($(wildcard /opt/local/include/pcre2.h),)
+				INCDIR_PCRE2=/opt/local/include
+				LIBDIR_PCRE2=/opt/local/lib$(LIBARCH)
+				WITH_PCRE2=1
+			endif
+		endif
+	endif
+
+	ifeq ($(WITH_PCRE2),)
+		ifneq ($(wildcard /usr/sfw/lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)*),)
+			ifneq ($(wildcard /usr/sfw/include/pcre2.h),)
+				INCDIR_PCRE2=/usr/sfw/include
+				LIBDIR_PCRE2=/usr/sfw/lib$(LIBARCH)
+				WITH_PCRE2=1
+			endif
+		endif
+	endif
+endif
+
+ifeq ($(WITH_PCRE2),1)
+	ifneq ($(INCDIR_PCRE2),)
+		INC_PCRE	= -I$(INCDIR_PCRE2)
+	endif
+	ifneq ($(LIBDIR_PCRE2),)
+		LIB_PCRE	= -L$(LIBDIR_PCRE2) $(LDOPT_R)$(LIBDIR_PCRE2)
+	endif
+	DEF += -DWITH_PCRE2 -DPCRE2_CODE_UNIT_WIDTH=8
+	LIB_PCRE	+= -lpcre2-8
+	FOUND += LIB-PCRE2
+endif
 
 ifeq ($(WITH_PCRE2),1)
 	WITH_PCRE=0
@@ -445,68 +518,12 @@ ifeq ($(WITH_PCRE),1)
 	endif
 	DEF += -DWITH_PCRE
 	LIB_PCRE	+= -lpcre
-endif
-
-ifneq ($(WITH_PCRE),1)
-	# Try to auto-detect PCRE v2 unless v1 was found
-
-	# Try pkg-config first:
-	ifeq ($(WITH_PCRE2),)
-		ifeq ($(shell pkg-config --exists libpcre2-8 2>/dev/null ; echo $$?),0)
-			WITH_PCRE2=1
-			LIBDIR_PCRE2=$(shell pkg-config --libs-only-L libpcre2-8 | cut -c3-)
-			INCDIR_PCRE2=$(shell pkg-config --cflags-only-I libpcre2-8 | cut -c3-)
-		endif
+	FOUND += LIB_PCRE
+else
+	ifeq ($(WITH_PCRE),1)
+		# NOT_FOUND += LIB_PCRE
+		NOT_FOUND += LIB_PCRE2
 	endif
-
-	ifeq ($(WITH_PCRE2),)
-		ifneq ($(wildcard /lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)* /usr/lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)*) /usr/lib/*/libpcre2-8$(SHLIB_EXT)*),)
-			ifneq ($(wildcard /usr/include/pcre2.h),)
-				WITH_PCRE2=1
-			endif
-		endif
-	endif
-
-	ifeq ($(WITH_PCRE2),)
-		ifneq ($(wildcard /usr/local/lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)*),)
-			ifneq ($(wildcard /usr/local/include/pcre2.h),)
-				INCDIR_PCRE2=/usr/local/include
-				LIBDIR_PCRE2=/usr/local/lib$(LIBARCH)
-				WITH_PCRE2=1
-			endif
-		endif
-	endif
-
-	ifeq ($(WITH_PCRE2),)
-		ifneq ($(wildcard /opt/local/lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)*),)
-			ifneq ($(wildcard /opt/local/include/pcre2.h),)
-				INCDIR_PCRE2=/opt/local/include
-				LIBDIR_PCRE2=/opt/local/lib$(LIBARCH)
-				WITH_PCRE2=1
-			endif
-		endif
-	endif
-
-	ifeq ($(WITH_PCRE2),)
-		ifneq ($(wildcard /usr/sfw/lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)*),)
-			ifneq ($(wildcard /usr/sfw/include/pcre2.h),)
-				INCDIR_PCRE2=/usr/sfw/include
-				LIBDIR_PCRE2=/usr/sfw/lib$(LIBARCH)
-				WITH_PCRE2=1
-			endif
-		endif
-	endif
-endif
-
-ifeq ($(WITH_PCRE2),1)
-	ifneq ($(INCDIR_PCRE2),)
-		INC_PCRE	= -I$(INCDIR_PCRE2)
-	endif
-	ifneq ($(LIBDIR_PCRE2),)
-		LIB_PCRE	= -L$(LIBDIR_PCRE2) $(LDOPT_R)$(LIBDIR_PCRE2)
-	endif
-	DEF += -DWITH_PCRE2 -DPCRE2_CODE_UNIT_WIDTH=8
-	LIB_PCRE	+= -lpcre2-8
 endif
 
 # Check for FreeRADIUS client library:
@@ -556,6 +573,7 @@ ifeq ($(WITH_FREERADIUS),1)
 		LIB_FREERADIUS	= -L$(LIBDIR_FREERADIUS) $(LDOPT_R)$(LIBDIR_FREERADIUS)
 	endif
 	LIB_FREERADIUS	+= -lfreeradius-client
+	FOUND += LIB-FREERADIUS
 endif
 
 # Check for RADCLI library:
@@ -596,6 +614,10 @@ ifeq ($(WITH_LIBRADCLI),1)
 	endif
 	LIB_LIBRADCLI	+= -lradcli
 	DEF += -DWITH_LIBRADCLI
+	FOUND += LIB-RADCLI
+else
+	NOT_FOUND += LIB-FREERADIUS-CLIENT
+	NOT_FOUND += LIB-RADCLI
 endif
 
 # Check for ZLIB library:
@@ -610,20 +632,16 @@ ifeq ($(WITH_ZLIB),)
 endif
 
 ifeq ($(WITH_ZLIB),)
-	ifneq ($(wildcard /lib$(LIBARCH)/libz$(SHLIB_EXT)* /usr/lib$(LIBARCH)/libz$(SHLIB_EXT)*),)
-		ifneq ($(wildcard /usr/include/zlib.h),)
-			WITH_ZLIB=1
-		endif
+	ifneq ($(wildcard /usr/include/zlib.h),)
+		WITH_ZLIB=1
 	endif
 endif
 
 ifeq ($(WITH_ZLIB),)
-	ifneq ($(wildcard /usr/local/lib$(LIBARCH)/libz$(SHLIB_EXT)*),)
-		ifneq ($(wildcard /usr/local/include/zlib.h),)
-			INCDIR_ZLIB=/usr/local/include
-			LIBDIR_ZLIB=/usr/local/lib$(LIBARCH)
-			WITH_ZLIB=1
-		endif
+	ifneq ($(wildcard /usr/local/include/zlib.h),)
+		INCDIR_ZLIB=/usr/local/include
+		LIBDIR_ZLIB=/usr/local/lib$(LIBARCH)
+		WITH_ZLIB=1
 	endif
 endif
 
@@ -636,6 +654,9 @@ ifeq ($(WITH_ZLIB),1)
 	endif
 	DEF += -DWITH_ZLIB
 	LIB_ZLIB	+= -lz
+	FOUND += LIB-ZLIB
+else
+	NOT_FOUND += LIB-ZLIB
 endif
 
 # Check for execinfo:
@@ -759,6 +780,9 @@ ifeq ($(WITH_CURL),1)
 		LIB_CURL	= -L$(LIBDIR_CURL) $(LDOPT_R)$(LIBDIR_CURL)
 	endif
 	LIB_CURL	+= -lcurl
+	FOUND += LIB-CURL
+else
+	NOT_FOUND += LIB-CURL
 endif
 
 # Check for PAM:
@@ -799,6 +823,9 @@ ifeq ($(WITH_PAM),1)
 		LIB_PAM	= -L$(LIBDIR_PAM) $(LDOPT_R)$(LIBDIR_PAM)
 	endif
 	LIB_PAM	+= -lpam
+	FOUND += LIB-PAM
+else
+	NOT_FOUND += LIB-PAM
 endif
 
 # Check for SCTP:
@@ -815,8 +842,6 @@ ifeq ($(WITH_SCTP),1)
 	endif
 	DEF += -DWITH_SCTP
 endif
-
-#
 
 ifeq ($(OSTYPE), linux)
 	LIB_DL	= -ldl
@@ -838,7 +863,6 @@ ifeq ($(OSTYPE), sunos)
 endif
 
 ifeq ($(wildcard /usr/include/sys),)
-		# FIXME. Consider removing Ubuntu from the list of supported systems.
 		USRINCLUDESYS=/usr/include/$(shell uname -m)-linux-gnu/sys
 else
 		USRINCLUDESYS=/usr/include/sys
@@ -902,6 +926,12 @@ endif
 
 ifeq ($(WITH_IPC),1)
 	DEF += -DWITH_IPC
+endif
+
+ifneq ($(NOT_FOUND),)
+	ifeq ($(MAKELEVEL),0)
+$(warning Development files not found for $(NOT_FOUND).)
+	endif
 endif
 
 %:: %,v
