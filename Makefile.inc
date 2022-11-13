@@ -78,7 +78,9 @@ endif
 ifeq ($(CC_GCC),1)
 	CFLAGS		?= -Wall -W -Wno-strict-prototypes -Wno-implicit-fallthrough
 	ifeq ($(CC_CLANG),1)
-		CFLAGS		+= -O2 # CLANG output correct code, GGC doesn't.
+		CFLAGS		+= -O2 # CLANG outputs correct code, GGC doesn't.
+	else
+$(warning It lookt like your're using GCC. Code optimizations via -O are turned off for now.)
 	endif
 	CFLAGS_PIC	?= -fPIC
 
