@@ -546,8 +546,8 @@ $DEFS{"INC"} .= " -I$cwd";
 my (%FOUND, %NOT_FOUND);
 
 ######################
-sub check_for($$$$$$) {
-	my ($PKG, $pkg, $hdr, $lib, $ldlib, $defs) = @_;
+sub check_for($$$$$) {
+	my ($PKG, $pkg, $hdr, $lib, $defs) = @_;
 
 	return if exists $FOUND{"LIB-$PKG"};
 
@@ -564,21 +564,21 @@ sub check_for($$$$$$) {
 		unless (exists $DEFS{"WITH_$PKG"}) {
 			for my $prefix ("/usr", "/usr/local", "/usr/sfw", "/usr/pkg") {
 				next unless -e "$prefix/include/$hdr";
-				my @g = glob("$prefix/$DEFS{'LIBARCH'}/$lib$DEFS{'SHLIB_EXT'}*");
+				my @g = glob("$prefix/$DEFS{'LIBARCH'}/lib$lib$DEFS{'SHLIB_EXT'}*");
 				if ($#g > -1) {
 					$DEFS{"WITH_$PKG"} = 1;
 					$DEFS{"INCDIR_$PKG"} = "$prefix/include";
 					$DEFS{"LIBDIR_$PKG"} = "$prefix/lib/$DEFS{'LIBARCH'}";
 					last;
 				}
-				@g = glob("$prefix/lib/$lib$DEFS{'SHLIB_EXT'}*");
+				@g = glob("$prefix/lib/lib$lib$DEFS{'SHLIB_EXT'}*");
 				if ($#g > -1) {
 					$DEFS{"WITH_$PKG"} = 1;
 					$DEFS{"INCDIR_$PKG"} = "$prefix/include";
 					$DEFS{"LIBDIR_$PKG"} = "$prefix/lib";
 					last;
 				}
-				@g = glob("$prefix/lib/$machine-linux-gnu/$lib$DEFS{'SHLIB_EXT'}*");
+				@g = glob("$prefix/lib/$machine-linux-gnu/lib$lib$DEFS{'SHLIB_EXT'}*");
 				if ($#g > -1) {
 					$DEFS{"WITH_$PKG"} = 1;
 					$DEFS{"INCDIR_$PKG"} = "$prefix/include";
@@ -592,7 +592,7 @@ sub check_for($$$$$$) {
 		$DEFS{"INC_$PKG"} = "-I" . $DEFS{"INCDIR_$PKG"} if exists $DEFS{"INCDIR_$PKG"};
 		$DEFS{"LIB_$PKG"} = "";
 		$DEFS{"LIB_$PKG"} .= "-L" . $DEFS{"LIBDIR_$PKG"} . " " . $DEFS{'LDOPT_R'} . $DEFS{"LIBDIR_$PKG"} . " " if exists $DEFS{"LIBDIR_$PKG"};
-		$DEFS{"LIB_$PKG"} .= $ldlib if defined $ldlib;
+		$DEFS{"LIB_$PKG"} .= "-l$lib" if defined $lib;
 		$DEFS{'DEF'} .= " -DWITH_$PKG";
 		$DEFS{'DEF'} .= " $defs" if defined $defs;;
 		$FOUND{"LIB-$PKG"} = 1;
@@ -601,33 +601,33 @@ sub check_for($$$$$$) {
 	}
 }
 
-check_for("ARES", "libcares", "ares.h", "cares", "-lcares", "-DWITH_DNS") if !exists $DEFS{"WITH_LWRES"} || $DEFS{"WITH_LWRES"} == 0;
+check_for("ARES", "libcares", "ares.h", "cares", "-DWITH_DNS") if !exists $DEFS{"WITH_LWRES"} || $DEFS{"WITH_LWRES"} == 0;
 $DEFS{"LIB_DNS"} = $DEFS{"LIB_ARES"} if exists $DEFS{"LIB_ARES"};
-check_for("LWRES", "liblwres", "liblwres.h", "lwres", "-llwres", "-DWITH_DNS") if !exists $DEFS{"WITH_ARES"} || $DEFS{"WITH_ARES"} == 0;
+check_for("LWRES", "liblwres", "liblwres.h", "lwres", "-DWITH_DNS") if !exists $DEFS{"WITH_ARES"} || $DEFS{"WITH_ARES"} == 0;
 $DEFS{"LIB_DNS"} = $DEFS{"LIB_LWRES"} if exists $DEFS{"LIB_LWRES"};
 $DEFS{"WITH_DNS"} = 1 if exists $DEFS{"LIB_DNS"};
-check_for("SSL", "openssl", "openssl/ssl.h", "libssl", "-lssl", undef);
-check_for("SSL_CRYPTO", "openssl", "openssl/ssl.h", "libcrypto", "-lcrypto", undef);
-check_for("TLS", "libtls", "tls.h", "tls", "-ltls", undef);
-check_for("PCRE2", "libpcre2-8", "pcre2.h", "libpcre2-8", "-lpcre2-8", "-DPCRE2_CODE_UNIT_WIDTH=8");
+check_for("SSL", "openssl", "openssl/ssl.h", "ssl", undef);
+check_for("SSL_CRYPTO", "openssl", "openssl/ssl.h", "crypto", undef);
+check_for("TLS", "libtls", "tls.h", "tls", undef);
+check_for("PCRE2", "libpcre2-8", "pcre2.h", "pcre2-8", "-DPCRE2_CODE_UNIT_WIDTH=8");
 $DEFS{"INC_PCRE"} = $DEFS{"INC_PCRE2"} if exists $DEFS{"INC_PCRE2"};
 $DEFS{"LIB_PCRE"} = $DEFS{"LIB_PCRE2"} if exists $DEFS{"LIB_PCRE2"};
-check_for("PCRE", "libpcre", "libpcre", "pcre.h", "-lpcre", undef) if !exists $DEFS{"WITH_PCRE2"} || $DEFS{"WITH_PCRE2"} == 0;
-check_for("FREERADIUS", "freeradius-client", "freeradius-client.h", "libfreeradius-client", "-lfreeradius-client", undef) if !exists $DEFS{"WITH_LIBRADCLI"} || $DEFS{"WITH_LIBRADCLI"} == 0;
-check_for("FREERADIUS", "freeradius-client", "freeradius/freeradius-client.h"," libfreeradius-client", "-lfreeradius-client", undef) if !exists $DEFS{"WITH_LIBRADCLI"} || $DEFS{"WITH_LIBRADCLI"} == 0;
-check_for("LIBRADCLI", "radcli", "radcli/radcli.h", "libradcli", "-lradcli", undef);
-check_for("ZLIB", "zlib", "zlib.h", "libz", "-lz", undef);
-check_for("EXECINFO", "execinfo", "execinfo.h", "libexecinfo", "-lexecinfo", undef);
+check_for("PCRE", "libpcre", "pcre.h", "pcre", undef) if !exists $DEFS{"WITH_PCRE2"} || $DEFS{"WITH_PCRE2"} == 0;
+check_for("FREERADIUS", "freeradius-client", "freeradius-client.h", "freeradius-client", undef) if !exists $DEFS{"WITH_LIBRADCLI"} || $DEFS{"WITH_LIBRADCLI"} == 0;
+check_for("FREERADIUS", "freeradius-client", "freeradius/freeradius-client.h", "freeradius-client", undef) if !exists $DEFS{"WITH_LIBRADCLI"} || $DEFS{"WITH_LIBRADCLI"} == 0;
+check_for("LIBRADCLI", "radcli", "radcli/radcli.h", "radcli", undef);
+check_for("ZLIB", "zlib", "zlib.h", "z", undef);
+check_for("EXECINFO", "execinfo", "execinfo.h", "execinfo", undef);
 if ($sysname eq "linux" && -f "/usr/include/execinfo.h") {
 	$DEFS{"WITH_EXECINFO"} = 1;
 	delete $NOT_FOUND{"LIB-EXECINFO"};
 }
-check_for("CRYPT", "crypt", "crypt.h", "libcrypt", "-lcrypt", undef);
+check_for("CRYPT", "crypt", "crypt.h", "crypt", undef);
 $DEFS{"LIBCRYPT"} = $DEFS{"LIB_CRYPT"} if exists $DEFS{"LIB_CRYPT"}; # FIXME, remove later
-check_for("LIBCURL", "libcurl", "curl", "libcurl", "-lcurl", undef);
-check_for("PAM", "libpam", "security/pam_appl.h", "libpam", "-lpam", "-DHAVE_SECURITY_PAM_APPL_H");
-check_for("PAM", "libpam", "pam/pam_appl.h", "libpam", "-lpam", undef);
-check_for("SCTP", "sctp", "netinet/sctp.h", undef, "-lsctp", undef);
+check_for("LIBCURL", "libcurl", "curl/curl.h", "curl", undef);
+check_for("PAM", "libpam", "security/pam_appl.h", "pam", "-DHAVE_SECURITY_PAM_APPL_H");
+check_for("PAM", "libpam", "pam/pam_appl.h", "pam", undef);
+check_for("SCTP", "sctp", "netinet/sctp.h", "sctp", undef);
 
 
 $DEFS{"LIB_DL"} = "-ldl" if $sysname eq "linux";
