@@ -408,7 +408,7 @@ ifneq ($(WITH_PCRE),1)
 	endif
 
 	ifeq ($(WITH_PCRE2),)
-		ifneq ($(wildcard /lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)* /usr/lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)* "/usr/lib/*/libpcre2-8$(SHLIB_EXT)*",)
+		ifneq ($(wildcard /lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)* /usr/lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)* "/usr/lib/*/libpcre2-8$(SHLIB_EXT)*"),)
 			ifneq ($(wildcard /usr/include/pcre2.h),)
 				WITH_PCRE2=1
 			endif
