@@ -1,0 +1,765 @@
+#!/usr/bin/env perl
+#
+# configure [args ...]
+#
+# A trivial configure script.
+#
+# (C) 2002-2011 by Marc Huber <Marc.Huber@web.de>
+# All rights reserved.
+#
+# $Id: configure,v 1.70 2020/12/29 11:45:08 marc Exp marc $
+#
+
+use strict;
+
+print <<EOT;
+===============================================
+This script isn't fully regression tested. Try
+  'configure' if you're running into errors.
+===============================================
+
+EOT
+
+my ($sysname, $release, $machine, $cwd);
+
+if (eval("require POSIX")) {
+	($sysname, undef, $release, undef, $machine) = POSIX::uname();
+	$cwd = POSIX::getcwd();
+} else {
+	$sysname = `uname -s`;
+	$release = `uname -r`;
+	$machine = `uname -m`;
+	$cwd = `pwd`;
+	chomp ($sysname, $release, $machine, $cwd);
+}
+
+$sysname =~ tr/ \//--/;
+$machine =~ tr/ \//--/;
+$release =~ s/\([^)]+\)//; # cygwin ...
+$release =~ tr/ \//--/;
+
+$sysname = lc $sysname;
+$machine = lc $machine;
+$release = lc $release;
+
+my $LIBARCH = undef;
+
+$LIBARCH = "64" if $sysname =~ /linux/i && $machine =~ /64/ && -d "/usr/lib64";
+
+my $aux = "";
+
+my @DIRS_DEFAULT = qw(mavis spawnd mavisd ftpd tac_plus tac_plus-ng tcprelay);
+my @ALLDIRS = qw(mavis spawnd mavisd ftpd tac_plus tac_plus-ng tcprelay );
+my $DIRS_DEFAULT = join(" ", @DIRS_DEFAULT);
+my $ALLDIRS = join(" ", @ALLDIRS);
+
+my @options = qw(lwres pcre pcre2 ssl tls zlib radcli freeradius radcli pam execinfo sctp curl ipc ares);
+my %COMMENT;
+
+my $sbin = "sbin";
+my $lib = "lib";
+my $libarch = "lib$LIBARCH";
+my $doc = "share/mavis";
+
+$COMMENT{"devpoll"} =
+"This option enables /dev/poll support. You may use it on Linux
+with /dev/poll patch (untested), or on a sufficiently recent Sun
+Solaris system (7 onwards).";
+
+$COMMENT{"epoll"} =
+"Usually, Linux epoll support is autodetected. This option overrides
+autodetection, which may be useful if you're using a patched pre-sysepoll
+kernel.";
+
+$COMMENT{"lwres"} =
+"liblwres, the lightweight resolver library, comes with older versions
+of bind, together with lwresd. Enabling this option enables ftpd and
+tac_plus to do perform DNS lookups.";
+
+$COMMENT{"ares"} =
+"c-ares is a library for asynchronous DNS requests. This option enables ftpd and
+tac_plus to do perform DNS lookups.";
+
+$COMMENT{"pcre"} =
+"ftpd can use the PCRE (\"Perl Compatible Regular Expressions\") library
+for path rewriting, and tac_plus may use it as an alternative to POSIX
+regular expression matching. You don't need this library if you don't
+care for these features. Please note that this library is deprecated
+and no longer supported by upstream. Please switch to PCRE2.";
+
+$COMMENT{"pcre2"} =
+"ftpd can use the PCRE v2 (\"Perl Compatible Regular Expressions\" v2)
+library for path rewriting, and tac_plus may use it as an alternative to
+POSIX regular expression matching. You don't need this library yet if you
+don't care for these features, but it's highly recommended and might
+become mandatory in the future.";
+
+$COMMENT{"freeradius"} =
+"If you have the freeradius-client library installed, you may authenticate
+MAVIS requests by using the radmavis binary.";
+
+$COMMENT{"radcli"} =
+"If you have the radcli library installed, you may authenticate
+MAVIS requests by using the radmavis binary.";
+
+$COMMENT{"pam"} =
+"If you have the pam libraries installed, you may authenticate
+MAVIS requests by using the pammavis binary (see mavis/README.pammavis).";
+
+$COMMENT{"curl"} =
+"If you have the curl libraries installed, you may use URLs to refer
+to configuration files.";
+
+$COMMENT{"ipc"} =
+"If SYS-V IPC is available, configuration files may be cached in
+shared memory.";
+
+$COMMENT{"ssl"} =
+"Use this option if you have the OpenSSL libraries available. If
+enabled, TLS support is added to FTPd and TcpRelay, and TACACS+
+will be able to utilize the crypto library.";
+
+$COMMENT{"tls"} =
+"Use this option if you have the LibreTLS libraries available. If
+enabled, TLS support is added to tac_plus-ng and TcpRelay.";
+
+$COMMENT{"sctp"} =
+"Use this option if your system supports SCTP.";
+
+$COMMENT{"zlib"} =
+"The ftp daemon can support transparent gzip-style compression.
+For systems coming with the zlib library in /usr/lib you can probably
+skip this section, as the Makefile checks for zlib a that location.";
+
+$COMMENT{"execinfo"} =
+"In case of a program crash, execinfo may return a backtrace of the
+crashed process, which may be valuable for debugging.";
+
+if ($#ARGV > -1 && $ARGV[0] =~ /^--help$/)
+{
+	print <<EOT
+Please note that this program is *not* a GNU configure program generated
+by autoconf, but a custom perl script. It needs to be called from the
+top-level PROJECTS directory. There's currently no process in place to
+verify that the command line arguments point to the correct files or
+directories.
+
+Usage: ./configure [args ...] [targets]
+
+Recognized arguments:	Defaults:
+  --prefix=DIR		[/usr/local]
+  --bindir=DIR		[/usr/local/bin]
+  --etcdir=DIR		[/usr/local/etc]
+  --sbindir=DIR		[/usr/local/$sbin]
+  --libdir=DIR		[/usr/local/$lib]
+  --libarchdir=DIR	[/usr/local/$lib$LIBARCH]
+  --libexecdir=DIR	[/usr/local/libexec]
+  --docdir=DIR	    [/usr/local/$doc]
+  --installroot=DIR	[]
+
+The C compiler used is usually gcc. You may override that choice by
+specifiying a different one:
+  --with-cc=CC
+For example, on MacOS X the following creates universal binaries with
+PPC and x86 code, both 32 and 64 bit:
+  ./configure "--with-cc=gcc -arch ppc64 -arch ppc -arch i386 -arch x86_64"
+
+$COMMENT{"devpoll"}
+  --without-devpoll
+  --with-devpoll
+
+$COMMENT{"epoll"}
+  --without-epoll
+  --with-epoll
+
+$COMMENT{"sctp"}
+  --without-sctp
+  --with-sctp
+EOT
+	;
+
+	my $o;
+	foreach $o (@options)
+	{
+		print <<EOT
+
+$COMMENT{$o}
+  --without-$o
+  --with-$o\[=DIR]
+  --with-$o-include=DIR
+  --with-$o-lib=DIR
+EOT
+		;
+	}
+	print <<EOT
+
+Supported targets:
+  $ALLDIRS
+Default targets:
+  $DIRS_DEFAULT
+
+The Makefile should be smart enough to figure out availability of most
+configuration options by itself, so "./configure" without any arguments
+is sufficient in most cases.
+
+EOT
+	;
+	exit;
+}
+
+my %A;
+
+foreach $a (@options)
+{
+	$A{"--with-$a"} = undef;
+}
+
+my $hint = "";
+$hint = "(Called without arguments. \"--help\" will display the command " .
+"line options.)\n" if $#ARGV < 0;
+
+while ($#ARGV > -1)
+{
+	$ARGV[0] =~ s/-tls/-ssl/;
+
+	if ($ARGV[0] =~ /^(--[^=]+)=(.*)$/)
+	{
+		$A{$1} = $2;
+	}
+	elsif ($ARGV[0] =~ /^--([^-]+-[^-]+|debug)$/)
+	{
+		$A{$ARGV[0]} = "1";
+	}
+	elsif ($ARGV[0] =~ /^--[^-]+-[^-]+-[^-]+$/)
+	{
+		$A{$ARGV[0]} = $ARGV[1];
+		shift @ARGV;
+	}
+	else
+	{
+		$A{$ARGV[0]} = undef;
+	}
+
+	shift @ARGV;
+}
+
+my $a;
+
+my $DIRS = "";
+
+foreach $a (keys %A)
+{
+	if ($a =~ /^--with-([^-]+)-include$/)
+	{
+		$A{"--with-$1"} = "1" unless exists $A{"--with-$1"};
+
+		unless (exists $A{"--with-$1-lib"})
+		{
+			$A{"--with-$1-lib"} = $A{"--with-$1-include"};
+			$A{"--with-$1-lib"} =~ s/include$/lib/;
+		}
+	}
+	elsif ($a =~ /^--with-([^-]+)-lib$/)
+	{
+		$A{"--with-$1"} = "1" unless exists $A{"--with-$1"};
+
+		unless (exists $A{"--with-$1-include"})
+		{
+			$A{"--with-$1-include"} = $A{"--with-$1-lib"};
+			$A{"--with-$1-include"} =~ s/lib$/include/;
+			}
+	}
+	elsif ($a =~ /^--without-([^-]+)$/)
+	{
+		$A{"--with-$1"} = "0";
+		delete $A{$a};
+	} elsif ($a =~ /^mavis$/) {
+		$DIRS = "$a$DIRS";
+		delete $A{$a};
+	} elsif (-d $a) {
+		$DIRS .= " $a";
+		delete $A{$a};
+	}
+}
+
+$DIRS = $DIRS_DEFAULT if $DIRS eq "";
+
+if ($DIRS !~ /^mavis /){
+	$DIRS = "mavis$DIRS";
+}
+
+my $out = "build/Makefile.inc" . "." . lc
+$sysname . "-" . $release . "-" . $machine;
+
+my %DEFS;
+
+$DEFS{"DEF"} = "";
+$DEFS{"LD"} = "ld";
+$DEFS{"BASE"} = $cwd;
+$DEFS{"BASE"} = $cwd;
+
+if (exists $A{"--with-devpoll"})
+{
+	$DEFS{"WITH_DEVPOLL"} =  $A{"--with-devpoll"};
+	delete $A{"--with-devpoll"};
+}
+
+if (exists $A{"--with-epoll"})
+{
+	$DEFS{"WITH_EPOLL"} = $A{"--with-epoll"};
+	delete $A{"--with-epoll"};
+}
+
+if (exists $A{"--debug"})
+{
+	$DEFS{"DEBUG"} = $A{"--debug"};
+	delete $A{"--debug"};
+}
+
+$A{"--prefix"} = "/usr/local" unless exists $A{"--prefix"};
+$DEFS{"DEST"} = $A{"--prefix"};
+
+foreach $a ("bin", "sbin", "etc", "libexec", "lib")
+{
+	$A{"--$a"."dir"} = $A{"--prefix"} . "/$a" unless exists $A{"--$a"."dir"};
+	$DEFS{uc($a)."DIR_DEST"} = $A{"--$a"."dir"};
+	delete $A{"--$a"."dir"};
+}
+
+my $LIBARCHDIR_DEST;
+
+foreach $a ("libarch")
+{
+	$A{"--$a"."dir"} = $A{"--prefix"} . "/lib$LIBARCH" unless exists $A{"--$a"."dir"};
+	$LIBARCHDIR_DEST = $A{"--$a"."dir"};
+	$DEFS{uc($a)."DIR_DEST"} =  $A{"--$a"."dir"};
+	delete $A{"--$a"."dir"};
+}
+
+foreach $a ("doc")
+{
+	$A{"--$a"."dir"} = $A{"--prefix"} . "/$doc" unless exists $A{"--$a"."dir"};
+	$DEFS{uc($a)."DIR_DEST"} = $A{"--$a"."dir"};
+	delete $A{"--$a"."dir"};
+}
+
+delete $A{"--prefix"};
+
+if (exists $A{"--installroot"})
+{
+	$DEFS{"INSTALLROOT"} = $A{"--installroot"};
+	delete $A{"--installroot"};
+}
+
+foreach $a (@options)
+{
+	if (exists $A{"--with-$a"} && defined $A{"--with-$a"} && $A{"--with-$a"} =~ /^\//)
+	{
+		$A{"--with-$a-lib"} = $A{"--with-$a"} . "/lib" unless exists $A{"--with-$a-lib"};
+		$A{"--with-$a-include"} = $A{"--with-$a"} . "/include" unless exists $A{"--with-$a-include"};
+		$A{"--with-$a"} = 1;
+	}
+}
+
+foreach $a (@options)
+{
+	if (exists $A{"--with-$a"} && defined $A{"--with-$a"} && $A{"--with-$a"} != 0)
+	{
+		$A{"--with-$a-lib"} = "/usr/lib" unless exists $A{"--with-$a-lib"};
+		$A{"--with-$a-include"} = "/usr/include" unless exists $A{"--with-$a-include"};
+	}
+}
+
+foreach $a (@options)
+{
+	if (defined $A{"--with-$a"}) {
+		$DEFS{"WITH_" . uc ($a)} = $A{"--with-$a"};
+
+		if (exists $A{"--with-$a"} && defined $A{"--with-$a"} && $A{"--with-$a"} != 0)
+		{
+			$DEFS{"LIBDIR_" . uc ($a)} = $A{"--with-$a-lib"};
+			delete $A{"--with-$a-lib"};
+
+			$DEFS{"INCDIR_" . uc ($a)} =  $A{"--with-$a-include"};
+
+			delete $A{"--with-$a-include"};
+		}
+	}
+
+	delete $A{"--with-$a"};
+}
+
+$DEFS{"LIBARCH"} = $LIBARCH if defined $LIBARCH;
+
+if (exists $A{"--with-cc"}) {
+	$DEFS{"CC"} = $A{"--with-cc"};
+	delete $A{"--with-cc"};
+}
+
+my $cctest;
+
+$DEFS{"CC"} = $ENV{"CC"} if exists $ENV{"CC"} && !exists $DEFS{"CC"};
+
+unless (exists $DEFS{"CC"}) {
+	$cctest = `clang -v 2>&1`;
+	$DEFS{"CC"} = "clang" unless $!;
+}
+
+unless (exists $DEFS{"CC"}) {
+	$cctest = `gcc -v 2>&1`;
+	$DEFS{"CC"} = "gcc" unless $!;
+}
+
+unless (exists $DEFS{"CC"}) {
+	$cctest = `cc -v 2>&1`;
+	$DEFS{"CC"} = "cc" unless $!;
+}
+
+$cctest = `$DEFS{"CC"} -v 2>&1` if $cctest eq "";
+
+my $gcc_multiarch = `$DEFS{"CC"} -print-multiarch 2>/dev/null || echo`;
+chomp $gcc_multiarch;
+$LIBARCH = "/$gcc_multiarch" if $gcc_multiarch ne "" && -d "/usr/lib/$gcc_multiarch";
+
+my (@rest) = sort keys %A;
+if ($#rest > -1)
+{
+	print <<EOT;
+
+The following options were not recognized:
+
+EOT
+	;
+
+	while ($#rest > -1)
+	{
+		print "\t" . shift (@rest) . "\n";
+	}
+
+	print <<EOT;
+
+Please correct the command line options, then call ./configure again.
+"./configure --help" will give you a list of all available options.
+
+EOT
+	exit(-1);
+}
+
+my $OS = "$sysname-$release-$machine";
+my @OSLEVEL_ARR = split(/[^\d]+/, $release);
+push(@OSLEVEL_ARR, 0, 0, 0);
+my $OSLEVEL = sprintf ("0x%.2x%.2x%.4x", @OSLEVEL_ARR);
+
+my $MF_OBJ = "build/Makefile.inc.$OS";
+
+use Cwd qw(cwd);
+my $MF_OBJ = cwd() . "/build/Makefile.inc.$OS";
+# FIXME -- generate this later
+
+
+if ($cctest =~ /clang/) {
+	$DEFS{"CC"} = "clang";
+	$DEFS{"CC_GCC"} = 1;
+	$DEFS{"CC_CLANG"} = 1;
+} elsif ($cctest =~ /gcc/) {
+	$DEFS{"CC"} = "gcc";
+	$DEFS{"CC_GCC"} = 1;
+} elsif ($cctest =~ /Sunc C/) {
+	$DEFS{"CC_SUN"} = 1;
+}	
+
+if (defined $DEFS{"CC_GCC"}) {
+	$DEFS{"CFLAGS"} = "-Wall -W -Wno-strict-prototypes -Wno-implicit-fallthrough";
+	$DEFS{"CFLAGS"} .= " -O2" if exists $DEFS{"CC_CLANG"};
+	$DEFS{"CFLAGS_PIC"} = "-fPIC";
+	$DEFS{"LDOPT_R"} = "-Wl,-rpath,";
+	$DEFS{"LD_SHARED"} = "$DEFS{'CC'} -shared";
+
+	$DEFS{"CFLAGS"} .= " -Werror -Wno-deprecated-declarations -Wno-unused-result" if exists $DEFS{'DEBUG'};
+}
+
+if (defined $DEFS{"CC_SUN"}) {
+	$DEFS{"CFLAGS"} = "-O";
+	$DEFS{"CFLAGS_PIC"} = "-G";
+	$DEFS{"LDOPT_R"} = "-Wl,-rpath,";
+	$DEFS{"LD_SHARED"} = "$DEFS{'CC'} $DEFS{'FLAGS_PIC'}";
+}
+
+
+$DEFS{"SHLIB_PRE"} = "lib";
+$DEFS{"SHLIB_EXT"} = ".so";
+
+if ($sysname eq "darwin") {
+	$DEFS{"LD_SHARED"} = "$DEFS{'CC'} -dynamiclib";
+	$DEFS{"SHLIB_EXT"} = ".dylib";
+	$DEFS{"LIB_MAVIS"} = "\"$DEFS{'LDOPT_R'}\@loader_path/../lib\"";
+}
+
+if ($sysname eq "cygwin_nt") {
+	$DEFS{"CFLAGS_PIC"} = "";
+	$DEFS{"SHLIB_PRE"} = "cyg";
+	$DEFS{"SHLIB_EXT"} = ".dll";
+	$DEFS{"EXEC_EXT"} = ".exe";
+}
+
+$DEFS{"INSTALL"} = "install -c";
+
+if ($sysname eq "sunos") {
+	$DEFS{"LIB_NET"} = " -lnsl -lsocket";
+	if (`ld -v 2>&1` =~ /GNU/ != "") {
+		$DEFS{'LDOPT_R'} = "-R";
+		$DEFS{'LD_SHARED'} = "$DEFS{'LD'} -G -z textwarn";
+	}
+
+	unless (defined $DEFS{'CC_GCC'}) {
+		$DEFS{"CFLAGS"}	= "-xO3 -xstrconst -xdepend -Xa -errwarn=%all";
+		$DEFS{"CFLAGS_PIC"} = "-KPIC";
+	}
+
+	$DEFS{"DEF"} .= " -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64";
+	$DEFS{"LIB_MAVIS"} = "$DEFS{'LDOPT_R'}\$\$ORIGIN/../lib";
+
+	foreach my $install ("/usr/bin/ginstall", "/usr/ucb/install", "/usr/bin/install") {
+		$DEFS{"INSTALL"} = $install if -x $install;
+		last;
+	}
+}
+
+if ($sysname eq "linux") {
+	$DEFS{"DEF"} .= " -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64";
+	$DEFS{"LIB_MAVIS"} = "$DEFS{'LDOPT_R'}\$\$ORIGIN/../lib$DEFS{'LIBARCH'}"
+}
+
+$DEFS{"DEF"} .= " -DOSTYPE=$sysname -DOSLEVEL=$OSLEVEL -DOS=\"\\\"$OS\\\"\"";
+
+if (exists $DEFS{"DEBUG"}) {
+	$DEFS{"DEF"} .= " -DDEBUG";
+	$DEFS{"CFLAGS"}	.= " -g -Og";
+	$DEFS{"CFLAGS"} .= " -ggdb" if exists $DEFS{"CC_GCC"};
+}
+
+$DEFS{"DIR_MAVIS"} = "$cwd/mavis";
+$DEFS{"LIB_MAVIS"} .= " -L$cwd/build/$OS/mavis $DEFS{'LDOPT_R'}$DEFS{'LIBARCHDIR_DEST'} -lmavis";
+$DEFS{"DIR_MISC"} = "$cwd/misc";
+$DEFS{"INC"} .= " -I$cwd";
+
+my (%FOUND, %NOT_FOUND);
+
+######################
+sub check_for($$$$$$) {
+	my ($PKG, $pkg, $hdr, $lib, $ldlib, $defs) = @_;
+
+	return if exists $FOUND{"LIB-$PKG"};
+
+	unless (exists $DEFS{"WITH_$PKG"}) {
+		my $pc = `pkg-config --exists $pkg 2>/dev/null`;
+		if ($? == 0) {
+			my $L = `pkg-config --libs-only-L $pkg`;
+			my $I = `pkg-config --cflags-only-I $pkg`;
+			$DEFS{"LIBDIR_$PKG"} = $1 if (`pkg-config --libs-only-L $pkg` =~ /^lib=(.*)$/);
+			$DEFS{"INCDIR_A$PKG"} = $1 if (`pkg-config --cflags-only-I $pkg` =~ /^inc=(.*)$/);
+			$DEFS{"WITH_$PKG"} = 1;
+		}
+
+		unless (exists $DEFS{"WITH_$PKG"}) {
+			for my $prefix ("/usr", "/usr/local", "/usr/sfw", "/usr/pkg") {
+				next unless -e "$prefix/include/$hdr";
+				my @g = glob("$prefix/$DEFS{'LIBARCH'}/$lib$DEFS{'SHLIB_EXT'}*");
+				if ($#g > -1) {
+					$DEFS{"WITH_$PKG"} = 1;
+					$DEFS{"INCDIR_$PKG"} = "$prefix/include";
+					$DEFS{"LIBDIR_$PKG"} = "$prefix/lib/$DEFS{'LIBARCH'}";
+					last;
+				}
+				@g = glob("$prefix/lib/$lib$DEFS{'SHLIB_EXT'}*");
+				if ($#g > -1) {
+					$DEFS{"WITH_$PKG"} = 1;
+					$DEFS{"INCDIR_$PKG"} = "$prefix/include";
+					$DEFS{"LIBDIR_$PKG"} = "$prefix/lib";
+					last;
+				}
+				@g = glob("$prefix/lib/$machine-linux-gnu/$lib$DEFS{'SHLIB_EXT'}*");
+				if ($#g > -1) {
+					$DEFS{"WITH_$PKG"} = 1;
+					$DEFS{"INCDIR_$PKG"} = "$prefix/include";
+					$DEFS{"LIBDIR_$PKG"} = "$prefix/$machine-linux-gnu/lib";
+					last;
+				}
+			}
+		}
+	}
+	if (exists $DEFS{"WITH_$PKG"} && $DEFS{"WITH_$PKG"} == 1) {
+		$DEFS{"INC_$PKG"} = "-I" . $DEFS{"INCDIR_$PKG"} if exists $DEFS{"INCDIR_$PKG"};
+		$DEFS{"LIB_$PKG"} = "";
+		$DEFS{"LIB_$PKG"} .= "-L" . $DEFS{"LIBDIR_$PKG"} . " " . $DEFS{'LDOPT_R'} . $DEFS{"LIBDIR_$PKG"} . " " if exists $DEFS{"LIBDIR_$PKG"};
+		$DEFS{"LIB_$PKG"} .= $ldlib if defined $ldlib;
+		$DEFS{'DEF'} .= " -DWITH_$PKG";
+		$DEFS{'DEF'} .= " $defs" if defined $defs;;
+		$FOUND{"LIB-$PKG"} = 1;
+	} else {
+		$NOT_FOUND{"LIB-$PKG"} = 1;
+	}
+}
+
+check_for("ARES", "libcares", "ares.h", "cares", "-lcares", "-DWITH_DNS") if !exists $DEFS{"WITH_LWRES"} || $DEFS{"WITH_LWRES"} == 0;
+$DEFS{"LIB_DNS"} = $DEFS{"LIB_ARES"} if exists $DEFS{"LIB_ARES"};
+check_for("LWRES", "liblwres", "liblwres.h", "lwres", "-llwres", "-DWITH_DNS") if !exists $DEFS{"WITH_ARES"} || $DEFS{"WITH_ARES"} == 0;
+$DEFS{"LIB_DNS"} = $DEFS{"LIB_LWRES"} if exists $DEFS{"LIB_LWRES"};
+$DEFS{"WITH_DNS"} = 1 if exists $DEFS{"LIB_DNS"};
+check_for("SSL", "openssl", "openssl/ssl.h", "libssl", "-lssl", undef);
+check_for("SSL_CRYPTO", "openssl", "openssl/ssl.h", "libcrypto", "-lcrypto", undef);
+check_for("TLS", "libtls", "tls.h", "tls", "-ltls", undef);
+check_for("PCRE2", "libpcre2-8", "pcre2.h", "libpcre2-8", "-lpcre2-8", "-DPCRE2_CODE_UNIT_WIDTH=8");
+$DEFS{"INC_PCRE"} = $DEFS{"INC_PCRE2"} if exists $DEFS{"INC_PCRE2"};
+$DEFS{"LIB_PCRE"} = $DEFS{"LIB_PCRE2"} if exists $DEFS{"LIB_PCRE2"};
+check_for("PCRE", "libpcre", "libpcre", "pcre.h", "-lpcre", undef) if !exists $DEFS{"WITH_PCRE2"} || $DEFS{"WITH_PCRE2"} == 0;
+check_for("FREERADIUS", "freeradius-client", "freeradius-client.h", "libfreeradius-client", "-lfreeradius-client", undef) if !exists $DEFS{"WITH_LIBRADCLI"} || $DEFS{"WITH_LIBRADCLI"} == 0;
+check_for("FREERADIUS", "freeradius-client", "freeradius/freeradius-client.h"," libfreeradius-client", "-lfreeradius-client", undef) if !exists $DEFS{"WITH_LIBRADCLI"} || $DEFS{"WITH_LIBRADCLI"} == 0;
+check_for("LIBRADCLI", "radcli", "radcli/radcli.h", "libradcli", "-lradcli", undef);
+check_for("ZLIB", "zlib", "zlib.h", "libz", "-lz", undef);
+check_for("EXECINFO", "execinfo", "execinfo.h", "libexecinfo", "-lexecinfo", undef);
+if ($sysname eq "linux" && -f "/usr/include/execinfo.h") {
+	$DEFS{"WITH_EXECINFO"} = 1;
+	delete $NOT_FOUND{"LIB-EXECINFO"};
+}
+check_for("CRYPT", "crypt", "crypt.h", "libcrypt", "-lcrypt", undef);
+$DEFS{"LIBCRYPT"} = $DEFS{"LIB_CRYPT"} if exists $DEFS{"LIB_CRYPT"}; # FIXME, remove later
+check_for("LIBCURL", "libcurl", "curl", "libcurl", "-lcurl", undef);
+check_for("PAM", "libpam", "security/pam_appl.h", "libpam", "-lpam", "-DHAVE_SECURITY_PAM_APPL_H");
+check_for("PAM", "libpam", "pam/pam_appl.h", "libpam", "-lpam", undef);
+check_for("SCTP", "sctp", "netinet/sctp.h", undef, "-lsctp", undef);
+
+
+$DEFS{"LIB_DL"} = "-ldl" if $sysname eq "linux";
+
+if ($sysname eq "sunos") {
+	$DEFS{"LIB_DL"} = "-ld";
+	$DEFS{"WITH_PORT"} = 1 if !exists $DEFS{"WITH_PORT"} && -e "/usr/include/port.h";
+	$DEFS{"WITH_DEVPOLL"} = 1 if !exists $DEFS{"WITH_DEVPOLL"} && -e "/usr/include/sys/devpoll.h";
+}
+
+my $USRINCLUDESYS = "/usr/include/sys";
+$USRINCLUDESYS = "/usr/include/$machine-linux-gnu/sys" if -d "/usr/include/$machine-linux-gnu/sys";
+$DEFS{"WITH_IPC"} = 1 if -f "/usr/include/sys/ipc.h";
+$DEFS{"WITH_IPC"} = 1 if -f "$USRINCLUDESYS/ipc.h";
+
+my $mech_found;
+
+if (!exists $DEFS{"WITH_POLL"} && -e "$USRINCLUDESYS/poll.h") {
+	$DEFS{"WITH_POLL"} = 1;
+	$mech_found = 1;
+}
+if (!exists $DEFS{"WITH_EPOLL"} && -e "$USRINCLUDESYS/epoll.h") {
+	$DEFS{"WITH_EPOLL"} = 1;
+	$mech_found = 1;
+}
+if (!exists $DEFS{"WITH_SELECT"} && -e "$USRINCLUDESYS/select.h") {
+	$DEFS{"WITH_SELECT"} = 1;
+	$mech_found = 1;
+}
+if (!exists $DEFS{"WITH_KQUEUE"} && -e "/usr/include/sys/event.h") {
+	$DEFS{"WITH_KQUEUE"} = 1;
+	$mech_found = 1;
+}
+
+unless ($mech_found) {
+	print "None of the supported event polling mechanisms seems to be available on your\nsystem. Check your installation, some include files may be missing.\n";
+	exit(-1);
+}
+
+foreach my $m ("PORT", "DEVPOLL", "EPOLL", "KQUEUE", "POLL", "SELECT", "IPC") {
+	$DEFS{"DEF"} .= " -DWITH_$m" if exists $DEFS{"WITH_$m"} && $DEFS{"WITH_$m"} == 1;
+}
+
+my $content = "# Generated by configure at " . localtime () . "\n";
+$content .= "DIRS=$DIRS\n" unless $DIRS eq "";
+
+foreach my $k (sort keys %DEFS) {
+	$content .= "$k=$DEFS{$k}\n";
+}
+
+$content .= "CONFIGURE_VERSION=2\n";
+
+$content .=<<EOT;
+
+%:: %,v
+
+%:: RCS/%,v
+
+%:: RCS/%
+
+%:: SCCS/%
+
+%:: %.c
+
+%:: %.pl
+
+%.o: %.c \$(DIR_MAVIS)/token.h
+	\$(CC) \$(CPPFLAGS) \$(CFLAGS) -c -o \$@ \$<
+
+%:: %.h
+
+EOT
+
+my $OUT;
+
+mkdir "build", 0755;
+rename $out, "$out.bak";
+open OUT, ">$out" or die "open ($out): $!";
+print OUT $content;
+close OUT;
+
+print $hint, "\n" if $hint ne "";;
+
+if (0 < int keys %NOT_FOUND) {
+	print "Development files were not found for: ", join(", ", sort keys %NOT_FOUND), "\n\n";
+} 
+
+print <<EOT;
+The file
+
+    $out
+
+was just created. You may run "make" now. After that, you may wish to do a
+"make install". Alternatively, you'll find the compiled binaries (plus some
+ancillary scripts) in the
+
+    build/$sysname-$release-$machine/fakeroot/
+
+directory structure. It's probably advisable to have a look there in any case,
+as you may or may not like the particular file system layout, and this will
+give you a chance to see it before installing.
+
+Please direct support requests to the "Event-Driven Servers" Google Group at
+
+    event-driven-servers\@googlegroups.com
+    https://groups.google.com/group/event-driven-servers
+
+or file an issue at
+
+    https://github.com/MarcJHuber/event-driven-servers
+
+if you need help.
+
+Support requests sent to the author's private email address may be silently
+ignored.
+
+EOT
+
+$out = "spawnd/perl/Makefile.PL";
+open OUT, ">$out" or die "open ($out): $!";
+print OUT <<EOT;
+use ExtUtils::MakeMaker;
+# See lib/ExtUtils/MakeMaker.pm for details of how to influence
+# the contents of the Makefile that is written.
+WriteMakefile(
+   NAME		=> 'Scm',
+   VERSION_FROM => 'Scm.pm',
+   INC		=> '-I../..',
+   LIBS		=> '-Wl,-rpath,$LIBARCHDIR_DEST -L$LIBARCHDIR_DEST -lmavis',
+   OBJECT	=> 'Scm.o',
+);
+EOT
+close OUT;
+
+# vim: ts=4

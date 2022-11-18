@@ -35,8 +35,10 @@ endif
 
 include $(MF_OBJ)
 
+ifneq ($(CONFIGURE_VERSION),2)
+
 ifeq ($(origin CC),default)
-	ifneq ($(shell clang $$1 -v 2>&1),)
+	ifneq ($(shell clang -v 2>&1),)
 		CC = clang
 		CC_GCC		= 1
 		CC_CLANG	= 1
@@ -44,13 +46,13 @@ ifeq ($(origin CC),default)
 endif
 
 ifeq ($(origin CC),default)
-	ifneq ($(shell gcc $$1 -v 2>&1),)
+	ifneq ($(shell gcc -v 2>&1),)
 		CC = gcc
 		CC_GCC		= 1
 	endif
 endif
 
-CCV = $(shell set $(CC); $$1 -v 2>&1)
+CCV = $(shell set $(CC); -v 2>&1)
 
 ifneq ($(findstring "Sun C",$(CCV)),)
 	CC_SUN		= 1
@@ -406,7 +408,7 @@ ifneq ($(WITH_PCRE),1)
 	endif
 
 	ifeq ($(WITH_PCRE2),)
-		ifneq ($(wildcard /lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)* /usr/lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)* "/usr/lib/*/libpcre2-8$(SHLIB_EXT)*"),)
+		ifneq ($(wildcard /lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)* /usr/lib$(LIBARCH)/libpcre2-8$(SHLIB_EXT)* "/usr/lib/*/libpcre2-8$(SHLIB_EXT)*",)
 			ifneq ($(wildcard /usr/include/pcre2.h),)
 				WITH_PCRE2=1
 			endif
@@ -953,5 +955,6 @@ endif
 
 %:: %.h
 
+endif
 endif
 
