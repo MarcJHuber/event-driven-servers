@@ -52,7 +52,7 @@ ifeq ($(origin CC),default)
 	endif
 endif
 
-CCV = $(shell set $(CC); -v 2>&1)
+CCV = $(shell set $(CC); $$1 -v 2>&1)
 
 ifneq ($(findstring "Sun C",$(CCV)),)
 	CC_SUN		= 1
