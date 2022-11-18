@@ -1309,6 +1309,9 @@ static void do_pap(tac_session * session)
 
     report_auth(session, "pap login", hint, res);
 
+    if (!resp)
+	resp = session->user_msg;
+
     send_authen_reply(session, res, resp, 0, NULL, 0, 0);
 }
 
