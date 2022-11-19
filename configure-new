@@ -556,8 +556,8 @@ sub check_for($$$$$) {
 		if ($? == 0) {
 			my $L = `pkg-config --libs-only-L $pkg`;
 			my $I = `pkg-config --cflags-only-I $pkg`;
-			$DEFS{"LIBDIR_$PKG"} = $1 if (`pkg-config --libs-only-L $pkg` =~ /^lib=(.*)$/);
-			$DEFS{"INCDIR_$PKG"} = $1 if (`pkg-config --cflags-only-I $pkg` =~ /^inc=(.*)$/);
+			$DEFS{"LIBDIR_$PKG"} = $1 if (`pkg-config --libs-only-L $pkg` =~ /^-L(.*)$/);
+			$DEFS{"INCDIR_$PKG"} = $1 if (`pkg-config --cflags-only-I $pkg` =~ /^-I(.*)$/);
 			$DEFS{"WITH_$PKG"} = 1;
 		}
 
