@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <strings.h>
+#include <string.h>
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
