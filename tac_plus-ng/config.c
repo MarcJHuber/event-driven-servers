@@ -2032,7 +2032,12 @@ static void parse_sshkeyhash(struct sym *sym, tac_user * user)
 }
 
 #ifdef WITH_SSL
+#if OPENSSL_VERSION_NUMBER < 0x30000000
+#include <openssl/md5.h>
+#include <openssl/sha.h>
+#else
 #include <openssl/evp.h>
+#endif
 
 static char *calc_ssh_key_hash(char *hashname, unsigned char *in, size_t in_len)
 {
@@ -2056,8 +2061,21 @@ static char *calc_ssh_key_hash(char *hashname, unsigned char *in, size_t in_len)
     }
     if (!in_len)
 	in_len = strlen((char *) in);
+#if OPENSSL_VERSION_NUMBER < 0x30000000
+    if (!strcmp(hashname, "MD5")) {
+	if (!MD5((const unsigned char *) in, (unsigned long) in_len, md))
+	    return NULL;
+	md_len = MD5_DIGEST_LENGTH;
+    } else if (!strcmp(hashname, "SHA256")) {
+	if (!SHA256((const unsigned char *) in, (size_t) in_len, md))
+	    return NULL;
+	md_len = SHA256_DIGEST_LENGTH;
+    } else
+	return NULL;
+#else
     if (!EVP_Q_digest(NULL, hashname, NULL, in, in_len, md, &md_len))
 	return NULL;
+#endif
 
     if (!strcmp(hashname, "MD5")) {
 	char hex[] = "0123456789abcdef";
