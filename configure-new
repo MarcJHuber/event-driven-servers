@@ -614,7 +614,6 @@ $DEFS{"INC_PCRE"} = $DEFS{"INC_PCRE2"} if exists $DEFS{"INC_PCRE2"};
 $DEFS{"LIB_PCRE"} = $DEFS{"LIB_PCRE2"} if exists $DEFS{"LIB_PCRE2"};
 check_for("PCRE", "libpcre", "pcre.h", "pcre", undef) if !exists $DEFS{"WITH_PCRE2"} || $DEFS{"WITH_PCRE2"} == 0;
 check_for("FREERADIUS", "freeradius-client", "freeradius-client.h", "freeradius-client", undef) if !exists $DEFS{"WITH_LIBRADCLI"} || $DEFS{"WITH_LIBRADCLI"} == 0;
-check_for("FREERADIUS", "freeradius-client", "freeradius/freeradius-client.h", "freeradius-client", undef) if !exists $DEFS{"WITH_LIBRADCLI"} || $DEFS{"WITH_LIBRADCLI"} == 0;
 check_for("LIBRADCLI", "radcli", "radcli/radcli.h", "radcli", undef);
 check_for("ZLIB", "zlib", "zlib.h", "z", undef);
 check_for("EXECINFO", "execinfo", "execinfo.h", "execinfo", undef);
