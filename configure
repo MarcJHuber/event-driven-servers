@@ -624,6 +624,7 @@ if ($sysname eq "linux" && -f "/usr/include/execinfo.h") {
 	delete $NOT_FOUND{"LIB-EXECINFO"};
 }
 check_for("CRYPT", "crypt", "crypt.h", "crypt", undef);
+check_for("CRYPT", "crypt", "unistd.h", "crypt", undef);
 $DEFS{"LIBCRYPT"} = $DEFS{"LIB_CRYPT"} if exists $DEFS{"LIB_CRYPT"}; # FIXME, remove later
 check_for("LIBCURL", "libcurl", "curl/curl.h", "curl", undef);
 check_for("PAM", "libpam", "security/pam_appl.h", "pam", "-DHAVE_SECURITY_PAM_APPL_H");
