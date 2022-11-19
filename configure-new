@@ -415,6 +415,8 @@ unless (exists $DEFS{"CC"}) {
 	$DEFS{"CC"} = "cc" unless $!;
 }
 
+die "Couldn't detect a C compiler on your system. Aborting right now.\n" unless exists $DEFS{"CC"};
+
 $cctest = `$DEFS{"CC"} -v 2>&1` if $cctest eq "";
 
 my $gcc_multiarch = `$DEFS{"CC"} -print-multiarch 2>/dev/null || echo`;
@@ -632,7 +634,7 @@ check_for("SCTP", "sctp", "netinet/sctp.h", "sctp", undef);
 $DEFS{"LIB_DL"} = "-ldl" if $sysname eq "linux";
 
 if ($sysname eq "sunos") {
-	$DEFS{"LIB_DL"} = "-ld";
+	$DEFS{"LIB_DL"} = "-ldl";
 	$DEFS{"WITH_PORT"} = 1 if !exists $DEFS{"WITH_PORT"} && -e "/usr/include/port.h";
 	$DEFS{"WITH_DEVPOLL"} = 1 if !exists $DEFS{"WITH_DEVPOLL"} && -e "/usr/include/sys/devpoll.h";
 }
