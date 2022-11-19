@@ -4,18 +4,18 @@
 #
 # A trivial configure script.
 #
-# (C) 2002-2011 by Marc Huber <Marc.Huber@web.de>
+# (C) 2002-2022 by Marc Huber <Marc.Huber@web.de>
 # All rights reserved.
 #
-# $Id: configure,v 1.70 2020/12/29 11:45:08 marc Exp marc $
+# $Id$
 #
 
 use strict;
 
 print <<EOT;
 ===============================================
-This script isn't fully regression tested. Try
-  'configure' if you're running into errors.
+ This script isn't fully regression tested. Try
+ 'configure-old' if you're running into errors.
 ===============================================
 
 EOT
