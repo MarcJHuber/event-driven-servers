@@ -1,0 +1,16 @@
+- GNU make
+- a C compiler, preferably CLANG
+- libpcre2 development headers + libraries
+- libc-ares, for DNS reverse lookups, if required
+- Perl. Plus a couple of modules: 
+  - Net::IP
+  - Net::RawIP
+  - Sys::Syslog
+  - Net::LDAP
+  - Net::RawIP
+  - Net::TacacsPlus
+  - Authen::Simple::RADIUS
+  - Crypt::Passwd::XS
+  - POSIX
+  ... and possibly others. Some are even optional.
+
