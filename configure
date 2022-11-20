@@ -12,13 +12,50 @@
 
 use strict;
 
-print <<EOT;
-===============================================
- This script isn't fully regression tested. Try
- 'configure-old' if you're running into errors.
-===============================================
+my $width = `stty size 2>/dev/null`;
+if ($?) {
+	$width = 80;
+} else {
+	$width =~ /\d+\s+(\d+)/;
+	$width = $1;
+}
 
-EOT
+$width--;
+
+sub wprint($) {
+	my $first = 1;
+	my @TXT = split(/\n/, $_[0], -1);
+	foreach my $txt (@TXT) {
+		print "\n" unless defined $first;
+		$first = undef;
+		my $len = 0;
+		my $t = $txt;
+		while (length $t > 0) {
+			$t =~ /^(\s*)(\S*)(.*)/;
+			my $l = length $1;
+			if ($len + $l < $width) {
+				print $1;
+				$len += $l;
+			} else {
+				print "\n";
+				$len = 0;
+			}
+			$l = length $2;
+			if ($len + $l < $width) {
+				print $2;
+				$len += $l;
+			} else {
+				print "\n", $2;
+				$len = $l;
+			}
+			$t = $3;
+		}
+	}
+}
+
+print "="x$width . "\n";
+wprint ("This script isn't fully regression tested. Try 'configure-old' if you're running into errors.\n");
+print "="x$width . "\n\n";
 
 my ($sysname, $release, $machine, $cwd);
 
@@ -62,148 +99,142 @@ my $libarch = "lib$LIBARCH";
 my $doc = "share/mavis";
 
 $COMMENT{"devpoll"} =
-"This option enables /dev/poll support. You may use it on Linux
-with /dev/poll patch (untested), or on a sufficiently recent Sun
-Solaris system (7 onwards).";
+"The \"devpoll\" option enables /dev/poll support. You may use it on Linux ".
+"with /dev/poll patch (untested), or on a sufficiently recent Sun ".
+"Solaris system (7 onwards).\n";
 
 $COMMENT{"epoll"} =
-"Usually, Linux epoll support is autodetected. This option overrides
-autodetection, which may be useful if you're using a patched pre-sysepoll
-kernel.";
+"Usually, Linux epoll support is autodetected. This option overrides ".
+"autodetection, which may be useful if you're using a patched pre-sysepoll ".
+"kernel.\n";
 
 $COMMENT{"lwres"} =
-"liblwres, the lightweight resolver library, comes with older versions
-of bind, together with lwresd. Enabling this option enables ftpd and
-tac_plus to do perform DNS lookups.";
+"liblwres, the lightweight resolver library, comes with older versions ".
+"of bind, together with lwresd. Enabling this option enables ftpd and ".
+"tac_plus to do DNS lookups.\n";
 
 $COMMENT{"ares"} =
-"c-ares is a library for asynchronous DNS requests. This option enables ftpd and
-tac_plus to do perform DNS lookups.";
+"c-ares is a library for asynchronous DNS requests. This option enables ftpd and ".
+"tac_plus to do DNS lookups.\n";
 
 $COMMENT{"pcre"} =
-"ftpd can use the PCRE (\"Perl Compatible Regular Expressions\") library
-for path rewriting, and tac_plus may use it as an alternative to POSIX
-regular expression matching. You don't need this library if you don't
-care for these features. Please note that this library is deprecated
-and no longer supported by upstream. Please switch to PCRE2.";
+"ftpd can use the PCRE (\"Perl Compatible Regular Expressions\") library ".
+"for path rewriting, and tac_plus may use it as an alternative to POSIX ".
+"regular expression matching. You don't need this library if you don't ".
+"care for these features. Please note that this library is deprecated ".
+"and no longer supported by upstream. Please switch to PCRE2.\n";
 
 $COMMENT{"pcre2"} =
-"ftpd can use the PCRE v2 (\"Perl Compatible Regular Expressions\" v2)
-library for path rewriting, and tac_plus may use it as an alternative to
-POSIX regular expression matching. You don't need this library yet if you
-don't care for these features, but it's highly recommended and might
-become mandatory in the future.";
+"ftpd can use the PCRE v2 (\"Perl Compatible Regular Expressions\" v2) ".
+"library for path rewriting, and tac_plus may use it as an alternative to ".
+"POSIX regular expression matching. You don't need this library yet if you ".
+"don't care for these features, but it's highly recommended and might ".
+"become mandatory in the future.\n";
 
 $COMMENT{"freeradius"} =
-"If you have the freeradius-client library installed, you may authenticate
-MAVIS requests by using the radmavis binary.";
+"If you have the freeradius-client library installed, you may authenticate ".
+"MAVIS requests by using the radmavis binary.\n";
 
 $COMMENT{"radcli"} =
-"If you have the radcli library installed, you may authenticate
-MAVIS requests by using the radmavis binary.";
+"If you have the radcli library installed, you may authenticate ".
+"MAVIS requests by using the radmavis binary.\n";
 
 $COMMENT{"pam"} =
-"If you have the pam libraries installed, you may authenticate
-MAVIS requests by using the pammavis binary (see mavis/README.pammavis).";
+"If you have the pam libraries installed, you may authenticate ".
+"MAVIS requests by using the pammavis binary (see mavis/README.pammavis).\n";
 
 $COMMENT{"curl"} =
-"If you have the curl libraries installed, you may use URLs to refer
-to configuration files.";
+"If you have the curl libraries installed, you may use URLs to refer ".
+"to configuration files.\n";
 
 $COMMENT{"ipc"} =
-"If SYS-V IPC is available, configuration files may be cached in
-shared memory.";
+"If SYS-V IPC is available, configuration files may be cached in ".
+"shared memory.\n";
 
 $COMMENT{"ssl"} =
-"Use this option if you have the OpenSSL libraries available. If
-enabled, TLS support is added to FTPd and TcpRelay, and TACACS+
-will be able to utilize the crypto library.";
+"Use the \"ssl\" option if you have the OpenSSL libraries available. If ".
+"enabled, TLS support is added to FTPd and TcpRelay, and TACACS+ ".
+"will be able to utilize the crypto library.\n";
 
 $COMMENT{"tls"} =
-"Use this option if you have the LibreTLS libraries available. If
-enabled, TLS support is added to tac_plus-ng and TcpRelay.";
+"Use the \"tls\" option if you have the LibreTLS libraries available. If ".
+"enabled, TLS support is added to tac_plus-ng and TcpRelay.\n";
 
 $COMMENT{"sctp"} =
-"Use this option if your system supports SCTP.";
+"Use this option if your system supports SCTP.\n";
 
 $COMMENT{"zlib"} =
-"The ftp daemon can support transparent gzip-style compression.
-For systems coming with the zlib library in /usr/lib you can probably
-skip this section, as the Makefile checks for zlib a that location.";
+"The ftp daemon can support transparent gzip-style compression. ".
+"For systems coming with the zlib library in /usr/lib you can probably ".
+"skip this section, as the Makefile checks for zlib a that location.\n";
 
 $COMMENT{"execinfo"} =
-"In case of a program crash, execinfo may return a backtrace of the
-crashed process, which may be valuable for debugging.";
+"In case of a program crash, execinfo may return a backtrace of the ".
+"crashed process, which may be valuable for debugging.\n";
 
 if ($#ARGV > -1 && $ARGV[0] =~ /^--help$/)
 {
-	print <<EOT
-Please note that this program is *not* a GNU configure program generated
-by autoconf, but a custom perl script. It needs to be called from the
-top-level PROJECTS directory. There's currently no process in place to
-verify that the command line arguments point to the correct files or
-directories.
-
-Usage: ./configure [args ...] [targets]
-
-Recognized arguments:	Defaults:
-  --prefix=DIR		[/usr/local]
-  --bindir=DIR		[/usr/local/bin]
-  --etcdir=DIR		[/usr/local/etc]
-  --sbindir=DIR		[/usr/local/$sbin]
-  --libdir=DIR		[/usr/local/$lib]
-  --libarchdir=DIR	[/usr/local/$lib$LIBARCH]
-  --libexecdir=DIR	[/usr/local/libexec]
-  --docdir=DIR	    [/usr/local/$doc]
-  --installroot=DIR	[]
-
-The C compiler used is usually gcc. You may override that choice by
-specifiying a different one:
-  --with-cc=CC
-For example, on MacOS X the following creates universal binaries with
-PPC and x86 code, both 32 and 64 bit:
-  ./configure "--with-cc=gcc -arch ppc64 -arch ppc -arch i386 -arch x86_64"
-
-$COMMENT{"devpoll"}
-  --without-devpoll
-  --with-devpoll
-
-$COMMENT{"epoll"}
-  --without-epoll
-  --with-epoll
-
-$COMMENT{"sctp"}
-  --without-sctp
-  --with-sctp
-EOT
-	;
+	wprint(
+"Please note that this program is *not* a GNU configure program generated ".
+"by autoconf, but a custom perl script. It needs to be called from the ".
+"top-level PROJECTS directory. There's currently no process in place to ".
+"verify that the command line arguments point to the correct files or ".
+"directories.\n".
+"\n".
+"Usage: ./configure [args ...] [targets]\n".
+"\n".
+"Recognized arguments:	Defaults:\n".
+"  --prefix=DIR		[/usr/local]\n".
+"  --bindir=DIR		[/usr/local/bin]\n".
+"  --etcdir=DIR		[/usr/local/etc]\n".
+"  --sbindir=DIR		[/usr/local/$sbin]\n".
+"  --libdir=DIR		[/usr/local/$lib]\n".
+"  --libarchdir=DIR	[/usr/local/$lib$LIBARCH]\n".
+"  --libexecdir=DIR	[/usr/local/libexec]\n".
+"  --docdir=DIR		[/usr/local/$doc]\n".
+"  --installroot=DIR	[]\n".
+"\n".
+"The C compiler used is usually clang. You may override that choice by ".
+"specifiying a different one:\n".
+"  --with-cc=CC\n".
+"For example, on MacOS X the following creates universal binaries with ".
+"PPC and x86 code, both 32 and 64 bit: \n".
+"  ./configure \"--with-cc=gcc -arch ppc64 -arch ppc -arch i386 -arch x86_64\"\n".
+"\n".
+$COMMENT{"devpoll"}.
+"  --without-devpoll\n".
+"  --with-devpoll\n".
+"\n".
+$COMMENT{"epoll"}.
+"  --without-epoll\n".
+"  --with-epoll\n".
+"\n".
+$COMMENT{"sctp"}.
+"  --without-sctp\n".
+"  --with-sctp\n\n"
+);
 
 	my $o;
 	foreach $o (@options)
 	{
-		print <<EOT
-
-$COMMENT{$o}
-  --without-$o
-  --with-$o\[=DIR]
-  --with-$o-include=DIR
-  --with-$o-lib=DIR
-EOT
-		;
+		wprint(
+$COMMENT{$o}.
+"  --without-$o\n".
+"  --with-$o\[=DIR]\n".
+"  --with-$o-include=DIR\n".
+"  --with-$o-lib=DIR\n\n"
+);
 	}
-	print <<EOT
-
-Supported targets:
-  $ALLDIRS
-Default targets:
-  $DIRS_DEFAULT
-
-The Makefile should be smart enough to figure out availability of most
-configuration options by itself, so "./configure" without any arguments
-is sufficient in most cases.
-
-EOT
-	;
+	wprint (
+"Supported targets:\n".
+"  $ALLDIRS\n".
+"Default targets:\n".
+"  $DIRS_DEFAULT\n".
+"\n".
+"This script should be smart enough to figure out availability of most ".
+"configuration options by itself, so \"./configure\" without any arguments ".
+"is sufficient in most cases.\n".
+"\n");
 	exit;
 }
 
@@ -451,13 +482,6 @@ my $OS = "$sysname-$release-$machine";
 my @OSLEVEL_ARR = split(/[^\d]+/, $release);
 push(@OSLEVEL_ARR, 0, 0, 0);
 my $OSLEVEL = sprintf ("0x%.2x%.2x%.4x", @OSLEVEL_ARR);
-
-my $MF_OBJ = "build/Makefile.inc.$OS";
-
-use Cwd qw(cwd);
-my $MF_OBJ = cwd() . "/build/Makefile.inc.$OS";
-# FIXME -- generate this later
-
 
 if ($cctest =~ /clang/) {
 	$DEFS{"CC"} = "clang";
@@ -717,36 +741,34 @@ if (0 < int keys %NOT_FOUND) {
 	print "Development files were not found for: ", join(", ", sort keys %NOT_FOUND), "\n\n";
 } 
 
-print <<EOT;
-The file
-
-    $out
-
-was just created. You may run "make" now. After that, you may wish to do a
-"make install". Alternatively, you'll find the compiled binaries (plus some
-ancillary scripts) in the
-
-    build/$sysname-$release-$machine/fakeroot/
-
-directory structure. It's probably advisable to have a look there in any case,
-as you may or may not like the particular file system layout, and this will
-give you a chance to see it before installing.
-
-Please direct support requests to the "Event-Driven Servers" Google Group at
-
-    event-driven-servers\@googlegroups.com
-    https://groups.google.com/group/event-driven-servers
-
-or file an issue at
-
-    https://github.com/MarcJHuber/event-driven-servers
-
-if you need help.
-
-Support requests sent to the author's private email address may be silently
-ignored.
-
-EOT
+wprint "The file\n".
+"\n".
+"    $out\n".
+"\n".
+"was just created. You may run \"make\" now. After that, you may wish to do a ".
+"\"make install\". Alternatively, you'll find the compiled binaries (plus some ".
+"ancillary scripts) in the\n".
+"\n".
+"    build/$sysname-$release-$machine/fakeroot/\n".
+"\n".
+"directory structure. It's probably advisable to have a look there in any case, ".
+"as you may or may not like the particular file system layout, and this will ".
+"give you a chance to see it before installing.\n".
+"\n".
+"Please direct support requests to the \"Event-Driven Servers\" Google Group at\n".
+"\n".
+"    event-driven-servers\@googlegroups.com\n".
+"    https://groups.google.com/group/event-driven-servers\n".
+"\n".
+"or file an issue at\n".
+"\n".
+"    https://github.com/MarcJHuber/event-driven-servers\n".
+"\n".
+"if you need help.\n".
+"\n".
+"Support requests sent to the author's private email address may be silently ".
+"ignored.\n".
+"\n";
 
 $out = "spawnd/perl/Makefile.PL";
 open OUT, ">$out" or die "open ($out): $!";
