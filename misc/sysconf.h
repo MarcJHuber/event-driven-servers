@@ -155,8 +155,8 @@
 #endif
 #else
 /* Use crypt(3) from libcrypto */
-#ifdef WITH_LIBCRYPT
-#undef WITH_LIBCRYPT
+#ifdef WITH_LIB_CRYPT
+#undef WITH_LIB_CRYPT
 #endif
 #endif
 /*******************************************************************************

@@ -116,7 +116,7 @@ endif
 libmavis_system.o: libmavis_system.c mavis_glue.c
 
 libmavis_system.so: libmavis_system.o
-	$(LD_SHARED) -o $@ $^ $(LIBCRYPT) $(LD_SHARED_APPEND)
+	$(LD_SHARED) -o $@ $^ $(LIB_CRYPT) $(LD_SHARED_APPEND)
  
 libmavis_groups.o: libmavis_groups.c mavis_glue.c
 
@@ -141,7 +141,7 @@ libmavis_external.so: libmavis_external.o
 libmavis_userdb.o: libmavis_userdb.c mavis_glue.c
 
 libmavis_userdb.so: libmavis_userdb.o
-	$(LD_SHARED) -o $@ $^ $(LIBCRYPT) $(LD_SHARED_APPEND)
+	$(LD_SHARED) -o $@ $^ $(LIB_CRYPT) $(LD_SHARED_APPEND)
 
 libmavis_tee.so: libmavis_tee.o
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
