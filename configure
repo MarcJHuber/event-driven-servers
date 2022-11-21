@@ -54,8 +54,6 @@ sub wprint($) {
 }
 
 print "="x$width . "\n";
-wprint ("This script isn't fully regression tested. Try 'configure-old' if you're running into errors.\n");
-print "="x$width . "\n\n";
 
 my ($sysname, $release, $machine, $cwd);
 
@@ -99,175 +97,149 @@ my $libarch = "lib$LIBARCH";
 my $doc = "share/mavis";
 
 $COMMENT{"devpoll"} =
-"The \"devpoll\" option enables /dev/poll support. You may use it on Linux ".
-"with /dev/poll patch (untested), or on a sufficiently recent Sun ".
-"Solaris system (7 onwards).\n";
+"The \"devpoll\" option enables /dev/poll support. You may use it on Linux with /dev/poll patch (untested, and unlikely), or on Sun Solaris (7.0 onwards).
+";
 
 $COMMENT{"epoll"} =
-"Usually, Linux epoll support is autodetected. This option overrides ".
-"autodetection, which may be useful if you're using a patched pre-sysepoll ".
-"kernel.\n";
+"Usually, Linux epoll support is autodetected. This option overrides autodetection, which may be useful if you're using a patched pre-sysepoll kernel (how much unlikely that is).
+";
 
 $COMMENT{"lwres"} =
-"liblwres, the lightweight resolver library, comes with older versions ".
-"of bind, together with lwresd. Enabling this option enables ftpd and ".
-"tac_plus to do DNS lookups.\n";
+"liblwres, the lightweight resolver library, comes with older versions of bind, together with lwresd. Enabling this option enables ftpd and tac_plus(-ng) to do DNS lookups.
+";
 
 $COMMENT{"ares"} =
-"c-ares is a library for asynchronous DNS requests. This option enables ftpd and ".
-"tac_plus to do DNS lookups.\n";
+"c-ares is a library for asynchronous DNS requests. This option enables ftpd and tac_plus(-ng) to do DNS lookups. Please use this instead of lwres.\n";
 
-$COMMENT{"pcre"} =
-"ftpd can use the PCRE (\"Perl Compatible Regular Expressions\") library ".
-"for path rewriting, and tac_plus may use it as an alternative to POSIX ".
-"regular expression matching. You don't need this library if you don't ".
-"care for these features. Please note that this library is deprecated ".
-"and no longer supported by upstream. Please switch to PCRE2.\n";
+$COMMENT{"pcre"} = "ftpd can use the PCRE (\"Perl Compatible Regular Expressions\") library for path rewriting, and tac_plus may use it as an alternative to POSIX regular expression matching. Please note that the PCRE library is deprecated and no longer supported by upstream. Please switch to PCRE2.
+";
 
 $COMMENT{"pcre2"} =
-"ftpd can use the PCRE v2 (\"Perl Compatible Regular Expressions\" v2) ".
-"library for path rewriting, and tac_plus may use it as an alternative to ".
-"POSIX regular expression matching. You don't need this library yet if you ".
-"don't care for these features, but it's highly recommended and might ".
-"become mandatory in the future.\n";
+"ftpd can use the PCRE v2 (\"Perl Compatible Regular Expressions\" v2) library for path rewriting, and tac_plus may use it as an alternative to POSIX regular expression matching. Using it is highly recommended and virtually mandatory for tac_plus-ng.
+";
 
 $COMMENT{"freeradius"} =
-"If you have the freeradius-client library installed, you may authenticate ".
-"MAVIS requests by using the radmavis binary.\n";
+"If you have the freeradius-client library installed, you may authenticate MAVIS requests by using the radmavis binary.
+";
 
 $COMMENT{"radcli"} =
-"If you have the radcli library installed, you may authenticate ".
-"MAVIS requests by using the radmavis binary.\n";
+"If you have the radcli library installed, you may authenticate MAVIS requests by using the radmavis binary.
+";
 
 $COMMENT{"pam"} =
-"If you have the pam libraries installed, you may authenticate ".
-"MAVIS requests by using the pammavis binary (see mavis/README.pammavis).\n";
+"If you have the pam libraries installed, you may authenticate MAVIS requests by using the pammavis binary.
+";
 
 $COMMENT{"curl"} =
-"If you have the curl libraries installed, you may use URLs to refer ".
-"to configuration files.\n";
+"If you have the curl libraries installed, you may use URLs to refer to configuration files.
+";
 
 $COMMENT{"ipc"} =
-"If SYS-V IPC is available, configuration files may be cached in ".
-"shared memory.\n";
+"If SYS-V IPC is available, configuration files may be cached in shared memory.
+";
 
 $COMMENT{"ssl"} =
-"Use the \"ssl\" option if you have the OpenSSL libraries available. If ".
-"enabled, TLS support is added to FTPd and TcpRelay, and TACACS+ ".
-"will be able to utilize the crypto library.\n";
+"Use the \"ssl\" option if you have the OpenSSL libraries available. If enabled, TLS support is added to FTPd and TcpRelay, and TACACS+ will be able to utilize the crypto library.
+";
 
 $COMMENT{"tls"} =
-"Use the \"tls\" option if you have the LibreTLS libraries available. If ".
-"enabled, TLS support is added to tac_plus-ng and TcpRelay.\n";
+"Use the \"tls\" option if you have the LibreTLS libraries available. If enabled, TLS support is added to tac_plus-ng and TcpRelay.
+";
 
 $COMMENT{"sctp"} =
-"Use this option if your system supports SCTP.\n";
+"Use this option if your system supports SCTP.
+";
 
 $COMMENT{"zlib"} =
-"The ftp daemon can support transparent gzip-style compression. ".
-"For systems coming with the zlib library in /usr/lib you can probably ".
-"skip this section, as the Makefile checks for zlib a that location.\n";
+"The ftp daemon can support transparent gzip-style compression.
+";
 
 $COMMENT{"execinfo"} =
-"In case of a program crash, execinfo may return a backtrace of the ".
-"crashed process, which may be valuable for debugging.\n";
+"In case of a program crash, execinfo may return a backtrace of the crashed process, which may be valuable for debugging.
+";
 
 if ($#ARGV > -1 && $ARGV[0] =~ /^--help$/)
 {
 	wprint(
-"Please note that this program is *not* a GNU configure program generated ".
-"by autoconf, but a custom perl script. It needs to be called from the ".
-"top-level PROJECTS directory. There's currently no process in place to ".
-"verify that the command line arguments point to the correct files or ".
-"directories.\n".
-"\n".
-"Usage: ./configure [args ...] [targets]\n".
-"\n".
-"Recognized arguments:	Defaults:\n".
-"  --prefix=DIR		[/usr/local]\n".
-"  --bindir=DIR		[/usr/local/bin]\n".
-"  --etcdir=DIR		[/usr/local/etc]\n".
-"  --sbindir=DIR		[/usr/local/$sbin]\n".
-"  --libdir=DIR		[/usr/local/$lib]\n".
-"  --libarchdir=DIR	[/usr/local/$lib$LIBARCH]\n".
-"  --libexecdir=DIR	[/usr/local/libexec]\n".
-"  --docdir=DIR		[/usr/local/$doc]\n".
-"  --installroot=DIR	[]\n".
-"\n".
-"The C compiler used is usually clang. You may override that choice by ".
-"specifiying a different one:\n".
-"  --with-cc=CC\n".
-"For example, on MacOS X the following creates universal binaries with ".
-"PPC and x86 code, both 32 and 64 bit: \n".
-"  ./configure \"--with-cc=gcc -arch ppc64 -arch ppc -arch i386 -arch x86_64\"\n".
-"\n".
-$COMMENT{"devpoll"}.
-"  --without-devpoll\n".
-"  --with-devpoll\n".
-"\n".
-$COMMENT{"epoll"}.
-"  --without-epoll\n".
-"  --with-epoll\n".
-"\n".
-$COMMENT{"sctp"}.
-"  --without-sctp\n".
-"  --with-sctp\n\n"
-);
+"Please note that this program is *not* a GNU configure program generated by autoconf, but a custom Perl script.
+
+Usage: ./configure [args ...] [targets]
+
+Recognized arguments:	Defaults:
+  --prefix=DIR		[/usr/local]
+  --bindir=DIR		[/usr/local/bin]
+  --etcdir=DIR		[/usr/local/etc]
+  --sbindir=DIR		[/usr/local/$sbin]
+  --libdir=DIR		[/usr/local/$lib]
+  --libarchdir=DIR	[/usr/local/$lib$LIBARCH]
+  --libexecdir=DIR	[/usr/local/libexec]
+  --docdir=DIR		[/usr/local/$doc]
+  --installroot=DIR	[]
+
+The C compiler used is usually clang. You may override that choice by specifiying a different one:
+  --with-cc=CC
+For example, on MacOS X the following creates universal binaries with PPC and x86 code, both 32 and 64 bit:
+  ./configure \"--with-cc=gcc -arch ppc64 -arch ppc -arch i386 -arch x86_64\"
+
+$COMMENT{'devpoll'}
+  --without-devpoll
+  --with-devpoll
+
+$COMMENT{'epoll'}
+  --without-epoll
+  --with-epoll
+
+$COMMENT{'sctp'}
+  --without-sctp
+  --with-sctp
+
+");
 
 	my $o;
 	foreach $o (@options)
 	{
 		wprint(
-$COMMENT{$o}.
-"  --without-$o\n".
-"  --with-$o\[=DIR]\n".
-"  --with-$o-include=DIR\n".
-"  --with-$o-lib=DIR\n\n"
-);
+"$COMMENT{$o}
+  --without-$o
+  --with-$o\[=DIR]
+  --with-$o-include=DIR
+  --with-$o-lib=DIR
+
+");
 	}
 	wprint (
-"Supported targets:\n".
-"  $ALLDIRS\n".
-"Default targets:\n".
-"  $DIRS_DEFAULT\n".
-"\n".
-"This script should be smart enough to figure out availability of most ".
-"configuration options by itself, so \"./configure\" without any arguments ".
-"is sufficient in most cases.\n".
-"\n");
+"Supported targets:
+  $ALLDIRS
+Default targets:
+  $DIRS_DEFAULT
+
+This script should be smart enough to figure out availability of most configuration options by itself, so \"./configure\" without any arguments is sufficient in most cases.\n"
+);
+
+	print "="x$width . "\n";
 	exit;
 }
 
 my %A;
 
-foreach $a (@options)
-{
+foreach $a (@options) {
 	$A{"--with-$a"} = undef;
 }
 
 my $hint = "";
-$hint = "(Called without arguments. \"--help\" will display the command " .
-"line options.)\n" if $#ARGV < 0;
+$hint = "(Called without arguments. \"--help\" will display the command line options.)\n" if $#ARGV < 0;
 
-while ($#ARGV > -1)
-{
+while ($#ARGV > -1) {
 	$ARGV[0] =~ s/-tls/-ssl/;
 
-	if ($ARGV[0] =~ /^(--[^=]+)=(.*)$/)
-	{
+	if ($ARGV[0] =~ /^(--[^=]+)=(.*)$/) {
 		$A{$1} = $2;
-	}
-	elsif ($ARGV[0] =~ /^--([^-]+-[^-]+|debug)$/)
-	{
+	} elsif ($ARGV[0] =~ /^--([^-]+-[^-]+|debug)$/) {
 		$A{$ARGV[0]} = "1";
-	}
-	elsif ($ARGV[0] =~ /^--[^-]+-[^-]+-[^-]+$/)
-	{
+	} elsif ($ARGV[0] =~ /^--[^-]+-[^-]+-[^-]+$/) {
 		$A{$ARGV[0]} = $ARGV[1];
 		shift @ARGV;
-	}
-	else
-	{
+	} else {
 		$A{$ARGV[0]} = undef;
 	}
 
@@ -278,30 +250,23 @@ my $a;
 
 my $DIRS = "";
 
-foreach $a (keys %A)
-{
-	if ($a =~ /^--with-([^-]+)-include$/)
-	{
+foreach $a (keys %A) {
+	if ($a =~ /^--with-([^-]+)-include$/) {
 		$A{"--with-$1"} = "1" unless exists $A{"--with-$1"};
 
-		unless (exists $A{"--with-$1-lib"})
-		{
+		unless (exists $A{"--with-$1-lib"}) {
 			$A{"--with-$1-lib"} = $A{"--with-$1-include"};
 			$A{"--with-$1-lib"} =~ s/include$/lib/;
 		}
 	}
-	elsif ($a =~ /^--with-([^-]+)-lib$/)
-	{
+	elsif ($a =~ /^--with-([^-]+)-lib$/) {
 		$A{"--with-$1"} = "1" unless exists $A{"--with-$1"};
 
-		unless (exists $A{"--with-$1-include"})
-		{
+		unless (exists $A{"--with-$1-include"}) {
 			$A{"--with-$1-include"} = $A{"--with-$1-lib"};
 			$A{"--with-$1-include"} =~ s/lib$/include/;
-			}
-	}
-	elsif ($a =~ /^--without-([^-]+)$/)
-	{
+		}
+	} elsif ($a =~ /^--without-([^-]+)$/) {
 		$A{"--with-$1"} = "0";
 		delete $A{$a};
 	} elsif ($a =~ /^mavis$/) {
@@ -319,9 +284,6 @@ if ($DIRS !~ /^mavis /){
 	$DIRS = "mavis$DIRS";
 }
 
-my $out = "build/Makefile.inc" . "." . lc
-$sysname . "-" . $release . "-" . $machine;
-
 my %DEFS;
 
 $DEFS{"DEF"} = "";
@@ -329,20 +291,17 @@ $DEFS{"LD"} = "ld";
 $DEFS{"BASE"} = $cwd;
 $DEFS{"BASE"} = $cwd;
 
-if (exists $A{"--with-devpoll"})
-{
+if (exists $A{"--with-devpoll"}) {
 	$DEFS{"WITH_DEVPOLL"} =  $A{"--with-devpoll"};
 	delete $A{"--with-devpoll"};
 }
 
-if (exists $A{"--with-epoll"})
-{
+if (exists $A{"--with-epoll"}) {
 	$DEFS{"WITH_EPOLL"} = $A{"--with-epoll"};
 	delete $A{"--with-epoll"};
 }
 
-if (exists $A{"--debug"})
-{
+if (exists $A{"--debug"}) {
 	$DEFS{"DEBUG"} = $A{"--debug"};
 	delete $A{"--debug"};
 }
@@ -350,8 +309,7 @@ if (exists $A{"--debug"})
 $A{"--prefix"} = "/usr/local" unless exists $A{"--prefix"};
 $DEFS{"DEST"} = $A{"--prefix"};
 
-foreach $a ("bin", "sbin", "etc", "libexec", "lib")
-{
+foreach $a ("bin", "sbin", "etc", "libexec", "lib") {
 	$A{"--$a"."dir"} = $A{"--prefix"} . "/$a" unless exists $A{"--$a"."dir"};
 	$DEFS{uc($a)."DIR_DEST"} = $A{"--$a"."dir"};
 	delete $A{"--$a"."dir"};
@@ -359,16 +317,14 @@ foreach $a ("bin", "sbin", "etc", "libexec", "lib")
 
 my $LIBARCHDIR_DEST;
 
-foreach $a ("libarch")
-{
+foreach $a ("libarch") {
 	$A{"--$a"."dir"} = $A{"--prefix"} . "/lib$LIBARCH" unless exists $A{"--$a"."dir"};
 	$LIBARCHDIR_DEST = $A{"--$a"."dir"};
 	$DEFS{uc($a)."DIR_DEST"} =  $A{"--$a"."dir"};
 	delete $A{"--$a"."dir"};
 }
 
-foreach $a ("doc")
-{
+foreach $a ("doc") {
 	$A{"--$a"."dir"} = $A{"--prefix"} . "/$doc" unless exists $A{"--$a"."dir"};
 	$DEFS{uc($a)."DIR_DEST"} = $A{"--$a"."dir"};
 	delete $A{"--$a"."dir"};
@@ -376,38 +332,31 @@ foreach $a ("doc")
 
 delete $A{"--prefix"};
 
-if (exists $A{"--installroot"})
-{
+if (exists $A{"--installroot"}) {
 	$DEFS{"INSTALLROOT"} = $A{"--installroot"};
 	delete $A{"--installroot"};
 }
 
-foreach $a (@options)
-{
-	if (exists $A{"--with-$a"} && defined $A{"--with-$a"} && $A{"--with-$a"} =~ /^\//)
-	{
+foreach $a (@options) {
+	if (exists $A{"--with-$a"} && defined $A{"--with-$a"} && $A{"--with-$a"} =~ /^\//) {
 		$A{"--with-$a-lib"} = $A{"--with-$a"} . "/lib" unless exists $A{"--with-$a-lib"};
 		$A{"--with-$a-include"} = $A{"--with-$a"} . "/include" unless exists $A{"--with-$a-include"};
 		$A{"--with-$a"} = 1;
 	}
 }
 
-foreach $a (@options)
-{
-	if (exists $A{"--with-$a"} && defined $A{"--with-$a"} && $A{"--with-$a"} != 0)
-	{
+foreach $a (@options) {
+	if (exists $A{"--with-$a"} && defined $A{"--with-$a"} && $A{"--with-$a"} != 0) {
 		$A{"--with-$a-lib"} = "/usr/lib" unless exists $A{"--with-$a-lib"};
 		$A{"--with-$a-include"} = "/usr/include" unless exists $A{"--with-$a-include"};
 	}
 }
 
-foreach $a (@options)
-{
+foreach $a (@options) {
 	if (defined $A{"--with-$a"}) {
 		$DEFS{"WITH_" . uc ($a)} = $A{"--with-$a"};
 
-		if (exists $A{"--with-$a"} && defined $A{"--with-$a"} && $A{"--with-$a"} != 0)
-		{
+		if (exists $A{"--with-$a"} && defined $A{"--with-$a"} && $A{"--with-$a"} != 0) {
 			$DEFS{"LIBDIR_" . uc ($a)} = $A{"--with-$a-lib"};
 			delete $A{"--with-$a-lib"};
 
@@ -455,33 +404,21 @@ chomp $gcc_multiarch;
 $LIBARCH = "/$gcc_multiarch" if $gcc_multiarch ne "" && -d "/usr/lib/$gcc_multiarch";
 
 my (@rest) = sort keys %A;
-if ($#rest > -1)
-{
-	print <<EOT;
+if ($#rest > -1) {
+	wprint("The following options were not recognized:
+\t" . join("\t\n", @rest) . "
 
-The following options were not recognized:
-
-EOT
-	;
-
-	while ($#rest > -1)
-	{
-		print "\t" . shift (@rest) . "\n";
-	}
-
-	print <<EOT;
-
-Please correct the command line options, then call ./configure again.
-"./configure --help" will give you a list of all available options.
-
-EOT
+Please correct the command line options, then call ./configure again. \"./configure --help\" will give you a list of all available options.
+");
 	exit(-1);
 }
 
-my $OS = "$sysname-$release-$machine";
 my @OSLEVEL_ARR = split(/[^\d]+/, $release);
 push(@OSLEVEL_ARR, 0, 0, 0);
-my $OSLEVEL = sprintf ("0x%.2x%.2x%.4x", @OSLEVEL_ARR);
+$DEFS{"OSLEVEL"} = sprintf ("0x%.2x%.2x%.4x", @OSLEVEL_ARR);
+$DEFS{"OSTYPE"} = $sysname;
+$DEFS{"OS"} = "$sysname-$release-$machine";
+$DEFS{'DEF'} .= " -DOSTYPE=$DEFS{'OSTYPE'} -DOSLEVEL=$DEFS{'OSLEVEL'} -DOS=" . '"\\"' . $DEFS{'OS'} . '\\""';
 
 if ($cctest =~ /clang/) {
 	$DEFS{"CC"} = "clang";
@@ -556,8 +493,6 @@ if ($sysname eq "linux") {
 	$DEFS{"LIB_MAVIS"} = "$DEFS{'LDOPT_R'}\$\$ORIGIN/../lib$DEFS{'LIBARCH'}"
 }
 
-$DEFS{"DEF"} .= " -DOSTYPE=$sysname -DOSLEVEL=$OSLEVEL -DOS=\"\\\"$OS\\\"\"";
-
 if (exists $DEFS{"DEBUG"}) {
 	$DEFS{"DEF"} .= " -DDEBUG";
 	$DEFS{"CFLAGS"}	.= " -g -Og";
@@ -565,13 +500,12 @@ if (exists $DEFS{"DEBUG"}) {
 }
 
 $DEFS{"DIR_MAVIS"} = "$cwd/mavis";
-$DEFS{"LIB_MAVIS"} .= " -L$cwd/build/$OS/mavis $DEFS{'LDOPT_R'}$DEFS{'LIBARCHDIR_DEST'} -lmavis";
+$DEFS{"LIB_MAVIS"} .= " -L$cwd/build/$DEFS{'OS'}/mavis $DEFS{'LDOPT_R'}$DEFS{'LIBARCHDIR_DEST'} -lmavis";
 $DEFS{"DIR_MISC"} = "$cwd/misc";
 $DEFS{"INC"} .= " -I$cwd";
 
 my (%FOUND, %NOT_FOUND);
 
-######################
 sub check_for($$$$$) {
 	my ($PKG, $pkg, $hdr, $lib, $defs) = @_;
 
@@ -639,8 +573,8 @@ check_for("PCRE2", "libpcre2-8", "pcre2.h", "pcre2-8", "-DPCRE2_CODE_UNIT_WIDTH=
 $DEFS{"INC_PCRE"} = $DEFS{"INC_PCRE2"} if exists $DEFS{"INC_PCRE2"};
 $DEFS{"LIB_PCRE"} = $DEFS{"LIB_PCRE2"} if exists $DEFS{"LIB_PCRE2"};
 check_for("PCRE", "libpcre", "pcre.h", "pcre", undef) if !exists $DEFS{"WITH_PCRE2"} || $DEFS{"WITH_PCRE2"} == 0;
-check_for("FREERADIUS", "freeradius-client", "freeradius-client.h", "freeradius-client", undef) if !exists $DEFS{"WITH_LIBRADCLI"} || $DEFS{"WITH_LIBRADCLI"} == 0;
 check_for("LIBRADCLI", "radcli", "radcli/radcli.h", "radcli", undef);
+check_for("FREERADIUS", "freeradius-client", "freeradius-client.h", "freeradius-client", undef) if !exists $DEFS{"WITH_LIBRADCLI"} || $DEFS{"WITH_LIBRADCLI"} == 0;
 check_for("ZLIB", "zlib", "zlib.h", "z", undef);
 check_for("EXECINFO", "execinfo", "execinfo.h", "execinfo", undef);
 if ($sysname eq "linux" && -f "/usr/include/execinfo.h") {
@@ -650,7 +584,7 @@ if ($sysname eq "linux" && -f "/usr/include/execinfo.h") {
 check_for("CRYPT", "crypt", "crypt.h", "crypt", undef);
 check_for("CRYPT", "crypt", "unistd.h", "crypt", undef);
 $DEFS{"LIBCRYPT"} = $DEFS{"LIB_CRYPT"} if exists $DEFS{"LIB_CRYPT"}; # FIXME, remove later
-check_for("LIBCURL", "libcurl", "curl/curl.h", "curl", undef);
+check_for("CURL", "libcurl", "curl/curl.h", "curl", undef);
 check_for("PAM", "libpam", "security/pam_appl.h", "pam", "-DHAVE_SECURITY_PAM_APPL_H");
 check_for("PAM", "libpam", "pam/pam_appl.h", "pam", undef);
 check_for("SCTP", "sctp", "netinet/sctp.h", "sctp", undef);
@@ -689,7 +623,7 @@ if (!exists $DEFS{"WITH_KQUEUE"} && -e "/usr/include/sys/event.h") {
 }
 
 unless ($mech_found) {
-	print "None of the supported event polling mechanisms seems to be available on your\nsystem. Check your installation, some include files may be missing.\n";
+	wprint "None of the supported event polling mechanisms seems to be available on your\nsystem. Check your installation, some include files may be missing.\n";
 	exit(-1);
 }
 
@@ -704,71 +638,41 @@ foreach my $k (sort keys %DEFS) {
 	$content .= "$k=$DEFS{$k}\n";
 }
 
-$content .= "CONFIGURE_VERSION=2\n";
-
-$content .=<<EOT;
-
-%:: %,v
-
-%:: RCS/%,v
-
-%:: RCS/%
-
-%:: SCCS/%
-
-%:: %.c
-
-%:: %.pl
-
-%.o: %.c \$(DIR_MAVIS)/token.h
-	\$(CC) \$(CPPFLAGS) \$(CFLAGS) -c -o \$@ \$<
-
-%:: %.h
-
-EOT
-
 my $OUT;
 
 mkdir "build", 0755;
+my $out = "build/Makefile.inc." . $DEFS{"OS"};
 rename $out, "$out.bak";
 open OUT, ">$out" or die "open ($out): $!";
 print OUT $content;
 close OUT;
 
-print $hint, "\n" if $hint ne "";;
+wprint $hint . "\n" if $hint ne "";;
 
-if (0 < int keys %NOT_FOUND) {
-	print "Development files were not found for: ", join(", ", sort keys %NOT_FOUND), "\n\n";
-} 
+wprint "Development files were not found for: " . join(", ", sort keys %NOT_FOUND) . "\n\n" if 0 < int keys %NOT_FOUND;
+wprint "Development files were found for: " . join(", ", sort keys %FOUND) . "\n\n" if 0 < int keys %FOUND;
 
-wprint "The file\n".
-"\n".
-"    $out\n".
-"\n".
-"was just created. You may run \"make\" now. After that, you may wish to do a ".
-"\"make install\". Alternatively, you'll find the compiled binaries (plus some ".
-"ancillary scripts) in the\n".
-"\n".
-"    build/$sysname-$release-$machine/fakeroot/\n".
-"\n".
-"directory structure. It's probably advisable to have a look there in any case, ".
-"as you may or may not like the particular file system layout, and this will ".
-"give you a chance to see it before installing.\n".
-"\n".
-"Please direct support requests to the \"Event-Driven Servers\" Google Group at\n".
-"\n".
-"    event-driven-servers\@googlegroups.com\n".
-"    https://groups.google.com/group/event-driven-servers\n".
-"\n".
-"or file an issue at\n".
-"\n".
-"    https://github.com/MarcJHuber/event-driven-servers\n".
-"\n".
-"if you need help.\n".
-"\n".
-"Support requests sent to the author's private email address may be silently ".
-"ignored.\n".
-"\n";
+wprint "The file
+
+    $out
+
+was just created. You may run \"make\" now. After that, you may wish to do a \"make install\". Alternatively, you'll find the compiled binaries (plus some ancillary scripts) in the
+
+    build/$DEFS{'OS'}/fakeroot/
+
+directory structure. It's probably advisable to have a look there in any case, as you may or may not like the particular file system layout, and this will give you a chance to see it before installing.
+
+Please direct support requests to the \"Event-Driven Servers\" Google Group at
+
+    event-driven-servers\@googlegroups.com
+    https://groups.google.com/group/event-driven-servers
+
+or file an issue at
+
+    https://github.com/MarcJHuber/event-driven-servers
+
+Support requests sent to the author's private email address may be silently ignored.
+";
 
 $out = "spawnd/perl/Makefile.PL";
 open OUT, ">$out" or die "open ($out): $!";
@@ -785,5 +689,6 @@ WriteMakefile(
 );
 EOT
 close OUT;
+print "="x$width . "\n";
 
 # vim: ts=4
