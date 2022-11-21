@@ -35,10 +35,10 @@ endif
 ifeq ($(WITH_FREERADIUS),1)
 	MAVIS_PRG += radmavis
 	MAVIS_RADMAVIS_INSTALL = install_radmavis
-	LIB_LIBRADCLI=
-	INC_LIBRADCLI=
+	LIB_RADCLI=
+	INC_RADCLI=
 else
-	ifeq ($(WITH_LIBRADCLI),1)
+	ifeq ($(WITH_RADCLI),1)
 		MAVIS_PRG += radmavis
 		MAVIS_RADMAVIS_INSTALL = install_radmavis
 	endif
@@ -58,10 +58,10 @@ all:	$(ALL) install_stage
 mavistest$(EXEC_EXT): mavistest.o
 	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_NET)
 
-radmavis.o: INC += $(INC_FREERADIUS) $(INC_LIBRADCLI)
+radmavis.o: INC += $(INC_FREERADIUS) $(INC_RADCLI)
 
 radmavis$(EXEC_EXT): radmavis.o
-	$(CC) -o $@ $^ $(LIB) $(LIB_FREERADIUS) $(LIB_LIBRADCLI) $(LIB_NET)
+	$(CC) -o $@ $^ $(LIB) $(LIB_FREERADIUS) $(LIB_RADCLI) $(LIB_NET)
 
 pammavis.o: CFLAGS += $(INC_PAM)
 

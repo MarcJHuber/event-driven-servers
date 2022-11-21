@@ -8,7 +8,7 @@
 #define MAVISDEBUG 1
 #undef DEBUG
 #endif
-#ifdef WITH_LIBRADCLI
+#ifdef WITH_RADCLI
 # include <radcli/radcli.h>
 #else
 # include <freeradius-client.h>
@@ -45,7 +45,7 @@ int main(int argc __attribute__((unused)), char **argv)
 
     set_rc(rh, "auth_order", "radius");
     set_rc(rh, "login_tries", "4");
-#ifdef WITH_LIBRADCLI
+#ifdef WITH_RADCLI
     set_rc(rh, "dictionary", "/etc/radcli/dictionary");
 #else
     set_rc(rh, "dictionary", "/usr/local/etc/radiusclient/dictionary");
