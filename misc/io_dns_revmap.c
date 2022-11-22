@@ -13,10 +13,19 @@
 #include "misc/memops.h"
 
 #ifdef WITH_ARES
-#include <ares.h>
-#include <ares_nameser.h>
-#include <sys/uio.h>
-#undef WITH_LWRES
+# include <ares.h>
+# if ARES_VERSION < 0x11200 // private values until 1.18.0, see https://c-ares.org/changelog.html
+#  ifndef C_IN
+#   define C_IN 1
+#  endif
+#  ifndef T_PTR
+#   define T_PTR 12
+#  endif
+# else
+#  include <ares_nameser.h>
+# endif
+# include <sys/uio.h>
+# undef WITH_LWRES
 #endif
 
 #ifdef WITH_LWRES
