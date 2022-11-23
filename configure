@@ -530,28 +530,41 @@ sub check_for($$$$$) {
 		}
 
 		unless (exists $DEFS{"WITH_$PKG"}) {
-			for my $prefix (@SEARCH_DIR, "/usr", "/usr/local", "/usr/sfw", "/usr/pkg") {
+			my $inc;
+			for my $prefix ("/usr", "/usr/local", "/usr/sfw", "/usr/pkg") {
 				next unless -e "$prefix/include/$hdr";
+				$inc = "$prefix/include";
 				my @g = glob("$prefix/$DEFS{'LIBARCH'}/lib$lib$DEFS{'SHLIB_EXT'}*");
 				if ($#g > -1) {
 					$DEFS{"WITH_$PKG"} = 1;
-					$DEFS{"INCDIR_$PKG"} = "$prefix/include";
+					$DEFS{"INCDIR_$PKG"} = $inc;
 					$DEFS{"LIBDIR_$PKG"} = "$prefix/lib/$DEFS{'LIBARCH'}";
 					last;
 				}
 				@g = glob("$prefix/lib/lib$lib$DEFS{'SHLIB_EXT'}*");
 				if ($#g > -1) {
 					$DEFS{"WITH_$PKG"} = 1;
-					$DEFS{"INCDIR_$PKG"} = "$prefix/include";
+					$DEFS{"INCDIR_$PKG"} = $inc;
 					$DEFS{"LIBDIR_$PKG"} = "$prefix/lib";
 					last;
 				}
 				@g = glob("$prefix/lib/$machine-linux-gnu/lib$lib$DEFS{'SHLIB_EXT'}*");
 				if ($#g > -1) {
 					$DEFS{"WITH_$PKG"} = 1;
-					$DEFS{"INCDIR_$PKG"} = "$prefix/include";
+					$DEFS{"INCDIR_$PKG"} = $inc;
 					$DEFS{"LIBDIR_$PKG"} = "$prefix/$machine-linux-gnu/lib";
 					last;
+				}
+			}
+			if (defined $inc && !exists $DEFS{"WITH_$PKG"}) {
+				for my $prefix (@SEARCH_DIR) {
+					my @g = glob("$prefix/lib$lib$DEFS{'SHLIB_EXT'}*");
+					if ($#g > -1) {
+						$DEFS{"WITH_$PKG"} = 1;
+						$DEFS{"INCDIR_$PKG"} = "$prefix/include";
+						$DEFS{"LIBDIR_$PKG"} = $prefix;
+						last;
+					}
 				}
 			}
 		}
