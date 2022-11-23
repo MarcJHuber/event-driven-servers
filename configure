@@ -541,8 +541,13 @@ sub check_for($$$$$) {
 		unless (exists $DEFS{"WITH_$PKG"}) {
 			my $inc;
 			for my $prefix ("/usr", "/usr/local", "/usr/sfw", "/usr/pkg", @INC_SEARCH_DIRS) {
-				next unless -e "$prefix/include/$hdr";
-				$inc = "$prefix/include";
+				if (-e "$prefix/include/$hdr") {
+					$inc = "$prefix/include";
+				} elsif (-e "$prefix/$hdr") {
+					$inc = "$prefix";
+				} else {
+					next;
+				}
 				my @g = glob("$prefix/$DEFS{'LIBARCH'}/lib$lib$DEFS{'SHLIB_EXT'}*");
 				if ($#g > -1) {
 					$DEFS{"WITH_$PKG"} = 1;
