@@ -506,12 +506,21 @@ $DEFS{"INC"} .= " -I$cwd";
 
 my (%FOUND, %NOT_FOUND);
 
-my @SEARCH_DIR;
+my @LIB_SEARCH_DIRS;
 my $search_dir = `$DEFS{'LD'} --verbose 2>/dev/null | grep SEARCH_DIR`;
 if ($? == 0) {
-	@SEARCH_DIR = split(/; ?/, $search_dir);
-	map {s/SEARCH_DIR\("=([^"]+)"\)*/$1/g; } @SEARCH_DIR;
-	pop @SEARCH_DIR;
+	@LIB_SEARCH_DIRS = split(/; ?/, $search_dir);
+	map {s/SEARCH_DIR\("=([^"]+)"\)*/$1/g; } @LIB_SEARCH_DIRS;
+	pop @LIB_SEARCH_DIRS;
+}
+
+my @INC_SEARCH_DIRS;
+$search_dir = `$DEFS{'CC'} -E -Wp,-v - </dev/null 2>&1`;
+if ($? == 0) {
+	foreach my $sd (split(/\n/m, $search_dir)) {
+		next unless $sd =~ /^ (\/.*)$/;
+		push @INC_SEARCH_DIRS, $1;
+	}
 }
 
 sub check_for($$$$$) {
@@ -531,7 +540,7 @@ sub check_for($$$$$) {
 
 		unless (exists $DEFS{"WITH_$PKG"}) {
 			my $inc;
-			for my $prefix ("/usr", "/usr/local", "/usr/sfw", "/usr/pkg") {
+			for my $prefix ("/usr", "/usr/local", "/usr/sfw", "/usr/pkg", @INC_SEARCH_DIRS) {
 				next unless -e "$prefix/include/$hdr";
 				$inc = "$prefix/include";
 				my @g = glob("$prefix/$DEFS{'LIBARCH'}/lib$lib$DEFS{'SHLIB_EXT'}*");
@@ -557,7 +566,7 @@ sub check_for($$$$$) {
 				}
 			}
 			if (defined $inc && !exists $DEFS{"WITH_$PKG"}) {
-				for my $prefix (@SEARCH_DIR) {
+				for my $prefix (@LIB_SEARCH_DIRS) {
 					my @g = glob("$prefix/lib$lib$DEFS{'SHLIB_EXT'}*");
 					if ($#g > -1) {
 						$DEFS{"WITH_$PKG"} = 1;
