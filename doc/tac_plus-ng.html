@@ -479,13 +479,13 @@ like realms and networks these can be hierarchic:</p>
 
     host localhost {
         address = 127.0.0.1
-        prompt = "Welcome home\n"
+        welcome banner = "Welcome home\n"
         parent = world # for key and other definitions not set here
     }
 
     host rfc {
         address = 172.16.0.0/12
-        prompt = "Welcome private\n"
+        welcome banner = "Welcome private\n"
         key = labKey
     }</pre>
 <p>Now, define some profiles. These will be assigned to users
@@ -2402,7 +2402,7 @@ host = test123 {
     # key/banners/enable will be inherited from 10.0.0.0/8 by default,
     # unless you specify "inherit = no"
     address file = /some/path/test123.cidr
-    prompt = "\nGo away.\n\n"
+    welcome banner = "\nGo away.\n\n"
 }</pre></div>
 </div>
 <div class="section">
