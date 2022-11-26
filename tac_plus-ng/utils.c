@@ -385,12 +385,12 @@ static void log_start(struct logfile *lf, struct context_logfile *deadctx)
 		else {
 		    lf->ctx = calloc(1, sizeof(struct context_logfile));
 #ifndef __clang__
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wstringop-truncation"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
 #endif
 		    strncpy(lf->ctx->path, path, PATH_MAX);
 #ifndef __clang__
-# pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
 #endif
 		    io_child_set(pid, (void (*)(pid_t, void *, int))
 				 logdied, (void *) lf->ctx);
@@ -410,12 +410,12 @@ static void log_start(struct logfile *lf, struct context_logfile *deadctx)
 	    if (cur > -1 && !lf->ctx) {
 		lf->ctx = calloc(1, sizeof(struct context_logfile));
 #ifndef __clang__
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wstringop-truncation"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
 #endif
 		strncpy(lf->ctx->path, path, PATH_MAX);
 #ifndef __clang__
-# pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
 #endif
 	    }
 	}
@@ -884,6 +884,25 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_tls_conn_cipher_strength:
 	    case S_tls_peer_cn:
 	    case S_ssh_key_hash:
+	    case S_PASSWORD:
+	    case S_RESPONSE:
+	    case S_PASSWORD_OLD:
+	    case S_PASSWORD_NEW:
+	    case S_PASSWORD_ABORT:
+	    case S_PASSWORD_AGAIN:
+	    case S_PASSWORD_NOMATCH:
+	    case S_PASSWORD_MINREQ:
+	    case S_PERMISSION_DENIED:
+	    case S_ENABLE_PASSWORD:
+	    case S_PASSWORD_CHANGE_DIALOG:
+	    case S_BACKEND_FAILED:
+	    case S_CHANGE_PASSWORD:
+	    case S_ACCOUNT_EXPIRES:
+	    case S_PASSWORD_INCORRECT:
+	    case S_RESPONSE_INCORRECT:
+	    case S_USERNAME:
+	    case S_USER_ACCESS_VERIFICATION:
+	    case S_DENIED_BY_ACL:
 		break;
 	    case S_config_file:
 		(*li)->token = S_string;
@@ -1163,6 +1182,63 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	    case S_realm:
 		s = ctx->realm->name;
 		len = ctx->realm->name_len;
+		break;
+	    case S_PASSWORD:
+		s = ctx->realm->user_messages[UM_PASSWORD];
+		break;
+	    case S_RESPONSE:
+		s = ctx->realm->user_messages[UM_RESPONSE];
+		break;
+	    case S_PASSWORD_OLD:
+		s = ctx->realm->user_messages[UM_PASSWORD_OLD];
+		break;
+	    case S_PASSWORD_NEW:
+		s = ctx->realm->user_messages[UM_PASSWORD_NEW];
+		break;
+	    case S_PASSWORD_ABORT:
+		s = ctx->realm->user_messages[UM_PASSWORD_ABORT];
+		break;
+	    case S_PASSWORD_AGAIN:
+		s = ctx->realm->user_messages[UM_PASSWORD_AGAIN];
+		break;
+	    case S_PASSWORD_NOMATCH:
+		s = ctx->realm->user_messages[UM_PASSWORD_NOMATCH];
+		break;
+	    case S_PASSWORD_MINREQ:
+		s = ctx->realm->user_messages[UM_PASSWORD_MINREQ];
+		break;
+	    case S_PERMISSION_DENIED:
+		s = ctx->realm->user_messages[UM_PERMISSION_DENIED];
+		break;
+	    case S_ENABLE_PASSWORD:
+		s = ctx->realm->user_messages[UM_ENABLE_PASSWORD];
+		break;
+	    case S_PASSWORD_CHANGE_DIALOG:
+		s = ctx->realm->user_messages[UM_PASSWORD_CHANGE_DIALOG];
+		break;
+	    case S_BACKEND_FAILED:
+		s = ctx->realm->user_messages[UM_BACKEND_FAILED];
+		break;
+	    case S_CHANGE_PASSWORD:
+		s = ctx->realm->user_messages[UM_CHANGE_PASSWORD];
+		break;
+	    case S_ACCOUNT_EXPIRES:
+		s = ctx->realm->user_messages[UM_ACCOUNT_EXPIRES];
+		break;
+	    case S_PASSWORD_INCORRECT:
+		s = ctx->realm->user_messages[UM_PASSWORD_INCORRECT];
+		break;
+	    case S_RESPONSE_INCORRECT:
+		s = ctx->realm->user_messages[UM_RESPONSE_INCORRECT];
+		break;
+	    case S_USERNAME:
+		s = ctx->realm->user_messages[UM_USERNAME];
+		break;
+	    case S_USER_ACCESS_VERIFICATION:
+		s = ctx->realm->user_messages[UM_USER_ACCESS_VERIFICATION];
+		break;
+	    case S_DENIED_BY_ACL:
+		s = ctx->realm->user_messages[UM_DENIED_BY_ACL];
 		break;
 	    default:;
 	    }

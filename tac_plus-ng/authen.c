@@ -92,6 +92,26 @@ struct authen_data {
     void (*authfn)(tac_session *);
 };
 
+static struct log_item *li_user_access_verification = NULL;
+static struct log_item *li_username = NULL;
+static struct log_item *li_password = NULL;
+static struct log_item *li_response = NULL;
+static struct log_item *li_permission_denied = NULL;
+static struct log_item *li_password_old = NULL;
+static struct log_item *li_password_new = NULL;
+static struct log_item *li_password_abort = NULL;
+static struct log_item *li_password_again = NULL;
+static struct log_item *li_password_nomatch = NULL;
+static struct log_item *li_enable_password = NULL;
+static struct log_item *li_password_minreq = NULL;
+static struct log_item *li_password_change_dialog = NULL;
+static struct log_item *li_motd_dflt = NULL;
+static struct log_item *li_change_password = NULL;
+static struct log_item *li_password_incorrect_retry = NULL;
+static struct log_item *li_password_incorrect = NULL;
+static struct log_item *li_response_incorrect = NULL;
+static struct log_item *li_account_expires = NULL;
+
 struct hint_struct {
     char *plain;
     char *msgid;
@@ -202,7 +222,8 @@ static int password_requirements_failed(tac_session * session, char *what)
 	if (token != S_permit) {
 	    report(session, LOG_ERR, ~0, "password doesn't meet minimum requirements");
 	    report_auth(session, what, hint_weak_password, TAC_PLUS_AUTHEN_STATUS_FAIL);
-	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, "Password doesn't meet minimum requirements.\n", 0, NULL, 0, 0);
+	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL,
+			      eval_log_format(session, session->ctx, NULL, li_password_minreq, io_now.tv_sec, NULL), 0, NULL, 0, 0);
 	    return -1;
 	}
     }
@@ -482,12 +503,8 @@ static char *set_motd_banner(tac_session * session)
 {
     struct log_item *fmt = session->ctx->host->motd;
 
-    if (!fmt) {
-	static struct log_item *motd_dflt = NULL;
-	if (!motd_dflt)
-	    motd_dflt = parse_log_format_inline("\"${message}${umessage}\"", __FILE__, __LINE__);
-	fmt = motd_dflt;
-    }
+    if (!fmt)
+	fmt = li_motd_dflt;
 
     if (session->motd || (session->user->hushlogin == TRISTATE_YES)
 	|| (session->user->hushlogin == TRISTATE_DUNNO && session->profile->hushlogin == TRISTATE_YES)) {
@@ -498,8 +515,6 @@ static char *set_motd_banner(tac_session * session)
     session->motd = eval_log_format(session, session->ctx, NULL, fmt, io_now.tv_sec, NULL);
     return session->motd;
 }
-
-static struct log_item *uav = NULL;
 
 static void do_chpass(tac_session * session)
 {
@@ -516,9 +531,8 @@ static void do_chpass(tac_session * session)
 	session->authen_data->msg = NULL;
     }
     if (!session->username[0]) {
-	session->msg = "Username: ";
-	session->msg_len = 10;
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETUSER, set_welcome_banner(session, uav), 0, NULL, 0, 0);
+	session->msg = eval_log_format(session, session->ctx, NULL, li_username, io_now.tv_sec, &session->msg_len);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETUSER, set_welcome_banner(session, li_user_access_verification), 0, NULL, 0, 0);
 	session->msg = NULL;
 	return;
     }
@@ -530,20 +544,15 @@ static void do_chpass(tac_session * session)
 	    return;
     }
     if (!session->password) {
-	static struct log_item *fmt = NULL;
-	char *msg;
-
-	if (!fmt)
-	    fmt = parse_log_format_inline("\"${umessage}Old password: \"", __FILE__, __LINE__);
-
-	msg = eval_log_format(session, session->ctx, NULL, fmt, io_now.tv_sec, NULL);
-
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETDATA, msg, 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETDATA,
+			  eval_log_format(session, session->ctx, NULL, li_password_old, io_now.tv_sec, NULL), 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
 	session->user_msg = NULL;
 	return;
     }
+
     if (!session->password[0]) {
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, "Password change dialog aborted.\n", 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL,
+			  eval_log_format(session, session->ctx, NULL, li_password_abort, io_now.tv_sec, NULL), 0, NULL, 0, 0);
 	return;
     }
     if (!session->password_new && session->authen_data->msg) {
@@ -553,31 +562,25 @@ static void do_chpass(tac_session * session)
 	    return;
     }
     if (!session->password_new) {
-	static struct log_item *fmt = NULL;
-	char *msg;
-
-	if (!fmt)
-	    fmt = parse_log_format_inline("\"${umessage}New password: \"", __FILE__, __LINE__);
-
-	msg = eval_log_format(session, session->ctx, NULL, fmt, io_now.tv_sec, NULL);
-
-	send_authen_reply(session, session->chpass ? TAC_PLUS_AUTHEN_STATUS_GETPASS : TAC_PLUS_AUTHEN_STATUS_GETDATA, msg, 0, NULL, 0,
-			  TAC_PLUS_REPLY_FLAG_NOECHO);
+	send_authen_reply(session, session->chpass ? TAC_PLUS_AUTHEN_STATUS_GETPASS : TAC_PLUS_AUTHEN_STATUS_GETDATA,
+			  eval_log_format(session, session->ctx, NULL, li_password_new, io_now.tv_sec, NULL), 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
 	session->user_msg = NULL;
 	return;
     }
     if (!session->password_new[0]) {
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, "Password change dialog aborted.\n", 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL,
+			  eval_log_format(session, session->ctx, NULL, li_password_abort, io_now.tv_sec, NULL), 0, NULL, 0, 0);
 	return;
     }
     if (!session->authen_data->msg) {
-	send_authen_reply(session, session->chpass ? TAC_PLUS_AUTHEN_STATUS_GETPASS : TAC_PLUS_AUTHEN_STATUS_GETDATA, "Retype new password: ", 0, NULL, 0,
-			  TAC_PLUS_REPLY_FLAG_NOECHO);
+	send_authen_reply(session, session->chpass ? TAC_PLUS_AUTHEN_STATUS_GETPASS : TAC_PLUS_AUTHEN_STATUS_GETDATA,
+			  eval_log_format(session, session->ctx, NULL, li_password_again, io_now.tv_sec, NULL), 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
 	return;
     }
 
     if (strcmp(session->authen_data->msg, session->password_new)) {
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, "Passwords do not match.\n", 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL,
+			  eval_log_format(session, session->ctx, NULL, li_password_nomatch, io_now.tv_sec, NULL), 0, NULL, 0, 0);
 	return;
     }
 
@@ -623,7 +626,9 @@ static void send_password_prompt(tac_session * session, enum pw_ix pw_ix, void (
 	    if (!session->welcome_banner || !session->welcome_banner[0])
 		strncpy(chal, "\n", 2);
 	    strcat(chal, session->challenge);
-	    strcat(chal, "\nResponse: ");
+	    strcat(chal, "\n");
+	    strcat(chal, eval_log_format(session, session->ctx, NULL, li_response, io_now.tv_sec, &session->msg_len));
+	    strcat(chal, " ");
 	    session->msg = chal;
 	    session->msg_len = strlen(chal);
 	    session->welcome_banner = set_welcome_banner(session, NULL);
@@ -635,9 +640,8 @@ static void send_password_prompt(tac_session * session, enum pw_ix pw_ix, void (
 	}
     }
 
-    session->msg = "Password: ";
-    session->msg_len = 10;
-    session->welcome_banner = set_welcome_banner(session, uav);
+    session->msg = eval_log_format(session, session->ctx, NULL, li_password, io_now.tv_sec, &session->msg_len);
+    session->welcome_banner = set_welcome_banner(session, li_user_access_verification);
     session->msg = NULL;
 
     send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS, session->welcome_banner, 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
@@ -649,7 +653,7 @@ static void do_enable_login(tac_session * session)
     enum pw_ix pw_ix = PW_LOGIN;
     struct pwdat *pwdat = NULL;
     enum hint_enum hint = hint_nosuchuser;
-    char *resp = "Permission denied.";
+    char *resp = eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL);
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     char buf[40];
 
@@ -700,7 +704,8 @@ static void do_enable_augmented(tac_session * session)
     struct pwdat *pwdat = NULL;
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
-    char *resp = "Permission denied.", *u;
+    char *u;
+    char *resp = eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL);
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "enable login", hint_denied_by_acl, res);
@@ -712,7 +717,8 @@ static void do_enable_augmented(tac_session * session)
 	return;
 
     if ((!session->enable || (session->enable->type != S_permit)) && !session->authen_data->msg) {
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS, "Password: ", 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS,
+			  eval_log_format(session, session->ctx, NULL, li_password, io_now.tv_sec, NULL), 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
 	return;
     }
 
@@ -805,7 +811,8 @@ static void do_enable(tac_session * session)
 	}
 	if ((!session->enable || (session->enable->type != S_permit)) && !session->authen_data->msg) {
 	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS,
-			      session->enable_getuser ? "Enable Password: " : "Password: ", 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
+			      eval_log_format(session, session->ctx, NULL, session->enable_getuser ? li_enable_password : li_password, io_now.tv_sec, NULL),
+			      0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
 	    return;
 	}
 
@@ -817,7 +824,8 @@ static void do_enable(tac_session * session)
 
     report_auth(session, buf, hint, res);
 
-    send_authen_reply(session, res, ((res == TAC_PLUS_AUTHEN_STATUS_PASS) ? NULL : "Permission denied."), 0, NULL, 0, 0);
+    send_authen_reply(session, res, (res == TAC_PLUS_AUTHEN_STATUS_PASS) ? NULL :
+		      eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL), 0, NULL, 0, 0);
 }
 
 static void do_ascii_login(tac_session * session)
@@ -836,9 +844,8 @@ static void do_ascii_login(tac_session * session)
     }
 
     if (!session->username[0]) {
-	session->msg = "Username: ";
-	session->msg_len = 10;
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETUSER, set_welcome_banner(session, uav), 0, NULL, 0, 0);
+	session->msg = eval_log_format(session, session->ctx, NULL, li_username, io_now.tv_sec, &session->msg_len);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETUSER, set_welcome_banner(session, li_user_access_verification), 0, NULL, 0, 0);
 	session->msg = NULL;
 	return;
     }
@@ -870,7 +877,7 @@ static void do_ascii_login(tac_session * session)
 	    // memlist_free(session->memlist, &session->password);
 	    session->password = NULL;
 	    session->authen_data->authfn = do_chpass;
-	    session->user_msg = "Entering password change dialog\n\n";
+	    session->user_msg = eval_log_format(session, session->ctx, NULL, li_password_change_dialog, io_now.tv_sec, NULL);
 	    do_chpass(session);
 	    return;
 	}
@@ -906,20 +913,16 @@ static void do_ascii_login(tac_session * session)
     case TAC_PLUS_AUTHEN_STATUS_PASS:
 	if (session->passwd_mustchange) {
 	    if (!session->user_msg)
-		session->user_msg = "Please change your password.\n";
+		session->user_msg = eval_log_format(session, session->ctx, NULL, li_change_password, io_now.tv_sec, NULL);
 	    session->flag_mavis_auth = 0;
 	    session->authen_data->authfn = do_chpass;
 	    do_chpass(session);
 	    return;
 	}
 
-	if (session->user->valid_until && session->user->valid_until < io_now.tv_sec + session->ctx->realm->warning_period) {
-	    static size_t l = 0;
-	    session->user_msg = "This account will expire soon.\n";
-	    if (!l)
-		l = strlen(session->user_msg);
-	    session->user_msg_len = l;
-	}
+	if (session->user->valid_until && session->user->valid_until < io_now.tv_sec + session->ctx->realm->warning_period)
+	    session->user_msg = eval_log_format(session, session->ctx, NULL, li_account_expires, io_now.tv_sec, &session->user_msg_len);
+
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_PASS, set_motd_banner(session), 0, NULL, 0, 0);
 	session->user_msg = NULL;
 	return;
@@ -931,7 +934,9 @@ static void do_ascii_login(tac_session * session)
     }
 
     if (++session->authen_data->iterations < session->ctx->host->authen_max_attempts) {
-	m = (session->user && (session->user->chalresp == TRISTATE_YES)) ? "Response incorrect.\nResponse: " : "Password incorrect.\nPassword: ";
+	m = eval_log_format(session, session->ctx, NULL,
+			    (session->user && (session->user->chalresp == TRISTATE_YES)) ? li_response_incorrect : li_password_incorrect_retry,
+			    io_now.tv_sec, NULL);
 	session->flag_mavis_auth = 0;
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS, m, 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
     } else {
@@ -944,7 +949,7 @@ static void do_enable_getuser(tac_session * session)
     enum pw_ix pw_ix = PW_LOGIN;
     struct pwdat *pwdat = NULL;
     enum hint_enum hint = hint_nosuchuser;
-    char *resp = "Password incorrect.\n";
+    char *resp = eval_log_format(session, session->ctx, NULL, li_password_incorrect, io_now.tv_sec, NULL);
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 
     if (!session->username[0] && session->authen_data->msg) {
@@ -955,7 +960,8 @@ static void do_enable_getuser(tac_session * session)
 
     if (!session->username[0]) {
 	// memlist_free(session->memlist, &session->username);
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETUSER, "Username: ", 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETUSER,
+			  eval_log_format(session, session->ctx, NULL, li_username, io_now.tv_sec, NULL), 0, NULL, 0, 0);
 	return;
     }
 
@@ -1279,7 +1285,8 @@ static void do_pap(tac_session * session)
     session->password = NULL;
 
     if (session->version != TAC_PLUS_VER_ONE && session->seq_no == 1) {
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS, "Password: ", 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS,
+			  eval_log_format(session, session->ctx, NULL, li_password, io_now.tv_sec, NULL), 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
 	return;
     }
 
@@ -1524,8 +1531,27 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 
     report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "%s: hdr->seq_no: %d", __func__, hdr->seq_no);
 
-    if (!uav)
-	uav = parse_log_format_inline("\"User Access Verification\n\n${message}${umessage}\"", __FILE__, __LINE__);
+    if (!li_user_access_verification) {
+	li_user_access_verification = parse_log_format_inline("\"${USER_ACCESS_VERIFICATION}\n\n${message}${umessage}\"", __FILE__, __LINE__);
+	li_username = parse_log_format_inline("\"${USERNAME}: \"", __FILE__, __LINE__);
+	li_password = parse_log_format_inline("\"${PASSWORD}: \"", __FILE__, __LINE__);
+	li_response = parse_log_format_inline("\"${RESPONSE}: \"", __FILE__, __LINE__);
+	li_permission_denied = parse_log_format_inline("\"${PERMISSION_DENIED}\"", __FILE__, __LINE__);
+	li_enable_password = parse_log_format_inline("\"${ENABLE_PASSWORD}: \"", __FILE__, __LINE__);
+	li_password_old = parse_log_format_inline("\"${umessage}Old password: \"", __FILE__, __LINE__);
+	li_password_abort = parse_log_format_inline("\"${PASSWORD_ABORT}\n\"", __FILE__, __LINE__);
+	li_password_new = parse_log_format_inline("\"${umessage}${PASSWORD_NEW}: \"", __FILE__, __LINE__);
+	li_password_again = parse_log_format_inline("\"${PASSWORD_AGAIN}: \"", __FILE__, __LINE__);
+	li_password_nomatch = parse_log_format_inline("\"${PASSWORD_NOMATCH}\b\"", __FILE__, __LINE__);
+	li_password_minreq = parse_log_format_inline("\"${PASSWORD_MINREQ}\n\"", __FILE__, __LINE__);
+	li_motd_dflt = parse_log_format_inline("\"${message}${umessage}\"", __FILE__, __LINE__);
+	li_password_change_dialog = parse_log_format_inline("\"${PASSWORD_CHANGE_DIALOG}\n\n\"", __FILE__, __LINE__);
+	li_change_password = parse_log_format_inline("\"${CHANGE_PASSWORD}\n\"", __FILE__, __LINE__);
+	li_password_incorrect = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n\"", __FILE__, __LINE__);
+	li_password_incorrect_retry = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n${PASSWORD}\"", __FILE__, __LINE__);
+	li_response_incorrect = parse_log_format_inline("\"${RESPONSE_INCORRECT}\n${RESPONSE}\"", __FILE__, __LINE__);
+    }
+
     if (!session->authen_data)
 	session->authen_data = memlist_malloc(session->memlist, sizeof(struct authen_data));
 

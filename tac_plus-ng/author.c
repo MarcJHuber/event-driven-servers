@@ -98,12 +98,16 @@ void author(tac_session * session, tac_pak_hdr * hdr)
 
     while (res != S_permit && res != S_deny && h) {
 	if (h->action) {
+	    static struct log_item *li_denied_by_acl = NULL;
 	    res = tac_script_eval_r(session, h->action);
 	    switch (res) {
 	    case S_deny:
+		if (!li_denied_by_acl)
+		    li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
 		report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
 		log_exec(session, session->ctx, S_authorization, io_now.tv_sec);
-		send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, "Denied by ACL", 0, NULL);
+		send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message,
+				  eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL), 0, NULL);
 		return;
 	    case S_permit:
 		break;

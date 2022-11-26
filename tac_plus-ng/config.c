@@ -200,6 +200,7 @@ void complete_realm(tac_realm * r)
 {
     if (r->parent && !r->complete) {
 	tac_realm *rp = r->parent;
+	enum user_message_enum um;
 	r->complete = 1;
 
 	if (r->chalresp == TRISTATE_DUNNO)
@@ -305,6 +306,10 @@ void complete_realm(tac_realm * r)
 	if (r->dns_caching_period < 10)
 	    r->dns_caching_period = 10;
 
+	for (um = 0; um < UM_MAX; um++)
+	    if (!r->user_messages[um])
+		r->user_messages[um] = rp->user_messages[um];
+
     }
     if (r->realms) {
 	rb_node_t *rbn;
@@ -375,6 +380,25 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
 	parse_inline("acl __internal__enable_user__ { if (user =~ \"^$enab..$$\") permit deny }", __FILE__, __LINE__);
 	r->enable_user_acl = tac_acl_lookup("__internal__enable_user__", r);
 
+	r->user_messages[UM_PASSWORD] = "Password";
+	r->user_messages[UM_RESPONSE] = "Response";
+	r->user_messages[UM_PASSWORD_OLD] = "Old password";
+	r->user_messages[UM_PASSWORD_NEW] = "New password";
+	r->user_messages[UM_PASSWORD_ABORT] = "Password change dialog aborted.";
+	r->user_messages[UM_PASSWORD_AGAIN] = "Retype new password";
+	r->user_messages[UM_PASSWORD_NOMATCH] = "Passwords do not match.";
+	r->user_messages[UM_PASSWORD_MINREQ] = "Password doesn't meet minimum requirements.";
+	r->user_messages[UM_PERMISSION_DENIED] = "Permission denied.";
+	r->user_messages[UM_ENABLE_PASSWORD] = "Enable Password";
+	r->user_messages[UM_PASSWORD_CHANGE_DIALOG] = "Entering password change dialog";
+	r->user_messages[UM_BACKEND_FAILED] = "Authentication backend failure.";
+	r->user_messages[UM_CHANGE_PASSWORD] = "Please change your password.";
+	r->user_messages[UM_ACCOUNT_EXPIRES] = "This account will expire soon.";
+	r->user_messages[UM_PASSWORD_INCORRECT] = "Password incorrect.";
+	r->user_messages[UM_RESPONSE_INCORRECT] = "Response incorrect.";
+	r->user_messages[UM_USERNAME] = "Username";
+	r->user_messages[UM_USER_ACCESS_VERIFICATION] = "User Access Verification";
+	r->user_messages[UM_DENIED_BY_ACL] = "Denied by ACL";
     }
     r->name = strdup(name);
     r->chalresp = TRISTATE_DUNNO;
@@ -1262,6 +1286,79 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	    }
 	    continue;
 #endif
+	case S_message:{
+		enum user_message_enum um = UM_MAX;
+		sym_get(sym);
+		switch (sym->code) {
+		case S_PASSWORD:
+		    um = UM_PASSWORD;
+		    break;
+		case S_RESPONSE:
+		    um = UM_RESPONSE;
+		    break;
+		case S_PASSWORD_OLD:
+		    um = UM_PASSWORD_OLD;
+		    break;
+		case S_PASSWORD_NEW:
+		    um = UM_PASSWORD_NEW;
+		    break;
+		case S_PASSWORD_ABORT:
+		    um = UM_PASSWORD_ABORT;
+		    break;
+		case S_PASSWORD_AGAIN:
+		    um = UM_PASSWORD_AGAIN;
+		    break;
+		case S_PASSWORD_NOMATCH:
+		    um = UM_PASSWORD_NOMATCH;
+		    break;
+		case S_PASSWORD_MINREQ:
+		    um = UM_PASSWORD_MINREQ;
+		    break;
+		case S_PERMISSION_DENIED:
+		    um = UM_PERMISSION_DENIED;
+		    break;
+		case S_ENABLE_PASSWORD:
+		    um = UM_ENABLE_PASSWORD;
+		    break;
+		case S_PASSWORD_CHANGE_DIALOG:
+		    um = UM_PASSWORD_CHANGE_DIALOG;
+		    break;
+		case S_BACKEND_FAILED:
+		    um = UM_BACKEND_FAILED;
+		    break;
+		case S_CHANGE_PASSWORD:
+		    um = UM_CHANGE_PASSWORD;
+		    break;
+		case S_ACCOUNT_EXPIRES:
+		    um = UM_ACCOUNT_EXPIRES;
+		    break;
+		case S_PASSWORD_INCORRECT:
+		    um = UM_PASSWORD_INCORRECT;
+		    break;
+		case S_RESPONSE_INCORRECT:
+		    um = UM_RESPONSE_INCORRECT;
+		    break;
+		case S_USERNAME:
+		    um = UM_USERNAME;
+		    break;
+		case S_USER_ACCESS_VERIFICATION:
+		    um = UM_USER_ACCESS_VERIFICATION;
+		    break;
+		case S_DENIED_BY_ACL:
+		    um = UM_DENIED_BY_ACL;
+		    break;
+		default:
+		    parse_error_expect(sym, S_PASSWORD, S_RESPONSE, S_PASSWORD_OLD, S_PASSWORD_NEW, S_PASSWORD_ABORT, S_PASSWORD_AGAIN, S_PASSWORD_NOMATCH,
+				       S_PASSWORD_MINREQ, S_PERMISSION_DENIED, S_ENABLE_PASSWORD, S_PASSWORD_CHANGE_DIALOG, S_BACKEND_FAILED,
+				       S_CHANGE_PASSWORD, S_ACCOUNT_EXPIRES, S_PASSWORD_INCORRECT, S_RESPONSE_INCORRECT, S_USERNAME,
+				       S_USER_ACCESS_VERIFICATION, S_DENIED_BY_ACL, S_unknown);
+		}
+		sym_get(sym);
+		parse(sym, S_equal);
+		r->user_messages[um] = strdup(sym->buf);
+		sym_get(sym);
+		continue;
+	    }
 	case S_syslog:
 	case S_proctitle:
 	case S_coredump:

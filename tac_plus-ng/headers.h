@@ -205,6 +205,12 @@ enum hint_enum { hint_failed = 0, hint_denied, hint_nopass, hint_expired, hint_n
     hint_invalid_challenge_length, hint_weak_password, hint_max
 };
 
+enum user_message_enum { UM_PASSWORD = 0, UM_RESPONSE, UM_PASSWORD_OLD, UM_PASSWORD_NEW, UM_PASSWORD_ABORT, UM_PASSWORD_AGAIN,
+    UM_PASSWORD_NOMATCH, UM_PASSWORD_MINREQ, UM_PERMISSION_DENIED, UM_ENABLE_PASSWORD, UM_PASSWORD_CHANGE_DIALOG,
+    UM_BACKEND_FAILED, UM_CHANGE_PASSWORD, UM_ACCOUNT_EXPIRES, UM_PASSWORD_INCORRECT, UM_RESPONSE_INCORRECT,
+    UM_USERNAME, UM_USER_ACCESS_VERIFICATION, UM_DENIED_BY_ACL, UM_MAX
+};
+
 struct tac_groups;
 struct tac_group;
 typedef struct tac_groups tac_groups;
@@ -349,6 +355,7 @@ struct realm {
     int rulecount;
     struct io_dns_ctx *idc;
     radixtree_t *dns_tree_ptr[3];	// 0: static, 1-2: dynamic
+    char *user_messages[UM_MAX];
 };
 
 /* All tacacs+ packets have the same header format */
