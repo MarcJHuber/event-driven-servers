@@ -266,7 +266,9 @@ void dump_nas_pak(tac_session * session, int bogus)
 		report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "port", p, start->port_len);
 		p += start->port_len;
 		report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "rem_addr", p, start->rem_addr_len);
-		if (session->debug & DEBUG_USERINPUT_FLAG) {
+		if ((session->debug & DEBUG_USERINPUT_FLAG)
+		    || (start->type == TAC_PLUS_AUTHEN_TYPE_SSHKEY)	// it's safe to show the key hash
+		    ) {
 		    p += start->rem_addr_len;
 		    report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "data", p, start->data_len);
 		}
