@@ -3890,8 +3890,6 @@ mavis_ctx *lookup_mcx(tac_realm * r)
     while (r) {
 	if (r->mcx)
 	    return r->mcx;
-	if (r->usertable)
-	    return NULL;
 	r = r->parent;
     }
     return NULL;
