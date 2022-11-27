@@ -472,7 +472,6 @@ tac_user *lookup_user(char *username, tac_realm * r)
 		}
 		return res;
 	    }
-	    return NULL;
 	}
 	r = r->parent;
     }
