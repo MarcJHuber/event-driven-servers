@@ -434,7 +434,7 @@ if ($cctest =~ /clang/) {
 
 if (defined $DEFS{"CC_GCC"}) {
 	$DEFS{"CFLAGS"} = "-Wall -W -Wno-strict-prototypes -Wno-implicit-fallthrough";
-	$DEFS{"CFLAGS"} .= " -O2" if exists $DEFS{"CC_CLANG"};
+	$DEFS{"CFLAGS"} .= " -O2" if exists $DEFS{"CC_CLANG"} && !exists $DEFS{'DEBUG'};
 	$DEFS{"CFLAGS_PIC"} = "-fPIC";
 	$DEFS{"LDOPT_R"} = "-Wl,-rpath,";
 	$DEFS{"LD_SHARED"} = "$DEFS{'CC'} -shared";
