@@ -848,7 +848,8 @@ umask = 0640
 
 4.2.3.2. User Messages
 
-   User messages, e.g. the Username prompt, can be customized:
+   User messages, e.g. the Username prompt, can be customized,
+   both at host and realm level:
 message USERNAME = "utilisateur"
 
    Supported messages and their defaults:
