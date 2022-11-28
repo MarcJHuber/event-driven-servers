@@ -1282,8 +1282,8 @@ static char *eval_log_format_realm(tac_session * session __attribute__((unused))
 				   __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->host->name_len;
-	return ctx->host->name;
+	*len = ctx->realm->name_len;
+	return ctx->realm->name;
     }
     return NULL;
 }
