@@ -1282,8 +1282,8 @@ static char *eval_log_format_realm(tac_session * session __attribute__((unused))
 				   __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->realm->name_len;
-	return ctx->realm->name;
+	*len = ctx->host->name_len;
+	return ctx->host->name;
     }
     return NULL;
 }
@@ -1292,7 +1292,7 @@ static char *eval_log_format_PASSWORD(tac_session * session __attribute__((unuse
 				      __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_PASSWORD];
+	return ctx->host->user_messages[UM_PASSWORD];
     return NULL;
 }
 
@@ -1300,7 +1300,7 @@ static char *eval_log_format_RESPONSE(tac_session * session __attribute__((unuse
 				      __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_RESPONSE];
+	return ctx->host->user_messages[UM_RESPONSE];
     return NULL;
 }
 
@@ -1308,7 +1308,7 @@ static char *eval_log_format_PASSWORD_OLD(tac_session * session __attribute__((u
 					  __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_PASSWORD_OLD];
+	return ctx->host->user_messages[UM_PASSWORD_OLD];
     return NULL;
 }
 
@@ -1316,7 +1316,7 @@ static char *eval_log_format_PASSWORD_NEW(tac_session * session __attribute__((u
 					  __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_PASSWORD_NEW];
+	return ctx->host->user_messages[UM_PASSWORD_NEW];
     return NULL;
 }
 
@@ -1324,7 +1324,7 @@ static char *eval_log_format_PASSWORD_ABORT(tac_session * session __attribute__(
 					    __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_PASSWORD_ABORT];
+	return ctx->host->user_messages[UM_PASSWORD_ABORT];
     return NULL;
 }
 
@@ -1332,7 +1332,7 @@ static char *eval_log_format_PASSWORD_AGAIN(tac_session * session __attribute__(
 					    __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_PASSWORD_AGAIN];
+	return ctx->host->user_messages[UM_PASSWORD_AGAIN];
     return NULL;
 }
 
@@ -1340,7 +1340,7 @@ static char *eval_log_format_PASSWORD_NOMATCH(tac_session * session __attribute_
 					      __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_PASSWORD_NOMATCH];
+	return ctx->host->user_messages[UM_PASSWORD_NOMATCH];
     return NULL;
 }
 
@@ -1348,7 +1348,7 @@ static char *eval_log_format_PASSWORD_MINREQ(tac_session * session __attribute__
 					     __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_PASSWORD_MINREQ];
+	return ctx->host->user_messages[UM_PASSWORD_MINREQ];
     return NULL;
 }
 
@@ -1356,7 +1356,7 @@ static char *eval_log_format_PERMISSION_DENIED(tac_session * session __attribute
 					       __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_PERMISSION_DENIED];
+	return ctx->host->user_messages[UM_PERMISSION_DENIED];
     return NULL;
 }
 
@@ -1364,7 +1364,7 @@ static char *eval_log_format_ENABLE_PASSWORD(tac_session * session __attribute__
 					     __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_ENABLE_PASSWORD];
+	return ctx->host->user_messages[UM_ENABLE_PASSWORD];
     return NULL;
 }
 
@@ -1372,7 +1372,7 @@ static char *eval_log_format_PASSWORD_CHANGE_DIALOG(tac_session * session __attr
 						    __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_PASSWORD_CHANGE_DIALOG];
+	return ctx->host->user_messages[UM_PASSWORD_CHANGE_DIALOG];
     return NULL;
 }
 
@@ -1380,7 +1380,7 @@ static char *eval_log_format_BACKEND_FAILED(tac_session * session __attribute__(
 					    __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_BACKEND_FAILED];
+	return ctx->host->user_messages[UM_BACKEND_FAILED];
     return NULL;
 }
 
@@ -1388,7 +1388,7 @@ static char *eval_log_format_CHANGE_PASSWORD(tac_session * session __attribute__
 					     __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_CHANGE_PASSWORD];
+	return ctx->host->user_messages[UM_CHANGE_PASSWORD];
     return NULL;
 }
 
@@ -1396,7 +1396,7 @@ static char *eval_log_format_ACCOUNT_EXPIRES(tac_session * session __attribute__
 					     __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_ACCOUNT_EXPIRES];
+	return ctx->host->user_messages[UM_ACCOUNT_EXPIRES];
     return NULL;
 }
 
@@ -1404,7 +1404,7 @@ static char *eval_log_format_PASSWORD_INCORRECT(tac_session * session __attribut
 						__attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_PASSWORD_INCORRECT];
+	return ctx->host->user_messages[UM_PASSWORD_INCORRECT];
     return NULL;
 }
 
@@ -1412,7 +1412,7 @@ static char *eval_log_format_RESPONSE_INCORRECT(tac_session * session __attribut
 						__attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_RESPONSE_INCORRECT];
+	return ctx->host->user_messages[UM_RESPONSE_INCORRECT];
     return NULL;
 }
 
@@ -1420,7 +1420,7 @@ static char *eval_log_format_USERNAME(tac_session * session __attribute__((unuse
 				      __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_USERNAME];
+	return ctx->host->user_messages[UM_USERNAME];
     return NULL;
 }
 
@@ -1428,7 +1428,7 @@ static char *eval_log_format_USER_ACCESS_VERIFICATION(tac_session * session __at
 						      __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx) {
-	return ctx->realm->user_messages[UM_USER_ACCESS_VERIFICATION];
+	return ctx->host->user_messages[UM_USER_ACCESS_VERIFICATION];
     }
     return NULL;
 }
@@ -1437,7 +1437,7 @@ static char *eval_log_format_DENIED_BY_ACL(tac_session * session __attribute__((
 					   __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
-	return ctx->realm->user_messages[UM_DENIED_BY_ACL];
+	return ctx->host->user_messages[UM_DENIED_BY_ACL];
     return NULL;
 }
 

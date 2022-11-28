@@ -307,9 +307,8 @@ void complete_realm(tac_realm * r)
 	    r->dns_caching_period = 10;
 
 	for (um = 0; um < UM_MAX; um++)
-	    if (!r->user_messages[um])
-		r->user_messages[um] = rp->user_messages[um];
-
+	    if (!r->default_host->user_messages[um])
+		r->default_host->user_messages[um] = rp->default_host->user_messages[um];
     }
     if (r->realms) {
 	rb_node_t *rbn;
@@ -359,6 +358,22 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
     tac_realm *r;
 
     r = calloc(1, sizeof(tac_realm));
+    r->default_host = calloc(1, sizeof(tac_host));
+    r->default_host->name = "default";
+    r->default_host->authen_max_attempts = -1;
+    r->name = strdup(name);
+    r->chalresp = TRISTATE_DUNNO;
+    r->chpass = TRISTATE_DUNNO;
+    r->mavis_userdb = TRISTATE_DUNNO;
+    r->mavis_noauthcache = TRISTATE_DUNNO;
+    r->mavis_pap = TRISTATE_DUNNO;
+    r->mavis_login = TRISTATE_DUNNO;
+    r->mavis_pap_prefetch = TRISTATE_DUNNO;
+    r->mavis_login_prefetch = TRISTATE_DUNNO;
+#ifdef WITH_TLS
+    r->tls_ciphers = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384";
+#endif
+
     if (parent) {
 	r->parent = parent;
 	r->caching_period = -1;
@@ -380,41 +395,26 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
 	parse_inline("acl __internal__enable_user__ { if (user =~ \"^$enab..$$\") permit deny }", __FILE__, __LINE__);
 	r->enable_user_acl = tac_acl_lookup("__internal__enable_user__", r);
 
-	r->user_messages[UM_PASSWORD] = "Password";
-	r->user_messages[UM_RESPONSE] = "Response";
-	r->user_messages[UM_PASSWORD_OLD] = "Old password";
-	r->user_messages[UM_PASSWORD_NEW] = "New password";
-	r->user_messages[UM_PASSWORD_ABORT] = "Password change dialog aborted.";
-	r->user_messages[UM_PASSWORD_AGAIN] = "Retype new password";
-	r->user_messages[UM_PASSWORD_NOMATCH] = "Passwords do not match.";
-	r->user_messages[UM_PASSWORD_MINREQ] = "Password doesn't meet minimum requirements.";
-	r->user_messages[UM_PERMISSION_DENIED] = "Permission denied.";
-	r->user_messages[UM_ENABLE_PASSWORD] = "Enable Password";
-	r->user_messages[UM_PASSWORD_CHANGE_DIALOG] = "Entering password change dialog";
-	r->user_messages[UM_BACKEND_FAILED] = "Authentication backend failure.";
-	r->user_messages[UM_CHANGE_PASSWORD] = "Please change your password.";
-	r->user_messages[UM_ACCOUNT_EXPIRES] = "This account will expire soon.";
-	r->user_messages[UM_PASSWORD_INCORRECT] = "Password incorrect.";
-	r->user_messages[UM_RESPONSE_INCORRECT] = "Response incorrect.";
-	r->user_messages[UM_USERNAME] = "Username";
-	r->user_messages[UM_USER_ACCESS_VERIFICATION] = "User Access Verification";
-	r->user_messages[UM_DENIED_BY_ACL] = "Denied by ACL";
+	r->default_host->user_messages[UM_PASSWORD] = "Password";
+	r->default_host->user_messages[UM_RESPONSE] = "Response";
+	r->default_host->user_messages[UM_PASSWORD_OLD] = "Old password";
+	r->default_host->user_messages[UM_PASSWORD_NEW] = "New password";
+	r->default_host->user_messages[UM_PASSWORD_ABORT] = "Password change dialog aborted.";
+	r->default_host->user_messages[UM_PASSWORD_AGAIN] = "Retype new password";
+	r->default_host->user_messages[UM_PASSWORD_NOMATCH] = "Passwords do not match.";
+	r->default_host->user_messages[UM_PASSWORD_MINREQ] = "Password doesn't meet minimum requirements.";
+	r->default_host->user_messages[UM_PERMISSION_DENIED] = "Permission denied.";
+	r->default_host->user_messages[UM_ENABLE_PASSWORD] = "Enable Password";
+	r->default_host->user_messages[UM_PASSWORD_CHANGE_DIALOG] = "Entering password change dialog";
+	r->default_host->user_messages[UM_BACKEND_FAILED] = "Authentication backend failure.";
+	r->default_host->user_messages[UM_CHANGE_PASSWORD] = "Please change your password.";
+	r->default_host->user_messages[UM_ACCOUNT_EXPIRES] = "This account will expire soon.";
+	r->default_host->user_messages[UM_PASSWORD_INCORRECT] = "Password incorrect.";
+	r->default_host->user_messages[UM_RESPONSE_INCORRECT] = "Response incorrect.";
+	r->default_host->user_messages[UM_USERNAME] = "Username";
+	r->default_host->user_messages[UM_USER_ACCESS_VERIFICATION] = "User Access Verification";
+	r->default_host->user_messages[UM_DENIED_BY_ACL] = "Denied by ACL";
     }
-    r->name = strdup(name);
-    r->chalresp = TRISTATE_DUNNO;
-    r->chpass = TRISTATE_DUNNO;
-    r->mavis_userdb = TRISTATE_DUNNO;
-    r->mavis_noauthcache = TRISTATE_DUNNO;
-    r->mavis_pap = TRISTATE_DUNNO;
-    r->mavis_login = TRISTATE_DUNNO;
-    r->mavis_pap_prefetch = TRISTATE_DUNNO;
-    r->mavis_login_prefetch = TRISTATE_DUNNO;
-    r->default_host = calloc(1, sizeof(tac_host));
-    r->default_host->name = "default";
-    r->default_host->authen_max_attempts = -1;
-#ifdef WITH_TLS
-    r->tls_ciphers = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384";
-#endif
 
     return r;
 }
@@ -1238,6 +1238,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_singleconnection:
 	case S_context:
 	case S_script:
+	case S_message:
 	    parse_host_attr(sym, r, r->default_host);
 	    continue;
 #ifdef WITH_TLS
@@ -1285,79 +1286,6 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	    }
 	    continue;
 #endif
-	case S_message:{
-		enum user_message_enum um = UM_MAX;
-		sym_get(sym);
-		switch (sym->code) {
-		case S_PASSWORD:
-		    um = UM_PASSWORD;
-		    break;
-		case S_RESPONSE:
-		    um = UM_RESPONSE;
-		    break;
-		case S_PASSWORD_OLD:
-		    um = UM_PASSWORD_OLD;
-		    break;
-		case S_PASSWORD_NEW:
-		    um = UM_PASSWORD_NEW;
-		    break;
-		case S_PASSWORD_ABORT:
-		    um = UM_PASSWORD_ABORT;
-		    break;
-		case S_PASSWORD_AGAIN:
-		    um = UM_PASSWORD_AGAIN;
-		    break;
-		case S_PASSWORD_NOMATCH:
-		    um = UM_PASSWORD_NOMATCH;
-		    break;
-		case S_PASSWORD_MINREQ:
-		    um = UM_PASSWORD_MINREQ;
-		    break;
-		case S_PERMISSION_DENIED:
-		    um = UM_PERMISSION_DENIED;
-		    break;
-		case S_ENABLE_PASSWORD:
-		    um = UM_ENABLE_PASSWORD;
-		    break;
-		case S_PASSWORD_CHANGE_DIALOG:
-		    um = UM_PASSWORD_CHANGE_DIALOG;
-		    break;
-		case S_BACKEND_FAILED:
-		    um = UM_BACKEND_FAILED;
-		    break;
-		case S_CHANGE_PASSWORD:
-		    um = UM_CHANGE_PASSWORD;
-		    break;
-		case S_ACCOUNT_EXPIRES:
-		    um = UM_ACCOUNT_EXPIRES;
-		    break;
-		case S_PASSWORD_INCORRECT:
-		    um = UM_PASSWORD_INCORRECT;
-		    break;
-		case S_RESPONSE_INCORRECT:
-		    um = UM_RESPONSE_INCORRECT;
-		    break;
-		case S_USERNAME:
-		    um = UM_USERNAME;
-		    break;
-		case S_USER_ACCESS_VERIFICATION:
-		    um = UM_USER_ACCESS_VERIFICATION;
-		    break;
-		case S_DENIED_BY_ACL:
-		    um = UM_DENIED_BY_ACL;
-		    break;
-		default:
-		    parse_error_expect(sym, S_PASSWORD, S_RESPONSE, S_PASSWORD_OLD, S_PASSWORD_NEW, S_PASSWORD_ABORT, S_PASSWORD_AGAIN, S_PASSWORD_NOMATCH,
-				       S_PASSWORD_MINREQ, S_PERMISSION_DENIED, S_ENABLE_PASSWORD, S_PASSWORD_CHANGE_DIALOG, S_BACKEND_FAILED,
-				       S_CHANGE_PASSWORD, S_ACCOUNT_EXPIRES, S_PASSWORD_INCORRECT, S_RESPONSE_INCORRECT, S_USERNAME,
-				       S_USER_ACCESS_VERIFICATION, S_DENIED_BY_ACL, S_unknown);
-		}
-		sym_get(sym);
-		parse(sym, S_equal);
-		r->user_messages[um] = strdup(sym->buf);
-		sym_get(sym);
-		continue;
-	    }
 	case S_syslog:
 	case S_proctitle:
 	case S_coredump:
@@ -2698,6 +2626,79 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	}
 
 #endif
+    case S_message:{
+	    enum user_message_enum um = UM_MAX;
+	    sym_get(sym);
+	    switch (sym->code) {
+	    case S_PASSWORD:
+		um = UM_PASSWORD;
+		break;
+	    case S_RESPONSE:
+		um = UM_RESPONSE;
+		break;
+	    case S_PASSWORD_OLD:
+		um = UM_PASSWORD_OLD;
+		break;
+	    case S_PASSWORD_NEW:
+		um = UM_PASSWORD_NEW;
+		break;
+	    case S_PASSWORD_ABORT:
+		um = UM_PASSWORD_ABORT;
+		break;
+	    case S_PASSWORD_AGAIN:
+		um = UM_PASSWORD_AGAIN;
+		break;
+	    case S_PASSWORD_NOMATCH:
+		um = UM_PASSWORD_NOMATCH;
+		break;
+	    case S_PASSWORD_MINREQ:
+		um = UM_PASSWORD_MINREQ;
+		break;
+	    case S_PERMISSION_DENIED:
+		um = UM_PERMISSION_DENIED;
+		break;
+	    case S_ENABLE_PASSWORD:
+		um = UM_ENABLE_PASSWORD;
+		break;
+	    case S_PASSWORD_CHANGE_DIALOG:
+		um = UM_PASSWORD_CHANGE_DIALOG;
+		break;
+	    case S_BACKEND_FAILED:
+		um = UM_BACKEND_FAILED;
+		break;
+	    case S_CHANGE_PASSWORD:
+		um = UM_CHANGE_PASSWORD;
+		break;
+	    case S_ACCOUNT_EXPIRES:
+		um = UM_ACCOUNT_EXPIRES;
+		break;
+	    case S_PASSWORD_INCORRECT:
+		um = UM_PASSWORD_INCORRECT;
+		break;
+	    case S_RESPONSE_INCORRECT:
+		um = UM_RESPONSE_INCORRECT;
+		break;
+	    case S_USERNAME:
+		um = UM_USERNAME;
+		break;
+	    case S_USER_ACCESS_VERIFICATION:
+		um = UM_USER_ACCESS_VERIFICATION;
+		break;
+	    case S_DENIED_BY_ACL:
+		um = UM_DENIED_BY_ACL;
+		break;
+	    default:
+		parse_error_expect(sym, S_PASSWORD, S_RESPONSE, S_PASSWORD_OLD, S_PASSWORD_NEW, S_PASSWORD_ABORT, S_PASSWORD_AGAIN, S_PASSWORD_NOMATCH,
+				   S_PASSWORD_MINREQ, S_PERMISSION_DENIED, S_ENABLE_PASSWORD, S_PASSWORD_CHANGE_DIALOG, S_BACKEND_FAILED,
+				   S_CHANGE_PASSWORD, S_ACCOUNT_EXPIRES, S_PASSWORD_INCORRECT, S_RESPONSE_INCORRECT, S_USERNAME,
+				   S_USER_ACCESS_VERIFICATION, S_DENIED_BY_ACL, S_unknown);
+	    }
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    host->user_messages[um] = strdup(sym->buf);
+	    sym_get(sym);
+	    break;
+	}
     default:
 	parse_error_expect(sym, S_host, S_parent, S_authentication, S_permit, S_bug, S_pap, S_address, S_key, S_motd, S_welcome, S_reject, S_enable,
 			   S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_script, S_unknown);
@@ -3419,7 +3420,6 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
     char *v = NULL;
     if (!m)
 	return 0;
-
     switch (m->type) {
     case S_exclmark:
 	res = !tac_script_cond_eval(session, m->u.m.e[0]);

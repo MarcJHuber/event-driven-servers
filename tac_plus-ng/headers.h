@@ -151,6 +151,12 @@ struct log_item {
     struct log_item *next;
 };
 
+enum user_message_enum { UM_PASSWORD = 0, UM_RESPONSE, UM_PASSWORD_OLD, UM_PASSWORD_NEW, UM_PASSWORD_ABORT, UM_PASSWORD_AGAIN,
+    UM_PASSWORD_NOMATCH, UM_PASSWORD_MINREQ, UM_PERMISSION_DENIED, UM_ENABLE_PASSWORD, UM_PASSWORD_CHANGE_DIALOG,
+    UM_BACKEND_FAILED, UM_CHANGE_PASSWORD, UM_ACCOUNT_EXPIRES, UM_PASSWORD_INCORRECT, UM_RESPONSE_INCORRECT,
+    UM_USERNAME, UM_USER_ACCESS_VERIFICATION, UM_DENIED_BY_ACL, UM_MAX
+};
+
 struct tac_host {
     u_int line;			/* configuration file line number */
      TRISTATE(anon_enable);	/* permit anonymous enable */
@@ -183,6 +189,7 @@ struct tac_host {
     tac_realm *realm;
     tac_rewrite *rewrite_user;
     struct tac_script_action *action;
+    char *user_messages[UM_MAX];
     u_int debug;
 };
 
@@ -203,12 +210,6 @@ enum pw_ix { PW_LOGIN = 0, PW_PAP, PW_CHAP, PW_MSCHAP, PW_MAVIS };
 enum hint_enum { hint_failed = 0, hint_denied, hint_nopass, hint_expired, hint_nosuchuser, hint_succeeded, hint_permitted, hint_no_cleartext,
     hint_backend_error, hint_denied_profile, hint_failed_password_retry, hint_bug, hint_abort, hint_denied_by_acl,
     hint_invalid_challenge_length, hint_weak_password, hint_max
-};
-
-enum user_message_enum { UM_PASSWORD = 0, UM_RESPONSE, UM_PASSWORD_OLD, UM_PASSWORD_NEW, UM_PASSWORD_ABORT, UM_PASSWORD_AGAIN,
-    UM_PASSWORD_NOMATCH, UM_PASSWORD_MINREQ, UM_PERMISSION_DENIED, UM_ENABLE_PASSWORD, UM_PASSWORD_CHANGE_DIALOG,
-    UM_BACKEND_FAILED, UM_CHANGE_PASSWORD, UM_ACCOUNT_EXPIRES, UM_PASSWORD_INCORRECT, UM_RESPONSE_INCORRECT,
-    UM_USERNAME, UM_USER_ACCESS_VERIFICATION, UM_DENIED_BY_ACL, UM_MAX
 };
 
 struct tac_groups;
@@ -355,7 +356,6 @@ struct realm {
     int rulecount;
     struct io_dns_ctx *idc;
     radixtree_t *dns_tree_ptr[3];	// 0: static, 1-2: dynamic
-    char *user_messages[UM_MAX];
 };
 
 /* All tacacs+ packets have the same header format */

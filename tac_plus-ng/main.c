@@ -674,7 +674,8 @@ static void complete_host(tac_host * h)
 {
     if (!h->complete && h->parent) {
 	int priv_lvl, enable_implied[TAC_PLUS_PRIV_LVL_MAX + 1];
-	tac_host *hp = h->parent;;
+	enum user_message_enum um;
+	tac_host *hp = h->parent;
 	complete_host(hp);
 
 	if (h->anon_enable == TRISTATE_DUNNO)
@@ -783,10 +784,14 @@ static void complete_host(tac_host * h)
 	for (priv_lvl = TAC_PLUS_PRIV_LVL_MIN; priv_lvl <= TAC_PLUS_PRIV_LVL_MAX; priv_lvl++)
 	    if (!h->enable[priv_lvl])
 		h->enable[priv_lvl] = &pwdat_unknown;
+
+	for (um = 0; um < UM_MAX; um++)
+	    if (!h->user_messages[um])
+		h->user_messages[um] = hp->user_messages[um];
+
 	h->complete = 1;
     }
 }
-
 
 static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_union * nad_address)
 {
