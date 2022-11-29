@@ -395,23 +395,23 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
 	parse_inline("acl __internal__enable_user__ { if (user =~ \"^$enab..$$\") permit deny }", __FILE__, __LINE__);
 	r->enable_user_acl = tac_acl_lookup("__internal__enable_user__", r);
 
-	r->default_host->user_messages[UM_PASSWORD] = "Password";
-	r->default_host->user_messages[UM_RESPONSE] = "Response";
-	r->default_host->user_messages[UM_PASSWORD_OLD] = "Old password";
-	r->default_host->user_messages[UM_PASSWORD_NEW] = "New password";
+	r->default_host->user_messages[UM_PASSWORD] = "Password: ";
+	r->default_host->user_messages[UM_RESPONSE] = "Response: ";
+	r->default_host->user_messages[UM_PASSWORD_OLD] = "Old password: ";
+	r->default_host->user_messages[UM_PASSWORD_NEW] = "New password: ";
 	r->default_host->user_messages[UM_PASSWORD_ABORT] = "Password change dialog aborted.";
-	r->default_host->user_messages[UM_PASSWORD_AGAIN] = "Retype new password";
+	r->default_host->user_messages[UM_PASSWORD_AGAIN] = "Retype new password: ";
 	r->default_host->user_messages[UM_PASSWORD_NOMATCH] = "Passwords do not match.";
 	r->default_host->user_messages[UM_PASSWORD_MINREQ] = "Password doesn't meet minimum requirements.";
 	r->default_host->user_messages[UM_PERMISSION_DENIED] = "Permission denied.";
-	r->default_host->user_messages[UM_ENABLE_PASSWORD] = "Enable Password";
+	r->default_host->user_messages[UM_ENABLE_PASSWORD] = "Enable Password: ";
 	r->default_host->user_messages[UM_PASSWORD_CHANGE_DIALOG] = "Entering password change dialog";
 	r->default_host->user_messages[UM_BACKEND_FAILED] = "Authentication backend failure.";
 	r->default_host->user_messages[UM_CHANGE_PASSWORD] = "Please change your password.";
 	r->default_host->user_messages[UM_ACCOUNT_EXPIRES] = "This account will expire soon.";
 	r->default_host->user_messages[UM_PASSWORD_INCORRECT] = "Password incorrect.";
 	r->default_host->user_messages[UM_RESPONSE_INCORRECT] = "Response incorrect.";
-	r->default_host->user_messages[UM_USERNAME] = "Username";
+	r->default_host->user_messages[UM_USERNAME] = "Username: ";
 	r->default_host->user_messages[UM_USER_ACCESS_VERIFICATION] = "User Access Verification";
 	r->default_host->user_messages[UM_DENIED_BY_ACL] = "Denied by ACL";
     }

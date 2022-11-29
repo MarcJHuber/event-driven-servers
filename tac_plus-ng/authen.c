@@ -1533,23 +1533,23 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 
     if (!li_user_access_verification) {
 	li_user_access_verification = parse_log_format_inline("\"${USER_ACCESS_VERIFICATION}\n\n${message}${umessage}\"", __FILE__, __LINE__);
-	li_username = parse_log_format_inline("\"${USERNAME}: \"", __FILE__, __LINE__);
-	li_password = parse_log_format_inline("\"${PASSWORD}: \"", __FILE__, __LINE__);
-	li_response = parse_log_format_inline("\"${RESPONSE}: \"", __FILE__, __LINE__);
+	li_username = parse_log_format_inline("\"${USERNAME}\"", __FILE__, __LINE__);
+	li_password = parse_log_format_inline("\"${PASSWORD}\"", __FILE__, __LINE__);
+	li_response = parse_log_format_inline("\"${RESPONSE}\"", __FILE__, __LINE__);
 	li_permission_denied = parse_log_format_inline("\"${PERMISSION_DENIED}\"", __FILE__, __LINE__);
-	li_enable_password = parse_log_format_inline("\"${ENABLE_PASSWORD}: \"", __FILE__, __LINE__);
-	li_password_old = parse_log_format_inline("\"${umessage}Old password: \"", __FILE__, __LINE__);
+	li_enable_password = parse_log_format_inline("\"${ENABLE_PASSWORD}\"", __FILE__, __LINE__);
+	li_password_old = parse_log_format_inline("\"${umessage}${PASSWORD_OLD}\"", __FILE__, __LINE__);
 	li_password_abort = parse_log_format_inline("\"${PASSWORD_ABORT}\n\"", __FILE__, __LINE__);
-	li_password_new = parse_log_format_inline("\"${umessage}${PASSWORD_NEW}: \"", __FILE__, __LINE__);
-	li_password_again = parse_log_format_inline("\"${PASSWORD_AGAIN}: \"", __FILE__, __LINE__);
+	li_password_new = parse_log_format_inline("\"${umessage}${PASSWORD_NEW}\"", __FILE__, __LINE__);
+	li_password_again = parse_log_format_inline("\"${PASSWORD_AGAIN}\"", __FILE__, __LINE__);
 	li_password_nomatch = parse_log_format_inline("\"${PASSWORD_NOMATCH}\b\"", __FILE__, __LINE__);
 	li_password_minreq = parse_log_format_inline("\"${PASSWORD_MINREQ}\n\"", __FILE__, __LINE__);
 	li_motd_dflt = parse_log_format_inline("\"${message}${umessage}\"", __FILE__, __LINE__);
 	li_password_change_dialog = parse_log_format_inline("\"${PASSWORD_CHANGE_DIALOG}\n\n\"", __FILE__, __LINE__);
 	li_change_password = parse_log_format_inline("\"${CHANGE_PASSWORD}\n\"", __FILE__, __LINE__);
 	li_password_incorrect = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n\"", __FILE__, __LINE__);
-	li_password_incorrect_retry = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n${PASSWORD}: \"", __FILE__, __LINE__);
-	li_response_incorrect = parse_log_format_inline("\"${RESPONSE_INCORRECT}\n${RESPONSE}: \"", __FILE__, __LINE__);
+	li_password_incorrect_retry = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n${PASSWORD}\"", __FILE__, __LINE__);
+	li_response_incorrect = parse_log_format_inline("\"${RESPONSE_INCORRECT}\n${RESPONSE}\"", __FILE__, __LINE__);
     }
 
     if (!session->authen_data)
