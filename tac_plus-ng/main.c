@@ -785,9 +785,12 @@ static void complete_host(tac_host * h)
 	    if (!h->enable[priv_lvl])
 		h->enable[priv_lvl] = &pwdat_unknown;
 
-	for (um = 0; um < UM_MAX; um++)
-	    if (!h->user_messages[um])
-		h->user_messages[um] = hp->user_messages[um];
+	if (!h->user_messages)
+	    h->user_messages = hp->user_messages;
+	else
+	    for (um = 0; um < UM_MAX; um++)
+		if (!h->user_messages[um])
+		    h->user_messages[um] = hp->user_messages[um];
 
 	h->complete = 1;
     }

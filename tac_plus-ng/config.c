@@ -306,9 +306,12 @@ void complete_realm(tac_realm * r)
 	if (r->dns_caching_period < 10)
 	    r->dns_caching_period = 10;
 
-	for (um = 0; um < UM_MAX; um++)
-	    if (!r->default_host->user_messages[um])
-		r->default_host->user_messages[um] = rp->default_host->user_messages[um];
+	if (!r->default_host->user_messages)
+	    r->default_host->user_messages = rp->default_host->user_messages;
+	else
+	    for (um = 0; um < UM_MAX; um++)
+		if (!r->default_host->user_messages[um])
+		    r->default_host->user_messages[um] = rp->default_host->user_messages[um];
     }
     if (r->realms) {
 	rb_node_t *rbn;
@@ -395,6 +398,7 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
 	parse_inline("acl __internal__enable_user__ { if (user =~ \"^$enab..$$\") permit deny }", __FILE__, __LINE__);
 	r->enable_user_acl = tac_acl_lookup("__internal__enable_user__", r);
 
+	r->default_host->user_messages = calloc(UM_MAX, sizeof(char *));
 	r->default_host->user_messages[UM_PASSWORD] = "Password: ";
 	r->default_host->user_messages[UM_RESPONSE] = "Response: ";
 	r->default_host->user_messages[UM_PASSWORD_OLD] = "Old password: ";
@@ -2695,6 +2699,8 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    }
 	    sym_get(sym);
 	    parse(sym, S_equal);
+	    if (!host->user_messages)
+		host->user_messages = calloc(UM_MAX, sizeof(char *));
 	    host->user_messages[um] = strdup(sym->buf);
 	    sym_get(sym);
 	    break;

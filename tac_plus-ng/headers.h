@@ -189,7 +189,7 @@ struct tac_host {
     tac_realm *realm;
     tac_rewrite *rewrite_user;
     struct tac_script_action *action;
-    char *user_messages[UM_MAX];
+    char **user_messages;
     u_int debug;
 };
 
