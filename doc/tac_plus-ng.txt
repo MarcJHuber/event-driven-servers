@@ -854,26 +854,26 @@ message USERNAME = "utilisateur"
 
    Supported messages and their defaults:
 
-              ID                           Default value
-   ACCOUNT_EXPIRES          This account will expire soon.
-   BACKEND_FAILED           Authentication backend failure.
-   CHANGE_PASSWORD          Please change your password.
-   DENIED_BY_ACL            Denied by ACL
-   ENABLE_PASSWORD          Enable Password
-   PASSWORD                 Password
-   PASSWORD_ABORT           Password change dialog aborted.
-   PASSWORD_AGAIN           Retype new password
-   PASSWORD_CHANGE_DIALOG   Entering password change dialog
-   PASSWORD_INCORRECT       Password incorrect.
-   PASSWORD_MINREQ          Password doesn't meet minimum requirements.
-   PASSWORD_NEW             New password
-   PASSWORD_NOMATCH         Passwords do not match.
-   PASSWORD_OLD             Old password
-   PERMISSION_DENIED        Permission denied.
-   RESPONSE                 Response
-   RESPONSE_INCORRECT       Response incorrect.
-   USERNAME                 Username
-   USER_ACCESS_VERIFICATION User Access Verification
+             ID                            Default value
+  ACCOUNT_EXPIRES          "This account will expire soon."
+  BACKEND_FAILED           "Authentication backend failure."
+  CHANGE_PASSWORD          "Please change your password."
+  DENIED_BY_ACL            "Denied by ACL"
+  ENABLE_PASSWORD          "Enable Password: "
+  PASSWORD                 "Password: "
+  PASSWORD_ABORT           "Password change dialog aborted."
+  PASSWORD_AGAIN           "Retype new password: "
+  PASSWORD_CHANGE_DIALOG   "Entering password change dialog"
+  PASSWORD_INCORRECT       "Password incorrect."
+  PASSWORD_MINREQ          "Password doesn't meet minimum requirements."
+  PASSWORD_NEW             "New password: "
+  PASSWORD_NOMATCH         "Passwords do not match."
+  PASSWORD_OLD             "Old password: "
+  PERMISSION_DENIED        "Permission denied."
+  RESPONSE                 "Response: "
+  RESPONSE_INCORRECT       "Response incorrect."
+  USERNAME                 "Username: "
+  USER_ACCESS_VERIFICATION "User Access Verification"
      __________________________________________________________
 
 4.2.3.3. Limits and timeouts
