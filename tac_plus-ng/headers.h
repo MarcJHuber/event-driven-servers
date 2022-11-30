@@ -217,8 +217,6 @@ struct tac_group;
 typedef struct tac_groups tac_groups;
 typedef struct tac_group tac_group;
 
-struct stringlist;
-
 struct tac_profile {
     char *name;			/* profile name */
     size_t name_len;
