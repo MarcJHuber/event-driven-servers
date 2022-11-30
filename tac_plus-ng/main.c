@@ -201,8 +201,6 @@ static void accept_control_tls(struct context *, int);
 #endif
 static void setup_signals(void);
 
-static struct pwdat pwdat_unknown;
-
 int main(int argc, char **argv, char **envp)
 {
     int nfds_max;
@@ -212,9 +210,6 @@ int main(int argc, char **argv, char **envp)
     scm_main(argc, argv, envp);
 
     cfg_init();
-
-    memset(&pwdat_unknown, 0, sizeof(struct pwdat));
-    pwdat_unknown.type = S_unknown;
 
     buffer_setsize(0x8000, 0x10);
 
@@ -673,7 +668,6 @@ static void accept_control_px(int s, struct scm_data_accept *sd)
 static void complete_host(tac_host * h)
 {
     if (!h->complete && h->parent) {
-	int priv_lvl, enable_implied[TAC_PLUS_PRIV_LVL_MAX + 1];
 	enum user_message_enum um;
 	tac_host *hp = h->parent;
 	complete_host(hp);
@@ -762,35 +756,22 @@ static void complete_host(tac_host * h)
 
 	h->bug_compatibility |= hp->bug_compatibility;
 
-	/* copy enable passwords to context */
-
-	for (priv_lvl = TAC_PLUS_PRIV_LVL_MIN; priv_lvl <= TAC_PLUS_PRIV_LVL_MAX; priv_lvl++)
-	    enable_implied[priv_lvl] = TAC_PLUS_PRIV_LVL_MAX + 1;
-
-	for (priv_lvl = TAC_PLUS_PRIV_LVL_MIN; priv_lvl <= TAC_PLUS_PRIV_LVL_MAX; priv_lvl++)
-	    if (hp->enable[priv_lvl]) {
-		if (!hp->enable_implied[priv_lvl]) {
-		    h->enable[priv_lvl] = hp->enable[priv_lvl];
-		    enable_implied[priv_lvl] = hp->enable_implied[priv_lvl];
-		    break;
-		}
-		if (hp->enable_implied[priv_lvl] < enable_implied[priv_lvl]) {
-		    h->enable[priv_lvl] = hp->enable[priv_lvl];
-		    enable_implied[priv_lvl] = hp->enable_implied[priv_lvl];
-		}
+	if (h->enable) {
+	    if (hp->enable) {
+		int level;
+		for (level = TAC_PLUS_PRIV_LVL_MIN; level < TAC_PLUS_PRIV_LVL_MAX + 1; level++)
+		    if (!h->enable[level])
+			h->enable[level] = hp->enable[level];
 	    }
+	} else
+	    h->enable = hp->enable;
 
-	/* make sure all enable password pointers are set */
-	for (priv_lvl = TAC_PLUS_PRIV_LVL_MIN; priv_lvl <= TAC_PLUS_PRIV_LVL_MAX; priv_lvl++)
-	    if (!h->enable[priv_lvl])
-		h->enable[priv_lvl] = &pwdat_unknown;
-
-	if (!h->user_messages)
-	    h->user_messages = hp->user_messages;
-	else
+	if (h->user_messages) {
 	    for (um = 0; um < UM_MAX; um++)
 		if (!h->user_messages[um])
 		    h->user_messages[um] = hp->user_messages[um];
+	} else
+	    h->user_messages = hp->user_messages;
 
 	h->complete = 1;
     }

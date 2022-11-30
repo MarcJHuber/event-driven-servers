@@ -120,7 +120,7 @@ typedef struct rewrite tac_rewrite;
 #define TAC_PLUS_PRIV_LVL_MAX 0xf
 
 struct pwdat {
-    int type;			/* S_clear/S_crypt/S_opie/S_deny */
+    enum token type;
     char value[1];
 };
 
@@ -179,8 +179,7 @@ struct tac_host {
     struct log_item *welcome_banner;	/* prompt */
     struct log_item *welcome_banner_fallback;	/* fallback prompt */
     struct log_item *reject_banner;
-    struct pwdat *enable[TAC_PLUS_PRIV_LVL_MAX + 1];	/* enable passwords */
-    char enable_implied[TAC_PLUS_PRIV_LVL_MAX + 1];
+    struct pwdat **enable;
     int tcp_timeout;		/* tcp connection idle timeout */
     int session_timeout;	/* session idle timeout */
     int context_timeout;	/* shell context idle timeout */
@@ -221,8 +220,7 @@ struct tac_profile {
     char *name;			/* profile name */
     size_t name_len;
     u_int line;			/* line number defined on */
-    struct pwdat *enable[TAC_PLUS_PRIV_LVL_MAX + 1];	/* enable passwords */
-    char enable_implied[TAC_PLUS_PRIV_LVL_MAX + 1];
+    struct pwdat **enable;
     struct tac_script_action *action;
     tac_realm *realm;
      TRISTATE(hushlogin);
@@ -239,8 +237,7 @@ typedef struct {
     time_t valid_from;		/* validity period start */
     time_t valid_until;		/* validity period end */
     time_t dynamic;		/* caching timeout. Always 0 for static users */
-    char enable_implied[TAC_PLUS_PRIV_LVL_MAX + 1];
-    struct pwdat *enable[TAC_PLUS_PRIV_LVL_MAX + 1];	/* enable passwords */
+    struct pwdat **enable;
     struct tac_acllist *passwd_acllist;
     struct ssh_key *ssh_key;
     tac_groups *groups;
@@ -711,7 +708,6 @@ struct context {
     tac_pak_hdr hdr;
     ssize_t hdroff;
     struct tac_key *key;
-    struct pwdat *enable[TAC_PLUS_PRIV_LVL_MAX + 1];	/* enable passwords */
     time_t last_io;
 #ifdef WITH_TLS
     struct tls *tls_ctx;

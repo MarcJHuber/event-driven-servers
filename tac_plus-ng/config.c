@@ -1901,9 +1901,9 @@ static void parse_member(struct sym *sym, tac_groups ** groups, memlist_t * meml
     while (parse_comma(sym));
 }
 
-static void parse_enable(struct sym *sym, memlist_t * memlist, struct pwdat **enable, char *enable_implied)
+static void parse_enable(struct sym *sym, memlist_t * memlist, struct pwdat **enable)
 {
-    int level = TAC_PLUS_PRIV_LVL_MAX, i;
+    int level = TAC_PLUS_PRIV_LVL_MAX;
 
     sym_get(sym);
     if (1 == sscanf(sym->buf, "%d", &level)) {
@@ -1915,13 +1915,6 @@ static void parse_enable(struct sym *sym, memlist_t * memlist, struct pwdat **en
     }
 
     enable[level] = parse_pw(sym, memlist, 1);
-    enable_implied[level] = 0;
-    for (i = level - 1; i >= TAC_PLUS_PRIV_LVL_MIN; i--) {
-	if (enable_implied[i] > level || !enable[i]) {
-	    enable_implied[i] = level;
-	    enable[i] = enable[level];
-	}
-    }
 }
 
 static struct tac_acllist *eval_tac_acllist(tac_session *, struct tac_acllist **);
@@ -1978,7 +1971,9 @@ static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm
 	    profile->hushlogin = parse_tristate(sym);
 	    continue;
 	case S_enable:
-	    parse_enable(sym, NULL, profile->enable, profile->enable_implied);
+	    if (!profile->enable)
+		profile->enable = calloc(sizeof(struct pwdat *), TAC_PLUS_PRIV_LVL_MAX + 1);
+	    parse_enable(sym, NULL, profile->enable);
 	    continue;
 	default:
 	    parse_error_expect(sym, S_script, S_debug, S_hushlogin, S_enable, S_unknown);
@@ -2245,7 +2240,9 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	    parse_password(sym, user);
 	    continue;
 	case S_enable:
-	    parse_enable(sym, user->memlist, user->enable, user->enable_implied);
+	    if (!user->enable)
+		user->enable = memlist_malloc(user->memlist, sizeof(struct pwdat *) * (TAC_PLUS_PRIV_LVL_MAX + 1));
+	    parse_enable(sym, user->memlist, user->enable);
 	    continue;
 	case S_fallback_only:
 	    sym_get(sym);
@@ -2524,7 +2521,9 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	fixup_banner(&host->reject_banner, __FILE__, __LINE__);
 	return;
     case S_enable:
-	parse_enable(sym, NULL, host->enable, host->enable_implied);
+	if (!host->enable)
+	    host->enable = calloc(sizeof(struct pwdat *), TAC_PLUS_PRIV_LVL_MAX + 1);
+	parse_enable(sym, NULL, host->enable);
 	return;
     case S_anonenable:
 	sym_get(sym);
@@ -2983,60 +2982,29 @@ void cfg_init(void)
 
 int cfg_get_enable(tac_session * session, struct pwdat **p)
 {
-    if (session->user) {
-	int level = session->priv_lvl;
-	int level_implied = TAC_PLUS_PRIV_LVL_MAX + 1;
+    int level, m = 0;
+    struct pwdat **d[3];
 
-	if (!session->profile && (S_permit != eval_ruleset(session, session->ctx->realm)))
-	    return -1;
+    if (!session->profile && (S_permit != eval_ruleset(session, session->ctx->realm)))
+	return -1;
 
-	if (session->user->enable[level]) {
-	    if (!session->user->enable_implied[level]) {
-		*p = session->user->enable[level];
-		return 0;
-	    }
-	    if (level_implied > session->user->enable_implied[level]) {
-		*p = session->user->enable[level];
-		level_implied = session->user->enable_implied[level];
-		return 0;
-	    }
-	}
-    }
-    if (session->profile) {
-	int level = session->priv_lvl;
-	int level_implied = TAC_PLUS_PRIV_LVL_MAX + 1;
+    if (session->user && session->user->enable)
+	d[m++] = session->user->enable;
+    if (session->profile && session->profile->enable)
+	d[m++] = session->profile->enable;
+    if (session->ctx->host->enable)
+	d[m++] = session->ctx->host->enable;
 
-	if (session->profile->enable[level]) {
-	    if (!session->profile->enable_implied[level]) {
-		*p = session->profile->enable[level];
+    for (level = session->priv_lvl; level < TAC_PLUS_PRIV_LVL_MAX + 1; level++) {
+	int i;
+	for (i = 0; i < m; i++)
+	    if (d[i][level]) {
+		*p = d[i][level];
 		return 0;
 	    }
-	    if (level_implied > session->profile->enable_implied[level]) {
-		*p = session->profile->enable[level];
-		level_implied = session->profile->enable_implied[level];
-		return 0;
-	    }
-	}
-    }
-    {
-	int level = session->priv_lvl;
-	int level_implied = TAC_PLUS_PRIV_LVL_MAX + 1;
-
-	if (session->ctx->host->enable[level]) {
-	    if (!session->ctx->host->enable_implied[level]) {
-		*p = session->ctx->host->enable[level];
-		return 0;
-	    }
-	    if (level_implied > session->ctx->host->enable_implied[level]) {
-		*p = session->ctx->host->enable[level];
-		level_implied = session->ctx->host->enable_implied[level];
-		return 0;
-	    }
-	}
     }
     return -1;
 }
-
 
 struct tac_script_cond_multi {
     int n;
