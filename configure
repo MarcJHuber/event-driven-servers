@@ -230,8 +230,6 @@ my $hint = "";
 $hint = "(Called without arguments. \"--help\" will display the command line options.)\n" if $#ARGV < 0;
 
 while ($#ARGV > -1) {
-	$ARGV[0] =~ s/-tls/-ssl/;
-
 	if ($ARGV[0] =~ /^(--[^=]+)=(.*)$/) {
 		$A{$1} = $2;
 	} elsif ($ARGV[0] =~ /^--([^-]+-[^-]+|debug)$/) {
