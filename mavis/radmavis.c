@@ -19,6 +19,7 @@
 #define DEBUG
 #endif
 #include <string.h>
+#include <stdlib.h>
 #include "mavis.h"
 
 static void set_rc(rc_handle * rh, char *a, char *v)
