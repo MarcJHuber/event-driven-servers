@@ -88,6 +88,11 @@
 
 #include <regex.h>
 
+#ifdef WITH_SSL
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#endif
+
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
 struct tac_acllist {
@@ -196,6 +201,9 @@ static int compare_net(const void *a, const void *b)
     return strcmp(((tac_net *) a)->name, ((tac_net *) b)->name);
 }
 
+static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION ** sess);
+static SSL_CTX *ssl_init(char *, char *, char *, char *);
+
 void complete_realm(tac_realm * r)
 {
     if (r->parent && !r->complete) {
@@ -281,17 +289,39 @@ void complete_realm(tac_realm * r)
 		report(NULL, LOG_ERR, ~0, "realm %s: tls_config_set_cert_mem failed", r->name);
 		exit(EX_CONFIG);
 	    }
-	    if (!(r->tls_ctx = tls_server())) {
+	    if (!(r->tls = tls_server())) {
 		report(NULL, LOG_ERR, ~0, "realm %s: tls_server() returned NULL", r->name);
 		exit(EX_CONFIG);
 	    }
-	    if (tls_configure(r->tls_ctx, r->tls_cfg)) {
+	    if (tls_configure(r->tls, r->tls_cfg)) {
 		const char *terr = tls_config_error(r->tls_cfg);
 		report(NULL, LOG_ERR, ~0, "realm %s: tls_configure failed%s%s", r->name, terr ? ": " : "", terr ? terr : "");
 		exit(EX_CONFIG);
 	    }
 	} else
 	    r->tls_cfg = rp->tls_cfg;
+#endif
+#ifdef WITH_SSL
+	if (r->tls_accept_expired == TRISTATE_DUNNO)
+	    r->tls_accept_expired = rp->tls_accept_expired;
+	if (r->tls_cert && r->tls_key) {
+	    r->tls = ssl_init(r->tls_cert, r->tls_key, r->tls_pass, r->tls_ciphers);
+	    if (r->tls) {
+		if (r->tls_cafile && !SSL_CTX_load_verify_locations(r->tls, r->tls_cafile, NULL)) {
+		    char buf[256];
+		    const char *terr = ERR_error_string(ERR_get_error(), buf);
+		    report(NULL, LOG_ERR, ~0, "realm %s: SSL_CTX_load_verify_locations(\"%s\") failed%s%s", r->name, r->tls_cafile, terr ? ": " : "",
+			   terr ? terr : "");
+		    exit(EX_CONFIG);
+		}
+		SSL_CTX_set_verify(r->tls, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+	    }
+	}
+	if (r->use_tls_psk) {
+	    if (!r->tls)
+		r->tls = ssl_init(r->tls_cert, r->tls_key, r->tls_pass, r->tls_ciphers);
+	    SSL_CTX_set_psk_find_session_callback(r->tls, psk_find_session_cb);
+	}
 #endif
 #ifdef WITH_PCRE2
 	if (!r->password_minimum_requirement)
@@ -374,7 +404,10 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
     r->mavis_pap_prefetch = TRISTATE_DUNNO;
     r->mavis_login_prefetch = TRISTATE_DUNNO;
 #ifdef WITH_TLS
-    r->tls_ciphers = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384";
+    //r->tls_ciphers = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384";
+#endif
+#ifdef WITH_SSL
+    //r->tls_ciphers = "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256";
 #endif
 
     if (parent) {
@@ -787,6 +820,26 @@ static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent, i
 	nrealm->default_host->authen_max_attempts = 1;
     }
     return nrealm;
+}
+
+static char hexbyte(char *);
+
+static void parse_tls_psk_key(struct sym *sym, tac_host * host)
+{
+    size_t i;
+    char k[2];
+    char *t = sym->buf;
+    size_t l = strlen(sym->buf);
+    if (l & 1)
+	parse_error(sym, "Illegal hex sequence (odd number of characters)");
+    l >>= 1;
+    host->tls_psk_key = calloc(1, l);
+    host->tls_psk_key_len = l;
+    for (i = 0; i < l; i++) {
+	k[0] = toupper(*t++);
+	k[1] = toupper(*t++);
+	host->tls_psk_key[i] = hexbyte(k);
+    }
 }
 
 static void parse_host_attr(struct sym *, tac_realm *, tac_host *);
@@ -1245,10 +1298,34 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_message:
 	    parse_host_attr(sym, r, r->default_host);
 	    continue;
-#ifdef WITH_TLS
+#if defined(WITH_TLS) || defined(WITH_SSL)
 	case S_tls:
 	    sym_get(sym);
 	    switch (sym->code) {
+#ifdef WITH_SSL
+	    case S_psk:
+		sym_get(sym);
+		switch (sym->code) {
+		case S_id:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->default_host->tls_psk_id = strdup(sym->buf);
+		    sym_get(sym);
+		    break;
+		case S_key:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    parse_tls_psk_key(sym, r->default_host);
+		    break;
+		case S_equal:
+		    sym_get(sym);
+		    r->use_tls_psk = parse_bool(sym);
+		    break;
+		default:
+		    parse_error_expect(sym, S_id, S_key, S_equal, S_unknown);
+		}
+		continue;
+#endif
 	    case S_cert_file:
 		sym_get(sym);
 		parse(sym, S_equal);
@@ -2704,6 +2781,29 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    sym_get(sym);
 	    break;
 	}
+#if defined(WITH_TLS) || defined(WITH_SSL)
+    case S_tls:
+	sym_get(sym);
+#ifdef WITH_SSL
+	parse(sym, S_psk);
+	switch (sym->code) {
+	case S_id:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    host->tls_psk_id = strdup(sym->buf);
+	    break;
+	case S_key:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    parse_tls_psk_key(sym, host);
+	    break;
+	default:
+	    parse_error_expect(sym, S_id, S_key, S_unknown);
+	}
+	sym_get(sym);
+	break;
+#endif
+#endif
     default:
 	parse_error_expect(sym, S_host, S_parent, S_authentication, S_permit, S_bug, S_pap, S_address, S_key, S_motd, S_welcome, S_reject, S_enable,
 			   S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_script, S_unknown);
@@ -3923,3 +4023,159 @@ static int tac_group_check(tac_group * g, tac_groups * gids)
     }
     return 0;
 }
+
+#ifdef WITH_SSL
+#ifndef OPENSSL_NO_PSK
+static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char ** key, size_t *keylen)
+{
+    char *t = identity;
+    // host may have key set:
+    if (ctx->host->tls_psk_id && !strcmp(identity, ctx->host->tls_psk_id) && ctx->host->tls_psk_key_len) {
+	*key = ctx->host->tls_psk_key;
+	*keylen = ctx->host->tls_psk_key_len;
+	return 0;
+    }
+
+    // no key set for host, possibly because host is a parent and/or the NAC has
+    // a dynamic IP. Try to map identity to hostname
+    while (t) {
+	tac_host *h = lookup_host(t, ctx->realm);
+	if (h) {
+	    complete_host(h);
+	    if (h->tls_psk_key_len) {
+		ctx->host = h;
+		*key = h->tls_psk_key;
+		*keylen = h->tls_psk_key_len;
+		return 0;
+	    }
+	}
+	t = strchr(t, ',');
+	if (t)
+	    t++;
+    }
+
+    return -1;
+}
+
+static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION ** sess)
+{
+    SSL_SESSION *nsession = NULL;
+    const SSL_CIPHER *cipher = NULL;
+    u_char *key;
+    size_t key_len;
+    struct context *ctx;
+
+    // FIXME -- use SSL_CTX_get_app_data instead of SSL_get_fd/io_get_ctx?
+
+    int fd = SSL_get_fd(ssl);
+
+    if (fd < -1) {
+	report(NULL, LOG_ERR, ~0, "%s:%d SSL_get_fd() = %d", __FILE__, __LINE__, fd);
+	return 0;
+    }
+
+    ctx = io_get_ctx(common_data.io, fd);
+    if (!ctx) {
+	report(NULL, LOG_ERR, ~0, "%s:%d io_get_ctx()", __FILE__, __LINE__);
+	return 0;
+    }
+
+    if (strlen((char *) identity) != identity_len) {
+	report(NULL, LOG_ERR, ~0, "%s:%d identity length mismatch (got=%lu expected=%lu)", __FILE__, __LINE__, strlen((char *) identity), identity_len);
+	return 0;
+    }
+
+    if (cfg_get_tls_psk(ctx, (char *) identity, &key, &key_len)) {
+	report(NULL, LOG_ERR, ~0, "%s:%d psk not found", __FILE__, __LINE__);
+	return 0;
+    }
+
+    // FIXME Use PSK session file?
+
+    // Constants from https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml
+    // and RFC8446, 8.4.
+    // FIXME. There's probably a way to map some standard string to the iana values, somewhere.
+    const unsigned char TLS_AES_128_GCM_SHA256[] = { 0x13, 0x01 };	// that's what s_client uses
+    // const unsigned char TLS_AES_256_GCM_SHA384[] = { 0x13, 0x02 };
+    // const unsigned char TLS_CHACHA20_POLY1305_SHA256[] = { 0x13,0x03 };
+    // const unsigned char TLS_AES_128_CCM_SHA256[] = { 0x13,0x04 };
+    // const unsigned char TLS_AES_128_CCM_8_SHA256[] = { 0x13,0x05 };
+
+    cipher = SSL_CIPHER_find(ssl, TLS_AES_128_GCM_SHA256);
+    if (!cipher) {
+	report(NULL, LOG_ERR, ~0, "%s:%d SSL_CIPHER_find() failed", __FILE__, __LINE__);
+	return 0;
+    }
+
+    nsession = SSL_SESSION_new();
+    if (!nsession) {
+	report(NULL, LOG_ERR, ~0, "%s:%d SSL_SESSION_new() failed", __FILE__, __LINE__);
+	return 0;
+    }
+
+    if (!SSL_SESSION_set1_master_key(nsession, key, key_len)) {
+	report(NULL, LOG_ERR, ~0, "%s:%d SSL_SESSION_set1_master_key() failed", __FILE__, __LINE__);
+	SSL_SESSION_free(nsession);
+	return 0;
+    }
+
+    if (!SSL_SESSION_set_cipher(nsession, cipher)) {
+	report(NULL, LOG_ERR, ~0, "%s:%d SSL_SESSION_set_cipher() failed", __FILE__, __LINE__);
+	SSL_SESSION_free(nsession);
+	return 0;
+    }
+
+    //if (!SSL_SESSION_set_protocol_version(nsession, TLS1_3_VERSION)) {
+    if (!SSL_SESSION_set_protocol_version(nsession, SSL_version(ssl))) {
+	report(NULL, LOG_ERR, ~0, "%s:%d SSL_SESSION_set_protocol_version() failed", __FILE__, __LINE__);
+	SSL_SESSION_free(nsession);
+	return 0;
+    }
+
+    *sess = nsession;
+
+    ctx->tls_psk_identity = mempool_strdup(ctx->pool, (char *) identity);
+    ctx->tls_psk_identity_len = strlen((char *) identity);
+
+    return 1;
+}
+#endif
+
+static int ssl_pem_phrase_cb(char *buf, int size, int rwflag __attribute__((unused)), void *userdata)
+{
+    int i = (int) strlen((char *) userdata);
+
+    if (i >= size) {
+	report(NULL, LOG_ERR, ~0, "ssl_pem_phrase_cb");
+	return 0;
+    }
+    strcpy(buf, (char *) userdata);
+    return i;
+}
+
+static SSL_CTX *ssl_init(char *cert_file, char *key_file, char *pem_phrase, char *ciphers)
+{
+    SSL_CTX *ctx = SSL_CTX_new(TLS_server_method());
+    if (!ctx) {
+	report(NULL, LOG_ERR, ~0, "SSL_CTX_new");
+    } else {
+	if (!SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION))
+	    report(NULL, LOG_ERR, ~0, "SSL_CTX_set_min_proto_version");
+	if (ciphers && !SSL_CTX_set_cipher_list(ctx, ciphers))
+	    report(NULL, LOG_ERR, ~0, "SSL_CTX_set_cipher_list");
+	if (pem_phrase) {
+	    SSL_CTX_set_default_passwd_cb(ctx, ssl_pem_phrase_cb);
+	    SSL_CTX_set_default_passwd_cb_userdata(ctx, pem_phrase);
+	}
+	if (cert_file && !SSL_CTX_use_certificate_chain_file(ctx, cert_file))
+	    report(NULL, LOG_ERR, ~0, "SSL_CTX_use_certificate_chain_file");
+	if ((key_file || cert_file) && !SSL_CTX_use_PrivateKey_file(ctx, key_file ? key_file : cert_file, SSL_FILETYPE_PEM))
+	    report(NULL, LOG_ERR, ~0, "SSL_CTX_use_PrivateKey_file");
+	if ((key_file || cert_file) && !SSL_CTX_check_private_key(ctx))
+	    report(NULL, LOG_ERR, ~0, "SSL_CTX_check_private_key");
+	SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
+    }
+    return ctx;
+}
+
+#endif

@@ -1458,7 +1458,7 @@ static char *eval_log_format_hostname(tac_session * session __attribute__((unuse
     return config.hostname;
 }
 
-#ifdef WITH_TLS
+#if defined(WITH_TLS) || defined(WITH_SSL)
 static char *eval_log_format_tls_conn_version(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
 					      __attribute__((unused)), size_t *len)
 {
@@ -1591,7 +1591,7 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_umessage] = &eval_log_format_umessage;
 	efun[S_user] = &eval_log_format_user;
 	efun[S_vrf] = &eval_log_format_vrf;
-#ifdef WITH_TLS
+#if defined(WITH_TLS) || defined(WITH_SSL)
 	efun[S_tls_conn_cipher] = &eval_log_format_tls_conn_cipher;
 	efun[S_tls_conn_cipher_strength] = &eval_log_format_tls_conn_cipher_strength;
 	efun[S_tls_conn_version] = &eval_log_format_tls_conn_version;

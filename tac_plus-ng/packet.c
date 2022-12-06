@@ -434,8 +434,13 @@ void tac_read(struct context *ctx, int cur)
 
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE) {
 #ifdef WITH_TLS
-	if (ctx->tls_ctx)
-	    len = io_TLS_read(ctx->tls_ctx, ((u_char *) & ctx->hdr) + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) tac_read);
+	if (ctx->tls)
+	    len = io_TLS_read(ctx->tls, ((u_char *) & ctx->hdr) + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) tac_read);
+	else
+#endif
+#ifdef WITH_SSL
+	if (ctx->tls)
+	    len = io_SSL_read(ctx->tls, ((u_char *) & ctx->hdr) + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) tac_read);
 	else
 #endif
 	    len = read(cur, ((u_char *) & ctx->hdr) + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff);
@@ -466,8 +471,13 @@ void tac_read(struct context *ctx, int cur)
     ctx->in->offset = TAC_PLUS_HDR_SIZE;
     ctx->in->length = TAC_PLUS_HDR_SIZE + data_len;
 #ifdef WITH_TLS
-    if (ctx->tls_ctx)
-	len = io_TLS_read(ctx->tls_ctx, (u_char *) & ctx->in->hdr + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) tac_read);
+    if (ctx->tls)
+	len = io_TLS_read(ctx->tls, (u_char *) & ctx->in->hdr + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) tac_read);
+    else
+#endif
+#ifdef WITH_SSL
+    if (ctx->tls)
+	len = io_SSL_read(ctx->tls, (u_char *) & ctx->in->hdr + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) tac_read);
     else
 #endif
 	len = read(cur, (u_char *) & ctx->in->hdr + ctx->in->offset, ctx->in->length - ctx->in->offset);
@@ -504,15 +514,15 @@ void tac_read(struct context *ctx, int cur)
     }
 
     if ((ctx->in->hdr.flags & TAC_PLUS_UNENCRYPTED_FLAG)) {
-#ifdef WITH_TLS
-	if (!ctx->tls_ctx) {
+#if defined(WITH_TLS) || defined(WITH_SSL)
+	if (!ctx->tls) {
 #endif
 	    report(NULL, LOG_ERR, ~0,
 		   "%s: %s packet (sequence number: %d) for session %.8x", "Unencrypted", ctx->nas_address_ascii, (int) ctx->hdr.seq_no,
 		   ntohl(ctx->hdr.session_id));
 	    cleanup(ctx, cur);
 	    return;
-#ifdef WITH_TLS
+#if defined(WITH_TLS) || defined(WITH_SSL)
 	}
 	ctx->unencrypted_flag = 1;
 #endif
@@ -599,11 +609,23 @@ void tac_read(struct context *ctx, int cur)
 #ifdef WITH_TLS
 static void tls_shutdown_sock(struct context *ctx, int cur)
 {
-    int res = io_TLS_shutdown(ctx->tls_ctx, ctx->io, cur, tls_shutdown_sock);
+    int res = io_TLS_shutdown(ctx->tls, ctx->io, cur, tls_shutdown_sock);
     if (res < 0 && errno == EAGAIN)
 	return;
-    tls_free(ctx->tls_ctx);
-    ctx->tls_ctx = NULL;
+    tls_free(ctx->tls);
+    ctx->tls = NULL;
+    if (shutdown(cur, SHUT_WR))
+	cleanup(ctx, cur);	// We only get here if shutdown(2) failed.
+}
+#endif
+#ifdef WITH_SSL
+static void ssl_shutdown_sock(struct context *ctx, int cur)
+{
+    int res = io_SSL_shutdown(ctx->tls, ctx->io, cur, ssl_shutdown_sock);
+    if (res < 0 && errno == EAGAIN)
+	return;
+    SSL_free(ctx->tls);
+    ctx->tls = NULL;
     if (shutdown(cur, SHUT_WR))
 	cleanup(ctx, cur);	// We only get here if shutdown(2) failed.
 }
@@ -615,10 +637,15 @@ void tac_write(struct context *ctx, int cur)
     while (ctx->out) {
 	ssize_t len;
 #ifdef WITH_TLS
-	if (ctx->tls_ctx)
+	if (ctx->tls)
 	    len =
-		io_TLS_write(ctx->tls_ctx, (u_char *) & ctx->out->hdr + ctx->out->offset, ctx->out->length - ctx->out->offset, ctx->io, cur,
-			     (void *) tac_write);
+		io_TLS_write(ctx->tls, (u_char *) & ctx->out->hdr + ctx->out->offset, ctx->out->length - ctx->out->offset, ctx->io, cur, (void *) tac_write);
+	else
+#endif
+#ifdef WITH_SSL
+	if (ctx->tls)
+	    len =
+		io_SSL_write(ctx->tls, (u_char *) & ctx->out->hdr + ctx->out->offset, ctx->out->length - ctx->out->offset, ctx->io, cur, (void *) tac_write);
 	else
 #endif
 	    len = write(cur, (u_char *) & ctx->out->hdr + ctx->out->offset, ctx->out->length - ctx->out->offset);
@@ -638,8 +665,14 @@ void tac_write(struct context *ctx, int cur)
     io_clr_o(ctx->io, cur);
 
 #ifdef WITH_TLS
-    if (ctx->tls_ctx && ctx->dying && !ctx->delayed) {
-	if (io_TLS_shutdown(ctx->tls_ctx, ctx->io, cur, tls_shutdown_sock))
+    if (ctx->tls && ctx->dying && !ctx->delayed) {
+	if (io_TLS_shutdown(ctx->tls, ctx->io, cur, tls_shutdown_sock))
+	    return;
+    }
+#endif
+#ifdef WITH_SSL
+    if (ctx->tls && ctx->dying && !ctx->delayed) {
+	if (io_SSL_shutdown(ctx->tls, ctx->io, cur, ssl_shutdown_sock))
 	    return;
     }
 #endif

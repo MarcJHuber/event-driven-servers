@@ -53,6 +53,10 @@
 #define IFNAMSIZ 16
 #endif
 
+#ifdef WITH_SSL
+#include <openssl/err.h>
+#endif
+
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
 struct config config;		/* configuration data */
@@ -196,7 +200,7 @@ static void accept_control_common(int, struct scm_data_accept *, sockaddr_union 
 static void accept_control_singleprocess(int, struct scm_data_accept *);
 static void accept_control_raw(int, struct scm_data_accept *);
 static void accept_control_px(int, struct scm_data_accept *);
-#if WITH_TLS
+#if defined(WITH_TLS) || defined(WITH_SSL)
 static void accept_control_tls(struct context *, int);
 #endif
 static void setup_signals(void);
@@ -212,13 +216,6 @@ int main(int argc, char **argv, char **envp)
     cfg_init();
 
     buffer_setsize(0x8000, 0x10);
-
-#ifdef WITH_TLS
-    if (tls_init()) {
-	report(NULL, LOG_ERR, ~0, "tls_init failed at %s:%d\n", __FILE__, __LINE__);
-	tac_exit(EX_OSERR);
-    }
-#endif
 
     if (!common_data.conffile) {
 	common_data.conffile = argv[optind];
@@ -287,12 +284,22 @@ void cleanup(struct context *ctx, int cur)
 	return;
     }
 #ifdef WITH_TLS
-    if (ctx->tls_ctx) {
-	int res = io_TLS_shutdown(ctx->tls_ctx, ctx->io, cur, cleanup);
+    if (ctx->tls) {
+	int res = io_TLS_shutdown(ctx->tls, ctx->io, cur, cleanup);
 	if (res < 0 && errno == EAGAIN)
 	    return;
-	tls_free(ctx->tls_ctx);
-	ctx->tls_ctx = NULL;
+	tls_free(ctx->tls);
+	ctx->tls = NULL;
+    }
+#endif
+
+#ifdef WITH_SSL
+    if (ctx->tls) {
+	int res = io_SSL_shutdown(ctx->tls, ctx->io, cur, cleanup);
+	if (res < 0 && errno == EAGAIN)
+	    return;
+	SSL_free(ctx->tls);
+	ctx->tls = NULL;
     }
 #endif
 
@@ -514,18 +521,19 @@ static void reject_conn(struct context *ctx, char *hint, char *tls)
     cleanup(ctx, ctx->sock);
 }
 
-#ifdef WITH_TLS
-static void complete_host(tac_host *);
+void complete_host(tac_host *);
 
+#if defined(WITH_TLS) || defined(WITH_SSL)
 static void accept_control_tls(struct context *ctx, int cur)
 {
     const char *hint = "";
     io_clr_i(ctx->io, cur);
     io_clr_o(ctx->io, cur);
 
-    switch (tls_handshake(ctx->tls_ctx)) {
+#ifdef WITH_TLS
+    switch (tls_handshake(ctx->tls)) {
     default:
-	hint = tls_error(ctx->tls_ctx);
+	hint = tls_error(ctx->tls);
 	goto bye;
     case TLS_WANT_POLLIN:
 	io_set_i(ctx->io, cur);
@@ -537,39 +545,98 @@ static void accept_control_tls(struct context *ctx, int cur)
 	io_unregister(ctx->io, ctx->sock);
 	break;
     }
+#endif
 
-    if (tls_peer_cert_provided(ctx->tls_ctx)) {
+#ifdef WITH_SSL
+    int r = 0;
+    switch (SSL_accept(ctx->tls)) {
+    default:
+	if (SSL_want_read(ctx->tls)) {
+	    io_set_i(ctx->io, cur);
+	    r++;
+	}
+	if (SSL_want_write(ctx->tls)) {
+	    io_set_o(ctx->io, cur);
+	    r++;
+	}
+	if (!r) {
+	    report(NULL, LOG_INFO, ~0, "SSL_accept(%s:%d): %s", __FILE__, __LINE__, ERR_error_string(ERR_get_error(), NULL));
+	    logmsg("SSL_accept(%s:%d): %s", __FILE__, __LINE__, ERR_error_string(ERR_get_error(), NULL));
+	    goto bye;
+	}
+	return;
+    case 0:
+	goto bye;
+    case 1:
+	break;
+    }
+#endif
+
+#ifdef WITH_SSL
+#ifndef OPENSSL_NO_PSK
+    if (ctx->tls_psk_identity) {
+	accept_control_final(ctx);
+	return;
+    }
+#endif
+#endif
+    if (
+#ifdef WITH_TLS
+	   tls_peer_cert_provided(ctx->tls)
+#endif
+#ifdef WITH_SSL
+	   SSL_get_peer_certificate(ctx->tls)
+#endif
+	) {
 	int valid;
 	char buf[40];
+#ifdef WITH_TLS
 	time_t notafter;
-	ctx->tls_conn_version = tls_conn_version(ctx->tls_ctx);
-	ctx->tls_conn_version_len = strlen(ctx->tls_conn_version);
-	ctx->tls_conn_cipher = tls_conn_cipher(ctx->tls_ctx);
-	ctx->tls_conn_cipher_len = strlen(ctx->tls_conn_cipher);
-	snprintf(buf, sizeof(buf), "%d", tls_conn_cipher_strength(ctx->tls_ctx));
+	ctx->tls_conn_version = tls_conn_version(ctx->tls);
+	ctx->tls_conn_cipher = tls_conn_cipher(ctx->tls);
+	snprintf(buf, sizeof(buf), "%d", tls_conn_cipher_strength(ctx->tls));
 	ctx->tls_conn_cipher_strength = mempool_strdup(ctx->pool, buf);
-	ctx->tls_conn_cipher_strength_len = strlen(ctx->tls_conn_cipher_strength);
-
-	ctx->tls_peer_cert_subject = tls_peer_cert_subject(ctx->tls_ctx);
+	ctx->tls_peer_cert_subject = tls_peer_cert_subject(ctx->tls);
 	if (ctx->tls_peer_cert_subject) {
-	    while (*ctx->tls_peer_cert_subject == '/')	// libtls bug?
+	    while (*ctx->tls_peer_cert_subject == '/')	// OpenSSL
 		ctx->tls_peer_cert_subject++;
 	    ctx->tls_peer_cert_subject_len = strlen(ctx->tls_peer_cert_subject);
 	}
 
-	ctx->tls_peer_cert_issuer = (char *) tls_peer_cert_issuer(ctx->tls_ctx);
+	ctx->tls_peer_cert_issuer = (char *) tls_peer_cert_issuer(ctx->tls);
 	if (ctx->tls_peer_cert_issuer) {
-	    while (*ctx->tls_peer_cert_issuer == '/')	// libtls bug?
+	    while (*ctx->tls_peer_cert_issuer == '/')	// OpenSSL
 		ctx->tls_peer_cert_issuer++;
 	    ctx->tls_peer_cert_issuer_len = strlen(ctx->tls_peer_cert_issuer);
 	}
-
-	notafter = tls_peer_cert_notafter(ctx->tls_ctx);
+#endif
+#ifdef WITH_SSL
+	ctx->tls_conn_version = SSL_get_version(ctx->tls);
+	ctx->tls_conn_cipher = SSL_get_cipher(ctx->tls);
+	snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
+	ctx->tls_conn_cipher_strength = mempool_strdup(ctx->pool, buf);
+	snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
+	valid = 1;
+#endif
+	if (ctx->tls_conn_version)
+	    ctx->tls_conn_version_len = strlen(ctx->tls_conn_version);
+	if (ctx->tls_conn_cipher)
+	    ctx->tls_conn_cipher_len = strlen(ctx->tls_conn_cipher);
+	if (ctx->tls_conn_cipher)
+	    ctx->tls_conn_cipher_len = strlen(ctx->tls_conn_cipher);
+	if (ctx->tls_conn_cipher_strength)
+	    ctx->tls_conn_cipher_strength_len = strlen(ctx->tls_conn_cipher_strength);
+#ifdef WITH_TLS
+	notafter = tls_peer_cert_notafter(ctx->tls);
 	valid = (ctx->realm->tls_accept_expired == TRISTATE_YES)
-	    || (tls_peer_cert_notbefore(ctx->tls_ctx) < io_now.tv_sec && notafter > io_now.tv_sec);
+	    || (tls_peer_cert_notbefore(ctx->tls) < io_now.tv_sec && notafter > io_now.tv_sec);
 	if (ctx->realm->tls_accept_expired != TRISTATE_YES && notafter > io_now.tv_sec + 30 * 86400)
 	    report(NULL, LOG_INFO, ~0, "peer certificate for %s will expire in " TIME_T_PRINTF " days", ctx->peer_addr_ascii,
 		   (io_now.tv_sec - notafter) / 86400);
+#endif
+#ifdef WITH_SSL
+	// FIXME, or maybe not. Currently missing the above for OpenSSL.
+#endif
 
 	if (ctx->tls_peer_cert_subject && valid) {
 	    size_t i;
@@ -665,7 +732,7 @@ static void accept_control_px(int s, struct scm_data_accept *sd)
     io_sched_add(ctx->io, ctx, (void *) try_raw, 2, 0);
 }
 
-static void complete_host(tac_host * h)
+void complete_host(tac_host * h)
 {
     if (!h->complete && h->parent) {
 	enum user_message_enum um;
@@ -743,6 +810,18 @@ static void complete_host(tac_host * h)
 	if (h->context_timeout < 0)
 	    h->context_timeout = hp->context_timeout;
 
+#ifdef WITH_SSL
+#ifndef OPENSSL_NO_PSK
+	if (!h->tls_psk_id)
+	    h->tls_psk_id = hp->tls_psk_id;
+
+	if (!h->tls_psk_key) {
+	    h->tls_psk_key = hp->tls_psk_key;
+	    h->tls_psk_key_len = hp->tls_psk_key_len;
+	}
+#endif
+#endif
+
 	if (h->dns_timeout < 0)
 	    h->dns_timeout = hp->dns_timeout;
 	if (h->dns_timeout < 0)
@@ -776,6 +855,42 @@ static void complete_host(tac_host * h)
 	h->complete = 1;
     }
 }
+
+#ifdef WITH_SSL
+static int app_verify_cb(X509_STORE_CTX * xctx, void *app_ctx)
+{
+    struct context *ctx = (struct context *) app_ctx;
+    X509 *cert = X509_STORE_CTX_get0_cert(xctx);
+
+    if (cert && (X509_verify_cert(xctx) == 1)) {
+	char buf[512];
+	char *t;
+	X509_NAME *x;
+
+	if ((x = X509_get_subject_name(cert))) {
+	    t = X509_NAME_oneline(x, buf, sizeof(buf));
+	    if (t) {
+		while (*t == '/')
+		    t++;
+		ctx->tls_peer_cert_subject++;
+		ctx->tls_peer_cert_subject = mempool_strdup(ctx->pool, t);
+		ctx->tls_peer_cert_subject_len = strlen(ctx->tls_peer_cert_subject);
+	    }
+	}
+	if ((x = X509_get_issuer_name(cert))) {
+	    t = X509_NAME_oneline(x, buf, sizeof(buf));
+	    if (t) {
+		while (*t == '/')
+		    t++;
+		ctx->tls_peer_cert_issuer = mempool_strdup(ctx->pool, t);
+		ctx->tls_peer_cert_issuer_len = strlen(ctx->tls_peer_cert_issuer);
+	    }
+	}
+	return 1;		// ok
+    }
+    return 0;
+}
+#endif
 
 static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_union * nad_address)
 {
@@ -893,9 +1008,9 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	ctx->vrf = mempool_strndup(ctx->pool, (u_char *) vrf, vrf_len);
     ctx->vrf_len = vrf_len;
 
-#ifdef WITH_TLS
+#if defined(WITH_TLS) || defined(WITH_SSL)
     if (h && sd->use_tls) {
-	if (!r->tls_ctx) {
+	if (!r->tls) {
 	    report(NULL, LOG_ERR, ~0, "spawnd set TLS flag but realm %s isn't configured suitably", r->name);
 	    cleanup(ctx, ctx->sock);
 	    return;
@@ -906,8 +1021,17 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	io_set_cb_h(ctx->io, ctx->sock, (void *) cleanup);
 	io_set_cb_e(ctx->io, ctx->sock, (void *) cleanup);
 	io_sched_add(ctx->io, ctx, (void *) periodics_ctx, 60, 0);
-	tls_accept_socket(r->tls_ctx, &ctx->tls_ctx, ctx->sock);
+#ifdef WITH_TLS
+	tls_accept_socket(r->tls, &ctx->tls, ctx->sock);
 	accept_control_tls(ctx, ctx->sock);
+#endif
+#ifdef WITH_SSL
+	ctx->tls = SSL_new(r->tls);
+	SSL_set_fd(ctx->tls, ctx->sock);
+
+	SSL_CTX_set_cert_verify_callback(r->tls, app_verify_cb, ctx);
+	accept_control_tls(ctx, ctx->sock);
+#endif
 	return;
     }
 #endif

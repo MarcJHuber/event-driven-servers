@@ -105,6 +105,10 @@
 #define MD5_LEN           16
 #define MSCHAP_DIGEST_LEN 49
 
+#ifdef WITH_SSL
+#undef WITH_TLS
+#endif
+
 struct context;
 struct tac_acl;
 struct tac_acllist;
@@ -190,6 +194,11 @@ struct tac_host {
     struct tac_script_action *action;
     char **user_messages;
     u_int debug;
+#ifdef WITH_SSL
+    char *tls_psk_id;
+    u_char *tls_psk_key;
+    size_t tls_psk_key_len;
+#endif
 };
 
 struct tac_net;
@@ -324,6 +333,7 @@ struct realm {
      TRISTATE(mavis_login);
      TRISTATE(mavis_pap_prefetch);
      TRISTATE(mavis_login_prefetch);
+     BISTATE(use_tls_psk);
      BISTATE(visited);
     int dns_caching_period;	/* dns caching period */
     time_t dnspurge_last;
@@ -337,9 +347,18 @@ struct realm {
 #ifdef WITH_PCRE2
     pcre2_code *password_minimum_requirement;
 #endif
-#ifdef WITH_TLS
-    struct tls *tls_ctx;
+#if defined(WITH_TLS)
+    struct tls *tls;
     struct tls_config *tls_cfg;
+    char *tls_cert;
+    char *tls_key;
+    char *tls_pass;
+    char *tls_ciphers;
+    char *tls_cafile;
+     TRISTATE(tls_accept_expired);
+#endif
+#if defined(WITH_SSL)
+    SSL_CTX *tls;
     char *tls_cert;
     char *tls_key;
     char *tls_pass;
@@ -710,7 +729,12 @@ struct context {
     struct tac_key *key;
     time_t last_io;
 #ifdef WITH_TLS
-    struct tls *tls_ctx;
+    struct tls *tls;
+#endif
+#ifdef WITH_SSL
+    SSL *tls;
+#endif
+#if defined(WITH_TLS) || defined(WITH_SSL)
     const char *tls_conn_version;
     size_t tls_conn_version_len;
     const char *tls_conn_cipher;
@@ -723,6 +747,10 @@ struct context {
     size_t tls_conn_cipher_strength_len;
     char *tls_peer_cn;
     size_t tls_peer_cn_len;
+#endif
+#if defined(WITH_SSL)
+    char *tls_psk_identity;
+    size_t tls_psk_identity_len;
 #endif
     char *proxy_addr_ascii;
     size_t proxy_addr_ascii_len;
@@ -874,6 +902,7 @@ int query_mavis_info(tac_session *, void (*)(tac_session *), enum pw_ix);
 void expire_dynamic_users(tac_realm *);
 void drop_mcx(tac_realm *);
 void init_mcx(tac_realm *);
+void complete_host(tac_host *);
 void complete_realm(tac_realm *);
 
 enum token validate_ssh_hash(tac_session *, char *, char **);

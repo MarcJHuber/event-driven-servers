@@ -45,8 +45,7 @@ SSL_CTX *ssl_init(char *cert_file, char *key_file, char *pem_phrase, char *ciphe
     SSL_CTX *ctx;
 
     DebugIn(DEBUG_PROC);
-    SSL_load_error_strings();
-    SSL_library_init();
+
     ctx = SSL_CTX_new(TLS_server_method());
     if (!ctx)
 	logssl("SSL_CTX_new");
@@ -62,11 +61,11 @@ SSL_CTX *ssl_init(char *cert_file, char *key_file, char *pem_phrase, char *ciphe
 	SSL_CTX_set_default_passwd_cb(ctx, pem_phrase_cb);
 	SSL_CTX_set_default_passwd_cb_userdata(ctx, pem_phrase);
     }
-    if (!SSL_CTX_use_certificate_chain_file(ctx, cert_file))
+    if (cert_file && !SSL_CTX_use_certificate_chain_file(ctx, cert_file))
 	logssl("SSL_CTX_use_certificate_chain_file");
-    if (!SSL_CTX_use_PrivateKey_file(ctx, key_file ? key_file : cert_file, SSL_FILETYPE_PEM))
+    if ((key_file || cert_file) && !SSL_CTX_use_PrivateKey_file(ctx, key_file ? key_file : cert_file, SSL_FILETYPE_PEM))
 	logssl("SSL_CTX_use_PrivateKey_file");
-    if (!SSL_CTX_check_private_key(ctx))
+    if ((key_file || cert_file) && !SSL_CTX_check_private_key(ctx))
 	logssl("SSL_CTX_check_private_key");
     SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
 
