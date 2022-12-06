@@ -1096,6 +1096,9 @@ mavis user filter = __internal__username_acl__
 
 4.2.3.3.3. TLS
 
+   TACACS+-over-TLS is not a standard. These features are
+   experimental.
+
    If compiled with LibTLS support the following configuration
    options are available:
 
@@ -1109,6 +1112,15 @@ mavis user filter = __internal__username_acl__
        Specifies the optional passphrase to decrypt key-file.
      * tls cafile = cafile
        Specifies a file with the CAs to use.
+
+   If compiled with OpenSSL support, TLSv1.3 Preshared Keys are
+   supported:
+
+     * tls psk = ( yes | no )
+       This enables PSK support at realm level.
+       PSK identity and key can be declared at host level:
+tls psk id = myid
+tls psk key = 0123456789abcdef # in hex
 
    Example:
 id = spawnd {
