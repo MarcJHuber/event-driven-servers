@@ -201,8 +201,10 @@ static int compare_net(const void *a, const void *b)
     return strcmp(((tac_net *) a)->name, ((tac_net *) b)->name);
 }
 
+#ifdef WITH_SSL
 static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION ** sess);
 static SSL_CTX *ssl_init(char *, char *, char *, char *);
+#endif
 
 void complete_realm(tac_realm * r)
 {
@@ -824,6 +826,7 @@ static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent, i
 
 static char hexbyte(char *);
 
+#ifdef WITH_SSL
 static void parse_tls_psk_key(struct sym *sym, tac_host * host)
 {
     size_t i;
@@ -841,6 +844,7 @@ static void parse_tls_psk_key(struct sym *sym, tac_host * host)
 	host->tls_psk_key[i] = hexbyte(k);
     }
 }
+#endif
 
 static void parse_host_attr(struct sym *, tac_realm *, tac_host *);
 
