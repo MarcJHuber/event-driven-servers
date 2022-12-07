@@ -1526,8 +1526,8 @@ static char *eval_log_format_tls_psk_identity(tac_session * session __attribute_
 					      __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->tls_psk_identity;
-	return ctx->tls_psk_identity_len;
+	*len = ctx->tls_psk_identity_len;
+	return ctx->tls_psk_identity;
     }
     return NULL;
 }
