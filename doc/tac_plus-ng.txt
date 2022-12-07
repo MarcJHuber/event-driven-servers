@@ -705,16 +705,19 @@ syslog default = deny
    ${shell} Shell from PAM backend
    ${dn} Raw dn backend value, typically from LDAP
    ${memberof} Raw memberOf backend value, typically from LDAP
-   ${tls-conn-version} TLS Connection Version (requires LibTLS)
-   ${tls-conn-cipher} TLS Connection Cipher (requires LibTLS)
+   ${tls-conn-version} TLS Connection Version (requires LibTLS or
+   OpenSSL)
+   ${tls-conn-cipher} TLS Connection Cipher (requires LibTLS or
+   OpenSSL)
    ${tls-peer-cert-issuer} TLS Peer Certificate Issuer (requires
-   LibTLS)
+   LibTLS or OpenSSL)
    ${tls-peer-cert-subject} TLS Peer Certificate Subject (requires
    LibTLS)
    ${tls-conn-cipher-strength} TLS Connection Cipher Strength
-   (requires LibTLS)
-   ${tls-peer-cn} TLS peer certificate Common Name(requires
-   LibTLS)
+   (requires LibTLS or OpenSSL)
+   ${tls-peer-cn} TLS peer certificate Common Name (requires
+   LibTLS or OpenSSL)
+   ${tls-psk-identity} TLS PSK identity (requires OpenSSL)
        The built-in defaults as of writing this are:
 # Accounting to file/pipe:
 "%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${

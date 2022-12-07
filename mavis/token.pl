@@ -419,7 +419,8 @@ tls-conn-cipher		S_tls_conn_cipher
 tls-peer-cert-issuer	S_tls_peer_cert_issuer
 tls-peer-cert-subject	S_tls_peer_cert_subject
 tls-conn-cipher-strength	S_tls_conn_cipher_strength
-tls-tls-peer-cn		S_tls_peer_cn
+tls-peer-cn		S_tls_peer_cn
+tls-psk-identity	S_tls_psk_identity
 expired		S_expired
 uid		S_uid
 memberof	S_memberof

@@ -747,8 +747,6 @@ struct context {
     size_t tls_conn_cipher_strength_len;
     char *tls_peer_cn;
     size_t tls_peer_cn_len;
-#endif
-#if defined(WITH_SSL)
     char *tls_psk_identity;
     size_t tls_psk_identity_len;
 #endif
