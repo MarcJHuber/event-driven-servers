@@ -591,7 +591,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	int valid;
 	char buf[40];
 #ifdef WITH_TLS
-	time_t notafter;
+	time_t notafter, notbefore;
 	ctx->tls_conn_version = tls_conn_version(ctx->tls);
 	ctx->tls_conn_cipher = tls_conn_cipher(ctx->tls);
 	snprintf(buf, sizeof(buf), "%d", tls_conn_cipher_strength(ctx->tls));
@@ -628,16 +628,12 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    ctx->tls_conn_cipher_strength_len = strlen(ctx->tls_conn_cipher_strength);
 #ifdef WITH_TLS
 	notafter = tls_peer_cert_notafter(ctx->tls);
-	valid = (ctx->realm->tls_accept_expired == TRISTATE_YES)
-	    || (tls_peer_cert_notbefore(ctx->tls) < io_now.tv_sec && notafter > io_now.tv_sec);
+	notbefore = tls_peer_cert_notbefore(ctx->tls);
+	valid = (ctx->realm->tls_accept_expired == TRISTATE_YES) || (notbefore < io_now.tv_sec && notafter > io_now.tv_sec);
 	if (ctx->realm->tls_accept_expired != TRISTATE_YES && notafter > io_now.tv_sec + 30 * 86400)
 	    report(NULL, LOG_INFO, ~0, "peer certificate for %s will expire in " TIME_T_PRINTF " days", ctx->peer_addr_ascii,
 		   (io_now.tv_sec - notafter) / 86400);
 #endif
-#ifdef WITH_SSL
-	// FIXME, or maybe not. Currently missing the above for OpenSSL.
-#endif
-
 	if (ctx->tls_peer_cert_subject && valid) {
 	    size_t i;
 	    char *cn = alloca(ctx->tls_peer_cert_subject_len + 1);
@@ -863,12 +859,13 @@ static int app_verify_cb(X509_STORE_CTX * xctx, void *app_ctx)
     X509 *cert = X509_STORE_CTX_get0_cert(xctx);
 
     if (cert && (X509_verify_cert(xctx) == 1)) {
-	char buf[512];
-	char *t;
 	X509_NAME *x;
+	ASN1_TIME *notafter_asn1, *notbefore_asn1;
+	int valid = 1;
 
 	if ((x = X509_get_subject_name(cert))) {
-	    t = X509_NAME_oneline(x, buf, sizeof(buf));
+	    char buf[512];
+	    char *t = X509_NAME_oneline(x, buf, sizeof(buf));
 	    if (t) {
 		while (*t == '/')
 		    t++;
@@ -878,7 +875,8 @@ static int app_verify_cb(X509_STORE_CTX * xctx, void *app_ctx)
 	    }
 	}
 	if ((x = X509_get_issuer_name(cert))) {
-	    t = X509_NAME_oneline(x, buf, sizeof(buf));
+	    char buf[512];
+	    char *t = X509_NAME_oneline(x, buf, sizeof(buf));
 	    if (t) {
 		while (*t == '/')
 		    t++;
@@ -886,7 +884,20 @@ static int app_verify_cb(X509_STORE_CTX * xctx, void *app_ctx)
 		ctx->tls_peer_cert_issuer_len = strlen(ctx->tls_peer_cert_issuer);
 	    }
 	}
-	return 1;		// ok
+	notafter_asn1 = X509_get_notAfter(cert);
+	notbefore_asn1 = X509_get_notBefore(cert);
+	if (notafter_asn1 && notbefore_asn1) {
+	    struct tm notafter_tm, notbefore_tm;
+	    if ((1 == ASN1_TIME_to_tm(notafter_asn1, &notafter_tm)) && (1 == ASN1_TIME_to_tm(notbefore_asn1, &notbefore_tm))) {
+		time_t notafter = mktime(&notafter_tm);
+		time_t notbefore = mktime(&notbefore_tm);
+		valid = (ctx->realm->tls_accept_expired == TRISTATE_YES) || (notbefore < io_now.tv_sec && notafter > io_now.tv_sec);
+		if (ctx->realm->tls_accept_expired != TRISTATE_YES && notafter > io_now.tv_sec + 30 * 86400)
+		    report(NULL, LOG_INFO, ~0, "peer certificate for %s will expire in " TIME_T_PRINTF " days", ctx->peer_addr_ascii,
+			   (io_now.tv_sec - notafter) / 86400);
+	    }
+	}
+	return valid;
     }
     return 0;
 }
