@@ -202,7 +202,9 @@ static int compare_net(const void *a, const void *b)
 }
 
 #ifdef WITH_SSL
+#ifndef OPENSSL_NO_PSK
 static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION ** sess);
+#endif
 static SSL_CTX *ssl_init(char *, char *, char *, char *);
 #endif
 
@@ -319,11 +321,13 @@ void complete_realm(tac_realm * r)
 		SSL_CTX_set_verify(r->tls, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 	    }
 	}
+#ifndef OPENSSL_NO_PSK
 	if (r->use_tls_psk) {
 	    if (!r->tls)
 		r->tls = ssl_init(r->tls_cert, r->tls_key, r->tls_pass, r->tls_ciphers);
 	    SSL_CTX_set_psk_find_session_callback(r->tls, psk_find_session_cb);
 	}
+#endif
 #endif
 #ifdef WITH_PCRE2
 	if (!r->password_minimum_requirement)
@@ -4066,6 +4070,7 @@ static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char ** key, s
     return -1;
 }
 
+#ifndef OPENSSL_NO_PSK
 static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION ** sess)
 {
     SSL_SESSION *nsession = NULL;
@@ -4148,6 +4153,7 @@ static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t 
 
     return 1;
 }
+#endif
 #endif
 
 static int ssl_pem_phrase_cb(char *buf, int size, int rwflag __attribute__((unused)), void *userdata)
