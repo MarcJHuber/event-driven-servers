@@ -532,15 +532,15 @@ static void accept_control_tls(struct context *ctx, int cur)
 
 #ifdef WITH_TLS
     switch (tls_handshake(ctx->tls)) {
-    default:
-	hint = tls_error(ctx->tls);
-	goto bye;
     case TLS_WANT_POLLIN:
 	io_set_i(ctx->io, cur);
 	return;
     case TLS_WANT_POLLOUT:
 	io_set_o(ctx->io, cur);
 	return;
+    default:
+	hint = tls_error(ctx->tls);
+	goto bye;
     case 0:
 	io_unregister(ctx->io, ctx->sock);
 	break;
@@ -560,63 +560,79 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    r++;
 	}
 	if (!r) {
-	    report(NULL, LOG_INFO, ~0, "SSL_accept(%s:%d): %s", __FILE__, __LINE__, ERR_error_string(ERR_get_error(), NULL));
-	    logmsg("SSL_accept(%s:%d): %s", __FILE__, __LINE__, ERR_error_string(ERR_get_error(), NULL));
+	    hint = ERR_error_string(ERR_get_error(), NULL);
 	    goto bye;
 	}
 	return;
     case 0:
+	hint = ERR_error_string(ERR_get_error(), NULL);
 	goto bye;
     case 1:
+	io_unregister(ctx->io, ctx->sock);
 	break;
     }
-#endif
 
-#ifdef WITH_SSL
-#ifndef OPENSSL_NO_PSK
+# ifndef OPENSSL_NO_PSK
     if (ctx->tls_psk_identity) {
 	accept_control_final(ctx);
 	return;
     }
-#endif
+# endif
+
+    X509 *cert = NULL;
 #endif
     if (
 #ifdef WITH_TLS
 	   tls_peer_cert_provided(ctx->tls)
 #endif
 #ifdef WITH_SSL
-	   SSL_get_peer_certificate(ctx->tls)
+	   (cert = SSL_get_peer_certificate(ctx->tls))
 #endif
 	) {
-	int valid;
+	int valid = 0;
 	char buf[40];
+	time_t notafter = -1, notbefore = -1;
 #ifdef WITH_TLS
-	time_t notafter, notbefore;
 	ctx->tls_conn_version = tls_conn_version(ctx->tls);
 	ctx->tls_conn_cipher = tls_conn_cipher(ctx->tls);
 	snprintf(buf, sizeof(buf), "%d", tls_conn_cipher_strength(ctx->tls));
 	ctx->tls_conn_cipher_strength = mempool_strdup(ctx->pool, buf);
 	ctx->tls_peer_cert_subject = tls_peer_cert_subject(ctx->tls);
-	if (ctx->tls_peer_cert_subject) {
-	    while (*ctx->tls_peer_cert_subject == '/')	// OpenSSL
-		ctx->tls_peer_cert_subject++;
-	    ctx->tls_peer_cert_subject_len = strlen(ctx->tls_peer_cert_subject);
-	}
-
-	ctx->tls_peer_cert_issuer = (char *) tls_peer_cert_issuer(ctx->tls);
-	if (ctx->tls_peer_cert_issuer) {
-	    while (*ctx->tls_peer_cert_issuer == '/')	// OpenSSL
-		ctx->tls_peer_cert_issuer++;
-	    ctx->tls_peer_cert_issuer_len = strlen(ctx->tls_peer_cert_issuer);
-	}
+	notafter = tls_peer_cert_notafter(ctx->tls);
+	notbefore = tls_peer_cert_notbefore(ctx->tls);
 #endif
 #ifdef WITH_SSL
 	ctx->tls_conn_version = SSL_get_version(ctx->tls);
 	ctx->tls_conn_cipher = SSL_get_cipher(ctx->tls);
 	snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
 	ctx->tls_conn_cipher_strength = mempool_strdup(ctx->pool, buf);
-	snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
-	valid = 1;
+
+	{
+	    char buf[512];
+	    ASN1_TIME *notafter_asn1 = X509_get_notAfter(cert);
+	    ASN1_TIME *notbefore_asn1 = X509_get_notBefore(cert);
+	    X509_NAME *x;
+
+	    if ((x = X509_get_subject_name(cert))) {
+		char *t = X509_NAME_oneline(x, buf, sizeof(buf));
+		if (t)
+		    ctx->tls_peer_cert_subject = mempool_strdup(ctx->pool, t);
+	    }
+	    if ((x = X509_get_issuer_name(cert))) {
+		char *t = X509_NAME_oneline(x, buf, sizeof(buf));
+		if (t)
+		    ctx->tls_peer_cert_issuer = mempool_strdup(ctx->pool, t);
+	    }
+
+	    if (notafter_asn1 && notbefore_asn1) {
+		struct tm notafter_tm, notbefore_tm;
+		if ((1 == ASN1_TIME_to_tm(notafter_asn1, &notafter_tm)) && (1 == ASN1_TIME_to_tm(notbefore_asn1, &notbefore_tm))) {
+		    notafter = mktime(&notafter_tm);
+		    notbefore = mktime(&notbefore_tm);
+		}
+	    }
+	}
+	X509_free(cert);
 #endif
 	if (ctx->tls_conn_version)
 	    ctx->tls_conn_version_len = strlen(ctx->tls_conn_version);
@@ -626,14 +642,21 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    ctx->tls_conn_cipher_len = strlen(ctx->tls_conn_cipher);
 	if (ctx->tls_conn_cipher_strength)
 	    ctx->tls_conn_cipher_strength_len = strlen(ctx->tls_conn_cipher_strength);
-#ifdef WITH_TLS
-	notafter = tls_peer_cert_notafter(ctx->tls);
-	notbefore = tls_peer_cert_notbefore(ctx->tls);
+	if (ctx->tls_peer_cert_subject) {
+	    while (*ctx->tls_peer_cert_subject == '/')
+		ctx->tls_peer_cert_subject++;
+	    ctx->tls_peer_cert_subject_len = strlen(ctx->tls_peer_cert_subject);
+	}
+	if (ctx->tls_peer_cert_issuer) {
+	    while (*ctx->tls_peer_cert_issuer == '/')
+		ctx->tls_peer_cert_issuer++;
+	    ctx->tls_peer_cert_issuer_len = strlen(ctx->tls_peer_cert_issuer);
+	}
 	valid = (ctx->realm->tls_accept_expired == TRISTATE_YES) || (notbefore < io_now.tv_sec && notafter > io_now.tv_sec);
-	if (ctx->realm->tls_accept_expired != TRISTATE_YES && notafter > io_now.tv_sec + 30 * 86400)
+	if (notafter > -1 && notbefore > -1 && ctx->realm->tls_accept_expired != TRISTATE_YES && notafter > io_now.tv_sec + 30 * 86400)
 	    report(NULL, LOG_INFO, ~0, "peer certificate for %s will expire in " TIME_T_PRINTF " days", ctx->peer_addr_ascii,
 		   (io_now.tv_sec - notafter) / 86400);
-#endif
+
 	if (ctx->tls_peer_cert_subject && valid) {
 	    size_t i;
 	    char *cn = alloca(ctx->tls_peer_cert_subject_len + 1);
@@ -807,7 +830,7 @@ void complete_host(tac_host * h)
 	    h->context_timeout = hp->context_timeout;
 
 #ifdef WITH_SSL
-#ifndef OPENSSL_NO_PSK
+# ifndef OPENSSL_NO_PSK
 	if (!h->tls_psk_id)
 	    h->tls_psk_id = hp->tls_psk_id;
 
@@ -815,7 +838,7 @@ void complete_host(tac_host * h)
 	    h->tls_psk_key = hp->tls_psk_key;
 	    h->tls_psk_key_len = hp->tls_psk_key_len;
 	}
-#endif
+# endif
 #endif
 
 	if (h->dns_timeout < 0)
@@ -853,53 +876,9 @@ void complete_host(tac_host * h)
 }
 
 #ifdef WITH_SSL
-static int app_verify_cb(X509_STORE_CTX * xctx, void *app_ctx)
+static int app_verify_cb(X509_STORE_CTX * ctx, void *app_ctx __attribute__((unused)))
 {
-    struct context *ctx = (struct context *) app_ctx;
-    X509 *cert = X509_STORE_CTX_get0_cert(xctx);
-
-    if (cert && (X509_verify_cert(xctx) == 1)) {
-	X509_NAME *x;
-	ASN1_TIME *notafter_asn1, *notbefore_asn1;
-	int valid = 1;
-
-	if ((x = X509_get_subject_name(cert))) {
-	    char buf[512];
-	    char *t = X509_NAME_oneline(x, buf, sizeof(buf));
-	    if (t) {
-		while (*t == '/')
-		    t++;
-		ctx->tls_peer_cert_subject++;
-		ctx->tls_peer_cert_subject = mempool_strdup(ctx->pool, t);
-		ctx->tls_peer_cert_subject_len = strlen(ctx->tls_peer_cert_subject);
-	    }
-	}
-	if ((x = X509_get_issuer_name(cert))) {
-	    char buf[512];
-	    char *t = X509_NAME_oneline(x, buf, sizeof(buf));
-	    if (t) {
-		while (*t == '/')
-		    t++;
-		ctx->tls_peer_cert_issuer = mempool_strdup(ctx->pool, t);
-		ctx->tls_peer_cert_issuer_len = strlen(ctx->tls_peer_cert_issuer);
-	    }
-	}
-	notafter_asn1 = X509_get_notAfter(cert);
-	notbefore_asn1 = X509_get_notBefore(cert);
-	if (notafter_asn1 && notbefore_asn1) {
-	    struct tm notafter_tm, notbefore_tm;
-	    if ((1 == ASN1_TIME_to_tm(notafter_asn1, &notafter_tm)) && (1 == ASN1_TIME_to_tm(notbefore_asn1, &notbefore_tm))) {
-		time_t notafter = mktime(&notafter_tm);
-		time_t notbefore = mktime(&notbefore_tm);
-		valid = (ctx->realm->tls_accept_expired == TRISTATE_YES) || (notbefore < io_now.tv_sec && notafter > io_now.tv_sec);
-		if (ctx->realm->tls_accept_expired != TRISTATE_YES && notafter > io_now.tv_sec + 30 * 86400)
-		    report(NULL, LOG_INFO, ~0, "peer certificate for %s will expire in " TIME_T_PRINTF " days", ctx->peer_addr_ascii,
-			   (io_now.tv_sec - notafter) / 86400);
-	    }
-	}
-	return valid;
-    }
-    return 0;
+    return (X509_verify_cert(ctx) == 1) ? 1 : 0;
 }
 #endif
 
