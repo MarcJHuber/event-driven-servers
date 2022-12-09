@@ -589,7 +589,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 	   (cert = SSL_get_peer_certificate(ctx->tls))
 #endif
 	) {
-	int valid = 0;
 	char buf[40];
 	time_t notafter = -1, notbefore = -1;
 #ifdef WITH_TLS
@@ -652,12 +651,11 @@ static void accept_control_tls(struct context *ctx, int cur)
 		ctx->tls_peer_cert_issuer++;
 	    ctx->tls_peer_cert_issuer_len = strlen(ctx->tls_peer_cert_issuer);
 	}
-	valid = (ctx->realm->tls_accept_expired == TRISTATE_YES) || (notbefore < io_now.tv_sec && notafter > io_now.tv_sec);
 	if (notafter > -1 && notbefore > -1 && ctx->realm->tls_accept_expired != TRISTATE_YES && notafter > io_now.tv_sec + 30 * 86400)
 	    report(NULL, LOG_INFO, ~0, "peer certificate for %s will expire in " TIME_T_PRINTF " days", ctx->peer_addr_ascii,
 		   (io_now.tv_sec - notafter) / 86400);
 
-	if (ctx->tls_peer_cert_subject && valid) {
+	if (ctx->tls_peer_cert_subject) {
 	    size_t i;
 	    char *cn = alloca(ctx->tls_peer_cert_subject_len + 1);
 	    char *t;

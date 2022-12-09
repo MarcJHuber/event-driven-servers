@@ -347,23 +347,20 @@ struct realm {
 #ifdef WITH_PCRE2
     pcre2_code *password_minimum_requirement;
 #endif
-#if defined(WITH_TLS)
+#ifdef WITH_TLS
     struct tls *tls;
     struct tls_config *tls_cfg;
-    char *tls_cert;
-    char *tls_key;
-    char *tls_pass;
-    char *tls_ciphers;
-    char *tls_cafile;
-     TRISTATE(tls_accept_expired);
 #endif
-#if defined(WITH_SSL)
+#ifdef WITH_SSL
     SSL_CTX *tls;
+#endif
+#if defined(WITH_TLS) || defined(WITH_SSL)
     char *tls_cert;
     char *tls_key;
     char *tls_pass;
     char *tls_ciphers;
     char *tls_cafile;
+    int tls_verify_depth;
      TRISTATE(tls_accept_expired);
 #endif
     u_int debug;

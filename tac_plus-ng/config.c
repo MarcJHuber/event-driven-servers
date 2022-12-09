@@ -91,6 +91,7 @@
 #ifdef WITH_SSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/x509_vfy.h>
 #endif
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
@@ -249,9 +250,13 @@ void complete_realm(tac_realm * r)
 	    r->enable_user_acl = rp->enable_user_acl;
 	if (!r->password_acl)
 	    r->password_acl = rp->password_acl;
-#ifdef WITH_TLS
+#if defined(WITH_TLS) || defined(WITH_SSH)
 	if (r->tls_accept_expired == TRISTATE_DUNNO)
 	    r->tls_accept_expired = rp->tls_accept_expired;
+	if (r->tls_verify_depth == -1)
+	    r->tls_verify_depth = rp->tls_verify_depth;
+#endif
+#ifdef WITH_TLS
 	if (r->tls_cfg && r->tls_cert) {
 	    uint8_t *p;
 	    size_t p_len;
@@ -293,6 +298,11 @@ void complete_realm(tac_realm * r)
 		report(NULL, LOG_ERR, ~0, "realm %s: tls_config_set_cert_mem failed", r->name);
 		exit(EX_CONFIG);
 	    }
+	    if (r->tls_accept_expired == TRISTATE_YES)
+		tls_config_insecure_noverifytime(r->tls_cfg);
+	    if (r->tls_verify_depth > -1)
+		tls_config_set_verify_depth(r->tls_cfg, r->tls_verify_depth);
+
 	    if (!(r->tls = tls_server())) {
 		report(NULL, LOG_ERR, ~0, "realm %s: tls_server() returned NULL", r->name);
 		exit(EX_CONFIG);
@@ -306,8 +316,6 @@ void complete_realm(tac_realm * r)
 	    r->tls_cfg = rp->tls_cfg;
 #endif
 #ifdef WITH_SSL
-	if (r->tls_accept_expired == TRISTATE_DUNNO)
-	    r->tls_accept_expired = rp->tls_accept_expired;
 	if (r->tls_cert && r->tls_key) {
 	    r->tls = ssl_init(r->tls_cert, r->tls_key, r->tls_pass, r->tls_ciphers);
 	    if (r->tls) {
@@ -318,7 +326,23 @@ void complete_realm(tac_realm * r)
 			   terr ? terr : "");
 		    exit(EX_CONFIG);
 		}
+
+		{
+			unsigned long flags = 0;
+			if (r->tls_accept_expired == TRISTATE_YES)
+				flags |= X509_V_FLAG_NO_CHECK_TIME;
+			if (flags) {
+				X509_VERIFY_PARAM *verify;
+				verify = X509_VERIFY_PARAM_new();
+				X509_VERIFY_PARAM_set_flags(verify, flags);
+				SSL_CTX_set1_param(r->tls, verify);
+				X509_VERIFY_PARAM_free(verify);
+			}
+			if (r->tls_verify_depth > -1)
+				SSL_CTX_set_verify_depth(r->tls, r->tls_verify_depth);
+		}
 		SSL_CTX_set_verify(r->tls, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+
 	    }
 	}
 #ifndef OPENSSL_NO_PSK
@@ -409,6 +433,9 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
     r->mavis_login = TRISTATE_DUNNO;
     r->mavis_pap_prefetch = TRISTATE_DUNNO;
     r->mavis_login_prefetch = TRISTATE_DUNNO;
+#if defined(WITH_TLS) || defined(WITH_SSL)
+    r->tls_verify_depth = -1;
+#endif
 #ifdef WITH_TLS
     //r->tls_ciphers = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384";
 #endif
@@ -430,6 +457,9 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
 	r->warning_period = 86400 * 14;
 	r->backend_failure_period = 60;
 	r->debug = common_data.debug;
+#if defined(WITH_TLS) || defined(WITH_SSL)
+	r->tls_verify_depth = -1;
+#endif
 
 	parse_inline("acl __internal__username_acl__ { if (user =~ \"[]<>/()|=[*\\\"':$]+\") deny permit }\n", __FILE__, __LINE__);
 	r->mavis_user_acl = tac_acl_lookup("__internal__username_acl__", r);
@@ -1370,8 +1400,13 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		parse(sym, S_equal);
 		r->tls_accept_expired = parse_tristate(sym);
 		continue;
+	    case S_verify_depth:
+		sym_get(sym);
+		parse(sym, S_equal);
+		r->tls_verify_depth = parse_int(sym);
+		continue;
 	    default:
-		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_passphrase, S_ciphers, S_peer, S_accept, S_unknown);
+		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_passphrase, S_ciphers, S_peer, S_accept, S_verify_depth, S_unknown);
 	    }
 	    continue;
 #endif
