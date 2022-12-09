@@ -1113,6 +1113,10 @@ mavis user filter = __internal__username_acl__
        certificate in PEM format.
      * tls passphrase = passphrase
        Specifies the optional passphrase to decrypt key-file.
+     * tls accept expired = ( yes | no )
+       Accept expired certificates.
+     * tls verify-depth = depth
+       Sets TLS verification depth.
      * tls cafile = cafile
        Specifies a file with the CAs to use.
 
