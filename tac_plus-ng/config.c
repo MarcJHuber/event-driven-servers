@@ -328,18 +328,18 @@ void complete_realm(tac_realm * r)
 		}
 
 		{
-			unsigned long flags = 0;
-			if (r->tls_accept_expired == TRISTATE_YES)
-				flags |= X509_V_FLAG_NO_CHECK_TIME;
-			if (flags) {
-				X509_VERIFY_PARAM *verify;
-				verify = X509_VERIFY_PARAM_new();
-				X509_VERIFY_PARAM_set_flags(verify, flags);
-				SSL_CTX_set1_param(r->tls, verify);
-				X509_VERIFY_PARAM_free(verify);
-			}
-			if (r->tls_verify_depth > -1)
-				SSL_CTX_set_verify_depth(r->tls, r->tls_verify_depth);
+		    unsigned long flags = 0;
+		    if (r->tls_accept_expired == TRISTATE_YES)
+			flags |= X509_V_FLAG_NO_CHECK_TIME;
+		    if (flags) {
+			X509_VERIFY_PARAM *verify;
+			verify = X509_VERIFY_PARAM_new();
+			X509_VERIFY_PARAM_set_flags(verify, flags);
+			SSL_CTX_set1_param(r->tls, verify);
+			X509_VERIFY_PARAM_free(verify);
+		    }
+		    if (r->tls_verify_depth > -1)
+			SSL_CTX_set_verify_depth(r->tls, r->tls_verify_depth);
 		}
 		SSL_CTX_set_verify(r->tls, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 
@@ -353,6 +353,7 @@ void complete_realm(tac_realm * r)
 	}
 #endif
 #endif
+
 #ifdef WITH_PCRE2
 	if (!r->password_minimum_requirement)
 	    r->password_minimum_requirement = rp->password_minimum_requirement;
@@ -1340,7 +1341,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_tls:
 	    sym_get(sym);
 	    switch (sym->code) {
-#ifdef WITH_SSL
+#if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 	    case S_psk:
 		sym_get(sym);
 		switch (sym->code) {
@@ -2824,10 +2825,9 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    sym_get(sym);
 	    break;
 	}
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
     case S_tls:
 	sym_get(sym);
-#ifdef WITH_SSL
 	parse(sym, S_psk);
 	switch (sym->code) {
 	case S_id:
@@ -2846,10 +2846,13 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	sym_get(sym);
 	break;
 #endif
-#endif
     default:
 	parse_error_expect(sym, S_host, S_parent, S_authentication, S_permit, S_bug, S_pap, S_address, S_key, S_motd, S_welcome, S_reject, S_enable,
-			   S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_script, S_unknown);
+			   S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_script,
+#if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
+			   S_tls,
+#endif
+			   S_unknown);
     }
 }
 
@@ -4105,7 +4108,6 @@ static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char ** key, s
     return -1;
 }
 
-#ifndef OPENSSL_NO_PSK
 static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION ** sess)
 {
     SSL_SESSION *nsession = NULL;
@@ -4189,7 +4191,6 @@ static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t 
     return 1;
 }
 #endif
-#endif
 
 static int ssl_pem_phrase_cb(char *buf, int size, int rwflag __attribute__((unused)), void *userdata)
 {
@@ -4227,5 +4228,4 @@ static SSL_CTX *ssl_init(char *cert_file, char *key_file, char *pem_phrase, char
     }
     return ctx;
 }
-
 #endif
