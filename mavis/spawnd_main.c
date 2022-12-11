@@ -335,13 +335,13 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 #ifdef WITH_PCRE2
 	"/PCRE2"
 #endif
-#ifdef WITH_SSL
-	"/DES"
+#ifdef WITH_SSL_CRYPTO
+	"/CRYPTO"
 #endif
 #ifdef WITH_LWRES
 	"/LWRES"
 #endif
-#ifdef WITH_LWRES
+#ifdef WITH_ARES
 	"/ARES"
 #endif
 #ifdef WITH_CURL
@@ -349,6 +349,12 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 #endif
 #ifdef WITH_TLS
 	"/TLS"
+#endif
+#ifdef WITH_SSL
+	"/SSL"
+#endif
+#ifdef WITH_PCRE
+	"/PCRE"
 #endif
 	;
     logopen();
@@ -574,13 +580,13 @@ void scm_main(int argc, char **argv, char **envp)
 #ifdef WITH_PCRE2
 	"/PCRE2"
 #endif
-#ifdef WITH_SSL
-	"/DES"
+#ifdef WITH_SSL_CRYPTO
+	"/CRYPTO"
 #endif
 #ifdef WITH_LWRES
 	"/LWRES"
 #endif
-#ifdef WITH_LWRES
+#ifdef WITH_ARES
 	"/ARES"
 #endif
 #ifdef WITH_CURL
@@ -588,6 +594,9 @@ void scm_main(int argc, char **argv, char **envp)
 #endif
 #ifdef WITH_TLS
 	"/TLS"
+#endif
+#ifdef WITH_SSL
+	"/SSL"
 #endif
 	;
     logopen();
