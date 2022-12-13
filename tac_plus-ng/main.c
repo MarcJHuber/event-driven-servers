@@ -1009,17 +1009,16 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	io_set_cb_h(ctx->io, ctx->sock, (void *) cleanup);
 	io_set_cb_e(ctx->io, ctx->sock, (void *) cleanup);
 	io_sched_add(ctx->io, ctx, (void *) periodics_ctx, 60, 0);
-#ifdef WITH_TLS
+#  ifdef WITH_TLS
 	tls_accept_socket(r->tls, &ctx->tls, ctx->sock);
-	accept_control_tls(ctx, ctx->sock);
-#endif
-#ifdef WITH_SSL
+#  endif
+#  ifdef WITH_SSL
 	ctx->tls = SSL_new(r->tls);
 	SSL_set_fd(ctx->tls, ctx->sock);
 
 	SSL_CTX_set_cert_verify_callback(r->tls, app_verify_cb, ctx);
+#  endif
 	accept_control_tls(ctx, ctx->sock);
-#endif
 	return;
     }
 #endif
