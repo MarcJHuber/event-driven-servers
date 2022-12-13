@@ -335,7 +335,7 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 #ifdef WITH_PCRE2
 	"/PCRE2"
 #endif
-#ifdef WITH_SSL_CRYPTO
+#ifdef WITH_CRYPTO
 	"/CRYPTO"
 #endif
 #ifdef WITH_LWRES
@@ -580,7 +580,7 @@ void scm_main(int argc, char **argv, char **envp)
 #ifdef WITH_PCRE2
 	"/PCRE2"
 #endif
-#ifdef WITH_SSL_CRYPTO
+#ifdef WITH_CRYPTO
 	"/CRYPTO"
 #endif
 #ifdef WITH_LWRES

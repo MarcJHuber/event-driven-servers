@@ -71,7 +71,7 @@
 #include "misc/mymd5.h"
 #include "misc/md5crypt.h"
 
-#if defined(WITH_SSL)
+#if defined(WITH_CRYPTO)
 #if OPENSSL_VERSION_NUMBER < 0x30000000
 #include <openssl/des.h>
 #include <openssl/sha.h>
@@ -1007,7 +1007,7 @@ static void do_enable_getuser(tac_session * session)
     }
 }
 
-#ifdef WITH_SSL
+#ifdef WITH_CRYPTO
 static void mschap_desencrypt(u_char * clear, u_char * str __attribute__((unused)), u_char * cypher)
 {
     unsigned char key[8];
@@ -1583,7 +1583,7 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 		    if (hdr->version == TAC_PLUS_VER_ONE)
 			session->authen_data->authfn = do_chap;
 		    break;
-#ifdef WITH_SSL
+#ifdef WITH_CRYPTO
 		case TAC_PLUS_AUTHEN_TYPE_MSCHAP:
 		    if (hdr->version == TAC_PLUS_VER_ONE)
 			session->authen_data->authfn = do_mschap;

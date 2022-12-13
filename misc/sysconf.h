@@ -102,7 +102,7 @@
 #include <unistd.h>
 #undef __USE_XOPEN
 #endif
-#if defined(WITH_SSL)
+#if defined(WITH_SSL) || defined(WITH_CRYPTO)
 #include <openssl/ssl.h>
 #endif
 /*******************************************************************************

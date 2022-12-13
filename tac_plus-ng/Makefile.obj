@@ -7,7 +7,7 @@ include $(BASE)/Makefile.inc
 
 PROG=tac_plus-ng
 
-LIB	+= $(LIB_MAVIS) $(LIB_CRYPT) $(LIB_NET) $(LIB_SSL) $(LIB_SSL_CRYPTO) $(LIB_PCRE) $(LIB_TLS)
+LIB	+= $(LIB_MAVIS) $(LIB_CRYPT) $(LIB_NET) $(LIB_SSL) $(LIB_CRYPTO) $(LIB_PCRE) $(LIB_TLS)
 
 CFLAGS	+= $(DEF) $(INC) $(INC_SSL) $(INC_PCRE)
 VPATH	= $(BASE)/$(PROG):$(BASE)/misc

@@ -88,7 +88,7 @@ my @ALLDIRS = qw(mavis spawnd mavisd ftpd tac_plus tac_plus-ng tcprelay );
 my $DIRS_DEFAULT = join(" ", @DIRS_DEFAULT);
 my $ALLDIRS = join(" ", @ALLDIRS);
 
-my @options = qw(lwres pcre pcre2 ssl tls zlib radcli freeradius radcli pam execinfo sctp curl ipc ares);
+my @options = qw(lwres pcre pcre2 ssl tls zlib radcli freeradius radcli pam execinfo sctp curl ipc ares crypto);
 my %COMMENT;
 
 my $sbin = "sbin";
@@ -213,7 +213,17 @@ $COMMENT{'sctp'}
 Default targets:
   $DIRS_DEFAULT
 
-This script should be smart enough to figure out availability of most configuration options by itself, so \"./configure\" without any arguments is sufficient in most cases.\n"
+This script should be smart enough to figure out availability of most configuration options by itself, so \"./configure\" without any arguments is sufficient in most cases.
+
+You can easily skip features you don't need, e.g.:
+
+  ./configure --without-curl --without-tls --without-ssl --without-crypto --without-ares --without-lwres --without-sctp --without-zlib [targets]
+
+or, as a shortcut,
+
+  ./configure --minimum [targets]
+
+"
 );
 
 	print "="x$width . "\n";
@@ -334,6 +344,18 @@ delete $A{"--prefix"};
 if (exists $A{"--installroot"}) {
 	$DEFS{"INSTALLROOT"} = $A{"--installroot"};
 	delete $A{"--installroot"};
+}
+
+if (exists $A{"--minimum"}) {
+	$DEFS{"WITH_CURL"} = 0;
+	$DEFS{"WITH_TLS"} = 0;
+	$DEFS{"WITH_SSL"} = 0;
+	$DEFS{"WITH_CRYPTO"} = 0;
+	$DEFS{"WITH_ARES"} = 0;
+	$DEFS{"WITH_LWRES"} = 0;
+	$DEFS{"WITH_SCTP"} = 0;
+	$DEFS{"WITH_ZLIB"} = 0;
+	delete $A{"--minimum"};
 }
 
 foreach $a (@options) {
@@ -603,8 +625,9 @@ $DEFS{"LIB_DNS"} = $DEFS{"LIB_ARES"} if exists $DEFS{"LIB_ARES"};
 check_for("LWRES", "liblwres", "liblwres.h", "lwres", "-DWITH_DNS") if !exists $DEFS{"WITH_ARES"} || $DEFS{"WITH_ARES"} == 0;
 $DEFS{"LIB_DNS"} = $DEFS{"LIB_LWRES"} if exists $DEFS{"LIB_LWRES"};
 $DEFS{"WITH_DNS"} = 1 if exists $DEFS{"LIB_DNS"};
-check_for("SSL", "openssl", "openssl/ssl.h", "ssl", undef) if !exists $DEFS{"WITH_TLS"} || $DEFS{"WITH_TLS"} == 0;;
-check_for("SSL_CRYPTO", "openssl", "openssl/ssl.h", "crypto", undef) if !exists $DEFS{"WITH_TLS"} || $DEFS{"WITH_TLS"} == 0;;
+check_for("SSL", "openssl", "openssl/ssl.h", "ssl", undef) if !exists $DEFS{"WITH_TLS"} || $DEFS{"WITH_TLS"} == 0;
+$DEFS{"LIB_SSL"} .= " -lcrypto" if exists $DEFS{"LIB_SSL"} && exists $DEFS{"WITH_CRYPTO"} && $DEFS{"WITH_CRYPTO"} == 0;
+check_for("CRYPTO", "openssl", "openssl/ssl.h", "crypto", undef);
 check_for("TLS", "libtls", "tls.h", "tls", undef) if !exists $DEFS{"WITH_SSL"} || $DEFS{"WITH_SSL"} == 0;
 check_for("PCRE2", "libpcre2-8", "pcre2.h", "pcre2-8", "-DPCRE2_CODE_UNIT_WIDTH=8");
 $DEFS{"INC_PCRE"} = $DEFS{"INC_PCRE2"} if exists $DEFS{"INC_PCRE2"};
