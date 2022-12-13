@@ -2872,14 +2872,7 @@ debug = ALL USERINPUT
 6. Frequently Asked Questions
 
      * Is there a Graphical User Interface of any kind?
-       Old answer: No, unless your favourite text editor does
-       qualify. The configuration syntax is too complex and
-       flexible to be coverable using a GUI. If you're looking for
-       a way to manage your user database then have a look at
-       Webmin, ActiveDirectory, whatever. It's trivial to use
-       those as authentication/authorization back-ends.
-       Updated answer: Yes, various, and unrelated. Search for
-       "tacacsgui". There are other adaptors, too.
+       No, unless your favourite text editor does qualify.
      * I'm using the single-connection feature. How can I force my
        router to close the TCP connections to the TACACS+ server?
        On IOS, show tcp brief will display the TCP connections.
