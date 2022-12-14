@@ -332,9 +332,9 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	if (u->dynamic)
 	    u->dynamic = io_now.tv_sec + r->caching_period;
 
-	u->passwd_oneshot = ((r->mavis_noauthcache == TRISTATE_YES) || av_get(avc, AV_A_PASSWORD_ONESHOT)) ? 1 : 0;
-
 	session->passwd_mustchange = av_get(avc, AV_A_PASSWORD_MUSTCHANGE) ? 1 : 0;
+
+	u->passwd_oneshot = ((r->mavis_noauthcache == TRISTATE_YES) || av_get(avc, AV_A_PASSWORD_ONESHOT) || session->passwd_mustchange) ? 1 : 0;
 
 	if (!strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_CHAL)) {
 	    char *chal = av_get(avc, AV_A_CHALLENGE);
