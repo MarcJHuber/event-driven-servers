@@ -88,7 +88,7 @@ my @ALLDIRS = qw(mavis spawnd mavisd ftpd tac_plus tac_plus-ng tcprelay );
 my $DIRS_DEFAULT = join(" ", @DIRS_DEFAULT);
 my $ALLDIRS = join(" ", @ALLDIRS);
 
-my @options = qw(lwres pcre pcre2 ssl tls zlib radcli freeradius radcli pam execinfo sctp curl ipc ares crypto);
+my @options = qw(lwres pcre pcre2 ssl tls zlib radcli freeradius pam execinfo sctp curl ipc ares crypto);
 my %COMMENT;
 
 my $sbin = "sbin";
@@ -136,6 +136,10 @@ $COMMENT{"curl"} =
 
 $COMMENT{"ipc"} =
 "If SYS-V IPC is available, configuration files may be cached in shared memory.
+";
+
+$COMMENT{"crypto"} =
+"Use the \"crypto\" option certain libcrypto support, e.g. DES or SHA1. The ssl option implies this one.
 ";
 
 $COMMENT{"ssl"} =
@@ -195,16 +199,19 @@ $COMMENT{'sctp'}
 
 ");
 
-	my $o;
-	foreach $o (@options)
-	{
-		wprint(
-"$COMMENT{$o}
-  --without-$o
-  --with-$o\[=DIR]
-  --with-$o-include=DIR
-  --with-$o-lib=DIR
+wprint("The options
 
+  --without-PACKAGE
+  --with-PACKAGE\[=DIR]
+  --with-PACKAGE-include=DIR
+  --with-PACKAGE-lib=DIR
+
+are recognized for the following packages:
+
+");
+	foreach my $o (sort @options)
+	{
+		wprint( "$o: $COMMENT{$o}
 ");
 	}
 	wprint (
