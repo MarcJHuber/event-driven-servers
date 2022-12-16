@@ -320,7 +320,7 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 			if (!good_gid(mcx->gids, u))
 			    continue;
 			g = getgrgid((gid_t) u);
-			if (g) {
+			if (g && good_name(mcx->groups_regex, g->gr_name)) {
 			    ssize_t l;
 			    l = strlen(g->gr_name);
 			    if (b + sizeof(b) - p - 2 > l) {
