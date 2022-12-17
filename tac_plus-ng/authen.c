@@ -1344,10 +1344,10 @@ static void do_sshkeyhash(tac_session * session)
     if (query_mavis_info(session, do_sshkeyhash, PW_LOGIN))
 	return;
 
-    session->ssh_key = (char *) session->authen_data->data;
+    session->ssh_key_hash = (char *) session->authen_data->data;
 
-    if (session->user && session->ssh_key && *session->ssh_key) {
-	enum token token = validate_ssh_hash(session, session->ssh_key, &key);
+    if (session->user && session->ssh_key_hash && *session->ssh_key_hash) {
+	enum token token = validate_ssh_hash(session, session->ssh_key_hash, &key);
 
 	if (token == S_permit) {
 	    token = eval_ruleset(session, session->ctx->realm);
@@ -1370,7 +1370,62 @@ static void do_sshkeyhash(tac_session * session)
 	}
     }
 
-    if (res == S_permit)
+    if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
+	hint = hint_permitted;
+    report_auth(session, "ssh-key-hash login", hint, res);
+
+    send_authen_reply(session, res, resp, 0, (u_char *) key, 0, 0);
+}
+
+// This is proof-of-concept code for SSH certificate validation with minor protocol changes.
+// Clients just need to use TAC_PLUS_AUTHEN_TYPE_SSHCERTASH (9) and put the client certificate
+// key-id into the data field. The daemon will return a matching AuthorizedPrincipalsFile line. 
+//
+// OpenSSH integration is easily possible, too, via AuthorizedPrincipalsCommand.
+//
+
+static void do_sshcerthash(tac_session * session)
+{
+    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum hint_enum hint = hint_nosuchuser;
+    char *resp = NULL;
+    char *key = NULL;
+
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, "ssh-cert-hash login", hint_denied_by_acl, res);
+	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	return;
+    }
+    if (query_mavis_info(session, do_sshcerthash, PW_LOGIN))
+	return;
+
+    session->ssh_key_id = (char *) session->authen_data->data;
+
+    if (session->user && session->ssh_key_id && *session->ssh_key_id) {
+	enum token token = validate_ssh_key_id(session);
+
+	if (token == S_permit) {
+	    token = eval_ruleset(session, session->ctx->realm);
+	    if (token == S_permit) {
+		res = TAC_PLUS_AUTHEN_STATUS_PASS;
+		hint = hint_permitted;
+	    } else {
+		hint = hint_denied_by_acl;
+	    }
+	} else
+	    hint = hint_denied;
+
+	if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
+	    // memlist_free(session->pool, &session->password);
+	    session->password = NULL;
+	    if (res != TAC_PLUS_AUTHEN_STATUS_PASS && session->ctx->host->reject_banner)
+		resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
+	    if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
+		res = user_invalid(session->user, &hint);
+	}
+    }
+
+    if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
 	hint = hint_permitted;
     report_auth(session, "ssh-key-hash login", hint, res);
 
@@ -1596,6 +1651,10 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 		case TAC_PLUS_AUTHEN_TYPE_SSHKEY:
 		    // limit to hdr->version? 1.2 perhaps?
 		    session->authen_data->authfn = do_sshkeyhash;
+		    break;
+		case TAC_PLUS_AUTHEN_TYPE_SSHCERT:
+		    // limit to hdr->version? 1.2 perhaps?
+		    session->authen_data->authfn = do_sshcerthash;
 		    break;
 		}
 	    }

@@ -3,8 +3,8 @@
 # tac_akc.pl
 # (C) 2022 by Marc Huber <Marc.Huber@web.de>
 #
-# Sample AuthorizedKeysCommand OpenSSH script for key lookup via tac_plus-ng. This is a PoC only
-# and requires that tac_plus-ng is compiled with #define TPNG_EXPERIMENTAL in headers.h
+# Sample AuthorizedKeysCommand OpenSSH script for key lookup via tac_plus-ng.
+# This is a PoC only.
 #
 # Usage: tac_akc.pl [options] <user> <fingerprint>
 #
@@ -80,7 +80,7 @@ GetOptions (
 	"defaults=s"	=> \&read_defaults,
 ) or help();
 
-my ($username, $password)  = @ARGV;
+my ($username, $fingerprint)  = @ARGV;
 my $tac = new Net::TacacsPlus::Client(host => $host, port => $port, key => $key);
 $tac->init_tacacs_session();
 
@@ -96,7 +96,7 @@ my $pkt = Net::TacacsPlus::Packet->new(
 	'port' => $rem_port,
 	'authen_service' => 1, # Login
 	'action' => 1,
-	'data' => $password,
+	'data' => $fingerprint,
 	'minor_version' => 1
 );
 $pkt->send($tac->tacacsserver);

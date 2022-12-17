@@ -105,6 +105,7 @@ static struct i2s map_type[] = {
     { TAC_PLUS_AUTHEN_TYPE_MSCHAP, "mschap", 0 },
     { TAC_PLUS_AUTHEN_TYPE_MSCHAPV2, "mschapv2", 0 },
     { TAC_PLUS_AUTHEN_TYPE_SSHKEY, "sshkey", 0 },
+    { TAC_PLUS_AUTHEN_TYPE_SSHCERT, "sshcert", 0 },
     { 0, NULL, 0 }
 };
 
@@ -268,6 +269,7 @@ void dump_nas_pak(tac_session * session, int bogus)
 		report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "rem_addr", p, start->rem_addr_len);
 		if ((session->debug & DEBUG_USERINPUT_FLAG)
 		    || (start->type == TAC_PLUS_AUTHEN_TYPE_SSHKEY)	// it's safe to show the key hash
+		    || (start->type == TAC_PLUS_AUTHEN_TYPE_SSHCERT)
 		    ) {
 		    p += start->rem_addr_len;
 		    report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "data", p, start->data_len);

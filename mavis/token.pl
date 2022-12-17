@@ -431,6 +431,7 @@ config-line	S_config_line
 dn		S_dn
 ssh-key		S_ssh_key
 ssh-key-hash	S_ssh_key_hash
+ssh-key-id	S_ssh_key_id
 PASSWORD	S_PASSWORD
 RESPONSE	S_RESPONSE
 PASSWORD_OLD	S_PASSWORD_OLD

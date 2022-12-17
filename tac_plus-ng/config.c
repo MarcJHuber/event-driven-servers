@@ -2102,12 +2102,6 @@ static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm
     sym_get(sym);
 }
 
-struct ssh_key {
-    struct ssh_key *next;
-    char *key;
-    char hash[1];
-};
-
 // FIXME
 //
 // MD5 hashing is what IOS currently uses internally. In the CLI config the
@@ -2132,6 +2126,12 @@ struct ssh_key {
 // The server then has the option to require one or more fingerprints to match, e.g.
 // MD5 *and* SHA256.
 //
+
+struct ssh_key {
+    struct ssh_key *next;
+    char *key;
+    char hash[1];
+};
 
 enum token validate_ssh_hash(tac_session * session, char *hash, char **key)
 {
@@ -2175,7 +2175,67 @@ static void parse_sshkeyhash(struct sym *sym, tac_user * user)
     } while (parse_comma(sym));
 }
 
-#ifdef WITH_SSL
+// Experimental SSH Cert validation code
+
+struct ssh_key_id {
+    struct ssh_key_id *next;
+    char s[1];
+};
+
+enum token validate_ssh_key_id(tac_session * session)
+{
+    if (!session->user->ssh_key_id) {
+	if (strcmp(session->username, session->ssh_key_id))
+	    return S_deny;
+	return S_permit;
+    }
+    struct ssh_key_id **ssh_key_id = &session->user->ssh_key_id;
+    while (*ssh_key_id) {
+	size_t len = strlen((*ssh_key_id)->s) + 1;
+	char *v = alloca(len);
+	memcpy(v, (*ssh_key_id)->s, len);
+	while (*v) {
+	    char *e;
+	    int quoted = 0;
+
+	    quoted = (*v == '"');
+	    if (quoted)
+		v++;
+	    for (e = v; *e && *e != ','; e++);
+	    if (quoted && *(e - 1) != '"')
+		break;
+	    if (quoted)
+		*(e - 1) = 0;
+	    *e++ = 0;
+	    if (!strcmp(session->ssh_key_id, v))
+		return S_permit;
+	    v = e;
+	    if (!*v || *v != ',')
+		break;
+	    v++;
+	}
+	ssh_key_id = &((*ssh_key_id)->next);
+    }
+    return S_deny;
+}
+
+static void parse_sshkeyid(struct sym *sym, tac_user * user)
+{
+    struct ssh_key_id **ssh_key_id = &user->ssh_key_id;
+    while (*ssh_key_id)
+	ssh_key_id = &((*ssh_key_id)->next);
+
+    do {
+	size_t len;
+	len = strlen(sym->buf);
+	*ssh_key_id = memlist_malloc(user->memlist, sizeof(struct ssh_key_id) + len);
+	memcpy((*ssh_key_id)->s, sym->buf, len + 1);
+	sym_get(sym);
+	ssh_key_id = &((*ssh_key_id)->next);
+    } while (parse_comma(sym));
+}
+
+#ifdef WITH_CRYPTO
 #if OPENSSL_VERSION_NUMBER < 0x30000000
 #include <openssl/md5.h>
 #include <openssl/sha.h>
@@ -2379,13 +2439,18 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	    parse(sym, S_equal);
 	    parse_sshkeyhash(sym, user);
 	    continue;
-#ifdef WITH_SSL
+#ifdef WITH_CRYPTO
 	case S_ssh_key:
 	    sym_get(sym);
 	    parse(sym, S_equal);
 	    parse_sshkey(sym, user);
 	    continue;
 #endif
+	case S_ssh_key_id:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    parse_sshkeyid(sym, user);
+	    continue;
 	default:
 	    parse_error_expect(sym, S_member, S_valid, S_debug, S_message, S_password, S_enable, S_fallback_only, S_hushlogin, S_unknown);
 	}

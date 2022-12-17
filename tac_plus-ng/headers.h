@@ -238,6 +238,8 @@ struct tac_profile {
 
 struct memlist;
 typedef struct memlist memlist_t;
+struct ssh_key;
+struct ssh_key_id;
 
 /* A user or group definition. */
 typedef struct {
@@ -249,6 +251,7 @@ typedef struct {
     struct pwdat **enable;
     struct tac_acllist *passwd_acllist;
     struct ssh_key *ssh_key;
+    struct ssh_key_id *ssh_key_id;
     tac_groups *groups;
     memlist_t *memlist;
     tac_realm *realm;
@@ -416,6 +419,7 @@ struct authen_start {
 #define TAC_PLUS_AUTHEN_TYPE_MSCHAP 5
 #define TAC_PLUS_AUTHEN_TYPE_MSCHAPV2 6
 #define TAC_PLUS_AUTHEN_TYPE_SSHKEY 8
+#define TAC_PLUS_AUTHEN_TYPE_SSHCERT 9
 
     u_char service;
 #define TAC_PLUS_AUTHEN_SVC_LOGIN  1
@@ -590,8 +594,6 @@ struct log_item;
 typedef struct tac_session tac_session;
 typedef struct tac_profile tac_profile;
 
-struct ssh_key;
-
 struct tac_session {
     struct context *ctx;
     memlist_t *memlist;
@@ -656,7 +658,8 @@ struct tac_session {
     u_int priv_lvl;		/* requested privilege level */
     char privlvl[4];
     int privlvl_len;
-    char *ssh_key;
+    char *ssh_key_hash;
+    char *ssh_key_id;
     int session_id;
     time_t session_timeout;
     struct author_data *author_data;
@@ -901,6 +904,7 @@ void complete_host(tac_host *);
 void complete_realm(tac_realm *);
 
 enum token validate_ssh_hash(tac_session *, char *, char **);
+enum token validate_ssh_key_id(tac_session *);
 
 extern struct config config;
 extern int die_when_idle;

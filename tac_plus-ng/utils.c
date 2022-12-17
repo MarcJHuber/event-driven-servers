@@ -885,6 +885,7 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_tls_peer_cn:
 	    case S_tls_psk_identity:
 	    case S_ssh_key_hash:
+	    case S_ssh_key_id:
 	    case S_PASSWORD:
 	    case S_RESPONSE:
 	    case S_PASSWORD_OLD:
@@ -1148,6 +1149,26 @@ static char *eval_log_format_privlvl(tac_session * session, struct context *ctx 
     if (session) {
 	*len = session->privlvl_len;
 	return session->privlvl;
+    }
+    return NULL;
+}
+
+static char *eval_log_format_ssh_key_hash(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					  __attribute__((unused)), size_t *len)
+{
+    if (session) {
+	*len = strlen(session->ssh_key_hash);
+	return session->ssh_key_hash;
+    }
+    return NULL;
+}
+
+static char *eval_log_format_ssh_key_id(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					__attribute__((unused)), size_t *len)
+{
+    if (session) {
+	*len = strlen(session->ssh_key_id);
+	return session->ssh_key_id;
     }
     return NULL;
 }
@@ -1597,6 +1618,8 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_rule] = &eval_log_format_rule;
 	efun[S_service] = &eval_log_format_service;
 	efun[S_shell] = &eval_log_format_shell;
+	efun[S_ssh_key_hash] = &eval_log_format_ssh_key_hash;
+	efun[S_ssh_key_id] = &eval_log_format_ssh_key_id;
 	efun[S_type] = &eval_log_format_type;
 	efun[S_uid] = &eval_log_format_uid;
 	efun[S_umessage] = &eval_log_format_umessage;
