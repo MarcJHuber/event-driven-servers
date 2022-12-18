@@ -225,15 +225,13 @@
  * support getgrouplist(3) at all, so it's currently safer to fall back to
  * my custom implementation. Performance-wise, this doesn't matter.
  */
-#if 0
-#if defined(__linux__)
-#define HAVE_GETGROUPLIST
-#define GETGROUPLIST_ARG2_TYPE gid_t
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+# define HAVE_GETGROUPLIST
+# define GETGROUPLIST_ARG2_TYPE gid_t
 #endif
-#if defined(__ANY_BSD__)
-#define HAVE_GETGROUPLIST
-#define GETGROUPLIST_ARG2_TYPE int
-#endif
+#if defined(__APPLE__)
+# define HAVE_GETGROUPLIST
+# define GETGROUPLIST_ARG2_TYPE int
 #endif
 /*******************************************************************************
  * The BSDs don't need to define O_LARGEFILE. Set it to 0 if undefined.

@@ -12,10 +12,15 @@
 #include <grp.h>
 #include <sys/types.h>
 #include <limits.h>
+#include <unistd.h>
 #include "debug.h"
 #include "groups.h"
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
+
+#ifndef NGROUPS
+#define NGROUPS 100
+#endif
 
 char *groups_list2ascii(size_t size, gid_t * list, char *buf, size_t buflen)
 {
@@ -74,10 +79,6 @@ void groups_ascii2list(char *alist, int *size, gid_t * list)
 char *groups_getlist(char *name, gid_t gid, char *buf, size_t buflen)
 {
 #ifdef HAVE_GETGROUPLIST
-
-#ifndef NGROUPS
-#define NGROUPS 100
-#endif
     GETGROUPLIST_ARG2_TYPE g[NGROUPS];
     int n = NGROUPS;
     int i;
