@@ -46,7 +46,13 @@ SSL_CTX *ssl_init(char *cert_file, char *key_file, char *pem_phrase, char *ciphe
 
     DebugIn(DEBUG_PROC);
 
-    ctx = SSL_CTX_new(TLS_server_method());
+    ctx = SSL_CTX_new(
+#if OPENSSL_VERSION_NUMBER < 0x30000000
+	SSLv23_server_method()
+#else
+	TLS_server_method()
+#endif
+    );
     if (!ctx)
 	logssl("SSL_CTX_new");
 
