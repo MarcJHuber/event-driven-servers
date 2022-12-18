@@ -99,8 +99,8 @@ AV_CHAR("TYPE",)
     AV_CHAR("QUOTA_PATH",)
 #define AV_A_COMMENT            17
     AV_CHAR("COMMENT",)
-#define AV_A_SSHCERT		18
-    AV_CHAR("SSHCERT",)
+#define AV_A_SSHKEYID		18
+    AV_CHAR("SSHKEYID",)
 #define AV_A_HOME               19
     AV_CHAR("HOME",)
 #define AV_A_ROOT               20

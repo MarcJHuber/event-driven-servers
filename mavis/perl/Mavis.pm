@@ -21,7 +21,6 @@ BEGIN {
 		AV_A_CURRENT_MODULE
 		AV_A_DBCERTSUBJ
 		AV_A_DBPASSWORD
-		AV_A_DIGEST_MD5_CNONCE
 		AV_A_DIGEST_MD5_RSPAUTH
 		AV_A_DIGEST_MD5_URI
 		AV_A_DN
@@ -54,6 +53,7 @@ BEGIN {
 		AV_A_SHELL
 		AV_A_SSHKEY
 		AV_A_SSHKEYHASH
+		AV_A_SSHKEYID
 		AV_A_TACCLIENT
 		AV_A_TACMEMBER
 		AV_A_TACPROFILE
@@ -128,7 +128,6 @@ use constant AV_A_COMMENT => 17;
 use constant AV_A_CURRENT_MODULE => 55;
 use constant AV_A_DBCERTSUBJ => 45;
 use constant AV_A_DBPASSWORD => 36;
-use constant AV_A_DIGEST_MD5_CNONCE => 18;
 use constant AV_A_DIGEST_MD5_RSPAUTH => 35;
 use constant AV_A_DIGEST_MD5_URI => 28;
 use constant AV_A_DN => 5;
@@ -161,6 +160,7 @@ use constant AV_A_SERVERIP => 25;
 use constant AV_A_SHELL => 54;
 use constant AV_A_SSHKEY => 12;
 use constant AV_A_SSHKEYHASH => 2;
+use constant AV_A_SSHKEYID => 18;
 use constant AV_A_TACCLIENT => 46;
 use constant AV_A_TACMEMBER => 47;
 use constant AV_A_TACPROFILE => 48;

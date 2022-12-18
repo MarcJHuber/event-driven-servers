@@ -193,13 +193,13 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    char *tacmember = av_get(avc, AV_A_TACMEMBER);
 	    char *sshkey = av_get(avc, AV_A_SSHKEY);
 	    char *sshkeyhash = av_get(avc, AV_A_SSHKEYHASH);
-	    char *sshcert = av_get(avc, AV_A_SSHCERT);
+	    char *sshkeyid = av_get(avc, AV_A_SSHKEYID);
 	    if (sshkeyhash && !*sshkeyhash)
 		sshkeyhash = NULL;
 	    if (sshkey && !*sshkey)
 		sshkey = NULL;
-	    if (sshcert && !*sshcert)
-		sshcert = NULL;
+	    if (sshkeyid && !*sshkeyid)
+		sshkeyid = NULL;
 	    if (tacprofile && !*tacprofile)
 		tacprofile = NULL;
 	    if (tacmember && !*tacmember)
@@ -221,7 +221,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    case AV_A_TACMEMBER:
 		    case AV_A_SSHKEY:
 		    case AV_A_SSHKEYHASH:
-		    case AV_A_SSHCERT:
+		    case AV_A_SSHKEYID:
 		    case AV_A_PATH:
 		    case AV_A_UID:
 		    case AV_A_GID:
@@ -236,7 +236,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    }
 	    }
 
-	    if (!u || tacmember || sshkey || sshkeyhash || sshcert) {
+	    if (!u || tacmember || sshkey || sshkeyhash || sshkeyid) {
 		struct sym sym;
 
 		memset(&sym, 0, sizeof(sym));
@@ -262,7 +262,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    || (tacprofile && parse_user_profile_fmt(&sym, u, "%s", tacprofile))
 		    || (sshkey && parse_user_profile_fmt(&sym, u, "ssh-key = %s", sshkey))
 		    || (sshkeyhash && parse_user_profile_fmt(&sym, u, "ssh-key-hash = %s", sshkeyhash))
-		    || (sshcert && parse_user_profile_fmt(&sym, u, "ssh-cert = %s", sshcert))
+		    || (sshkeyid && parse_user_profile_fmt(&sym, u, "ssh-key-id = %s", sshkeyid))
 		    ) {
 		    char *errbuf = NULL;
 		    time_t tt = (time_t) io_now.tv_sec;
