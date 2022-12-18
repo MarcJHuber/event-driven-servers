@@ -225,7 +225,7 @@
  * support getgrouplist(3) at all, so it's currently safer to fall back to
  * my custom implementation. Performance-wise, this doesn't matter.
  */
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || defined(__sun__)
 # define HAVE_GETGROUPLIST
 # define GETGROUPLIST_ARG2_TYPE gid_t
 #endif
