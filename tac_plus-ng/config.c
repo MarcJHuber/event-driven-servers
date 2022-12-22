@@ -635,8 +635,9 @@ static int globerror(const char *epath, int eerrno)
 
 static time_t parse_date(struct sym *sym, time_t offset);
 
-static void parse_key(struct sym *sym, struct tac_key **tk)
+static void parse_key(struct sym *sym, tac_host *host)
 {
+    struct tac_key **tk = &host->key;
     int keylen;
     time_t warn = 0;
 
@@ -861,7 +862,7 @@ static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent, i
 
 static char hexbyte(char *);
 
-#ifdef WITH_SSL
+#if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 static void parse_tls_psk_key(struct sym *sym, tac_host * host)
 {
     size_t i;
@@ -1341,7 +1342,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_tls:
 	    sym_get(sym);
 	    switch (sym->code) {
-#if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
+# if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 	    case S_psk:
 		sym_get(sym);
 		switch (sym->code) {
@@ -1364,7 +1365,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		    parse_error_expect(sym, S_id, S_key, S_equal, S_unknown);
 		}
 		continue;
-#endif
+# endif
 	    case S_cert_file:
 		sym_get(sym);
 		parse(sym, S_equal);
@@ -2676,7 +2677,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	}
 	return;
     case S_key:
-	parse_key(sym, &host->key);
+	parse_key(sym, host);
 	return;
     case S_motd:
 	sym_get(sym);
