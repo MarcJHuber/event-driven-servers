@@ -322,9 +322,11 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_PASS;
 	    session->mavisauth_res_valid = 1;
 	    if ((TRISTATE_YES != u->chalresp) && session->password && !u->passwd_oneshot) {
-		pp[PW_MAVIS] = mempool_malloc(u->pool, sizeof(struct pwdat) + strlen(session->password_new ? session->password_new : session->password));
-		strcpy(pp[PW_MAVIS]->value, session->password_new ? session->password_new : session->password);
+		char *pass = session->password_new ? session->password_new : session->password;
+		pp[PW_MAVIS] = mempool_malloc(u->pool, sizeof(struct pwdat) + strlen(pass));
+		strcpy(pp[PW_MAVIS]->value, pass);
 		pp[PW_MAVIS]->type = S_clear;
+		pp[session->mavis_data->pw_ix] = pp[PW_MAVIS];
 	    }
 	}
     } else if (result && !strcmp(result, AV_V_RESULT_ERROR)) {
