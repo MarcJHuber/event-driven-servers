@@ -105,7 +105,7 @@
 #define MD5_LEN           16
 #define MSCHAP_DIGEST_LEN 49
 
-#if OPENSSL_VERSION_NUMBER < 0x30000000
+#if defined(WITH_SSL) && OPENSSL_VERSION_NUMBER < 0x30000000
 # undef WITH_SSL
 # warning Disabling OpenSSL support. Please upgrade to version 3.0
 #endif
