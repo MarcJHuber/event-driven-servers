@@ -3867,8 +3867,16 @@ static void parse_cmd_matches(struct sym *sym, tac_user * user, struct node_cmd 
     sym->flag_parse_pcre = 0;
 }
 
-static void attr_add(tac_user * user, char ***v, int *i, char *attr)
+static void attr_add(tac_user * user, char ***v, int *i, char *attr, char *sep, char *q1, char *value, char *q2)
 {
+    char *s;
+    size_t len;
+    size_t attr_len = strlen(attr);
+    size_t sep_len = strlen(sep);
+    size_t q1_len = strlen(q1);
+    size_t value_len = strlen(value);
+    size_t q2_len = strlen(q2);
+
     if (!(*i & 0xf)) {
 	char **v_new = mempool_malloc(user->pool, (*i + 16) * sizeof(char *));
 	if (*i)
@@ -3876,7 +3884,18 @@ static void attr_add(tac_user * user, char ***v, int *i, char *attr)
 	mempool_free(user->pool, v);
 	*v = v_new;
     }
-    (*v)[(*i)++] = mempool_strdup(user->pool, attr);
+    len = attr_len + sep_len + q1_len + value_len + q2_len + 1;
+    s = mempool_malloc(user->pool, len);
+    (*v)[(*i)++] = s;
+    memcpy(s, attr, attr_len);
+    s += attr_len;
+    memcpy(s, sep, sep_len);
+    s += sep_len;
+    memcpy(s, q1, q1_len);
+    s += q1_len;
+    memcpy(s, value, value_len);
+    s += value_len;
+    memcpy(s, q2, q2_len);
 }
 
 static void tac_script_parse(tac_user *, struct node_svc *, struct sym *);
@@ -3887,9 +3906,9 @@ static void parse_attrs(struct sym *sym, tac_user * user, struct node_svc *svc)
     int double_quote_values = 0;
 
     while (sym->code != S_closebra && sym->code != S_eof) {
-	char buf[MAX_INPUT_LINE_LEN], *sep;
-
+	char *sep, *attr, *quote;
 	sep = "=";
+	quote = double_quote_values ? "\"" : "";
 
 	switch ((sc = sym->code)) {
 	case S_double_quote_values:
@@ -3948,38 +3967,19 @@ static void parse_attrs(struct sym *sym, tac_user * user, struct node_svc *svc)
 	    sep = "*";
 	case S_set:
 	    tac_sym_get(sym);
-	    *buf = 0;
-#ifndef __clang__
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wstringop-truncation"
-#endif
-	    strncat(buf, sym->buf, sizeof(buf) - 1);
-#ifndef __clang__
-# pragma GCC diagnostic pop
-#endif
+	    attr = strdup(sym->buf);
 	    tac_sym_get(sym);
-	    strncat(buf, sep, sizeof(buf) - strlen(buf) - 1);
 	    parse(sym, S_equal);
-	    if (double_quote_values)
-		strncat(buf, "\"", sizeof(buf) - strlen(buf) - 1);
-#ifndef __clang__
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wstringop-truncation"
-#endif
-	    strncat(buf, sym->buf, sizeof(buf) - strlen(buf) - 1);
-#ifndef __clang__
-# pragma GCC diagnostic pop
-#endif
-	    if (double_quote_values)
-		strncat(buf, "\"", sizeof(buf) - strlen(buf) - 1);
-	    tac_sym_get(sym);
 
 	    if (sc == S_set)
-		attr_add(user, &svc->attrs_m, &svc->cnt_m, buf);
+		attr_add(user, &svc->attrs_m, &svc->cnt_m, attr, sep, quote, sym->buf, quote);
 	    else if (sc == S_add)
-		attr_add(user, &svc->attrs_a, &svc->cnt_a, buf);
+		attr_add(user, &svc->attrs_a, &svc->cnt_a, attr, sep, quote, sym->buf, quote);
 	    else		// S_optional
-		attr_add(user, &svc->attrs_o, &svc->cnt_o, buf);
+		attr_add(user, &svc->attrs_o, &svc->cnt_o, attr, sep, quote, sym->buf, quote);
+
+	    tac_sym_get(sym);
+	    free(attr);
 	    continue;
 	case S_protocol:
 	    if (svc->sub && svc->type != S_shell) {
