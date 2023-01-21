@@ -106,8 +106,8 @@
 #define MSCHAP_DIGEST_LEN 49
 
 #if defined(WITH_SSL) && OPENSSL_VERSION_NUMBER < 0x30000000
-# undef WITH_SSL
-# warning Disabling OpenSSL support. Please upgrade to version 3.0
+#undef WITH_SSL
+#warning Disabling OpenSSL support. Please upgrade to version 3.0
 #endif
 
 #ifdef WITH_SSL
@@ -787,10 +787,10 @@ struct context_logfile {
     int fd;
     io_context_t *io;
     struct buffer *buf;
-    char path[PATH_MAX + 1];	/* current log file name */
     pid_t pid;
     int dying;
     struct logfile *lf;
+    char path[1];		/* current log file name */
 };
 
 void cleanup(struct context *, int);
