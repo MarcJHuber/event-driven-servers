@@ -139,7 +139,7 @@ $COMMENT{"ipc"} =
 ";
 
 $COMMENT{"crypto"} =
-"Use the \"crypto\" option certain libcrypto support, e.g. DES or SHA1. The ssl option implies this one.
+"Use the \"crypto\" option for certain libcrypto support, e.g. DES or SHA1. The ssl option implies this one.
 ";
 
 $COMMENT{"ssl"} =
