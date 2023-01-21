@@ -314,6 +314,18 @@ static void logwrite_sync(struct context_logfile *ctx, int cur)
     }
 }
 
+static struct context_logfile *new_context_logfile(char *path)
+{
+    struct context_logfile *ctx;
+    int len;
+    if (!path)
+	path = "";
+    len = strlen(path);
+    ctx = calloc(1, sizeof(struct context_logfile) + len);
+    memcpy(ctx->path, path, len);
+    return ctx;
+}
+
 static void log_start_one(struct logfile *lf, struct context_logfile *deadctx)
 {
     char newpath[PATH_MAX + 1];
@@ -410,22 +422,14 @@ static void log_start_one(struct logfile *lf, struct context_logfile *deadctx)
 		if (deadctx)
 		    lf->ctx = deadctx;
 		else {
-		    lf->ctx = calloc(1, sizeof(struct context_logfile));
-#ifndef __clang__
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wstringop-truncation"
-#endif
-		    strncpy(lf->ctx->path, path, PATH_MAX);
-#ifndef __clang__
-# pragma GCC diagnostic pop
-#endif
+		    lf->ctx = new_context_logfile(path);
 		    io_child_set(pid, (void (*)(pid_t, void *, int))
 				 logdied, (void *) lf->ctx);
 		}
 		lf->ctx->pid = pid;
 	    }
 	} else if (lf->flag_syslog) {
-	    lf->ctx = calloc(1, sizeof(struct context_logfile));
+	    lf->ctx = new_context_logfile(NULL);
 	    lf->flag_sync = 1;
 	} else {
 	    cur = open(path, O_CREAT | O_WRONLY | O_APPEND, config.mask);
@@ -433,17 +437,8 @@ static void log_start_one(struct logfile *lf, struct context_logfile *deadctx)
 		create_dirs(path);
 		cur = open(path, O_CREAT | O_WRONLY | O_APPEND, config.mask);
 	    }
-	    if (cur > -1 && !lf->ctx) {
-		lf->ctx = calloc(1, sizeof(struct context_logfile));
-#ifndef __clang__
-# pragma GCC diagnostic push
-# pragma GCC diagnostic ignored "-Wstringop-truncation"
-#endif
-		strncpy(lf->ctx->path, path, PATH_MAX);
-#ifndef __clang__
-# pragma GCC diagnostic pop
-#endif
-	    }
+	    if (cur > -1 && !lf->ctx)
+		lf->ctx = new_context_logfile(path);
 	}
 
 	if (lf->ctx) {

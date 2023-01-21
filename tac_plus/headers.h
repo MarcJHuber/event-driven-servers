@@ -663,10 +663,10 @@ struct context_logfile {
     int fd;
     io_context_t *io;
     struct buffer *buf;
-    char path[PATH_MAX + 1];	/* current log file name */
     pid_t pid;
     int dying;
     struct logfile *lf;
+    char path[1];		/* current log file name */
 };
 
 void cleanup(struct context *, int);
