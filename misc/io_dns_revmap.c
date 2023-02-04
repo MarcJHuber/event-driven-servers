@@ -13,19 +13,19 @@
 #include "misc/memops.h"
 
 #ifdef WITH_ARES
-# include <ares.h>
-# if ARES_VERSION < 0x11200 // private values until 1.18.0, see https://c-ares.org/changelog.html
-#  ifndef C_IN
-#   define C_IN 1
-#  endif
-#  ifndef T_PTR
-#   define T_PTR 12
-#  endif
-# else
-#  include <ares_nameser.h>
-# endif
-# include <sys/uio.h>
-# undef WITH_LWRES
+#include <ares.h>
+#if ARES_VERSION < 0x11200	// private values until 1.18.0, see https://c-ares.org/changelog.html
+#ifndef C_IN
+#define C_IN 1
+#endif
+#ifndef T_PTR
+#define T_PTR 12
+#endif
+#else
+#include <ares_nameser.h>
+#endif
+#include <sys/uio.h>
+#undef WITH_LWRES
 #endif
 
 #ifdef WITH_LWRES
@@ -98,12 +98,12 @@ static int idi_cmp_app_ctx(const void *v1, const void *v2)
     return 0;
 }
 
+#ifdef WITH_LWRES
 static void free_payload(void *v)
 {
     free(v);
 }
 
-#ifdef WITH_LWRES
 static void io_dns_cb(struct io_dns_ctx *, int);
 
 static void udp_error(void *ctx __attribute__((unused)), int cur)
@@ -248,7 +248,7 @@ struct io_dns_ctx *io_dns_init(struct io_context *io)
 	ares_set_socket_functions(idc->channel, &a_socket_functions, idc);
 	idc->io = io;
 	idc->by_addr = RB_tree_new(idi_cmp_addr, NULL);
-	idc->by_app_ctx = RB_tree_new(idi_cmp_app_ctx, free_payload);
+	idc->by_app_ctx = RB_tree_new(idi_cmp_app_ctx, NULL);
 	io_ares_set(idc);
     } else {
 	free(idc->channel);
@@ -281,8 +281,8 @@ void io_dns_cancel(struct io_dns_ctx *idc, void *app_ctx)
 	RB_delete(idc->by_app_ctx, r);
 #endif
 #ifdef WITH_ARES
-	RB_delete(idc->by_app_ctx, r);
 	RB_payload(r, struct io_dns_item *)->app_ctx = NULL;
+	RB_delete(idc->by_app_ctx, r);
 #endif
     }
 }
@@ -443,6 +443,7 @@ static void a_callback(void *arg, int status, int timeouts __attribute__((unused
 	RB_search_and_delete(idi->idc->by_app_ctx, idi->app_ctx);
     }
     RB_search_and_delete(idi->idc->by_addr, idi);
+    free(idi);
 }
 #endif
 #ifdef WITH_LWRES
