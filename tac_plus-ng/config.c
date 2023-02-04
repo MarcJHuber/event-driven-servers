@@ -1116,10 +1116,12 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		    break;
 		case S_nac:
 		    sym_get(sym);
+		    parse(sym, S_equal);
 		    r->default_host->lookup_revmap_nac = parse_tristate(sym);
 		    break;
 		case S_nas:
 		    sym_get(sym);
+		    parse(sym, S_equal);
 		    r->default_host->lookup_revmap_nas = parse_tristate(sym);
 		    break;
 		default:
@@ -2798,10 +2800,12 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 		break;
 	    case S_nac:
 		sym_get(sym);
+		parse(sym, S_equal);
 		host->lookup_revmap_nac = parse_tristate(sym);
 		break;
 	    case S_nas:
 		sym_get(sym);
+		parse(sym, S_equal);
 		host->lookup_revmap_nas = parse_tristate(sym);
 		break;
 	    default:
