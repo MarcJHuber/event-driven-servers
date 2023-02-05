@@ -318,7 +318,7 @@ int av_attribute_to_i(char *s)
 
 int av_array_to_char(av_ctx * ac, char *buffer, size_t buflen, fd_set * set)
 {
-    int i, j;
+    int i, j, k;
     char *u;
     char *t = buffer;
 
@@ -329,6 +329,9 @@ int av_array_to_char(av_ctx * ac, char *buffer, size_t buflen, fd_set * set)
 	    j = snprintf(t, (size_t) (buffer + buflen - t), "%d %s\n", i, u);
 	    if (j >= buffer + buflen - t)
 		return -1;
+	    for (k = 0; k < j - 1; k++)
+		if (t[k] == '\n')
+		    t[k] = '\r';
 	    t += j;
 	}
 
@@ -347,8 +350,17 @@ int av_char_to_array(av_ctx * ac, char *buffer, fd_set * set)
 	av_value = strchr(av_start, ' ');
 	if (av_value) {
 	    *av_value++ = 0;
-	    if ((1 == sscanf(av_start, "%d", &av_attribute)) && (!set || FD_ISSET(av_attribute, set)))
+	    if ((1 == sscanf(av_start, "%d", &av_attribute)) && (!set || FD_ISSET(av_attribute, set))) {
+		char *t;
 		av_set(ac, av_attribute, av_value);
+		t = av_get(ac, av_attribute);
+		if (t)
+		    while (*t) {
+			if (*t == '\r')
+			    *t = '\n';
+			t++;
+		    }
+	    }
 	    *(av_value - 1) = ' ';
 	}
 	*av_end++ = '\n';
