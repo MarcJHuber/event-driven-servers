@@ -635,7 +635,7 @@ static int globerror(const char *epath, int eerrno)
 
 static time_t parse_date(struct sym *sym, time_t offset);
 
-static void parse_key(struct sym *sym, tac_host *host)
+static void parse_key(struct sym *sym, tac_host * host)
 {
     struct tac_key **tk = &host->key;
     int keylen;
@@ -1344,7 +1344,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_tls:
 	    sym_get(sym);
 	    switch (sym->code) {
-# if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
+#if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 	    case S_psk:
 		sym_get(sym);
 		switch (sym->code) {
@@ -1367,7 +1367,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		    parse_error_expect(sym, S_id, S_key, S_equal, S_unknown);
 		}
 		continue;
-# endif
+#endif
 	    case S_cert_file:
 		sym_get(sym);
 		parse(sym, S_equal);
@@ -2325,6 +2325,33 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	int len = -1;
 	int pad = 0;
 	char *p = sym->buf;
+	static char *begin_marker = "---- BEGIN SSH2 PUBLIC KEY ----";
+	static char *end_marker = "---- END SSH2 PUBLIC KEY ----";
+	static size_t begin_marker_len = 0;
+	static size_t end_marker_len = 0;
+
+	if (!begin_marker_len) {
+	    begin_marker_len = strlen(begin_marker);
+	    end_marker_len = strlen(end_marker);
+	}
+
+	if (!strncmp(p, begin_marker, begin_marker_len)) {
+	    char *n = alloca(slen);
+	    char *t = n;
+	    p = strchr(p, '\n');
+	    while (p && strncmp(p, end_marker, end_marker_len)) {
+		char *e = strchr(p, '\n');
+		if (e) {
+		    size_t l = e - p - 1;
+		    memcpy(t, p, l);
+		    t += l;
+		    p = e + 1;
+		} else
+		    p = NULL;
+	    }
+	    *t = 0;
+	    p = n;
+	}
 
 	while (*p) {
 	    char *space = strchr(p, ' ');
@@ -2336,13 +2363,13 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 		slen = strlen(sym->buf);
 	    len = EVP_DecodeBlock(t, (const unsigned char *) p, slen);
 
-	    if (len < 400)
+	    if (len < 40)
 		p = space;
 	    else
 		break;
 	}
 
-	if (!p || len < 400)
+	if (!p || len < 40)
 	    parse_error(sym, "BASE64 decode of SSH key failed.");
 
 	if (p[slen - 1] == '=')
