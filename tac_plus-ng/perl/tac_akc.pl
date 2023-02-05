@@ -32,6 +32,7 @@ use Net::TacacsPlus::Client;
 use Net::TacacsPlus::Constants;
 use Net::TacacsPlus::Packet;
 use Getopt::Long;
+use IPC::Open2;
 
 sub help {
 	print <<EOT
@@ -50,7 +51,7 @@ Options:
 
 Version: $version
 
-Copyright (C) 2022 by Marc Huber <Marc.Huber\@web.de>
+Copyright (C) 2022-2023 by Marc Huber <Marc.Huber\@web.de>
 
 Source code and documentation: http://www.pro-bono-publico.de/projects/
 
@@ -103,6 +104,17 @@ $pkt->send($tac->tacacsserver);
 
 my $reply = $tac->recv_reply(TAC_PLUS_AUTHEN);
 Net::TacacsPlus::Packet->check_reply($pkt, $reply);
-print $reply->body->{'data'}, "\n" if $reply->status() == TAC_PLUS_AUTHEN_STATUS_PASS;
+if ($reply->status() == TAC_PLUS_AUTHEN_STATUS_PASS) {
+	my $data = $reply->body->{'data'};
+	if ($data =~ /--- BEGIN SSH2/) { # Key is in RFC4716 format. Untested code.
+		my $keygen = '/usr/bin/ssh-keygen -if /dev/stdin'; # This is likely non-portable ...
+		my $pid = open2(my $r, my $w, $keygen);
+		print $w $data; # untested, but might work as we expect a single line
+		print <$r>;
+		waitpid($pid, 0);
+	} else {
+		print $data, "\n"
+	}
+}
 
 exit 0;
