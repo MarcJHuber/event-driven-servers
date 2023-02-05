@@ -2338,7 +2338,29 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	if (!strncmp(p, begin_marker, begin_marker_len)) {
 	    char *n = alloca(slen);
 	    char *t = n;
-	    p = strchr(p, '\n');
+	    char *h;
+	    p = strchr(p, '\n');	// skip header
+
+	    // skip contuinations
+	    h = strrchr(p, '\\');
+	    if (h) {
+		p = strchr(h, '\n');
+		if (p) {
+		    p++;
+		    p = strchr(p, '\n');
+		    if (p)
+			p++;
+		}
+	    }
+
+	    // skip remaining header lines
+	    h = strrchr(p, ':');
+	    if (h) {
+		p = strchr(h, '\n');
+		if (p)
+		    p++;
+	    }
+
 	    while (p && strncmp(p, end_marker, end_marker_len)) {
 		char *e = strchr(p, '\n');
 		if (e) {
@@ -2385,7 +2407,7 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	    parse_error(sym, "MD5 hashing failed.");
 	hash_len = strlen(hash);
 	*ssh_key = memlist_malloc(user->memlist, sizeof(struct ssh_key) + len);
-	(*ssh_key)->key = memlist_strdup(user->memlist, sym->buf);
+	(*ssh_key)->key = memlist_strdup(user->memlist, sym->buf);	// FIXME -- store key in binary format?
 	memcpy((*ssh_key)->hash, hash, len + 1);
 	(*ssh_key)->key = key;
 	ssh_key = &((*ssh_key)->next);
