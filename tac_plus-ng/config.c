@@ -2329,6 +2329,7 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	static char *end_marker = "---- END SSH2 PUBLIC KEY ----";
 	static size_t begin_marker_len = 0;
 	static size_t end_marker_len = 0;
+	int is_rfc4716 = 0;
 
 	if (!begin_marker_len) {
 	    begin_marker_len = strlen(begin_marker);
@@ -2339,6 +2340,8 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	    char *n = alloca(slen);
 	    char *t = n;
 	    char *h;
+	    is_rfc4716 = 1;
+
 	    p = strchr(p, '\n');	// skip header
 
 	    // skip contuinations
@@ -2400,16 +2403,30 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	    pad++;
 	len = (slen * 3) / 4 - pad;
 
-	key = memlist_strdup(user->memlist, sym->buf);
-
 	hash = calc_ssh_key_hash("MD5", t, len);
 	if (!hash)
 	    parse_error(sym, "MD5 hashing failed.");
 	hash_len = strlen(hash);
 	*ssh_key = memlist_malloc(user->memlist, sizeof(struct ssh_key) + len);
-	(*ssh_key)->key = memlist_strdup(user->memlist, sym->buf);	// FIXME -- store key in binary format?
-	memcpy((*ssh_key)->hash, hash, len + 1);
+	if (is_rfc4716)
+	    key = memlist_strdup(user->memlist, sym->buf);
+	else {
+	    int l = slen;;
+	    char *ck = alloca(slen + 200);
+	    *ck = 0;
+	    strcat(ck, begin_marker);
+	    strcat(ck, "\n");
+	    while (l > 0) {
+		strncat(ck, p, 72);
+		l -= 72;
+		strcat(ck, "\n");
+	    }
+	    strcat(ck, end_marker);
+	    strcat(ck, "\n");
+	    key = memlist_strdup(user->memlist, ck);
+	}
 	(*ssh_key)->key = key;
+	memcpy((*ssh_key)->hash, hash, len + 1);
 	ssh_key = &((*ssh_key)->next);
 
 	hash = calc_ssh_key_hash("SHA256", t, len);
