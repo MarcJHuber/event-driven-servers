@@ -4046,7 +4046,7 @@ void cfg_init(void)
     config.log_matched_group = 0;
 
     {
-	char *acl = "acl script = __internal__enable_user__ " "{ if (user =~ \"^$enab..$$\") permit deny }";
+	char *acl = "acl script = __internal__enable_user__ " "{ if (user =~ \"^\\\\$enab..?\\\\$$\") permit deny }";
 	struct sym sym;
 	memset(&sym, 0, sizeof(sym));
 	sym.filename = "__internal__";
