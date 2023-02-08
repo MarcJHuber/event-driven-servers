@@ -2367,7 +2367,7 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	    while (p && strncmp(p, end_marker, end_marker_len)) {
 		char *e = strchr(p, '\n');
 		if (e) {
-		    size_t l = e - p - 1;
+		    size_t l = e - p;
 		    memcpy(t, p, l);
 		    t += l;
 		    p = e + 1;
@@ -2378,16 +2378,15 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	    p = n;
 	}
 
-	while (*p) {
+	while (p && *p) {
 	    char *space = strchr(p, ' ');
 	    if (space) {
 		slen = space - p;
 		while (*space == ' ')
 		    space++;
 	    } else
-		slen = strlen(sym->buf);
+		slen = strlen(p);
 	    len = EVP_DecodeBlock(t, (const unsigned char *) p, slen);
-
 	    if (len < 40)
 		p = space;
 	    else
