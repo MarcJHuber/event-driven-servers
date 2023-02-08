@@ -406,7 +406,7 @@ radixtree_t *lookup_hosttree(tac_realm * r)
     return NULL;
 }
 
-static void parse_inline(char *format, char *file, int line)
+static void parse_inline(tac_realm *r, char *format, char *file, int line)
 {
     struct sym sym;
     memset(&sym, 0, sizeof(sym));
@@ -415,6 +415,7 @@ static void parse_inline(char *format, char *file, int line)
     sym.in = sym.tin = format;
     sym.len = sym.tlen = strlen(sym.in);
     sym_init(&sym);
+    parse_tac_acl(&sym, r);
 }
 
 static tac_realm *new_realm(char *name, tac_realm * parent)
@@ -462,10 +463,10 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
 	r->tls_verify_depth = -1;
 #endif
 
-	parse_inline("acl __internal__username_acl__ { if (user =~ \"[]<>/()|=[*\\\"':$]+\") deny permit }\n", __FILE__, __LINE__);
+	parse_inline(r, "acl __internal__username_acl__ { if (user =~ \"[]<>/()|=[*\\\"':$]+\") deny permit }\n", __FILE__, __LINE__);
 	r->mavis_user_acl = tac_acl_lookup("__internal__username_acl__", r);
 
-	parse_inline("acl __internal__enable_user__ { if (user =~ \"^$enab..$$\") permit deny }", __FILE__, __LINE__);
+	parse_inline(r, "acl __internal__enable_user__ { if (user =~ \"^\\\\$enab..?\\\\$$\") permit deny }", __FILE__, __LINE__);
 	r->enable_user_acl = tac_acl_lookup("__internal__enable_user__", r);
 
 	r->default_host->user_messages = calloc(UM_MAX, sizeof(char *));
