@@ -250,7 +250,7 @@ void complete_realm(tac_realm * r)
 	    r->enable_user_acl = rp->enable_user_acl;
 	if (!r->password_acl)
 	    r->password_acl = rp->password_acl;
-#if defined(WITH_TLS) || defined(WITH_SSH)
+#if defined(WITH_TLS) || defined(WITH_SSL)
 	if (r->tls_accept_expired == TRISTATE_DUNNO)
 	    r->tls_accept_expired = rp->tls_accept_expired;
 	if (r->tls_verify_depth == -1)
