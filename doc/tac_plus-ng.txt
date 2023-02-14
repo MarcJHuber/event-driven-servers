@@ -2384,6 +2384,19 @@ int async 1
    If set, the server is required to support start_tls.
 
    Default: unset
+
+   Do not set this flag for LDAPS connections.
+   TLS_OPTIONS
+
+   This sets options for use with Net::LDAP start_tls and LDAPS,
+   in Perl syntax. Details can be found in the Net::LDAP
+   documentation.
+
+   Default: unset
+
+   Example:
+setenv TLS_OPTIONS = "sslversion => 'tlsv1_3'"
+
    FLAG_CHPW
 
    Permit password changes via this back-end.

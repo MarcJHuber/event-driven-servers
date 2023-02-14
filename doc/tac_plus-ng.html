@@ -51,34 +51,34 @@
 <dd>
 <dl>
 <dt>4.3.1. <a href="#AEN2314">LDAP Backends</a></dt>
-<dt>4.3.2. <a href="#AEN2517">PAM back-end</a></dt>
-<dt>4.3.3. <a href="#AEN2522">System Password Backends</a></dt>
-<dt>4.3.4. <a href="#AEN2529">Shadow Backend</a></dt>
-<dt>4.3.5. <a href="#AEN2552">RADIUS Backends</a></dt>
-<dt>4.3.6. <a href="#AEN2586">Experimental Backends</a></dt>
-<dt>4.3.7. <a href="#AEN2590">Error Handling</a></dt>
+<dt>4.3.2. <a href="#AEN2527">PAM back-end</a></dt>
+<dt>4.3.3. <a href="#AEN2532">System Password Backends</a></dt>
+<dt>4.3.4. <a href="#AEN2539">Shadow Backend</a></dt>
+<dt>4.3.5. <a href="#AEN2562">RADIUS Backends</a></dt>
+<dt>4.3.6. <a href="#AEN2596">Experimental Backends</a></dt>
+<dt>4.3.7. <a href="#AEN2600">Error Handling</a></dt>
 </dl>
 </dd>
 </dl>
 </dd>
-<dt>5. <a href="#AEN2598">Debugging</a></dt>
+<dt>5. <a href="#AEN2608">Debugging</a></dt>
 <dd>
 <dl>
-<dt>5.1. <a href="#AEN2601">Debugging Configuration Files</a></dt>
-<dt>5.2. <a href="#AEN2609">Trace Options</a></dt>
+<dt>5.1. <a href="#AEN2611">Debugging Configuration Files</a></dt>
+<dt>5.2. <a href="#AEN2619">Trace Options</a></dt>
 </dl>
 </dd>
-<dt>6. <a href="#AEN2767">Frequently Asked Questions</a></dt>
-<dt>7. <a href="#AEN2862">Multi-tenant setups</a></dt>
+<dt>6. <a href="#AEN2777">Frequently Asked Questions</a></dt>
+<dt>7. <a href="#AEN2872">Multi-tenant setups</a></dt>
 <dd>
 <dl>
-<dt>7.1. <a href="#AEN2893">AD, Realms and Tenants</a></dt>
+<dt>7.1. <a href="#AEN2903">AD, Realms and Tenants</a></dt>
 </dl>
 </dd>
-<dt>8. <a href="#AEN2898">AAA rule tracing</a></dt>
-<dt>9. <a href="#AEN2914">Bugs</a></dt>
-<dt>10. <a href="#AEN2928">References</a></dt>
-<dt>11. <a href="#AEN2938">Copyrights and Acknowledgements</a></dt>
+<dt>8. <a href="#AEN2908">AAA rule tracing</a></dt>
+<dt>9. <a href="#AEN2924">Bugs</a></dt>
+<dt>10. <a href="#AEN2938">References</a></dt>
+<dt>11. <a href="#AEN2948">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -3628,6 +3628,20 @@ Note that TACACS+ group names are case-sensitive.</p>
 "literal">start_tls</tt>.</p>
 <p>Default: unset</p>
 </td>
+<td>
+<p>Do not set this flag for LDAPS connections.</p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">TLS_OPTIONS</tt></td>
+<td>
+<p>This sets options for use with Net::LDAP start_tls and LDAPS, in
+Perl syntax. Details can be found in the Net::LDAP
+documentation.</p>
+<p>Default: unset</p>
+<p>Example:</p>
+<pre class=
+"screen">setenv TLS_OPTIONS = "sslversion =&gt; 'tlsv1_3'"</pre></td>
 </tr>
 <tr>
 <td><tt class="literal">FLAG_CHPW</tt></td>
@@ -3676,7 +3690,7 @@ running <span class="emphasis"><i class=
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2479" id="AEN2479">4.3.1.1. LDAP
+<h5 class="section"><a name="AEN2489" id="AEN2489">4.3.1.1. LDAP
 Custom Schema Backend</a></h5>
 <p>For <tt class="literal">LDAP_SERVER_TYPE</tt> set to <tt class=
 "literal">tacacs_schema</tt>, the program expects the LDAP server
@@ -3726,7 +3740,7 @@ versions of OpenLDAP: Use <tt class="literal">ldapadd</tt> to add
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2502" id="AEN2502">4.3.1.2. Active
+<h5 class="section"><a name="AEN2512" id="AEN2512">4.3.1.2. Active
 Directory Backend</a></h5>
 <p>If <tt class="literal">LDAP_SERVER_TYPE</tt> is set to
 <tt class="literal">microsoft</tt>, the script back-ends to AD
@@ -3824,7 +3838,7 @@ id = tac_plus-ng {
 }</pre></div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2509" id="AEN2509">4.3.1.3. Generic
+<h5 class="section"><a name="AEN2519" id="AEN2519">4.3.1.3. Generic
 LDAP Backend</a></h5>
 <p>If <tt class="literal">LDAP_SERVER_TYPE</tt> is set to
 <tt class="literal">generic</tt>, the script won't require any
@@ -3837,7 +3851,7 @@ authorization is done by this back-end.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2517" id="AEN2517">4.3.2. PAM
+<h4 class="section"><a name="AEN2527" id="AEN2527">4.3.2. PAM
 back-end</a></h4>
 <p>Example configuration for using <span class="emphasis"><i class=
 "emphasis">Pluggable Authentication Modules</i></span>:</p>
@@ -3882,7 +3896,7 @@ id = tac_plus {
 }</pre></div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2522" id="AEN2522">4.3.3. System
+<h4 class="section"><a name="AEN2532" id="AEN2532">4.3.3. System
 Password Backends</a></h4>
 <p><tt class="literal">mavis_tacplus_passwd.pl</tt> authenticates
 against your local password database. Alas, to use this
@@ -3895,7 +3909,7 @@ one-time passwords for authentication.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2529" id="AEN2529">4.3.4. Shadow
+<h4 class="section"><a name="AEN2539" id="AEN2539">4.3.4. Shadow
 Backend</a></h4>
 <p><tt class="literal">mavis_tacplus_shadow.pl</tt> may be used to
 keep user passwords out of the <span class="bold"><b class=
@@ -3949,7 +3963,7 @@ test:$1$pQtQsMuj$GKpIr5r2GNaZNfDfnCBtw.:15218:1:30:
 ...</pre></div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2552" id="AEN2552">4.3.5. RADIUS
+<h4 class="section"><a name="AEN2562" id="AEN2562">4.3.5. RADIUS
 Backends</a></h4>
 <p><tt class="literal">mavis_tacplus_radius.pl</tt> authenticates
 against a RADIUS server. No authorization is done, unless the
@@ -3998,7 +4012,7 @@ login time.</p>
 equivalent.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2583" id="AEN2583">4.3.5.1. Sample
+<h5 class="section"><a name="AEN2593" id="AEN2593">4.3.5.1. Sample
 Configuration</a></h5>
 <pre class=
 "screen">## Use tacinfo_cache to cache authorization data to disk:
@@ -4021,7 +4035,7 @@ mavis module = external {
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2586" id="AEN2586">4.3.6.
+<h4 class="section"><a name="AEN2596" id="AEN2596">4.3.6.
 Experimental Backends</a></h4>
 <p><tt class="literal">mavis_tacplus_sms.pl</tt> is a sample
 (skeleton) script to send One-Time Passwords via a SMS
@@ -4029,7 +4043,7 @@ back-end.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2590" id="AEN2590">4.3.7. Error
+<h4 class="section"><a name="AEN2600" id="AEN2600">4.3.7. Error
 Handling</a></h4>
 <p>If a back-end script fails due to an external problem (e.g. LDAP
 server unavailability), your router may or may not fall back to
@@ -4067,11 +4081,11 @@ basis. Default is enabled.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2598" id="AEN2598">5.
+<h2 class="section"><a name="AEN2608" id="AEN2608">5.
 Debugging</a></h2>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN2601" id="AEN2601">5.1. Debugging
+<h3 class="section"><a name="AEN2611" id="AEN2611">5.1. Debugging
 Configuration Files</a></h3>
 <p>When creating configuration files, it is convenient to check
 their syntax using the <tt class="literal">-P</tt> flag to
@@ -4083,7 +4097,7 @@ messages on the terminal.</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN2609" id="AEN2609">5.2. Trace
+<h3 class="section"><a name="AEN2619" id="AEN2619">5.2. Trace
 Options</a></h3>
 <p>Trace (or debugging) options may be specified in <span class=
 "emphasis"><i class="emphasis">global</i></span>, <span class=
@@ -4109,7 +4123,7 @@ information to <tt class="literal">syslog</tt>.</p>
 <pre class="screen">debug = ALL -PARSE</pre>
 <p>The debugging options available are summarized in the following
 table:</p>
-<div class="informaltable"><a name="AEN2629" id="AEN2629"></a>
+<div class="informaltable"><a name="AEN2639" id="AEN2639"></a>
 <table border="1" frame="border" class="CALSTABLE">
 <col width="5%" title="col1">
 <col width="15%" title="col2">
@@ -4296,7 +4310,7 @@ option.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2767" id="AEN2767">6. Frequently
+<h2 class="section"><a name="AEN2777" id="AEN2777">6. Frequently
 Asked Questions</a></h2>
 <ul>
 <li>
@@ -4490,7 +4504,7 @@ anyway.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2862" id="AEN2862">7. Multi-tenant
+<h2 class="section"><a name="AEN2872" id="AEN2872">7. Multi-tenant
 setups</a></h2>
 <p>While using a dedictated tac_plus-ng installation per tenant is
 certainly possible it lacks some elegance. There are other
@@ -4560,7 +4574,7 @@ with</p>
 from as realm name.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN2893" id="AEN2893">7.1. AD, Realms
+<h3 class="section"><a name="AEN2903" id="AEN2903">7.1. AD, Realms
 and Tenants</a></h3>
 <p>The suggested setup for giving customers limited access to NADs
 is:</p>
@@ -4604,7 +4618,7 @@ scripts anywhere else.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2898" id="AEN2898">8. AAA rule
+<h2 class="section"><a name="AEN2908" id="AEN2908">8. AAA rule
 tracing</a></h2>
 <p>The distribution includes the <tt class=
 "literal">tactrace.pl</tt> Perl script. It's usually not installed
@@ -4710,7 +4724,7 @@ supported as the password would show up as clear text in the process listing.</p
 127.0.0.1 ---&lt;end packet&gt;---</pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2914" id="AEN2914">9. Bugs</a></h2>
+<h2 class="section"><a name="AEN2924" id="AEN2924">9. Bugs</a></h2>
 <ul>
 <li>
 <p>There may still be some nasty bugs lurking in the code. Please
@@ -4738,7 +4752,7 @@ guidance.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2928" id="AEN2928">10.
+<h2 class="section"><a name="AEN2938" id="AEN2938">10.
 References</a></h2>
 <ul>
 <li>
@@ -4755,7 +4769,7 @@ System Plus (TACACS+) Protocol</a></p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2938" id="AEN2938">11. Copyrights
+<h2 class="section"><a name="AEN2948" id="AEN2948">11. Copyrights
 and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of
 individual files.</p>
@@ -4837,7 +4851,7 @@ with the distribution.</p>
 <li>
 <p>The end-user documentation included with the redistribution, if
 any, must include the following acknowledgment:</p>
-<a name="AEN2981" id="AEN2981"></a>
+<a name="AEN2991" id="AEN2991"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber
 (<code class="email">&lt;<a href=
