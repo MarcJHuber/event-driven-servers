@@ -118,6 +118,12 @@ FLAG_USE_MEMBEROF
 FLAG_AUTHORIZE_ONLY
 	Don't attempt to authenticate users.
 
+TLS_OPTIONS
+	Extra options for use with LDAPS or start_tls, in Perl hash syntax.
+	See https://metacpan.org/pod/Net::LDAP for details.
+	Default: unset
+	Example: "sslversion => 'tlsv1_2'"
+
 ########
 
 Sample configuration:
@@ -219,6 +225,7 @@ my $flag_cacheconn		= undef;
 my $flag_fallthrough	= undef;
 my $flag_use_memberof	= undef;
 my $flag_authorize_only	= undef;
+my %tls_options;
 
 my $tacacsGroupPrefix	= 'tacacs';
 my $require_tacacsGroupPrefix = undef;
@@ -246,6 +253,8 @@ if ($LDAP_SERVER_TYPE eq 'tacacs_schema') {
 	$LDAP_FILTER	= '(uid=%s)';
 	$LDAP_FILTER_CHPW = $LDAP_FILTER;
 }
+
+%tls_options = eval $ENV{'TLS_OPTIONS'} if exists $ENV{'TLS_OPTIONS'};
 
 if (exists $ENV{'LDAP_HOSTS'}) {
 	$LDAP_HOSTS	= [];
@@ -405,13 +414,13 @@ while ($in = <>) {
   retry_once:
 
 	unless ($ldap) {
-		$ldap = Net::LDAP->new($LDAP_HOSTS, timeout=>$LDAP_CONNECT_TIMEOUT);
+		$ldap = Net::LDAP->new($LDAP_HOSTS, timeout=>$LDAP_CONNECT_TIMEOUT, %tls_options);
 		unless ($ldap) {
 			$V[AV_A_USER_RESPONSE] = "No answer from LDAP backend.";
 			goto fatal;
 		}
 		if (defined $use_tls) {
-			my $mesg = $ldap->start_tls;
+			my $mesg = $ldap->start_tls(%tls_options);
 			if ($mesg->code) {
 				$V[AV_A_USER_RESPONSE] = "TLS negotiation failed.";
 				goto fatal;
@@ -507,13 +516,13 @@ while ($in = <>) {
 					$ldap->disconnect;
 					$ldap = undef;
 				}
-				$ldap = Net::LDAP->new($LDAP_MASTER);
+				$ldap = Net::LDAP->new($LDAP_MASTER, %tls_options);
 				unless ($ldap) {
 					$V[AV_A_USER_RESPONSE] = "No answer from LDAP backend.";
 					goto fatal;
 				}
 				if (defined $use_tls) {
-					$mesg = $ldap->start_tls;
+					$mesg = $ldap->start_tls(%tls_options);
 					if ($mesg->code) {
 						$V[AV_A_USER_RESPONSE] = "TLS negotiation failed.";
 						goto fatal;
