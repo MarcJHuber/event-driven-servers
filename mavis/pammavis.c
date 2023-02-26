@@ -147,7 +147,7 @@ int main(int argc, char **argv)
 
 	    if (pass) {
 		const char *pamerr = NULL;
-		int res = check_auth(user, pass, &pamerr);
+		int res = getpwnam(user) ? check_auth(user, pass, &pamerr) : PAM_USER_UNKNOWN;
 		switch (res) {
 		case PAM_SUCCESS:
 		    if (print_credentials(user))	// not found by getpwnam()
