@@ -406,7 +406,7 @@ radixtree_t *lookup_hosttree(tac_realm * r)
     return NULL;
 }
 
-static void parse_inline(tac_realm *r, char *format, char *file, int line)
+static void parse_inline(tac_realm * r, char *format, char *file, int line)
 {
     struct sym sym;
     memset(&sym, 0, sizeof(sym));
@@ -3873,7 +3873,9 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 		    if (res)
 			return tac_script_cond_eval_res(session, m, res);
 		    v = e;
-		    if (!*v || *v != ',') {
+		    if (!*v)
+			return tac_script_cond_eval_res(session, m, 0);
+		    if (*v != ',') {
 			report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " memberof attribute '%s' is malformed (expected a ',')",
 			       session->user->avc->arr[AV_A_MEMBEROF]);
 			return tac_script_cond_eval_res(session, m, 0);
