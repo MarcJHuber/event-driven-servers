@@ -2083,12 +2083,14 @@ struct mavis_cond *mavis_cond_parse(struct sym *sym)
 #ifdef WITH_PCRE
 #define OVECCOUNT 30
 static int ovector[OVECCOUNT];
+static uint32_t ovector_count = OVECCOUNT;
 static int pcre_res = 0;
 static char *pcre_arg = NULL;
 #endif
 #ifdef WITH_PCRE2
 static pcre2_match_data *match_data = NULL;
 static PCRE2_SIZE *ovector = NULL;
+static uint32_t ovector_count = 0;
 static int pcre_res = 0;
 static PCRE2_SPTR8 pcre_arg = NULL;
 #endif
@@ -2134,8 +2136,10 @@ int mavis_cond_eval(av_ctx * ac, struct mavis_cond *m)
 	if (!(v = av_get(ac, m->u.s.a1)))
 	    return 0;
 	pcre_res = pcre_exec((pcre *) m->u.s.v, NULL, pcre_arg = v, (int) strlen(v), 0, 0, ovector, OVECCOUNT);
+#if 0
 	if (pcre_res == 0)
 	    report_cfg_error(LOG_INFO, ~0, "PCRE ovector only has room for %d captured substrings", OVECCOUNT / 3 - 1);
+#endif
 	return -1 < pcre_res;
 #else
 #ifdef WITH_PCRE2
@@ -2151,10 +2155,11 @@ int mavis_cond_eval(av_ctx * ac, struct mavis_cond *m)
 	if (pcre_res < 0 && pcre_res != PCRE2_ERROR_NOMATCH)
 	    report_cfg_error(LOG_INFO, ~0, "PCRE2 matching error: %d", pcre_res);
 	ovector = pcre2_get_ovector_pointer(match_data);
+	ovector_count = pcre2_get_ovector_count(match_data);
+#if 0
 	if (!ovector)
 	    report_cfg_error(LOG_INFO, ~0, "PCRE2 ovector was not big enough for all the captured substrings");
-	if (ovector[0] > ovector[1])
-	    report_cfg_error(LOG_INFO, ~0, "PCRE2: \\K was used in an assertion, giving up");
+#endif
 	return -1 < pcre_res;
 #else
 	report_cfg_error(LOG_INFO, ~0, "You're using PCRE syntax, but this binary wasn't compiled with PCRE support.");
@@ -2288,25 +2293,14 @@ static enum token mavis_script_eval_r(mavis_ctx * mcx, av_ctx * ac, struct mavis
     if (!m)
 	return S_unknown;
     switch (m->code) {
-#if 0
-	// looks weird
-    case S_openbra:
-	r = mavis_script_eval_r(mcx, ac, m->c.a);
-	if (r != S_unknown)
-	    return r;
-	break;
-#endif
     case S_continue:
     case S_return:
     case S_skip:
 	return m->code;
     case S_set:
 	{
-#ifdef WITH_PCRE
-	    int i;
-#endif
-#ifdef WITH_PCRE2
-	    int i;
+#if defined(WITH_PCRE) || defined(WITH_PCRE2)
+	    uint32_t i;
 #endif
 	    char s[4096];	// yeah, this sucks.
 	    char *v = m->b.v;
@@ -2316,39 +2310,28 @@ static enum token mavis_script_eval_r(mavis_ctx * mcx, av_ctx * ac, struct mavis
 		switch (*v) {
 		case '$':
 		    v++;
-		    if (!isdigit((int) *v) /* || (*v == '0') */ ) {
+		    if (!isdigit((int) *v)) {
 			*t++ = '$';
 			break;
 		    }
-#ifdef WITH_PCRE
-		    i = *v - '0';
-#endif
-#ifdef WITH_PCRE2
+#if defined(WITH_PCRE) || defined(WITH_PCRE2)
 		    i = *v - '0';
 #endif
 		    v++;
-#ifdef WITH_PCRE
-		    if (pcre_arg) {
-			size_t l;
-			//i--;
-			l = ovector[2 * i + 1] - ovector[2 * i];
-			if (((int) (se - t) > (int) l))
-			    strncpy(t, pcre_arg + ovector[2 * i], l);
-			t += l;
-		    }
-#else
+#if defined(WITH_PCRE) || defined(WITH_PCRE2)
+		    if (pcre_arg
 #ifdef WITH_PCRE2
-		    if (pcre_arg) {
-			size_t l;
-			//i--;
-			l = ovector[2 * i + 1] - ovector[2 * i];
-			if (((int) (se - t) > (int) l))
+			&& ovector
+#endif
+			&& i < ovector_count && ovector[2 * i] < ovector[2 * i + 1]) {
+			size_t l = ovector[2 * i + 1] - ovector[2 * i];
+			if (((int) (se - t) > (int) l)) {
 			    strncpy(t, (char *) pcre_arg + ovector[2 * i], l);
-			t += l;
+			    t += l;
+			}
 		    }
 #else
 		    report_cfg_error(LOG_INFO, ~0, "You're using PCRE syntax, but this binary wasn't compiled with PCRE support.");
-#endif
 #endif
 		    continue;
 		case '\\':
@@ -2506,11 +2489,7 @@ void mavis_script_parse(mavis_ctx * mcx, struct sym *sym)
 
 enum token mavis_script_eval(mavis_ctx * mcx, av_ctx * ac, struct mavis_action *m)
 {
-#ifdef WITH_PCRE
-    pcre_res = 0;
-    pcre_arg = NULL;
-#endif
-#ifdef WITH_PCRE2
+#if defined(WITH_PCRE) || defined(WITH_PCRE2)
     pcre_res = 0;
     pcre_arg = NULL;
 #endif
