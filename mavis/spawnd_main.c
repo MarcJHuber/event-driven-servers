@@ -339,7 +339,7 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 	"/CRYPTO"
 #endif
 #ifdef WITH_LWRES
-	"/LWRES"
+	"/LWRES (deprecated)"
 #endif
 #ifdef WITH_ARES
 	"/ARES"
@@ -354,7 +354,7 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 	"/SSL"
 #endif
 #ifdef WITH_PCRE
-	"/PCRE"
+	"/PCRE (deprecated)"
 #endif
 	;
     logopen();
@@ -575,7 +575,7 @@ void scm_main(int argc, char **argv, char **envp)
 
     common_data.version = VERSION
 #ifdef WITH_PCRE
-	"/PCRE"
+	"/PCRE (deprecated)"
 #endif
 #ifdef WITH_PCRE2
 	"/PCRE2"
@@ -584,7 +584,7 @@ void scm_main(int argc, char **argv, char **envp)
 	"/CRYPTO"
 #endif
 #ifdef WITH_LWRES
-	"/LWRES"
+	"/LWRES (deprecated)"
 #endif
 #ifdef WITH_ARES
 	"/ARES"

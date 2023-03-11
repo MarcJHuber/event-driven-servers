@@ -105,7 +105,7 @@ $COMMENT{"epoll"} =
 ";
 
 $COMMENT{"lwres"} =
-"liblwres, the lightweight resolver library, comes with older versions of bind, together with lwresd. Enabling this option enables ftpd and tac_plus(-ng) to do DNS lookups.
+"liblwres, the lightweight resolver library, comes with older versions of bind, together with lwresd. Enabling this option enables ftpd and tac_plus(-ng) to do DNS lookups. Upstream support is no longer available, please move on to c-ares.
 ";
 
 $COMMENT{"ares"} =
@@ -737,6 +737,14 @@ wprint $hint . "\n" if $hint ne "";;
 
 wprint "Development files were not found for: " . join(", ", sort keys %NOT_FOUND) . "\n\n" if 0 < int keys %NOT_FOUND;
 wprint "Development files were found for: " . join(", ", sort keys %FOUND) . "\n\n" if 0 < int keys %FOUND;
+
+if (exists $FOUND{"LIB-LWRES"}) {
+	wprint "lwres isn't supported by upstream since bind 9.12. Support will be removed soon. Please install C-ARES if you require the DNS reverse lookup features\n\n";
+}
+
+if (exists $FOUND{"LIB-PCRE"}) {
+	wprint "PCRE1 is EoL since mid 2021. Support will be removed soon. Please install PCRE2.\n\n";
+}
 
 wprint "The file
 
