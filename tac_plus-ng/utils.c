@@ -872,6 +872,7 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_vrf:
 	    case S_realm:
 	    case S_label:
+	    case S_identity_source:
 	    case S_tls_conn_version:
 	    case S_tls_conn_cipher:
 	    case S_tls_peer_cert_issuer:
