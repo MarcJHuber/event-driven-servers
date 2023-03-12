@@ -1538,7 +1538,7 @@ static void parse_group(struct sym *sym, tac_realm * r, tac_group * parent)
 		parse(sym, S_equal);
 		ng = lookup_group(sym->buf, r);
 		if (!ng)
-		    parse_error(sym, "Group '%s' not found.", sym->buf);
+		    parse_error(sym, "group '%s' not found.", sym->buf);
 		g->parent = ng->parent;
 		if (loopcheck_group(g))
 		    parse_error(sym, "'%s': circular reference rejected", sym->buf);
@@ -4044,7 +4044,7 @@ static struct tac_script_action *tac_script_parse_r(struct sym *sym, int section
 	parse(sym, S_equal);
 	m->b.v = (char *) lookup_profile(sym->buf, realm);
 	if (!m->b.v)
-	    parse_error(sym, "Profile '%s' doesn't exist", sym->buf);
+	    parse_error(sym, "profile '%s' not found", sym->buf);
 	sym_get(sym);
 	break;
     case S_context:
@@ -4063,6 +4063,8 @@ static struct tac_script_action *tac_script_parse_r(struct sym *sym, int section
 	parse(sym, S_user);
 	parse(sym, S_equal);
 	m->b.v = (char *) lookup_rewrite(sym->buf, realm);
+	if (!m->b.v)
+	    parse_error(sym, "rewrite '%s' not found", sym->buf);
 	sym_get(sym);
 	break;
     case S_label:
