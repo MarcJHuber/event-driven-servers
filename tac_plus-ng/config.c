@@ -4043,6 +4043,8 @@ static struct tac_script_action *tac_script_parse_r(struct sym *sym, int section
 	m = tac_script_action_new(sym);
 	parse(sym, S_equal);
 	m->b.v = (char *) lookup_profile(sym->buf, realm);
+	if (!m->b.v)
+	    parse_error(sym, "Profile '%s' doesn't exist", sym->buf);
 	sym_get(sym);
 	break;
     case S_context:
