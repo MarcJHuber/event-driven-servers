@@ -250,12 +250,16 @@ debug = ALL -PARSE -NET
 
      * mavis path = Path
        Add Path to the module search path.
-     * mavis module = ModuleName { ... }
+     * mavis module ( identitySourceName ) = ModuleName { ... }
        This directive searchs for module ModuleName in the
        compiled-in and configured search paths. Alternatively to
        auto-search, ModuleName may be an absolute path to a MAVIS
        module. The module will be loaded and will parse the
        configuration data inside the curly brackets.
+       identitySourceName is an optional parameter to provide
+       better visibility of the source (the originating MAVIS
+       module) of an identity. It will be assigned to the MAVIS
+       IDENTITY_SOURCE attribute.
 
    An actual configuration could look similar to:
 syslog level = INFO

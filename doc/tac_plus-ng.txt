@@ -704,6 +704,8 @@ syslog default = deny
    ${home} Home directory from PAM backend
    ${shell} Shell from PAM backend
    ${dn} Raw dn backend value, typically from LDAP
+   ${identity-source} The IDENTITY_SOURCE backend value (the
+   identitySourceName of the originating MAVIS module))
    ${memberof} Raw memberOf backend value, typically from LDAP
    ${tls-conn-version} TLS Connection Version (requires LibTLS or
    OpenSSL)

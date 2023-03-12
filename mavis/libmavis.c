@@ -409,6 +409,7 @@ void av_free_private(av_ctx * ac)
 	    case AV_A_GIDS:
 	    case AV_A_MEMBEROF:
 	    case AV_A_DN:
+	    case AV_A_IDENTITY_SOURCE:
 		break;
 	    default:
 		Xfree(&ac->arr[i]);

@@ -137,8 +137,8 @@ AV_CHAR("TYPE",)
     AV_CHAR("DIGEST_MD5_RESPONSE",)
 #define AV_A_DBPASSWORD		36
     AV_CHAR("DBPASSWORD",)
-#define AV_A_SCRAM_CLIENT_CHALLENGE	37
-    AV_CHAR("SCRAM_CLIENT_CHALLENGE",)
+#define AV_A_IDENTITY_SOURCE	37
+    AV_CHAR("IDENTITY_SOURCE",)
 #define AV_A_SCRAM_SERVER_CHALLENGE	38
     AV_CHAR("SCRAM_SERVER_CHALLENGE",)
 #define AV_A_SCRAM_SERVER_PROOF		39
@@ -246,10 +246,11 @@ struct mavis_ctx {
     struct mavis_action *script_in;
     struct mavis_action *script_out;
     struct io_context *io;
+    char *identity_source_name;
+    char *identifier;
 #ifdef MAVIS_CTX_PRIVATE
      MAVIS_CTX_PRIVATE
 #endif
-    char identifier[1];
 };
 
 /* Module handling: */

@@ -507,6 +507,11 @@ static void read_from_child(struct context *ctx, int cur)
 			DebugOut(DEBUG_MAVIS);
 			return;
 		    }
+		    if (result == MAVIS_FINAL) {
+			char *r = av_get(ctx->ac, AV_A_RESULT);
+			if (r && (!strcmp(r, AV_V_RESULT_OK) || !strcmp(r, AV_V_RESULT_FAIL)))
+			    av_set(ctx->ac, AV_A_IDENTITY_SOURCE, ctx->mcx->identity_source_name);
+		    }
 
 		    q = Xcalloc(1, sizeof(struct context));
 		    q->ac = ctx->ac;

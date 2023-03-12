@@ -1249,6 +1249,14 @@ static char *eval_log_format_dn(tac_session * session, struct context *ctx __att
     return NULL;
 }
 
+static char *eval_log_format_identity_source(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len
+				__attribute__((unused)))
+{
+    if (session && session->user && session->user->avc)
+	return session->user->avc->arr[AV_A_IDENTITY_SOURCE];
+    return NULL;
+}
+
 static char *eval_log_format_nas(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (ctx) {
@@ -1620,6 +1628,7 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_umessage] = &eval_log_format_umessage;
 	efun[S_user] = &eval_log_format_user;
 	efun[S_vrf] = &eval_log_format_vrf;
+	efun[S_identity_source] = &eval_log_format_identity_source;
 #if defined(WITH_TLS) || defined(WITH_SSL)
 	efun[S_tls_conn_cipher] = &eval_log_format_tls_conn_cipher;
 	efun[S_tls_conn_cipher_strength] = &eval_log_format_tls_conn_cipher_strength;

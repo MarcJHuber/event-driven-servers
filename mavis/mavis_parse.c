@@ -1367,18 +1367,24 @@ static int mavis_method_addf(mavis_ctx ** mcx, struct io_context *ioctx, char *i
 
 int parse_mavismodule(mavis_ctx ** mcx, struct io_context *ioctx, struct sym *sym)
 {
+    char *identity_source_name = NULL;
+    mavis_ctx *m;
     int res = -1;
     static int i = 0;
     char id[10];
     snprintf(id, 10, "%d", i++);
 
     sym_get(sym);		//S_module
+    if (sym->code != S_equal) {	// identity_source_name
+	identity_source_name = strdup(sym->buf);
+	sym_get(sym);
+    }
     parse(sym, S_equal);
     /* sym->buf is the module name, might be an absolute path */
     if (sym->buf[0] == '/') {
 	char buf[MAX_INPUT_LINE_LEN];
 	ostypef(sym->buf, buf, sizeof(buf));
-	res = mavis_method_addf(mcx, ioctx, "%s", buf);
+	res = mavis_method_addf(mcx, ioctx, id, "%s", buf);
     } else {
 	if (mavis_searchpath) {
 	    struct searchpath *sp = mavis_searchpath;
@@ -1412,6 +1418,11 @@ int parse_mavismodule(mavis_ctx ** mcx, struct io_context *ioctx, struct sym *sy
 #endif
 	}
     }
+
+    m = *mcx;
+    while (m->down)
+	m = m->down;
+    m->identity_source_name = identity_source_name ? identity_source_name : strdup(m->identifier);
 
     if (res) {
 	report_cfg_error(LOG_ERR, ~0, "%s:%u: FATAL: module '%s' not found.", sym->filename, sym->line, sym->buf);
@@ -2095,7 +2106,7 @@ static int pcre_res = 0;
 static PCRE2_SPTR8 pcre_arg = NULL;
 #endif
 
-int mavis_cond_eval(av_ctx * ac, struct mavis_cond *m)
+static int mavis_cond_eval(mavis_ctx * mcx, av_ctx * ac, struct mavis_cond *m)
 {
     int i;
     char *v, *v2;
@@ -2103,15 +2114,15 @@ int mavis_cond_eval(av_ctx * ac, struct mavis_cond *m)
 	return 0;
     switch (m->type) {
     case S_exclmark:
-	return !mavis_cond_eval(ac, m->u.m.e[0]);
+	return !mavis_cond_eval(mcx, ac, m->u.m.e[0]);
     case S_and:
 	for (i = 0; i < m->u.m.n; i++)
-	    if (!mavis_cond_eval(ac, m->u.m.e[i]))
+	    if (!mavis_cond_eval(mcx, ac, m->u.m.e[i]))
 		return 0;
 	return -1;
     case S_or:
 	for (i = 0; i < m->u.m.n; i++)
-	    if (mavis_cond_eval(ac, m->u.m.e[i]))
+	    if (mavis_cond_eval(mcx, ac, m->u.m.e[i]))
 		return -1;
 	return 0;
     case S_defined:
@@ -2122,6 +2133,8 @@ int mavis_cond_eval(av_ctx * ac, struct mavis_cond *m)
 	if (!(v = av_get(ac, m->u.s.a1)))
 	    return 0;
 	v2 = m->u.s.v;
+	if (v2 && (m->u.s.a1 == AV_A_IDENTITY_SOURCE) && !strcmp(v2, "self") && !strcmp(v, mcx->identity_source_name))
+	    return -1;
 	if (!v2)
 	    v2 = av_get(ac, m->u.s.a2);
 	if (!v2)
@@ -2132,14 +2145,11 @@ int mavis_cond_eval(av_ctx * ac, struct mavis_cond *m)
 	    return 0;
 	return !regexec((regex_t *) m->u.s.v, v, 0, NULL, 0);
     case S_slash:
-#ifdef WITH_PCRE
+#if defined(WITH_PCRE) || defined(WITH_PCRE2)
 	if (!(v = av_get(ac, m->u.s.a1)))
 	    return 0;
+#ifdef WITH_PCRE
 	pcre_res = pcre_exec((pcre *) m->u.s.v, NULL, pcre_arg = v, (int) strlen(v), 0, 0, ovector, OVECCOUNT);
-#if 0
-	if (pcre_res == 0)
-	    report_cfg_error(LOG_INFO, ~0, "PCRE ovector only has room for %d captured substrings", OVECCOUNT / 3 - 1);
-#endif
 	return -1 < pcre_res;
 #else
 #ifdef WITH_PCRE2
@@ -2147,8 +2157,6 @@ int mavis_cond_eval(av_ctx * ac, struct mavis_cond *m)
 	    pcre2_match_data_free(match_data);
 	    match_data = NULL;
 	}
-	if (!(v = av_get(ac, m->u.s.a1)))
-	    return 0;
 	match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.v, NULL);
 	pcre_arg = (PCRE2_SPTR8) v;
 	pcre_res = pcre2_match((pcre2_code *) m->u.s.v, pcre_arg, (PCRE2_SIZE) strlen(v), 0, 0, match_data, NULL);
@@ -2156,14 +2164,11 @@ int mavis_cond_eval(av_ctx * ac, struct mavis_cond *m)
 	    report_cfg_error(LOG_INFO, ~0, "PCRE2 matching error: %d", pcre_res);
 	ovector = pcre2_get_ovector_pointer(match_data);
 	ovector_count = pcre2_get_ovector_count(match_data);
-#if 0
-	if (!ovector)
-	    report_cfg_error(LOG_INFO, ~0, "PCRE2 ovector was not big enough for all the captured substrings");
 #endif
 	return -1 < pcre_res;
+#endif
 #else
 	report_cfg_error(LOG_INFO, ~0, "You're using PCRE syntax, but this binary wasn't compiled with PCRE support.");
-#endif
 #endif
     default:;
     }
@@ -2368,10 +2373,10 @@ static enum token mavis_script_eval_r(mavis_ctx * mcx, av_ctx * ac, struct mavis
 	    break;
 	}
     case S_eval:
-	mavis_cond_eval(ac, m->a.c);
+	mavis_cond_eval(mcx, ac, m->a.c);
 	break;
     case S_if:
-	if (mavis_cond_eval(ac, m->a.c)) {
+	if (mavis_cond_eval(mcx, ac, m->a.c)) {
 	    r = mavis_script_eval_r(mcx, ac, m->b.a);
 	    if (r != S_unknown)
 		return r;

@@ -65,6 +65,11 @@ static void *Mavis_drop(mavis_ctx * mcx)
 
     handle = mcx->handle;
 
+    if (mcx->identifier)
+	free(mcx->identifier);
+    if (mcx->identity_source_name)
+	free(mcx->identity_source_name);
+
     free(mcx);
 
     DebugOut(DEBUG_MAVIS);
@@ -218,7 +223,7 @@ mavis_ctx *Mavis_new(void *handle, struct io_context *io, char *id)
     mcx->parse = Mavis_parse;
     mcx->cancel = Mavis_cancel;
     mcx->io = io;
-    strcpy(mcx->identifier, id ? id : MAVIS_name);
+    mcx->identifier = strdup(id ? id : MAVIS_name);
 #ifdef HAVE_mavis_new
     mavis_new(mcx);
 #endif

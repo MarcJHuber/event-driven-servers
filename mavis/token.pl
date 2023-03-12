@@ -453,4 +453,5 @@ USER_ACCESS_VERIFICATION	S_USER_ACCESS_VERIFICATION
 DENIED_BY_ACL	S_DENIED_BY_ACL
 psk		S_psk
 verify-depth	S_verify_depth
+identity-source	S_identity_source
 

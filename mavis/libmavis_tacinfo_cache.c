@@ -232,6 +232,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	av_set(*ac, AV_A_PATH, av_get(a, AV_A_PATH));
 	av_set(*ac, AV_A_DN, av_get(a, AV_A_DN));
 	av_set(*ac, AV_A_MEMBEROF, av_get(a, AV_A_MEMBEROF));
+	av_set(*ac, AV_A_IDENTITY_SOURCE, av_get(a, AV_A_IDENTITY_SOURCE));
 	av_free(a);
 	av_set(*ac, AV_A_RESULT, AV_V_RESULT_OK);
 	mcx->cached = 1;
@@ -313,6 +314,7 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 	res |= write_av(*ac, fn, AV_A_PATH);
 	res |= write_av(*ac, fn, AV_A_DN);
 	res |= write_av(*ac, fn, AV_A_MEMBEROF);
+	res |= write_av(*ac, fn, AV_A_IDENTITY_SOURCE);
 	res |= (-1 == close(fn));
 	if (res)
 	    unlink(mcx->hashfile_tmp);

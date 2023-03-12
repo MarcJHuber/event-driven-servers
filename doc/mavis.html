@@ -36,47 +36,47 @@ Attribute-Value Interchange System</a></h1>
 <dl>
 <dt>5.1. <a href="#AEN63">Standard Configuration
 Directives</a></dt>
-<dt>5.2. <a href="#AEN227">Backend Module Configuration</a></dt>
+<dt>5.2. <a href="#AEN234">Backend Module Configuration</a></dt>
 <dd>
 <dl>
-<dt>5.2.1. <a href="#AEN230">The <span class="emphasis"><i class=
+<dt>5.2.1. <a href="#AEN237">The <span class="emphasis"><i class=
 "emphasis">anonftp</i></span> module</a></dt>
-<dt>5.2.2. <a href="#AEN279">The <span class="emphasis"><i class=
+<dt>5.2.2. <a href="#AEN286">The <span class="emphasis"><i class=
 "emphasis">asciiftp</i></span> module</a></dt>
-<dt>5.2.3. <a href="#AEN323">The <span class="emphasis"><i class=
+<dt>5.2.3. <a href="#AEN330">The <span class="emphasis"><i class=
 "emphasis">auth</i></span> module</a></dt>
-<dt>5.2.4. <a href="#AEN354">The <span class="emphasis"><i class=
+<dt>5.2.4. <a href="#AEN361">The <span class="emphasis"><i class=
 "emphasis">cache</i></span> module</a></dt>
-<dt>5.2.5. <a href="#AEN394">The <span class="emphasis"><i class=
+<dt>5.2.5. <a href="#AEN401">The <span class="emphasis"><i class=
 "emphasis">external</i></span> module</a></dt>
-<dt>5.2.6. <a href="#AEN464">The <span class="emphasis"><i class=
+<dt>5.2.6. <a href="#AEN471">The <span class="emphasis"><i class=
 "emphasis">group</i></span> module</a></dt>
-<dt>5.2.7. <a href="#AEN550">The <span class="emphasis"><i class=
+<dt>5.2.7. <a href="#AEN557">The <span class="emphasis"><i class=
 "emphasis">limit</i></span> module</a></dt>
-<dt>5.2.8. <a href="#AEN584">The <span class="emphasis"><i class=
+<dt>5.2.8. <a href="#AEN591">The <span class="emphasis"><i class=
 "emphasis">log</i></span> module</a></dt>
-<dt>5.2.9. <a href="#AEN589">The <span class="emphasis"><i class=
+<dt>5.2.9. <a href="#AEN596">The <span class="emphasis"><i class=
 "emphasis">PAM</i></span> module</a></dt>
-<dt>5.2.10. <a href="#AEN637">The <span class="emphasis"><i class=
+<dt>5.2.10. <a href="#AEN644">The <span class="emphasis"><i class=
 "emphasis">remote</i></span> module</a></dt>
-<dt>5.2.11. <a href="#AEN709">The <span class="emphasis"><i class=
+<dt>5.2.11. <a href="#AEN716">The <span class="emphasis"><i class=
 "emphasis">tacinfo_cache</i></span> module</a></dt>
-<dt>5.2.12. <a href="#AEN738">The <span class="emphasis"><i class=
+<dt>5.2.12. <a href="#AEN745">The <span class="emphasis"><i class=
 "emphasis">system</i></span> module</a></dt>
-<dt>5.2.13. <a href="#AEN812">The <span class="emphasis"><i class=
+<dt>5.2.13. <a href="#AEN819">The <span class="emphasis"><i class=
 "emphasis">userdb</i></span> module</a></dt>
-<dt>5.2.14. <a href="#AEN882">The <span class="emphasis"><i class=
+<dt>5.2.14. <a href="#AEN889">The <span class="emphasis"><i class=
 "emphasis">tee</i></span> module</a></dt>
-<dt>5.2.15. <a href="#AEN919">The <span class="emphasis"><i class=
+<dt>5.2.15. <a href="#AEN926">The <span class="emphasis"><i class=
 "emphasis">null</i></span> module</a></dt>
 </dl>
 </dd>
-<dt>5.3. <a href="#AEN923">MAVIS Scripting Language</a></dt>
+<dt>5.3. <a href="#AEN930">MAVIS Scripting Language</a></dt>
 </dl>
 </dd>
-<dt>6. <a href="#AEN1109">Testing your MAVIS configuration</a></dt>
-<dt>7. <a href="#AEN1114">Environmental Variables</a></dt>
-<dt>8. <a href="#AEN1119">Copyrights and Acknowledgements</a></dt>
+<dt>6. <a href="#AEN1116">Testing your MAVIS configuration</a></dt>
+<dt>7. <a href="#AEN1121">Environmental Variables</a></dt>
+<dt>8. <a href="#AEN1126">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -419,9 +419,11 @@ applications are:</p>
 to the module search path.</p>
 </li>
 <li>
-<p><tt class="literal">mavis module =</tt> <span class=
-"emphasis"><i class="emphasis">ModuleName</i></span> <tt class=
-"literal">{</tt> ... <tt class="literal">}</tt></p>
+<p><tt class="literal">mavis module</tt> ( <span class=
+"emphasis"><i class="emphasis">identitySourceName</i></span> )
+<tt class="literal">=</tt> <span class="emphasis"><i class=
+"emphasis">ModuleName</i></span> <tt class="literal">{</tt> ...
+<tt class="literal">}</tt></p>
 <p>This directive searchs for module <span class=
 "emphasis"><i class="emphasis">ModuleName</i></span> in the
 compiled-in and configured search paths. Alternatively to
@@ -429,6 +431,13 @@ auto-search, <span class="emphasis"><i class=
 "emphasis">ModuleName</i></span> may be an absolute path to a MAVIS
 module. The module will be loaded and will parse the configuration
 data inside the curly brackets.</p>
+<p><span class="emphasis"><i class=
+"emphasis">identitySourceName</i></span> is an optional parameter
+to provide better visibility of the source (the originating
+<span class="emphasis"><i class="emphasis">MAVIS</i></span> module)
+of an identity. It will be assigned to the <span class=
+"emphasis"><i class="emphasis">MAVIS</i></span> <tt class=
+"literal">IDENTITY_SOURCE</tt> attribute.</p>
 </li>
 </ul>
 <p>An actual configuration could look similar to:</p>
@@ -471,12 +480,12 @@ id = ftpd {
 }</pre></div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN227" id="AEN227">5.2. Backend
+<h3 class="section"><a name="AEN234" id="AEN234">5.2. Backend
 Module Configuration</a></h3>
 <p>The following modules are included in the distribution.</p>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN230" id="AEN230">5.2.1. The
+<h4 class="section"><a name="AEN237" id="AEN237">5.2.1. The
 <span class="emphasis"><i class="emphasis">anonftp</i></span>
 module</a></h4>
 <p>This module implements anonymous FTP authentication. If the
@@ -489,7 +498,7 @@ queries answered by the <tt class="literal">anonftp</tt> module
 aren't.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN240" id="AEN240">5.2.1.1.
+<h5 class="section"><a name="AEN247" id="AEN247">5.2.1.1.
 Configuration directives</a></h5>
 <p>The following configuration directives are mandatory, unless a
 <tt class="literal">ftp</tt> user exists in the local password
@@ -526,7 +535,7 @@ expression where uploads are permitted.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN269" id="AEN269">5.2.1.2. Railroad
+<h5 class="section"><a name="AEN276" id="AEN276">5.2.1.2. Railroad
 Diagram</a></h5>
 <div class="mediaobject">
 <p><img src="railroad/mavis/AnonftpConf.svg"></p>
@@ -538,13 +547,13 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN279" id="AEN279">5.2.2. The
+<h4 class="section"><a name="AEN286" id="AEN286">5.2.2. The
 <span class="emphasis"><i class="emphasis">asciiftp</i></span>
 module</a></h4>
 <p>This module implements FTP authentication via an ASCII file.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN283" id="AEN283">5.2.2.1.
+<h5 class="section"><a name="AEN290" id="AEN290">5.2.2.1.
 Configuration directives</a></h5>
 <ul>
 <li>
@@ -580,7 +589,7 @@ admin:whatever:10000:10001,10002:real:/home/customers:/admin</pre>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN313" id="AEN313">5.2.2.2. Railroad
+<h5 class="section"><a name="AEN320" id="AEN320">5.2.2.2. Railroad
 Diagram</a></h5>
 <div class="mediaobject">
 <p><img src="railroad/mavis/ASCIIftpConf.svg"></p>
@@ -592,7 +601,7 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN323" id="AEN323">5.2.3. The
+<h4 class="section"><a name="AEN330" id="AEN330">5.2.3. The
 <span class="emphasis"><i class="emphasis">auth</i></span>
 module</a></h4>
 <p>This module implements the server side of plain text and
@@ -608,7 +617,7 @@ module are the only ones that doesn't require this module to be
 loaded.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN331" id="AEN331">5.2.3.1.
+<h5 class="section"><a name="AEN338" id="AEN338">5.2.3.1.
 Configuration Syntax</a></h5>
 <p>The only configuration option available is</p>
 <ul>
@@ -627,7 +636,7 @@ mandatory</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN344" id="AEN344">5.2.3.2. Railroad
+<h5 class="section"><a name="AEN351" id="AEN351">5.2.3.2. Railroad
 Diagram</a></h5>
 <div class="mediaobject">
 <p><img src="railroad/mavis/AuthConf.svg"></p>
@@ -639,7 +648,7 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN354" id="AEN354">5.2.4. The
+<h4 class="section"><a name="AEN361" id="AEN361">5.2.4. The
 <span class="emphasis"><i class="emphasis">cache</i></span>
 module</a></h4>
 <p>Please note that this module doesn't support <span class=
@@ -652,7 +661,7 @@ applications, it has to be loaded <span class="emphasis"><i class=
 "emphasis">after</i></span> the auth module.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN362" id="AEN362">5.2.4.1.
+<h5 class="section"><a name="AEN369" id="AEN369">5.2.4.1.
 Configuration directives</a></h5>
 <p>Available configuration directives are:</p>
 <ul>
@@ -683,7 +692,7 @@ specify a different garbage collection interval.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN384" id="AEN384">5.2.4.2. Railroad
+<h5 class="section"><a name="AEN391" id="AEN391">5.2.4.2. Railroad
 Diagram</a></h5>
 <div class="mediaobject">
 <p><img src="railroad/mavis/CacheConf.svg"></p>
@@ -695,7 +704,7 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN394" id="AEN394">5.2.5. The
+<h4 class="section"><a name="AEN401" id="AEN401">5.2.5. The
 <span class="emphasis"><i class="emphasis">external</i></span>
 module</a></h4>
 <p>This module implements an interface to external authentication
@@ -724,7 +733,7 @@ implemented as easy-to-deploy Perl programs. Plus, you're likely to
 get get parallelism for free.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN410" id="AEN410">5.2.5.1.
+<h5 class="section"><a name="AEN417" id="AEN417">5.2.5.1.
 Configuration directives</a></h5>
 <p>The following configuration directives are available:</p>
 <ul>
@@ -772,7 +781,7 @@ they contain non-alphanumeric characters.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN454" id="AEN454">5.2.5.2. Railroad
+<h5 class="section"><a name="AEN461" id="AEN461">5.2.5.2. Railroad
 Diagram</a></h5>
 <div class="mediaobject">
 <p><img src="railroad/mavis/ExternalConf.svg"></p>
@@ -784,7 +793,7 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN464" id="AEN464">5.2.6. The
+<h4 class="section"><a name="AEN471" id="AEN471">5.2.6. The
 <span class="emphasis"><i class="emphasis">group</i></span>
 module</a></h4>
 <p>This module resolves numerical group IDs returned by a
@@ -793,7 +802,7 @@ downstream backend to their corresponding ASCII names.</p>
 "emphasis"><i class="emphasis">memberOf</i></span> attributes.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN470" id="AEN470">5.2.6.1.
+<h5 class="section"><a name="AEN477" id="AEN477">5.2.6.1.
 Configuration directives</a></h5>
 <p>The following configuration directives are available:</p>
 <ul>
@@ -869,14 +878,14 @@ too.)</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN550" id="AEN550">5.2.7. The
+<h4 class="section"><a name="AEN557" id="AEN557">5.2.7. The
 <span class="emphasis"><i class="emphasis">limit</i></span>
 module</a></h4>
 <p>This module implements limitations on the number of failed
 authentications per IP address.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN554" id="AEN554">5.2.7.1.
+<h5 class="section"><a name="AEN561" id="AEN561">5.2.7.1.
 Configuration directives</a></h5>
 <p>Available configuration directives are:</p>
 <ul>
@@ -905,7 +914,7 @@ This directive sets the garbage-collection period to <span class=
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN574" id="AEN574">5.2.7.2. Railroad
+<h5 class="section"><a name="AEN581" id="AEN581">5.2.7.2. Railroad
 Diagram</a></h5>
 <div class="mediaobject">
 <p><img src="railroad/mavis/LimitConf.svg"></p>
@@ -917,7 +926,7 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN584" id="AEN584">5.2.8. The
+<h4 class="section"><a name="AEN591" id="AEN591">5.2.8. The
 <span class="emphasis"><i class="emphasis">log</i></span>
 module</a></h4>
 <p>This module performs query logging to <span class=
@@ -926,7 +935,7 @@ configuration options.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN589" id="AEN589">5.2.9. The
+<h4 class="section"><a name="AEN596" id="AEN596">5.2.9. The
 <span class="emphasis"><i class="emphasis">PAM</i></span>
 module</a></h4>
 <p>This module implements an interface for FTP authentication via
@@ -979,7 +988,7 @@ documentation that comes with your system.</p>
 of root if access to the shadow password file is required.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN609" id="AEN609">5.2.9.1.
+<h5 class="section"><a name="AEN616" id="AEN616">5.2.9.1.
 Configuration directives</a></h5>
 <p>Available configuration options are:</p>
 <ul>
@@ -1002,7 +1011,7 @@ It defaults to <tt class="literal">mavis</tt>.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN627" id="AEN627">5.2.9.2. Railroad
+<h5 class="section"><a name="AEN634" id="AEN634">5.2.9.2. Railroad
 Diagram</a></h5>
 <div class="mediaobject">
 <p><img src="railroad/mavis/PAMConf.svg"></p>
@@ -1014,13 +1023,13 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN637" id="AEN637">5.2.10. The
+<h4 class="section"><a name="AEN644" id="AEN644">5.2.10. The
 <span class="emphasis"><i class="emphasis">remote</i></span>
 module</a></h4>
 <p>This module implements communication with mavisd.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN641" id="AEN641">5.2.10.1.
+<h5 class="section"><a name="AEN648" id="AEN648">5.2.10.1.
 Configuration directives</a></h5>
 <p>Available configuration options are:</p>
 <ul>
@@ -1090,7 +1099,7 @@ of the remote peers. Default is 6 tries.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN696" id="AEN696">5.2.10.2. Railroad
+<h5 class="section"><a name="AEN703" id="AEN703">5.2.10.2. Railroad
 Diagram</a></h5>
 <div class="mediaobject">
 <p><img src="railroad/mavis/RemoteConf.svg"></p>
@@ -1101,7 +1110,7 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN706" id="AEN706">5.2.10.3. Possible
+<h5 class="section"><a name="AEN713" id="AEN713">5.2.10.3. Possible
 legal restrictions</a></h5>
 <p>This module utilizes Bruce Schneier's Blowfish algorithm. Your
 government may have choosen to implement ridiculous legal
@@ -1111,7 +1120,7 @@ Take care.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN709" id="AEN709">5.2.11. The
+<h4 class="section"><a name="AEN716" id="AEN716">5.2.11. The
 <span class="emphasis"><i class="emphasis">tacinfo_cache</i></span>
 module</a></h4>
 <p>This module implements on-disk caching of authentication
@@ -1120,7 +1129,7 @@ from the backend, or just to share RADIUS authorization data
 between tac_plus worker processes.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN713" id="AEN713">5.2.11.1.
+<h5 class="section"><a name="AEN720" id="AEN720">5.2.11.1.
 Configuration directives</a></h5>
 <ul>
 <li>
@@ -1145,7 +1154,7 @@ the daemon will not clean up the files/directories in there.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN734" id="AEN734">5.2.11.2.
+<h5 class="section"><a name="AEN741" id="AEN741">5.2.11.2.
 Example</a></h5>
 <pre class="screen">mavis module = tacinfo_cache {
   directory = /tmp/tacinfo
@@ -1156,7 +1165,7 @@ mavis module = external {
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN738" id="AEN738">5.2.12. The
+<h4 class="section"><a name="AEN745" id="AEN745">5.2.12. The
 <span class="emphasis"><i class="emphasis">system</i></span>
 module</a></h4>
 <p>This module implements FTP authentication via UNIX system
@@ -1169,7 +1178,7 @@ under the user id of root if access to the shadow password file is
 required.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN744" id="AEN744">5.2.12.1.
+<h5 class="section"><a name="AEN751" id="AEN751">5.2.12.1.
 Configuration directives</a></h5>
 <ul>
 <li>
@@ -1231,7 +1240,7 @@ certificate subject of a certificate <tt class=
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN802" id="AEN802">5.2.12.2. Railroad
+<h5 class="section"><a name="AEN809" id="AEN809">5.2.12.2. Railroad
 Diagram</a></h5>
 <div class="mediaobject">
 <p><img src="railroad/mavis/SystemConf.svg"></p>
@@ -1243,7 +1252,7 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN812" id="AEN812">5.2.13. The
+<h4 class="section"><a name="AEN819" id="AEN819">5.2.13. The
 <span class="emphasis"><i class="emphasis">userdb</i></span>
 module</a></h4>
 <p>This module can be used to define static users, e.g. for FTP. It
@@ -1251,7 +1260,7 @@ requires the <tt class="literal">auth</tt> module for user
 authentication.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN817" id="AEN817">5.2.13.1.
+<h5 class="section"><a name="AEN824" id="AEN824">5.2.13.1.
 Configuration directives</a></h5>
 <p>Syntax for defining users is <tt class="literal">user =</tt>
 <span class="emphasis"><i class="emphasis">UserName</i></span>
@@ -1306,7 +1315,7 @@ set by a downstream module.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN867" id="AEN867">5.2.13.2. Railroad
+<h5 class="section"><a name="AEN874" id="AEN874">5.2.13.2. Railroad
 Diagram</a></h5>
 <div class="mediaobject">
 <p><img src="railroad/mavis/UserDBConf.svg"></p>
@@ -1317,7 +1326,7 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN877" id="AEN877">5.2.13.3.
+<h5 class="section"><a name="AEN884" id="AEN884">5.2.13.3.
 Example</a></h5>
 <p>The following is a valid configuration for <span class=
 "bold"><b class="emphasis">ftpd</b></span> which utilizes various
@@ -1358,7 +1367,7 @@ id = ftpd {
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN882" id="AEN882">5.2.14. The
+<h4 class="section"><a name="AEN889" id="AEN889">5.2.14. The
 <span class="emphasis"><i class="emphasis">tee</i></span>
 module</a></h4>
 <p>This module is used for development only. It writes sent and
@@ -1368,7 +1377,7 @@ description of the <span class="emphasis"><i class=
 "emphasis">external</i></span> module).</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN887" id="AEN887">5.2.14.1.
+<h5 class="section"><a name="AEN894" id="AEN894">5.2.14.1.
 Configuration directives</a></h5>
 <p>Available configuration options are:</p>
 <ul>
@@ -1393,7 +1402,7 @@ Configuration directives</a></h5>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN909" id="AEN909">5.2.14.2. Railroad
+<h5 class="section"><a name="AEN916" id="AEN916">5.2.14.2. Railroad
 Diagram</a></h5>
 <div class="mediaobject">
 <p><img src="railroad/mavis/TeeConf.svg"></p>
@@ -1405,7 +1414,7 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN919" id="AEN919">5.2.15. The
+<h4 class="section"><a name="AEN926" id="AEN926">5.2.15. The
 <span class="emphasis"><i class="emphasis">null</i></span>
 module</a></h4>
 <p>This module comes without any functionality on its own. It may
@@ -1415,7 +1424,7 @@ below.</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN923" id="AEN923">5.3. MAVIS
+<h3 class="section"><a name="AEN930" id="AEN930">5.3. MAVIS
 Scripting Language</a></h3>
 <p>All MAVIS modules in the distribution come with some basic
 scripting language support for modifying AV pair and/or module
@@ -1733,7 +1742,7 @@ supported attributes.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1109" id="AEN1109">6. Testing your
+<h2 class="section"><a name="AEN1116" id="AEN1116">6. Testing your
 MAVIS configuration</a></h2>
 <p>You'll almost certainly want to validate that your backend
 configuration behaves as expected. You can do so using the
@@ -1751,7 +1760,7 @@ Sample usage: mavistest -d -1  /usr/local/etc/tac_plus.cfg tac_plus TACPLUS joe 
 </pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1114" id="AEN1114">7. Environmental
+<h2 class="section"><a name="AEN1121" id="AEN1121">7. Environmental
 Variables</a></h2>
 <p>Text enclosed in double quotes may make use of environment
 variables, e.g.:</p>
@@ -1760,7 +1769,7 @@ variables, e.g.:</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1119" id="AEN1119">8. Copyrights
+<h2 class="section"><a name="AEN1126" id="AEN1126">8. Copyrights
 and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of
 individual files.</p>
@@ -1849,7 +1858,7 @@ with the distribution.</p>
 <li>
 <p>The end-user documentation included with the redistribution, if
 any, must include the following acknowledgment:</p>
-<a name="AEN1168" id="AEN1168"></a>
+<a name="AEN1175" id="AEN1175"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber
 (<code class="email">&lt;<a href=

@@ -3413,6 +3413,7 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
     case S_realm:
     case S_vrf:
     case S_string:
+    case S_identity_source:
 #if defined(WITH_TLS) || defined(WITH_SSL)
     case S_tls_conn_version:
     case S_tls_conn_cipher:
@@ -3557,7 +3558,7 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
     default:
 	parse_error_expect(sym, S_leftbra, S_exclmark, S_acl, S_time, S_arg, S_cmd, S_context, S_nac, S_nas, S_nasname, S_nacname, S_port, S_user, S_member,
 			   S_memberof, S_password, S_service, S_protocol, S_authen_action, S_authen_type, S_authen_service, S_authen_method, S_privlvl, S_vrf,
-			   S_dn, S_type,
+			   S_dn, S_type, S_identity_source,
 #if defined(WITH_TLS) || defined(WITH_SSL)
 			   S_tls_conn_version, S_tls_conn_cipher, S_tls_peer_cert_issuer, S_tls_peer_cert_subject, S_tls_conn_cipher_strength, S_tls_peer_cn,
 			   S_tls_psk_identity,
@@ -3827,6 +3828,10 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 	case S_dn:
 	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_DN])
 		v = session->user->avc->arr[AV_A_DN];
+	    break;
+	case S_identity_source:
+	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_IDENTITY_SOURCE])
+		v = session->user->avc->arr[AV_A_IDENTITY_SOURCE];
 	    break;
 	case S_string:
 	    v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->u.s.lhs, io_now.tv_sec, NULL);

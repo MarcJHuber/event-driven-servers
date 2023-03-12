@@ -146,6 +146,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
     av_set(*ac, AV_A_HOME, mcx->home);
     av_set(*ac, AV_A_ROOT, mcx->root);
     av_set(*ac, AV_A_FTP_ANONYMOUS, AV_V_BOOL_TRUE);
+    av_set(*ac, AV_A_IDENTITY_SOURCE, mcx->identity_source_name);
     if (mcx->incoming)
 	av_set(*ac, AV_A_ANON_INCOMING, mcx->incoming);
     if ((t = av_get(*ac, AV_A_PASSWORD)))

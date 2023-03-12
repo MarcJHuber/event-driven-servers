@@ -147,6 +147,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	    *line++ = 0;
     }
 
+    av_set(*ac, AV_A_IDENTITY_SOURCE, mcx->identity_source_name);
     /* FIXME -- untested code */
 
     if (n < 7 || !field[0] || !field[2] || !field[3] || !field[4] || !field[5] || !field[6]) {
