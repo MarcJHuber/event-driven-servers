@@ -3974,7 +3974,7 @@ enum token tac_script_eval_r(tac_session * session, struct tac_script_action *m)
 	break;
     case S_profile:
 	session->profile = (tac_profile *) (m->b.v);
-	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code], session->profile->name);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code], (session->profile && session->profile->name) ? session->profile->name : "");
 	break;
     case S_attr:
 	session->attr_dflt = (enum token) (long) (m->b.v);
