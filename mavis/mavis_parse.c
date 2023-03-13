@@ -2475,8 +2475,11 @@ void mavis_script_parse(mavis_ctx * mcx, struct sym *sym)
     case S_out:
 	m = &mcx->script_out;
 	break;
+    case S_interim:
+	m = &mcx->script_interim;
+	break;
     default:
-	parse_error_expect(sym, S_in, S_out, S_unknown);
+	parse_error_expect(sym, S_in, S_out, S_openbra, S_unknown);
     }
 
     while (*m)

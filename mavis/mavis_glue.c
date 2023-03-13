@@ -1,6 +1,6 @@
 /*
  * mavis_glue.c
- * (C)1998-2011 by Marc Huber <Marc.Huber@web.de>
+ * (C)1998-2023 by Marc Huber <Marc.Huber@web.de>
  * All rights reserved.
  *
  * Glue code and public interface functions for MAVIS modules.
@@ -11,7 +11,9 @@
 
 static const char mavis_glue_rcsid[] __attribute__((used)) = "$Id$";
 
+#include <stdio.h>
 #include "log.h"
+#include "misc/rb.h"
 #include "misc/version.h"
 
 static int Mavis_init(mavis_ctx * mcx)
@@ -57,6 +59,7 @@ static void *Mavis_drop(mavis_ctx * mcx)
     mavis_drop_out(mcx);
 #endif
 
+    mavis_script_drop(&mcx->script_interim);
     mavis_script_drop(&mcx->script_in);
     mavis_script_drop(&mcx->script_out);
 
@@ -100,6 +103,7 @@ static int Mavis_send(mavis_ctx * mcx, av_ctx ** ac)
 {
     int result = MAVIS_DOWN;
     char *current_module = av_get(*ac, AV_A_CURRENT_MODULE);
+    enum token script_verdict = S_unknown;
     DebugIn(DEBUG_MAVIS);
 
     if (!current_module) {
@@ -111,7 +115,8 @@ static int Mavis_send(mavis_ctx * mcx, av_ctx ** ac)
 	}
 
 	if (mcx->script_in) {
-	    switch (mavis_script_eval(mcx, *ac, mcx->script_in)) {
+	    script_verdict = mavis_script_eval(mcx, *ac, mcx->script_in);
+	    switch (script_verdict) {
 	    case S_skip:
 		break;
 	    case S_return:
@@ -139,14 +144,22 @@ static int Mavis_send(mavis_ctx * mcx, av_ctx ** ac)
 	result = mcx->down->send(mcx->down, ac);
 
 #ifdef HAVE_mavis_recv_out
-    if (result == MAVIS_FINAL)
-	result = mavis_recv_out(mcx, ac);
+    if (result == MAVIS_FINAL && script_verdict != S_skip) {
+	if (mcx->script_interim)
+	    script_verdict = mavis_script_eval(mcx, *ac, mcx->script_interim);
+	switch (script_verdict) {
+	case S_skip:
+	    break;
+	default:
+	    result = mavis_recv_out(mcx, ac);
+	}
+    }
 #endif
 
     if (result == MAVIS_DOWN)
 	result = MAVIS_FINAL;
 
-    if (mcx->script_out && result == MAVIS_FINAL)
+    if (mcx->script_out && result == MAVIS_FINAL && script_verdict != S_skip)
 	mavis_script_eval(mcx, *ac, mcx->script_out);
 
     Debug((DEBUG_MAVIS, "- " MAVIS_name ":%s = %d\n", __func__, result));
@@ -185,6 +198,15 @@ static int Mavis_recv(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
     if (result == MAVIS_DOWN && mcx->down)
 	result = mcx->down->recv(mcx->down, ac, app_ctx);
 
+    if (result == MAVIS_FINAL && mcx->script_interim) {
+	switch (mavis_script_eval(mcx, *ac, mcx->script_interim)) {
+	case S_skip:
+	    goto bye;
+	case S_return:
+	    goto bye2;
+	default:;
+	}
+    }
 #ifdef HAVE_mavis_recv_out
     if (result == MAVIS_FINAL)
 	result = mavis_recv_out(mcx, ac);
@@ -192,10 +214,11 @@ static int Mavis_recv(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
 
     if (result == MAVIS_DOWN)
 	result = MAVIS_FINAL;
-
+  bye2:
     if (mcx->script_out && result == MAVIS_FINAL)
 	mavis_script_eval(mcx, *ac, mcx->script_out);
 
+  bye:
     Debug((DEBUG_MAVIS, "- " MAVIS_name ":%s = %d\n", __func__, result));
     return result;
 }

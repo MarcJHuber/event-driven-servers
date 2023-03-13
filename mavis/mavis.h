@@ -1,9 +1,9 @@
 /*
  * mavis.h
- * (C)1998-2015 by Marc Huber <Marc.Huber@web.de>
+ * (C)1998-2023 by Marc Huber <Marc.Huber@web.de>
  * All rights reserved.
  *
- * $Id: mavis.h,v 1.86 2022/04/24 11:57:55 marc Exp marc $
+ * $Id$
  *
  */
 
@@ -245,6 +245,7 @@ struct mavis_ctx {
     int last_result;
     struct mavis_action *script_in;
     struct mavis_action *script_out;
+    struct mavis_action *script_interim;
     struct io_context *io;
     char *identity_source_name;
     char *identifier;

@@ -29,6 +29,7 @@ BEGIN {
 		AV_A_GID
 		AV_A_GIDS
 		AV_A_HOME
+		AV_A_IDENTITY_SOURCE
 		AV_A_IPADDR
 		AV_A_LIMIT
 		AV_A_MAILCHECK_POST
@@ -44,7 +45,6 @@ BEGIN {
 		AV_A_REALM
 		AV_A_RESULT
 		AV_A_ROOT
-		AV_A_SCRAM_CLIENT_CHALLENGE
 		AV_A_SCRAM_CLIENT_PROOF
 		AV_A_SCRAM_SERVER_CHALLENGE
 		AV_A_SCRAM_SERVER_PROOF
@@ -136,6 +136,7 @@ use constant AV_A_FTP_ANONYMOUS => 22;
 use constant AV_A_GID => 10;
 use constant AV_A_GIDS => 24;
 use constant AV_A_HOME => 19;
+use constant AV_A_IDENTITY_SOURCE => 37;
 use constant AV_A_IPADDR => 14;
 use constant AV_A_LIMIT => 11;
 use constant AV_A_MAILCHECK_POST => 41;
@@ -151,7 +152,6 @@ use constant AV_A_QUOTA_PATH => 16;
 use constant AV_A_REALM => 27;
 use constant AV_A_RESULT => 6;
 use constant AV_A_ROOT => 20;
-use constant AV_A_SCRAM_CLIENT_CHALLENGE => 37;
 use constant AV_A_SCRAM_CLIENT_PROOF => 40;
 use constant AV_A_SCRAM_SERVER_CHALLENGE => 38;
 use constant AV_A_SCRAM_SERVER_PROOF => 39;
