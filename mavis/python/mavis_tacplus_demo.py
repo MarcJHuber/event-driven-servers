@@ -34,7 +34,6 @@ def writechunk(av_pairs, result):
 	print("=" + str(result))
 
 def readchunk():
-	#av_pairs = [None] * mavis.AV_A_ARRAYSIZE
 	av_pairs = { }
 	while sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
 		line = sys.stdin.readline()
@@ -45,8 +44,8 @@ def readchunk():
 			av_pair = line.split(" ")
 			av_pairs[int(av_pair[0])] = av_pair[1]
 		else:
-			exit(0) # EOF
-	return { }
+			break
+	exit(0)
 
 while True:
 	av_pairs = readchunk()
