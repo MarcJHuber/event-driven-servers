@@ -25,3 +25,30 @@ foreach $v (sort keys %V) {
 	print "$v = $V{$v}\n";
 }
 
+print <<EOT;
+
+import select, sys, os
+
+os.environ["PYTHONUNBUFFERED"] = "1"
+
+def write(av_pairs, result):
+	for key in sorted(av_pairs):
+		print(str(key) + " " + av_pairs[key])
+	print("=" + str(result))
+
+def read():
+	av_pairs = { }
+	while sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+		line = sys.stdin.readline()
+		if line:
+			line = line.rstrip('\\n')
+			if line == "=":
+				return av_pairs
+			av_pair = line.split(" ")
+			av_pairs[int(av_pair[0])] = av_pair[1]
+		else:
+			break
+	exit(0)
+
+EOT
+
