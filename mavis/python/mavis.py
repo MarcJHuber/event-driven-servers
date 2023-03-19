@@ -109,12 +109,11 @@ MAVIS_TIMEOUT = 3
 
 import select, sys, os
 
-os.environ["PYTHONUNBUFFERED"] = "1"
-
 def write(av_pairs, result):
 	for key in sorted(av_pairs):
 		print(str(key) + " " + av_pairs[key])
 	print("=" + str(result))
+	sys.stdout.flush()
 
 def read():
 	av_pairs = { }
