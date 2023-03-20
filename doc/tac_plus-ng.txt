@@ -393,13 +393,13 @@ ob 38.11)\n\n"
 
    ... and add users:
     user demo {
-        password = clear demo
-        groups = engineering,admin
+        password login = clear demo
+        member = engineering,admin
     }
 
     user readonly {
-        password = clear readonly
-        groups = guest
+        password login = clear readonly
+        member = guest
     }
 
    Finally, implement a rule-set to assign profiles to users:
@@ -1464,8 +1464,6 @@ aaa authentication enable default group tacacs+ enable
    displayed not displayed
    host motd banner displayed after successful login not displayed
    displayed after successful login
-   host failed authentication banner displayed after unsuccessful
-   login not displayed displayed after unsuccessful login
    user or group message
 
    displayed after
@@ -1754,7 +1752,7 @@ password login = clear Ci5c0
        with login, the password doesn't need to be in clear text,
        but may be hashed, or may be looked up via the MAVIS
        back-end. You can even map pap to login globally by
-       configuring pap password = login in realm context.
+       configuring password pap = login in realm context.
      * password chap = ( clear password | permit | deny )
        For CHAP authentication, a cleartext password is required.
      * password ms-chap = ( clear password | permit | deny )
