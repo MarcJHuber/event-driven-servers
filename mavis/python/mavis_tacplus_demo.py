@@ -51,7 +51,7 @@ while True:
 
 	if av_pairs[mavis.AV_A_TACTYPE] == mavis.AV_V_TACTYPE_AUTH and av_pairs[mavis.AV_A_USER] == "demo" and av_pairs[mavis.AV_A_PASSWORD] == "demo":
 		av_pairs[mavis.AV_A_DBPASSWORD] = av_pairs[mavis.AV_A_PASSWORD]
-		av_pairs[mavis.AV_A_MEMBEROF] = "\"cn=Demo,dc=demo\"cn=Sample,dc=demo"
+		av_pairs[mavis.AV_A_MEMBEROF] = "\"cn=Demo,dc=demo\",\"cn=Sample,dc=demo\""
 		av_pairs[mavis.AV_A_TACMEMBER] = "demogroup"
 		av_pairs[mavis.AV_A_USER_RESPONSE] = "Authentication passed."
 		av_pairs[mavis.AV_A_RESULT] = mavis.AV_V_RESULT_OK
