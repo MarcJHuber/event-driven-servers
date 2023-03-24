@@ -237,9 +237,7 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
     if (t && i && u) {
 	if (!strcmp(r, AV_V_RESULT_FAIL)
 	    && (!strcmp(t, AV_V_TYPE_TACPLUS)
-		|| !strcmp(t, AV_V_TYPE_FTP)
-		|| !strcmp(t, AV_V_TYPE_WWW)
-		|| !strcmp(t, AV_V_TYPE_POP3)))
+		|| !strcmp(t, AV_V_TYPE_FTP)))
 	    cache_add_addr(mcx->cache_blacklist, "", i);
     }
 

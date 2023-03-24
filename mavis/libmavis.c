@@ -112,9 +112,6 @@ static int mavis_sanitycheck(mavis_ctx * mcx, av_ctx * ac)
 				&& ac->arr[AV_A_PASSWORD] && ac->arr[AV_A_IPADDR])
 			       || (!strcmp(ac->arr[AV_A_TYPE], AV_V_TYPE_TACPLUS)
 				   && ac->arr[AV_A_USER] && ac->arr[AV_A_TACTYPE])
-			       || (!strcmp(ac->arr[AV_A_TYPE], AV_V_TYPE_LOGIN)
-				   && ac->arr[AV_A_USER] && ac->arr[AV_A_PASSWORD]
-				   && ac->arr[AV_A_IPADDR])
 			       || !strcmp(ac->arr[AV_A_TYPE], AV_V_TYPE_LOGSTATS)))
 	return 0;
     av_set(ac, AV_A_RESULT, AV_V_RESULT_ERROR);

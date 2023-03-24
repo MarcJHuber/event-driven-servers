@@ -119,8 +119,8 @@ AV_CHAR("TYPE",)
     AV_CHAR("TARIFF",)
 #define AV_A_REALM		27
     AV_CHAR("REALM",)
-#define AV_A_DIGEST_MD5_URI	28
-    AV_CHAR("DIGEST_URI",)
+#define AV_A_SPARE28		28
+    AV_CHAR("SPARE28",)
 #define AV_A_ANON_INCOMING	29
     AV_CHAR("ANON_INCOMING",)
 #define AV_A_VHOST		30
@@ -133,24 +133,24 @@ AV_CHAR("TYPE",)
     AV_CHAR("AUTH_METHOD",)
 #define AV_A_CLASS		34
     AV_CHAR("CLASS",)
-#define AV_A_DIGEST_MD5_RSPAUTH	35
-    AV_CHAR("DIGEST_MD5_RESPONSE",)
+#define AV_A_SPARE35		35
+    AV_CHAR("SPARE35",)
 #define AV_A_DBPASSWORD		36
     AV_CHAR("DBPASSWORD",)
 #define AV_A_IDENTITY_SOURCE	37
     AV_CHAR("IDENTITY_SOURCE",)
-#define AV_A_SCRAM_SERVER_CHALLENGE	38
-    AV_CHAR("SCRAM_SERVER_CHALLENGE",)
-#define AV_A_SCRAM_SERVER_PROOF		39
-    AV_CHAR("SCRAM_SERVER_PROOF",)
-#define AV_A_SCRAM_CLIENT_PROOF		40
-    AV_CHAR("SCRAM_CLIENT_PROOF",)
-#define AV_A_MAILCHECK_POST		41
-    AV_CHAR("MAILCHECK_POST",)
-#define AV_A_MAILCHECK_PRE		42
-    AV_CHAR("MAILCHECK_PRE",)
-#define AV_A_TUNNEL			43
-    AV_CHAR("TUNNEL",)
+#define AV_A_SPARE38		38
+    AV_CHAR("SPARE38",)
+#define AV_A_SPARE39		39
+    AV_CHAR("SPARE39",)
+#define AV_A_SPARE40		40
+    AV_CHAR("SPARE40",)
+#define AV_A_SPARE41		41
+    AV_CHAR("SPARE41",)
+#define AV_A_SPARE42		42
+    AV_CHAR("SPARE42",)
+#define AV_A_SPARE43			43
+    AV_CHAR("SPARE43",)
 #define AV_A_CERTSUBJ			44
     AV_CHAR("CERTSUBJ",)
 #define AV_A_DBCERTSUBJ			45
@@ -181,19 +181,12 @@ AV_CHAR("TYPE",)
     AV_CHAR_END
 #undef AV_CHAR_END
 #endif
-#define AV_V_TYPE_WWW           	"WWW"
 #define AV_V_TYPE_FTP           	"FTP"
-#define AV_V_TYPE_POP3          	"POP3"
-#define AV_V_TYPE_POP3PATH		"POP3PATH"
-#define AV_V_TYPE_LOGIN         	"LOGIN"
-#define AV_V_TYPE_CANONICAL		"CANONICAL"
-#define AV_V_TYPE_TRANSPORT		"TRANSPORT"
-#define AV_V_TYPE_VIRTUAL		"VIRTUAL"
-#define AV_V_TYPE_RADIUS		"RADIUS"
 #define AV_V_TYPE_TACPLUS		"TACPLUS"
 /* private query types/commands, may not be used in client queries */
 #define AV_V_TYPE_PRIVATE_PREFIX	"PRIV_"
 #define AV_V_TYPE_PRIVATE_PREFIX_LEN	5
+
 #define AV_V_TYPE_LOGSTATS		"PRIV_LOGSTATS"
 #define AV_V_BOOL_TRUE          	"TRUE"
 #define AV_V_BOOL_FALSE         	"FALSE"
@@ -205,18 +198,6 @@ AV_CHAR("TYPE",)
 #define AV_V_TACTYPE_INFO		"INFO"
 #define AV_V_TACTYPE_CHPW		"CHPW"
 #define AV_V_TACTYPE_CHAL		"CHAL"
-#define AV_V_AUTH_METHOD_APOP		"APOP"
-#define AV_V_AUTH_METHOD_USER		"USER"
-#define AV_V_AUTH_METHOD_CRAM_MD5	"CRAM-MD5"
-#define AV_V_AUTH_METHOD_SCRAM_MD5	"SCRAM-MD5"
-#define AV_V_AUTH_METHOD_DIGEST_MD5	"DIGEST-MD5"
-#define AV_V_TRANSPORT_POP3		"pop3"
-#define AV_V_TRANSPORT_QUOTA_TEMP	"quota-t"
-#define AV_V_TRANSPORT_QUOTA_PERM	"quota-p"
-#define AV_V_TRANSPORT_BOUNCE		"bounce"
-#define AV_V_TRANSPORT_DEFER		"defer"
-#define AV_V_TRANSPORT_FORWARD		"forward"
-#define AV_V_TRANSPORT_LIST		"list"
 typedef struct av_ctx av_ctx;
 
 struct av_ctx {

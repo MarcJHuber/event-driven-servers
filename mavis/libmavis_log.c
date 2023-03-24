@@ -50,20 +50,11 @@ static int mavis_recv_out(void *pcx __attribute__((unused)), av_ctx ** ac)
 
     if (avtype) {
 	if (avuser && avipaddr && (!strcmp(avtype, AV_V_TYPE_FTP)
-				   || !strcmp(avtype, AV_V_TYPE_LOGIN)
-				   || !strcmp(avtype, AV_V_TYPE_WWW)
-				   || !strcmp(avtype, AV_V_TYPE_POP3)
-				   || !strcmp(avtype, AV_V_TYPE_TACPLUS)
-				   || !strcmp(avtype, AV_V_TYPE_POP3PATH))) {
+				   || !strcmp(avtype, AV_V_TYPE_TACPLUS))) {
 	    if (avcomment)
 		logmsg("%s %s: %s [%s] (%s)", avtype, avresult, avuser, avipaddr, avcomment);
 	    else
 		logmsg("%s %s: %s [%s]", avtype, avresult, avuser, avipaddr);
-	} else if (!strcmp(avtype, AV_V_TYPE_RADIUS) && avuser) {
-	    if (avcomment)
-		logmsg("%s %s: %s (%s)", avtype, avresult, avuser, avcomment);
-	    else
-		logmsg("%s %s: %s", avtype, avresult, avuser);
 	}
     }
     return MAVIS_FINAL;

@@ -29,7 +29,7 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-#define AVPC_TABLE_SIZE 9
+#define AVPC_TABLE_SIZE 1
 
 struct cache {
     char *type;
@@ -228,76 +228,6 @@ static int mavis_init_in(mavis_ctx * mcx)
     A(AV_A_DBPASSWORD);
     A(AV_A_DBCERTSUBJ);
     A(AV_A_SHELL);
-    i++;
-
-    mcx->cache[i].type = AV_V_TYPE_WWW;
-    C(AV_A_USER);
-    A(AV_A_DBPASSWORD);
-    A(AV_A_TARIFF);
-    i++;
-
-    mcx->cache[i].type = AV_V_TYPE_POP3;
-    C(AV_A_USER);
-    C(AV_A_CERTSUBJ);
-    A(AV_A_DBPASSWORD);
-    A(AV_A_DBCERTSUBJ);
-    A(AV_A_PATH);
-    A(AV_A_TARIFF);
-    A(AV_A_TUNNEL);
-    i++;
-
-    mcx->cache[i].type = AV_V_TYPE_POP3PATH;
-    C(AV_A_USER);
-    A(AV_A_RESULT);
-    A(AV_A_PATH);
-    A(AV_A_TARIFF);
-    A(AV_A_TUNNEL);
-    i++;
-
-    mcx->cache[i].type = AV_V_TYPE_LOGIN;
-    C(AV_A_USER);
-    A(AV_A_DBPASSWORD);
-    A(AV_A_UID);
-    A(AV_A_GID);
-    A(AV_A_HOME);
-    A(AV_A_ROOT);
-    A(AV_A_GIDS);
-    A(AV_A_EMAIL);
-    A(AV_A_UMASK);
-    A(AV_A_TARIFF);
-    A(AV_A_SHELL);
-    i++;
-
-    mcx->cache[i].type = AV_V_TYPE_TRANSPORT;
-    C(AV_A_USER);
-    A(AV_A_RESULT);
-    A(AV_A_PATH);
-    A(AV_A_TUNNEL);
-    A(AV_A_CLASS);
-    i++;
-
-    mcx->cache[i].type = AV_V_TYPE_CANONICAL;
-    C(AV_A_USER);
-    A(AV_A_RESULT);
-    A(AV_A_PATH);
-    A(AV_A_TUNNEL);
-    A(AV_A_CLASS);
-    i++;
-
-    mcx->cache[i].type = AV_V_TYPE_RADIUS;
-    C(AV_A_USER);
-    A(AV_A_DBPASSWORD);
-    i++;
-
-    mcx->cache[i].type = AV_V_TYPE_VIRTUAL;
-    C(AV_A_USER);
-    A(AV_A_RESULT);
-    A(AV_A_PATH);
-    A(AV_A_QUOTA_LIMIT);
-    A(AV_A_CLASS);
-    A(AV_A_MAILCHECK_PRE);
-    A(AV_A_MAILCHECK_POST);
-    A(AV_A_TUNNEL);
     i++;
 
 #undef A
