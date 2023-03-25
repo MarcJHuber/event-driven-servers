@@ -103,7 +103,7 @@ def read():
 			line = line.rstrip('\n')
 			if line == "=":
 				return av_pairs
-			av_pair = line.split(" ")
+			av_pair = line.split(" ", 1)
 			av_pairs[int(av_pair[0])] = av_pair[1]
 		else:
 			break
