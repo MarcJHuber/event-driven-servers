@@ -63,7 +63,6 @@ if ($ACCESS_REQUEST) {
 }
     
 use lib '/usr/local/lib/mavis';
-use lib '/home/huber/DEVEL/PROJECTS/mavis/perl/'; # REMOVE #
 
 use strict;
 use Mavis;

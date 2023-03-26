@@ -43,7 +43,6 @@ CHPASSWD [currently experimental/untested]
 =cut
 
 use lib '/usr/local/lib/mavis/';
-use lib '/Users/marc/DEVEL/PROJECTS/mavis/perl/'; # REMOVE #
 
 use strict;
 use Mavis;

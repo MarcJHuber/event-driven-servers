@@ -21,7 +21,6 @@
 # =
 
 use lib '/usr/local/lib/mavis/';
-use lib '/home/huber/DEVEL/PROJECTS/mavis/perl/'; # REMOVE #
 
 use strict;
 use Authen::OPIE qw(opie_challenge opie_verify);
