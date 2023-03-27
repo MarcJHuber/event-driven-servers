@@ -375,7 +375,7 @@ while ($in = <>) {
 		$V[AV_A_USER_RESPONSE] = "User not set.";
 		goto fatal;
 	}
-	if ($V[AV_A_USER] =~ /\(|\)|,|\||&|\*/){
+	if ($V[AV_A_USER] =~ /\(|\)|,|\||&|=|\*/){
 		$V[AV_A_USER_RESPONSE] = "Username not valid.";
 		goto fatal;
 	}
