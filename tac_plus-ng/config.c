@@ -3384,6 +3384,7 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
 	    parse_error_expect(sym, S_exclmark, S_equal, S_unknown);
 	}
 	sym_get(sym);
+	parse(sym, S_equal);
 
 	m->u.s.rhs = lookup_timespec(sym->buf, realm);
 	if (!m->u.s.rhs)
