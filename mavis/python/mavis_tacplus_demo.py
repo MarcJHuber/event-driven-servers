@@ -21,52 +21,36 @@ printf "0 TACPLUS\n4 $USER\n8 $PASS\n49 AUTH\n=\n" | this_script.py
 
 """
 
-import mavis
-import re
+import os, sys, re, ldap3
+from mavis import ( Mavis,
+	MAVIS_DOWN, MAVIS_FINAL,
+	AV_V_RESULT_OK, AV_V_RESULT_ERROR, AV_V_RESULT_FAIL,
+	AV_V_RESULT_NOTFOUND
+)
 
 while True:
-	av_pairs = mavis.read()
+	D = Mavis()
 
-	if av_pairs[mavis.AV_A_TYPE] != mavis.AV_V_TYPE_TACPLUS:
-		mavis.write(av_pairs, mavis.MAVIS_DOWN)
+	if not D.is_tacplus():
+		D.write(MAVIS_DOWN, None, None)
+		continue
+	if not D.valid():
+		D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "Invalid input.")
 		continue
 
-	if not mavis.AV_A_USER in av_pairs:
-		av_pairs[mavis.AV_A_USER_RESPONSE] = "User not set."
-		av_pairs[mavis.AV_A_RESULT] = mavis.AV_V_RESULT_ERROR
-		mavis.write(av_pairs, mavis.MAVIS_FINAL)
+	if D.is_tacplus_authc and D.user == "demo" and D.password == "demo":
+		D.set_dbpassword(D.password)
+		D.set_memberof("\"cn=Demo,dc=demo\",\"cn=Sample,dc=demo\"")
+		D.set_tacmember("demogroup")
+		D.write(MAVIS_FINAL, AV_V_RESULT_OK, None)
 		continue
 
-	if re.match('\(|\)|,|\||&|\*', av_pairs[mavis.AV_A_USER]):
-		av_pairs[mavis.AV_A_USER_RESPONSE] = "Username not valid."
-		av_pairs[mavis.AV_A_RESULT] = mavis.AV_V_RESULT_ERROR;
-		mavis.write(av_pairs, mavis.MAVIS_FINAL)
+	if D.is_tacplus_authz and D.user == "demo":
+		D.set_memberof("\"cn=Demo,dc=demo\",\"cn=Sample,dc=demo\"")
+		D.set_tacmember("demogroup")
+		D.write(MAVIS_FINAL, AV_V_RESULT_OK, None)
 		continue
 
-	if av_pairs[mavis.AV_A_TACTYPE] == mavis.AV_V_TACTYPE_AUTH and not mavis.AV_A_PASSWORD in av_pairs:
-		av_pairs[mavis.AV_A_USER_RESPONSE] = "Password not set."
-		av_pairs[mavis.AV_A_RESULT] = mavis.AV_V_RESULT_ERROR;
-		mavis.write(av_pairs, mavis.MAVIS_FINAL)
-		continue
-
-	if av_pairs[mavis.AV_A_TACTYPE] == mavis.AV_V_TACTYPE_AUTH and av_pairs[mavis.AV_A_USER] == "demo" and av_pairs[mavis.AV_A_PASSWORD] == "demo":
-		av_pairs[mavis.AV_A_DBPASSWORD] = av_pairs[mavis.AV_A_PASSWORD]
-		av_pairs[mavis.AV_A_MEMBEROF] = "\"cn=Demo,dc=demo\",\"cn=Sample,dc=demo\""
-		av_pairs[mavis.AV_A_TACMEMBER] = "demogroup"
-		av_pairs[mavis.AV_A_USER_RESPONSE] = "Authentication passed."
-		av_pairs[mavis.AV_A_RESULT] = mavis.AV_V_RESULT_OK
-		mavis.write(av_pairs, mavis.MAVIS_FINAL)
-		continue
-
-	if av_pairs[mavis.AV_A_TACTYPE] == mavis.AV_V_TACTYPE_INFO and av_pairs[mavis.AV_A_USER] == "demo":
-		av_pairs[mavis.AV_A_MEMBEROF] = "\"cn=Demo,dc=demo\",\"cn=Sample,dc=demo\""
-		av_pairs[mavis.AV_A_TACMEMBER] = "demogroup"
-		av_pairs[mavis.AV_A_USER_RESPONSE] = "Authorization passed."
-		av_pairs[mavis.AV_A_RESULT] = mavis.AV_V_RESULT_OK
-		mavis.write(av_pairs, mavis.MAVIS_FINAL)
-		continue
-
-	av_pairs[mavis.AV_A_RESULT] = mavis.AV_V_RESULT_NOTFOUND
-	mavis.write(av_pairs, mavis.MAVIS_DOWN)
+	D.write(MAVIS_DOWN, AV_V_RESULT_NOTFOUND, None)
 
 # EOF

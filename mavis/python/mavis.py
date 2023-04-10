@@ -87,11 +87,12 @@ MAVIS_INIT_ERR = 1
 MAVIS_INIT_OK = 0
 MAVIS_TIMEOUT = 3
 
-import select, sys, os
+import select, sys, os, re
 
 def write(av_pairs, result):
 	for key in sorted(av_pairs):
-		print(str(key) + " " + av_pairs[key])
+		if av_pairs[key] is not None:
+			print(str(key) + " " + av_pairs[key])
 	print("=" + str(result))
 	sys.stdout.flush()
 
@@ -108,4 +109,111 @@ def read():
 		else:
 			break
 	exit(0)
+
+class Mavis:
+	av_pairs = { }
+	is_tacplus_authc = False
+	is_tacplus_authz = False
+	is_tacplus_chpw = False
+	user = None
+	password = None
+	password_new = None
+
+	def write(self, verdict, result, user_response):
+		self.av_pairs[AV_A_RESULT] = result
+		if user_response is not None:
+			self.av_pairs[AV_A_USER_RESPONSE] = user_response
+		for key in sorted(self.av_pairs):
+			if self.av_pairs[key]:
+				print(str(key) + " " + self.av_pairs[key])
+		print("=" + str(verdict))
+		sys.stdout.flush()
+
+	def valid(self):
+		if not AV_A_USER in self.av_pairs:
+			self.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "User not set.")
+			return False
+
+		if re.match('\(|\)|,|\||&|=|\*', self.av_pairs[AV_A_USER]):
+			self.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "Username not valid.")
+			return False
+
+		if ((self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_AUTH
+				or self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_CHPW)
+			and (not AV_A_PASSWORD in self.av_pairs
+				or len(self.av_pairs[AV_A_PASSWORD]) == 0)):
+			self.write(MAVIS_FINAL, "Password not set.", AV_V_RESULT_ERROR)
+			return False
+
+		if ((self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_CHPW)
+			and (not AV_A_PASSWORD_NEW in self.av_pairs
+				or len(self.av_pairs[AV_A_PASSWORD_NEW]) == 0)):
+			self.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "New password not set.")
+			return False
+
+		return True
+
+	def __init__(self):
+		av_pairs = { }
+		while sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+			line = sys.stdin.readline()
+			if line:
+				line = line.rstrip('\n')
+				if line == "=":
+					self.is_tacplus_authc = (
+						self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_AUTH
+						or self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_CHPW)
+					self.is_tacplus_authz =  self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_INFO
+					self.is_tacplus_chpw = (
+						self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_CHPW)
+					if AV_A_USER in self.av_pairs:
+						self.user = self.av_pairs[AV_A_USER]
+					if AV_A_PASSWORD in self.av_pairs:
+						self.password = self.av_pairs[AV_A_PASSWORD]
+					if AV_A_PASSWORD_NEW in self.av_pairs:
+						self.password_new = self.av_pairs[AV_A_PASSWORD_NEW]
+					return None
+				av_pair = line.split(" ", 1)
+				self.av_pairs[int(av_pair[0])] = av_pair[1]
+			else:
+				break
+		exit(0)
+
+	def is_tacplus(self):
+		if self.av_pairs[AV_A_TYPE] != AV_V_TYPE_TACPLUS:
+			self.write(self.av_pairs, MAVIS_DOWN)
+			return False
+		return True
+
+	def set_dn(self, arg):
+		self.av_pairs[AV_A_DN] = arg
+		return arg
+
+	def set_memberof(self, arg):
+		self.av_pairs[AV_A_MEMBEROF] = arg
+		return arg
+
+	def set_tacmember(self, arg):
+		self.av_pairs[AV_A_TACMEMBER] = arg
+		return arg
+
+	def set_dbpassword(self, arg):
+		self.av_pairs[AV_A_DBPASSWORD] = arg
+		return arg
+
+	def set_uid(self, arg):
+		self.av_pairs[AV_A_UID] = arg
+		return arg
+
+	def set_gid(self, arg):
+		self.av_pairs[AV_A_GID] = arg
+		return arg
+
+	def set_shell(self, arg):
+		self.av_pairs[AV_A_SHELL] = arg
+		return arg
+
+	def set_home(self, arg):
+		self.av_pairs[AV_A_HOME] = arg
+		return arg
 
