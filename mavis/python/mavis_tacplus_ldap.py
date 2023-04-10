@@ -115,10 +115,10 @@ def expand_memberof(g):
 	H = { }
 	def expand_memberof_sub(g):
 		for m in g:
-			if memberof_regex.match(m) and not m.memberOf in H:
-				H[m.memberOf] = True
-				conn.search(search_base = g, search_filter = '&((objectclass=group)',
-					search_scope=BASE, attributes = ['memberOf'])
+			if memberof_regex.match(m) and not m in H:
+				H[m] = True
+				conn.search(search_base = m, search_filter = '(objectclass=*)',
+					search_scope=ldap3.BASE, attributes = ['memberOf'])
 				expand_memberof_sub(conn.entries)
 	for m in g:
 		if memberof_regex.match(m):
