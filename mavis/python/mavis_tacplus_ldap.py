@@ -113,13 +113,14 @@ if LDAP_USER is not None:
 # A helper function for resolving nested groups: #############################
 def expand_memberof(g):
 	H = { }
-	def expand_memberof_sub(g):
-		for m in g:
-			if memberof_regex.match(m) and not m in H:
-				H[m] = True
-				conn.search(search_base = m, search_filter = '(objectclass=*)',
-					search_scope=ldap3.BASE, attributes = ['memberOf'])
-				expand_memberof_sub(conn.entries)
+	def expand_memberof_sub(m):
+		if not m in H and memberof_regex.match(m):
+			H[m] = True
+			conn.search(search_base = m, search_filter = '(objectclass=*)',
+				search_scope=ldap3.BASE, attributes = ['memberOf'])
+			for e in conn.entries:
+				for m in e.memberOf:
+					expand_memberof_sub(m)
 	for m in g:
 		if memberof_regex.match(m):
 			expand_memberof_sub(m)
