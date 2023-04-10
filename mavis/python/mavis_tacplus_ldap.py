@@ -206,7 +206,7 @@ while True:
 	if len(entry.homeDirectory) > 0:
 		D.set_home(entry.homeDirectory[0])
 
-	if entry.memberOf != "":
+	if len(entry.memberOf) > 0:
 		L = expand_memberof(entry.memberOf)
 		D.set_memberof("\"" + "\",\"".join(L) + "\"")
 		L = [memberof_regex.sub(r'\1', l) for l in L]
