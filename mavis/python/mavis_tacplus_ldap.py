@@ -127,6 +127,36 @@ def expand_memberof(g):
 			H[m] = True
 	return H.keys()
 
+
+# A helper function to improve human readability of LDAP responses: ##########
+data_regex = re.compile(',\s+data\s+([^,]+),')
+
+ad_error_codes = {
+	"525": "Invalid credentials.", # "User not found.", actually
+	"52e": "Invalid credentials.",
+	"530": "Not permitted to logon at this time.",
+	"531": "Not permitted to logon at this workstation.",
+	"532": "Password expired.",
+	"533": "Account disabled.",
+	"701": "Account expired.",
+	"773": "User must reset password.",
+	"775": "User account locked.",
+}
+
+def translate_ldap_error(conn):
+	m = data_regex.search(conn.result["message"])
+	if m:
+		c = m.group(1)
+		if c in ad_error_codes:
+			return "Permission denied: " + ad_error_codes[c]
+
+	message = conn.result["description"]
+	if conn.result["message"] != "":
+		message += ": " + conn.result["message"]
+	if message == "invalidCredentials":
+		return "Permission denied."
+	return "Permission denied (" + message.replace("\n", "") + ")."
+
 # The main loop: #############################################################
 while True:
 	D = Mavis()
@@ -164,13 +194,6 @@ while True:
 
 	entry = conn.entries[0]
 
-	def auth_failed(D, conn):
-		message = conn.result["description"]
-		if conn.result["message"] != "":
-			message += " (" + conn.result["message"] + ")"
-		D.write(MAVIS_FINAL, AV_V_RESULT_FAIL,
-			"Permission denied: " + message + ".")
-
 	if D.is_tacplus_authc:
 		if (LDAP_SERVER_TYPE == "generic"
 			and len(entry.shadowExpire) > 0  and int(entry.shadowExpire[0]) > 0
@@ -179,7 +202,7 @@ while True:
 				"Password has expired.")
 			continue;
 		if not conn.rebind(user=entry.entry_dn, password=D.password):
-			auth_failed(D, conn)
+			D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn))
 			continue
 		D.set_dbpassword(D.password)
 
@@ -191,12 +214,13 @@ while True:
 			or  (LDAP_SERVER_TYPE == "generic"
 				and not conn.extend.standard.modify_password (
 				entry.entry_dn, D.password, D.password_new))):
-			auth_failed(D, conn)
+			D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn))
 			continue;
 		user_msg = "Password change was successful."
 		D.set_dbpassword(D.password_new)
 
 	D.set_dn(entry.entry_dn)
+
 	if len(entry.uidNumber) > 0:
 		D.set_uid(entry.uidNumber[0])
 	if len(entry.gidNumber) > 0:

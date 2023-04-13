@@ -2024,8 +2024,11 @@ struct mavis_cond *mavis_cond_parse(struct sym *sym)
 	char *b = buf, *p;
 	int bc = 1;
 	struct mavis_cond *m;
+	enum token prev = S_unknown;
+#define EC_MAX 1024
+	int e[EC_MAX], ec = 0;
 
-	sym_get(sym);
+	parse(sym, S_leftbra);
 
 	strcpy(b, "((( ");
 	while (*b)
@@ -2037,22 +2040,43 @@ struct mavis_cond *mavis_cond_parse(struct sym *sym)
 		strcpy(b, " ) && (");
 		while (*b)
 		    b++;
+		prev = sym->code;
 		sym_get(sym);
 		continue;
 	    case S_or:
 		strcpy(b, " )) || ((");
 		while (*b)
 		    b++;
+		prev = sym->code;
 		sym_get(sym);
 		continue;
 	    case S_leftbra:
+		if (prev == S_exclmark) {
+		    strcpy(b, "((((");
+		    while (*b)
+			b++;
+		    if (ec < EC_MAX)
+			e[ec++] = bc;
+		    else
+			parse_error(sym, "Too many nested negations.");
+		}
 		*b++ = '(';
 		bc++;
-		break;
+		prev = sym->code;
+		sym_get(sym);
+		continue;
 	    case S_rightbra:
-		*b++ = ')';
 		bc--;
-		break;
+		if (ec > -1 && e[ec] == bc) {
+		    strcpy(b, "))))");
+		    while (*b)
+			b++;
+		    ec--;
+		} else if (bc > 0)
+		    *b++ = ')';
+		prev = sym->code;
+		sym_get(sym);
+		continue;
 	    case S_tilde:
 		sym->flag_parse_pcre = 1;
 		break;
@@ -2060,6 +2084,7 @@ struct mavis_cond *mavis_cond_parse(struct sym *sym)
 		parse_error(sym, "EOF unexpected");
 	    default:;
 	    }
+	    prev = sym->code;
 	    *b++ = ' ';
 	    *b = 0;
 

@@ -3593,39 +3593,64 @@ static struct tac_script_cond *tac_script_cond_parse(struct sym *sym, tac_realm 
 	char *b = buf, *p;
 	int bc = 1;
 	struct tac_script_cond *m;
+	enum token prev = S_unknown;
+#define EC_MAX 1024
+	int e[EC_MAX], ec = 0;
 
-	sym_get(sym);
+	parse(sym, S_leftbra);
 
-	strcpy(b, "((( ");
+	strcpy(b, "(((");
 	while (*b)
 	    b++;
 
 	while (bc && (b < buf + sizeof(buf) - 100)) {
 	    switch (sym->code) {
 	    case S_and:
-		strcpy(b, " ) && (");
+		strcpy(b, ") && (");
 		while (*b)
 		    b++;
+		prev = sym->code;
 		sym_get(sym);
 		continue;
 	    case S_or:
-		strcpy(b, " )) || ((");
+		strcpy(b, ")) || ((");
 		while (*b)
 		    b++;
+		prev = sym->code;
 		sym_get(sym);
 		continue;
 	    case S_leftbra:
+		if (prev == S_exclmark) {
+		    strcpy(b, "((((");
+		    while (*b)
+			b++;
+		    if (ec < EC_MAX)
+			e[ec++] = bc;
+		    else
+			parse_error(sym, "Too many nested negations.");
+		}
 		*b++ = '(';
 		bc++;
-		break;
+		prev = sym->code;
+		sym_get(sym);
+		continue;
 	    case S_rightbra:
-		*b++ = ')';
 		bc--;
-		break;
+		if (ec > -1 && e[ec] == bc) {
+		    strcpy(b, "))))");
+		    while (*b)
+			b++;
+		    ec--;
+		} else if (bc > 0)
+		    *b++ = ')';
+		prev = sym->code;
+		sym_get(sym);
+		continue;
 	    case S_openbra:
 	    case S_closebra:
 		if (bc)
 		    parse_error(sym, "Got '%s' -- did you omit a ')' somewhere?", codestring[sym->code]);
+		prev = sym->code;
 		break;
 	    case S_tilde:
 		sym->flag_parse_pcre = 1;
@@ -3634,6 +3659,7 @@ static struct tac_script_cond *tac_script_cond_parse(struct sym *sym, tac_realm 
 		parse_error(sym, "EOF unexpected");
 	    default:;
 	    }
+	    prev = sym->code;
 	    *b++ = ' ';
 	    *b = 0;
 
@@ -3643,7 +3669,7 @@ static struct tac_script_cond *tac_script_cond_parse(struct sym *sym, tac_realm 
 	    sym_get(sym);
 	    sym->flag_parse_pcre = 0;
 	}
-	strcpy(b, " )))");
+	strcpy(b, ")))");
 	while (*b)
 	    b++;
 
@@ -3976,7 +4002,8 @@ enum token tac_script_eval_r(tac_session * session, struct tac_script_action *m)
 	break;
     case S_profile:
 	session->profile = (tac_profile *) (m->b.v);
-	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code], (session->profile && session->profile->name) ? session->profile->name : "");
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code],
+	       (session->profile && session->profile->name) ? session->profile->name : "");
 	break;
     case S_attr:
 	session->attr_dflt = (enum token) (long) (m->b.v);
