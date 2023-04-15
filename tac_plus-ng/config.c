@@ -3621,7 +3621,7 @@ static struct tac_script_cond *tac_script_cond_parse(struct sym *sym, tac_realm 
 		continue;
 	    case S_leftbra:
 		if (prev == S_exclmark) {
-		    strcpy(b, "((((");
+		    strcpy(b, "(((((");
 		    while (*b)
 			b++;
 		    if (ec < EC_MAX)
@@ -3630,6 +3630,7 @@ static struct tac_script_cond *tac_script_cond_parse(struct sym *sym, tac_realm 
 			parse_error(sym, "Too many nested negations.");
 		}
 		*b++ = '(';
+		*b++ = '(';
 		bc++;
 		prev = sym->code;
 		sym_get(sym);
@@ -3637,12 +3638,14 @@ static struct tac_script_cond *tac_script_cond_parse(struct sym *sym, tac_realm 
 	    case S_rightbra:
 		bc--;
 		if (ec > -1 && e[ec] == bc) {
-		    strcpy(b, "))))");
+		    strcpy(b, ")))))");
 		    while (*b)
 			b++;
 		    ec--;
-		} else if (bc > 0)
+		} else if (bc > 0) {
 		    *b++ = ')';
+		    *b++ = ')';
+		}
 		prev = sym->code;
 		sym_get(sym);
 		continue;

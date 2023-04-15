@@ -2052,7 +2052,7 @@ struct mavis_cond *mavis_cond_parse(struct sym *sym)
 		continue;
 	    case S_leftbra:
 		if (prev == S_exclmark) {
-		    strcpy(b, "((((");
+		    strcpy(b, "(((((");
 		    while (*b)
 			b++;
 		    if (ec < EC_MAX)
@@ -2061,6 +2061,7 @@ struct mavis_cond *mavis_cond_parse(struct sym *sym)
 			parse_error(sym, "Too many nested negations.");
 		}
 		*b++ = '(';
+		*b++ = '(';
 		bc++;
 		prev = sym->code;
 		sym_get(sym);
@@ -2068,12 +2069,14 @@ struct mavis_cond *mavis_cond_parse(struct sym *sym)
 	    case S_rightbra:
 		bc--;
 		if (ec > -1 && e[ec] == bc) {
-		    strcpy(b, "))))");
+		    strcpy(b, ")))))");
 		    while (*b)
 			b++;
 		    ec--;
-		} else if (bc > 0)
+		} else if (bc > 0) {
 		    *b++ = ')';
+		    *b++ = ')';
+		}
 		prev = sym->code;
 		sym_get(sym);
 		continue;
