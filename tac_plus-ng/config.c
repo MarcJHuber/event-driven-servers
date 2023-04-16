@@ -322,8 +322,8 @@ void complete_realm(tac_realm * r)
 		if (r->tls_cafile && !SSL_CTX_load_verify_locations(r->tls, r->tls_cafile, NULL)) {
 		    char buf[256];
 		    const char *terr = ERR_error_string(ERR_get_error(), buf);
-		    report(NULL, LOG_ERR, ~0, "realm %s: SSL_CTX_load_verify_locations(\"%s\") failed%s%s", r->name, r->tls_cafile, terr ? ": " : "",
-			   terr ? terr : "");
+		    report(NULL, LOG_ERR, ~0,
+			   "realm %s: SSL_CTX_load_verify_locations(\"%s\") failed%s%s", r->name, r->tls_cafile, terr ? ": " : "", terr ? terr : "");
 		    exit(EX_CONFIG);
 		}
 
@@ -1128,7 +1128,8 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		default:
 		    parse_error_expect(sym, S_equal, S_nac, S_nas, S_unknown);
 		}
-		if ((r->default_host->lookup_revmap_nas == TRISTATE_YES || r->default_host->lookup_revmap_nac == TRISTATE_YES) && !r->idc)
+		if ((r->default_host->lookup_revmap_nas == TRISTATE_YES || r->default_host->lookup_revmap_nac == TRISTATE_YES)
+		    && !r->idc)
 		    r->idc = io_dns_init(common_data.io);
 		continue;
 	    case S_cache:
@@ -1426,7 +1427,8 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	    parse_error(sym, "Unrecognized token '%s'", sym->buf);
 	}
 #ifdef WITH_TLS
-    if ((r->tls_cert || r->tls_key || r->tls_cafile) && (!r->tls_cert || !r->tls_key || !r->tls_cafile))
+    if ((r->tls_cert || r->tls_key || r->tls_cafile)
+	&& (!r->tls_cert || !r->tls_key || !r->tls_cafile))
 	parse_error(sym, "TLS configuration for realm %s is incomplete", r->name);
 #endif
 }
@@ -1690,8 +1692,8 @@ enum token eval_ruleset(tac_session * session, tac_realm * realm)
     enum token res = lookup_user_profile(session);
     if (res != S_unknown) {
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG | DEBUG_REGEX_FLAG,
-	       "%s@%s: cached: %s (profile: %s)", session->username, session->nac_address_ascii, codestring[res],
-	       session->profile ? session->profile->name : "n/a");
+	       "%s@%s: cached: %s (profile: %s)", session->username,
+	       session->nac_address_ascii, codestring[res], session->profile ? session->profile->name : "n/a");
 	return res;
     }
 
@@ -1701,8 +1703,8 @@ enum token eval_ruleset(tac_session * session, tac_realm * realm)
 	    if (rule->enabled) {
 		res = eval_tac_acl(session, &rule->acl);
 		report(session, LOG_DEBUG, DEBUG_ACL_FLAG | DEBUG_REGEX_FLAG,
-		       "%s@%s: ACL %s: %s (profile: %s)", session->username, session->nac_address_ascii, rule->acl.name, codestring[res],
-		       session->profile ? session->profile->name : "n/a");
+		       "%s@%s: ACL %s: %s (profile: %s)", session->username,
+		       session->nac_address_ascii, rule->acl.name, codestring[res], session->profile ? session->profile->name : "n/a");
 		switch (res) {
 		case S_permit:
 		case S_deny:
@@ -1861,7 +1863,8 @@ static struct upwdat *new_upwdat(memlist_t * memlist, tac_realm * r)
 
 static void parse_error_order(struct sym *sym, char *what)
 {
-    report(NULL, LOG_ERR, ~0, "%s:%u: Statement may have no effect. %s directives need to be ordered by "
+    report(NULL, LOG_ERR, ~0,
+	   "%s:%u: Statement may have no effect. %s directives need to be ordered by "
 	   "acl name, with definitions without acl coming last.", sym->filename, sym->line, what);
 }
 
@@ -2176,7 +2179,8 @@ static void parse_sshkeyhash(struct sym *sym, tac_user * user)
 	memcpy((*ssh_key)->hash, sym->buf, len + 1);
 	sym_get(sym);
 	ssh_key = &((*ssh_key)->next);
-    } while (parse_comma(sym));
+    }
+    while (parse_comma(sym));
 }
 
 // Experimental SSH Cert validation code
@@ -2236,7 +2240,8 @@ static void parse_sshkeyid(struct sym *sym, tac_user * user)
 	memcpy((*ssh_key_id)->s, sym->buf, len + 1);
 	sym_get(sym);
 	ssh_key_id = &((*ssh_key_id)->next);
-    } while (parse_comma(sym));
+    }
+    while (parse_comma(sym));
 }
 
 #ifdef WITH_CRYPTO
@@ -2444,7 +2449,8 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	sym_get(sym);
 	ssh_key = &((*ssh_key)->next);
 
-    } while (parse_comma(sym));
+    }
+    while (parse_comma(sym));
 }
 #endif				// WITH_SSL
 
@@ -2829,7 +2835,8 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	parse(sym, S_equal);
 	host->context_timeout = parse_seconds(sym);
 	return;
-    case S_rewrite:{		// legacy option, will be removed late on
+    case S_rewrite:
+	{			// legacy option, will be removed late on
 	    sym_get(sym);
 	    parse(sym, S_user);
 	    if (sym->code == S_equal)
@@ -2840,7 +2847,8 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    sym_get(sym);
 	    return;
 	}
-    case S_script:{
+    case S_script:
+	{
 	    struct tac_script_action **p = &host->action;
 	    sym_get(sym);
 	    while (*p)
@@ -2886,7 +2894,8 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	}
 
 #endif
-    case S_message:{
+    case S_message:
+	{
 	    enum user_message_enum um = UM_MAX;
 	    sym_get(sym);
 	    switch (sym->code) {
@@ -2948,10 +2957,14 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 		um = UM_DENIED_BY_ACL;
 		break;
 	    default:
-		parse_error_expect(sym, S_PASSWORD, S_RESPONSE, S_PASSWORD_OLD, S_PASSWORD_NEW, S_PASSWORD_ABORT, S_PASSWORD_AGAIN, S_PASSWORD_NOMATCH,
-				   S_PASSWORD_MINREQ, S_PERMISSION_DENIED, S_ENABLE_PASSWORD, S_PASSWORD_CHANGE_DIALOG, S_BACKEND_FAILED,
-				   S_CHANGE_PASSWORD, S_ACCOUNT_EXPIRES, S_PASSWORD_INCORRECT, S_RESPONSE_INCORRECT, S_USERNAME,
-				   S_USER_ACCESS_VERIFICATION, S_DENIED_BY_ACL, S_unknown);
+		parse_error_expect(sym, S_PASSWORD, S_RESPONSE, S_PASSWORD_OLD,
+				   S_PASSWORD_NEW, S_PASSWORD_ABORT,
+				   S_PASSWORD_AGAIN, S_PASSWORD_NOMATCH,
+				   S_PASSWORD_MINREQ, S_PERMISSION_DENIED,
+				   S_ENABLE_PASSWORD, S_PASSWORD_CHANGE_DIALOG,
+				   S_BACKEND_FAILED, S_CHANGE_PASSWORD,
+				   S_ACCOUNT_EXPIRES, S_PASSWORD_INCORRECT,
+				   S_RESPONSE_INCORRECT, S_USERNAME, S_USER_ACCESS_VERIFICATION, S_DENIED_BY_ACL, S_unknown);
 	    }
 	    sym_get(sym);
 	    parse(sym, S_equal);
@@ -2983,8 +2996,9 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	break;
 #endif
     default:
-	parse_error_expect(sym, S_host, S_parent, S_authentication, S_permit, S_bug, S_pap, S_address, S_key, S_motd, S_welcome, S_reject, S_enable,
-			   S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_script,
+	parse_error_expect(sym, S_host, S_parent, S_authentication, S_permit,
+			   S_bug, S_pap, S_address, S_key, S_motd, S_welcome,
+			   S_reject, S_enable, S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_script,
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 			   S_tls,
 #endif
@@ -3483,7 +3497,8 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
 		    struct in6_cidr *c = calloc(1, sizeof(struct in6_cidr));
 		    m->u.s.rhs = c;
 		    if (v6_ptoh(&c->addr, &c->mask, sym->buf))
-			parse_error(sym, "Expected a net%s name or an IP address/network in CIDR notation, but got '%s'.",
+			parse_error(sym,
+				    "Expected a net%s name or an IP address/network in CIDR notation, but got '%s'.",
 				    (m->u.s.token == S_nas) ? " or host" : "", sym->buf);
 		    m->type = S_address;
 		}
@@ -3527,8 +3542,8 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
 		    PCRE2_SIZE erroffset;
 		    m->type = S_slash;
 		    m->u.s.rhs =
-			pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset,
-				      NULL);
+			pcre2_compile((PCRE2_SPTR8) sym->buf,
+				      PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
 
 		    if (!m->u.s.rhs) {
 			PCRE2_UCHAR buffer[256];
@@ -3558,12 +3573,14 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
 	}
 
     default:
-	parse_error_expect(sym, S_leftbra, S_exclmark, S_acl, S_time, S_arg, S_cmd, S_context, S_nac, S_nas, S_nasname, S_nacname, S_port, S_user, S_member,
-			   S_memberof, S_password, S_service, S_protocol, S_authen_action, S_authen_type, S_authen_service, S_authen_method, S_privlvl, S_vrf,
-			   S_dn, S_type, S_identity_source,
+	parse_error_expect(sym, S_leftbra, S_exclmark, S_acl, S_time, S_arg,
+			   S_cmd, S_context, S_nac, S_nas, S_nasname,
+			   S_nacname, S_port, S_user, S_member, S_memberof,
+			   S_password, S_service, S_protocol, S_authen_action,
+			   S_authen_type, S_authen_service, S_authen_method, S_privlvl, S_vrf, S_dn, S_type, S_identity_source,
 #if defined(WITH_TLS) || defined(WITH_SSL)
-			   S_tls_conn_version, S_tls_conn_cipher, S_tls_peer_cert_issuer, S_tls_peer_cert_subject, S_tls_conn_cipher_strength, S_tls_peer_cn,
-			   S_tls_psk_identity,
+			   S_tls_conn_version, S_tls_conn_cipher,
+			   S_tls_peer_cert_issuer, S_tls_peer_cert_subject, S_tls_conn_cipher_strength, S_tls_peer_cn, S_tls_psk_identity,
 #endif
 			   S_unknown);
     }
@@ -3574,7 +3591,8 @@ static void tac_script_cond_optimize(struct tac_script_cond **m)
 {
     struct tac_script_cond *p;
     int i;
-    while (*m && ((*m)->type == S_or || (*m)->type == S_and) && (*m)->u.m.n == 1) {
+    while (*m && ((*m)->type == S_or || (*m)->type == S_and)
+	   && (*m)->u.m.n == 1) {
 	p = *m;
 	*m = (*m)->u.m.e[0];
 	free(p);
@@ -3587,100 +3605,10 @@ static void tac_script_cond_optimize(struct tac_script_cond **m)
 
 static struct tac_script_cond *tac_script_cond_parse(struct sym *sym, tac_realm * realm)
 {
-    if (sym->code == S_leftbra) {
-	struct sym mysym;
-	char buf[40960];
-	char *b = buf, *p;
-	int bc = 1;
-	struct tac_script_cond *m;
-	enum token prev = S_unknown;
-#define EC_MAX 1024
-	int e[EC_MAX], ec = 0;
-
-	parse(sym, S_leftbra);
-
-	strcpy(b, "(((");
-	while (*b)
-	    b++;
-
-	while (bc && (b < buf + sizeof(buf) - 100)) {
-	    switch (sym->code) {
-	    case S_and:
-		strcpy(b, ") && (");
-		while (*b)
-		    b++;
-		prev = sym->code;
-		sym_get(sym);
-		continue;
-	    case S_or:
-		strcpy(b, ")) || ((");
-		while (*b)
-		    b++;
-		prev = sym->code;
-		sym_get(sym);
-		continue;
-	    case S_leftbra:
-		if (prev == S_exclmark) {
-		    strcpy(b, "(((((");
-		    while (*b)
-			b++;
-		    if (ec < EC_MAX)
-			e[ec++] = bc;
-		    else
-			parse_error(sym, "Too many nested negations.");
-		}
-		*b++ = '(';
-		*b++ = '(';
-		bc++;
-		prev = sym->code;
-		sym_get(sym);
-		continue;
-	    case S_rightbra:
-		bc--;
-		if (ec > -1 && e[ec] == bc) {
-		    strcpy(b, ")))))");
-		    while (*b)
-			b++;
-		    ec--;
-		} else if (bc > 0) {
-		    *b++ = ')';
-		    *b++ = ')';
-		}
-		prev = sym->code;
-		sym_get(sym);
-		continue;
-	    case S_openbra:
-	    case S_closebra:
-		if (bc)
-		    parse_error(sym, "Got '%s' -- did you omit a ')' somewhere?", codestring[sym->code]);
-		prev = sym->code;
-		break;
-	    case S_tilde:
-		sym->flag_parse_pcre = 1;
-		break;
-	    case S_eof:
-		parse_error(sym, "EOF unexpected");
-	    default:;
-	    }
-	    prev = sym->code;
-	    *b++ = ' ';
-	    *b = 0;
-
-	    for (p = sym->raw; p < sym->tin - 1; p++)
-		*b++ = *p;
-	    *b = 0;
-	    sym_get(sym);
-	    sym->flag_parse_pcre = 0;
-	}
-	strcpy(b, ")))");
-	while (*b)
-	    b++;
-
-	memcpy(&mysym, sym, sizeof(mysym));
-	mysym.tlen = mysym.len = (int) (b - buf);
-	mysym.tin = mysym.in = buf;
-	sym_init(&mysym);
-	m = tac_script_cond_parse_r(&mysym, realm);
+    struct sym *cond_sym = NULL;
+    if (sym_normalize_cond_start(sym, &cond_sym)) {
+	struct tac_script_cond *m = tac_script_cond_parse_r(cond_sym, realm);
+	sym_normalize_cond_end(&cond_sym);
 	tac_script_cond_optimize(&m);
 	return m;
     }
@@ -3697,8 +3625,10 @@ static int tac_script_cond_eval_res(tac_session * session, struct tac_script_con
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] => %s", m->line, codestring[m->type], r);
 	break;
     default:
-	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] %s%s%s '%s' => %s", m->line, codestring[m->u.s.token],
-	       m->u.s.lhs_txt ? m->u.s.lhs_txt : "", m->u.s.lhs_txt ? " " : "", codestring[m->type], m->u.s.rhs_txt ? m->u.s.rhs_txt : "", r);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG,
+	       " line %u: [%s] %s%s%s '%s' => %s", m->line,
+	       codestring[m->u.s.token], m->u.s.lhs_txt ? m->u.s.lhs_txt : "",
+	       m->u.s.lhs_txt ? " " : "", codestring[m->type], m->u.s.rhs_txt ? m->u.s.rhs_txt : "", r);
     }
 
     return res;
@@ -3875,15 +3805,15 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 		while (*v) {
 		    char *e;
 		    if (*v != '"') {
-			report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " memberof attribute '%s' is malformed (missing '\"')",
-			       session->user->avc->arr[AV_A_MEMBEROF]);
+			report(session, LOG_DEBUG, DEBUG_ACL_FLAG,
+			       " memberof attribute '%s' is malformed (missing '\"')", session->user->avc->arr[AV_A_MEMBEROF]);
 			return tac_script_cond_eval_res(session, m, 0);
 		    }
 		    v++;
 		    for (e = v; *e && *e != '"'; e++);
 		    if (*e != '"') {
-			report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " memberof attribute '%s' is malformed (missing '\"')",
-			       session->user->avc->arr[AV_A_MEMBEROF]);
+			report(session, LOG_DEBUG, DEBUG_ACL_FLAG,
+			       " memberof attribute '%s' is malformed (missing '\"')", session->user->avc->arr[AV_A_MEMBEROF]);
 			return tac_script_cond_eval_res(session, m, 0);
 		    }
 		    *e++ = 0;
@@ -3897,7 +3827,9 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 			report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre: '%s' <=> '%s' = %d", m->u.s.rhs_txt, v, res);
 #endif
 #ifdef WITH_PCRE2
-			pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.rhs, NULL);
+			pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *)
+											    m->u.s.rhs,
+											    NULL);
 			res = pcre2_match((pcre2_code *) m->u.s.rhs, (PCRE2_SPTR) v, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
 			pcre2_match_data_free(match_data);
 			report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", m->u.s.rhs_txt, v, res);
@@ -3912,8 +3844,8 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 		    if (!*v)
 			return tac_script_cond_eval_res(session, m, 0);
 		    if (*v != ',') {
-			report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " memberof attribute '%s' is malformed (expected a ',')",
-			       session->user->avc->arr[AV_A_MEMBEROF]);
+			report(session, LOG_DEBUG, DEBUG_ACL_FLAG,
+			       " memberof attribute '%s' is malformed (expected a ',')", session->user->avc->arr[AV_A_MEMBEROF]);
 			return tac_script_cond_eval_res(session, m, 0);
 		    }
 		    v++;
@@ -3930,7 +3862,8 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 		    size_t l;
 		    char *s = (char *) argp;
 		    l = (size_t) *arg_len;
-		    if ((l > len) && !strncmp(s, m->u.s.lhs, len) && (*(argp + len) == '=' || *(argp + len) == '*')) {
+		    if ((l > len) && !strncmp(s, m->u.s.lhs, len)
+			&& (*(argp + len) == '=' || *(argp + len) == '*')) {
 			v = memlist_strndup(session->memlist, argp + len + 1, l - len - 1);
 			break;
 		    }
@@ -3957,7 +3890,8 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
 #endif
 #ifdef WITH_PCRE2
 		hint = "pcre2";
-		pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.rhs, NULL);
+		pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.rhs,
+										    NULL);
 		res = pcre2_match((pcre2_code *) m->u.s.rhs, (PCRE2_SPTR) v, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
 		pcre2_match_data_free(match_data);
 #endif
@@ -4005,8 +3939,8 @@ enum token tac_script_eval_r(tac_session * session, struct tac_script_action *m)
 	break;
     case S_profile:
 	session->profile = (tac_profile *) (m->b.v);
-	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code],
-	       (session->profile && session->profile->name) ? session->profile->name : "");
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'",
+	       m->line, codestring[m->code], (session->profile && session->profile->name) ? session->profile->name : "");
 	break;
     case S_attr:
 	session->attr_dflt = (enum token) (long) (m->b.v);
@@ -4157,8 +4091,9 @@ void tac_rewrite_user(tac_session * session, tac_rewrite * rewrite)
 		PCRE2_UCHAR outbuf[1024];
 		PCRE2_SIZE outlen = sizeof(outbuf);
 		pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(e->code, NULL);
-		rc = pcre2_substitute(e->code, (PCRE2_SPTR8) session->username, PCRE2_ZERO_TERMINATED, 0, PCRE2_SUBSTITUTE_EXTENDED, match_data, NULL,
-				      replacement, PCRE2_ZERO_TERMINATED, outbuf, &outlen);
+		rc = pcre2_substitute(e->code, (PCRE2_SPTR8) session->username,
+				      PCRE2_ZERO_TERMINATED, 0,
+				      PCRE2_SUBSTITUTE_EXTENDED, match_data, NULL, replacement, PCRE2_ZERO_TERMINATED, outbuf, &outlen);
 		pcre2_match_data_free(match_data);
 		report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", e->name, session->username, rc);
 		if (rc > 0) {
@@ -4260,7 +4195,8 @@ static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char ** key, s
 {
     char *t = identity;
     // host may have key set:
-    if (ctx->host->tls_psk_id && !strcmp(identity, ctx->host->tls_psk_id) && ctx->host->tls_psk_key_len) {
+    if (ctx->host->tls_psk_id && !strcmp(identity, ctx->host->tls_psk_id)
+	&& ctx->host->tls_psk_key_len) {
 	*key = ctx->host->tls_psk_key;
 	*keylen = ctx->host->tls_psk_key_len;
 	return 0;
@@ -4399,7 +4335,8 @@ static SSL_CTX *ssl_init(char *cert_file, char *key_file, char *pem_phrase, char
 	}
 	if (cert_file && !SSL_CTX_use_certificate_chain_file(ctx, cert_file))
 	    report(NULL, LOG_ERR, ~0, "SSL_CTX_use_certificate_chain_file");
-	if ((key_file || cert_file) && !SSL_CTX_use_PrivateKey_file(ctx, key_file ? key_file : cert_file, SSL_FILETYPE_PEM))
+	if ((key_file || cert_file)
+	    && !SSL_CTX_use_PrivateKey_file(ctx, key_file ? key_file : cert_file, SSL_FILETYPE_PEM))
 	    report(NULL, LOG_ERR, ~0, "SSL_CTX_use_PrivateKey_file");
 	if ((key_file || cert_file) && !SSL_CTX_check_private_key(ctx))
 	    report(NULL, LOG_ERR, ~0, "SSL_CTX_check_private_key");

@@ -5090,107 +5090,16 @@ static void tac_script_cond_optimize(tac_user * u, struct tac_script_cond **m)
     }
     if (*m)
 	for (i = 0; i < (*m)->u.m.n; i++)
-	    if ((*m)->type == S_or || (*m)->type == S_and)
+	    if ((*m)->type == S_or || (*m)->type == S_and || (*m)->type == S_exclmark)
 		tac_script_cond_optimize(u, &(*m)->u.m.e[i]);
 }
 
 static struct tac_script_cond *tac_script_cond_parse(tac_user * u, struct sym *sym)
 {
-    if (sym->code == S_leftbra) {
-	struct sym mysym;
-	char buf[4096];
-	char *b = buf, *p;
-	int bc = 1;
-	struct tac_script_cond *m;
-	enum token prev = S_unknown;
-#define EC_MAX 1024
-	int e[EC_MAX], ec = 0;
-
-	tac_sym_get(sym);
-
-	strcpy(b, "((( ");
-	while (*b)
-	    b++;
-
-	while (bc && (b < buf + sizeof(buf) - 100)) {
-	    switch (sym->code) {
-	    case S_and:
-		strcpy(b, " ) && (");
-		while (*b)
-		    b++;
-		prev = sym->code;
-		tac_sym_get(sym);
-		continue;
-	    case S_or:
-		strcpy(b, " )) || ((");
-		while (*b)
-		    b++;
-		prev = sym->code;
-		tac_sym_get(sym);
-		continue;
-	    case S_leftbra:
-		if (prev == S_exclmark) {
-		    strcpy(b, "(((((");
-		    while (*b)
-			b++;
-		    if (ec < EC_MAX)
-			e[ec++] = bc;
-		    else
-			parse_error(sym, "Too many nested negations.");
-		}
-		*b++ = '(';
-		*b++ = '(';
-		bc++;
-		prev = sym->code;
-		tac_sym_get(sym);
-		continue;
-	    case S_rightbra:
-		*b++ = ')';
-		bc--;
-		if (ec > -1 && e[ec] == bc) {
-		    strcpy(b, ")))))");
-		    while (*b)
-			b++;
-		    ec--;
-		} else if (bc > 0) {
-		    *b++ = ')';
-		    *b++ = ')';
-		}
-		prev = sym->code;
-		tac_sym_get(sym);
-		continue;
-	    case S_openbra:
-	    case S_closebra:
-		if (bc)
-		    parse_error(sym, "Got '%s' -- did you omit a ')' somewhere?", codestring[sym->code]);
-		prev = sym->code;
-		break;
-	    case S_tilde:
-		sym->flag_parse_pcre = 1;
-		break;
-	    case S_eof:
-		parse_error(sym, "EOF unexpected");
-	    default:;
-	    }
-	    prev = sym->code;
-	    *b++ = ' ';
-	    *b = 0;
-
-	    for (p = sym->raw; p < sym->tin - 1; p++)
-		*b++ = *p;
-	    *b = 0;
-	    tac_sym_get(sym);
-	    sym->flag_parse_pcre = 0;
-	}
-	strcpy(b, " )))");
-	while (*b)
-	    b++;
-
-	memcpy(&mysym, sym, sizeof(mysym));
-	mysym.tlen = mysym.len = (int) (b - buf);
-	mysym.tin = mysym.in = buf;
-	sym_init(&mysym);
-	m = tac_script_cond_parse_r(u, &mysym);
+    struct sym *cond_sym = NULL;
+    if (sym_normalize_cond_start(sym, &cond_sym)) {
+	struct tac_script_cond *m = tac_script_cond_parse_r(u, cond_sym);
+	sym_normalize_cond_end(&cond_sym);
 	tac_script_cond_optimize(u, &m);
 	return m;
     }
