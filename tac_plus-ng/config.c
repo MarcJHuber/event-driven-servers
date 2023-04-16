@@ -3607,8 +3607,8 @@ static struct tac_script_cond *tac_script_cond_parse(struct sym *sym, tac_realm 
 {
     struct sym *cond_sym = NULL;
     if (sym_normalize_cond_start(sym, &cond_sym)) {
-	report(NULL, LOG_DEBUG, DEBUG_ACL_FLAG, "normalized condition: %s", cond_sym->in);
 	struct tac_script_cond *m = tac_script_cond_parse_r(cond_sym, realm);
+	report(NULL, LOG_DEBUG, DEBUG_ACL_FLAG, "normalized condition: %s", cond_sym->in);
 	sym_normalize_cond_end(&cond_sym);
 	tac_script_cond_optimize(&m);
 	return m;
