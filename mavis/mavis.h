@@ -186,7 +186,6 @@ AV_CHAR("TYPE",)
 /* private query types/commands, may not be used in client queries */
 #define AV_V_TYPE_PRIVATE_PREFIX	"PRIV_"
 #define AV_V_TYPE_PRIVATE_PREFIX_LEN	5
-
 #define AV_V_TYPE_LOGSTATS		"PRIV_LOGSTATS"
 #define AV_V_BOOL_TRUE          	"TRUE"
 #define AV_V_BOOL_FALSE         	"FALSE"
@@ -417,6 +416,9 @@ int parse_cron(struct mavis_tm *, char *);
 void parse_timespec(rb_tree_t *, struct sym *);
 struct mavis_timespec *find_timespec(rb_tree_t *, char *);
 rb_tree_t *init_timespec(void);
+
+int sym_normalize_cond_start(struct sym *, struct sym **);
+void sym_normalize_cond_end(struct sym **mysym);
 
 int cfg_open_and_read(char *, char **, int *);
 int cfg_close(char *, char *, int);
