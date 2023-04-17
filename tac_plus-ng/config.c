@@ -109,23 +109,6 @@ struct in6_cidr {
     int mask;
 };
 
-struct tac_script_action {
-    enum token code;
-    u_int line;
-    union {
-	struct tac_script_cond *c;	//if (c)
-	int a;			// set a = v / unset a
-    } a;
-    union {
-	struct tac_script_action *a;	//then a
-	char *v;
-    } b;
-    union {
-	struct tac_script_action *a;	//else a
-    } c;
-    struct tac_script_action *n;
-};
-
 static void parse_host(struct sym *, tac_realm *, tac_host *);
 static void parse_net(struct sym *, tac_realm *, tac_net *);
 static void parse_user(struct sym *, tac_realm *);
@@ -1577,7 +1560,7 @@ static void parse_profile(struct sym *sym, tac_realm * r)
 }
 
 
-static struct tac_script_action *tac_script_parse_r(struct sym *, int, tac_realm *);
+static struct mavis_action *tac_script_parse_r(struct sym *, int, tac_realm *);
 
 static void parse_ruleset(struct sym *sym, tac_realm * realm)
 {
@@ -1624,7 +1607,7 @@ static void parse_ruleset(struct sym *sym, tac_realm * realm)
 		sym_get(sym);
 		parse(sym, S_openbra);
 
-		struct tac_script_action **p = &(*r)->acl.action;
+		struct mavis_action **p = &(*r)->acl.action;
 
 		while (*p)
 		    p = &(*p)->n;
@@ -2075,7 +2058,7 @@ void parse_user_final(tac_user * user)
 
 static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm * r)
 {
-    struct tac_script_action **p;
+    struct mavis_action **p;
 
     parse(sym, S_openbra);
 
@@ -2849,7 +2832,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	}
     case S_script:
 	{
-	    struct tac_script_action **p = &host->action;
+	    struct mavis_action **p = &host->action;
 	    sym_get(sym);
 	    while (*p)
 		p = &(*p)->n;
@@ -3182,7 +3165,7 @@ enum token eval_tac_acl(tac_session * session, struct tac_acl *acl)
     if (acl) {
 	char *hint = "";
 	enum token res = S_unknown;
-	struct tac_script_action *action = acl->action;
+	struct mavis_action *action = acl->action;
 	while (action) {
 	    report(session, LOG_DEBUG, DEBUG_ACL_FLAG, "evaluating ACL %s", acl->name);
 	    switch ((res = tac_script_eval_r(session, action))) {
@@ -3224,7 +3207,7 @@ static void parse_tac_acl(struct sym *sym, tac_realm * realm)
 
     parse(sym, S_openbra);
 
-    struct tac_script_action **p = &a->action;
+    struct mavis_action **p = &a->action;
 
     while (*p)
 	p = &(*p)->n;
@@ -3302,75 +3285,35 @@ int cfg_get_enable(tac_session * session, struct pwdat **p)
     return -1;
 }
 
-struct tac_script_cond_multi {
-    int n;
-    struct tac_script_cond *e[8];
-};
-
-struct tac_script_cond_single {
-    enum token token;		// S_context, S_cmd, S_message, S_nac, S_nas, S_nacname, S_port, S_user, S_password
-    void *rhs;
-    char *rhs_txt;
-    void *lhs;
-    char *lhs_txt;
-};
-
-struct tac_script_cond {
-    enum token type;
-    u_int line;
-    union {
-	struct tac_script_cond_single s;
-	struct tac_script_cond_multi m;
-    } u;
-};
-
-static struct tac_script_cond *tac_script_cond_add(struct tac_script_cond *a, struct tac_script_cond *b)
+static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * realm)
 {
-    if (a->u.m.n && !(a->u.m.n & 7))
-	a = realloc(a, sizeof(struct tac_script_cond) + a->u.m.n * sizeof(struct tac_script_cond *));
-
-    a->u.m.e[a->u.m.n] = b;
-    a->u.m.n++;
-    return a;
-}
-
-static struct tac_script_cond *tac_script_cond_new(struct sym *sym, enum token type)
-{
-    struct tac_script_cond *m = calloc(1, sizeof(struct tac_script_cond));
-    m->type = type;
-    m->line = sym->line;
-    return m;
-}
-
-static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * realm)
-{
-    struct tac_script_cond *m, *p = NULL;
+    struct mavis_cond *m, *p = NULL;
 
     switch (sym->code) {
     case S_leftbra:
 	sym_get(sym);
-	m = tac_script_cond_add(tac_script_cond_new(sym, S_or), tac_script_cond_parse_r(sym, realm));
+	m = mavis_cond_add(mavis_cond_new(sym, S_or), tac_script_cond_parse_r(sym, realm));
 	if (sym->code == S_and)
 	    m->type = S_and;
 	while (sym->code == S_and || sym->code == S_or) {
 	    sym_get(sym);
-	    m = tac_script_cond_add(m, tac_script_cond_parse_r(sym, realm));
+	    m = mavis_cond_add(m, tac_script_cond_parse_r(sym, realm));
 	}
 	parse(sym, S_rightbra);
 	return m;
     case S_exclmark:
 	sym_get(sym);
-	m = tac_script_cond_add(tac_script_cond_new(sym, S_exclmark), tac_script_cond_parse_r(sym, realm));
+	m = mavis_cond_add(mavis_cond_new(sym, S_exclmark), tac_script_cond_parse_r(sym, realm));
 	return m;
     case S_eof:
 	parse_error(sym, "EOF unexpected");
     case S_acl:
-	m = tac_script_cond_new(sym, S_acl);
+	m = mavis_cond_new(sym, S_acl);
 
 	sym_get(sym);
 	switch (sym->code) {
 	case S_exclmark:
-	    p = tac_script_cond_add(tac_script_cond_new(sym, S_exclmark), m);
+	    p = mavis_cond_add(mavis_cond_new(sym, S_exclmark), m);
 	case S_equal:
 	    break;
 	default:
@@ -3386,12 +3329,12 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
 	sym_get(sym);
 	return m;
     case S_time:
-	m = tac_script_cond_new(sym, S_time);
+	m = mavis_cond_new(sym, S_time);
 
 	sym_get(sym);
 	switch (sym->code) {
 	case S_exclmark:
-	    p = tac_script_cond_add(tac_script_cond_new(sym, S_exclmark), m);
+	    p = mavis_cond_add(mavis_cond_new(sym, S_exclmark), m);
 	case S_equal:
 	    break;
 	default:
@@ -3439,7 +3382,7 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
     case S_tls_peer_cn:
     case S_tls_psk_identity:
 #endif
-	m = tac_script_cond_new(sym, S_equal);
+	m = mavis_cond_new(sym, S_equal);
 	m->u.s.token = sym->code;
 
 	if (m->u.s.token == S_arg) {
@@ -3458,7 +3401,7 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
 
 	switch (sym->code) {
 	case S_exclmark:
-	    p = tac_script_cond_add(tac_script_cond_new(sym, S_exclmark), m);
+	    p = mavis_cond_add(mavis_cond_new(sym, S_exclmark), m);
 	case S_equal:
 	    break;
 	default:
@@ -3587,36 +3530,20 @@ static struct tac_script_cond *tac_script_cond_parse_r(struct sym *sym, tac_real
     return NULL;
 }
 
-static void tac_script_cond_optimize(struct tac_script_cond **m)
-{
-    struct tac_script_cond *p;
-    int i;
-    while (*m && ((*m)->type == S_or || (*m)->type == S_and)
-	   && (*m)->u.m.n == 1) {
-	p = *m;
-	*m = (*m)->u.m.e[0];
-	free(p);
-    }
-    if (*m)
-	for (i = 0; i < (*m)->u.m.n; i++)
-	    if ((*m)->type == S_or || (*m)->type == S_and || (*m)->type == S_exclmark)
-		tac_script_cond_optimize(&(*m)->u.m.e[i]);
-}
-
-static struct tac_script_cond *tac_script_cond_parse(struct sym *sym, tac_realm * realm)
+static struct mavis_cond *tac_script_cond_parse(struct sym *sym, tac_realm * realm)
 {
     struct sym *cond_sym = NULL;
     if (sym_normalize_cond_start(sym, &cond_sym)) {
-	struct tac_script_cond *m = tac_script_cond_parse_r(cond_sym, realm);
+	struct mavis_cond *m = tac_script_cond_parse_r(cond_sym, realm);
 	report(NULL, LOG_DEBUG, DEBUG_ACL_FLAG, "normalized condition: %s", cond_sym->in);
 	sym_normalize_cond_end(&cond_sym);
-	tac_script_cond_optimize(&m);
+	mavis_cond_optimize(&m);
 	return m;
     }
     return tac_script_cond_parse_r(sym, realm);
 }
 
-static int tac_script_cond_eval_res(tac_session * session, struct tac_script_cond *m, int res)
+static int tac_script_cond_eval_res(tac_session * session, struct mavis_cond *m, int res)
 {
     char *r = res ? "true" : "false";
     switch (m->type) {
@@ -3635,7 +3562,7 @@ static int tac_script_cond_eval_res(tac_session * session, struct tac_script_con
     return res;
 }
 
-static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m)
+static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 {
     int i, res = 0;
     char *v = NULL;
@@ -3910,7 +3837,7 @@ static int tac_script_cond_eval(tac_session * session, struct tac_script_cond *m
     return 0;
 }
 
-enum token tac_script_eval_r(tac_session * session, struct tac_script_action *m)
+enum token tac_script_eval_r(tac_session * session, struct mavis_action *m)
 {
     enum token r;
     char *v;
@@ -3977,19 +3904,9 @@ enum token tac_script_eval_r(tac_session * session, struct tac_script_action *m)
     return m->n ? tac_script_eval_r(session, m->n) : S_unknown;
 }
 
-static struct tac_script_action *tac_script_action_new(struct sym *sym)
+static struct mavis_action *tac_script_parse_r(struct sym *sym, int section, tac_realm * realm)
 {
-    struct tac_script_action *m = NULL;
-    m = calloc(1, sizeof(struct tac_script_action));
-    m->code = sym->code;
-    m->line = sym->line;
-    sym_get(sym);
-    return m;
-}
-
-static struct tac_script_action *tac_script_parse_r(struct sym *sym, int section, tac_realm * realm)
-{
-    struct tac_script_action *m = NULL;
+    struct mavis_action *m = NULL;
     char *sep = "=";
     char buf[8192];
 
@@ -4004,10 +3921,10 @@ static struct tac_script_action *tac_script_parse_r(struct sym *sym, int section
     case S_return:
     case S_permit:
     case S_deny:
-	m = tac_script_action_new(sym);
+	m = mavis_action_new(sym);
 	break;
     case S_profile:
-	m = tac_script_action_new(sym);
+	m = mavis_action_new(sym);
 	parse(sym, S_equal);
 	m->b.v = (char *) lookup_profile(sym->buf, realm);
 	if (!m->b.v)
@@ -4015,18 +3932,18 @@ static struct tac_script_action *tac_script_parse_r(struct sym *sym, int section
 	sym_get(sym);
 	break;
     case S_context:
-	m = tac_script_action_new(sym);
+	m = mavis_action_new(sym);
 	parse(sym, S_equal);
 	m->b.v = strdup(sym->buf);
 	sym_get(sym);
 	break;
     case S_message:
-	m = tac_script_action_new(sym);
+	m = mavis_action_new(sym);
 	parse(sym, S_equal);
 	m->b.v = (char *) parse_log_format(sym);
 	break;
     case S_rewrite:
-	m = tac_script_action_new(sym);
+	m = mavis_action_new(sym);
 	parse(sym, S_user);
 	parse(sym, S_equal);
 	m->b.v = (char *) lookup_rewrite(sym->buf, realm);
@@ -4035,20 +3952,20 @@ static struct tac_script_action *tac_script_parse_r(struct sym *sym, int section
 	sym_get(sym);
 	break;
     case S_label:
-	m = tac_script_action_new(sym);
+	m = mavis_action_new(sym);
 	parse(sym, S_equal);
 	m->b.v = (char *) parse_log_format(sym);
 	break;
     case S_attr:
 	sym_get(sym);
 	parse(sym, S_default);
-	m = tac_script_action_new(sym);
+	m = mavis_action_new(sym);
 	parse(sym, S_equal);
 	m->b.v = (char *) (keycode(sym->buf));
 	sym_get(sym);
 	break;
     case S_if:
-	m = tac_script_action_new(sym);
+	m = mavis_action_new(sym);
 	m->a.c = tac_script_cond_parse(sym, realm);
 	m->b.a = tac_script_parse_r(sym, 0, realm);
 	if (sym->code == S_else) {
@@ -4060,7 +3977,7 @@ static struct tac_script_action *tac_script_parse_r(struct sym *sym, int section
     case S_optional:
 	sep = "*";
     case S_set:
-	m = tac_script_action_new(sym);
+	m = mavis_action_new(sym);
 	snprintf(buf, sizeof(buf), "\"%s%s\"", sym->buf, sep);
 	sym_get(sym);
 	m->b.v = (char *) parse_log_format_inline(buf, sym->filename, sym->line);

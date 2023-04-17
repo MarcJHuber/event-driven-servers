@@ -139,24 +139,8 @@ struct tac_acl_expr {
     struct tac_acl_expr *next;
 };
 
-struct tac_script_action {
-    enum token code;
-    union {
-	struct tac_script_cond *c;	//if (c)
-	int a;			// set a = v / unset a
-    } a;
-    union {
-	struct tac_script_action *a;	//then a
-	char *v;
-    } b;
-    union {
-	struct tac_script_action *a;	//else a
-    } c;
-    struct tac_script_action *n;
-};
-
 struct tac_acl {
-    struct tac_script_action *action;
+    struct mavis_action *action;
     struct tac_acl_expr *expr;
     char name[1];
 };
@@ -201,7 +185,7 @@ struct node_svc {
     char *msg_deny;
     char *msg_permit;
     char *msg_debug;
-    struct tac_script_action *script;
+    struct mavis_action *script;
     struct tac_acl *acl;
     u_int negate:1;		/* ... acl */
     u_int final:1;
@@ -3115,7 +3099,7 @@ struct tac_acl_cache {
     enum token result;
 };
 
-static enum token tac_script_eval_r(tac_session *, char *, struct tac_script_action *, char **);
+static enum token tac_script_eval_r(tac_session *, char *, struct mavis_action *, char **);
 
 static int match_regex(tac_session * session, void *, char *, enum tac_acl_type, char *);
 
@@ -3141,7 +3125,7 @@ enum token eval_tac_acl(tac_session * session, char *cmd, struct tac_acl *acl)
 	    (*tc)->result = S_unknown;
 
 	    if (acl->action) {
-		struct tac_script_action *action = acl->action;
+		struct mavis_action *action = acl->action;
 		while (action)
 		    switch ((res = tac_script_eval_r(session, cmd, action, NULL))) {
 		    case S_permit:
@@ -3638,7 +3622,7 @@ static void parse_tac_acl_expr(struct sym *sym, struct tac_acl_expr **e, int neg
     }
 }
 
-static struct tac_script_action *tac_script_parse_r(tac_user *, struct sym *, int);
+static struct mavis_action *tac_script_parse_r(tac_user *, struct sym *, int);
 
 // acl = <name> [(permit|deny)] { ... }
 static void parse_tac_acl(struct sym *sym)
@@ -3677,7 +3661,7 @@ static void parse_tac_acl(struct sym *sym)
     parse(sym, S_openbra);
 
     if (is_script) {
-	struct tac_script_action **p = &a->action;
+	struct mavis_action **p = &a->action;
 
 	while (*p)
 	    p = &(*p)->n;
@@ -4848,47 +4832,28 @@ enum token cfg_get_cmd_node(tac_session * session, char *cmdname, char *args, ch
 
 #undef C
 
-struct tac_script_cond_multi {
-    int n;
-    struct tac_script_cond *e[8];
-};
-
-struct tac_script_cond_single {
-    enum token a;		// S_context, S_cmd, S_message, S_nac, S_nas, S_nacname, S_port, S_user, S_password
-    void *v;			// v2, really
-    char *s;			// string
-};
-
-struct tac_script_cond {
-    enum token type;
-    union {
-	struct tac_script_cond_single s;
-	struct tac_script_cond_multi m;
-    } u;
-};
-
-static struct tac_script_cond *tac_script_cond_add(tac_user * u, struct tac_script_cond
-						   *a, struct tac_script_cond
-						   *b)
+static struct mavis_cond *tac_script_cond_add(tac_user * u, struct mavis_cond
+					      *a, struct mavis_cond
+					      *b)
 {
     if (a->u.m.n && !(a->u.m.n & 7))
-	a = mempool_realloc(u ? u->pool : NULL, a, sizeof(struct tac_script_cond) + a->u.m.n * sizeof(struct tac_script_cond *));
+	a = mempool_realloc(u ? u->pool : NULL, a, sizeof(struct mavis_cond) + a->u.m.n * sizeof(struct mavis_cond *));
 
     a->u.m.e[a->u.m.n] = b;
     a->u.m.n++;
     return a;
 }
 
-static struct tac_script_cond *tac_script_cond_new(tac_user * u, enum token type)
+static struct mavis_cond *tac_script_cond_new(tac_user * u, enum token type)
 {
-    struct tac_script_cond *m = mempool_malloc(u ? u->pool : NULL, sizeof(struct tac_script_cond));
+    struct mavis_cond *m = mempool_malloc(u ? u->pool : NULL, sizeof(struct mavis_cond));
     m->type = type;
     return m;
 }
 
-static struct tac_script_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
+static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 {
-    struct tac_script_cond *m, *p = NULL;
+    struct mavis_cond *m, *p = NULL;
     rb_tree_t *pool = u ? u->pool : NULL;
 
     switch (sym->code) {
@@ -4925,9 +4890,9 @@ static struct tac_script_cond *tac_script_cond_parse_r(tac_user * u, struct sym 
 	}
 	tac_sym_get(sym);
 
-	m->u.s.v = tac_acl_lookup(sym->buf);
+	m->u.s.rhs = tac_acl_lookup(sym->buf);
 
-	if (!m->u.s.v)
+	if (!m->u.s.rhs)
 	    parse_error(sym, "ACL '%s' not found", sym->buf);
 	tac_sym_get(sym);
 	return m;
@@ -4947,8 +4912,8 @@ static struct tac_script_cond *tac_script_cond_parse_r(tac_user * u, struct sym 
 	}
 	tac_sym_get(sym);
 
-	m->u.s.v = find_timespec(timespectable, sym->buf);
-	if (!m->u.s.v)
+	m->u.s.rhs = find_timespec(timespectable, sym->buf);
+	if (!m->u.s.rhs)
 	    parse_error(sym, "timespec '%s' not found", sym->buf);
 	tac_sym_get(sym);
 	return m;
@@ -4966,7 +4931,7 @@ static struct tac_script_cond *tac_script_cond_parse_r(tac_user * u, struct sym 
     case S_user:
     case S_password:
 	m = tac_script_cond_new(u, S_equal);
-	m->u.s.a = sym->code;
+	m->u.s.token = sym->code;
 
 	tac_sym_get(sym);
 	switch (sym->code) {
@@ -4983,17 +4948,17 @@ static struct tac_script_cond *tac_script_cond_parse_r(tac_user * u, struct sym 
 	switch (sym->code) {
 	case S_equal:
 	    m->type = S_equal;
-	    if (m->u.s.a == S_nac || m->u.s.a == S_nas) {
+	    if (m->u.s.token == S_nac || m->u.s.token == S_nas) {
 		tac_host h, *hp;
 		tac_sym_get(sym);
 		h.name = sym->buf;
 		hp = RB_lookup(hosttable, (void *) &h);
 		if (hp) {
 		    m->type = S_host;
-		    m->u.s.v = hp;
+		    m->u.s.rhs = hp;
 		} else {
 		    struct in6_cidr *c = mempool_malloc(pool, sizeof(struct in6_cidr));
-		    m->u.s.v = c;
+		    m->u.s.rhs = c;
 		    if (v6_ptoh(&c->addr, &c->mask, sym->buf))
 			parse_error(sym, "Expected a hostname or an IP " "address/network in CIDR notation, " "but got '%s'.", sym->buf);
 		    m->type = S_address;
@@ -5014,7 +4979,7 @@ static struct tac_script_cond *tac_script_cond_parse_r(tac_user * u, struct sym 
 
 	tac_sym_get(sym);
 	if (m->type == S_equal) {
-	    m->u.s.v = mempool_strdup(pool, sym->buf);
+	    m->u.s.rhs = mempool_strdup(pool, sym->buf);
 
 	    tac_sym_get(sym);
 	    return p ? p : m;
@@ -5025,13 +4990,13 @@ static struct tac_script_cond *tac_script_cond_parse_r(tac_user * u, struct sym 
 		int erroffset;
 		const char *errptr;
 		m->type = S_slash;
-		m->u.s.v = pcre_compile2(sym->buf, PCRE_MULTILINE | common_data.regex_pcre_flags, &errcode, &errptr, &erroffset, NULL);
+		m->u.s.rhs = pcre_compile2(sym->buf, PCRE_MULTILINE | common_data.regex_pcre_flags, &errcode, &errptr, &erroffset, NULL);
 		if (u && u->pool_pcre) {
-		    RB_insert(u->pool_pcre, m->u.s.v);
-		    m->u.s.s = mempool_strdup(u->pool, sym->buf);
+		    RB_insert(u->pool_pcre, m->u.s.rhs);
+		    m->u.s.rhs_txt = mempool_strdup(u->pool, sym->buf);
 		}
 
-		if (!m->u.s.v)
+		if (!m->u.s.rhs)
 		    parse_error(sym, "In PCRE expression /%s/ at offset %d: %s", sym->buf, erroffset, errptr);
 		sym->flag_parse_pcre = 0;
 		tac_sym_get(sym);
@@ -5040,14 +5005,14 @@ static struct tac_script_cond *tac_script_cond_parse_r(tac_user * u, struct sym 
 #ifdef WITH_PCRE2
 		PCRE2_SIZE erroffset;
 		m->type = S_slash;
-		m->u.s.v =
+		m->u.s.rhs =
 		    pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
 		if (u && u->pool_pcre) {
-		    RB_insert(u->pool_pcre, m->u.s.v);
-		    m->u.s.s = mempool_strdup(u->pool, sym->buf);
+		    RB_insert(u->pool_pcre, m->u.s.rhs);
+		    m->u.s.rhs_txt = mempool_strdup(u->pool, sym->buf);
 		}
 
-		if (!m->u.s.v) {
+		if (!m->u.s.rhs) {
 		    PCRE2_UCHAR buffer[256];
 		    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
 		    parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
@@ -5060,14 +5025,14 @@ static struct tac_script_cond *tac_script_cond_parse_r(tac_user * u, struct sym 
 #endif
 #endif
 	    }
-	    m->u.s.v = mempool_malloc(pool, sizeof(regex_t));
-	    errcode = regcomp((regex_t *) m->u.s.v, sym->buf, REG_EXTENDED | REG_NOSUB | REG_NEWLINE | common_data.regex_posix_flags);
+	    m->u.s.rhs = mempool_malloc(pool, sizeof(regex_t));
+	    errcode = regcomp((regex_t *) m->u.s.rhs, sym->buf, REG_EXTENDED | REG_NOSUB | REG_NEWLINE | common_data.regex_posix_flags);
 	    if (errcode) {
 		char e[160];
-		regerror(errcode, (regex_t *) m->u.s.v, e, sizeof(e));
+		regerror(errcode, (regex_t *) m->u.s.rhs, e, sizeof(e));
 		parse_error(sym, "In regular expression '%s': %s", sym->buf, e);
 	    } else if (u && u->pool_regex)
-		RB_insert(u->pool_regex, m->u.s.v);
+		RB_insert(u->pool_regex, m->u.s.rhs);
 	    tac_sym_get(sym);
 	    return p ? p : m;
 	}
@@ -5078,9 +5043,9 @@ static struct tac_script_cond *tac_script_cond_parse_r(tac_user * u, struct sym 
     return NULL;
 }
 
-static void tac_script_cond_optimize(tac_user * u, struct tac_script_cond **m)
+static void tac_script_cond_optimize(tac_user * u, struct mavis_cond **m)
 {
-    struct tac_script_cond *p;
+    struct mavis_cond *p;
     rb_tree_t *pool = u ? u->pool : NULL;
     int i;
     while (*m && ((*m)->type == S_or || (*m)->type == S_and) && (*m)->u.m.n == 1) {
@@ -5094,11 +5059,11 @@ static void tac_script_cond_optimize(tac_user * u, struct tac_script_cond **m)
 		tac_script_cond_optimize(u, &(*m)->u.m.e[i]);
 }
 
-static struct tac_script_cond *tac_script_cond_parse(tac_user * u, struct sym *sym)
+static struct mavis_cond *tac_script_cond_parse(tac_user * u, struct sym *sym)
 {
     struct sym *cond_sym = NULL;
     if (sym_normalize_cond_start(sym, &cond_sym)) {
-	struct tac_script_cond *m = tac_script_cond_parse_r(u, cond_sym);
+	struct mavis_cond *m = tac_script_cond_parse_r(u, cond_sym);
 	sym_normalize_cond_end(&cond_sym);
 	tac_script_cond_optimize(u, &m);
 	return m;
@@ -5106,7 +5071,7 @@ static struct tac_script_cond *tac_script_cond_parse(tac_user * u, struct sym *s
     return tac_script_cond_parse_r(u, sym);
 }
 
-static int tac_script_cond_eval(tac_session * session, char *cmd, struct tac_script_cond *m)
+static int tac_script_cond_eval(tac_session * session, char *cmd, struct mavis_cond *m)
 {
     int i;
     char *v = NULL;
@@ -5126,7 +5091,7 @@ static int tac_script_cond_eval(tac_session * session, char *cmd, struct tac_scr
 		return -1;
 	return 0;
     case S_equal:
-	switch (m->u.s.a) {
+	switch (m->u.s.token) {
 	case S_context:
 	    v = tac_script_get_exec_context(session, session->username, session->nas_port);
 	    break;
@@ -5138,43 +5103,43 @@ static int tac_script_cond_eval(tac_session * session, char *cmd, struct tac_scr
 	}
 	if (!v)
 	    return 0;
-	return !strcmp(v, m->u.s.v);
+	return !strcmp(v, m->u.s.rhs);
 
     case S_address:
-	switch (m->u.s.a) {
+	switch (m->u.s.token) {
 	case S_nac:
 	    if (session->nac_address_valid)
-		return v6_contains(&((struct in6_cidr *) (m->u.s.v))->addr, ((struct in6_cidr *) (m->u.s.v))->mask, &session->nac_address);
+		return v6_contains(&((struct in6_cidr *) (m->u.s.rhs))->addr, ((struct in6_cidr *) (m->u.s.rhs))->mask, &session->nac_address);
 	    return 0;
 	case S_nas:
-	    return v6_contains(&((struct in6_cidr *) (m->u.s.v))->addr, ((struct in6_cidr *) (m->u.s.v))->mask, &session->ctx->nas_address);
+	    return v6_contains(&((struct in6_cidr *) (m->u.s.rhs))->addr, ((struct in6_cidr *) (m->u.s.rhs))->mask, &session->ctx->nas_address);
 	default:
 	    return 0;
 	}
 
     case S_host:
-	switch (m->u.s.a) {
+	switch (m->u.s.token) {
 	case S_nas:
 	    {
 		tac_host **h;
 		for (h = (session->ctx->hostchain); *h; h++)
-		    if ((*h)->name && (*h == (tac_host *) (m->u.s.v)))
+		    if ((*h)->name && (*h == (tac_host *) (m->u.s.rhs)))
 			return -1;
 		return 0;
 	    }
 	case S_nac:
 	    if (session->nac_address_valid)
-		return radix_lookup(((tac_host *) (m->u.s.v))->addrtree, &session->nac_address, NULL) ? -1 : 0;
+		return radix_lookup(((tac_host *) (m->u.s.rhs))->addrtree, &session->nac_address, NULL) ? -1 : 0;
 	default:
 	    return 0;
 	}
     case S_time:
-	return eval_timespec((struct mavis_timespec *) m->u.s.v, NULL);
+	return eval_timespec((struct mavis_timespec *) m->u.s.rhs, NULL);
     case S_acl:
-	return S_permit == eval_tac_acl(session, cmd, (struct tac_acl *) m->u.s.v);
+	return S_permit == eval_tac_acl(session, cmd, (struct tac_acl *) m->u.s.rhs);
     case S_regex:
     case S_slash:
-	switch (m->u.s.a) {
+	switch (m->u.s.token) {
 	case S_context:
 	    v = tac_script_get_exec_context(session, session->username, session->nas_port);
 	    break;
@@ -5221,24 +5186,24 @@ static int tac_script_cond_eval(tac_session * session, char *cmd, struct tac_scr
 	if (m->type == S_slash) {
 	    int res = -1;
 #ifdef WITH_PCRE
-	    res = pcre_exec((pcre *) m->u.s.v, NULL, v, (int) strlen(v), 0, 0, NULL, 0);
-	    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre: '%s' <=> '%s' = %d", m->u.s.s, v, res);
+	    res = pcre_exec((pcre *) m->u.s.rhs, NULL, v, (int) strlen(v), 0, 0, NULL, 0);
+	    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre: '%s' <=> '%s' = %d", m->u.s.rhs_txt, v, res);
 #endif
 #ifdef WITH_PCRE2
-	    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.v, NULL);
-	    res = pcre2_match((pcre2_code *) m->u.s.v, (PCRE2_SPTR) v, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
+	    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.rhs, NULL);
+	    res = pcre2_match((pcre2_code *) m->u.s.rhs, (PCRE2_SPTR) v, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
 	    pcre2_match_data_free(match_data);
-	    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", m->u.s.s, v, res);
+	    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", m->u.s.rhs_txt, v, res);
 #endif
 	    return -1 < res;
 	}
-	return !regexec((regex_t *) m->u.s.v, v, 0, NULL, 0);
+	return !regexec((regex_t *) m->u.s.rhs, v, 0, NULL, 0);
     default:;
     }
     return 0;
 }
 
-static enum token tac_script_eval_r(tac_session * session, char *cmd, struct tac_script_action *m, char **format)
+static enum token tac_script_eval_r(tac_session * session, char *cmd, struct mavis_action *m, char **format)
 {
     enum token r;
 
@@ -5273,9 +5238,9 @@ static enum token tac_script_eval_r(tac_session * session, char *cmd, struct tac
     return m->n ? tac_script_eval_r(session, cmd, m->n, format) : S_unknown;
 }
 
-static struct tac_script_action *tac_script_parse_r(tac_user * u, struct sym *sym, int section)
+static struct mavis_action *tac_script_parse_r(tac_user * u, struct sym *sym, int section)
 {
-    struct tac_script_action *m = NULL;
+    struct mavis_action *m = NULL;
     rb_tree_t *pool = u ? u->pool : NULL;
 
     switch (sym->code) {
@@ -5291,23 +5256,17 @@ static struct tac_script_action *tac_script_parse_r(tac_user * u, struct sym *sy
     case S_return:
     case S_permit:
     case S_deny:
-	m = mempool_malloc(pool, sizeof(struct tac_script_action));
-	m->code = sym->code;
-	tac_sym_get(sym);
+	m = mavis_action_new(sym);
 	break;
     case S_context:
     case S_message:
-	m = mempool_malloc(pool, sizeof(struct tac_script_action));
-	m->code = sym->code;
-	tac_sym_get(sym);
+	m = mavis_action_new(sym);
 	parse(sym, S_equal);
 	m->b.v = mempool_strdup(pool, sym->buf);
 	tac_sym_get(sym);
 	break;
     case S_if:
-	m = mempool_malloc(pool, sizeof(struct tac_script_action));
-	m->code = sym->code;
-	tac_sym_get(sym);
+	m = mavis_action_new(sym);
 	m->a.c = tac_script_cond_parse(u, sym);
 	m->b.a = tac_script_parse_r(u, sym, 0);
 	if (sym->code == S_else) {
@@ -5325,7 +5284,7 @@ static struct tac_script_action *tac_script_parse_r(tac_user * u, struct sym *sy
 
 static void tac_script_parse(tac_user * u, struct node_svc *shell, struct sym *sym)
 {
-    struct tac_script_action **p = &shell->script;
+    struct mavis_action **p = &shell->script;
 
     while (*p)
 	p = &(*p)->n;

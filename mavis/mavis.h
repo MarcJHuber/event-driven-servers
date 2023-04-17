@@ -207,7 +207,23 @@ struct av_ctx {
 
 typedef struct mavis_ctx mavis_ctx;
 struct sym;
-struct mavis_action;
+
+struct mavis_action {
+    enum token code;
+    u_int line;
+    union {
+	struct mavis_cond *c;	//if (c)
+	int a;			// set a = v / unset a
+    } a;
+    union {
+	struct mavis_action *a;	//then a
+	char *v;
+    } b;
+    union {
+	struct mavis_action *a;	//else a
+    } c;
+    struct mavis_action *n;	//a
+};
 
 struct mavis_ctx {
     void *handle;
@@ -418,7 +434,35 @@ struct mavis_timespec *find_timespec(rb_tree_t *, char *);
 rb_tree_t *init_timespec(void);
 
 int sym_normalize_cond_start(struct sym *, struct sym **);
-void sym_normalize_cond_end(struct sym **mysym);
+void sym_normalize_cond_end(struct sym **);
+
+struct mavis_cond_multi {
+    int n;
+    struct mavis_cond *e[8];
+};
+
+struct mavis_cond_single {
+    enum token token;
+    void *lhs;
+    char *lhs_txt;
+    void *rhs;
+    char *rhs_txt;
+};
+
+struct mavis_cond {
+    enum token type;
+    u_int line;
+    union {
+	struct mavis_cond_single s;
+	struct mavis_cond_multi m;
+    } u;
+};
+
+struct mavis_cond *mavis_cond_new(struct sym *, enum token);
+struct mavis_cond *mavis_cond_add(struct mavis_cond *a, struct mavis_cond *);
+struct mavis_action *mavis_action_new(struct sym *sym);
+
+void mavis_cond_optimize(struct mavis_cond **);
 
 int cfg_open_and_read(char *, char **, int *);
 int cfg_close(char *, char *, int);
