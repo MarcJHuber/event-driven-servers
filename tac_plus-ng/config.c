@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 1999-2022 Marc Huber (Marc.Huber@web.de)
+   Copyright (C) 1999-2023 Marc Huber (Marc.Huber@web.de)
    All rights reserved.
 
    Redistribution and use in source and binary  forms,  with or without
@@ -7,22 +7,22 @@
    are met:
 
    1. Redistributions of source code  must  retain  the above copyright
-   notice, this list of conditions and the following disclaimer.
+      notice, this list of conditions and the following disclaimer.
 
    2. Redistributions in binary form must reproduce the above copyright
-   notice, this list of conditions  and  the following disclaimer in
-   the  documentation  and/or  other  materials  provided  with  the
-   distribution.
+      notice, this list of conditions  and  the following disclaimer in
+      the  documentation  and/or  other  materials  provided  with  the
+      distribution.
 
    3. The end-user documentation  included with the redistribution,  if
-   any, must include the following acknowledgment:
+      any, must include the following acknowledgment:
 
-   This product includes software developed by Marc Huber
-   (Marc.Huber@web.de).
+          This product includes software developed by Marc Huber
+	  (Marc.Huber@web.de).
 
-   Alternately,  this  acknowledgment  may  appear  in  the software
-   itself, if and wherever such third-party acknowledgments normally
-   appear.
+      Alternately,  this  acknowledgment  may  appear  in  the software
+      itself, if and wherever such third-party acknowledgments normally
+      appear.
 
    THIS SOFTWARE IS  PROVIDED  ``AS IS''  AND  ANY EXPRESSED OR IMPLIED
    WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -54,7 +54,7 @@
    IS'' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING,
    WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
    FITNESS FOR A PARTICULAR PURPOSE.
- */
+*/
 
 #include "headers.h"
 #include "misc/version.h"
@@ -247,7 +247,7 @@ void complete_realm(tac_realm * r)
 	    tls_config_verify_client(r->tls_cfg);
 	    if (r->tls_cafile && tls_config_set_ca_file(r->tls_cfg, r->tls_cafile)) {
 		const char *terr = tls_config_error(r->tls_cfg);
-		report(NULL, LOG_ERR, ~0, "realm %s: tls_config_set_ca_path(\"%s\") failed%s%s", r->name, r->tls_cafile, terr ? ": " : "", terr ? terr : "");
+		report(NULL, LOG_ERR, ~0, "realm %s: tls_config_set_ca_file(\"%s\") failed%s%s", r->name, r->tls_cafile, terr ? ": " : "", terr ? terr : "");
 		exit(EX_CONFIG);
 	    }
 	    if (tls_config_set_protocols(r->tls_cfg, TLS_PROTOCOL_TLSv1_3)) {
@@ -278,7 +278,7 @@ void complete_realm(tac_realm * r)
 		exit(EX_CONFIG);
 	    }
 	    if (tls_config_set_key_mem(r->tls_cfg, p, p_len)) {
-		report(NULL, LOG_ERR, ~0, "realm %s: tls_config_set_cert_mem failed", r->name);
+		report(NULL, LOG_ERR, ~0, "realm %s: tls_config_set_key_mem failed", r->name);
 		exit(EX_CONFIG);
 	    }
 	    if (r->tls_accept_expired == TRISTATE_YES)
