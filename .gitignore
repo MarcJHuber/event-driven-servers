@@ -10,3 +10,4 @@ RCS
 /tac_plus-ng/extra/Makefile
 /tac_plus/extra/Makefile
 /tcprelay/extra/Makefile
+__pycache__
