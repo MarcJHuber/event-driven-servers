@@ -124,14 +124,14 @@ static int cache_lookup(mavis_ctx * mcx, av_ctx * ac)
     if (!strcasecmp(s, AV_V_TYPE_LOGSTATS)) {
 	for (i = 0; i < AVPC_TABLE_SIZE; i++) {
 	    if (mcx->cache[i].counter_query)
-		logmsg("STAT %s: %s: Q=%llu C=%llu T=" TIME_T_PRINTF
-		       " q=%llu c=%llu t=" TIME_T_PRINTF " #=%u",
+		logmsg("STAT %s: %s: Q=%llu C=%llu T=%lld"
+		       " q=%llu c=%llu t=%lld #=%u",
 		       MAVIS_name,
 		       mcx->cache[i].type,
 		       mcx->cache[i].counter_query,
 		       mcx->cache[i].counter_cached,
-		       io_now.tv_sec - mcx->startup_time,
-		       mcx->cache[i].counter_p_query, mcx->cache[i].counter_p_cached, io_now.tv_sec - mcx->lastdump, mcx->cache[i].count);
+		       (long long) (io_now.tv_sec - mcx->startup_time),
+		       mcx->cache[i].counter_p_query, mcx->cache[i].counter_p_cached, (long long) (io_now.tv_sec - mcx->lastdump), mcx->cache[i].count);
 	    mcx->cache[i].counter_p_query = mcx->cache[i].counter_p_cached = 0;
 	}
 

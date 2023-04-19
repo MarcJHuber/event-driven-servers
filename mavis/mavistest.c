@@ -197,7 +197,7 @@ int main(int argc, char *argv[])
     }
 
     if (timing)
-	fprintf(stderr, TIME_T_PRINTF " seconds\n", time(NULL) - start);
+	fprintf(stderr, "%lld seconds\n", (long long)(time(NULL) - start));
 
     mavis_drop(mcx);
 

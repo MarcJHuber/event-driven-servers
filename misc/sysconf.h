@@ -459,14 +459,6 @@
 #define BROKEN_FD_PASSING
 #endif
 /*******************************************************************************
- * time_t on OpenBSD is 64 bit since 5.5
- */
-#if defined(__OpenBSD__) && OSLEVEL >= 0x5050000
-#define TIME_T_PRINTF "%lld"
-#else
-#define TIME_T_PRINTF "%ld"
-#endif
-/*******************************************************************************
  * VRF handling
  */
 #if defined(__linux__) && defined(SO_BINDTODEVICE)

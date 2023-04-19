@@ -216,7 +216,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	item = cache_find_addr(mcx->cache_blacklist, addr);
 	if (mcx->ip_blacklist_count && item && item->count >= mcx->ip_blacklist_count && item->expire > io_now.tv_sec) {
 	    av_set(*ac, AV_A_RESULT, AV_V_RESULT_FAIL);
-	    av_setf(*ac, AV_A_COMMENT, "client ip blacklisted for "TIME_T_PRINTF " seconds", item->expire - io_now.tv_sec);
+	    av_setf(*ac, AV_A_COMMENT, "client ip blacklisted for %lld seconds", (long long) (item->expire - io_now.tv_sec));
 	    return MAVIS_FINAL;
 	}
 

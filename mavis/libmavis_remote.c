@@ -461,10 +461,9 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	}
 
 	logmsg
-	    ("STAT %s:  O=%llu I=%llu B=%lu T=" TIME_T_PRINTF
-	     " o=%lld i=%llu b=%lu t=" TIME_T_PRINTF,
+	    ("STAT %s:  O=%llu I=%llu B=%lu T=%lld o=%lld i=%llu b=%lu t=%lld",
 	     MAVIS_name, count_s, count_r,
-	     backlog_max, io_now.tv_sec - mcx->startup_time, count_s_p, count_r_p, backlog_max_p, io_now.tv_sec - mcx->lastdump);
+	     backlog_max, (long long) (io_now.tv_sec - mcx->startup_time), count_s_p, count_r_p, backlog_max_p, (long long) (io_now.tv_sec - mcx->lastdump));
 	mcx->lastdump = time(NULL);
 	return MAVIS_DOWN;
     }
