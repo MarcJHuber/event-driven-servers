@@ -150,7 +150,7 @@ static struct tac_acl *tac_acl_lookup(char *, tac_realm *);
 
 struct tac_groups {
     u_int count;
-    u_int allocated;		/* will be incfremented on demand */
+    u_int allocated;		/* will be incremented on demand */
     tac_group **groups;		/* array will be reallocated on demand */
 };
 
@@ -158,7 +158,7 @@ struct tac_group;
 typedef struct tac_group tac_group;
 
 struct tac_group {
-    char *name;			/* groupname */
+    char *name;
     tac_group *parent;
     tac_groups *groups;
     u_int line;
