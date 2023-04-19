@@ -185,7 +185,7 @@ while True:
 	conn.search(search_base=LDAP_BASE, search_scope=LDAP_SCOPE,
 		search_filter=LDAP_FILTER.format(D.user),
 		attributes=["memberOf", "shadowExpire", "uidNumber", "gidNumber",
-			"loginShell", "homeDirectory"])
+			"loginShell", "homeDirectory", "sshPublicKey"])
 	if len(conn.entries) == 0:
 		D.write(MAVIS_FINAL, AV_V_RESULT_NOTFOUND, None)
 	elif len(conn.entries) != 1:
@@ -235,6 +235,9 @@ while True:
 		D.set_memberof("\"" + "\",\"".join(L) + "\"")
 		L = [memberof_regex.sub(r'\1', l) for l in L]
 		D.set_tacmember("\"" + "\",\"".join(L) + "\"")
+
+	if len(entry.sshPublicKey) > 0:
+		D.set_sshpubkey("\"" + "\",\"".join(entry.sshPublicKey) + "\"")
 
 	D.write(MAVIS_FINAL, AV_V_RESULT_OK, user_msg);
 

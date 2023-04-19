@@ -217,3 +217,7 @@ class Mavis:
 		self.av_pairs[AV_A_HOME] = arg
 		return arg
 
+	def set_sshpubkey(self, arg):
+		self.av_pairs[AV_A_SSHKEY] = arg
+		return arg
+
