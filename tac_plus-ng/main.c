@@ -230,7 +230,9 @@ int main(int argc, char **argv, char **envp)
     signal(SIGTERM, die);
     signal(SIGPIPE, SIG_IGN);
 
-    if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
+    if (common_data.debug & DEBUG_TACTRACE_FLAG)
+	fprintf(stderr, "Version: " VERSION "\n");
+    else
 	report(NULL, LOG_INFO, ~0, "Version " VERSION " initialized");
 
     umask(022);
