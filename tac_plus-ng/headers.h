@@ -116,7 +116,6 @@
 
 struct context;
 struct tac_acl;
-struct tac_acllist;
 
 struct realm;
 typedef struct realm tac_realm;

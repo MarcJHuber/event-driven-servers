@@ -96,14 +96,6 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-struct tac_acllist {
-    struct tac_acllist *next;
-    struct tac_acl *acl;
-    union {
-	struct upwdat *passwdp;
-    } u;
-};
-
 struct in6_cidr {
     struct in6_addr addr;
     int mask;
