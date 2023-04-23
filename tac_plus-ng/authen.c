@@ -328,9 +328,6 @@ static enum token lookup_and_set_user(tac_session * session)
 	session->passwdp = eval_passwd_acl(session);
 	res = S_permit;
     }
-    if (res != S_permit)
-	res = S_deny;
-
     report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "user lookup %s", (res == S_permit) ? "succeded" : "failed");
     return res;
 }
