@@ -304,14 +304,21 @@ static enum token lookup_and_set_user(tac_session * session)
     if (!session->user_is_session_specific) {
 	session->user = lookup_user(session->username, session->ctx->realm);
     }
-    if (session->user && session->user->fallback_only && ((session->ctx->host->authfallback != TRISTATE_YES)
-							  || !session->ctx->realm->last_backend_failure
-							  || (session->ctx->realm->last_backend_failure +
-							      session->ctx->realm->backend_failure_period < io_now.tv_sec))) {
+    if (session->user && session->user->rewritten_only && !session->username_rewritten) {
+	report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Login for user %s is prohibited", session->user->name);
+	if (session->user_is_session_specific)
+	    free_user(session->user);
+	session->user = NULL;
+	res = S_deny;
+    } else if (session->user && session->user->fallback_only && ((session->ctx->host->authfallback != TRISTATE_YES)
+								 || !session->ctx->realm->last_backend_failure
+								 || (session->ctx->realm->last_backend_failure +
+								     session->ctx->realm->backend_failure_period < io_now.tv_sec))) {
 	report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Not in emergency mode, ignoring user %s", session->user->name);
 	if (session->user_is_session_specific)
 	    free_user(session->user);
 	session->user = NULL;
+	res = S_deny;
     }
 
     if (session->user) {
@@ -319,9 +326,13 @@ static enum token lookup_and_set_user(tac_session * session)
 	if (session->profile)
 	    session->debug |= session->profile->debug;
 	session->passwdp = eval_passwd_acl(session);
+	res = S_permit;
     }
-    report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "user lookup %s", session->user ? "succeded" : "failed");
-    return session->user ? S_permit : S_unknown;
+    if (res != S_permit)
+	res = S_deny;
+
+    report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "user lookup %s", (res == S_permit) ? "succeded" : "failed");
+    return res;
 }
 
 static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)

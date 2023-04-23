@@ -265,6 +265,7 @@ typedef struct {
      TRISTATE(hushlogin);
      BISTATE(passwd_oneshot);
      BISTATE(fallback_only);
+     BISTATE(rewritten_only);
     av_ctx *avc;
     char *name;			/* username */
     size_t name_len;

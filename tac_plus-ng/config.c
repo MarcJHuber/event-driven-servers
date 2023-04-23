@@ -2487,6 +2487,10 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	    sym_get(sym);
 	    user->fallback_only = 1;
 	    continue;
+	case S_rewritten_only:
+	    sym_get(sym);
+	    user->rewritten_only = 1;
+	    continue;
 	case S_hushlogin:
 	    sym_get(sym);
 	    parse(sym, S_equal);
@@ -4015,9 +4019,10 @@ void tac_rewrite_user(tac_session * session, tac_rewrite * rewrite)
 		pcre2_match_data_free(match_data);
 		report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", e->name, session->username, rc);
 		if (rc > 0) {
+		    char *oldusername = session->username;
 		    session->username = memlist_strndup(session->memlist, outbuf, outlen);
 		    session->username_len = outlen;
-		    session->username_rewritten = 1;
+		    session->username_rewritten = strcmp(oldusername, session->username) ? 1 : 0;
 		    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: setting username to '%s'", session->username);
 		}
 	    }
