@@ -244,13 +244,16 @@ static int compare_pwdat(struct pwdat *a, char *b, enum hint_enum *hint)
 
     switch (a->type) {
     case S_clear:
-	res = strcmp(a->value, b);
+	if (b)
+	    res = strcmp(a->value, b);
 	break;
     case S_crypt:
-	if (a->value[0] == '$' && a->value[1] == '1' && a->value[2] == '$')
-	    res = strcmp(a->value, md5crypt(b, a->value));
-	else
-	    res = strcmp(a->value, crypt(b, a->value));
+	if (b) {
+	    if (a->value[0] == '$' && a->value[1] == '1' && a->value[2] == '$')
+		res = strcmp(a->value, md5crypt(b, a->value));
+	    else
+		res = strcmp(a->value, crypt(b, a->value));
+	}
 	break;
     case S_permit:
 	*hint = hint_permitted;
@@ -435,7 +438,7 @@ static int check_access(tac_session * session, struct pwdat *pwdat, char *passwd
 		break;
 	    }
 	    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
-	} else if (pwdat && passwd)
+	} else if (pwdat)
 	    res = compare_pwdat(pwdat, passwd, hint);
 
 	if (S_permit != eval_ruleset(session, session->ctx->realm)) {
