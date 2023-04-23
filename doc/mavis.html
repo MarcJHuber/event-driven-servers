@@ -16,8 +16,8 @@ System</title>
 <h1 class="title"><a name="AEN2" id="AEN2">MAVIS &#8208; Modular
 Attribute-Value Interchange System</a></h1>
 <h3 class="author"><a name="AEN4" id="AEN4">Marc Huber</a></h3>
-<span class="releaseinfo">$Id: manual.xml,v 1.79 2022/04/24
-12:00:01 marc Exp marc $<br></span>
+<span class="releaseinfo">$Id:
+a9ceec932700e501ae22343787972a06c5e68137 $<br></span>
 <hr></div>
 <div class="TOC">
 <dl>
@@ -74,9 +74,9 @@ Directives</a></dt>
 <dt>5.3. <a href="#AEN930">MAVIS Scripting Language</a></dt>
 </dl>
 </dd>
-<dt>6. <a href="#AEN1116">Testing your MAVIS configuration</a></dt>
-<dt>7. <a href="#AEN1121">Environmental Variables</a></dt>
-<dt>8. <a href="#AEN1126">Copyrights and Acknowledgements</a></dt>
+<dt>6. <a href="#AEN1125">Testing your MAVIS configuration</a></dt>
+<dt>7. <a href="#AEN1130">Environmental Variables</a></dt>
+<dt>8. <a href="#AEN1135">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -1433,9 +1433,9 @@ and are defined using the <tt class="literal">script</tt>
 keyword.</p>
 <p>Generic syntax for the scripting feature is:</p>
 <p><tt class="literal">script</tt> ( <tt class="literal">in</tt> |
-<tt class="literal">out</tt> ) <tt class="literal">= {</tt>
-<span class="emphasis"><i class="emphasis">action</i></span>+
-<tt class="literal">}</tt></p>
+<tt class="literal">out</tt> | <tt class="literal">interim</tt>)
+<tt class="literal">= {</tt> <span class="emphasis"><i class=
+"emphasis">action</i></span>+ <tt class="literal">}</tt></p>
 <p>Valid <span class="emphasis"><i class=
 "emphasis">action</i></span>s are:</p>
 <ul>
@@ -1587,6 +1587,12 @@ brackets.</p>
 <p><img src="railroad/mavis/MavisAction.svg"></p>
 <div class="caption">
 <p>Railroad diagram: MavisAction</p>
+</div>
+</div>
+<div class="mediaobject">
+<p><img src="moduleflowchart.svg"></p>
+<div class="caption">
+<p>MAVIS module flow</p>
 </div>
 </div>
 <p>Here's a sample configuration for FTP authentication via RADIUS,
@@ -1742,7 +1748,7 @@ supported attributes.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1116" id="AEN1116">6. Testing your
+<h2 class="section"><a name="AEN1125" id="AEN1125">6. Testing your
 MAVIS configuration</a></h2>
 <p>You'll almost certainly want to validate that your backend
 configuration behaves as expected. You can do so using the
@@ -1760,7 +1766,7 @@ Sample usage: mavistest -d -1  /usr/local/etc/tac_plus.cfg tac_plus TACPLUS joe 
 </pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1121" id="AEN1121">7. Environmental
+<h2 class="section"><a name="AEN1130" id="AEN1130">7. Environmental
 Variables</a></h2>
 <p>Text enclosed in double quotes may make use of environment
 variables, e.g.:</p>
@@ -1769,7 +1775,7 @@ variables, e.g.:</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1126" id="AEN1126">8. Copyrights
+<h2 class="section"><a name="AEN1135" id="AEN1135">8. Copyrights
 and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of
 individual files.</p>
@@ -1858,7 +1864,7 @@ with the distribution.</p>
 <li>
 <p>The end-user documentation included with the redistribution, if
 any, must include the following acknowledgment:</p>
-<a name="AEN1175" id="AEN1175"></a>
+<a name="AEN1184" id="AEN1184"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber
 (<code class="email">&lt;<a href=

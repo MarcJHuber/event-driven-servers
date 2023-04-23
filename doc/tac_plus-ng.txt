@@ -902,7 +902,7 @@ message USERNAME = "utilisateur"
 
 4.2.3.3.1. Authentication
 
-     * password ( acl = acl )
+     * password acl = acl
        password acl may be used to perform simple compliance
        checks on user passwords. For example, to enforce a minimum
        password length of 6 characters you may try
@@ -1758,16 +1758,10 @@ password login = clear Ci5c0
      * password ms-chap = ( clear password | permit | deny )
        For MS-CHAP authentication, a cleartext password is
        required.
-     * password [ acl acl ] { ... }
-       This directive allows specification of ACL-dependent
+     * password { ... }
+       This directive allows for nested specification of
        passwords. Example:
-acl jumpstation { if (nac == 10.255.0.85) permit deny }
-
 user marc {
-    password acl jumpstation {
-        login = permit
-        pap = permit
-    }
     password {
         login = clear myLoginPassword
         pap = clear myPapPassword

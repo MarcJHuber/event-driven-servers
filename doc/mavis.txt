@@ -2,7 +2,7 @@ MAVIS ‐ Modular Attribute-Value Interchange System
 
 Marc Huber
 
-   $Id: manual.xml,v 1.79 2022/04/24 12:00:01 marc Exp marc $
+   $Id: a9ceec932700e501ae22343787972a06c5e68137 $
      __________________________________________________________
 
    Table of Contents
@@ -890,7 +890,7 @@ id = ftpd {
 
    Generic syntax for the scripting feature is:
 
-   script ( in | out ) = { action+ }
+   script ( in | out | interim) = { action+ }
 
    Valid actions are:
 
@@ -959,6 +959,10 @@ id = ftpd {
    [MavisAction.eps]
 
    Railroad diagram: MavisAction
+
+   [moduleflowchart.eps]
+
+   MAVIS module flow
 
    Here's a sample configuration for FTP authentication via
    RADIUS, using the radmavis binary, called via the external
