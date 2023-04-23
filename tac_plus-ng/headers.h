@@ -254,7 +254,7 @@ typedef struct {
     time_t valid_until;		/* validity period end */
     time_t dynamic;		/* caching timeout. Always 0 for static users */
     struct pwdat **enable;
-    struct tac_acllist *passwd_acllist;
+    struct pwdat *passwd[PW_MAVIS + 1];
     struct ssh_key *ssh_key;
     struct ssh_key_id *ssh_key_id;
     tac_groups *groups;
@@ -591,10 +591,6 @@ struct author_data;
 struct authen_data;
 struct mavis_data;
 
-struct upwdat {
-    struct pwdat *passwd[PW_MAVIS + 1];
-};
-
 struct log_item;
 
 typedef struct tac_session tac_session;
@@ -671,7 +667,6 @@ struct tac_session {
     struct author_data *author_data;
     struct authen_data *authen_data;
     struct mavis_data *mavis_data;
-    struct upwdat *passwdp;
     struct pwdat *enable;
     tac_profile *profile;
      BISTATE(nac_address_valid);
@@ -862,7 +857,6 @@ int compare_user(const void *, const void *);
 void free_user(tac_user *);
 void cfg_init(void);
 enum token tac_keycode(char *);
-struct upwdat *eval_passwd_acl(tac_session *);
 enum token eval_ruleset(tac_session *, tac_realm *);
 
 #ifdef WITH_PCRE2

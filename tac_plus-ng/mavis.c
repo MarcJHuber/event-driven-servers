@@ -179,7 +179,6 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
     if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&
 	(t = av_get(avc, AV_A_USER)) && !strcmp(t, session->username) &&
 	(t = av_get(avc, AV_A_TIMESTAMP)) && (atoi(t) == session->session_id) && (result = av_get(avc, AV_A_RESULT)) && !strcmp(result, AV_V_RESULT_OK)) {
-	struct pwdat **pp = NULL;
 
 	tac_user *u = lookup_user(session->username, r);
 
@@ -292,17 +291,15 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    return;
 		}
 
-		parse_user_final(u);
 		session->user = u;
-		pp = (eval_passwd_acl(session))->passwd;
 
-		if (strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_INFO) && pp[session->mavis_data->pw_ix])
+		if (strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_INFO) && u->passwd[session->mavis_data->pw_ix])
 		    switch (session->mavis_data->pw_ix) {
 		    case PW_PAP:
-			if (pp[session->mavis_data->pw_ix]->type == S_login)
-			    pp[session->mavis_data->pw_ix]->type = pp[PW_LOGIN]->type;
+			if  (u->passwd[session->mavis_data->pw_ix]->type == S_login)
+			    u->passwd[session->mavis_data->pw_ix]->type = u->passwd[PW_LOGIN]->type;
 		    case PW_LOGIN:
-			if (pp[session->mavis_data->pw_ix]->type != S_mavis) {
+			if  (u->passwd[session->mavis_data->pw_ix]->type != S_mavis) {
 			    /* Authenticated via backend, but the profile tells otherwise */
 			    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 			    session->mavisauth_res_valid = 0;
@@ -332,8 +329,6 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	}
 
 	session->user = u;
-	if (!pp)
-	    pp = (eval_passwd_acl(session))->passwd;
 
 	if (u->dynamic)
 	    u->dynamic = io_now.tv_sec + r->caching_period;
@@ -369,15 +364,15 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		salt[11] = '$';
 		salt[12] = 0;
 		crypt = md5crypt(pass, salt);
-		pp[PW_MAVIS] = memlist_malloc(u->memlist, sizeof(struct pwdat) + strlen(crypt));
-		strcpy(pp[PW_MAVIS]->value, crypt);
-		pp[PW_MAVIS]->type = S_crypt;
+		u->passwd[PW_MAVIS] = memlist_malloc(u->memlist, sizeof(struct pwdat) + strlen(crypt));
+		strcpy(u->passwd[PW_MAVIS]->value, crypt);
+		u->passwd[PW_MAVIS]->type = S_crypt;
 #else
-		pp[PW_MAVIS] = memlist_malloc(u->memlist, sizeof(struct pwdat) + strlen(pass));
-		strcpy(pp[PW_MAVIS]->value, pass);
-		pp[PW_MAVIS]->type = S_clear;
+		u->passwd[PW_MAVIS] = memlist_malloc(u->memlist, sizeof(struct pwdat) + strlen(pass));
+		strcpy(u->passwd[PW_MAVIS]->value, pass);
+		u->passwd[PW_MAVIS]->type = S_clear;
 #endif
-		pp[session->mavis_data->pw_ix] = pp[PW_MAVIS];
+		u->passwd[session->mavis_data->pw_ix] = u->passwd[PW_MAVIS];
 	    }
 	}
     } else if (result && !strcmp(result, AV_V_RESULT_ERROR)) {

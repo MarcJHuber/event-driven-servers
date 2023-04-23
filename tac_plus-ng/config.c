@@ -1465,6 +1465,7 @@ tac_user *new_user(char *name, enum token type, tac_realm * r)
 {
     memlist_t *memlist = NULL;
     tac_user *user;
+    int i;
 
     report(NULL, LOG_DEBUG, DEBUG_CONFIG_FLAG, "creating user %s in realm %s", name, r->name);
 
@@ -1477,6 +1478,19 @@ tac_user *new_user(char *name, enum token type, tac_realm * r)
     user->realm = r;
     user->chalresp = TRISTATE_DUNNO;
     user->hushlogin = TRISTATE_DUNNO;
+
+    for (i = 0; i <= PW_MAVIS; i++)
+	user->passwd[i] = passwd_deny_dflt;
+    if (r->mavis_login == TRISTATE_YES)
+	user->passwd[PW_LOGIN] = passwd_mavis_dflt;
+    if (r->mavis_pap == TRISTATE_YES)
+	user->passwd[PW_PAP] = passwd_mavis_dflt;
+    if (r->default_host->map_pap_to_login == TRISTATE_YES) {
+	if (r->mavis_login == TRISTATE_YES)
+	    user->passwd[PW_PAP] = passwd_mavis_dflt;
+	else
+	    user->passwd[PW_PAP] = passwd_login_dflt;
+    }
 
     return user;
 }
@@ -1744,7 +1758,6 @@ static void parse_user(struct sym *sym, tac_realm * r)
 
     sym_get(sym);
     parse_user_attr(sym, user);
-    parse_user_final(user);
     RB_insert(r->usertable, user);
     //report(NULL, LOG_INFO, ~0, "user %s added to realm %s", user->name, r->name);
 }
@@ -1756,7 +1769,6 @@ int parse_user_profile(struct sym *sym, tac_user * user)
 	return -1;
     sym_init(sym);
     parse_user_attr(sym, user);
-    parse_user_final(user);
     return 0;
 }
 
@@ -1823,34 +1835,6 @@ static int c7decode(char *in)
     return 0;
 }
 
-static struct pwdat *parse_pw(struct sym *, memlist_t *, int);
-
-static struct upwdat *new_upwdat(memlist_t * memlist, tac_realm * r)
-{
-    struct upwdat *pp = memlist_malloc(memlist, sizeof(struct upwdat));
-    int i;
-    for (i = 0; i <= PW_MAVIS; i++)
-	pp->passwd[i] = passwd_deny_dflt;
-    if (r->mavis_login == TRISTATE_YES)
-	pp->passwd[PW_LOGIN] = passwd_mavis_dflt;
-    if (r->mavis_pap == TRISTATE_YES)
-	pp->passwd[PW_PAP] = passwd_mavis_dflt;
-    if (r->default_host->map_pap_to_login == TRISTATE_YES) {
-	if (r->mavis_login == TRISTATE_YES)
-	    pp->passwd[PW_PAP] = passwd_mavis_dflt;
-	else
-	    pp->passwd[PW_PAP] = passwd_login_dflt;
-    }
-    return pp;
-}
-
-static void parse_error_order(struct sym *sym, char *what)
-{
-    report(NULL, LOG_ERR, ~0,
-	   "%s:%u: Statement may have no effect. %s directives need to be ordered by "
-	   "acl name, with definitions without acl coming last.", sym->filename, sym->line, what);
-}
-
 static struct pwdat *parse_pw(struct sym *sym, memlist_t * memlist, int cry)
 {
     struct pwdat *pp = NULL;
@@ -1897,41 +1881,13 @@ static struct pwdat *parse_pw(struct sym *sym, memlist_t * memlist, int cry)
     return pp;
 }
 
-static struct pwdat **lookup_pwdat_by_acl(struct sym *sym, tac_user * user, struct tac_acl *a)
-{
-    struct tac_acllist **pa = &user->passwd_acllist;
-    while (*pa && ((*pa)->acl != a)) {
-	if (a && !(*pa)->acl)
-	    parse_error_order(sym, "password");
-	pa = &(*pa)->next;
-    }
-    if (!(*pa)) {
-	*pa = memlist_malloc(user->memlist, sizeof(struct tac_acllist));
-	(*pa)->u.passwdp = new_upwdat(user->memlist, user->realm);
-	(*pa)->acl = a;
-    }
-    if ((*pa)->next)
-	parse_error_order(sym, "password");
-
-    return (*pa)->u.passwdp->passwd;
-}
-
 static void parse_password(struct sym *sym, tac_user * user)
 {
-    struct tac_acl *a = NULL;
     struct pwdat **pp;
     enum pw_ix pw_ix = 0;
     int one = 0;
 
     sym_get(sym);
-
-    if (sym->code == S_acl) {
-	sym_get(sym);
-	a = tac_acl_lookup(sym->buf, user->realm);
-	if (!a)
-	    parse_error(sym, "ACL '%s' not found (user: %s)", sym->buf, user->name);
-	sym_get(sym);
-    }
 
     switch (sym->code) {
     case S_login:
@@ -1946,7 +1902,7 @@ static void parse_password(struct sym *sym, tac_user * user)
 	if (!one)
 	    sym_get(sym);
 
-	pp = lookup_pwdat_by_acl(sym, user, a);
+	pp = user->passwd;
 
 	while (sym->code != S_closebra) {
 	    int cry = 0;
@@ -2026,34 +1982,6 @@ static void parse_enable(struct sym *sym, memlist_t * memlist, struct pwdat **en
     }
 
     enable[level] = parse_pw(sym, memlist, 1);
-}
-
-static struct tac_acllist *eval_tac_acllist(tac_session *, struct tac_acllist **);
-
-struct upwdat *eval_passwd_acl(tac_session * session)
-{
-    if (session->user) {
-	struct tac_acllist *a = eval_tac_acllist(session, &session->user->passwd_acllist);
-	if (a)
-	    return a->u.passwdp;
-
-	session->user->passwd_acllist = memlist_malloc(session->user->memlist, sizeof(struct tac_acllist));
-	session->user->passwd_acllist->u.passwdp = new_upwdat(session->user->memlist, session->user->realm);
-	return session->user->passwd_acllist->u.passwdp;
-    }
-    // shouldn't happen
-    return new_upwdat(session->memlist, session->ctx->realm);
-}
-
-void parse_user_final(tac_user * user)
-{
-    struct tac_acllist **pa = &user->passwd_acllist;
-    while (*pa && (*pa)->acl)
-	pa = &(*pa)->next;
-    if (!*pa) {
-	*pa = memlist_malloc(user->memlist, sizeof(struct tac_acllist));
-	(*pa)->u.passwdp = new_upwdat(user->memlist, user->realm);
-    }
 }
 
 static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm * r)
@@ -3143,25 +3071,6 @@ static void parse_net(struct sym *sym, tac_realm * r, tac_net * parent)
     RB_insert(r->nettable, net);
     if (net->parent)
 	radix_walk(net->nettree, radix_copy_func, net->parent->nettree);
-}
-
-static struct tac_acllist *eval_tac_acllist(tac_session * session, struct tac_acllist **al)
-{
-    while (*al) {
-	if ((*al)->acl) {
-	    switch (eval_tac_acl(session, (*al)->acl)) {
-	    case S_permit:
-		return *al;
-	    case S_deny:
-		break;
-	    default:
-		;
-	    }
-	} else
-	    return *al;
-	al = &(*al)->next;
-    }
-    return NULL;
 }
 
 enum token eval_tac_acl(tac_session * session, struct tac_acl *acl)

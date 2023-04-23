@@ -325,7 +325,6 @@ static enum token lookup_and_set_user(tac_session * session)
 	session->debug |= session->user->debug;
 	if (session->profile)
 	    session->debug |= session->profile->debug;
-	session->passwdp = eval_passwd_acl(session);
 	res = S_permit;
     }
     report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "user lookup %s", (res == S_permit) ? "succeded" : "failed");
@@ -398,7 +397,7 @@ static void do_chap(tac_session * session)
     if (session->user) {
 	res = user_invalid(session->user, &hint);
 	if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
-	    if (session->passwdp->passwd[PW_CHAP]->type != S_clear) {
+	    if (session->user->passwd[PW_CHAP]->type != S_clear) {
 		hint = hint_no_cleartext;
 		res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 	    } else if (session->authen_data->data_len - MD5_LEN > 0) {
@@ -407,7 +406,7 @@ static void do_chap(tac_session * session)
 
 		myMD5Init(&mdcontext);
 		myMD5Update(&mdcontext, session->authen_data->data, (size_t) 1);
-		myMD5Update(&mdcontext, (u_char *) session->passwdp->passwd[PW_CHAP]->value, strlen(session->passwdp->passwd[PW_CHAP]->value));
+		myMD5Update(&mdcontext, (u_char *) session->user->passwd[PW_CHAP]->value, strlen(session->user->passwd[PW_CHAP]->value));
 		myMD5Update(&mdcontext, session->authen_data->data + 1, (size_t) (session->authen_data->data_len - 1 - MD5_LEN));
 		myMD5Final(digest, &mdcontext);
 
@@ -473,14 +472,14 @@ static int check_access(tac_session * session, struct pwdat *pwdat, char *passwd
 static void set_pwdat(tac_session * session, struct pwdat **pwdat, enum pw_ix *pw_ix)
 {
     if (session->user) {
-	*pwdat = session->passwdp->passwd[*pw_ix];
+	*pwdat = session->user->passwd[*pw_ix];
 	if ((*pwdat)->type == S_login) {
 	    *pw_ix = PW_LOGIN;
-	    *pwdat = session->passwdp->passwd[*pw_ix];
+	    *pwdat = session->user->passwd[*pw_ix];
 	}
 	if ((*pwdat)->type == S_mavis) {
 	    *pw_ix = PW_MAVIS;
-	    *pwdat = session->passwdp->passwd[*pw_ix];
+	    *pwdat = session->user->passwd[*pw_ix];
 	}
     } else
 	*pwdat = NULL;
@@ -1137,7 +1136,7 @@ static void do_mschap(tac_session * session)
 	return;
 
     if (session->user) {
-	if (session->passwdp->passwd[PW_MSCHAP]->type != S_clear)
+	if (session->user->passwd[PW_MSCHAP]->type != S_clear)
 	    hint = hint_no_cleartext;
 	else if (session->authen_data->data_len == 1 /* PPP id */  + 8 /* challenge length */  + MSCHAP_DIGEST_LEN) {
 	    u_char response[24];
@@ -1146,11 +1145,11 @@ static void do_mschap(tac_session * session)
 	    session->authen_data->data = NULL;
 
 	    if (resp[48]) {
-		mschap_ntchalresp(chal, session->passwdp->passwd[PW_MSCHAP]->value, response);
+		mschap_ntchalresp(chal, session->user->passwd[PW_MSCHAP]->value, response);
 		if (!memcmp(response, resp + 24, 24))
 		    res = TAC_PLUS_AUTHEN_STATUS_PASS;
 	    } else {
-		mschap_lmchalresp(chal, session->passwdp->passwd[PW_MSCHAP]->value, response);
+		mschap_lmchalresp(chal, session->user->passwd[PW_MSCHAP]->value, response);
 		if (!memcmp(response, resp, 24))
 		    res = TAC_PLUS_AUTHEN_STATUS_PASS;
 	    }
@@ -1212,7 +1211,7 @@ static void do_mschapv2(tac_session * session)
 	return;
 
     if (session->user) {
-	if (session->passwdp->passwd[PW_MSCHAP]->type != S_clear)
+	if (session->user->passwd[PW_MSCHAP]->type != S_clear)
 	    hint = hint_no_cleartext;
 	else if (session->authen_data->data_len == 1 /* PPP id */  + 16 /* challenge length */  + MSCHAP_DIGEST_LEN) {
 	    u_char *chal = session->authen_data->data + 1;
@@ -1225,7 +1224,7 @@ static void do_mschapv2(tac_session * session)
 	    if (!reserved && !resp[48] /* reserved, must be zero */ ) {
 		u_char response[24];
 
-		mschapv2_ntresp(chal, resp, session->user->name, session->passwdp->passwd[PW_MSCHAP]->value, response);
+		mschapv2_ntresp(chal, resp, session->user->name, session->user->passwd[PW_MSCHAP]->value, response);
 		if (!memcmp(response, resp + 24, 24))
 		    res = TAC_PLUS_AUTHEN_STATUS_PASS;
 	    }
