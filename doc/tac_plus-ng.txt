@@ -1712,15 +1712,21 @@ rewrite rewriteRule {
 
 host ... {
     ...
-    # this is deprecated:
-    rewrite user = rewriteRule
-    # please use
-    script { user = rewriteRule }
-    # instead
+    script { rewrite user = rewriteRule }
     ...
 }
 
-   Please keep in mind that this is experimental ...
+   You can limit the usage of a rewritten-to user with the
+   rewritten-only directive, e.g.:
+    rewrite reswriteRule {
+        rewrite /^.*$/ nopassword
+    }
+    user nopassword {
+        password login = permit
+        password pap = login
+        member = ...
+        rewritten-only
+    }
      __________________________________________________________
 
 4.2.3.12. Users
