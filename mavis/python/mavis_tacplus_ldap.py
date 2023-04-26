@@ -51,6 +51,12 @@ LDAP_BASE
 LDAP_CONNECT_TIMEOUT
 	Timeout for initital connect to remote LDAP server. Default: 5
 
+LDAP_FILTER
+	LDAP search filter
+	Defaults depend on LDAP_SERVER_TYPE:
+	- generic:	"(uid=%s)"
+	- microsoft:	"(&(objectclass=user)(sAMAccountName=%s))"
+
 LDAP_USER
 	User DN to use for LDAP bind if server doesn't permit anonymous searches.
 	Default: unset
@@ -91,6 +97,7 @@ for server in LDAP_HOSTS.split():
 eval_env('LDAP_BASE', 'dc=example,dc=local')
 eval_env('LDAP_USER', None)
 eval_env('LDAP_PASSWD', None)
+eval_env('LDAP_FILTER', None)
 eval_env('LDAP_SCOPE', 'SUBTREE')
 eval_env('LDAP_CONNECT_TIMEOUT', 5)
 memberof_regex = re.compile(eval_env('MEMBEROF_REGEX', '(?i)^cn=([^,]+),.*'))
@@ -98,8 +105,7 @@ memberof_regex = re.compile(eval_env('MEMBEROF_REGEX', '(?i)^cn=([^,]+),.*'))
 # Default to OpenLDAP: #######################################################
 conn = ldap3.Connection(server_pool, user=LDAP_USER, password=LDAP_PASSWD,
 	receive_timeout=LDAP_CONNECT_TIMEOUT, auto_bind=True)
-LDAP_SERVER_TYPE="generic"
-LDAP_FILTER = '(&(objectclass=posixaccount)(uid={}))'
+LDAP_SERVER_TYPE=None
 
 # Check for MS AD LDAP (but only for non-anonymous binds): ####################
 if LDAP_USER is not None:
@@ -107,8 +113,13 @@ if LDAP_USER is not None:
 		if '1.2.840.113556.1.4.800' in map(
 			lambda x: x[0], conn.server.info.supported_features):
 			LDAP_SERVER_TYPE = "microsoft"
-			LDAP_FILTER = '(&(objectclass=user)(sAMAccountName={}))'
+			if LDAP_FILTER == None:
+				LDAP_FILTER = '(&(objectclass=user)(sAMAccountName={}))'
 			LDAP_USER = conn.user
+
+if LDAP_SERVER_TYPE == None:
+	LDAP_SERVER_TYPE="generic"
+	LDAP_FILTER = '(&(objectclass=posixaccount)(uid={}))'
 
 # A helper function for resolving nested groups: #############################
 def expand_memberof(g):
