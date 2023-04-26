@@ -1947,7 +1947,6 @@ int sym_normalize_cond_start(struct sym *sym, struct sym **mysym)
 	memcpy(*mysym, sym, sizeof(struct sym));
 	(*mysym)->tlen = (*mysym)->len = (int) (b - buf);
 	(*mysym)->tin = (*mysym)->in = buf;
-
 	sym_init(*mysym);
 	return -1;
     }
@@ -1997,6 +1996,7 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
 
 	    if (sym->buf[0] == '$') {
 		m->u.s.lhs = (void *) (long) av_attribute_to_i(sym->buf + 1);
+		m->u.s.lhs_txt = strdup(sym->buf);
 		if ((long) m->u.s.lhs < 0)
 		    parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
 	    } else
@@ -2015,6 +2015,7 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
 	m = mavis_cond_new(sym, S_equal);
 	if (sym->buf[0] == '$') {
 	    m->u.s.lhs = (void *) (long) av_attribute_to_i(sym->buf + 1);
+	    m->u.s.lhs_txt = strdup(sym->buf);
 	    if ((long) m->u.s.lhs < 0)
 		parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
 	} else
@@ -2050,11 +2051,12 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
 	if (m->type == S_equal) {
 	    if (sym->buf[0] == '$') {
 		m->u.s.lhs = (void *) (long) av_attribute_to_i(sym->buf + 1);
-		if ((long) m->u.s.rhs < 0)
+		if ((long) m->u.s.lhs < 0)
 		    parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
 		m->u.s.token = S_attr;
 	    } else
 		m->u.s.lhs = strdup(sym->buf);
+	    m->u.s.lhs_txt = strdup(sym->buf);
 	    sym_get(sym);
 	    return p ? p : m;
 	} else {
@@ -2064,9 +2066,10 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
 		int erroffset;
 		const char *errptr;
 		m->type = S_slash;
-		m->u.s.lhs = pcre_compile2(sym->buf, PCRE_MULTILINE | common_data.regex_pcre_flags, &errcode, &errptr, &erroffset, NULL);
-		if (!m->u.s.lhs)
+		m->u.s.rhs = pcre_compile2(sym->buf, PCRE_MULTILINE | common_data.regex_pcre_flags, &errcode, &errptr, &erroffset, NULL);
+		if (!m->u.s.rhs)
 		    parse_error(sym, "In PCRE expression /%s/ at offset %d: %s", sym->buf, erroffset, errptr);
+		m->u.s.rhs_txt = strdup(sym->buf);
 		sym->flag_parse_pcre = 0;
 		sym_get(sym);
 		return p ? p : m;
@@ -2074,13 +2077,14 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
 #ifdef WITH_PCRE2
 		PCRE2_SIZE erroffset;
 		m->type = S_slash;
-		m->u.s.lhs =
+		m->u.s.rhs =
 		    pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
-		if (!m->u.s.lhs) {
+		if (!m->u.s.rhs) {
 		    PCRE2_UCHAR buffer[256];
 		    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
 		    parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
 		}
+		m->u.s.rhs_txt = strdup(sym->buf);
 		sym->flag_parse_pcre = 0;
 		sym_get(sym);
 		return p ? p : m;
@@ -2089,13 +2093,14 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
 #endif
 #endif
 	    }
-	    m->u.s.lhs = calloc(1, sizeof(regex_t));
-	    errcode = regcomp((regex_t *) m->u.s.lhs, sym->buf, REG_EXTENDED | REG_NOSUB | REG_NEWLINE | common_data.regex_posix_flags);
+	    m->u.s.rhs = calloc(1, sizeof(regex_t));
+	    errcode = regcomp((regex_t *) m->u.s.rhs, sym->buf, REG_EXTENDED | REG_NOSUB | REG_NEWLINE | common_data.regex_posix_flags);
 	    if (errcode) {
 		char e[160];
-		regerror(errcode, (regex_t *) m->u.s.lhs, e, sizeof(e));
+		regerror(errcode, (regex_t *) m->u.s.rhs, e, sizeof(e));
 		parse_error(sym, "In regular expression '%s': %s", sym->buf, e);
 	    }
+	    m->u.s.rhs_txt = strdup(sym->buf);
 	    sym_get(sym);
 	    return p ? p : m;
 	}
@@ -2145,66 +2150,88 @@ static int pcre_res = 0;
 static PCRE2_SPTR8 pcre_arg = NULL;
 #endif
 
+static int mavis_cond_eval_res(mavis_ctx * mcx, struct mavis_cond *m, int res)
+{
+    char *r = res ? "true" : "false";
+    switch (m->type) {
+    case S_exclmark:
+    case S_and:
+    case S_or:
+	if (common_data.debug & DEBUG_ACL_FLAG)
+	    fprintf(stderr, "%s/line %u: [%s] => %s\n", mcx->identity_source_name, m->line, codestring[m->type], r);
+	break;
+    default:
+	if (common_data.debug & DEBUG_ACL_FLAG)
+	    fprintf(stderr, "%s/line %u: [%s] %s%s%s '%s' => %s\n", mcx->identity_source_name, m->line,
+		    codestring[m->u.s.token], m->u.s.lhs_txt ? m->u.s.lhs_txt : "",
+		    m->u.s.lhs_txt ? " " : "", codestring[m->type], m->u.s.rhs_txt ? m->u.s.rhs_txt : "", r);
+    }
+
+    return res;
+}
+
 static int mavis_cond_eval(mavis_ctx * mcx, av_ctx * ac, struct mavis_cond *m)
 {
-    int i;
+    int i, res = 0;
     char *v, *v2;
     if (!m)
 	return 0;
     switch (m->type) {
     case S_exclmark:
-	return !mavis_cond_eval(mcx, ac, m->u.m.e[0]);
+	res = !mavis_cond_eval(mcx, ac, m->u.m.e[0]);
+	return mavis_cond_eval_res(mcx, m, res);
     case S_and:
-	for (i = 0; i < m->u.m.n; i++)
-	    if (!mavis_cond_eval(mcx, ac, m->u.m.e[i]))
-		return 0;
-	return -1;
+	res = -1;
+	for (i = 0; res && i < m->u.m.n; i++)
+	    res = mavis_cond_eval(mcx, ac, m->u.m.e[i]);
+	return mavis_cond_eval_res(mcx, m, res);
     case S_or:
-	for (i = 0; i < m->u.m.n; i++)
-	    if (mavis_cond_eval(mcx, ac, m->u.m.e[i]))
-		return -1;
-	return 0;
+	for (i = 0; !res && i < m->u.m.n; i++)
+	    res = mavis_cond_eval(mcx, ac, m->u.m.e[i]);
+	return mavis_cond_eval_res(mcx, m, res);
     case S_defined:
-	return av_get(ac, (int) (long) m->u.s.lhs) ? 1 : 0;
+	res = av_get(ac, (int) (long) m->u.s.lhs) ? 1 : 0;
+	return mavis_cond_eval_res(mcx, m, res);
     case S_undef:
-	return av_get(ac, (int) (long) m->u.s.lhs) ? 0 : 1;
+	res = av_get(ac, (int) (long) m->u.s.lhs) ? 0 : 1;
+	return mavis_cond_eval_res(mcx, m, res);
     case S_equal:
 	if (!(v = av_get(ac, (int) (long) m->u.s.lhs)))
-	    return 0;
-	v2 = m->u.s.lhs;
+	    return mavis_cond_eval_res(mcx, m, 0);
+	v2 = m->u.s.rhs;
 	if (v2 && ((int) (long) m->u.s.lhs == AV_A_IDENTITY_SOURCE) && !strcmp(v2, "self") && !strcmp(v, mcx->identity_source_name))
-	    return -1;
+	    return mavis_cond_eval_res(mcx, m, -1);
 	if (!v2 && (m->u.s.token == S_attr))
 	    v2 = av_get(ac, (int) (long) m->u.s.rhs);
 	if (!v2)
-	    return 0;
+	    return mavis_cond_eval_res(mcx, m, 0);
 	return !strcmp(v, v2);
     case S_regex:
 	if (!(v = av_get(ac, (int) (long) m->u.s.lhs)))
-	    return 0;
-	return !regexec((regex_t *) m->u.s.lhs, v, 0, NULL, 0);
+	    return mavis_cond_eval_res(mcx, m, 0);
+	return !regexec((regex_t *) m->u.s.rhs, v, 0, NULL, 0);
     case S_slash:
 #if defined(WITH_PCRE) || defined(WITH_PCRE2)
 	if (!(v = av_get(ac, (int) (long) m->u.s.lhs)))
-	    return 0;
+	    return mavis_cond_eval_res(mcx, m, 0);
 #ifdef WITH_PCRE
-	pcre_res = pcre_exec((pcre *) m->u.s.lhs, NULL, pcre_arg = v, (int) strlen(v), 0, 0, ovector, OVECCOUNT);
-	return -1 < pcre_res;
+	pcre_res = pcre_exec((pcre *) m->u.s.rhs, NULL, pcre_arg = v, (int) strlen(v), 0, 0, ovector, OVECCOUNT);
 #else
 #ifdef WITH_PCRE2
 	if (match_data) {
 	    pcre2_match_data_free(match_data);
 	    match_data = NULL;
 	}
-	match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.lhs, NULL);
+	match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.rhs, NULL);
 	pcre_arg = (PCRE2_SPTR8) v;
-	pcre_res = pcre2_match((pcre2_code *) m->u.s.lhs, pcre_arg, (PCRE2_SIZE) strlen(v), 0, 0, match_data, NULL);
+	pcre_res = pcre2_match((pcre2_code *) m->u.s.rhs, pcre_arg, (PCRE2_SIZE) strlen(v), 0, 0, match_data, NULL);
 	if (pcre_res < 0 && pcre_res != PCRE2_ERROR_NOMATCH)
 	    report_cfg_error(LOG_INFO, ~0, "PCRE2 matching error: %d", pcre_res);
 	ovector = pcre2_get_ovector_pointer(match_data);
 	ovector_count = pcre2_get_ovector_count(match_data);
 #endif
-	return -1 < pcre_res;
+	res = -1 < pcre_res;
+	return mavis_cond_eval_res(mcx, m, res);
 #endif
 #else
 	report_cfg_error(LOG_INFO, ~0, "You're using PCRE syntax, but this binary wasn't compiled with PCRE support.");
@@ -2224,21 +2251,25 @@ static void mavis_cond_drop(struct mavis_cond **m)
 	for (i = 0; i <= (*m)->u.m.n; i++)
 	    mavis_cond_drop(&(*m)->u.m.e[i]);
     case S_equal:
-	free((*m)->u.s.lhs);
+	free((*m)->u.s.rhs);
 	break;
     case S_regex:
-	regfree((*m)->u.s.lhs);
+	regfree((*m)->u.s.rhs);
 	break;
     case S_slash:
 #ifdef WITH_PCRE
-	pcre_free((*m)->u.s.lhs);
+	pcre_free((*m)->u.s.rhs);
 #endif
 #ifdef WITH_PCRE2
-	pcre2_code_free((*m)->u.s.lhs);
+	pcre2_code_free((*m)->u.s.rhs);
 #endif
 	break;
     default:;
     }
+    if ((*m)->u.s.lhs_txt)
+	free((*m)->u.s.lhs_txt);
+    if ((*m)->u.s.rhs_txt)
+	free((*m)->u.s.rhs_txt);
     free(*m);
     *m = NULL;
 }
@@ -2266,12 +2297,21 @@ void mavis_script_drop(struct mavis_action **m)
     }
 }
 
+static void mavis_script_eval_debug(mavis_ctx * mcx, struct mavis_action *m)
+{
+    if (common_data.debug & DEBUG_ACL_FLAG)
+	fprintf(stderr, "%s/line %u: [%s]\n", mcx->identity_source_name, m->line, codestring[m->code]);
+}
+
 static enum token mavis_script_eval_r(mavis_ctx * mcx, av_ctx * ac, struct mavis_action *m)
 {
     enum token r;
 
     if (!m)
 	return S_unknown;
+
+    mavis_script_eval_debug(mcx, m);
+
     switch (m->code) {
     case S_continue:
     case S_return:
@@ -2324,20 +2364,24 @@ static enum token mavis_script_eval_r(mavis_ctx * mcx, av_ctx * ac, struct mavis
 	    }
 	    *t = 0;
 	    av_set(ac, m->a.a, s);
+	    mavis_script_eval_debug(mcx, m);
 	}
 	break;
     case S_unset:
 	av_unset(ac, m->a.a);
+	mavis_script_eval_debug(mcx, m);
 	break;
     case S_reset:
 	if (mcx->ac_bak)
 	    av_set(ac, m->a.a, av_get(mcx->ac_bak, m->a.a));
+	mavis_script_eval_debug(mcx, m);
 	break;
     case S_toupper:{
 	    char *t = av_get(ac, m->a.a);
 	    if (t)
 		for (; *t; t++)
 		    *t = toupper((int) *t);
+	    mavis_script_eval_debug(mcx, m);
 	    break;
 	}
     case S_tolower:{
@@ -2345,6 +2389,7 @@ static enum token mavis_script_eval_r(mavis_ctx * mcx, av_ctx * ac, struct mavis
 	    if (t)
 		for (; *t; t++)
 		    *t = tolower((int) *t);
+	    mavis_script_eval_debug(mcx, m);
 	    break;
 	}
     case S_eval:
@@ -2356,6 +2401,8 @@ static enum token mavis_script_eval_r(mavis_ctx * mcx, av_ctx * ac, struct mavis
 	    if (r != S_unknown)
 		return r;
 	} else if (m->c.a) {
+	    if (common_data.debug & DEBUG_ACL_FLAG)
+		fprintf(stderr, "%s/line %u: [%s]\n", mcx->identity_source_name, m->line, codestring[S_else]);
 	    r = mavis_script_eval_r(mcx, ac, m->c.a);
 	    if (r != S_unknown)
 		return r;
@@ -2416,15 +2463,11 @@ static struct mavis_action *mavis_script_parse_r(mavis_ctx * mcx, struct sym *sy
 	}
 	break;
     case S_eval:
-	m = calloc(1, sizeof(struct mavis_action));
-	m->code = sym->code;
-	sym_get(sym);
+	m = mavis_action_new(sym);
 	m->a.c = mavis_cond_parse(sym);
 	break;
     case S_if:
-	m = calloc(1, sizeof(struct mavis_action));
-	m->code = sym->code;
-	sym_get(sym);
+	m = mavis_action_new(sym);
 	m->a.c = mavis_cond_parse(sym);
 #ifdef MAVIS_COND_DUMP
 	mavis_cond_dump(m->a.c);
