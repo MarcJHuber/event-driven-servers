@@ -60,6 +60,9 @@ int main(int argc, char **argv, char **envp)
 	common_data.conffile = argv[optind];
 	common_data.id = argv[optind + 1];
     }
+    if (!common_data.io)
+	common_data.io = io_init();
+    io = common_data.io;
     cfg_read_config(common_data.conffile, parse_decls, common_data.id ? common_data.id : common_data.progname);
 
     if (common_data.parse_only)
@@ -116,9 +119,7 @@ int main(int argc, char **argv, char **envp)
 
     if (common_data.singleprocess) {
 	common_data.scm_accept = accept_control_raw;
-	io = common_data.io;
     } else {
-	io = common_data.io = io_init();
 	setproctitle_init(argv, envp);
 	setup_signals();
 	ctx_spawnd = new_context(io);

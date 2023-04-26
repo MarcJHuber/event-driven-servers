@@ -221,6 +221,8 @@ int main(int argc, char **argv, char **envp)
 	common_data.conffile = argv[optind];
 	common_data.id = argv[optind + 1];
     }
+    if (!common_data.io)
+	common_data.io = io_init();
     cfg_read_config(common_data.conffile, parse_decls, common_data.id ? common_data.id : common_data.progname);
     complete_realm(config.default_realm);
 
@@ -244,7 +246,6 @@ int main(int argc, char **argv, char **envp)
     if (common_data.singleprocess) {
 	common_data.scm_accept = accept_control_singleprocess;
     } else {
-	common_data.io = io_init();
 	setproctitle_init(argv, envp);
 	setup_signals();
 	ctx_spawnd = new_context(common_data.io, NULL);
