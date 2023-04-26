@@ -466,6 +466,8 @@ static int check_access(tac_session * session, struct pwdat *pwdat, char *passwd
     } else if (session->mavisauth_res_valid && session->mavisauth_res == TAC_PLUS_AUTHEN_STATUS_FAIL)
 	*hint = hint_failed;
 
+    if (!*resp)
+	*resp = session->user_msg;
     return res;
 }
 
