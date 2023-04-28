@@ -334,7 +334,7 @@ static enum token lookup_and_set_user(tac_session * session)
 static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&& ((!session->user && (session->ctx->realm->mavis_pap == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
+	&& ((!session->user && (session->ctx->realm->mavis_login == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
 	    || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
