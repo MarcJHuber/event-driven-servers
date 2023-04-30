@@ -52,134 +52,134 @@
 
 #define BUFSIZE_MAVIS 65000
 
+struct av_char {
+	char *name;
+	enum token token;
+};
+
 #ifdef __MAVIS_MAIN__
-#define AV_CHAR_START char *av_char[] = {
-AV_CHAR_START
-#undef AV_CHAR_START
-#define AV_CHAR(A,B) A,B
+struct av_char av_char[] = {
+#define AV_CHAR(A,B,C) A,B,C
 #else
-#define AV_CHAR(A,B)
-extern char *av_char[];
+#define AV_CHAR(A,B,C)
+extern struct av_char av_char[];
 #endif
 
-
 #define AV_A_TYPE               0
-AV_CHAR("TYPE",)
+    AV_CHAR({"TYPE", S_type},)
 #define AV_A_MEMBEROF		1
-    AV_CHAR("MEMBEROF",)
+    AV_CHAR({"MEMBEROF", S_memberof},)
 #define AV_A_SSHKEYHASH		2
-    AV_CHAR("SSHKEYHASH",)
+    AV_CHAR({"SSHKEYHASH", S_ssh_key_hash},)
 #define AV_A_TIMESTAMP		3
-    AV_CHAR("TIMESTAMP",)
+    AV_CHAR({"TIMESTAMP", S_unknown},)
 #define AV_A_USER		4
-    AV_CHAR("USER",)
+    AV_CHAR({"USER", S_user},)
 #define AV_A_DN			5
-    AV_CHAR("DN",)
+    AV_CHAR({"DN", S_dn},)
 #define AV_A_RESULT             6
-    AV_CHAR("RESULT",)
+    AV_CHAR({"RESULT", S_result},)
 #define AV_A_PATH               7
-    AV_CHAR("PATH",)
+    AV_CHAR({"PATH", S_path},)
 #define AV_A_PASSWORD           8
-    AV_CHAR("PASSWORD",)
+    AV_CHAR({"PASSWORD", S_password},)
 #define AV_A_UID                9
-    AV_CHAR("UID",)
+    AV_CHAR({"UID", S_uid},)
 #define AV_A_GID                10
-    AV_CHAR("GID",)
+    AV_CHAR({"GID", S_gid},)
 #define AV_A_LIMIT		11
-    AV_CHAR("LIMIT",)
+    AV_CHAR({"LIMIT", S_limit},)
 #define AV_A_SSHKEY		12
-    AV_CHAR("SSHKEY",)
+    AV_CHAR({"SSHKEY", S_ssh_key},)
 #define AV_A_TRAFFICSHAPING	13
-    AV_CHAR("TRAFFICSHAPING",)
+    AV_CHAR({"TRAFFICSHAPING", S_unknown},)
 #define AV_A_IPADDR             14
-    AV_CHAR("IPADDR",)
+    AV_CHAR({"IPADDR", S_address},)
 #define AV_A_QUOTA_LIMIT        15
-    AV_CHAR("QUOTA_LIMIT",)
+    AV_CHAR({"QUOTA_LIMIT", S_unknown},)
 #define AV_A_QUOTA_PATH         16
-    AV_CHAR("QUOTA_PATH",)
+    AV_CHAR({"QUOTA_PATH", S_unknown},)
 #define AV_A_COMMENT            17
-    AV_CHAR("COMMENT",)
+    AV_CHAR({"COMMENT", S_unknown},)
 #define AV_A_SSHKEYID		18
-    AV_CHAR("SSHKEYID",)
+    AV_CHAR({"SSHKEYID", S_ssh_key_id},)
 #define AV_A_HOME               19
-    AV_CHAR("HOME",)
+    AV_CHAR({"HOME", S_home},)
 #define AV_A_ROOT               20
-    AV_CHAR("ROOT",)
+    AV_CHAR({"ROOT", S_root},)
 #define AV_A_SERIAL             21
-    AV_CHAR("SERIAL",)
+    AV_CHAR({"SERIAL", S_unknown},)
 #define AV_A_FTP_ANONYMOUS	22
-    AV_CHAR("FTP_ANONYMOUS",)
+    AV_CHAR({"FTP_ANONYMOUS", S_unknown},)
 #define AV_A_EMAIL		23
-    AV_CHAR("EMAIL",)
+    AV_CHAR({"EMAIL", S_unknown},)
 #define AV_A_GIDS		24	/* supplemental groups */
-    AV_CHAR("GIDS",)
+    AV_CHAR({"GIDS", S_gids},)
 #define AV_A_SERVERIP		25
-    AV_CHAR("SERVERIP",)
+    AV_CHAR({"SERVERIP", S_unknown},)
 #define AV_A_TARIFF		26
-    AV_CHAR("TARIFF",)
+    AV_CHAR({"TARIFF", S_unknown},)
 #define AV_A_REALM		27
-    AV_CHAR("REALM",)
+    AV_CHAR({"REALM", S_realm},)
 #define AV_A_SPARE28		28
-    AV_CHAR("SPARE28",)
+    AV_CHAR({"SPARE28", S_unknown},)
 #define AV_A_ANON_INCOMING	29
-    AV_CHAR("ANON_INCOMING",)
+    AV_CHAR({"ANON_INCOMING", S_unknown},)
 #define AV_A_VHOST		30
-    AV_CHAR("VHOST",)
+    AV_CHAR({"VHOST", S_unknown},)
 #define AV_A_UMASK		31
-    AV_CHAR("UMASK",)
+    AV_CHAR({"UMASK", S_umask},)
 #define AV_A_USER_RESPONSE	32
-    AV_CHAR("USER_RESPONSE",)
+    AV_CHAR({"USER_RESPONSE", S_unknown},)
 #define AV_A_AUTH_METHOD	33
-    AV_CHAR("AUTH_METHOD",)
+    AV_CHAR({"AUTH_METHOD", S_unknown},)
 #define AV_A_CLASS		34
-    AV_CHAR("CLASS",)
+    AV_CHAR({"CLASS", S_unknown},)
 #define AV_A_SPARE35		35
-    AV_CHAR("SPARE35",)
+    AV_CHAR({"SPARE35", S_unknown},)
 #define AV_A_DBPASSWORD		36
-    AV_CHAR("DBPASSWORD",)
+    AV_CHAR({"DBPASSWORD", S_unknown},)
 #define AV_A_IDENTITY_SOURCE	37
-    AV_CHAR("IDENTITY_SOURCE",)
+    AV_CHAR({"IDENTITY_SOURCE", S_identity_source},)
 #define AV_A_SPARE38		38
-    AV_CHAR("SPARE38",)
+    AV_CHAR({"SPARE38", S_unknown},)
 #define AV_A_SPARE39		39
-    AV_CHAR("SPARE39",)
+    AV_CHAR({"SPARE39", S_unknown},)
 #define AV_A_SPARE40		40
-    AV_CHAR("SPARE40",)
+    AV_CHAR({"SPARE40", S_unknown},)
 #define AV_A_SPARE41		41
-    AV_CHAR("SPARE41",)
+    AV_CHAR({"SPARE41", S_unknown},)
 #define AV_A_SPARE42		42
-    AV_CHAR("SPARE42",)
+    AV_CHAR({"SPARE42", S_unknown},)
 #define AV_A_SPARE43			43
-    AV_CHAR("SPARE43",)
+    AV_CHAR({"SPARE43", S_unknown},)
 #define AV_A_CERTSUBJ			44
-    AV_CHAR("CERTSUBJ",)
+    AV_CHAR({"CERTSUBJ", S_unknown},)
 #define AV_A_DBCERTSUBJ			45
-    AV_CHAR("DBCERTSUBJ",)
+    AV_CHAR({"DBCERTSUBJ", S_unknown},)
 #define AV_A_TACCLIENT			46
-    AV_CHAR("TACCLIENT",)
+    AV_CHAR({"TACCLIENT", S_client},)
 #define AV_A_TACMEMBER			47
-    AV_CHAR("TACMEMBER",)
+    AV_CHAR({"TACMEMBER", S_member},)
 #define AV_A_TACPROFILE			48
-    AV_CHAR("TACPROFILE",)
+    AV_CHAR({"TACPROFILE", S_unknown},)
 #define AV_A_TACTYPE			49
-    AV_CHAR("TACTYPE",)
+    AV_CHAR({"TACTYPE", S_unknown},)
 #define AV_A_PASSWORD_NEW		50
-    AV_CHAR("PASSWDNEW",)
+    AV_CHAR({"PASSWDNEW", S_unknown},)
 #define AV_A_CHALLENGE			51
-    AV_CHAR("CHALLENGE",)
+    AV_CHAR({"CHALLENGE", S_unknown},)
 #define AV_A_PASSWORD_ONESHOT		52
-    AV_CHAR("PASSWORD_ONESHOT",)
+    AV_CHAR({"PASSWORD_ONESHOT", S_unknown},)
 #define AV_A_PASSWORD_MUSTCHANGE	53
-    AV_CHAR("PASSWORD_MUSTCHANGE",)
+    AV_CHAR({"PASSWORD_MUSTCHANGE", S_unknown},)
 #define AV_A_SHELL			54
-    AV_CHAR("SHELL",)
+    AV_CHAR({"SHELL", S_shell},)
 #define AV_A_CURRENT_MODULE		55
-    AV_CHAR("CURRENT_MODULE",)
+    AV_CHAR({"CURRENT_MODULE", S_unknown},)
 #define AV_A_ARRAYSIZE          	56
 #ifdef __MAVIS_MAIN__
-#define AV_CHAR_END };
-    AV_CHAR_END
-#undef AV_CHAR_END
+};
 #endif
 #define AV_V_TYPE_FTP           	"FTP"
 #define AV_V_TYPE_TACPLUS		"TACPLUS"

@@ -245,7 +245,7 @@ void av_set(av_ctx * ac, int av_attribute, char *av_value)
 	return;
     }
 
-    Debug((DEBUG_AV, " %s(%s) = %-20s\n", __func__, av_char[av_attribute], av_value ? av_value : "(NULL)"));
+    Debug((DEBUG_AV, " %s(%s) = %-20s\n", __func__, av_char[av_attribute].name, av_value ? av_value : "(NULL)"));
 
     Xfree(&ac->arr[av_attribute]);
 
@@ -286,7 +286,7 @@ char *av_get(av_ctx * ac, int av_attribute)
     }
 #ifdef DEBUG
     if (ac->arr[av_attribute])
-	Debug((DEBUG_AV, " %s(%s) = %-20s\n", __func__, av_char[av_attribute], ac->arr[av_attribute] ? ac->arr[av_attribute] : "(NULL)"));
+	Debug((DEBUG_AV, " %s(%s) = %-20s\n", __func__, av_char[av_attribute].name, ac->arr[av_attribute] ? ac->arr[av_attribute] : "(NULL)"));
 #endif
 
     return ac->arr[av_attribute];
@@ -299,7 +299,7 @@ void av_dump(av_ctx * ac)
     fprintf(stderr, "attribute-value-pairs:\n");
     for (i = 0; i < AV_A_ARRAYSIZE; i++)
 	if (ac->arr[i])
-	    fprintf(stderr, "%-20s%s\n", av_char[i], ac->arr[i]);
+	    fprintf(stderr, "%-20s%s\n", av_char[i].name, ac->arr[i]);
     fprintf(stderr, "\n");
 }
 
@@ -308,7 +308,7 @@ int av_attribute_to_i(char *s)
     int i;
 
     for (i = 0; i < AV_A_ARRAYSIZE; i++)
-	if (!strcasecmp(av_char[i], s))
+	if (!strcasecmp(av_char[i].name, s) || (av_char[i].token && !strcmp(codestring[av_char[i].token], s)))
 	    return i;
     return -1;
 }

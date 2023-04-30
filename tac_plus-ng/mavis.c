@@ -231,7 +231,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    case AV_A_PASSWORD_MUSTCHANGE:
 		    case AV_A_IDENTITY_SOURCE:
 			if (avc->arr[i])
-			    fprintf(stderr, "  %-20s%s\n", av_char[i], avc->arr[i]);
+			    fprintf(stderr, "  %-20s%s\n", av_char[i].name, avc->arr[i]);
 		    default:;
 		    }
 	    }

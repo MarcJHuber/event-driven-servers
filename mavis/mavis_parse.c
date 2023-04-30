@@ -2310,12 +2310,11 @@ static enum token mavis_script_eval_r(mavis_ctx * mcx, av_ctx * ac, struct mavis
     if (!m)
 	return S_unknown;
 
-    mavis_script_eval_debug(mcx, m);
-
     switch (m->code) {
     case S_continue:
     case S_return:
     case S_skip:
+	mavis_script_eval_debug(mcx, m);
 	return m->code;
     case S_set:
 	{
@@ -2364,12 +2363,15 @@ static enum token mavis_script_eval_r(mavis_ctx * mcx, av_ctx * ac, struct mavis
 	    }
 	    *t = 0;
 	    av_set(ac, m->a.a, s);
-	    mavis_script_eval_debug(mcx, m);
+	    if (common_data.debug & DEBUG_ACL_FLAG)
+		fprintf(stderr, "%s/line %u: [%s] %s = \"%s\"\n", mcx->identity_source_name, m->line, codestring[m->code], av_char[m->a.a].name, s);
 	}
 	break;
     case S_unset:
 	av_unset(ac, m->a.a);
 	mavis_script_eval_debug(mcx, m);
+	if (common_data.debug & DEBUG_ACL_FLAG)
+	    fprintf(stderr, "%s/line %u: [%s] %s\n", mcx->identity_source_name, m->line, codestring[m->code], av_char[m->a.a].name);
 	break;
     case S_reset:
 	if (mcx->ac_bak)
