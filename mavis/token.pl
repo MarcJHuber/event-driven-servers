@@ -456,4 +456,5 @@ verify-depth	S_verify_depth
 identity-source	S_identity_source
 interim	S_interim
 rewritten-only	S_rewritten_only
+password-new	S_password_new
 

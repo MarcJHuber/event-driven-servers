@@ -116,7 +116,7 @@ extern struct av_char av_char[];
 #define AV_A_GIDS		24	/* supplemental groups */
     AV_CHAR({"GIDS", S_gids},)
 #define AV_A_SERVERIP		25
-    AV_CHAR({"SERVERIP", S_unknown},)
+    AV_CHAR({"SERVERIP", S_server},)
 #define AV_A_TARIFF		26
     AV_CHAR({"TARIFF", S_unknown},)
 #define AV_A_REALM		27
@@ -166,7 +166,7 @@ extern struct av_char av_char[];
 #define AV_A_TACTYPE			49
     AV_CHAR({"TACTYPE", S_unknown},)
 #define AV_A_PASSWORD_NEW		50
-    AV_CHAR({"PASSWDNEW", S_unknown},)
+    AV_CHAR({"PASSWDNEW", S_password_new},)
 #define AV_A_CHALLENGE			51
     AV_CHAR({"CHALLENGE", S_unknown},)
 #define AV_A_PASSWORD_ONESHOT		52
