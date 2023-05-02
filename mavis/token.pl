@@ -113,7 +113,6 @@ cert		S_cert
 certfile	S_certfile
 chalresp	S_chalresp
 cert-file	S_cert_file
-chalresp	S_chalresp
 chap		S_chap
 check		S_check
 check-gid	S_checkgid
