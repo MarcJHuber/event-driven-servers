@@ -113,7 +113,7 @@ extern struct av_char av_char[];
     AV_CHAR({"FTP_ANONYMOUS", S_unknown},)
 #define AV_A_EMAIL		23
     AV_CHAR({"EMAIL", S_unknown},)
-#define AV_A_GIDS		24	/* supplemental groups */
+#define AV_A_GIDS		24
     AV_CHAR({"GIDS", S_gids},)
 #define AV_A_SERVERIP		25
     AV_CHAR({"SERVERIP", S_server},)
@@ -130,9 +130,9 @@ extern struct av_char av_char[];
 #define AV_A_UMASK		31
     AV_CHAR({"UMASK", S_umask},)
 #define AV_A_USER_RESPONSE	32
-    AV_CHAR({"USER_RESPONSE", S_unknown},)
-#define AV_A_AUTH_METHOD	33
-    AV_CHAR({"AUTH_METHOD", S_unknown},)
+    AV_CHAR({"USER_RESPONSE", S_umessage},)
+#define AV_A_SPARE33	33
+    AV_CHAR({"SPARE33", S_unknown},)
 #define AV_A_CLASS		34
     AV_CHAR({"CLASS", S_unknown},)
 #define AV_A_SPARE35		35
@@ -164,7 +164,7 @@ extern struct av_char av_char[];
 #define AV_A_TACPROFILE			48
     AV_CHAR({"TACPROFILE", S_unknown},)
 #define AV_A_TACTYPE			49
-    AV_CHAR({"TACTYPE", S_unknown},)
+    AV_CHAR({"TACTYPE", S_type},)
 #define AV_A_PASSWORD_NEW		50
     AV_CHAR({"PASSWDNEW", S_password_new},)
 #define AV_A_CHALLENGE			51
