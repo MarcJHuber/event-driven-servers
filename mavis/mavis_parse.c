@@ -1963,6 +1963,20 @@ void sym_normalize_cond_end(struct sym **mysym)
     }
 }
 
+static struct mavis_cond *mavis_cond_parse_attr_lhs(struct sym *sym, enum token token)
+{
+    struct mavis_cond *m = mavis_cond_new(sym, token);
+    if (sym->buf[0] == '$') {
+	m->u.s.lhs = (void *) (long) av_attribute_to_i(sym->buf + 1);
+	if ((long) m->u.s.lhs < 0)
+	    parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
+	m->u.s.lhs_txt = strdup(sym->buf);
+    } else
+	parse_error(sym, "Expected an attribute starting with '$'");
+    sym_get(sym);
+    return m;
+}
+
 static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
 {
     struct mavis_cond *m, *p = NULL;
@@ -1992,17 +2006,7 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
 		bracket++;
 		sym_get(sym);
 	    }
-	    m = mavis_cond_new(sym, sc);
-
-	    if (sym->buf[0] == '$') {
-		m->u.s.lhs = (void *) (long) av_attribute_to_i(sym->buf + 1);
-		m->u.s.lhs_txt = strdup(sym->buf);
-		if ((long) m->u.s.lhs < 0)
-		    parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
-	    } else
-		parse_error(sym, "Expected an attribute starting with '$'");
-
-	    sym_get(sym);
+	    m = mavis_cond_parse_attr_lhs(sym, sc);
 	    while (bracket) {
 		parse(sym, S_rightbra);
 		bracket--;
@@ -2012,22 +2016,12 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
     case S_eof:
 	parse_error(sym, "EOF unexpected");
     default:
-	m = mavis_cond_new(sym, S_equal);
-	if (sym->buf[0] == '$') {
-	    m->u.s.lhs = (void *) (long) av_attribute_to_i(sym->buf + 1);
-	    m->u.s.lhs_txt = strdup(sym->buf);
-	    if ((long) m->u.s.lhs < 0)
-		parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
-	} else
-	    parse_error(sym, "Expected an attribute starting with '$'");
-	sym_get(sym);
+	m = mavis_cond_parse_attr_lhs(sym, S_equal);
 	switch (sym->code) {
 	case S_exclmark:
 	    p = mavis_cond_add(mavis_cond_new(sym, S_exclmark), m);
 	case S_equal:
 	    break;
-	case S_eof:
-	    parse_error(sym, "EOF unexpected");
 	default:
 	    parse_error_expect(sym, S_exclmark, S_equal, S_unknown);
 	}
@@ -2040,8 +2034,6 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
 	    m->type = S_regex;
 	    sym->flag_parse_pcre = 1;
 	    break;
-	case S_eof:
-	    parse_error(sym, "EOF unexpected");
 	default:
 	    parse_error_expect(sym, S_equal, S_tilde, S_unknown);
 	}
@@ -2050,13 +2042,13 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
 
 	if (m->type == S_equal) {
 	    if (sym->buf[0] == '$') {
-		m->u.s.lhs = (void *) (long) av_attribute_to_i(sym->buf + 1);
-		if ((long) m->u.s.lhs < 0)
+		m->u.s.rhs = (void *) (long) av_attribute_to_i(sym->buf + 1);
+		if ((long) m->u.s.rhs < 0)
 		    parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
 		m->u.s.token = S_attr;
 	    } else
-		m->u.s.lhs = strdup(sym->buf);
-	    m->u.s.lhs_txt = strdup(sym->buf);
+		m->u.s.rhs = strdup(sym->buf);
+	    m->u.s.rhs_txt = strdup(sym->buf);
 	    sym_get(sym);
 	    return p ? p : m;
 	} else {
@@ -2173,7 +2165,7 @@ static int mavis_cond_eval_res(mavis_ctx * mcx, struct mavis_cond *m, int res)
 static int mavis_cond_eval(mavis_ctx * mcx, av_ctx * ac, struct mavis_cond *m)
 {
     int i, res = 0;
-    char *v, *v2;
+    char *v, *rhs;
     if (!m)
 	return 0;
     switch (m->type) {
@@ -2198,14 +2190,14 @@ static int mavis_cond_eval(mavis_ctx * mcx, av_ctx * ac, struct mavis_cond *m)
     case S_equal:
 	if (!(v = av_get(ac, (int) (long) m->u.s.lhs)))
 	    return mavis_cond_eval_res(mcx, m, 0);
-	v2 = m->u.s.rhs;
-	if (v2 && ((int) (long) m->u.s.lhs == AV_A_IDENTITY_SOURCE) && !strcmp(v2, "self") && !strcmp(v, mcx->identity_source_name))
+	rhs = m->u.s.rhs;
+	if (rhs && ((int) (long) m->u.s.lhs == AV_A_IDENTITY_SOURCE) && !strcmp(rhs, "self") && !strcmp(v, mcx->identity_source_name))
 	    return mavis_cond_eval_res(mcx, m, -1);
-	if (!v2 && (m->u.s.token == S_attr))
-	    v2 = av_get(ac, (int) (long) m->u.s.rhs);
-	if (!v2)
-	    return mavis_cond_eval_res(mcx, m, 0);
-	return !strcmp(v, v2);
+	if (!rhs && (m->u.s.token == S_attr))
+	    rhs = av_get(ac, (int) (long) m->u.s.rhs);
+	if (rhs)
+	    return !strcmp(v, rhs);
+	return mavis_cond_eval_res(mcx, m, 0);
     case S_regex:
 	if (!(v = av_get(ac, (int) (long) m->u.s.lhs)))
 	    return mavis_cond_eval_res(mcx, m, 0);
