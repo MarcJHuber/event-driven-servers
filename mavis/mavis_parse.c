@@ -1966,13 +1966,10 @@ void sym_normalize_cond_end(struct sym **mysym)
 static struct mavis_cond *mavis_cond_parse_attr_lhs(struct sym *sym, enum token token)
 {
     struct mavis_cond *m = mavis_cond_new(sym, token);
-    if (sym->buf[0] == '$') {
-	m->u.s.lhs = (void *) (long) av_attribute_to_i(sym->buf + 1);
-	if ((long) m->u.s.lhs < 0)
-	    parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
-	m->u.s.lhs_txt = strdup(sym->buf);
-    } else
-	parse_error(sym, "Expected an attribute starting with '$'");
+    m->u.s.lhs = (void *) (long) av_attr_token_to_i(sym);
+    if ((long) m->u.s.lhs < 0)
+	parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
+    m->u.s.lhs_txt = strdup(sym->buf);
     sym_get(sym);
     return m;
 }
@@ -2041,13 +2038,14 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
 	m->u.s.token = S_unknown;
 
 	if (m->type == S_equal) {
-	    if (sym->buf[0] == '$') {
-		m->u.s.rhs = (void *) (long) av_attribute_to_i(sym->buf + 1);
+	    if (sym->code == S_string)
+		m->u.s.rhs = strdup(sym->buf);
+	    else {
+		m->u.s.rhs = (void *) (long) av_attr_token_to_i(sym);
 		if ((long) m->u.s.rhs < 0)
 		    parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
 		m->u.s.token = S_attr;
-	    } else
-		m->u.s.rhs = strdup(sym->buf);
+	    }
 	    m->u.s.rhs_txt = strdup(sym->buf);
 	    sym_get(sym);
 	    return p ? p : m;
@@ -2444,9 +2442,7 @@ static struct mavis_action *mavis_script_parse_r(mavis_ctx * mcx, struct sym *sy
     case S_toupper:
     case S_tolower:
 	m = mavis_action_new(sym);
-	if (sym->buf[0] != '$')
-	    parse_error(sym, "Expected an attribute starting with '$'");
-	m->a.a = av_attribute_to_i(sym->buf + 1);
+	m->a.a = av_attr_token_to_i(sym);
 	if (m->a.a < 0)
 	    parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
 	sym_get(sym);

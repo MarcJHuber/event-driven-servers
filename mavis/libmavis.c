@@ -313,6 +313,20 @@ int av_attribute_to_i(char *s)
     return -1;
 }
 
+int av_attr_token_to_i(struct sym *sym)
+{
+    char *b = sym->buf;
+    if (sym->code) {
+	int i;
+	for (i = 0; i < AV_A_ARRAYSIZE; i++)
+	    if (av_char[i].token && (av_char[i].token == sym->code))
+		return i;
+    }
+    if (*b == '$')
+	b++;
+    return av_attribute_to_i(b);
+}
+
 int av_array_to_char(av_ctx * ac, char *buffer, size_t buflen, fd_set * set)
 {
     int i, j, k;

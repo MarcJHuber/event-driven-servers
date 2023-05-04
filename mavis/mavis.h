@@ -280,6 +280,7 @@ void av_copy(av_ctx *, av_ctx *);
 int av_array_to_char(av_ctx *, char *, size_t, fd_set *);
 int av_char_to_array(av_ctx *, char *, fd_set *);
 int av_attribute_to_i(char *);
+int av_attr_token_to_i(struct sym *);
 
 char *av_addserial(av_ctx *);
 
