@@ -13,7 +13,6 @@ BEGIN {
 	@EXPORT = qw(
 		AV_A_ANON_INCOMING
 		AV_A_ARRAYSIZE
-		AV_A_AUTH_METHOD
 		AV_A_CERTSUBJ
 		AV_A_CHALLENGE
 		AV_A_CLASS
@@ -45,6 +44,7 @@ BEGIN {
 		AV_A_SERVERIP
 		AV_A_SHELL
 		AV_A_SPARE28
+		AV_A_SPARE33
 		AV_A_SPARE35
 		AV_A_SPARE38
 		AV_A_SPARE39
@@ -100,7 +100,6 @@ BEGIN {
 
 use constant AV_A_ANON_INCOMING => 29;
 use constant AV_A_ARRAYSIZE => 56;
-use constant AV_A_AUTH_METHOD => 33;
 use constant AV_A_CERTSUBJ => 44;
 use constant AV_A_CHALLENGE => 51;
 use constant AV_A_CLASS => 34;
@@ -132,6 +131,7 @@ use constant AV_A_SERIAL => 21;
 use constant AV_A_SERVERIP => 25;
 use constant AV_A_SHELL => 54;
 use constant AV_A_SPARE28 => 28;
+use constant AV_A_SPARE33 => 33;
 use constant AV_A_SPARE35 => 35;
 use constant AV_A_SPARE38 => 38;
 use constant AV_A_SPARE39 => 39;
