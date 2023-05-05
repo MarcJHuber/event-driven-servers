@@ -43,15 +43,6 @@ BEGIN {
 		AV_A_SERIAL
 		AV_A_SERVERIP
 		AV_A_SHELL
-		AV_A_SPARE28
-		AV_A_SPARE33
-		AV_A_SPARE35
-		AV_A_SPARE38
-		AV_A_SPARE39
-		AV_A_SPARE40
-		AV_A_SPARE41
-		AV_A_SPARE42
-		AV_A_SPARE43
 		AV_A_SSHKEY
 		AV_A_SSHKEYHASH
 		AV_A_SSHKEYID
@@ -59,7 +50,6 @@ BEGIN {
 		AV_A_TACMEMBER
 		AV_A_TACPROFILE
 		AV_A_TACTYPE
-		AV_A_TARIFF
 		AV_A_TIMESTAMP
 		AV_A_TRAFFICSHAPING
 		AV_A_TYPE
@@ -130,15 +120,6 @@ use constant AV_A_ROOT => 20;
 use constant AV_A_SERIAL => 21;
 use constant AV_A_SERVERIP => 25;
 use constant AV_A_SHELL => 54;
-use constant AV_A_SPARE28 => 28;
-use constant AV_A_SPARE33 => 33;
-use constant AV_A_SPARE35 => 35;
-use constant AV_A_SPARE38 => 38;
-use constant AV_A_SPARE39 => 39;
-use constant AV_A_SPARE40 => 40;
-use constant AV_A_SPARE41 => 41;
-use constant AV_A_SPARE42 => 42;
-use constant AV_A_SPARE43 => 43;
 use constant AV_A_SSHKEY => 12;
 use constant AV_A_SSHKEYHASH => 2;
 use constant AV_A_SSHKEYID => 18;
@@ -146,7 +127,6 @@ use constant AV_A_TACCLIENT => 46;
 use constant AV_A_TACMEMBER => 47;
 use constant AV_A_TACPROFILE => 48;
 use constant AV_A_TACTYPE => 49;
-use constant AV_A_TARIFF => 26;
 use constant AV_A_TIMESTAMP => 3;
 use constant AV_A_TRAFFICSHAPING => 13;
 use constant AV_A_TYPE => 0;

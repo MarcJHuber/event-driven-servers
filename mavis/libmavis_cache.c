@@ -222,7 +222,6 @@ static int mavis_init_in(mavis_ctx * mcx)
     A(AV_A_GIDS);
     A(AV_A_EMAIL);
     A(AV_A_UMASK);
-    A(AV_A_TARIFF);
     A(AV_A_TRAFFICSHAPING);
     A(AV_A_CLASS);
     A(AV_A_DBPASSWORD);

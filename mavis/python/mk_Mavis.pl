@@ -6,6 +6,7 @@
 
 open H, "../mavis.h" or die;
 while (<H>) {
+	next if /^#define\s+AV_A_SPARE/;
 	if (/^#define\s+((MAVIS_|AV_A|AV_V)[^\s]+)\s+([^\s]+)/) {
 		$V{$1} = $3;
 	}

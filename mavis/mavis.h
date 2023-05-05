@@ -117,8 +117,8 @@ extern struct av_char av_char[];
     AV_CHAR({"GIDS", S_gids},)
 #define AV_A_SERVERIP		25
     AV_CHAR({"SERVERIP", S_server},)
-#define AV_A_TARIFF		26
-    AV_CHAR({"TARIFF", S_unknown},)
+#define AV_A_SPARE26		26
+    AV_CHAR({"SPARE26", S_unknown},)
 #define AV_A_REALM		27
     AV_CHAR({"REALM", S_realm},)
 #define AV_A_SPARE28		28
