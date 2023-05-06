@@ -184,6 +184,11 @@ static void get_hash(av_ctx * ac, char *buf)
     DebugOut(DEBUG_MAVIS);
 }
 
+static int keep[] = { AV_A_TACPROFILE, AV_A_TACCLIENT, AV_A_TACMEMBER, AV_A_UID, AV_A_GID, AV_A_GIDS,
+    AV_A_HOME, AV_A_ROOT, AV_A_SHELL, AV_A_PATH, AV_A_DN, AV_A_MEMBEROF, AV_A_IDENTITY_SOURCE,
+    AV_A_SSHKEYHASH, AV_A_SSHKEY, AV_A_SSHKEYID, -1
+};
+
 #define HAVE_mavis_send_in
 static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 {
@@ -211,8 +216,9 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
     UNUSED_RESULT(setegid(mcx->egid));
     if (fn > -1) {
 	char *c;
-	av_ctx *a = av_new(NULL, NULL);
 	struct stat st;
+	int i;
+	av_ctx *a = av_new(NULL, NULL);
 	fstat(fn, &st);
 	c = alloca(st.st_size + 1);
 	c[st.st_size] = 0;
@@ -220,19 +226,8 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	}
 	close(fn);
 	av_char_to_array(a, c, NULL);
-	av_set(*ac, AV_A_TACPROFILE, av_get(a, AV_A_TACPROFILE));
-	av_set(*ac, AV_A_TACCLIENT, av_get(a, AV_A_TACCLIENT));
-	av_set(*ac, AV_A_TACMEMBER, av_get(a, AV_A_TACMEMBER));
-	av_set(*ac, AV_A_UID, av_get(a, AV_A_UID));
-	av_set(*ac, AV_A_GID, av_get(a, AV_A_GID));
-	av_set(*ac, AV_A_GIDS, av_get(a, AV_A_GIDS));
-	av_set(*ac, AV_A_HOME, av_get(a, AV_A_HOME));
-	av_set(*ac, AV_A_ROOT, av_get(a, AV_A_ROOT));
-	av_set(*ac, AV_A_SHELL, av_get(a, AV_A_SHELL));
-	av_set(*ac, AV_A_PATH, av_get(a, AV_A_PATH));
-	av_set(*ac, AV_A_DN, av_get(a, AV_A_DN));
-	av_set(*ac, AV_A_MEMBEROF, av_get(a, AV_A_MEMBEROF));
-	av_set(*ac, AV_A_IDENTITY_SOURCE, av_get(a, AV_A_IDENTITY_SOURCE));
+	for (i = 0; keep[i] > -1; i++)
+	    av_set(*ac, keep[i], av_get(a, keep[i]));
 	av_free(a);
 	av_set(*ac, AV_A_RESULT, AV_V_RESULT_OK);
 	mcx->cached = 1;
@@ -302,19 +297,9 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 
     fn = open(mcx->hashfile_tmp, O_CREAT | O_WRONLY, 0600);
     if (fn > -1) {
-	res |= write_av(*ac, fn, AV_A_TACPROFILE);
-	res |= write_av(*ac, fn, AV_A_TACCLIENT);
-	res |= write_av(*ac, fn, AV_A_TACMEMBER);
-	res |= write_av(*ac, fn, AV_A_UID);
-	res |= write_av(*ac, fn, AV_A_GID);
-	res |= write_av(*ac, fn, AV_A_GIDS);
-	res |= write_av(*ac, fn, AV_A_HOME);
-	res |= write_av(*ac, fn, AV_A_ROOT);
-	res |= write_av(*ac, fn, AV_A_SHELL);
-	res |= write_av(*ac, fn, AV_A_PATH);
-	res |= write_av(*ac, fn, AV_A_DN);
-	res |= write_av(*ac, fn, AV_A_MEMBEROF);
-	res |= write_av(*ac, fn, AV_A_IDENTITY_SOURCE);
+	int i;
+	for (i = 0; keep[i] > -1; i++)
+	    res |= write_av(*ac, fn, keep[i]);
 	res |= (-1 == close(fn));
 	if (res)
 	    unlink(mcx->hashfile_tmp);
