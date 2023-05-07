@@ -157,7 +157,7 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), char *type, e
     if (session->password_new && !strcmp(type, AV_V_TACTYPE_CHPW))
 	av_set(avc, AV_A_PASSWORD_NEW, session->password_new);
 
-    if (!strcmp(type, AV_V_TACTYPE_INFO) && session->author_data) {
+    if (!session->ctx->realm->caching_period && !strcmp(type, AV_V_TACTYPE_INFO) && session->author_data) {
 	char *args, *p;
 	struct author_data *data = session->author_data;
 	int i, len = 0, cnt = data->in_cnt - 1;
@@ -223,7 +223,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		tacprofile = NULL;
 	    if (tacmember && !*tacmember)
 		tacmember = NULL;
-	    if (verdict && !strcmp(verdict, AV_V_BOOL_TRUE))
+	    if (verdict && !session->ctx->realm->caching_period && !strcmp(verdict, AV_V_BOOL_TRUE))
 		session->authorized = 1;
 
 	    if (common_data.debug & (DEBUG_MAVIS_FLAG | DEBUG_TACTRACE_FLAG)) {
