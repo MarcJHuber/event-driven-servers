@@ -12,6 +12,7 @@ BEGIN {
 	@ISA = qw(Exporter);
 	@EXPORT = qw(
 		AV_A_ANON_INCOMING
+		AV_A_ARGS
 		AV_A_ARRAYSIZE
 		AV_A_CERTSUBJ
 		AV_A_CHALLENGE
@@ -37,6 +38,7 @@ BEGIN {
 		AV_A_PATH
 		AV_A_QUOTA_LIMIT
 		AV_A_QUOTA_PATH
+		AV_A_RARGS
 		AV_A_REALM
 		AV_A_RESULT
 		AV_A_ROOT
@@ -57,6 +59,7 @@ BEGIN {
 		AV_A_UMASK
 		AV_A_USER
 		AV_A_USER_RESPONSE
+		AV_A_VERDICT
 		AV_A_VHOST
 		AV_V_BOOL_FALSE
 		AV_V_BOOL_TRUE
@@ -89,6 +92,7 @@ BEGIN {
 };
 
 use constant AV_A_ANON_INCOMING => 29;
+use constant AV_A_ARGS => 26;
 use constant AV_A_ARRAYSIZE => 56;
 use constant AV_A_CERTSUBJ => 44;
 use constant AV_A_CHALLENGE => 51;
@@ -114,6 +118,7 @@ use constant AV_A_PASSWORD_ONESHOT => 52;
 use constant AV_A_PATH => 7;
 use constant AV_A_QUOTA_LIMIT => 15;
 use constant AV_A_QUOTA_PATH => 16;
+use constant AV_A_RARGS => 28;
 use constant AV_A_REALM => 27;
 use constant AV_A_RESULT => 6;
 use constant AV_A_ROOT => 20;
@@ -134,6 +139,7 @@ use constant AV_A_UID => 9;
 use constant AV_A_UMASK => 31;
 use constant AV_A_USER => 4;
 use constant AV_A_USER_RESPONSE => 32;
+use constant AV_A_VERDICT => 33;
 use constant AV_A_VHOST => 30;
 use constant AV_V_BOOL_FALSE => "FALSE";
 use constant AV_V_BOOL_TRUE => "TRUE";

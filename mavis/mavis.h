@@ -117,12 +117,12 @@ extern struct av_char av_char[];
     AV_CHAR({"GIDS", S_gids},)
 #define AV_A_SERVERIP		25
     AV_CHAR({"SERVERIP", S_server},)
-#define AV_A_SPARE26		26
-    AV_CHAR({"SPARE26", S_unknown},)
+#define AV_A_ARGS		26
+    AV_CHAR({"ARGS", S_args},)
 #define AV_A_REALM		27
     AV_CHAR({"REALM", S_realm},)
-#define AV_A_SPARE28		28
-    AV_CHAR({"SPARE28", S_unknown},)
+#define AV_A_RARGS		28
+    AV_CHAR({"RARGS", S_rargs},)
 #define AV_A_ANON_INCOMING	29
     AV_CHAR({"ANON_INCOMING", S_unknown},)
 #define AV_A_VHOST		30
@@ -131,8 +131,8 @@ extern struct av_char av_char[];
     AV_CHAR({"UMASK", S_umask},)
 #define AV_A_USER_RESPONSE	32
     AV_CHAR({"USER_RESPONSE", S_umessage},)
-#define AV_A_SPARE33	33
-    AV_CHAR({"SPARE33", S_unknown},)
+#define AV_A_VERDICT	33
+    AV_CHAR({"VERDICT", S_verdict},)
 #define AV_A_CLASS		34
     AV_CHAR({"CLASS", S_unknown},)
 #define AV_A_SPARE35		35
