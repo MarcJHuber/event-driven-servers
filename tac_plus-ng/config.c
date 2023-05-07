@@ -3122,7 +3122,7 @@ static void parse_tac_acl(struct sym *sym, tac_realm * realm)
     parse(sym, S_closebra);
 }
 
-static void attr_add(tac_session * session, char ***v, int *i, char *attr)
+void attr_add(tac_session * session, char ***v, int *i, char *attr)
 {
     if (!*v) {
 	*v = memlist_malloc(session->memlist, 0x100 * sizeof(char *));

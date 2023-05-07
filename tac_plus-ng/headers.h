@@ -586,7 +586,15 @@ struct tac_pak {
 
 typedef struct tac_pak tac_pak;
 
-struct author_data;
+struct author_data {
+    char *admin_msg;		/* admin message (optional) */
+    int status;			/* return status */
+    int in_cnt;			/* input arg count */
+    char **in_args;		/* input arguments */
+    int out_cnt;		/* output arg cnt */
+    char **out_args;		/* output arguments */
+};
+
 struct authen_data;
 struct mavis_data;
 
@@ -682,6 +690,7 @@ struct tac_session {
      BISTATE(user_is_session_specific);
      BISTATE(username_rewritten);
      BISTATE(chpass);
+     BISTATE(authorized);
     u_int mavisauth_res;
     u_int authfail_delay;
     u_int debug;
@@ -901,6 +910,8 @@ void drop_mcx(tac_realm *);
 void init_mcx(tac_realm *);
 void complete_host(tac_host *);
 void complete_realm(tac_realm *);
+
+void attr_add(tac_session *, char ***, int *, char *);
 
 enum token validate_ssh_hash(tac_session *, char *, char **);
 enum token validate_ssh_key_id(tac_session *);

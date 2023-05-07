@@ -80,8 +80,7 @@ void report(tac_session * session, int priority, int level, char *fmt, ...)
 
     if ((common_data.debug & level) || (session && (session->debug & level))) {
 	if (common_data.debug & DEBUG_TACTRACE_FLAG) {
-	    fprintf(stderr, "%s %s\n",
-		    (session && session->ctx && session->ctx->nas_address_ascii) ? session->ctx->nas_address_ascii : "-", msg);
+	    fprintf(stderr, "%s %s\n", (session && session->ctx && session->ctx->nas_address_ascii) ? session->ctx->nas_address_ascii : "-", msg);
 	    fflush(stderr);
 	} else if (common_data.debugtty || common_data.debug_redirected || (common_data.debug & DEBUG_TACTRACE_FLAG)) {
 	    fprintf(stderr, "%ld: %s.%.3lu %x/%.8x: %s %s\n", (long int) pid,
@@ -179,5 +178,6 @@ void report_string(tac_session * session, int priority, int level, char *pre, ch
     }
 
     report(session, priority, level, "%s (len: %d): %s%s%s", pre, len, common_data.font_blue, m, common_data.font_plain);
-    report_hex(session, priority, level, (u_char *) p, len);
+    if (level & DEBUG_HEX_FLAG)
+	report_hex(session, priority, level, (u_char *) p, len);
 }

@@ -60,15 +60,6 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-struct author_data {
-    char *admin_msg;		/* admin message (optional) */
-    int status;			/* return status */
-    int in_cnt;			/* input arg count */
-    char **in_args;		/* input arguments */
-    int out_cnt;		/* output arg cnt */
-    char **out_args;		/* output arguments */
-};
-
 static void do_author(tac_session *);
 
 void author(tac_session * session, tac_pak_hdr * hdr)
@@ -314,9 +305,13 @@ static void do_author(tac_session * session)
 	return;
     }
 
-    res = eval_ruleset(session, session->ctx->realm);
-    if (session->profile && res == S_permit)
-	res = tac_script_eval_r(session, session->profile->action);
+    if (session->authorized)
+	res = S_permit;
+    else {
+	res = eval_ruleset(session, session->ctx->realm);
+	if (session->profile && res == S_permit)
+	    res = tac_script_eval_r(session, session->profile->action);
+    }
 
     switch (res) {
     case S_deny:
@@ -337,6 +332,25 @@ static void do_author(tac_session * session)
 	    send_author_reply(session, data->status, session->message, data->admin_msg, 0, NULL);
 	    return;
 	}
+    }
+
+    if (session->authorized && session->user->avc && session->user->avc->arr[AV_A_RARGS]) {
+	char *rargs = session->user->avc->arr[AV_A_RARGS];
+	size_t rlen = strlen(rargs) + 1;
+	char *v, *a = alloca(rlen);
+	memcpy(a, rargs, rlen);
+	for (v = strtok(a, "\r"); v; v = strtok(NULL, "\r"))
+	    switch (v[strcspn(v, "*=+")]) {
+	    case '=':
+		attr_add(session, &session->attrs_m, &session->cnt_m, v);
+		break;
+	    case '*':
+		attr_add(session, &session->attrs_o, &session->cnt_o, v);
+		break;
+	    case '+':
+		attr_add(session, &session->attrs_a, &session->cnt_a, v);
+	    default:;
+	    }
     }
 
     /* Allocate space for in + out args */

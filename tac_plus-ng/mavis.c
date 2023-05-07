@@ -157,6 +157,25 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), char *type, e
     if (session->password_new && !strcmp(type, AV_V_TACTYPE_CHPW))
 	av_set(avc, AV_A_PASSWORD_NEW, session->password_new);
 
+    if (!strcmp(type, AV_V_TACTYPE_INFO) && session->author_data) {
+	char *args, *p;
+	struct author_data *data = session->author_data;
+	int i, len = 0, cnt = data->in_cnt - 1;
+	size_t *arglen = alloca(data->in_cnt * sizeof(size_t));
+	for (i = 0; i < data->in_cnt; i++) {
+	    arglen[i] = strlen(data->in_args[i]);
+	    len += arglen[i] + 1;
+	}
+	args = alloca(len);
+	p = args;
+	for (i = 0; i <= cnt; i++) {
+	    memcpy(p, data->in_args[i], arglen[i]);
+	    p += arglen[i];
+	    *p++ = (i == cnt) ? 0 : '\r';
+	}
+	av_set(avc, AV_A_ARGS, args);
+    }
+
     result = mavis_send(mcx, &avc);
 
     switch (result) {
@@ -193,6 +212,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    char *sshkey = av_get(avc, AV_A_SSHKEY);
 	    char *sshkeyhash = av_get(avc, AV_A_SSHKEYHASH);
 	    char *sshkeyid = av_get(avc, AV_A_SSHKEYID);
+	    char *verdict = av_get(avc, AV_A_VERDICT);
 	    if (sshkeyhash && !*sshkeyhash)
 		sshkeyhash = NULL;
 	    if (sshkey && !*sshkey)
@@ -203,37 +223,20 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		tacprofile = NULL;
 	    if (tacmember && !*tacmember)
 		tacmember = NULL;
+	    if (verdict && !strcmp(verdict, AV_V_BOOL_TRUE))
+		session->authorized = 1;
 
 	    if (common_data.debug & (DEBUG_MAVIS_FLAG | DEBUG_TACTRACE_FLAG)) {
 		int i;
+		int show[] = { AV_A_USER, AV_A_DN, AV_A_TACMEMBER, AV_A_MEMBEROF, AV_A_USER_RESPONSE, AV_A_SERVERIP,
+		    AV_A_IPADDR, AV_A_REALM, AV_A_TACPROFILE, AV_A_SSHKEY, AV_A_SSHKEYHASH, AV_A_SSHKEYID, AV_A_PATH,
+		    AV_A_UID, AV_A_GID, AV_A_HOME, AV_A_ROOT, AV_A_SHELL, AV_A_GIDS, AV_A_PASSWORD_MUSTCHANGE, AV_A_ARGS,
+		    AV_A_RARGS, AV_A_VERDICT, AV_A_IDENTITY_SOURCE, -1
+		};
 		report(session, LOG_INFO, ~0, "user found by MAVIS backend, av pairs:");
-		for (i = 0; i < AV_A_ARRAYSIZE; i++)
-		    switch (i) {
-		    case AV_A_USER:
-		    case AV_A_DN:
-		    case AV_A_MEMBEROF:
-		    case AV_A_USER_RESPONSE:
-		    case AV_A_SERVERIP:
-		    case AV_A_IPADDR:
-		    case AV_A_REALM:
-		    case AV_A_TACPROFILE:
-		    case AV_A_TACMEMBER:
-		    case AV_A_SSHKEY:
-		    case AV_A_SSHKEYHASH:
-		    case AV_A_SSHKEYID:
-		    case AV_A_PATH:
-		    case AV_A_UID:
-		    case AV_A_GID:
-		    case AV_A_HOME:
-		    case AV_A_ROOT:
-		    case AV_A_SHELL:
-		    case AV_A_GIDS:
-		    case AV_A_PASSWORD_MUSTCHANGE:
-		    case AV_A_IDENTITY_SOURCE:
-			if (avc->arr[i])
-			    fprintf(stderr, "  %-20s%s\n", av_char[i].name, avc->arr[i]);
-		    default:;
-		    }
+		for (i = 0; show[i] > -1; i++)
+		    if (avc->arr[show[i]])
+			report_string(session, LOG_INFO, DEBUG_TACTRACE_FLAG, av_char[show[i]].name, avc->arr[show[i]], strlen(avc->arr[show[i]]));
 	    }
 
 	    if (!u || tacmember || sshkey || sshkeyhash || sshkeyid) {
@@ -296,10 +299,10 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		if (strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_INFO) && u->passwd[session->mavis_data->pw_ix])
 		    switch (session->mavis_data->pw_ix) {
 		    case PW_PAP:
-			if  (u->passwd[session->mavis_data->pw_ix]->type == S_login)
+			if (u->passwd[session->mavis_data->pw_ix]->type == S_login)
 			    u->passwd[session->mavis_data->pw_ix]->type = u->passwd[PW_LOGIN]->type;
 		    case PW_LOGIN:
-			if  (u->passwd[session->mavis_data->pw_ix]->type != S_mavis) {
+			if (u->passwd[session->mavis_data->pw_ix]->type != S_mavis) {
 			    /* Authenticated via backend, but the profile tells otherwise */
 			    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 			    session->mavisauth_res_valid = 0;
@@ -322,7 +325,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		session->user = u;
 
 		if (strcmp(result, AV_V_RESULT_OK)) {
-		    report(session, LOG_INFO, ~0, "verdict for user %s is %s", session->username, result);
+		    report(session, LOG_INFO, ~0, "result for user %s is %s", session->username, result);
 		    return;
 		}
 	    }
@@ -384,5 +387,5 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	session->mavisauth_res_valid = 1;
     }
     if (result)
-	report(session, LOG_INFO, ~0, "verdict for user %s is %s", session->username, result);
+	report(session, LOG_INFO, ~0, "result for user %s is %s", session->username, result);
 }
