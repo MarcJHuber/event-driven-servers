@@ -421,6 +421,12 @@ void av_free_private(av_ctx * ac)
 	    case AV_A_MEMBEROF:
 	    case AV_A_DN:
 	    case AV_A_IDENTITY_SOURCE:
+	    case AV_A_SSHKEYHASH:
+	    case AV_A_SSHKEY:
+	    case AV_A_SSHKEYID:
+	    case AV_A_ARGS:
+	    case AV_A_RARGS:
+	    case AV_A_VERDICT:
 		break;
 	    default:
 		Xfree(&ac->arr[i]);
