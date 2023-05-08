@@ -249,13 +249,9 @@ void av_set(av_ctx * ac, int av_attribute, char *av_value)
 
     Xfree(&ac->arr[av_attribute]);
 
-    if (av_value) {
-	char *val = Xstrdup(av_value);
-	char *nl = strchr(val, (int) '\n');
-	if (nl)
-	    *nl = 0;
-	ac->arr[av_attribute] = val;
-    } else
+    if (av_value)
+	ac->arr[av_attribute] = Xstrdup(av_value);
+    else
 	ac->arr[av_attribute] = NULL;
 }
 
