@@ -14,6 +14,7 @@
 #include <stdarg.h>
 #include <dlfcn.h>
 #include <sysexits.h>
+#include <ctype.h>
 #include "misc/io_sched.h"
 #include "misc/memops.h"
 #include "misc/mymd5.h"
@@ -449,4 +450,57 @@ void mavis_detach(void)
     close(devnull);
     fcntl(0, F_SETFD, fcntl(0, F_GETFD, 0) | FD_CLOEXEC);
     fcntl(1, F_SETFD, fcntl(1, F_GETFD, 0) | FD_CLOEXEC);
+}
+
+char *escape_string(char *in, size_t inlen, char *out, size_t *outlen)
+{
+    char *v = out, *t;
+    size_t outlen_max = *outlen - 5, len = 0;
+    for (t = in; inlen && len < outlen_max; t++, inlen--) {
+	int c = *t;
+	if (iscntrl(c)) {
+	    *v++ = '\\';
+	    switch (c) {
+	    case '\a':
+		*v++ = 'a';
+		break;
+	    case '\b':
+		*v++ = 'b';
+		break;
+	    case '\v':
+		*v++ = 'v';
+		break;
+	    case '\f':
+		*v++ = 'f';
+		break;
+	    case '\n':
+		*v++ = 'n';
+		break;
+	    case '\r':
+		*v++ = 'r';
+		break;
+	    case '\t':
+		*v++ = 't';
+		break;
+	    default:
+		*v++ = '0' + ((c >> 6) & 7);
+		*v++ = '0' + ((c >> 3) & 7);
+		*v++ = '0' + (c & 7);
+		len++;
+		len++;
+	    }
+	    len++;
+	} else {
+	    if (*t == '\\') {
+		*v++ = *t;
+		len++;
+	    }
+	    *v++ = *t;
+	}
+	len++;
+    }
+
+    *v = 0;
+    *outlen = len;
+    return out;
 }

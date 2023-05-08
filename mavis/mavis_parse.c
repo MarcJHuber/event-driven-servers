@@ -2353,8 +2353,12 @@ static enum token mavis_script_eval_r(mavis_ctx * mcx, av_ctx * ac, struct mavis
 	    }
 	    *t = 0;
 	    av_set(ac, m->a.a, s);
-	    if (common_data.debug & DEBUG_ACL_FLAG)
-		fprintf(stderr, "%s/line %u: [%s] %s = \"%s\"\n", mcx->identity_source_name, m->line, codestring[m->code], av_char[m->a.a].name, s);
+	    if (common_data.debug & DEBUG_ACL_FLAG) {
+		size_t len = strlen(s);
+		size_t olen = len * 4 + 1;
+		char *out = alloca(olen);
+		fprintf(stderr, "%s/line %u: [%s] %s = \"%s\"\n", mcx->identity_source_name, m->line, codestring[m->code], av_char[m->a.a].name, escape_string(s, len, out, &olen));
+	    }
 	}
 	break;
     case S_unset:

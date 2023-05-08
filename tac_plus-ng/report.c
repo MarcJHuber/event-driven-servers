@@ -130,54 +130,12 @@ void report_hex(tac_session * session, int priority, int level, u_char * ptr, in
 
 void report_string(tac_session * session, int priority, int level, char *pre, char *p, int len)
 {
-    char *m = "";
-    char *v = alloca(len * 4 + 1);
+    size_t outlen = len * 4 + 1;
+    char *v = alloca(outlen);
+    char *m = escape_string(p, len, v, &outlen);
 
-    if (len) {
-	int i = len;
-	char *t;
-	m = v;
-	for (t = p; i; t++, i--) {
-	    int c = *t;
-	    if (iscntrl(c)) {
-		*v++ = '\\';
-		switch (c) {
-		case '\a':
-		    *v++ = 'a';
-		    break;
-		case '\b':
-		    *v++ = 'b';
-		    break;
-		case '\v':
-		    *v++ = 'v';
-		    break;
-		case '\f':
-		    *v++ = 'f';
-		    break;
-		case '\n':
-		    *v++ = 'n';
-		    break;
-		case '\r':
-		    *v++ = 'r';
-		    break;
-		case '\t':
-		    *v++ = 't';
-		    break;
-		default:
-		    *v++ = '0' + ((c >> 6) & 7);
-		    *v++ = '0' + ((c >> 3) & 7);
-		    *v++ = '0' + (c & 7);
-		}
-	    } else {
-		if (*t == '\\')
-		    *v++ = *t;
-		*v++ = *t;
-	    }
-	}
-	*v = 0;
-    }
-
-    report(session, priority, level, "%s (len: %d): %s%s%s", pre, len, common_data.font_blue, m, common_data.font_plain);
+    report(session, priority, level, "%s%s%s (len: %d): %s%s%s", common_data.font_red, pre, common_data.font_plain, len, common_data.font_blue, m,
+	   common_data.font_plain);
     if (level & DEBUG_HEX_FLAG)
 	report_hex(session, priority, level, (u_char *) p, len);
 }

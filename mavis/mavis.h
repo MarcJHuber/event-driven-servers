@@ -434,6 +434,8 @@ void parse_timespec(rb_tree_t *, struct sym *);
 struct mavis_timespec *find_timespec(rb_tree_t *, char *);
 rb_tree_t *init_timespec(void);
 
+char *escape_string(char *, size_t, char *, size_t *);
+
 int sym_normalize_cond_start(struct sym *, struct sym **);
 void sym_normalize_cond_end(struct sym **);
 
