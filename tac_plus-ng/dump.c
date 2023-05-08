@@ -243,7 +243,7 @@ void dump_nas_pak(tac_session * session, int bogus)
     unsigned char *argsizep;
     tac_pak_hdr *hdr = &session->ctx->in->hdr;
 
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "---<start packet>---");
+    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
     dump_header(session, hdr, bogus);
 
     if (bogus) {
@@ -337,7 +337,7 @@ void dump_nas_pak(tac_session * session, int bogus)
 	    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s: unrecognized header type %d", __func__, hdr->type);
 	}
     }
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "---<end packet>---");
+    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<end packet>---%s", common_data.font_green, common_data.font_plain);
 }
 
 /* Dump packets originated by tac_plus */
@@ -345,7 +345,7 @@ void dump_tacacs_pak(tac_session * session, tac_pak_hdr * hdr)
 {
     char *p;
 
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "---<start packet>---");
+    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
     dump_header(session, hdr, 0);
 
     switch (hdr->type) {
@@ -396,5 +396,5 @@ void dump_tacacs_pak(tac_session * session, tac_pak_hdr * hdr)
     default:
 	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s: unrecognized header type %d", __func__, hdr->type);
     }
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "---<end packet>---");
+    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<end packet>---%s", common_data.font_green, common_data.font_plain);
 }
