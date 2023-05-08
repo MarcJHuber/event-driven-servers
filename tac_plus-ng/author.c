@@ -339,7 +339,7 @@ static void do_author(tac_session * session)
 	size_t rlen = strlen(rargs) + 1;
 	char *v, *a = alloca(rlen);
 	memcpy(a, rargs, rlen);
-	for (v = strtok(a, "\r"); v; v = strtok(NULL, "\r"))
+	for (v = strtok(a, "\n"); v; v = strtok(NULL, "\n"))
 	    switch (v[strcspn(v, "*=+")]) {
 	    case '=':
 		attr_add(session, &session->attrs_m, &session->cnt_m, v);

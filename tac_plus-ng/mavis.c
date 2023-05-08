@@ -171,7 +171,7 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), char *type, e
 	for (i = 0; i <= cnt; i++) {
 	    memcpy(p, data->in_args[i], arglen[i]);
 	    p += arglen[i];
-	    *p++ = (i == cnt) ? 0 : '\r';
+	    *p++ = (i == cnt) ? 0 : '\n';
 	}
 	av_set(avc, AV_A_ARGS, args);
     }
