@@ -448,7 +448,7 @@ static int check_access(tac_session * session, struct pwdat *pwdat, char *passwd
 	} else if (pwdat)
 	    res = compare_pwdat(pwdat, passwd, hint);
 
-	if (S_permit != eval_ruleset(session, session->ctx->realm)) {
+	if (!session->authorized && (S_permit != eval_ruleset(session, session->ctx->realm))) {
 	    res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 	    *hint = hint_denied_by_acl;
 	}
@@ -519,7 +519,7 @@ static char *set_motd_banner(tac_session * session)
 	fmt = li_motd_dflt;
 
     if (session->motd || (session->user->hushlogin == TRISTATE_YES)
-	|| (session->user->hushlogin == TRISTATE_DUNNO && session->profile->hushlogin == TRISTATE_YES)) {
+	|| (session->user->hushlogin == TRISTATE_DUNNO && session->profile && session->profile->hushlogin == TRISTATE_YES)) {
 	session->motd = session->user_msg;
 	return NULL;
     }
@@ -1362,7 +1362,7 @@ static void do_sshkeyhash(tac_session * session)
 	enum token token = validate_ssh_hash(session, session->ssh_key_hash, &key);
 
 	if (token == S_permit) {
-	    token = eval_ruleset(session, session->ctx->realm);
+	    token = session->authorized ? S_permit : eval_ruleset(session, session->ctx->realm);
 	    if (token == S_permit) {
 		res = TAC_PLUS_AUTHEN_STATUS_PASS;
 		hint = hint_permitted;
@@ -1417,7 +1417,7 @@ static void do_sshcerthash(tac_session * session)
 	enum token token = validate_ssh_key_id(session);
 
 	if (token == S_permit) {
-	    token = eval_ruleset(session, session->ctx->realm);
+	    token = session->authorized ? S_permit : eval_ruleset(session, session->ctx->realm);
 	    if (token == S_permit) {
 		res = TAC_PLUS_AUTHEN_STATUS_PASS;
 		hint = hint_permitted;
