@@ -188,6 +188,24 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), char *type, e
     }
 }
 
+static int parse_user_profile_multi(av_ctx * avc, struct sym *sym, tac_user * u, char *format, int attribute)
+{
+    char *attr = av_get(avc, attribute);
+    size_t len;
+    int res = 0;
+    char *a, *v;
+    if (!attr)
+	return 0;
+    if (!strchr(attr, '\n'))
+	return parse_user_profile_fmt(sym, u, format, attr);
+    len = strlen(attr) + 1;
+    a = alloca(len);
+    memcpy(a, attr, len + 1);
+    for (v = strtok(a, "\n"); !res && v; v = strtok(NULL, "\n"))
+	res |= parse_user_profile_fmt(sym, u, format, a);
+    return res;
+}
+
 static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 {
     char *t, *result = NULL;
@@ -207,22 +225,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    r = u->realm;
 
 	if ((r->mavis_userdb == TRISTATE_YES) && (!u || u->dynamic)) {
-	    char *tacprofile = av_get(avc, AV_A_TACPROFILE);
-	    char *tacmember = av_get(avc, AV_A_TACMEMBER);
-	    char *sshkey = av_get(avc, AV_A_SSHKEY);
-	    char *sshkeyhash = av_get(avc, AV_A_SSHKEYHASH);
-	    char *sshkeyid = av_get(avc, AV_A_SSHKEYID);
 	    char *verdict = av_get(avc, AV_A_VERDICT);
-	    if (sshkeyhash && !*sshkeyhash)
-		sshkeyhash = NULL;
-	    if (sshkey && !*sshkey)
-		sshkey = NULL;
-	    if (sshkeyid && !*sshkeyid)
-		sshkeyid = NULL;
-	    if (tacprofile && !*tacprofile)
-		tacprofile = NULL;
-	    if (tacmember && !*tacmember)
-		tacmember = NULL;
 	    if (verdict && !session->ctx->realm->caching_period && !strcmp(verdict, AV_V_BOOL_TRUE))
 		session->authorized = 1;
 
@@ -239,7 +242,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 			report_string(session, LOG_INFO, DEBUG_TACTRACE_FLAG, av_char[show[i]].name, avc->arr[show[i]], strlen(avc->arr[show[i]]));
 	    }
 
-	    if (!u || tacmember || sshkey || sshkeyhash || sshkeyid) {
+	    if (!u || u->dynamic) {
 		struct sym sym;
 
 		memset(&sym, 0, sizeof(sym));
@@ -261,11 +264,11 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 
 		u->dynamic = io_now.tv_sec + r->caching_period;
 
-		if ((tacmember && parse_user_profile_fmt(&sym, u, "{ member = %s }", tacmember))
-		    || (tacprofile && parse_user_profile_fmt(&sym, u, "%s", tacprofile))
-		    || (sshkey && parse_user_profile_fmt(&sym, u, "{ ssh-key = %s }", sshkey))
-		    || (sshkeyhash && parse_user_profile_fmt(&sym, u, "{ ssh-key-hash = %s }", sshkeyhash))
-		    || (sshkeyid && parse_user_profile_fmt(&sym, u, "{ ssh-key-id = %s }", sshkeyid))
+		if (parse_user_profile_multi(avc, &sym, u, "{ member = %s }", AV_A_TACMEMBER) ||
+		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key = %s }", AV_A_SSHKEY) ||
+		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key-hash = %s }", AV_A_SSHKEYHASH) ||
+		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key-id = %s }", AV_A_SSHKEYID) ||
+		    parse_user_profile_multi(avc, &sym, u, "%s", AV_A_TACPROFILE)
 		    ) {
 		    char *errbuf = NULL;
 		    time_t tt = (time_t) io_now.tv_sec;
