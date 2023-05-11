@@ -263,9 +263,9 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 
 		if ((tacmember && parse_user_profile_fmt(&sym, u, "{ member = %s }", tacmember))
 		    || (tacprofile && parse_user_profile_fmt(&sym, u, "%s", tacprofile))
-		    || (sshkey && parse_user_profile_fmt(&sym, u, "ssh-key = %s", sshkey))
-		    || (sshkeyhash && parse_user_profile_fmt(&sym, u, "ssh-key-hash = %s", sshkeyhash))
-		    || (sshkeyid && parse_user_profile_fmt(&sym, u, "ssh-key-id = %s", sshkeyid))
+		    || (sshkey && parse_user_profile_fmt(&sym, u, "{ ssh-key = %s }", sshkey))
+		    || (sshkeyhash && parse_user_profile_fmt(&sym, u, "{ ssh-key-hash = %s }", sshkeyhash))
+		    || (sshkeyid && parse_user_profile_fmt(&sym, u, "{ ssh-key-id = %s }", sshkeyid))
 		    ) {
 		    char *errbuf = NULL;
 		    time_t tt = (time_t) io_now.tv_sec;
