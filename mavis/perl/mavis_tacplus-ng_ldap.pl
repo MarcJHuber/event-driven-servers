@@ -345,6 +345,8 @@ while ($in = <>) {
 			$V[AV_A_DBPASSWORD] = $V[AV_A_PASSWORD_NEW];
 			$V[AV_A_USER_RESPONSE] = "Password change was successful.";
 			$V[AV_A_RESULT] = AV_V_RESULT_OK;
+		} elsif ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_INFO){
+			$V[AV_A_RESULT] = AV_V_RESULT_OK;
 		}
 	} else {
 		goto down;
