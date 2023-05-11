@@ -97,7 +97,7 @@ void report(tac_session * session, int priority, int level, char *fmt, ...)
 		   (priority & LOG_PRIMASK) == LOG_ERR ? "Error " : "", msg);
     }
 
-    if (common_data.syslog_dflt && (priority != LOG_DEBUG))
+    if (common_data.syslog_dflt && (priority != LOG_DEBUG && !(common_data.debug & DEBUG_TACTRACE_FLAG)))
 	syslog(priority, "%s %s%s",
 	       (session && session->ctx && session->ctx->nas_address_ascii) ? session->ctx->nas_address_ascii : "-",
 	       priority == LOG_ERR ? "Error " : "", msg);
