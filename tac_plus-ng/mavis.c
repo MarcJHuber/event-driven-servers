@@ -190,19 +190,18 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), char *type, e
 
 static int parse_user_profile_multi(av_ctx * avc, struct sym *sym, tac_user * u, char *format, int attribute)
 {
-    char *attr = av_get(avc, attribute);
-    size_t len;
     int res = 0;
-    char *a, *v;
-    if (!attr)
-	return 0;
-    if (!strchr(attr, '\n'))
-	return parse_user_profile_fmt(sym, u, format, attr);
-    len = strlen(attr) + 1;
-    a = alloca(len);
-    memcpy(a, attr, len + 1);
-    for (v = strtok(a, "\n"); !res && v; v = strtok(NULL, "\n"))
-	res |= parse_user_profile_fmt(sym, u, format, a);
+    char *a = av_get(avc, attribute);
+    if (a)
+	while (!res && *a) {
+	    char *t = a;
+	    for (; *t && *t != '\n'; t++);
+	    res |= parse_user_profile_fmt(sym, u, format, (int) (t - a), a);
+	    if (!*t)
+		break;
+	    a = t;
+	    a++;
+	}
     return res;
 }
 
@@ -264,11 +263,11 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 
 		u->dynamic = io_now.tv_sec + r->caching_period;
 
-		if (parse_user_profile_multi(avc, &sym, u, "{ member = %s }", AV_A_TACMEMBER) ||
-		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key = %s }", AV_A_SSHKEY) ||
-		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key-hash = %s }", AV_A_SSHKEYHASH) ||
-		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key-id = %s }", AV_A_SSHKEYID) ||
-		    parse_user_profile_multi(avc, &sym, u, "%s", AV_A_TACPROFILE)
+		if (parse_user_profile_multi(avc, &sym, u, "{ member = %.*s }", AV_A_TACMEMBER) ||
+		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key = %.*s }", AV_A_SSHKEY) ||
+		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key-hash = %.*s }", AV_A_SSHKEYHASH) ||
+		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key-id = %.*s }", AV_A_SSHKEYID) ||
+		    parse_user_profile_multi(avc, &sym, u, ".*%s", AV_A_TACPROFILE)
 		    ) {
 		    char *errbuf = NULL;
 		    time_t tt = (time_t) io_now.tv_sec;

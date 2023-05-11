@@ -3122,14 +3122,14 @@ static void parse_tac_acl(struct sym *sym, tac_realm * realm)
     parse(sym, S_closebra);
 }
 
-void attr_add(tac_session * session, char ***v, int *i, char *attr)
+void attr_add(tac_session * session, char ***v, int *i, char *attr, size_t attr_len)
 {
     if (!*v) {
 	*v = memlist_malloc(session->memlist, 0x100 * sizeof(char *));
 	*i = 0;
     }
     if (*i < 256)
-	(*v)[(*i)++] = memlist_strdup(session->memlist, attr);
+	(*v)[(*i)++] = memlist_strndup(session->memlist, (u_char *) attr, attr_len);
 }
 
 void cfg_init(void)
@@ -3784,11 +3784,11 @@ enum token tac_script_eval_r(tac_session * session, struct mavis_action *m)
     case S_optional:
 	v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, NULL);
 	if (m->code == S_set)
-	    attr_add(session, &session->attrs_m, &session->cnt_m, v);
+	    attr_add(session, &session->attrs_m, &session->cnt_m, v, strlen(v));
 	else if (m->code == S_add)
-	    attr_add(session, &session->attrs_a, &session->cnt_a, v);
+	    attr_add(session, &session->attrs_a, &session->cnt_a, v, strlen(v));
 	else			// S_optional
-	    attr_add(session, &session->attrs_o, &session->cnt_o, v);
+	    attr_add(session, &session->attrs_o, &session->cnt_o, v, strlen(v));
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code], v ? v : "");
 	break;
     case S_if:

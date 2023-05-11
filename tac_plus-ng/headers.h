@@ -911,7 +911,7 @@ void init_mcx(tac_realm *);
 void complete_host(tac_host *);
 void complete_realm(tac_realm *);
 
-void attr_add(tac_session *, char ***, int *, char *);
+void attr_add(tac_session *, char ***, int *, char *, size_t);
 
 enum token validate_ssh_hash(tac_session *, char *, char **);
 enum token validate_ssh_key_id(tac_session *);

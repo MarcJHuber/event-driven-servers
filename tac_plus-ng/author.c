@@ -335,22 +335,34 @@ static void do_author(tac_session * session)
     }
 
     if (session->authorized && session->user->avc && session->user->avc->arr[AV_A_RARGS]) {
-	char *rargs = session->user->avc->arr[AV_A_RARGS];
-	size_t rlen = strlen(rargs) + 1;
-	char *v, *a = alloca(rlen);
-	memcpy(a, rargs, rlen);
-	for (v = strtok(a, "\n"); v; v = strtok(NULL, "\n"))
-	    switch (v[strcspn(v, "*=+")]) {
-	    case '=':
-		attr_add(session, &session->attrs_m, &session->cnt_m, v);
-		break;
-	    case '*':
-		attr_add(session, &session->attrs_o, &session->cnt_o, v);
-		break;
-	    case '+':
-		attr_add(session, &session->attrs_a, &session->cnt_a, v);
-	    default:;
+	char *a = session->user->avc->arr[AV_A_RARGS];
+	while (*a) {
+	    char *t = a;
+	    char ***attr_p = NULL;
+	    int *cnt_p = NULL;
+	    for (; *t && *t != '\n' && !attr_p; t++) {
+		switch (*t) {
+		case '*':
+		    attr_p = &session->attrs_o;
+		    cnt_p = &session->cnt_o;
+		    break;
+		case '=':
+		    attr_p = &session->attrs_m;
+		    cnt_p = &session->cnt_m;
+		    break;
+		case '+':
+		    attr_p = &session->attrs_a;
+		    cnt_p = &session->cnt_a;
+		    break;
+		}
 	    }
+	    for (; *t && *t != '\n'; t++);
+	    attr_add(session, attr_p, cnt_p, a, t - a);
+	    if (!*t)
+		break;
+	    a = t;
+	    a++;
+	}
     }
 
     /* Allocate space for in + out args */
