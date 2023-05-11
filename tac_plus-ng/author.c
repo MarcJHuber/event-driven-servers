@@ -357,7 +357,8 @@ static void do_author(tac_session * session)
 		}
 	    }
 	    for (; *t && *t != '\n'; t++);
-	    attr_add(session, attr_p, cnt_p, a, t - a);
+	    if (attr_p)
+		attr_add(session, attr_p, cnt_p, a, t - a);
 	    if (!*t)
 		break;
 	    a = t;
