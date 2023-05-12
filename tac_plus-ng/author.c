@@ -340,6 +340,7 @@ static void do_author(tac_session * session)
 	    char *t = a;
 	    char ***attr_p = NULL;
 	    int *cnt_p = NULL;
+	    char *plus = NULL;
 	    for (; *t && *t != '\n' && !attr_p; t++) {
 		switch (*t) {
 		case '*':
@@ -353,12 +354,16 @@ static void do_author(tac_session * session)
 		case '+':
 		    attr_p = &session->attrs_a;
 		    cnt_p = &session->cnt_a;
+		    plus = t;
+		    *plus = '*';
 		    break;
 		}
 	    }
 	    for (; *t && *t != '\n'; t++);
 	    if (attr_p)
 		attr_add(session, attr_p, cnt_p, a, t - a);
+	    if (plus)
+		*plus = '+';
 	    if (!*t)
 		break;
 	    a = t;
