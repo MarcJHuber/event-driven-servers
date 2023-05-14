@@ -455,7 +455,7 @@ void mavis_detach(void)
 char *escape_string(char *in, size_t inlen, char *out, size_t *outlen)
 {
     char *v = out, *t;
-    size_t outlen_max = *outlen - 5, len = 0;
+    size_t outlen_max = *outlen - 4, len = 0;
     for (t = in; inlen && len < outlen_max; t++, inlen--) {
 	int c = *t;
 	if (iscntrl(c)) {
