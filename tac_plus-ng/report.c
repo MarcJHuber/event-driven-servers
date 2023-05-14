@@ -41,6 +41,13 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
+static __inline__ int report_flag_set(tac_session * session, int priority, int level)
+{
+    int res = (common_data.debug & level) || (session && (session->debug & level));	// debug mode
+    res &= common_data.debugtty || common_data.debug_redirected || common_data.syslog_dflt;	//  and output to tty, file or syslog
+    res |= common_data.syslog_dflt && (priority != LOG_DEBUG);	// or not in debug mode
+    return res;
+}
 
 void report(tac_session * session, int priority, int level, char *fmt, ...)
 {
@@ -49,10 +56,7 @@ void report(tac_session * session, int priority, int level, char *fmt, ...)
     char *msg = alloca(len);
     va_list ap;
     int nlen;
-    int cond = (common_data.debug & level) || (session && (session->debug & level));		// debug mode
-    cond &= common_data.debugtty || common_data.debug_redirected || common_data.syslog_dflt;	//  and output to tty, file or syslog
-    cond |= common_data.syslog_dflt && (priority != LOG_DEBUG);					// or not in debug mode
-    if (!cond)
+    if (!report_flag_set(session, priority, level))
 	return;
 
     va_start(ap, fmt);
@@ -128,12 +132,14 @@ void report_hex(tac_session * session, int priority, int level, u_char * ptr, in
 
 void report_string(tac_session * session, int priority, int level, char *pre, char *p, int len)
 {
-    size_t outlen = len * 4 + 1;
-    char *v = alloca(outlen);
-    char *m = escape_string(p, len, v, &outlen);
+    if (report_flag_set(session, priority, level)) {
+	size_t outlen = len * 4 + 1;
+	char *v = alloca(outlen);
+	char *m = escape_string(p, len, v, &outlen);
 
-    report(session, priority, level, "%s%s%s (len: %d): %s%s%s", common_data.font_red, pre, common_data.font_plain, len, common_data.font_blue, m,
-	   common_data.font_plain);
-    if (level & DEBUG_HEX_FLAG)
-	report_hex(session, priority, level, (u_char *) p, len);
+	report(session, priority, level, "%s%s%s (len: %d): %s%s%s", common_data.font_red, pre, common_data.font_plain, len, common_data.font_blue, m,
+	       common_data.font_plain);
+	if (level & DEBUG_HEX_FLAG)
+	    report_hex(session, priority, level, (u_char *) p, len);
+    }
 }
