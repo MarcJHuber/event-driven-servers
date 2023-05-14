@@ -44,29 +44,16 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 
 void report(tac_session * session, int priority, int level, char *fmt, ...)
 {
-    int len = 1024;
+    int len = 2048;
+    char *nas_addr = "-";
     char *msg = alloca(len);
     va_list ap;
     int nlen;
-    static pid_t pid = 0;
-    char now[80];
-    time_t dummy;
-    struct tm *tm;
-    int cond = (common_data.debug & level) || (session && (session->debug & level));
-    cond &= common_data.debugtty || common_data.debug_redirected || common_data.syslog_dflt;
-    cond |= common_data.syslog_dflt && (priority != LOG_DEBUG);
+    int cond = (common_data.debug & level) || (session && (session->debug & level));		// debug mode
+    cond &= common_data.debugtty || common_data.debug_redirected || common_data.syslog_dflt;	//  and output to tty, file or syslog
+    cond |= common_data.syslog_dflt && (priority != LOG_DEBUG);					// or not in debug mode
     if (!cond)
 	return;
-
-    *now = 0;
-    dummy = (time_t) io_now.tv_sec;
-    if (!dummy)
-	dummy = time(NULL);
-    tm = localtime(&dummy);
-    strftime(now, sizeof(now), "%H:%M:%S", tm);
-
-    if (!pid)
-	pid = getpid();
 
     va_start(ap, fmt);
     nlen = vsnprintf(msg, len, fmt, ap);
@@ -78,29 +65,40 @@ void report(tac_session * session, int priority, int level, char *fmt, ...)
 	va_end(ap);
     }
 
+    if (session && session->ctx && session->ctx->nas_address_ascii)
+	nas_addr = session->ctx->nas_address_ascii;
+
     if ((common_data.debug & level) || (session && (session->debug & level))) {
 	if (common_data.debug & DEBUG_TACTRACE_FLAG) {
-	    fprintf(stderr, "%s %s\n", (session && session->ctx && session->ctx->nas_address_ascii) ? session->ctx->nas_address_ascii : "-", msg);
+	    fprintf(stderr, "%s %s\n", nas_addr, msg);
 	    fflush(stderr);
-	} else if (common_data.debugtty || common_data.debug_redirected || (common_data.debug & DEBUG_TACTRACE_FLAG)) {
+	    return;
+	}
+	if (common_data.debugtty || common_data.debug_redirected) {
+	    static pid_t pid = 0;
+	    char now[80];
+	    time_t dummy;
+	    struct tm *tm;
+	    *now = 0;
+	    dummy = (time_t) io_now.tv_sec;
+	    if (!dummy)
+		dummy = time(NULL);
+	    tm = localtime(&dummy);
+	    strftime(now, sizeof(now), "%H:%M:%S", tm);
+	    pid = pid ? pid : getpid();
 	    fprintf(stderr, "%ld: %s.%.3lu %x/%.8x: %s %s\n", (long int) pid,
-		    now, (u_long) io_now.tv_usec / 1000,
-		    (session && session->ctx) ? session->ctx->id : 0,
-		    session ? session->session_id : 0,
-		    (session && session->ctx && session->ctx->nas_address_ascii) ? session->ctx->nas_address_ascii : "-", msg);
+		    now, (u_long) io_now.tv_usec / 1000, (session && session->ctx) ? session->ctx->id : 0, session ? session->session_id : 0, nas_addr, msg);
 	    fflush(stderr);
-	} else if (common_data.syslog_dflt)
+	} else if (common_data.syslog_dflt) {
 	    syslog(LOG_DEBUG, "%x/%.8x: %s %s%s",
 		   (session && session->ctx) ? session->ctx->id : 0,
-		   session ? session->session_id : 0,
-		   (session && session->ctx && session->ctx->nas_address_ascii) ? session->ctx->nas_address_ascii : "-",
-		   (priority & LOG_PRIMASK) == LOG_ERR ? "Error " : "", msg);
+		   session ? session->session_id : 0, nas_addr, (priority & LOG_PRIMASK) == LOG_ERR ? "Error: " : "", msg);
+	    return;
+	}
     }
 
-    if (common_data.syslog_dflt && (priority != LOG_DEBUG && !(common_data.debug & DEBUG_TACTRACE_FLAG)))
-	syslog(priority, "%s %s%s",
-	       (session && session->ctx && session->ctx->nas_address_ascii) ? session->ctx->nas_address_ascii : "-",
-	       priority == LOG_ERR ? "Error " : "", msg);
+    if (common_data.syslog_dflt)
+	syslog(priority, "%s %s%s", nas_addr, (priority & LOG_PRIMASK) == LOG_ERR ? "Error: " : "", msg);
 }
 
 void report_hex(tac_session * session, int priority, int level, u_char * ptr, int len)
