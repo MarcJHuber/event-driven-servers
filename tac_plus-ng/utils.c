@@ -648,11 +648,11 @@ void parse_log(struct sym *sym, tac_realm * r)
 
     if (!access_file) {
 	acct_file =
-	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${service}\t${args}\n\"", __FILE__, __LINE__);
+	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${service}\t${cmd}\n\"", __FILE__, __LINE__);
 	acct_syslog =
-	    parse_log_format_inline("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${nas}|${user}|${port}|${nac}|${accttype}|${service}|${args}\"",
+	    parse_log_format_inline("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${nas}|${user}|${port}|${nac}|${accttype}|${service}|${cmd}\"",
 				    __FILE__, __LINE__);
-	acct_syslog3 = parse_log_format_inline("\"${nas}|${user}|${port}|${nac}|${accttype}|${service}|${args}\"", __FILE__, __LINE__);
+	acct_syslog3 = parse_log_format_inline("\"${nas}|${user}|${port}|${nac}|${accttype}|${service}|${cmd}\"", __FILE__, __LINE__);
 
 	author_file =
 	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${profile}\t${result}\t${service}\t${cmd}\n\"", __FILE__,
@@ -1250,8 +1250,8 @@ static char *eval_log_format_dn(tac_session * session, struct context *ctx __att
     return NULL;
 }
 
-static char *eval_log_format_identity_source(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len
-				__attribute__((unused)))
+static char *eval_log_format_identity_source(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					     __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (session && session->user && session->user->avc)
 	return session->user->avc->arr[AV_A_IDENTITY_SOURCE];
@@ -1654,15 +1654,18 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	if (efun[li->token])
 	    s = efun[li->token] (session, ctx, lf, &len);
 	else if (session) {
-	    switch (li->token) {
+	    enum token token = li->token;
+	    switch (token) {
 	    case S_cmd:
+		if (session && session->service && strcmp(session->service, "shell"))
+		    token = S_args;
 	    case S_args:
 	    case S_rargs:
 		{
 		    int separate = 0;
 		    u_char arg_cnt = 0;
 		    u_char *arg_len, *argp;
-		    switch (li->token) {
+		    switch (token) {
 		    case S_cmd:
 		    case S_args:
 			arg_cnt = session->arg_cnt;
@@ -1683,13 +1686,13 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 			s = (char *) argp;
 			l = (size_t) *arg_len;
 
-			if (li->token == S_cmd) {
+			if (token == S_cmd) {
 			    if (l > 3 && (!strncmp(s, "cmd=", 4) || !strncmp(s, "cmd*", 4)))
 				l -= 4, s += 4;
 			    else if (l > 7 && !strncmp(s, "cmd-arg=", 8))
 				l -= 8, s += 8;
 			    else {
-				argp += (size_t) *arg_len;;
+				argp += (size_t) *arg_len;
 				continue;
 			    }
 			}
