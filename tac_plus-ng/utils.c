@@ -648,7 +648,7 @@ void parse_log(struct sym *sym, tac_realm * r)
 
     if (!access_file) {
 	acct_file =
-	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${service}\t${cmd}\n\"", __FILE__, __LINE__);
+	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${service}\t${args}\n\"", __FILE__, __LINE__);
 	acct_syslog =
 	    parse_log_format_inline("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${nas}|${user}|${port}|${nac}|${accttype}|${service}|${args}\"",
 				    __FILE__, __LINE__);
