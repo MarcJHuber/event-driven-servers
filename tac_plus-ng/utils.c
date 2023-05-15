@@ -1686,6 +1686,11 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 			s = (char *) argp;
 			l = (size_t) *arg_len;
 
+			if (l > 8 && !strncmp(s, "service=", 8)) {
+			    argp += (size_t) *arg_len;
+			    continue;
+			}
+
 			if (token == S_cmd) {
 			    if (l > 3 && (!strncmp(s, "cmd=", 4) || !strncmp(s, "cmd*", 4)))
 				l -= 4, s += 4;
