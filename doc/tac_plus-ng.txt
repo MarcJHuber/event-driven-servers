@@ -662,9 +662,10 @@ syslog default = deny
        are recognized. The following variables are resolved:
 
    ${cmd}, ${cmd,separator} values of cmd= and cmd-arg=
-   attribute-value pairs, separated by whitespace or separator
-   ${args}, ${args,separator} input attribute-value pairs,
-   separated by whitespace or separator
+   attribute-value pairs, separated by whitespace or separator.
+   Will be mapped to ${args} if service isn't shell
+   ${args}, ${args,separator} input attribute-value pairs
+   (excluding service, separated by whitespace or separator
    ${rargs}, ${rargs,separator} output attribute value pairs,
    separated by whitespace or separator
    ${nas} NAS IP address
@@ -726,9 +727,9 @@ syslog default = deny
 service}\t${cmd}\n"
 # Accounting to UDP syslog:
 "<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${nas}|${user}|${port}|${
-nac}|${accttype}|${service}|${args}"
+nac}|${accttype}|${service}|${cmd}"
 # Accounting to syslog(3):
-"${nas}|${user}|${port}|${nac}|${accttype}|${service}|${args}"
+"${nas}|${user}|${port}|${nac}|${accttype}|${service}|${cmd}"
 # Authorization to file/pipe:
 "%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${profile}\t${r
 esult}\t${service}\t${cmd}\n"
