@@ -57,9 +57,12 @@ You may actually omit the "configure" step if you're content with
 the default build options, which are to compile everything and to
 use all optional features your system supports at first glance.
 
-For initial testing, before installing anything, you may enter the
-	/usr/local/lib/mavis/sample
-directory and run the sample configurations you'll find there.
+If you don't care for the optional features (TLS support, C-ARES,
+others), just run
+
+./configure --minimum tac_plus-ng
+make
+sudo make install
 
 Documentation
 =============
@@ -73,7 +76,8 @@ Support
 While I really appreciate that you're using the software I'd
 very much prefer *not* to receive private support enquiries.
 
-Please direct support queries to the mailing list at
+As already mentioned on the top of this file: Please direct support
+queries to the mailing list at
 
   event-driven-servers@googlegroups.com
 

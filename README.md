@@ -59,7 +59,8 @@ You may actually omit the "configure" step if you're content with
 the default build options, which are to compile everything and to
 use all optional features your system supports at first glance.
 
-If you don't care for the optional features (TLS support, C-ARES, others), just run
+If you don't care for the optional features (TLS support, C-ARES,
+others), just run
 
 ````
 ./configure --minimum tac_plus-ng
