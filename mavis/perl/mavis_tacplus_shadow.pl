@@ -297,10 +297,7 @@ while ($in = <>) {
 		print $SHADOW join('', @M);
 		close $SHADOW;
 		
-		$V[AV_A_DBPASSWORD] = $V[AV_A_PASSWORD_NEW];
 		$V[AV_A_USER_RESPONSE] = "Password change was successful.";
-	} else {
-		$V[AV_A_DBPASSWORD] = $V[AV_A_PASSWORD];
 	}
 
 	$V[AV_A_RESULT] = AV_V_RESULT_OK;

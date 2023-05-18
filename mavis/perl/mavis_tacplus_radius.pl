@@ -130,13 +130,9 @@ while ($in = <>) {
 			$result = MAVIS_FINAL;
 			goto bye;
 		}
+		$V[AV_A_PASSWORD_ONESHOT] = "1" if defined $V[AV_A_PASSWORD] && $V[AV_A_TACTYPE] eq AV_V_TACTYPE_AUTH;
 
-		if (defined $V[AV_A_PASSWORD] &&
-						$V[AV_A_TACTYPE] eq AV_V_TACTYPE_AUTH){
-				$V[AV_A_DBPASSWORD] = $V[AV_A_PASSWORD];
-				$V[AV_A_PASSWORD_ONESHOT] = "1";
-		}
-	    $V[AV_A_TACMEMBER] = undef;
+		$V[AV_A_TACMEMBER] = undef;
 		if (defined $RADIUS_GROUP_ATTR) {
 			for my $a ($radius->get_attributes()) {
 				if ($a->{'Name'} eq $RADIUS_GROUP_ATTR) {

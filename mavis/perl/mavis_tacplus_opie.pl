@@ -116,11 +116,6 @@ while ($in = <>) {
 			}
 			endgrent();
 
-			$V[AV_A_DBPASSWORD] = $V[AV_A_PASSWORD]
-				if defined $V[AV_A_PASSWORD] &&
-					$V[AV_A_TACTYPE] eq AV_V_TACTYPE_AUTH &&
-					$opie == 2;
-
 			$V[AV_A_RESULT] = AV_V_RESULT_OK;
 			$result = MAVIS_DOWN;
 	}
