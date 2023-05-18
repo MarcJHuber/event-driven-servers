@@ -296,6 +296,7 @@ while ($in = <>) {
 				goto fatal;
 			}
 			$V[AV_A_RESULT] = AV_V_RESULT_OK;
+			$V[AV_A_PASSWORD_ONESHOT] = "1";
 		} elsif ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_CHPW){
 			if ($LDAP_SERVER_TYPE eq 'microsoft') {
 				$mesg = $ldap->change_ADpassword($authdn, $V[AV_A_PASSWORD], $V[AV_A_PASSWORD_NEW]);
@@ -342,6 +343,7 @@ while ($in = <>) {
 				goto fatal;
 			}
 			$V[AV_A_USER_RESPONSE] = "Password change was successful.";
+			$V[AV_A_PASSWORD_ONESHOT] = "1";
 			$V[AV_A_RESULT] = AV_V_RESULT_OK;
 		} elsif ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_INFO){
 			$V[AV_A_RESULT] = AV_V_RESULT_OK;
