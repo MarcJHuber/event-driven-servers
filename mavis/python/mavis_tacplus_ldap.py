@@ -216,7 +216,7 @@ while True:
 		if not conn.rebind(user=entry.entry_dn, password=D.password):
 			D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn))
 			continue
-		D.set_dbpassword(D.password)
+		D.remember_password(False)
 
 	user_msg = None
 	if D.is_tacplus_chpw:
@@ -229,7 +229,6 @@ while True:
 			D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn))
 			continue;
 		user_msg = "Password change was successful."
-		D.set_dbpassword(D.password_new)
 
 	D.set_dn(entry.entry_dn)
 

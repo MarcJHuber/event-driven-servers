@@ -214,3 +214,10 @@ class Mavis:
 		self.av_pairs[AV_A_SSHKEY] = arg
 		return arg
 
+	def remember_password(self, arg):
+		if arg:
+			self.av_pairs.popr(AV_A_PASSWORD_ONESHOT, None)
+		else:
+			self.av_pairs[AV_A_PASSWORD_ONESHOT] = "1"
+		return arg
+
