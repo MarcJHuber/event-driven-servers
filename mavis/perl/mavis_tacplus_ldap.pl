@@ -556,7 +556,6 @@ while ($in = <>) {
 				print STDERR "chpw for ", $authdn, ": ", $mesg->error, " (" , __LINE__ , ")", "\n";
 				goto fatal;
 			}
-			$V[AV_A_DBPASSWORD] = $V[AV_A_PASSWORD_NEW];
 			$V[AV_A_USER_RESPONSE] = "Password change was successful.";
 		}
 
@@ -631,8 +630,6 @@ while ($in = <>) {
 				$V[AV_A_USER_RESPONSE] = "Password has expired.";
 				goto fail;
 			}
-			$V[AV_A_DBPASSWORD] = $V[AV_A_PASSWORD]
-				if defined $V[AV_A_PASSWORD] && $V[AV_A_TACTYPE] eq AV_V_TACTYPE_AUTH;
 			$V[AV_A_RESULT] = AV_V_RESULT_OK;
 		}
 	} else {

@@ -140,7 +140,6 @@ while ($in = <>) {
 						$result = MAVIS_FINAL;
 						goto bye;
 					}
-					$V[AV_A_DBPASSWORD] = $V[AV_A_PASSWORD_NEW];
 				} else {
 					$V[AV_A_USER_RESPONSE] = "Not implemented.";
 					$V[AV_A_RESULT] = AV_V_RESULT_FAIL;
@@ -169,10 +168,6 @@ while ($in = <>) {
 				}
 			}
 			endgrent();
-		}
-
-		if (!$authorize_only && $V[AV_A_PASSWORD] && $V[AV_A_TACTYPE] eq AV_V_TACTYPE_AUTH) {
-			$V[AV_A_DBPASSWORD] = $V[AV_A_PASSWORD]
 		}
 
 		if (!$authorize_only || $V[AV_A_TACTYPE] eq AV_V_TACTYPE_INFO) {

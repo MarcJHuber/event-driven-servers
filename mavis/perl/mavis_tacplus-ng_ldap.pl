@@ -295,7 +295,6 @@ while ($in = <>) {
 				goto fail if $mesg->code == LDAP_INVALID_CREDENTIALS || $mesg->code == LDAP_CONSTRAINT_VIOLATION;
 				goto fatal;
 			}
-			$V[AV_A_DBPASSWORD] = $V[AV_A_PASSWORD];
 			$V[AV_A_RESULT] = AV_V_RESULT_OK;
 		} elsif ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_CHPW){
 			if ($LDAP_SERVER_TYPE eq 'microsoft') {
@@ -342,7 +341,6 @@ while ($in = <>) {
 				print STDERR "chpw for ", $authdn, ": ", $mesg->error, " (" , __LINE__ , ")", "\n";
 				goto fatal;
 			}
-			$V[AV_A_DBPASSWORD] = $V[AV_A_PASSWORD_NEW];
 			$V[AV_A_USER_RESPONSE] = "Password change was successful.";
 			$V[AV_A_RESULT] = AV_V_RESULT_OK;
 		} elsif ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_INFO){
