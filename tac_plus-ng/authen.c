@@ -334,8 +334,8 @@ static enum token lookup_and_set_user(tac_session * session)
 static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&& ((!session->user && (session->ctx->realm->mavis_login == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
-	    || (session->user && pw_ix == PW_MAVIS));
+	&&( (!session->user &&(session->ctx->realm->mavis_login == TRISTATE_YES) &&(session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
+	   ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -344,7 +344,7 @@ static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *
 
 static int query_mavis_info_login(tac_session * session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
+    int res = !session->flag_mavis_info && !session->user &&(session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_LOGIN);
@@ -363,8 +363,8 @@ int query_mavis_info(tac_session * session, void (*f)(tac_session *), enum pw_ix
 static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
-	((!session->user && (session->ctx->realm->mavis_pap == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
-	 || (session->user && pw_ix == PW_MAVIS));
+	( (!session->user &&(session->ctx->realm->mavis_pap == TRISTATE_YES) &&(session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
+	 ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_PAP);
@@ -373,7 +373,7 @@ static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *),
 
 static int query_mavis_info_pap(tac_session * session, void (*f)(tac_session *))
 {
-    int res = !session->user && (session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
+    int res = !session->user &&(session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_PAP);
@@ -626,8 +626,8 @@ static void do_chpass(tac_session * session)
 
 static void send_password_prompt(tac_session * session, enum pw_ix pw_ix, void (*f)(tac_session *))
 {
-    if ((session->ctx->realm->chalresp == TRISTATE_YES) && (!session->user || ((pw_ix == PW_MAVIS) && (TRISTATE_NO != session->user->chalresp)))) {
-	if (!session->flag_chalresp) {
+    if( (session->ctx->realm->chalresp == TRISTATE_YES) &&(!session->user ||( (pw_ix == PW_MAVIS) &&(TRISTATE_NO != session->user->chalresp)))) {
+	if(!session->flag_chalresp) {
 	    session->flag_chalresp = 1;
 	    mavis_lookup(session, f, AV_V_TACTYPE_CHAL, PW_LOGIN);
 	    return;
@@ -1447,23 +1447,32 @@ static void do_sshcerthash(tac_session * session)
 #ifdef WITH_DNS
 static void free_reverse(void *payload, void *data __attribute__((unused)))
 {
+    free(((struct revmap *) payload)->name);
     free(payload);
 }
 
-void add_revmap(tac_realm * r, struct in6_addr *address, char *hostname)
+void add_revmap(tac_realm * r, struct in6_addr *address, char *hostname, int ttl)
 {
     while (r && !r->idc)
 	r = r->parent;
     if (r) {
+	struct revmap *rev;
 	if (!hostname)
 	    hostname = "";
 	if (!r->dns_tree_ptr[1])
 	    r->dns_tree_ptr[1] = radix_new(free_reverse, NULL);
-	radix_add(r->dns_tree_ptr[1], address, 128, strdup(hostname));
+	rev = radix_lookup(r->dns_tree_ptr[1], address, NULL);
+	if (rev)
+	    free(rev->name);
+	else
+	    rev = calloc(1, sizeof(struct revmap));
+	rev->name = strdup(hostname);
+	rev->ttl = (ttl == -1) ? -1 : io_now.tv_sec + ttl;
+	radix_add(r->dns_tree_ptr[1], address, 128, rev);
     }
 }
 
-static void set_revmap_nac(tac_session * session, char *hostname)
+static void set_revmap_nac(tac_session * session, char *hostname, int ttl)
 {
     report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAC revmap(%s) = %s", session->nac_address_ascii, hostname ? hostname : "(not found)");
     if (hostname)
@@ -1472,7 +1481,7 @@ static void set_revmap_nac(tac_session * session, char *hostname)
     session->revmap_pending = 0;
     session->revmap_timedout = 0;
 
-    add_revmap(session->ctx->realm, &session->nac_address, hostname);
+    add_revmap(session->ctx->realm, &session->nac_address, hostname, ttl);
 
     if (!session->ctx->revmap_pending && session->resumefn)
 	resume_session(session, -1);
@@ -1487,10 +1496,12 @@ void get_revmap_nac(tac_session * session)
 	    int i;
 	    for (i = 0; i < 3; i++) {
 		if (r->dns_tree_ptr[i]) {
-		    char *t = radix_lookup(r->dns_tree_ptr[i], &session->nac_address, NULL);
-		    if (t && *t) {
-			session->nac_dns_name = memlist_strdup(session->memlist, t);
+		    struct revmap *rev = radix_lookup(r->dns_tree_ptr[i], &session->nac_address, NULL);
+		    if (rev && rev->name && rev->ttl >= io_now.tv_sec) {
+			session->nac_dns_name = memlist_strdup(session->memlist, rev->name);
 			session->nac_dns_name_len = strlen(session->nac_dns_name);
+			report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAC revmap(%s) = %s [TTL: %lld, cached]\n", session->nac_address_ascii, rev->name,
+			       (long long) (rev->ttl - io_now.tv_sec));
 			return;
 		    }
 		}
@@ -1513,11 +1524,14 @@ void get_revmap_nac(tac_session * session)
 }
 
 #ifdef WITH_DNS
-static void set_revmap_nas(struct context *ctx, char *hostname)
+static void set_revmap_nas(struct context *ctx, char *hostname, int ttl)
 {
     rb_node_t *rbn, *rbnext;
 
-    report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAS revmap(%s) = %s", ctx->nas_address_ascii, hostname ? hostname : "(not found)");
+    if (!hostname)
+	ttl = 60;
+
+    report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAS revmap(%s) = %s [TTL: %d]\n", ctx->nas_address_ascii, hostname ? hostname : "(not found)", ttl);
 
     if (hostname)
 	ctx->nas_dns_name = mempool_strdup(ctx->pool, hostname);
@@ -1525,7 +1539,7 @@ static void set_revmap_nas(struct context *ctx, char *hostname)
     ctx->revmap_pending = 0;
     ctx->revmap_timedout = 0;
 
-    add_revmap(ctx->realm, &ctx->nas_address, hostname);
+    add_revmap(ctx->realm, &ctx->nas_address, hostname, ttl);
 
     for (rbn = RB_first(ctx->sessions); rbn; rbn = rbnext) {
 	tac_session *session = RB_payload(rbn, tac_session *);
@@ -1547,10 +1561,12 @@ void get_revmap_nas(tac_session * session)
 	    int i;
 	    for (i = 0; i < 3; i++) {
 		if (r->dns_tree_ptr[i]) {
-		    char *t = radix_lookup(r->dns_tree_ptr[i], &ctx->nas_address, NULL);
-		    if (t && *t) {
-			ctx->nas_dns_name = mempool_strdup(ctx->pool, t);
+		    struct revmap *rev = radix_lookup(r->dns_tree_ptr[i], &ctx->nas_address, NULL);
+		    if (rev && rev->name && rev->ttl >= io_now.tv_sec) {
+			ctx->nas_dns_name = mempool_strdup(ctx->pool, rev->name);
 			ctx->nas_dns_name_len = strlen(ctx->nas_dns_name);
+			report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAS revmap(%s) = %s [TTL: %lld, cached]\n", ctx->nas_address_ascii, rev->name,
+			       (long long) (rev->ttl - io_now.tv_sec));
 			return;
 		    }
 		}

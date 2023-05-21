@@ -425,6 +425,7 @@ void io_dns_add(struct io_dns_ctx *idc, sockaddr_union * su, void *app_cb, void 
 #endif
 
 #ifdef WITH_ARES
+#include <ctype.h>
 static void a_callback(void *arg, int status, int timeouts __attribute__((unused)), unsigned char *abuf, int alen)
 {
     struct io_dns_item *idi = (struct io_dns_item *) arg;
@@ -432,12 +433,24 @@ static void a_callback(void *arg, int status, int timeouts __attribute__((unused
     if (idi->app_ctx) {
 	char *res = NULL;
 	struct hostent *host = NULL;
+	int ttl = -1;
 	if (status == ARES_SUCCESS) {
 	    status = ares_parse_ptr_reply(abuf, alen, NULL, 0, AF_INET, &host);
-	    if (status == ARES_SUCCESS && host)
+	    if (status == ARES_SUCCESS && host) {
 		res = host->h_name;
+		abuf += 12;
+		alen -= 12;
+		while (alen > 0 && *abuf) {
+		    alen -= *abuf;
+		    abuf += *abuf + 1;
+		}
+		abuf += 4;
+		alen -= 4;
+		if (alen > 10 && abuf[0] == 1 && (abuf[1] & 0xc0) == 0xc0 && abuf[3] == 0 && abuf[4] == 0x0c && abuf[5] == 0 && abuf[6] == 1)
+		    ttl = (abuf[7] << 24) | (abuf[8] << 16) | (abuf[9] << 8) | abuf[10];
+	    }
 	}
-	((void (*)(void *, char *)) idi->app_cb) (idi->app_ctx, res);
+	((void (*)(void *, char *, int)) idi->app_cb) (idi->app_ctx, res, ttl);
 	if (host)
 	    ares_free_hostent(host);
 	RB_search_and_delete(idi->idc->by_app_ctx, idi->app_ctx);
@@ -471,14 +484,14 @@ static void io_dns_cb(struct io_dns_ctx *idc, int sock __attribute__((unused)))
 			lwres_gnbaresponse_t *response = NULL;
 			if (LWRES_R_SUCCESS == lwres_gnbaresponse_parse(idc->ctx, &b, &pkt, &response)) {
 			    if (response->realnamelen > 0)
-				((void (*)(void *, char *)) p->app_cb)
+				((void (*)(void *, char *, int)) p->app_cb, -1)
 				    (p->app_ctx, response->realname);
 			    lwres_gnbaresponse_free(idc->ctx, &response);
 			}
 			break;
 		    }
 		default:	// Failure. Tell the caller by returning a NULL pointer.
-		    ((void (*)(void *, char *)) p->app_cb) (p->app_ctx, NULL);
+		    ((void (*)(void *, char *, int)) p->app_cb) (p->app_ctx, NULL, -1);
 		}
 		RB_search_and_delete(idc->by_app_ctx, p);
 		RB_delete(idc->by_serial, r);

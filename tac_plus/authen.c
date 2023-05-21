@@ -295,8 +295,8 @@ static tac_user *lookup_and_set_user(tac_session * session)
 
 static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
-    int res = !session->flag_mavis_auth && ((session->ctx->aaa_realm->mavis_userdb && !session->ctx->aaa_realm->mavis_login_prefetch && !session->user)
-					    || (session->user && pw_ix == PW_MAVIS));
+    int res = !session->flag_mavis_auth &&( (session->ctx->aaa_realm->mavis_userdb && !session->ctx->aaa_realm->mavis_login_prefetch && !session->user)
+					   ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -324,7 +324,7 @@ int query_mavis_info(tac_session * session, void (*f)(tac_session *), enum pw_ix
 static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
-	((session->ctx->aaa_realm->mavis_userdb && !session->ctx->aaa_realm->mavis_pap_prefetch && !session->user) || (session->user && pw_ix == PW_MAVIS));
+	( (session->ctx->aaa_realm->mavis_userdb && !session->ctx->aaa_realm->mavis_pap_prefetch && !session->user) ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_PAP);
@@ -1590,7 +1590,7 @@ void add_revmap(struct in6_addr *address, char *hostname)
     radix_add(dns_tree_ptr_dynamic[0], address, 128, strdup(hostname));
 }
 
-static void set_revmap_nac(tac_session * session, char *hostname)
+static void set_revmap_nac(tac_session * session, char *hostname, int ttl __attribute__((unused)))
 {
     report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAC revmap(%s) = %s", session->nac_address_ascii, hostname ? hostname : "(not found)");
 
@@ -1654,7 +1654,7 @@ void get_revmap_nac(tac_session * session, tac_host ** arr, int arr_min, int arr
 }
 
 #ifdef WITH_DNS
-static void set_revmap_nas(struct context *ctx, char *hostname)
+static void set_revmap_nas(struct context *ctx, char *hostname, int ttl __attribute__((unused)))
 {
     rb_node_t *rbn, *rbnext;
 

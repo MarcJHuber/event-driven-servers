@@ -35,7 +35,7 @@ void print_banner(struct context *ctx)
 }
 
 #ifdef WITH_DNS
-static void set_reverse(struct context *ctx, char *hostname)
+static void set_reverse(struct context *ctx, char *hostname, int ttl __attribute__((unused)))
 {
     if (hostname)
 	strset(&ctx->reverse, hostname);
