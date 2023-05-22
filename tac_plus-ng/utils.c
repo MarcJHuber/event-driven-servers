@@ -882,6 +882,8 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_tls_psk_identity:
 	    case S_ssh_key_hash:
 	    case S_ssh_key_id:
+	    case S_nacname:
+	    case S_nasname:
 	    case S_PASSWORD:
 	    case S_RESPONSE:
 	    case S_PASSWORD_OLD:
@@ -1484,6 +1486,22 @@ static char *eval_log_format_hostname(tac_session * session __attribute__((unuse
     return config.hostname;
 }
 
+static char *eval_log_format_nasname(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
+				     __attribute__((unused)), size_t *len)
+{
+    if (ctx && ctx->nas_dns_name && *ctx->nas_dns_name)
+	return ctx->nas_dns_name;
+    return NULL;
+}
+
+static char *eval_log_format_nacname(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				     __attribute__((unused)), size_t *len)
+{
+    if (session && session->nac_dns_name && *session->nac_dns_name)
+	return session->nac_dns_name;
+    return NULL;
+}
+
 #if defined(WITH_TLS) || defined(WITH_SSL)
 static char *eval_log_format_tls_conn_version(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
 					      __attribute__((unused)), size_t *len)
@@ -1630,6 +1648,8 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_user] = &eval_log_format_user;
 	efun[S_vrf] = &eval_log_format_vrf;
 	efun[S_identity_source] = &eval_log_format_identity_source;
+	efun[S_nacname] = &eval_log_format_nacname;
+	efun[S_nasname] = &eval_log_format_nasname;
 #if defined(WITH_TLS) || defined(WITH_SSL)
 	efun[S_tls_conn_cipher] = &eval_log_format_tls_conn_cipher;
 	efun[S_tls_conn_cipher_strength] = &eval_log_format_tls_conn_cipher_strength;
