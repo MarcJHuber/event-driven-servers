@@ -1134,6 +1134,10 @@ Valid <type> values: FTP, TACPLUS
 
 Sample usage: mavistest -d -1  /usr/local/etc/tac_plus.cfg tac_plus TACP
 LUS joe p4ssw0rd
+
+   Tip
+
+   Use tactrace.pl for tac_plus-ng related testing.
      __________________________________________________________
 
 7. Environmental Variables
