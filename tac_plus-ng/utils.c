@@ -1487,7 +1487,7 @@ static char *eval_log_format_hostname(tac_session * session __attribute__((unuse
 }
 
 static char *eval_log_format_nasname(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
-				     __attribute__((unused)), size_t *len)
+				     __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx && ctx->nas_dns_name && *ctx->nas_dns_name)
 	return ctx->nas_dns_name;
@@ -1495,7 +1495,7 @@ static char *eval_log_format_nasname(tac_session * session __attribute__((unused
 }
 
 static char *eval_log_format_nacname(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				     __attribute__((unused)), size_t *len)
+				     __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (session && session->nac_dns_name && *session->nac_dns_name)
 	return session->nac_dns_name;
