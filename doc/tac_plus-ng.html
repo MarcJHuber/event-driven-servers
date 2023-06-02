@@ -544,7 +544,7 @@ scheme ...</p>
             enabled = yes
             script {
                 if (nas == rfc) {
-                    if (group ==  south) {
+                    if (group == south) {
                         profile = admin
                         permit
                     }
@@ -3890,7 +3890,7 @@ id = tac_plus {
           }
     }
   }
-  group = guest {
+  profile guest {
     service shell {
       script {
           set priv-lvl = 15
