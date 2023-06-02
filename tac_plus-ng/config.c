@@ -117,6 +117,7 @@ static tac_group *lookup_group(char *, tac_realm *);	/* get id from tree */
 static tac_group *tac_group_new(struct sym *, char *, tac_realm *);	/* add name to tree, return id (globally unique) */
 static int tac_group_add(tac_group *, tac_groups *, memlist_t *);	/* add id to groups struct */
 static int tac_group_check(tac_group *, tac_groups *);	/* check for id in groups struct. The recursive function will temporaly set visited to 1 for loop avoidance */
+static int tac_group_regex_check(tac_session *, struct mavis_cond *, tac_groups *);
 
 int compare_user(const void *a, const void *b)
 {
@@ -151,6 +152,7 @@ typedef struct tac_group tac_group;
 
 struct tac_group {
     char *name;
+    size_t name_len;
     tac_group *parent;
     tac_groups *groups;
     u_int line;
@@ -760,7 +762,12 @@ static int loopcheck_group(tac_group * g)
     if (g->visited)
 	return -1;
     g->visited = 1;
-    if (g->parent)
+    if (g->groups) {
+	u_int i;
+	for (i = 0; i < g->groups->count && !res; i++)
+	    res = loopcheck_group(g->groups->groups[i]);
+    }
+    if (!res && g->parent)
 	res = loopcheck_group(g->parent);
     g->visited = 0;
     return res;
@@ -1534,6 +1541,9 @@ static void parse_group(struct sym *sym, tac_realm * r, tac_group * parent)
 		if (loopcheck_group(g))
 		    parse_error(sym, "'%s': circular reference rejected", sym->buf);
 		sym_get(sym);
+		continue;
+	    case S_member:
+		parse_member(sym, &g->groups, NULL, r);
 		continue;
 	    default:
 		parse_error_expect(sym, S_group, S_parent, S_unknown);
@@ -3467,6 +3477,33 @@ static int tac_script_cond_eval_res(tac_session * session, struct mavis_cond *m,
     return res;
 }
 
+static int tac_mavis_cond_compare(tac_session * session, struct mavis_cond *m, char *name, size_t name_len)
+{
+    char *hint = "regex";
+    int res = 0;
+    if (m->type == S_equal) {
+	res = !strcmp((char *) m->u.s.rhs, name);
+	hint = "cmp";
+    } else if (m->type == S_slash) {
+#ifdef WITH_PCRE
+	res = pcre_exec((pcre *) m->u.s.rhs, NULL, name, (int) name_len, 0, 0, NULL, 0);
+	hint = "pcre";
+#endif
+#ifdef WITH_PCRE2
+	pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.rhs, NULL);
+	res = pcre2_match((pcre2_code *) m->u.s.rhs, (PCRE2_SPTR) name, (PCRE2_SIZE) name_len, 0, 0, match_data, NULL);
+	pcre2_match_data_free(match_data);
+	hint = "pcre2";
+#endif
+	res = -1 < res;
+    } else
+	res = !regexec((regex_t *) m->u.s.rhs, name, 0, NULL, 0);
+    if (m->u.s.token == S_password && !(session->debug & DEBUG_USERINPUT_FLAG))
+	name = "<hidden>";
+    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "%s: '%s' <=> '%s' = %d", hint, m->u.s.rhs_txt, name, res);
+    return res;
+}
+
 static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 {
     int i, res = 0;
@@ -3630,6 +3667,10 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	case S_string:
 	    v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->u.s.lhs, io_now.tv_sec, NULL);
 	    break;
+	case S_member:
+	    if (session->user)
+		res = tac_group_regex_check(session, m, session->user->groups);
+	    return tac_script_cond_eval_res(session, m, res);
 	case S_memberof:
 	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_MEMBEROF]) {
 		size_t l = strlen(session->user->avc->arr[AV_A_MEMBEROF]) + 1;
@@ -3651,26 +3692,7 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 		    }
 		    *e++ = 0;
 		    // perforv checks
-		    if (m->type == S_equal) {
-			res = !strcasecmp(v, (char *) (m->u.s.rhs));
-		    } else if (m->type == S_slash) {
-			res = -1;
-#ifdef WITH_PCRE
-			res = pcre_exec((pcre *) m->u.s.rhs, NULL, v, (int) strlen(v), 0, 0, NULL, 0);
-			report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre: '%s' <=> '%s' = %d", m->u.s.rhs_txt, v, res);
-#endif
-#ifdef WITH_PCRE2
-			pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *)
-											    m->u.s.rhs,
-											    NULL);
-			res = pcre2_match((pcre2_code *) m->u.s.rhs, (PCRE2_SPTR) v, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
-			pcre2_match_data_free(match_data);
-			report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", m->u.s.rhs_txt, v, res);
-#endif
-			res = -1 < res;
-		    } else {
-			res = !regexec((regex_t *) m->u.s.rhs, v, 0, NULL, 0);
-		    }
+		    res = tac_mavis_cond_compare(session, m, v, strlen(v));
 		    if (res)
 			return tac_script_cond_eval_res(session, m, res);
 		    v = e;
@@ -3708,35 +3730,8 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	}
 	if (!v)
 	    return 0;
-
-	if (m->type == S_equal) {
-	    res = !strcmp(v, (char *) (m->u.s.rhs));
-	    return tac_script_cond_eval_res(session, m, res);
-	}
-
-	{
-	    char *hint = "regex";
-	    if (m->type == S_slash) {
-#ifdef WITH_PCRE
-		hint = "pcre";
-		res = pcre_exec((pcre *) m->u.s.rhs, NULL, v, (int) strlen(v), 0, 0, NULL, 0);
-#endif
-#ifdef WITH_PCRE2
-		hint = "pcre2";
-		pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.rhs,
-										    NULL);
-		res = pcre2_match((pcre2_code *) m->u.s.rhs, (PCRE2_SPTR) v, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
-		pcre2_match_data_free(match_data);
-#endif
-		res = -1 < res;
-	    } else
-		res = !regexec((regex_t *) m->u.s.rhs, v, 0, NULL, 0);
-
-	    if (m->u.s.token == S_password && !(session->debug & DEBUG_USERINPUT_FLAG))
-		v = "<hidden>";
-	    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "%s: '%s' <=> '%s' = %d", hint, m->u.s.rhs_txt, v, res);
-	    return tac_script_cond_eval_res(session, m, res);
-	}
+	res = tac_mavis_cond_compare(session, m, v, strlen(v));
+	return tac_script_cond_eval_res(session, m, res);
     default:;
     }
     return 0;
@@ -3973,6 +3968,7 @@ static tac_group *tac_group_new(struct sym *sym, char *name, tac_realm * r)
     }
     gp = calloc(1, sizeof(tac_group));
     gp->name = strdup(name);
+    gp->name_len = strlen(name);
     RB_insert(r->groups_by_name, gp);
 
     return gp;
@@ -3990,23 +3986,30 @@ static int tac_group_add(tac_group * add, tac_groups * g, memlist_t * memlist)
     return 0;
 }
 
-static int tac_group_check_r(tac_group * g, tac_group * a)
-{
-    u_int res = 0;
-    if (g == a)
-	return -1;
-    if (a->parent)
-	res = tac_group_check_r(g, a->parent);
-    return res;
-}
-
 static int tac_group_check(tac_group * g, tac_groups * gids)
 {
     if (gids) {
 	u_int i;
 	for (i = 0; i < gids->count; i++) {
-	    u_int res = tac_group_check_r(g, gids->groups[i]);
-	    if (res)
+	    tac_group *a = gids->groups[i];
+	    if ((g == a) || tac_group_check(g, a->groups)
+		|| (a->parent && (g == a->parent || tac_group_check(g, a->parent->groups))))
+		return -1;
+	}
+    }
+    return 0;
+}
+
+static int tac_group_regex_check(tac_session * session, struct mavis_cond *m, tac_groups * gids)
+{
+    if (gids) {
+	u_int i;
+	for (i = 0; i < gids->count; i++) {
+	    tac_group *a = gids->groups[i];
+	    if (tac_mavis_cond_compare(session, m, a->name, a->name_len)
+		|| tac_group_regex_check(session, m, a->groups)
+		|| (a->parent && (tac_mavis_cond_compare(session, m, a->parent->name, a->parent->name_len)
+				  || tac_group_regex_check(session, m, a->parent->groups))))
 		return -1;
 	}
     }
