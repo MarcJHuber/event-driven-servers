@@ -3379,6 +3379,9 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 	case S_tilde:
 	    {			//S_tilde
 		int errcode = 0;
+		if (m->u.s.token == S_nac || m->u.s.token == S_nas)
+		    parse_error(sym, "Regular expression matching is unsupported for '%s'", codestring[m->u.s.token]);
+
 		m->type = S_regex;
 		sym->flag_parse_pcre = 1;
 		sym_get(sym);
@@ -3538,10 +3541,9 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
     case S_host:
 	{
 	    tac_host *h = session->ctx->host;
-	    tac_host *hp = h;
-	    while (!res && hp) {
+	    while (!res && h) {
 		res = (h == (tac_host *) (m->u.s.rhs));
-		hp = hp->parent;
+		h = h->parent;
 	    }
 	    return tac_script_cond_eval_res(session, m, res);
 	}
@@ -3671,6 +3673,25 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	    if (session->user)
 		res = tac_group_regex_check(session, m, session->user->groups, NULL);
 	    return tac_script_cond_eval_res(session, m, res);
+	case S_host:
+	    {
+		tac_host *h = session->ctx->host;
+		while (!res && h) {
+		    res = tac_mavis_cond_compare(session, m, h->name, h->name_len);
+		    h = h->parent;
+		}
+		return tac_script_cond_eval_res(session, m, res);
+	    }
+	    return tac_script_cond_eval_res(session, m, res);
+	case S_realm:
+	    {
+		tac_realm *r = session->ctx->realm;
+		while (!res && r) {
+		    res = tac_mavis_cond_compare(session, m, r->name, r->name_len);
+		    r = r->parent;
+		}
+		return tac_script_cond_eval_res(session, m, res);
+	    }
 	case S_memberof:
 	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_MEMBEROF]) {
 		size_t l = strlen(session->user->avc->arr[AV_A_MEMBEROF]) + 1;
