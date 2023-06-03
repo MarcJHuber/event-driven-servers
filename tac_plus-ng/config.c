@@ -116,8 +116,8 @@ static void parse_member(struct sym *, tac_groups **, memlist_t *, tac_realm *);
 static tac_group *lookup_group(char *, tac_realm *);	/* get id from tree */
 static tac_group *tac_group_new(struct sym *, char *, tac_realm *);	/* add name to tree, return id (globally unique) */
 static int tac_group_add(tac_group *, tac_groups *, memlist_t *);	/* add id to groups struct */
-static int tac_group_check(tac_group *, tac_groups *);	/* check for id in groups struct. The recursive function will temporaly set visited to 1 for loop avoidance */
-static int tac_group_regex_check(tac_session *, struct mavis_cond *, tac_groups *);
+static int tac_group_check(tac_group *, tac_groups *, tac_group *);	/* check for id in groups struct. The recursive function will temporaly set visited to 1 for loop avoidance */
+static int tac_group_regex_check(tac_session *, struct mavis_cond *, tac_groups *, tac_group *);
 
 int compare_user(const void *a, const void *b)
 {
@@ -3559,7 +3559,7 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	return tac_script_cond_eval_res(session, m, res);
     case S_member:
 	if (session->user)
-	    res = tac_group_check(m->u.s.rhs, session->user->groups);
+	    res = tac_group_check(m->u.s.rhs, session->user->groups, NULL);
 	return tac_script_cond_eval_res(session, m, res);
     case S_acl:
 	res = S_permit == eval_tac_acl(session, (struct tac_acl *) m->u.s.rhs);
@@ -3669,7 +3669,7 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	    break;
 	case S_member:
 	    if (session->user)
-		res = tac_group_regex_check(session, m, session->user->groups);
+		res = tac_group_regex_check(session, m, session->user->groups, NULL);
 	    return tac_script_cond_eval_res(session, m, res);
 	case S_memberof:
 	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_MEMBEROF]) {
@@ -3986,33 +3986,38 @@ static int tac_group_add(tac_group * add, tac_groups * g, memlist_t * memlist)
     return 0;
 }
 
-static int tac_group_check(tac_group * g, tac_groups * gids)
+static int tac_group_check(tac_group * g, tac_groups * gids, tac_group * parent)
 {
     if (gids) {
 	u_int i;
 	for (i = 0; i < gids->count; i++) {
 	    tac_group *a = gids->groups[i];
-	    if ((g == a) || tac_group_check(g, a->groups)
-		|| (a->parent && (g == a->parent || tac_group_check(g, a->parent->groups))))
+	    if ((g == a)
+		|| tac_group_check(g, a->groups, a->parent)
+		|| (a->parent && (g == a->parent)))
 		return -1;
 	}
     }
+    if (parent)
+	return (g == parent) || tac_group_check(g, parent->groups, parent->parent);
     return 0;
 }
 
-static int tac_group_regex_check(tac_session * session, struct mavis_cond *m, tac_groups * gids)
+static int tac_group_regex_check(tac_session * session, struct mavis_cond *m, tac_groups * gids, tac_group * parent)
 {
     if (gids) {
 	u_int i;
 	for (i = 0; i < gids->count; i++) {
 	    tac_group *a = gids->groups[i];
 	    if (tac_mavis_cond_compare(session, m, a->name, a->name_len)
-		|| tac_group_regex_check(session, m, a->groups)
-		|| (a->parent && (tac_mavis_cond_compare(session, m, a->parent->name, a->parent->name_len)
-				  || tac_group_regex_check(session, m, a->parent->groups))))
+		|| tac_group_regex_check(session, m, a->groups, a->parent)
+		|| (a->parent && tac_mavis_cond_compare(session, m, a->parent->name, a->parent->name_len)))
 		return -1;
 	}
     }
+    if (parent)
+	return tac_mavis_cond_compare(session, m, parent->name, parent->name_len)
+	    || tac_group_regex_check(session, m, parent->groups, parent->parent);
     return 0;
 }
 
