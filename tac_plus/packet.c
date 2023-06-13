@@ -512,7 +512,8 @@ void tac_read(struct context *ctx, int cur)
 	    more_keys = 0;
 	}
 
-	md5_xor(&ctx->in->hdr, ctx->key->key, ctx->key->len);
+	if (ctx->key)
+	    md5_xor(&ctx->in->hdr, ctx->key->key, ctx->key->len);
 
 	switch (ctx->hdr.type) {
 	case TAC_PLUS_AUTHEN:
