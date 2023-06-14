@@ -3379,8 +3379,6 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 	case S_tilde:
 	    {			//S_tilde
 		int errcode = 0;
-		if (m->u.s.token == S_nac || m->u.s.token == S_nas)
-		    parse_error(sym, "Regular expression matching is unsupported for '%s'", codestring[m->u.s.token]);
 
 		m->type = S_regex;
 		sym->flag_parse_pcre = 1;
