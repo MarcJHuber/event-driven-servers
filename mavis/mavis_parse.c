@@ -2038,9 +2038,16 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
 	m->u.s.token = S_unknown;
 
 	if (m->type == S_equal) {
-	    if (sym->code == S_string)
-		m->u.s.rhs = strdup(sym->buf);
-	    else {
+	    if (sym->code == S_string) {
+		if (sym->buf[0] == '$') {
+		    m->u.s.rhs = (void *) (long) av_attribute_to_i(sym->buf + 1);
+		    if ((long) m->u.s.rhs > -1)
+			m->u.s.token = S_attr;
+		    else
+			m->u.s.rhs = strdup(sym->buf);
+		} else
+		    m->u.s.rhs = strdup(sym->buf);
+	    } else {
 		m->u.s.rhs = (void *) (long) av_attr_token_to_i(sym);
 		if ((long) m->u.s.rhs < 0)
 		    parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
@@ -2188,11 +2195,12 @@ static int mavis_cond_eval(mavis_ctx * mcx, av_ctx * ac, struct mavis_cond *m)
     case S_equal:
 	if (!(v = av_get(ac, (int) (long) m->u.s.lhs)))
 	    return mavis_cond_eval_res(mcx, m, 0);
-	rhs = m->u.s.rhs;
-	if (rhs && ((int) (long) m->u.s.lhs == AV_A_IDENTITY_SOURCE) && !strcmp(rhs, "self") && !strcmp(v, mcx->identity_source_name))
-	    return mavis_cond_eval_res(mcx, m, -1);
-	if (!rhs && (m->u.s.token == S_attr))
+	if (m->u.s.token == S_attr) {
 	    rhs = av_get(ac, (int) (long) m->u.s.rhs);
+	    if (rhs && ((int) (long) m->u.s.lhs == AV_A_IDENTITY_SOURCE) && !strcmp(rhs, "self") && !strcmp(v, mcx->identity_source_name))
+		return mavis_cond_eval_res(mcx, m, -1);
+	} else
+	    rhs = m->u.s.rhs;
 	if (rhs)
 	    return mavis_cond_eval_res(mcx, m, !strcmp(v, rhs));
 	return mavis_cond_eval_res(mcx, m, 0);
