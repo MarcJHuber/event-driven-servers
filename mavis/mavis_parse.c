@@ -2194,7 +2194,7 @@ static int mavis_cond_eval(mavis_ctx * mcx, av_ctx * ac, struct mavis_cond *m)
 	if (!rhs && (m->u.s.token == S_attr))
 	    rhs = av_get(ac, (int) (long) m->u.s.rhs);
 	if (rhs)
-	    return !strcmp(v, rhs);
+	    return mavis_cond_eval_res(mcx, m, !strcmp(v, rhs));
 	return mavis_cond_eval_res(mcx, m, 0);
     case S_regex:
 	if (!(v = av_get(ac, (int) (long) m->u.s.lhs)))
