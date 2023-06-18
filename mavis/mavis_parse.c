@@ -1797,10 +1797,11 @@ void common_usage(void)
 	    "\n"
 	    "%sVersion:%s %s%s%s\n"
 	    "\n"
-	    "%sCopyright (C) 1996-2022 by Marc Huber <Marc.Huber@web.de>\n"
+	    "%sCopyright (C) 1996-2023 by Marc Huber <Marc.Huber@web.de>\n"
 	    "Portions Copyright (C) 1995-1998 by Cisco Systems, Inc.%s\n"
 	    "\n"
-	    "%sSource code and documentation:%s %shttp://www.pro-bono-publico.de/projects/%s\n"
+	    "%sHome site:%s  %shttps://www.pro-bono-publico.de/projects/%s\n"
+	    "%sSoure code:%s %shttps://github.com/MarcJHuber/event-driven-servers/%s\n"
 	    "\n"
 	    "%sPlease direct support requests either to the \"Event-Driven Servers\" Google Group at\n"
 	    "\n"
@@ -1824,7 +1825,11 @@ void common_usage(void)
 	    common_data.font_plain, common_data.font_blue,
 	    common_data.version, common_data.font_plain,
 	    common_data.font_bold, common_data.font_plain,
-	    common_data.font_bold, common_data.font_plain, common_data.font_blue, common_data.font_plain, common_data.font_red, common_data.font_plain);
+	    common_data.font_bold, common_data.font_plain,
+	    common_data.font_blue, common_data.font_plain,
+	    common_data.font_bold, common_data.font_plain,
+	    common_data.font_blue, common_data.font_plain,
+	    common_data.font_red, common_data.font_plain);
     exit(EX_USAGE);
 }
 

@@ -330,7 +330,7 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
     common_data.progname = Xstrdup(basename(argv[0]));
     common_data.version = VERSION
 #ifdef WITH_PCRE
-	"/PCRE"
+	"PCRE (deprecated)"
 #endif
 #ifdef WITH_PCRE2
 	"/PCRE2"
@@ -353,8 +353,8 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 #ifdef WITH_SSL
 	"/SSL"
 #endif
-#ifdef WITH_PCRE
-	"/PCRE (deprecated)"
+#ifdef DEBUG
+	"/DEBUG"
 #endif
 	;
     logopen();
