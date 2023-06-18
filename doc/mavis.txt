@@ -1007,31 +1007,7 @@ ormat.
    Likewise, the pammavis program may be used for authentication
    using PAM. Example for TACACS+:
     mavis module = external {
-        script out = {
-            # This is actually no longer necessary for recent versions
-            if ($TYPE == TACPLUS) {
-                if ($TACTYPE == AUTH && $PASSWORD == $DBPASSWORD || $TAC
-TYPE == INFO) {
-                    set $RESULT = ACK
-                    # If you're working with "password = mavis" in user
-profiles
-                    # and have all users defined locally, there's no nee
-d to set
-                    # any particular TACPROFILE value and you may omit t
-he next
-                    # line:
-                    set $TACPROFILE = "{ member = noc }"
-                }
-            }
-        }
         exec = /usr/local/sbin/pammavis pammavis -s pamservicename
-        # Optionally: If tac_plus only queries for attributes and we don
-'t
-        # evaluate those set by pammavis, then there's no use in calling
- the
-        # latter at all. The "return" will continue with the "out" scrip
-t:
-        script in = { if ($TYPE == TACPLUS && $TACTYPE == INFO) return }
     }
 
    As detailed in the PAM module section above, take care not to
