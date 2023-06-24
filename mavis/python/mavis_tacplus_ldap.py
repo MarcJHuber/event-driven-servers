@@ -189,9 +189,16 @@ while True:
 			conn.start_tls()
 		if conn.bind():
 			LDAP_USER = conn.user
+		else:
+			D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "LDAP backend failure.")
+			continue
 
 	if not conn.bind():
 		conn.rebind(user=LDAP_USER, password=LDAP_PASSWD)
+
+	if not conn.bind():
+		D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "LDAP backend failure.")
+		continue
 
 	conn.search(search_base=LDAP_BASE, search_scope=LDAP_SCOPE,
 		search_filter=LDAP_FILTER.format(D.user),
@@ -201,7 +208,7 @@ while True:
 		D.write(MAVIS_FINAL, AV_V_RESULT_NOTFOUND, None)
 		continue
 	elif len(conn.entries) != 1:
-		D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "User name not unique.")
+		D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, "User name not unique.")
 		continue
 
 	entry = conn.entries[0]
