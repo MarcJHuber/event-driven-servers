@@ -459,4 +459,6 @@ password-new	S_password_new
 verdict	S_verdict
 true	S_true
 false	S_false
+error	S_error
+not-found	S_notfound
 

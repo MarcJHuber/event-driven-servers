@@ -148,8 +148,11 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 	case S_closebra:
 	    DebugOut(DEBUG_MAVIS);
 	    return MAVIS_CONF_OK;
+	case S_action:
+	    mavis_module_parse_action(mcx, sym);
+	    continue;
 	default:
-	    parse_error_expect(sym, S_script, S_userid, S_groupid, S_directory, S_closebra, S_unknown);
+	    parse_error_expect(sym, S_script, S_userid, S_groupid, S_directory, S_action, S_closebra, S_unknown);
 	}
     }
     DebugOut(DEBUG_MAVIS);

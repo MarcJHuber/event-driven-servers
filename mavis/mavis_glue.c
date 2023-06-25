@@ -99,6 +99,27 @@ static int Mavis_parse(mavis_ctx * mcx, struct sym *sym, char *id)
     return result;
 }
 
+#if defined(HAVE_mavis_send_in) || defined(HAVE_mavis_recv_out) || defined(HAVE_mavis_recv_in)
+static int fixup_result(mavis_ctx * mcx, av_ctx ** ac, int result)
+{
+    if (*ac && (result == MAVIS_FINAL || result == MAVIS_FINAL_DEFERRED)) {
+	char *avres = av_get(*ac, AV_A_RESULT);
+	if (avres && mcx->action_error == S_continue && !strcmp(avres, AV_V_RESULT_ERROR)) {
+	    av_unset(*ac, AV_A_USER_RESPONSE);
+	    av_set(*ac, AV_A_RESULT, AV_V_RESULT_NOTFOUND);
+	    return MAVIS_DOWN;
+	}
+    } else if (*ac && (result == MAVIS_DOWN)) {
+	char *avres = av_get(*ac, AV_A_RESULT);
+	if (avres && mcx->action_notfound == S_reject && !strcmp(avres, AV_V_RESULT_NOTFOUND)) {
+	    av_set(*ac, AV_A_RESULT, AV_V_RESULT_FAIL);
+	    return MAVIS_FINAL;
+	}
+    }
+    return result;
+}
+#endif
+
 static int Mavis_send(mavis_ctx * mcx, av_ctx ** ac)
 {
     int result = MAVIS_DOWN;
@@ -127,12 +148,15 @@ static int Mavis_send(mavis_ctx * mcx, av_ctx ** ac)
 	    default:;
 #ifdef HAVE_mavis_send_in
 		result = mavis_send_in(mcx, ac);
+		result = fixup_result(mcx, ac, result);
 #endif
 	    }
 	}
 #ifdef HAVE_mavis_send_in
-	else
+	else {
 	    result = mavis_send_in(mcx, ac);
+	    result = fixup_result(mcx, ac, result);
+	}
 #endif
     }
     if (current_module && !strcmp(mcx->identifier, current_module)) {
@@ -140,7 +164,7 @@ static int Mavis_send(mavis_ctx * mcx, av_ctx ** ac)
 	av_unset(*ac, AV_A_CURRENT_MODULE);
     }
 
-    if (result == MAVIS_DOWN && mcx->down)
+    if (result == MAVIS_DOWN && mcx->down && *ac)
 	result = mcx->down->send(mcx->down, ac);
 
 #ifdef HAVE_mavis_recv_out
@@ -152,6 +176,7 @@ static int Mavis_send(mavis_ctx * mcx, av_ctx ** ac)
 	    break;
 	default:
 	    result = mavis_recv_out(mcx, ac);
+	    result = fixup_result(mcx, ac, result);
 	}
     }
 #endif
@@ -193,7 +218,10 @@ static int Mavis_recv(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
 
 #ifdef HAVE_mavis_recv_in
     result = mavis_recv_in(mcx, ac, app_ctx);
+    result = fixup_result(mcx, ac, result);
 #endif
+    if (result == MAVIS_DOWN && mcx->down && *ac)
+	result = mcx->down->send(mcx->down, ac);
 
     if (result == MAVIS_DOWN && mcx->down)
 	result = mcx->down->recv(mcx->down, ac, app_ctx);
@@ -208,8 +236,12 @@ static int Mavis_recv(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
 	}
     }
 #ifdef HAVE_mavis_recv_out
-    if (result == MAVIS_FINAL)
+    if (result == MAVIS_FINAL) {
 	result = mavis_recv_out(mcx, ac);
+	result = fixup_result(mcx, ac, result);
+	if (result == MAVIS_DOWN && mcx->down && *ac)
+	    result = mcx->down->send(mcx->down, ac);
+    }
 #endif
 
     if (result == MAVIS_DOWN)
@@ -247,6 +279,8 @@ mavis_ctx *Mavis_new(void *handle, struct io_context *io, char *id)
     mcx->cancel = Mavis_cancel;
     mcx->io = io;
     mcx->identifier = strdup(id ? id : MAVIS_name);
+    mcx->action_error = S_reject;
+    mcx->action_notfound = S_continue;
 #ifdef HAVE_mavis_new
     mavis_new(mcx);
 #endif

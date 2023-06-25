@@ -217,8 +217,11 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 	case S_eof:
 	case S_closebra:
 	    return MAVIS_CONF_OK;
+	case S_action:
+	    mavis_module_parse_action(mcx, sym);
+	    continue;
 	default:
-	    parse_error_expect(sym, S_resolve, S_script, S_group, S_groups, S_memberof, S_gid, S_gids, S_unknown);
+	    parse_error_expect(sym, S_resolve, S_script, S_group, S_groups, S_memberof, S_gid, S_gids, S_action, S_unknown);
 	}
     }
 }

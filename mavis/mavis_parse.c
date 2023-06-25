@@ -1829,9 +1829,7 @@ void common_usage(void)
 	    common_data.font_bold, common_data.font_plain,
 	    common_data.font_bold, common_data.font_plain,
 	    common_data.font_blue, common_data.font_plain,
-	    common_data.font_bold, common_data.font_plain,
-	    common_data.font_blue, common_data.font_plain,
-	    common_data.font_red, common_data.font_plain);
+	    common_data.font_bold, common_data.font_plain, common_data.font_blue, common_data.font_plain, common_data.font_red, common_data.font_plain);
     exit(EX_USAGE);
 }
 
@@ -2372,7 +2370,8 @@ static enum token mavis_script_eval_r(mavis_ctx * mcx, av_ctx * ac, struct mavis
 		size_t len = strlen(s);
 		size_t olen = len * 4 + 1;
 		char *out = alloca(olen);
-		fprintf(stderr, "%s/line %u: [%s] %s = \"%s\"\n", mcx->identity_source_name, m->line, codestring[m->code], av_char[m->a.a].name, escape_string(s, len, out, &olen));
+		fprintf(stderr, "%s/line %u: [%s] %s = \"%s\"\n", mcx->identity_source_name, m->line, codestring[m->code], av_char[m->a.a].name,
+			escape_string(s, len, out, &olen));
 	    }
 	}
 	break;
@@ -2849,4 +2848,31 @@ static int parse_uucptime(struct mavis_tm *tm, char *in)
     }
     return 0;
 
+}
+
+void mavis_module_parse_action(mavis_ctx * mcx, struct sym *sym)
+{
+    sym_get(sym);
+    switch (sym->code) {
+    case S_error:
+	sym_get(sym);
+	parse(sym, S_equal);
+	if (sym->code == S_continue || sym->code == S_reject) {
+	    mcx->action_error = sym->code;
+	    sym_get(sym);
+	    return;
+	}
+	parse_error_expect(sym, S_continue, S_reject, S_unknown);
+    case S_notfound:
+	sym_get(sym);
+	parse(sym, S_equal);
+	if (sym->code == S_continue || sym->code == S_reject) {
+	    mcx->action_notfound = sym->code;
+	    sym_get(sym);
+	    return;
+	}
+	parse_error_expect(sym, S_continue, S_reject, S_unknown);
+    default:
+	parse_error_expect(sym, S_error, S_notfound, S_unknown);
+    }
 }

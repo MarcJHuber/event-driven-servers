@@ -315,8 +315,11 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 	    if (!mcx->argv)
 		parse_error(sym, "Missing \"exec\" declaration.");
 	    return MAVIS_CONF_OK;
+	case S_action:
+	    mavis_module_parse_action(mcx, sym);
+	    continue;
 	default:
-	    parse_error_expect(sym, S_script, S_userid, S_groupid, S_home, S_childs, S_setenv, S_exec, S_closebra, S_unknown);
+	    parse_error_expect(sym, S_script, S_userid, S_groupid, S_home, S_childs, S_setenv, S_exec, S_action, S_closebra, S_unknown);
 	}
     }
 }

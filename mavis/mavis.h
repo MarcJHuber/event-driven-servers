@@ -245,6 +245,8 @@ struct mavis_ctx {
     struct io_context *io;
     char *identity_source_name;
     char *identifier;
+    enum token action_error;	// Default: S_reject, optionally S_continue
+    enum token action_notfound; // Default: S_continue, optionally: S_reject
 #ifdef MAVIS_CTX_PRIVATE
      MAVIS_CTX_PRIVATE
 #endif
@@ -475,6 +477,8 @@ void ipc_delete(void);
 int mavis_check_version(char *);
 
 void mavis_detach(void);
+
+void mavis_module_parse_action(mavis_ctx *, struct sym *);
 
 #if defined(MAVIS_name) && defined(DEBUG)
 #undef DebugIn
