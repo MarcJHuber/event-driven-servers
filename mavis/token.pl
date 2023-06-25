@@ -457,4 +457,6 @@ interim	S_interim
 rewritten-only	S_rewritten_only
 password-new	S_password_new
 verdict	S_verdict
+true	S_true
+false	S_false
 

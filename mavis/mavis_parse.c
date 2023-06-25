@@ -231,13 +231,15 @@ u_int parse_bool(struct sym *sym)
 
     switch (sc) {
     default:
-	parse_error_expect(sym, S_yes, S_no, S_permit, S_deny, S_unknown);
+	parse_error_expect(sym, S_yes, S_no, S_permit, S_deny, S_true, S_false, S_unknown);
     case S_yes:
     case S_permit:
+    case S_true:
 	sym_get(sym);
 	return 1;
     case S_no:
     case S_deny:
+    case S_false:
 	sym_get(sym);
 	return 0;
     }
