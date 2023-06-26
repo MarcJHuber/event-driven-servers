@@ -51,7 +51,7 @@ int main(int argc __attribute__((unused)), char **argv)
 #else
     set_rc(rh, "dictionary", "/usr/local/etc/radiusclient/dictionary");
 #endif
-    set_rc(rh, "seqfile", "/var/run/radius.seq");
+    //set_rc(rh, "seqfile", "/var/run/radius.seq");
     set_rc(rh, "radius_retries", "3");
     set_rc(rh, "radius_timeout", "5");
     set_rc(rh, "radius_deadtime", "10");
