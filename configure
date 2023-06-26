@@ -640,8 +640,8 @@ check_for("PCRE2", "libpcre2-8", "pcre2.h", "pcre2-8", "-DPCRE2_CODE_UNIT_WIDTH=
 $DEFS{"INC_PCRE"} = $DEFS{"INC_PCRE2"} if exists $DEFS{"INC_PCRE2"};
 $DEFS{"LIB_PCRE"} = $DEFS{"LIB_PCRE2"} if exists $DEFS{"LIB_PCRE2"};
 check_for("PCRE", "libpcre", "pcre.h", "pcre", undef) if !exists $DEFS{"WITH_PCRE2"} || $DEFS{"WITH_PCRE2"} == 0;
-check_for("RADCLI", "radcli", "radcli/radcli.h", "radcli", undef);
-check_for("FREERADIUS", "freeradius-client", "freeradius-client.h", "freeradius-client", undef) if !exists $DEFS{"WITH_RADCLI"} || $DEFS{"WITH_RADCLI"} == 0;
+check_for("FREERADIUS", "freeradius-client", "freeradius-client.h", "freeradius-client", undef);
+check_for("RADCLI", "radcli", "radcli/radcli.h", "radcli", undef) if !exists $DEFS{"WITH_FREERADIUS"} || $DEFS{"WITH_FREERADIUS"} == 0;
 check_for("ZLIB", "zlib", "zlib.h", "z", undef);
 check_for("EXECINFO", "execinfo", "execinfo.h", "execinfo", undef);
 if ($sysname eq "linux" && -f "/usr/include/execinfo.h") {
