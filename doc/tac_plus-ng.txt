@@ -94,8 +94,8 @@ Marc Huber
    The following chapters utilize a couple of terms that may need
    further explanation:
 
-   NAC A Network Access Client, e.g. the source host of a telnet
-   connection.
+   NAC or Endpoint A Network Access Client, e.g. the source host
+   of a ssh (or telnet) connection.
    NAS or NAD A Network Access Server or Device, e.g. a Cisco box,
    or any other client which makes TACACS+ authentication and
    authorization requests, or generates TACACS+ accounting
@@ -1508,6 +1508,8 @@ aaa authentication enable default group tacacs+ enable
    there. Set this if required.
    1 2 Accept version 1 for authorization and accounting packets,
    seen with Palo Alto systems.
+   2 4 Accept key-based packet obfuscation for TLS (this violates
+   draft-ietf-opsawg-tacacs-tls13-03.txt).
 
    Example:
   host ... {
