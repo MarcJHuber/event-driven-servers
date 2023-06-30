@@ -3268,6 +3268,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
     case S_context:
     case S_nac:
     case S_nas:
+    case S_host:
     case S_nasname:
     case S_nacname:
     case S_port:
@@ -3338,11 +3339,17 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 		m->u.s.rhs = g;
 		return p ? p : m;
 	    }
-	    if (m->u.s.token == S_nac || m->u.s.token == S_nas) {
+	    if (m->u.s.token == S_nac || m->u.s.token == S_nas || m->u.s.token == S_host) {
 		tac_host *hp;
 		tac_net *np;
 		m->u.s.rhs_txt = strdup(sym->buf);
-		if (m->u.s.token == S_nas && (hp = lookup_host(sym->buf, realm))) {
+		if (m->u.s.token == S_host) {
+		    hp = lookup_host(sym->buf, realm);
+		    if (!hp)
+			parse_error(sym, "host %s is not known", sym->buf);
+		    m->type = S_host;
+		    m->u.s.rhs = hp;
+		} else if (m->u.s.token == S_nas && (hp = lookup_host(sym->buf, realm))) {
 		    m->type = S_host;
 		    m->u.s.rhs = hp;
 		} else if (m->u.s.token == S_nas && (np = lookup_net(sym->buf, realm))) {
@@ -3434,7 +3441,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
     default:
 	parse_error_expect(sym, S_leftbra, S_exclmark, S_acl, S_time, S_arg,
 			   S_cmd, S_context, S_nac, S_nas, S_nasname,
-			   S_nacname, S_port, S_user, S_member, S_memberof,
+			   S_nacname, S_host, S_port, S_user, S_member, S_memberof,
 			   S_password, S_service, S_protocol, S_authen_action,
 			   S_authen_type, S_authen_service, S_authen_method, S_privlvl, S_vrf, S_dn, S_type, S_identity_source,
 #if defined(WITH_TLS) || defined(WITH_SSL)
