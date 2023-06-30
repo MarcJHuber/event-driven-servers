@@ -513,20 +513,44 @@ void tac_read(struct context *ctx, int cur)
 	session = new_session(ctx, &ctx->hdr);
     }
 
-    if ((ctx->in->hdr.flags & TAC_PLUS_UNENCRYPTED_FLAG)) {
+    if (
 #if defined(WITH_TLS) || defined(WITH_SSL)
-	if (!ctx->tls) {
+	   (ctx->tls && !(ctx->in->hdr.flags & TAC_PLUS_UNENCRYPTED_FLAG) && !(session->ctx->bug_compatibility & CLIENT_BUG_TLS_OBFUSCATED))
+	|| (!ctx->tls && (ctx->in->hdr.flags & TAC_PLUS_UNENCRYPTED_FLAG))
+#else
+	   (ctx->in->hdr.flags & TAC_PLUS_UNENCRYPTED_FLAG)
 #endif
-	    report(NULL, LOG_ERR, ~0,
-		   "%s: %s packet (sequence number: %d) for session %.8x", "Unencrypted", ctx->nas_address_ascii, (int) ctx->hdr.seq_no,
-		   ntohl(ctx->hdr.session_id));
-	    cleanup(ctx, cur);
-	    return;
+	) {
+	char *msg =
 #if defined(WITH_TLS) || defined(WITH_SSL)
+	    ctx->tls ? "Peers MUST NOT use Obfuscation with TLS." :
+#endif
+	    "Peers MUST use Obfuscation.";
+	report(NULL, LOG_ERR, ~0, "%s: %s packet (sequence number: %d) for %ssession %.8x", "Encrypted", ctx->nas_address_ascii, (int) ctx->hdr.seq_no,
+#if defined(WITH_TLS) || defined(WITH_SSL)
+	       ctx->tls ? "TLS " :
+#endif
+	       "", ntohl(ctx->hdr.session_id));
+	switch (ctx->hdr.type) {
+	case TAC_PLUS_AUTHEN:
+	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_ERROR, msg, 0, NULL, 0, 0);
+	    break;
+	case TAC_PLUS_AUTHOR:
+	    send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_ERROR, msg, NULL, 0, NULL);
+	    break;
+	case TAC_PLUS_ACCT:
+	    send_acct_reply(session, TAC_PLUS_ACCT_STATUS_ERROR, msg, NULL);
+	    break;
+	default:
+	    ;
 	}
-	ctx->unencrypted_flag = 1;
-#endif
+	cleanup(ctx, cur);
+	return;
     }
+
+    if (ctx->in->hdr.flags & TAC_PLUS_UNENCRYPTED_FLAG)
+	ctx->unencrypted_flag = 1;
+
 
     if ((ctx->in->hdr.flags & TAC_PLUS_SINGLE_CONNECT_FLAG) && (ctx->host->single_connection == TRISTATE_YES)) {
 	ctx->flags |= TAC_PLUS_SINGLE_CONNECT_FLAG;

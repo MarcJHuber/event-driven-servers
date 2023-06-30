@@ -88,7 +88,7 @@ my @ALLDIRS = qw(mavis spawnd mavisd ftpd tac_plus tac_plus-ng tcprelay );
 my $DIRS_DEFAULT = join(" ", @DIRS_DEFAULT);
 my $ALLDIRS = join(" ", @ALLDIRS);
 
-my @options = qw(lwres pcre pcre2 ssl tls zlib freeradius pam execinfo sctp curl ipc ares crypto);
+my @options = qw(pcre2 ssl tls zlib freeradius pam execinfo sctp curl ipc ares crypto);
 my %COMMENT;
 
 my $sbin = "sbin";
@@ -104,15 +104,8 @@ $COMMENT{"epoll"} =
 "Usually, Linux epoll support is autodetected. This option overrides autodetection, which may be useful if you're using a patched pre-sysepoll kernel (how much unlikely that is).
 ";
 
-$COMMENT{"lwres"} =
-"liblwres, the lightweight resolver library, comes with older versions of bind, together with lwresd. Enabling this option enables ftpd and tac_plus(-ng) to do DNS lookups. Upstream support is no longer available, please move on to c-ares.
-";
-
 $COMMENT{"ares"} =
-"c-ares is a library for asynchronous DNS requests. This option enables ftpd and tac_plus(-ng) to do DNS lookups. Please use this instead of lwres.\n";
-
-$COMMENT{"pcre"} = "ftpd can use the PCRE (\"Perl Compatible Regular Expressions\") library for path rewriting, and tac_plus may use it as an alternative to POSIX regular expression matching. Please note that the PCRE library is deprecated and no longer supported by upstream. Please switch to PCRE2.
-";
+"c-ares is a library for asynchronous DNS requests. This option enables ftpd and tac_plus(-ng) to do DNS lookups.\n";
 
 $COMMENT{"pcre2"} =
 "ftpd can use the PCRE v2 (\"Perl Compatible Regular Expressions\" v2) library for path rewriting, and tac_plus may use it as an alternative to POSIX regular expression matching. Using it is highly recommended and virtually mandatory for tac_plus-ng.
@@ -224,7 +217,7 @@ This script should be smart enough to figure out availability of most configurat
 
 You can easily skip features you don't need, e.g.:
 
-  ./configure --without-curl --without-tls --without-ssl --without-crypto --without-ares --without-lwres --without-sctp --without-zlib [targets]
+  ./configure --without-curl --without-tls --without-ssl --without-crypto --without-ares --without-sctp --without-zlib [targets]
 
 or, as a shortcut,
 
@@ -359,7 +352,6 @@ if (exists $A{"--minimum"}) {
 	$DEFS{"WITH_SSL"} = 0;
 	$DEFS{"WITH_CRYPTO"} = 0;
 	$DEFS{"WITH_ARES"} = 0;
-	$DEFS{"WITH_LWRES"} = 0;
 	$DEFS{"WITH_SCTP"} = 0;
 	$DEFS{"WITH_ZLIB"} = 0;
 	delete $A{"--minimum"};
@@ -627,10 +619,8 @@ sub check_for($$$$$) {
 	}
 }
 
-check_for("ARES", "libcares", "ares.h", "cares", "-DWITH_DNS") if !exists $DEFS{"WITH_LWRES"} || $DEFS{"WITH_LWRES"} == 0;
+check_for("ARES", "libcares", "ares.h", "cares", "-DWITH_DNS");
 $DEFS{"LIB_DNS"} = $DEFS{"LIB_ARES"} if exists $DEFS{"LIB_ARES"};
-check_for("LWRES", "liblwres", "liblwres.h", "lwres", "-DWITH_DNS") if !exists $DEFS{"WITH_ARES"} || $DEFS{"WITH_ARES"} == 0;
-$DEFS{"LIB_DNS"} = $DEFS{"LIB_LWRES"} if exists $DEFS{"LIB_LWRES"};
 $DEFS{"WITH_DNS"} = 1 if exists $DEFS{"LIB_DNS"};
 check_for("SSL", "openssl", "openssl/ssl.h", "ssl", undef) if !exists $DEFS{"WITH_TLS"} || $DEFS{"WITH_TLS"} == 0;
 $DEFS{"LIB_SSL"} .= " -lcrypto" if exists $DEFS{"LIB_SSL"} && exists $DEFS{"WITH_CRYPTO"} && $DEFS{"WITH_CRYPTO"} == 0;
@@ -639,7 +629,6 @@ check_for("TLS", "libtls", "tls.h", "tls", undef) if !exists $DEFS{"WITH_SSL"} |
 check_for("PCRE2", "libpcre2-8", "pcre2.h", "pcre2-8", "-DPCRE2_CODE_UNIT_WIDTH=8");
 $DEFS{"INC_PCRE"} = $DEFS{"INC_PCRE2"} if exists $DEFS{"INC_PCRE2"};
 $DEFS{"LIB_PCRE"} = $DEFS{"LIB_PCRE2"} if exists $DEFS{"LIB_PCRE2"};
-check_for("PCRE", "libpcre", "pcre.h", "pcre", undef) if !exists $DEFS{"WITH_PCRE2"} || $DEFS{"WITH_PCRE2"} == 0;
 check_for("FREERADIUS", "freeradius-client", "freeradius-client.h", "freeradius-client", undef);
 #check_for("RADCLI", "radcli", "radcli/radcli.h", "radcli", undef) if !exists $DEFS{"WITH_FREERADIUS"} || $DEFS{"WITH_FREERADIUS"} == 0;
 check_for("ZLIB", "zlib", "zlib.h", "z", undef);
@@ -737,14 +726,6 @@ wprint $hint . "\n" if $hint ne "";;
 
 wprint "Development files were not found for: " . join(", ", sort keys %NOT_FOUND) . "\n\n" if 0 < int keys %NOT_FOUND;
 wprint "Development files were found for: " . join(", ", sort keys %FOUND) . "\n\n" if 0 < int keys %FOUND;
-
-if (exists $FOUND{"LIB-LWRES"}) {
-	wprint "lwres isn't supported by upstream since bind 9.12. Support will be removed soon. Please install C-ARES if you require the DNS reverse lookup features\n\n";
-}
-
-if (exists $FOUND{"LIB-PCRE"}) {
-	wprint "PCRE1 is EoL since mid 2021. Support will be removed soon. Please install PCRE2.\n\n";
-}
 
 wprint "The file
 
