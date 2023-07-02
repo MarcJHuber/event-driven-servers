@@ -2,7 +2,7 @@ TACACS+ NG
 
 Marc Huber
 
-   $Id: 832e4b86ac6a7b1f8fdf15a6380438d3675d3df0 $
+   $Id: 9704fe988810d06058fde14507598d0fd0b0a43a $
      __________________________________________________________
 
    Table of Contents
@@ -1687,7 +1687,59 @@ set priv-lvl = 15
        daemon from checking for the same service in the groups the
        current user (or group) is a member of.
 
-   Condition syntax is:
+   Conditions:
+
+   Left-hand side Operators Right-hand side Comment
+   "string" == != =~ !~ String or REGEX Log variable substitutions
+   will apply
+   acl == != ACL object name
+   arg[attr] == != =~ !~ String or REGEX arg[protocol],
+   arg[service], ...
+   authen-action == != =~ !~ String or REGEX login, chpass
+   authen-method == != =~ !~ String or REGEX login, enable, ppp
+   authen-service == != =~ !~ String or REGEX none, line, enable,
+   local, tacacs+
+   authen-type == != =~ !~ String or REGEX ascii, pap, chap,
+   mschap, mschapv2, sshkey, sshcer
+   cmd == != =~ !~ String or REGEX shell command line
+   context == != =~ !~ String or REGEX current exec context
+   dn == != =~ !~ String or REGEX MAVIS dn attribute
+   host == != Host object name incl. Parents
+   identity-source == != =~ !~ String or REGEX
+   authenticating/authorizing MAVIS module
+   member == != =~ !~ String or REGEX group membership
+   memberof == != =~ !~ String or REGEX MAVIS memberOf attribute
+   nac == != =~ !~ String or REGEX net object name (incl.
+   Parents), client remote address (rem_addr)
+   nac-name == != =~ !~ String or REGEX client DNS PTR
+   nas == != =~ !~ String or REGEX host or net object name (incl.
+   Parents), matches NAS/NAD remote address (rem_addr)
+   nas-name == != =~ !~ String or REGEX NAS/NAD DNS PTR
+   password == != =~ !~ String or REGEX session user password
+   port == != =~ !~ String or REGEX session port (vty02, console,
+   ...)
+   priv-lvlp == != =~ !~ String or REGEX session privilege level
+   (0 ... 15)
+   protocol == != =~ !~ String or REGEX session protocol (ppp,
+   ...)
+   realm == != Realm object name
+   service == != =~ !~ String or REGEX session service (shell,
+   ...)
+   time == != Timespec object name
+   tls-conn-cipher == != =~ !~ String or REGEX TLS specific data
+   tls-conn-cipher-strength == != =~ !~ String or REGEX TLS
+   specific data
+   tls-conn-version == != =~ !~ String or REGEX TLS specific data
+   tls-peer-cert-issuer == != =~ !~ String or REGEX TLS specific
+   data
+   tls-peer-cert-subject == != =~ !~ String or REGEX TLS specific
+   data
+   tls-peer-cn == != =~ !~ String or REGEX TLS specific data
+   tls-psk-identity == != =~ !~ String or REGEX TLS specific data
+   type == != =~ !~ String or REGEX authen, author, acct
+   user == != =~ !~ String or REGEX session user
+
+   Railroad diagrams for conditions:
 
    [TacCond.eps]
 
