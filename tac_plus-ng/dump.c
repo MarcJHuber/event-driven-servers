@@ -162,10 +162,10 @@ void get_pkt_data(tac_session * session, struct authen_start *start, struct auth
 {
     if (start) {
 	session->authen_action = i2s(map_action, start->action, &session->authen_action_len);
-	session->authen_type = i2s(map_authen_type, start->type, &session->authen_type_len);
+	session->authen_type = i2s(map_type, start->type, &session->authen_type_len);
 	session->authen_service = i2s(map_service, start->service, &session->authen_service_len);
     } else if (author) {
-	session->authen_type = i2s(map_authen_type, author->authen_type, &session->authen_type_len);
+	session->authen_type = i2s(map_type, author->authen_type, &session->authen_type_len);
 	session->authen_service = i2s(map_service, author->service, &session->authen_service_len);
 	session->authen_method = i2s(map_method, author->authen_method, &session->authen_method_len);
     }
