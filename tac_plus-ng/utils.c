@@ -837,6 +837,13 @@ struct log_item *parse_log_format(struct sym *sym)
 		}
 	    case S_nas:
 	    case S_nac:
+	    case S_client:
+	    case S_clientdns:
+	    case S_clientname:
+	    case S_clientaddress:
+	    case S_devicedns:
+	    case S_devicename:
+	    case S_deviceaddress:
 	    case S_proxy:
 	    case S_peer:
 	    case S_user:
