@@ -843,10 +843,12 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_profile:
 	    case S_service:
 	    case S_result:
+	    case S_deviceport:
 	    case S_port:
 	    case S_type:
 	    case S_hint:
 	    case S_host:
+	    case S_device:
 	    case S_hostname:
 	    case S_msgid:
 	    case S_accttype:
@@ -1620,16 +1622,22 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_hint] = &eval_log_format_hint;
 	efun[S_home] = &eval_log_format_home;
 	efun[S_host] = &eval_log_format_host;
+	efun[S_device] = &eval_log_format_host;
+	efun[S_devicename] = &eval_log_format_hostname;
 	efun[S_hostname] = &eval_log_format_hostname;
 	efun[S_label] = &eval_log_format_label;
 	efun[S_memberof] = &eval_log_format_memberof;
 	efun[S_message] = &eval_log_format_message;
 	efun[S_msgid] = &eval_log_format_msgid;
+	efun[S_clientname] = &eval_log_format_nac;
+	efun[S_clientaddress] = &eval_log_format_nac;
 	efun[S_nac] = &eval_log_format_nac;
+	efun[S_deviceaddress] = &eval_log_format_nas;
 	efun[S_nas] = &eval_log_format_nas;
 	efun[S_path] = &eval_log_format_path;
 	efun[S_peer] = &eval_log_format_peer;
 	efun[S_port] = &eval_log_format_port;
+	efun[S_deviceport] = &eval_log_format_port;
 	efun[S_priority] = &eval_log_format_priority;
 	efun[S_privlvl] = &eval_log_format_privlvl;
 	efun[S_profile] = &eval_log_format_profile;
@@ -1648,7 +1656,9 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_user] = &eval_log_format_user;
 	efun[S_vrf] = &eval_log_format_vrf;
 	efun[S_identity_source] = &eval_log_format_identity_source;
+	efun[S_clientdns] = &eval_log_format_nacname;
 	efun[S_nacname] = &eval_log_format_nacname;
+	efun[S_devicedns] = &eval_log_format_nasname;
 	efun[S_nasname] = &eval_log_format_nasname;
 #if defined(WITH_TLS) || defined(WITH_SSL)
 	efun[S_tls_conn_cipher] = &eval_log_format_tls_conn_cipher;

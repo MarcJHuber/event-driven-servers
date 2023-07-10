@@ -1098,17 +1098,19 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		    r->default_host->lookup_revmap_nac = r->default_host->lookup_revmap_nas = parse_tristate(sym);
 		    break;
 		case S_nac:
+		case S_client:
 		    sym_get(sym);
 		    parse(sym, S_equal);
 		    r->default_host->lookup_revmap_nac = parse_tristate(sym);
 		    break;
 		case S_nas:
+		case S_device:
 		    sym_get(sym);
 		    parse(sym, S_equal);
 		    r->default_host->lookup_revmap_nas = parse_tristate(sym);
 		    break;
 		default:
-		    parse_error_expect(sym, S_equal, S_nac, S_nas, S_unknown);
+		    parse_error_expect(sym, S_equal, S_client, S_nac, S_device, S_nas, S_unknown);
 		}
 		if ((r->default_host->lookup_revmap_nas == TRISTATE_YES || r->default_host->lookup_revmap_nac == TRISTATE_YES)
 		    && !r->idc)
@@ -1231,6 +1233,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	    sym_get(sym);
 	    continue;
 	case S_host:
+	case S_device:
 	    parse_host(sym, r, r->default_host);
 	    continue;
 	case S_net:
@@ -2573,6 +2576,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 {
     switch (sym->code) {
     case S_host:
+    case S_device:
 	parse_host(sym, r, host);
 	return;
     case S_parent:
@@ -2790,17 +2794,19 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 		host->lookup_revmap_nac = host->lookup_revmap_nas = parse_tristate(sym);
 		break;
 	    case S_nac:
+	    case S_client:
 		sym_get(sym);
 		parse(sym, S_equal);
 		host->lookup_revmap_nac = parse_tristate(sym);
 		break;
 	    case S_nas:
+	    case S_device:
 		sym_get(sym);
 		parse(sym, S_equal);
 		host->lookup_revmap_nas = parse_tristate(sym);
 		break;
 	    default:
-		parse_error_expect(sym, S_equal, S_nac, S_nas, S_unknown);
+		parse_error_expect(sym, S_equal, S_client, S_nac, S_device, S_nas, S_unknown);
 	    }
 	    //FIXME, add realm specific options
 	    if ((host->lookup_revmap_nas == TRISTATE_YES || host->lookup_revmap_nac == TRISTATE_YES) && !r->idc)
@@ -2913,7 +2919,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	break;
 #endif
     default:
-	parse_error_expect(sym, S_host, S_parent, S_authentication, S_permit,
+	parse_error_expect(sym, S_host, S_device, S_parent, S_authentication, S_permit,
 			   S_bug, S_pap, S_address, S_key, S_motd, S_welcome,
 			   S_reject, S_enable, S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_script,
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
@@ -3266,11 +3272,20 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
     case S_arg:
     case S_cmd:
     case S_context:
+    case S_client:
+    case S_clientaddress:
+    case S_clientname:
+    case S_clientdns:
     case S_nac:
     case S_nas:
     case S_host:
+    case S_device:
+    case S_deviceaddress:
+    case S_devicename:
+    case S_devicedns:
     case S_nasname:
     case S_nacname:
+    case S_deviceport:
     case S_port:
     case S_type:
     case S_user:
@@ -3339,6 +3354,54 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 		m->u.s.rhs = g;
 		return p ? p : m;
 	    }
+	    if (m->u.s.token == S_device || m->u.s.token == S_devicename || m->u.s.token == S_deviceaddress) {
+		tac_host *hp = NULL;
+		tac_net *np = NULL;
+		if (m->u.s.token == S_device || m->u.s.token == S_devicename) {
+		    hp = lookup_host(sym->buf, realm);
+		    if (!hp)
+			np = lookup_net(sym->buf, realm);
+		}
+		m->u.s.rhs_txt = strdup(sym->buf);
+		if (hp) {
+		    m->type = S_host;
+		    m->u.s.rhs = hp;
+		} else if (np) {
+		    m->type = S_net;
+		    m->u.s.rhs = np;
+		} else if (m->u.s.token == S_device || m->u.s.token == S_deviceaddress) {
+		    struct in6_cidr *c = calloc(1, sizeof(struct in6_cidr));
+		    m->u.s.rhs = c;
+		    if (v6_ptoh(&c->addr, &c->mask, sym->buf))
+			parse_error(sym, "Expected a %san IP address/network in CIDR notation, but got '%s'.",
+				    (m->u.s.token == S_device || m->u.s.token == S_devicename) ? "host or net name or " : "", sym->buf);
+		    m->type = S_address;
+		} else
+		    parse_error(sym, "Expected a host or net name, but got '%s'.", sym->buf);
+		sym_get(sym);
+		return p ? p : m;
+	    }
+	    if (m->u.s.token == S_client || m->u.s.token == S_clientname || m->u.s.token == S_clientaddress) {
+		tac_net *np = NULL;
+		if (m->u.s.token == S_client || m->u.s.token == S_clientname)
+		    np = lookup_net(sym->buf, realm);
+		m->u.s.rhs_txt = strdup(sym->buf);
+		if (np) {
+		    m->type = S_net;
+		    m->u.s.rhs = np;
+		} else if (m->u.s.token == S_device || m->u.s.token == S_deviceaddress) {
+		    struct in6_cidr *c = calloc(1, sizeof(struct in6_cidr));
+		    m->u.s.rhs = c;
+		    if (!v6_ptoh(&c->addr, &c->mask, sym->buf)) {
+			m->type = S_address;
+			sym_get(sym);
+			return p ? p : m;
+		    }
+		}
+		m->u.s.rhs = m->u.s.rhs_txt;
+		sym_get(sym);
+		return p ? p : m;
+	    }
 	    if (m->u.s.token == S_nac || m->u.s.token == S_nas || m->u.s.token == S_host) {
 		tac_host *hp;
 		tac_net *np;
@@ -3386,6 +3449,9 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 	case S_tilde:
 	    {			//S_tilde
 		int errcode = 0;
+
+		if (m->u.s.token == S_clientname)
+		    parse_error(sym, "REGEX matching isn't supported for '%s'", codestring[m->u.s.token]);
 
 		m->type = S_regex;
 		sym->flag_parse_pcre = 1;
@@ -3440,8 +3506,10 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 
     default:
 	parse_error_expect(sym, S_leftbra, S_exclmark, S_acl, S_time, S_arg,
-			   S_cmd, S_context, S_nac, S_nas, S_nasname,
+			   S_cmd, S_context, S_client, S_nac, S_device, S_nas, S_nasname,
 			   S_nacname, S_host, S_port, S_user, S_member, S_memberof,
+			   S_device, S_devicename, S_deviceaddress, S_devicedns, S_deviceport,
+			   S_client, S_clientname, S_clientdns, S_clientaddress,
 			   S_password, S_service, S_protocol, S_authen_action,
 			   S_authen_type, S_authen_service, S_authen_method, S_privlvl, S_vrf, S_dn, S_type, S_identity_source,
 #if defined(WITH_TLS) || defined(WITH_SSL)
@@ -3632,19 +3700,24 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	    v = session->cmdline;
 	    break;
 	case S_nac:
+	case S_clientaddress:
 	    v = session->nac_address_ascii;
 	    break;
 	case S_nas:
+	case S_deviceaddress:
 	    v = session->ctx->nas_address_ascii;
 	    break;
+	case S_clientdns:
 	case S_nacname:
 	    if (session->nac_dns_name && *session->nac_dns_name)
 		v = session->nac_dns_name;
 	    break;
+	case S_devicedns:
 	case S_nasname:
 	    if (session->ctx->nas_dns_name && *session->ctx->nas_dns_name)
 		v = session->ctx->nas_dns_name;
 	    break;
+	case S_deviceport:
 	case S_port:
 	    v = session->nas_port;
 	    break;
@@ -3678,6 +3751,7 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	    if (session->user)
 		res = tac_group_regex_check(session, m, session->user->groups, NULL);
 	    return tac_script_cond_eval_res(session, m, res);
+	case S_devicename:
 	case S_host:
 	    {
 		tac_host *h = session->ctx->host;

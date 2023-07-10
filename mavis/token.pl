@@ -11,6 +11,7 @@ my %K;
 
 while (<DATA>){
 	chomp;
+	next if /^#/;
 	/^([^\s]+)\s+([^\s]+)/ or next;
 	$K{$2} = $1;
 }
@@ -125,7 +126,6 @@ chpass		S_chpass
 chroot		S_chroot
 ciphers		S_ciphers
 clear		S_clear
-client		S_client
 client-only	S_clientonly
 cmd		S_cmd
 command		S_command
@@ -431,6 +431,7 @@ dn		S_dn
 ssh-key		S_ssh_key
 ssh-key-hash	S_ssh_key_hash
 ssh-key-id	S_ssh_key_id
+#
 PASSWORD	S_PASSWORD
 RESPONSE	S_RESPONSE
 PASSWORD_OLD	S_PASSWORD_OLD
@@ -461,4 +462,15 @@ true	S_true
 false	S_false
 error	S_error
 not-found	S_notfound
-
+#
+device		S_device
+device.address	S_deviceaddress
+device.name	S_devicename
+device.dnsname	S_devicedns
+device.port	S_deviceport
+#
+client		S_client
+client.address	S_clientaddress
+client.name	S_clientname
+client.dnsname	S_clientdns
+#
