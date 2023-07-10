@@ -1112,33 +1112,33 @@ module)</td>
 from LDAP</td>
 </tr>
 <tr>
-<td><tt class="literal">${tls-conn-version}</tt></td>
+<td><tt class="literal">${tls.conn.version}</tt></td>
 <td>TLS Connection Version (requires LibTLS or OpenSSL)</td>
 </tr>
 <tr>
-<td><tt class="literal">${tls-conn-cipher}</tt></td>
+<td><tt class="literal">${tls.conn.cipher}</tt></td>
 <td>TLS Connection Cipher (requires LibTLS or OpenSSL)</td>
 </tr>
 <tr>
-<td><tt class="literal">${tls-peer-cert-issuer}</tt></td>
+<td><tt class="literal">${tls.peer.cert.issuer}</tt></td>
 <td>TLS Peer Certificate Issuer (requires LibTLS or OpenSSL)</td>
 </tr>
 <tr>
-<td><tt class="literal">${tls-peer-cert-subject}</tt></td>
+<td><tt class="literal">${tls.peer.cert.subject}</tt></td>
 <td>TLS Peer Certificate Subject (requires LibTLS)</td>
 </tr>
 <tr>
-<td><tt class="literal">${tls-conn-cipher-strength}</tt></td>
+<td><tt class="literal">${tls.conn.cipher.strength}</tt></td>
 <td>TLS Connection Cipher Strength (requires LibTLS or
 OpenSSL)</td>
 </tr>
 <tr>
-<td><tt class="literal">${tls-peer-cn}</tt></td>
+<td><tt class="literal">${tls.peer.cn}</tt></td>
 <td>TLS peer certificate Common Name (requires LibTLS or
 OpenSSL)</td>
 </tr>
 <tr>
-<td><tt class="literal">${tls-psk-identity}</tt></td>
+<td><tt class="literal">${tls.psk.identity}</tt></td>
 <td>TLS PSK identity (requires OpenSSL)</td>
 </tr>
 </tbody>
@@ -1164,11 +1164,11 @@ OpenSSL)</td>
 # Authentication to syslog(3):
 "${nas}|${user}|${port}|${nac}|${action} ${hint}"
 # Connections to file/pipe:
-"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${tls-conn-version}\t${tls-peer-cert-issuer}\t${tls-peer-cert-subject}\n"
+"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${tls.conn.version}\t${tls.peer.cert.issuer}\t${tls.peer.cert.subject}\n"
 # Connections to UDP syslog:
-"&lt;${priority}&gt;%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${tls-conn-version}|${tls-peer-cert-issuer}|${tls-peer-cert-subject}"
+"&lt;${priority}&gt;%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}"
 # Connections to syslog(3):
-"${accttype}|${nas}|${tls-conn-version}|${tls-peer-cert-issuer}|${tls-peer-cert-subject}"</pre>
+"${accttype}|${nas}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}"</pre>
 <div class="informaltable"><a name="AEN682" id="AEN682"></a>
 <table border="1" class="CALSTABLE">
 <col width="35%" title="col1">
@@ -2855,43 +2855,43 @@ address (rem_addr)</td>
 <td>&nbsp;</td>
 </tr>
 <tr>
-<td><tt class="literal">tls-conn-cipher</tt></td>
+<td><tt class="literal">tls.conn.cipher</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
 <td>String or REGEX</td>
 <td>TLS specific data</td>
 </tr>
 <tr>
-<td><tt class="literal">tls-conn-cipher-strength</tt></td>
+<td><tt class="literal">tls.conn.cipher.strength</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
 <td>String or REGEX</td>
 <td>TLS specific data</td>
 </tr>
 <tr>
-<td><tt class="literal">tls-conn-version</tt></td>
+<td><tt class="literal">tls.conn.version</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
 <td>String or REGEX</td>
 <td>TLS specific data</td>
 </tr>
 <tr>
-<td><tt class="literal">tls-peer-cert-issuer</tt></td>
+<td><tt class="literal">tls.peer.cert.issuer</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
 <td>String or REGEX</td>
 <td>TLS specific data</td>
 </tr>
 <tr>
-<td><tt class="literal">tls-peer-cert-subject</tt></td>
+<td><tt class="literal">tls.peer.cert.subject</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
 <td>String or REGEX</td>
 <td>TLS specific data</td>
 </tr>
 <tr>
-<td><tt class="literal">tls-peer-cn</tt></td>
+<td><tt class="literal">tls.peer.cn</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
 <td>String or REGEX</td>
 <td>TLS specific data</td>
 </tr>
 <tr>
-<td><tt class="literal">tls-psk-identity</tt></td>
+<td><tt class="literal">tls.psk.identity</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
 <td>String or REGEX</td>
 <td>TLS specific data</td>

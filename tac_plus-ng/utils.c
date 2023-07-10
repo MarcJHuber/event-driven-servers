@@ -668,14 +668,14 @@ void parse_log(struct sym *sym, tac_realm * r)
 	access_syslog3 = parse_log_format_inline("\"${nas}|${user}|${port}|${nac}|${action} ${hint}\"", __FILE__, __LINE__);
 
 	conn_file =
-	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${tls-conn-version}\t${tls-peer-cert-issuer}\t${tls-peer-cert-subject}\n\"",
+	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${tls.conn.version}\t${tls.peer.cert.issuer}\t${tls.peer.cert.subject}\n\"",
 				    __FILE__, __LINE__);
 	conn_syslog =
 	    parse_log_format_inline
-	    ("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${tls-conn-version}|${tls-peer-cert-issuer}|${tls-peer-cert-subject}\"",
+	    ("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}\"",
 	     __FILE__, __LINE__);
 	conn_syslog3 =
-	    parse_log_format_inline("\"${accttype}|${nas}|${tls-conn-version}|${tls-peer-cert-issuer}|${tls-peer-cert-subject}\"", __FILE__, __LINE__);
+	    parse_log_format_inline("\"${accttype}|${nas}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}\"", __FILE__, __LINE__);
     }
 
     switch (lf->dest[0]) {

@@ -413,13 +413,15 @@ authen-method			S_authen_method
 umessage			S_umessage
 proxy				S_proxy
 peer				S_peer
-tls-conn-version		S_tls_conn_version
-tls-conn-cipher			S_tls_conn_cipher
-tls-peer-cert-issuer		S_tls_peer_cert_issuer
-tls-peer-cert-subject		S_tls_peer_cert_subject
-tls-conn-cipher-strength	S_tls_conn_cipher_strength
-tls-peer-cn			S_tls_peer_cn
-tls-psk-identity		S_tls_psk_identity
+#
+tls.conn.version		S_tls_conn_version
+tls.conn.cipher			S_tls_conn_cipher
+tls.conn.cipher.strength	S_tls_conn_cipher_strength
+tls.peer.cert.issuer		S_tls_peer_cert_issuer
+tls.peer.cert.subject		S_tls_peer_cert_subject
+tls.peer.cn			S_tls_peer_cn
+tls.psk.identity		S_tls_psk_identity
+#
 expired				S_expired
 uid				S_uid
 memberof			S_memberof

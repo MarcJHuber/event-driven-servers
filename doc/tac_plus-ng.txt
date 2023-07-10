@@ -710,19 +710,19 @@ syslog default = deny
    ${identity-source} The IDENTITY_SOURCE backend value (the
    identitySourceName of the originating MAVIS module)
    ${memberof} Raw memberOf backend value, typically from LDAP
-   ${tls-conn-version} TLS Connection Version (requires LibTLS or
+   ${tls.conn.version} TLS Connection Version (requires LibTLS or
    OpenSSL)
-   ${tls-conn-cipher} TLS Connection Cipher (requires LibTLS or
+   ${tls.conn.cipher} TLS Connection Cipher (requires LibTLS or
    OpenSSL)
-   ${tls-peer-cert-issuer} TLS Peer Certificate Issuer (requires
+   ${tls.peer.cert.issuer} TLS Peer Certificate Issuer (requires
    LibTLS or OpenSSL)
-   ${tls-peer-cert-subject} TLS Peer Certificate Subject (requires
+   ${tls.peer.cert.subject} TLS Peer Certificate Subject (requires
    LibTLS)
-   ${tls-conn-cipher-strength} TLS Connection Cipher Strength
+   ${tls.conn.cipher.strength} TLS Connection Cipher Strength
    (requires LibTLS or OpenSSL)
-   ${tls-peer-cn} TLS peer certificate Common Name (requires
+   ${tls.peer.cn} TLS peer certificate Common Name (requires
    LibTLS or OpenSSL)
-   ${tls-psk-identity} TLS PSK identity (requires OpenSSL)
+   ${tls.psk.identity} TLS PSK identity (requires OpenSSL)
        The built-in defaults as of writing this are:
 # Accounting to file/pipe:
 "%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${
@@ -749,14 +749,14 @@ nac}|${action} ${hint}"
 # Authentication to syslog(3):
 "${nas}|${user}|${port}|${nac}|${action} ${hint}"
 # Connections to file/pipe:
-"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${tls-conn-version}\t${tls-p
-eer-cert-issuer}\t${tls-peer-cert-subject}\n"
+"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${tls.conn.version}\t${tls.p
+eer.cert.issuer}\t${tls.peer.cert.subject}\n"
 # Connections to UDP syslog:
-"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${tls-
-conn-version}|${tls-peer-cert-issuer}|${tls-peer-cert-subject}"
+"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${tls.
+conn.version}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}"
 # Connections to syslog(3):
-"${accttype}|${nas}|${tls-conn-version}|${tls-peer-cert-issuer}|${tls-pe
-er-cert-subject}"
+"${accttype}|${nas}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.pe
+er.cert.subject}"
 
    Message ID Description
    AUTHZPASS authorization succeeded
@@ -1726,16 +1726,16 @@ set priv-lvl = 15
    service == != =~ !~ String or REGEX session service (shell,
    ...)
    time == != Timespec object name
-   tls-conn-cipher == != =~ !~ String or REGEX TLS specific data
-   tls-conn-cipher-strength == != =~ !~ String or REGEX TLS
+   tls.conn.cipher == != =~ !~ String or REGEX TLS specific data
+   tls.conn.cipher.strength == != =~ !~ String or REGEX TLS
    specific data
-   tls-conn-version == != =~ !~ String or REGEX TLS specific data
-   tls-peer-cert-issuer == != =~ !~ String or REGEX TLS specific
+   tls.conn.version == != =~ !~ String or REGEX TLS specific data
+   tls.peer.cert.issuer == != =~ !~ String or REGEX TLS specific
    data
-   tls-peer-cert-subject == != =~ !~ String or REGEX TLS specific
+   tls.peer.cert.subject == != =~ !~ String or REGEX TLS specific
    data
-   tls-peer-cn == != =~ !~ String or REGEX TLS specific data
-   tls-psk-identity == != =~ !~ String or REGEX TLS specific data
+   tls.peer.cn == != =~ !~ String or REGEX TLS specific data
+   tls.psk.identity == != =~ !~ String or REGEX TLS specific data
    type == != =~ !~ String or REGEX authen, author, acct
    user == != =~ !~ String or REGEX session user
 
