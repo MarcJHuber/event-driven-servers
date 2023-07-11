@@ -1703,19 +1703,19 @@ set priv-lvl = 15
    local, tacacs+
    authen-type == != =~ !~ String or REGEX ascii, pap, chap,
    mschap, mschapv2, sshkey, sshcer
-   client == != Net object name or IP address or string. Net incl.
-   parents
+   client == != =~ !~ Net object name or IP address or string. Net
+   incl. parents
    client.name == != Client remote address
-   client.address == != Client remote address
-   client.dnsname == != Client DNS PTR record
+   client.address == != =~ !~ Client remote address
+   client.dnsname == != =~ !~ Client DNS PTR record
    cmd == != =~ !~ String or REGEX shell command line
    context == != =~ !~ String or REGEX current exec context
    device == != Device (host) object name, net object name or
    device address incl. parents
    device.name == != =~ !~ Device (host) or net object name incl.
    parents
-   device.address == != Device (host) address
-   device.dnsname == != Device (host) DNS PTR record
+   device.address == != =~ !~ Device (host) address
+   device.dnsname == != =~ !~ Device (host) DNS PTR record
    dn == != =~ !~ String or REGEX MAVIS dn attribute
    identity-source == != =~ !~ String or REGEX
    authenticating/authorizing MAVIS module
