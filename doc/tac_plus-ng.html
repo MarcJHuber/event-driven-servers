@@ -47,38 +47,38 @@
 <dt>4.2.3. <a href="#AEN384">Realm attributes</a></dt>
 </dl>
 </dd>
-<dt>4.3. <a href="#AEN2578">MAVIS Backends</a></dt>
+<dt>4.3. <a href="#AEN2632">MAVIS Backends</a></dt>
 <dd>
 <dl>
-<dt>4.3.1. <a href="#AEN2586">LDAP Backends</a></dt>
-<dt>4.3.2. <a href="#AEN2799">PAM back-end</a></dt>
-<dt>4.3.3. <a href="#AEN2804">System Password Backends</a></dt>
-<dt>4.3.4. <a href="#AEN2811">Shadow Backend</a></dt>
-<dt>4.3.5. <a href="#AEN2834">RADIUS Backends</a></dt>
-<dt>4.3.6. <a href="#AEN2868">Experimental Backends</a></dt>
-<dt>4.3.7. <a href="#AEN2872">Error Handling</a></dt>
+<dt>4.3.1. <a href="#AEN2640">LDAP Backends</a></dt>
+<dt>4.3.2. <a href="#AEN2853">PAM back-end</a></dt>
+<dt>4.3.3. <a href="#AEN2858">System Password Backends</a></dt>
+<dt>4.3.4. <a href="#AEN2865">Shadow Backend</a></dt>
+<dt>4.3.5. <a href="#AEN2888">RADIUS Backends</a></dt>
+<dt>4.3.6. <a href="#AEN2922">Experimental Backends</a></dt>
+<dt>4.3.7. <a href="#AEN2926">Error Handling</a></dt>
 </dl>
 </dd>
 </dl>
 </dd>
-<dt>5. <a href="#AEN2880">Debugging</a></dt>
+<dt>5. <a href="#AEN2934">Debugging</a></dt>
 <dd>
 <dl>
-<dt>5.1. <a href="#AEN2883">Debugging Configuration Files</a></dt>
-<dt>5.2. <a href="#AEN2891">Trace Options</a></dt>
+<dt>5.1. <a href="#AEN2937">Debugging Configuration Files</a></dt>
+<dt>5.2. <a href="#AEN2945">Trace Options</a></dt>
 </dl>
 </dd>
-<dt>6. <a href="#AEN3049">Frequently Asked Questions</a></dt>
-<dt>7. <a href="#AEN3144">Multi-tenant setups</a></dt>
+<dt>6. <a href="#AEN3103">Frequently Asked Questions</a></dt>
+<dt>7. <a href="#AEN3198">Multi-tenant setups</a></dt>
 <dd>
 <dl>
-<dt>7.1. <a href="#AEN3175">AD, Realms and Tenants</a></dt>
+<dt>7.1. <a href="#AEN3229">AD, Realms and Tenants</a></dt>
 </dl>
 </dd>
-<dt>8. <a href="#AEN3180">AAA rule tracing</a></dt>
-<dt>9. <a href="#AEN3196">Bugs</a></dt>
-<dt>10. <a href="#AEN3210">References</a></dt>
-<dt>11. <a href="#AEN3220">Copyrights and Acknowledgements</a></dt>
+<dt>8. <a href="#AEN3234">AAA rule tracing</a></dt>
+<dt>9. <a href="#AEN3250">Bugs</a></dt>
+<dt>10. <a href="#AEN3264">References</a></dt>
+<dt>11. <a href="#AEN3274">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -94,7 +94,7 @@ source code and is in turn largely based on <span class=
 the same distribution. Key features include:</p>
 <ul>
 <li>
-<p>NAS specific host keys, prompts, enable passwords</p>
+<p>NAS specific device keys, prompts, enable passwords</p>
 </li>
 <li>
 <p>Rule-based permission assignment</p>
@@ -167,13 +167,13 @@ further explanation:</p>
 <col width="80%" title="col2">
 <tbody>
 <tr>
-<td>NAC or Endpoint</td>
-<td>A Network Access Client, e.g. the source host of a <tt class=
+<td>Client or NAC</td>
+<td>A Network Access Client, e.g. the source device of a <tt class=
 "literal">ssh</tt> (or <tt class="literal">telnet</tt>)
 connection.</td>
 </tr>
 <tr>
-<td>NAS or NAD</td>
+<td>Device or NAS or NAD</td>
 <td>A Network Access Server or Device, e.g. a Cisco box, or any
 other client which makes TACACS+ authentication and authorization
 requests, or generates TACACS+ accounting packets.</td>
@@ -426,28 +426,28 @@ and restart its worker processes:</p>
         net south {
             address = 100.68.0.0/16 }
     }</pre>
-<p>Now, define host objects for your network access devices. Just
+<p>Now, define device objects for your network access devices. Just
 like realms and networks these can be hierarchic:</p>
-<pre class="screen">    host world {
+<pre class="screen">    device world {
         welcome banner = "\nHitherto shalt thou come, but no further. (Job 38.11)\n\n"
         key = QaWsEdRfTgY
         enable 15 = clear test
         address = ::/0
-        host south {
+        device south {
             address = 100.99.0.0/16
         }
-        host west {
+        device west {
             address = 100.100.0.0/16
         }
     }
 
-    host localhost {
+    device localhost {
         address = 127.0.0.1
         welcome banner = "Welcome home\n"
         parent = world # for key and other definitions not set here
     }
 
-    host rfc {
+    device rfc {
         address = 172.16.0.0/12
         welcome banner = "Welcome private\n"
         key = labKey
@@ -571,7 +571,7 @@ directives</a></h3>
 <p>realms</p>
 </li>
 <li>
-<p>hosts</p>
+<p>devices</p>
 </li>
 <li>
 <p>time specifications</p>
@@ -711,7 +711,7 @@ via lwresd are no longer supported.</p>
 "screen">dns preload address 1.2.3.4 = router.example.com
 dns preload file = /etc/hosts
 
-host router.example.com {
+device router.example.com {
     # "address = 1.2.3.4" is implied
     key = mykey
 }</pre></li>
@@ -732,7 +732,7 @@ compiled without DNS support.</p>
 </li>
 </ul>
 <p>The following configuration options are available at global,
-realm, host and net level.</p>
+realm, device and net level.</p>
 <ul>
 <li>
 <p><tt class="literal">dns reverse-lookup</tt> [ <tt class=
@@ -804,7 +804,7 @@ and fall back to the <tt class="literal">default</tt> realm if that
 <p>The syntax to use (and define) realms is</p>
 <pre class="screen">realm <span class="emphasis"><i class=
 "emphasis">realmName</i></span> { ... }</pre>
-<p>at top configuration level. Realms cover hosts, users, groups,
+<p>at top configuration level. Realms cover devices, users, groups,
 profiles, rulesets, timespecs, <span class="emphasis"><i class=
 "emphasis">MAVIS</i></span> configurations other configuration
 options.</p>
@@ -1367,7 +1367,7 @@ place.</p>
 <h5 class="section"><a name="AEN837" id="AEN837">4.2.3.2. User
 Messages</a></h5>
 <p>User messages, e.g. the <tt class="literal">Username</tt>
-prompt, can be customized, both at host and realm level:</p>
+prompt, can be customized, both at device and realm level:</p>
 <pre class="screen">message USERNAME = "utilisateur"</pre>
 <p>Supported messages and their defaults:</p>
 <div class="informaltable"><a name="AEN843" id="AEN843"></a>
@@ -1579,7 +1579,7 @@ Username:</b></span></pre>
 <p>It's at the NAS's discretion to restart the authentication
 dialog with a new TACACS+ session or to close the (Telnet/SSH/...)
 session to the user if TACACS+ authentication fails.</p>
-<p>Thid directive can be used at host level, too.</p>
+<p>Thid directive can be used at device level, too.</p>
 </li>
 <li>
 <p><tt class="literal">anonymous-enable =</tt> ( <tt class=
@@ -1606,7 +1606,7 @@ query and let the user enable with his login password, or permit
 anonymous <tt class="literal">enable</tt> (which is disabled by
 default) with</p>
 <pre class="screen">    anonymous-enable = permit</pre>
-<p>in host context to use the enable passwords defined there.</p>
+<p>in device context to use the enable passwords defined there.</p>
 </li>
 <li>
 <p><tt class="literal">augmented-enable =</tt> ( <tt class=
@@ -1677,7 +1677,7 @@ default for new users will be set to use the login password.</p>
 <p>When set to <tt class="literal">login</tt>, PAP authentication
 requests will be mapped to ASCII Login requests. You may wish to
 uses this for NEXUS devices.</p>
-<p>May be overridden at host level.</p>
+<p>May be overridden at device level.</p>
 </li>
 <li>
 <p><tt class="literal">user backend = mavis</tt></p>
@@ -1816,7 +1816,7 @@ supported:</p>
 <p><tt class="literal">tls psk =</tt> ( <tt class=
 "literal">yes</tt> | <tt class="literal">no</tt> )</p>
 <p>This enables PSK support at realm level.</p>
-<p>PSK identity and key can be declared at host level:</p>
+<p>PSK identity and key can be declared at device level:</p>
 <pre class="screen">tls psk id = myid
 tls psk key = 0123456789abcdef # in hex</pre></li>
 </ul>
@@ -1920,11 +1920,11 @@ realm:</p>
 <td>if not found in current realm</td>
 </tr>
 <tr>
-<td>host (IP lookup)</td>
-<td>if no hosts defined in current realm</td>
+<td>device (IP lookup)</td>
+<td>if no device defined in current realm</td>
 </tr>
 <tr>
-<td>host (name lookup)</td>
+<td>device (name lookup)</td>
 <td>if not found in current realm</td>
 </tr>
 <tr>
@@ -2024,7 +2024,7 @@ passwords contained in there), then you'll have to specify an
 (non-empty) encryption key. The identical key must also be
 configured on any NAS which communicates with tac_plus.</p>
 <p>To specify a global key, use a statement similar to</p>
-<pre class="screen">  host world4 {
+<pre class="screen">  device world4 {
     key = "your key here"
     address = 0.0.0.0/0
   }</pre>
@@ -2046,7 +2046,7 @@ spaces. Confusingly, even if your key does contain spaces, you
 should <span class="emphasis"><i class="emphasis">never</i></span>
 use double quotes when you configure the matching key on the
 NAS.</p>
-<p>The daemon will reject connections from hosts that have no
+<p>The daemon will reject connections from devices that have no
 encryption key defined.</p>
 <p>Double quotes within double-quoted strings may be escaped using
 the backslash character <tt class="literal">\</tt> (which can be
@@ -2057,16 +2057,16 @@ escaped by itself), e.g.:</p>
 </tr>
 </table>
 </div>
-<p>Any CIDR range within a host definition needs to to be unique,
+<p>Any CIDR range within a device definition needs to to be unique,
 and the most specific definition will match. The requirement for
-unambiguousness is quite simply based on the fact that certain host
-object attributes (key, prompt, enable passwords) may only exist
-once.</p>
-<p>If compiled with TLS support, primary criteria for host object
+unambiguousness is quite simply based on the fact that certain
+device object attributes (key, prompt, enable passwords) may only
+exist once.</p>
+<p>If compiled with TLS support, primary criteria for device object
 selection with TLS is no longer the NAS IP address but the
 certificate subject and/or the common name. E.g., <tt class=
 "literal">CN=server.tacacstest.demo,OU=org,OU=local</tt> will check
-for host objects named <tt class=
+for device objects named <tt class=
 "literal">CN=server.tacacstest.demo,OU=org,OU=local</tt>,
 <tt class="literal">OU=org,OU=local</tt>, <tt class=
 "literal">OU=local</tt> and then for <tt class=
@@ -2081,11 +2081,11 @@ tacacs-server host 192.168.0.1 single-connection key your key here</pre>
 <p>The optional <tt class="literal">single-connection</tt>
 parameter specifies that multiple sessions may use the same TCP/IP
 connection to the server.</p>
-<p>Generally, the syntax for host declarations conforms to</p>
-<p><tt class="literal">host</tt> <span class="emphasis"><i class=
+<p>Generally, the syntax for device declarations conforms to</p>
+<p><tt class="literal">device</tt> <span class="emphasis"><i class=
 "emphasis">name</i></span> { <span class="emphasis"><i class=
 "emphasis">key-value pairs</i></span> }</p>
-<p>The key-value pairs permitted in host sections of the
+<p>The key-value pairs permitted in device sections of the
 configuration file are explained below.</p>
 <ul>
 <li>
@@ -2114,8 +2114,8 @@ you've finished debugging.</p>
 <p><tt class="literal">address =</tt> <span class=
 "emphasis"><i class="emphasis">cidr</i></span></p>
 <p>Adds the address range specified by <span class=
-"emphasis"><i class="emphasis">cidr</i></span> to the current host
-definition.</p>
+"emphasis"><i class="emphasis">cidr</i></span> to the current
+device definition.</p>
 <div class="mediaobject">
 <p><img src="railroad/tac_plus-ng/CIDR.svg"></p>
 <div class="caption">
@@ -2127,7 +2127,7 @@ definition.</p>
 <p><tt class="literal">address file =</tt> <span class=
 "emphasis"><i class="emphasis">file</i></span></p>
 <p>Add the addresses from <span class="emphasis"><i class=
-"emphasis">file</i></span> to the current host definition. Shell
+"emphasis">file</i></span> to the current device definition. Shell
 wildcard patterns are expanded by <tt class=
 "literal">glob(3)</tt>.</p>
 </li>
@@ -2136,7 +2136,7 @@ wildcard patterns are expanded by <tt class=
 "literal">may-close</tt> ) <tt class="literal">=</tt> ( <tt class=
 "literal">yes</tt> | <tt class="literal">no</tt> )</p>
 <p>This directive may be used to permit or deny the
-single-connection feature for a particular host object. The
+single-connection feature for a particular device object. The
 <tt class="literal">may-close</tt> keyword tells the daemon to
 close the connection if it's unused.</p>
 <div class="note">
@@ -2162,19 +2162,19 @@ router.</p>
 <p>This configuration will be accepted at realm level, too.</p>
 </li>
 <li>
-<p><tt class="literal">parent =</tt> hostName</p>
-<p>This sets the the parent hosts. Definitions not found in the
-current host will be looked up there, recursively.</p>
+<p><tt class="literal">parent =</tt> deviceName</p>
+<p>This sets the the parent devices. Definitions not found in the
+current device will be looked up there, recursively.</p>
 </li>
 <li>
-<p><tt class="literal">host</tt> hostName <tt class=
-"literal">{</tt> HostAttr <tt class="literal">}</tt></p>
-<p>Hosts can be defined in host context, too.</p>
+<p><tt class="literal">device</tt> deviceName <tt class=
+"literal">{</tt> DeviceAttr <tt class="literal">}</tt></p>
+<p>Devices can be defined in device context, too.</p>
 </li>
 <li>
 <p><tt class="literal">script {</tt> tacAction <tt class=
 "literal">}</tt></p>
-<p>Scripts can be used in host context. These are run before AAA
+<p>Scripts can be used in device context. These are run before AAA
 and mey be used to permit or deny access, or to rewrite
 usernames.</p>
 <p>This configuration will be accepted at realm level, too.</p>
@@ -2200,7 +2200,7 @@ seconds. Defaults to the global option.</p>
 <h6 class="section"><a name="AEN1446" id="AEN1446">4.2.3.8.2.
 Authentication</a></h6>
 <p>The following authentication related directives are available at
-host object level:</p>
+device object level:</p>
 <ul>
 <li>
 <p><tt class="literal">pap password mapping =</tt> ( <tt class=
@@ -2216,13 +2216,13 @@ uses this for NEXUS devices.</p>
 "literal">deny</tt> | <tt class="literal">login</tt> | ( <tt class=
 "literal">clear</tt> | <tt class="literal">crypt</tt>) <span class=
 "emphasis"><i class="emphasis">password</i></span> )</p>
-<p>This directive may be used to set host specific enable
+<p>This directive may be used to set device specific enable
 passwords, to use the <span class="emphasis"><i class=
 "emphasis">login</i></span> password, or to permit (without
 password) or refuse any enable attempt. <span class=
 "emphasis"><i class="emphasis">level</i></span> defaults to 15.</p>
-<p>Enable passwords specified at host level have a lower precedence
-as those defined at user or profile level.</p>
+<p>Enable passwords specified at device level have a lower
+precedence as those defined at user or profile level.</p>
 <div class="note">
 <table class="note" width="100%" border="0">
 <tr>
@@ -2285,7 +2285,7 @@ session at login. It currently defaults to <tt class=
 <h6 class="section"><a name="AEN1510" id="AEN1510">4.2.3.8.3.
 Authorization</a></h6>
 <p>The following authorization related directives are available at
-host object level:</p>
+device object level:</p>
 <ul>
 <li>
 <p><tt class="literal">permit if-authenticated =</tt> ( <tt class=
@@ -2319,8 +2319,8 @@ user:</p>
 "emphasis"><i class="emphasis">string</i></span></p>
 <p>The <tt class="literal">reject banner</tt> gets displayed in
 place of the welcome message if a connection was rejected by an
-<tt class="literal">access</tt> ACL defined at host, user or group
-level.</p>
+<tt class="literal">access</tt> ACL defined at device, user or
+group level.</p>
 <p>These configurations will be accepted at realm level, too.</p>
 </li>
 <li>
@@ -2348,7 +2348,7 @@ actual login method:</p>
 </thead>
 <tbody>
 <tr>
-<td><tt class="literal">host</tt></td>
+<td><tt class="literal">device</tt></td>
 <td><tt class="literal">welcome banner</tt></td>
 <td>
 <p>displayed before</p>
@@ -2361,14 +2361,14 @@ actual login method:</p>
 </td>
 </tr>
 <tr>
-<td><tt class="literal">host</tt></td>
+<td><tt class="literal">device</tt></td>
 <td><tt class="literal">reject banner</tt></td>
 <td>displayed before closing connection</td>
 <td>not displayed</td>
 <td>not displayed</td>
 </tr>
 <tr>
-<td><tt class="literal">host</tt></td>
+<td><tt class="literal">device</tt></td>
 <td><tt class="literal">motd banner</tt></td>
 <td>displayed after successful login</td>
 <td>not displayed</td>
@@ -2398,7 +2398,7 @@ user.</p>
 <p>Both banners and messages support the same conversions as logs,
 unless specified as user level.</p>
 <p>Example:</p>
-<pre class="screen">  host <span class="emphasis"><i class=
+<pre class="screen">  device <span class="emphasis"><i class=
 "emphasis">...</i></span> {
     <span class="emphasis"><i class="emphasis">...</i></span>
     welcome banner = "Welcome. Today is %A.\n"
@@ -2451,7 +2451,7 @@ with Palo Alto systems.</td>
 </table>
 </div>
 <p>Example:</p>
-<pre class="screen">  host <span class="emphasis"><i class=
+<pre class="screen">  device <span class="emphasis"><i class=
 "emphasis">...</i></span> {
     <span class="emphasis"><i class="emphasis">...</i></span>
     bug compatibility = 2
@@ -2463,11 +2463,11 @@ with Palo Alto systems.</td>
 <hr>
 <h6 class="section"><a name="AEN1650" id="AEN1650">4.2.3.8.6.
 Inheritance and Hosts</a></h6>
-<p>For address based host lookups, the daemon looks for the most
-specific host definition. Values that aren't defined (if any) will
-be lookup up in the host's parent, which may be either set
-implicitely by defining a host in the context of it's parent host,
-or expliitely, using the <tt class="literal">parent</tt>
+<p>For address based device lookups, the daemon looks for the most
+specific device definition. Values that aren't defined (if any)
+will be lookup up in the device's parent, which may be either set
+implicitely by defining a device in the context of it's parent
+device, or expliitely, using the <tt class="literal">parent</tt>
 statement.</p>
 </div>
 <div class="section">
@@ -2475,15 +2475,15 @@ statement.</p>
 <h6 class="section"><a name="AEN1654" id="AEN1654">4.2.3.8.7.
 Railroad Diagrams</a></h6>
 <div class="mediaobject">
-<p><img src="railroad/tac_plus-ng/HostDecl.svg"></p>
+<p><img src="railroad/tac_plus-ng/DeviceDecl.svg"></p>
 <div class="caption">
-<p>Railroad diagram: HostDecl</p>
+<p>Railroad diagram: DeviceDecl</p>
 </div>
 </div>
 <div class="mediaobject">
-<p><img src="railroad/tac_plus-ng/HostAttr.svg"></p>
+<p><img src="railroad/tac_plus-ng/DeviceAttr.svg"></p>
 <div class="caption">
-<p>Railroad diagram: HostAttr</p>
+<p>Railroad diagram: DeviceAttr</p>
 </div>
 </div>
 <div class="mediaobject">
@@ -2497,14 +2497,14 @@ Railroad Diagrams</a></h6>
 <hr>
 <h6 class="section"><a name="AEN1677" id="AEN1677">4.2.3.8.8.
 Example</a></h6>
-<pre class="screen">host = customer1 {
+<pre class="screen">device = customer1 {
     address = 10.0.0.0/8
     key = "your key here"
     welcome banner = "\nHitherto shalt thou come, but no further. (Job 38.11)\n\n"
     enable 15 = clear whatever
 }
 
-host = test123 {
+device = test123 {
     address = 10.1.2.0/28
     address = 10.12.1.30/28
     address = 10.1.1.2
@@ -2745,6 +2745,30 @@ from checking for the same service in the groups the current user
 <td>ascii, pap, chap, mschap, mschapv2, sshkey, sshcer</td>
 </tr>
 <tr>
+<td><tt class="literal">client</tt></td>
+<td><tt class="literal">== !=</tt></td>
+<td>Net object name or IP address or string.</td>
+<td>Net incl. parents</td>
+</tr>
+<tr>
+<td><tt class="literal">client.name</tt></td>
+<td><tt class="literal">== !=</tt></td>
+<td>Client remote address</td>
+<td>&nbsp;</td>
+</tr>
+<tr>
+<td><tt class="literal">client.address</tt></td>
+<td><tt class="literal">== !=</tt></td>
+<td>Client remote address</td>
+<td>&nbsp;</td>
+</tr>
+<tr>
+<td><tt class="literal">client.dnsname</tt></td>
+<td><tt class="literal">== !=</tt></td>
+<td>Client DNS PTR record</td>
+<td>&nbsp;</td>
+</tr>
+<tr>
 <td><tt class="literal">cmd</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
 <td>String or REGEX</td>
@@ -2757,16 +2781,35 @@ from checking for the same service in the groups the current user
 <td>current exec context</td>
 </tr>
 <tr>
+<td><tt class="literal">device</tt></td>
+<td><tt class="literal">== !=</tt></td>
+<td>Device (host) object name, net object name or device
+address</td>
+<td>incl. parents</td>
+</tr>
+<tr>
+<td><tt class="literal">device.name</tt></td>
+<td><tt class="literal">== != =~ !~</tt></td>
+<td>Device (host) or net object name</td>
+<td>incl. parents</td>
+</tr>
+<tr>
+<td><tt class="literal">device.address</tt></td>
+<td><tt class="literal">== !=</tt></td>
+<td>Device (host) address</td>
+<td>&nbsp;</td>
+</tr>
+<tr>
+<td><tt class="literal">device.dnsname</tt></td>
+<td><tt class="literal">== !=</tt></td>
+<td>Device (host) DNS PTR record</td>
+<td>&nbsp;</td>
+</tr>
+<tr>
 <td><tt class="literal">dn</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
 <td>String or REGEX</td>
 <td>MAVIS dn attribute</td>
-</tr>
-<tr>
-<td><tt class="literal">host</tt></td>
-<td><tt class="literal">== !=</tt></td>
-<td>Host object name</td>
-<td>incl. Parents</td>
 </tr>
 <tr>
 <td><tt class="literal">identity-source</tt></td>
@@ -2789,27 +2832,31 @@ from checking for the same service in the groups the current user
 <tr>
 <td><tt class="literal">nac</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
-<td>String or REGEX</td>
-<td>net object name (incl. Parents), client remote address
+<td>[deprecated, use <tt class="literal">client</tt>] String or
+REGEX</td>
+<td>net object name (incl. parents), client remote address
 (rem_addr)</td>
 </tr>
 <tr>
 <td><tt class="literal">nac-name</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
-<td>String or REGEX</td>
+<td>[deprecated, use <tt class="literal">client.name</tt>] String
+or REGEX</td>
 <td>client DNS PTR</td>
 </tr>
 <tr>
 <td><tt class="literal">nas</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
-<td>String or REGEX</td>
-<td>host or net object name (incl. Parents), matches NAS/NAD remote
+<td>[deprecated, use <tt class="literal">device</tt>] String or
+REGEX</td>
+<td>device or net object name (incl. parents), matches NAC remote
 address (rem_addr)</td>
 </tr>
 <tr>
 <td><tt class="literal">nas-name</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
-<td>String or REGEX</td>
+<td>[deprecated, use <tt class="literal">device.name</tt>] String
+or REGEX</td>
 <td>NAS/NAD DNS PTR</td>
 </tr>
 <tr>
@@ -2821,7 +2868,8 @@ address (rem_addr)</td>
 <tr>
 <td><tt class="literal">port</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
-<td>String or REGEX</td>
+<td>[deprecated, use <tt class="literal">device.port</tt>] String
+or REGEX</td>
 <td>session port (vty02, console, ...)</td>
 </tr>
 <tr>
@@ -2927,15 +2975,15 @@ conditions require <span class="emphasis"><i class=
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2055" id="AEN2055">4.2.3.11.
+<h5 class="section"><a name="AEN2109" id="AEN2109">4.2.3.11.
 Rewriting User Names</a></h5>
 <p>Configuration syntax is deprecated. Please use the <tt class=
 "literal">rewrite user</tt> script action.</p>
 <p>This is experimental. It requires the binary to be built with
 PCRE v2 support (using the <tt class="literal">--with-pcre2</tt>
 configure option).</p>
-<p>A host may refer to a rewrite profile defined at realm level to
-substitute user names. The following sample code will map both
+<p>A device may refer to a rewrite profile defined at realm level
+to substitute user names. The following sample code will map both
 <tt class="literal">admin</tt> and <tt class="literal">root</tt> to
 <tt class="literal">marc</tt>, and convert all other usernames to
 lower-case:</p>
@@ -2945,7 +2993,7 @@ lower-case:</p>
     rewrite /^.*$/ \L$0
 }
 
-host ... {
+device ... {
     ...
     script { rewrite user = rewriteRule }
     ...
@@ -2963,7 +3011,7 @@ host ... {
     }</pre></div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2069" id="AEN2069">4.2.3.12.
+<h5 class="section"><a name="AEN2123" id="AEN2123">4.2.3.12.
 Users</a></h5>
 <p>The basic form of a user declarations is</p>
 <pre class="screen">user <span class="emphasis"><i class=
@@ -3046,7 +3094,7 @@ Example:</p>
 passwords, to use the <span class="emphasis"><i class=
 "emphasis">login</i></span> password, or to permit (without
 password) or refuse any enable attempt. Enable secrets defined at
-user level have precedence over those defined at host level.
+user level have precedence over those defined at device level.
 <span class="emphasis"><i class="emphasis">level</i></span>
 defaults to 15.</p>
 <p>The default privilege level for an ordinary user on the NAS is
@@ -3099,7 +3147,7 @@ multiple groups and groups can be members of a parent group.</p>
 </ul>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN2193" id="AEN2193">4.2.3.12.1.
+<h6 class="section"><a name="AEN2247" id="AEN2247">4.2.3.12.1.
 Railroad Diagrams</a></h6>
 <div class="mediaobject">
 <p><img src="railroad/tac_plus-ng/UserDecl.svg"></p>
@@ -3117,7 +3165,7 @@ Railroad Diagrams</a></h6>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2209" id="AEN2209">4.2.3.13.
+<h5 class="section"><a name="AEN2263" id="AEN2263">4.2.3.13.
 Groups</a></h5>
 <p>A user can be a member of multiple groups. A user that is a
 member of a group that comes with a parent group is a member of the
@@ -3146,7 +3194,7 @@ latter, too. Group are defined using</p>
 </ul>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN2234" id="AEN2234">4.2.3.13.1.
+<h6 class="section"><a name="AEN2288" id="AEN2288">4.2.3.13.1.
 Railroad Diagrams</a></h6>
 <div class="mediaobject">
 <p><img src="railroad/tac_plus-ng/GroupDecl.svg"></p>
@@ -3164,7 +3212,7 @@ Railroad Diagrams</a></h6>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2250" id="AEN2250">4.2.3.14.
+<h5 class="section"><a name="AEN2304" id="AEN2304">4.2.3.14.
 Profiles</a></h5>
 <p>Profiles are collections of services that can be assigned to
 users via the policy rule-set. Syntax is</p>
@@ -3268,7 +3316,7 @@ these:</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2312" id="AEN2312">4.2.3.15.
+<h5 class="section"><a name="AEN2366" id="AEN2366">4.2.3.15.
 Railroad Diagrams</a></h5>
 <div class="mediaobject">
 <p><img src="railroad/tac_plus-ng/UserMessage.svg"></p>
@@ -3375,7 +3423,7 @@ Railroad Diagrams</a></h5>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2433" id="AEN2433">4.2.3.16.
+<h5 class="section"><a name="AEN2487" id="AEN2487">4.2.3.16.
 Configuring Non-local Users via MAVIS</a></h5>
 <p><span class="bold"><b class="emphasis">MAVIS</b></span>
 configuration is optional. You don't need it if you're content with
@@ -3398,7 +3446,7 @@ may change that period using</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2446" id="AEN2446">4.2.3.17.
+<h5 class="section"><a name="AEN2500" id="AEN2500">4.2.3.17.
 Configuring Local Users for MAVIS authentication</a></h5>
 <p>Under certain circumstances you may wish to keep the user
 definitions in the plain text configuration file, but authenticate
@@ -3411,7 +3459,7 @@ do so, just specify one of</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2451" id="AEN2451">4.2.3.18.
+<h5 class="section"><a name="AEN2505" id="AEN2505">4.2.3.18.
 Configuring User Authentication</a></h5>
 <p>User Authentication can be specified separately for PAP, CHAP,
 and normal logins. CHAP and global user authentication must be
@@ -3448,7 +3496,7 @@ mavis</tt> directive in this case):</p>
 <pre class="screen">user mary { login = mavis }</pre></div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2467" id="AEN2467">4.2.3.19.
+<h5 class="section"><a name="AEN2521" id="AEN2521">4.2.3.19.
 Configuring Expiry Dates</a></h5>
 <p>An entry of the form:</p>
 <pre class="screen">user lol {
@@ -3475,7 +3523,7 @@ directive.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2484" id="AEN2484">4.2.3.20.
+<h5 class="section"><a name="AEN2538" id="AEN2538">4.2.3.20.
 Configuring Authentication on the NAS</a></h5>
 <p>On the NAS, to configure login authentication, try</p>
 <pre class="screen">aaa new-model
@@ -3520,7 +3568,7 @@ way out.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2500" id="AEN2500">4.2.3.21.
+<h5 class="section"><a name="AEN2554" id="AEN2554">4.2.3.21.
 Configuring Authorization</a></h5>
 <p>Authorization must be configured on both the NAS and the daemon
 to operate correctly. By default, the NAS will allow everything
@@ -3536,7 +3584,7 @@ commands and services.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2505" id="AEN2505">4.2.3.22.
+<h5 class="section"><a name="AEN2559" id="AEN2559">4.2.3.22.
 Authorizing Commands</a></h5>
 <p>Exec commands are those commands which are typed at a NAS exec
 prompt. When authorization is requested by the NAS, the entire
@@ -3547,7 +3595,7 @@ details.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2509" id="AEN2509">4.2.3.23. The
+<h5 class="section"><a name="AEN2563" id="AEN2563">4.2.3.23. The
 Authorization Process</a></h5>
 <p>Authorizing a single session can result in multiple requests
 being sent to the daemon. For example, in order to authorize a
@@ -3593,7 +3641,7 @@ going to agree and they shut down PPP instead.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2528" id="AEN2528">4.2.3.24.
+<h5 class="section"><a name="AEN2582" id="AEN2582">4.2.3.24.
 Authorization Relies on Authentication</a></h5>
 <p>Since we pretty much rely on having a username in authorization
 requests to decide which addresses etc. to hand out, it is
@@ -3625,7 +3673,7 @@ missing.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2540" id="AEN2540">4.2.3.25.
+<h5 class="section"><a name="AEN2594" id="AEN2594">4.2.3.25.
 Configuring Service Authorization</a></h5>
 <p>A list of AV pairs is placed in the daemon's configuration file
 in order to authorize services. The daemon compares each NAS AV
@@ -3635,7 +3683,7 @@ delete AV pairs before returning them to the NAS, thereby
 restricting what the user is permitted to do.</p>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN2543" id="AEN2543">4.2.3.25.1. The
+<h6 class="section"><a name="AEN2597" id="AEN2597">4.2.3.25.1. The
 Authorization Algorithm</a></h6>
 <p>The complete algorithm by which the daemon processes its
 configured AV pairs against the list the NAS sends, is given
@@ -3713,7 +3761,7 @@ each optional attribute).</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN2578" id="AEN2578">4.3. MAVIS
+<h3 class="section"><a name="AEN2632" id="AEN2632">4.3. MAVIS
 Backends</a></h3>
 <p>The distribution comes with various <span class=
 "emphasis"><i class="emphasis">MAVIS</i></span> modules, of which
@@ -3729,7 +3777,7 @@ environment.</p>
 gives examples for RADIUS and PAM authentication, too.</p>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2586" id="AEN2586">4.3.1. LDAP
+<h4 class="section"><a name="AEN2640" id="AEN2640">4.3.1. LDAP
 Backends</a></h4>
 <p><tt class="literal">mavis_tacplus_ldap.pl</tt> is an
 authentication/authorization back-end for the <span class=
@@ -3737,7 +3785,7 @@ authentication/authorization back-end for the <span class=
 interfaces to various kinds of LDAP servers, e.g. OpenLDAP, Fedora
 DS and Active Directory. Its behaviour is controlled by a list of
 environmental variables:</p>
-<div class="informaltable"><a name="AEN2591" id="AEN2591"></a>
+<div class="informaltable"><a name="AEN2645" id="AEN2645"></a>
 <table border="1" frame="border" class="CALSTABLE">
 <col width="30%" title="col1">
 <col width="70%" title="col2">
@@ -3760,8 +3808,8 @@ environmental variables:</p>
 <tr>
 <td><tt class="literal">LDAP_HOSTS</tt></td>
 <td>
-<p>Space-separated list of LDAP URLs or IP addresses or
-hostnames</p>
+<p>Space-separated list of LDAP URLs or IP addresses or device
+names</p>
 <p>Examples:</p>
 <p><tt class="literal">"ldap01 ldap02"</tt>, <tt class=
 "literal">"ldaps://ads01:636 ldaps://ads02:636"</tt></p>
@@ -3932,7 +3980,7 @@ running <span class="emphasis"><i class=
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2761" id="AEN2761">4.3.1.1. LDAP
+<h5 class="section"><a name="AEN2815" id="AEN2815">4.3.1.1. LDAP
 Custom Schema Backend</a></h5>
 <p>For <tt class="literal">LDAP_SERVER_TYPE</tt> set to <tt class=
 "literal">tacacs_schema</tt>, the program expects the LDAP server
@@ -3982,7 +4030,7 @@ versions of OpenLDAP: Use <tt class="literal">ldapadd</tt> to add
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2784" id="AEN2784">4.3.1.2. Active
+<h5 class="section"><a name="AEN2838" id="AEN2838">4.3.1.2. Active
 Directory Backend</a></h5>
 <p>If <tt class="literal">LDAP_SERVER_TYPE</tt> is set to
 <tt class="literal">microsoft</tt>, the script back-ends to AD
@@ -4024,7 +4072,7 @@ id = tac_plus-ng {
         user backend = mavis
         pap backend = mavis
 
-        host world {
+        device world {
                 address = ::/0
                 welcome banner = "Welcome\n"
                 enable 15 = clear secret
@@ -4080,7 +4128,7 @@ id = tac_plus-ng {
 }</pre></div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2791" id="AEN2791">4.3.1.3. Generic
+<h5 class="section"><a name="AEN2845" id="AEN2845">4.3.1.3. Generic
 LDAP Backend</a></h5>
 <p>If <tt class="literal">LDAP_SERVER_TYPE</tt> is set to
 <tt class="literal">generic</tt>, the script won't require any
@@ -4093,7 +4141,7 @@ authorization is done by this back-end.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2799" id="AEN2799">4.3.2. PAM
+<h4 class="section"><a name="AEN2853" id="AEN2853">4.3.2. PAM
 back-end</a></h4>
 <p>Example configuration for using <span class="emphasis"><i class=
 "emphasis">Pluggable Authentication Modules</i></span>:</p>
@@ -4114,7 +4162,7 @@ id = tac_plus {
   }
   user backend = mavis
   login backend = mavis
-  host = global { address = 0.0.0.0/0 key = demo }
+  device = global { address = 0.0.0.0/0 key = demo }
 
   profile staff {
     service shell {
@@ -4138,7 +4186,7 @@ id = tac_plus {
 }</pre></div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2804" id="AEN2804">4.3.3. System
+<h4 class="section"><a name="AEN2858" id="AEN2858">4.3.3. System
 Password Backends</a></h4>
 <p><tt class="literal">mavis_tacplus_passwd.pl</tt> authenticates
 against your local password database. Alas, to use this
@@ -4151,7 +4199,7 @@ one-time passwords for authentication.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2811" id="AEN2811">4.3.4. Shadow
+<h4 class="section"><a name="AEN2865" id="AEN2865">4.3.4. Shadow
 Backend</a></h4>
 <p><tt class="literal">mavis_tacplus_shadow.pl</tt> may be used to
 keep user passwords out of the <span class="bold"><b class=
@@ -4205,7 +4253,7 @@ test:$1$pQtQsMuj$GKpIr5r2GNaZNfDfnCBtw.:15218:1:30:
 ...</pre></div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2834" id="AEN2834">4.3.5. RADIUS
+<h4 class="section"><a name="AEN2888" id="AEN2888">4.3.5. RADIUS
 Backends</a></h4>
 <p><tt class="literal">mavis_tacplus_radius.pl</tt> authenticates
 against a RADIUS server. No authorization is done, unless the
@@ -4254,7 +4302,7 @@ login time.</p>
 equivalent.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2865" id="AEN2865">4.3.5.1. Sample
+<h5 class="section"><a name="AEN2919" id="AEN2919">4.3.5.1. Sample
 Configuration</a></h5>
 <pre class=
 "screen">## Use tacinfo_cache to cache authorization data to disk:
@@ -4265,7 +4313,7 @@ mavis module = tacinfo_cache {
 ## You can use either the Perl module ...
 #mavis module = external {
 #   exec = /usr/local/lib/mavis_tacplus_radius.pl
-#   setenv RADIUS_HOST = 1.2.3.4:1812 # could add more hosts here, comma-separated
+#   setenv RADIUS_HOST = 1.2.3.4:1812 # could add more devices here, comma-separated
 #   setenv RADIUS_SECRET = "mysecret"
 #   setenv RADIUS_GROUP_ATTR = Class
 #   setenv RADIUS_PASSWORD_ATTR = Password # defaults to: User-Password
@@ -4277,7 +4325,7 @@ mavis module = external {
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2868" id="AEN2868">4.3.6.
+<h4 class="section"><a name="AEN2922" id="AEN2922">4.3.6.
 Experimental Backends</a></h4>
 <p><tt class="literal">mavis_tacplus_sms.pl</tt> is a sample
 (skeleton) script to send One-Time Passwords via a SMS
@@ -4285,7 +4333,7 @@ back-end.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2872" id="AEN2872">4.3.7. Error
+<h4 class="section"><a name="AEN2926" id="AEN2926">4.3.7. Error
 Handling</a></h4>
 <p>If a back-end script fails due to an external problem (e.g. LDAP
 server unavailability), your router may or may not fall back to
@@ -4305,16 +4353,16 @@ will only be valid in case of a back-end error:</p>
     }</pre>
 <p>To indicate that fallback mode is actually active, you may a
 display a different login prompt to your users:</p>
-<pre class="screen">    host = ... {
+<pre class="screen">    device = ... {
         ...
         welcome banner = "Welcome\n"
         welcome banner fallback = "Welcome\nEmergency accounts are currently enabled.\n"
         ...
     }</pre>
-<p>Fallback can be enabled/disabled globally an on a per-host
+<p>Fallback can be enabled/disabled globally an on a per-device
 basis. Default is enabled.</p>
 <pre class="screen">    authentication fallback = permit
-    host = ... {
+    host ... {
         ...
         authentication fallback = deny
         ...
@@ -4323,11 +4371,11 @@ basis. Default is enabled.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN2880" id="AEN2880">5.
+<h2 class="section"><a name="AEN2934" id="AEN2934">5.
 Debugging</a></h2>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN2883" id="AEN2883">5.1. Debugging
+<h3 class="section"><a name="AEN2937" id="AEN2937">5.1. Debugging
 Configuration Files</a></h3>
 <p>When creating configuration files, it is convenient to check
 their syntax using the <tt class="literal">-P</tt> flag to
@@ -4339,11 +4387,11 @@ messages on the terminal.</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN2891" id="AEN2891">5.2. Trace
+<h3 class="section"><a name="AEN2945" id="AEN2945">5.2. Trace
 Options</a></h3>
 <p>Trace (or debugging) options may be specified in <span class=
 "emphasis"><i class="emphasis">global</i></span>, <span class=
-"emphasis"><i class="emphasis">host</i></span>, <span class=
+"emphasis"><i class="emphasis">device</i></span>, <span class=
 "emphasis"><i class="emphasis">user</i></span> and <span class=
 "emphasis"><i class="emphasis">group</i></span> context. The
 current debugging level is a combination (read: <tt class=
@@ -4365,7 +4413,7 @@ information to <tt class="literal">syslog</tt>.</p>
 <pre class="screen">debug = ALL -PARSE</pre>
 <p>The debugging options available are summarized in the following
 table:</p>
-<div class="informaltable"><a name="AEN2911" id="AEN2911"></a>
+<div class="informaltable"><a name="AEN2965" id="AEN2965"></a>
 <table border="1" frame="border" class="CALSTABLE">
 <col width="5%" title="col1">
 <col width="15%" title="col2">
@@ -4552,7 +4600,7 @@ option.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3049" id="AEN3049">6. Frequently
+<h2 class="section"><a name="AEN3103" id="AEN3103">6. Frequently
 Asked Questions</a></h2>
 <ul>
 <li>
@@ -4746,7 +4794,7 @@ anyway.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3144" id="AEN3144">7. Multi-tenant
+<h2 class="section"><a name="AEN3198" id="AEN3198">7. Multi-tenant
 setups</a></h2>
 <p>While using a dedictated tac_plus-ng installation per tenant is
 certainly possible it lacks some elegance. There are other
@@ -4754,7 +4802,7 @@ ways:</p>
 <p>A single daemon can tell tenants apart by</p>
 <ul>
 <li>
-<p>host identity, either</p>
+<p>device identity, either</p>
 <ul>
 <li>
 <p>by NAD IP address or</p>
@@ -4777,8 +4825,8 @@ NAD support)</p>
 </ul>
 </li>
 </ul>
-<p>Using the IP-based host identity should be sufficient for simple
-setups, but these don't scale and don't handle IP address
+<p>Using the IP-based device identity should be sufficient for
+simple setups, but these don't scale and don't handle IP address
 conflicts. Options to cope with the latter involve <span class=
 "emphasis"><i class="emphasis">realms</i></span>. A realm is most
 basicly a text string the tcp listener (spawnd) assigns to a
@@ -4816,7 +4864,7 @@ with</p>
 from as realm name.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN3175" id="AEN3175">7.1. AD, Realms
+<h3 class="section"><a name="AEN3229" id="AEN3229">7.1. AD, Realms
 and Tenants</a></h3>
 <p>The suggested setup for giving customers limited access to NADs
 is:</p>
@@ -4835,7 +4883,7 @@ is:</p>
 
         net custnet { the IP ranges the end customer may log in from  }
     
-        host customer1 {
+        device customer1 {
             ....
             script {  if (nac == custsrc) rewrite user = normalizeCustomerAccount
         }
@@ -4854,13 +4902,13 @@ is:</p>
 between your own admin users and multiple tenants. The daemon will
 automatically prefix the customer accounts with a prefix and
 convert them to lower case. Note that the username rewriting
-happens using a script in host context. Rewriting won't work in
+happens using a script in device context. Rewriting won't work in
 scripts anywhere else.</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3180" id="AEN3180">8. AAA rule
+<h2 class="section"><a name="AEN3234" id="AEN3234">8. AAA rule
 tracing</a></h2>
 <p>The distribution includes the <tt class=
 "literal">tactrace.pl</tt> Perl script. It's usually not installed
@@ -4966,7 +5014,7 @@ supported as the password would show up as clear text in the process listing.</p
 127.0.0.1 ---&lt;end packet&gt;---</pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3196" id="AEN3196">9. Bugs</a></h2>
+<h2 class="section"><a name="AEN3250" id="AEN3250">9. Bugs</a></h2>
 <ul>
 <li>
 <p>There may still be some nasty bugs lurking in the code. Please
@@ -4994,7 +5042,7 @@ guidance.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3210" id="AEN3210">10.
+<h2 class="section"><a name="AEN3264" id="AEN3264">10.
 References</a></h2>
 <ul>
 <li>
@@ -5011,7 +5059,7 @@ System Plus (TACACS+) Protocol</a></p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3220" id="AEN3220">11. Copyrights
+<h2 class="section"><a name="AEN3274" id="AEN3274">11. Copyrights
 and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of
 individual files.</p>
@@ -5093,7 +5141,7 @@ with the distribution.</p>
 <li>
 <p>The end-user documentation included with the redistribution, if
 any, must include the following acknowledgment:</p>
-<a name="AEN3263" id="AEN3263"></a>
+<a name="AEN3317" id="AEN3317"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber
 (<code class="email">&lt;<a href=

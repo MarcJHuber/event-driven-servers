@@ -61,7 +61,7 @@ Marc Huber
    source code and is in turn largely based on tac_plus, which
    comes with the same distribution. Key features include:
 
-     * NAS specific host keys, prompts, enable passwords
+     * NAS specific device keys, prompts, enable passwords
      * Rule-based permission assignment
      * Flexible external back-ends for user profiles (e.g. via
        PERL scripts or C; LDAP (including ActiveDirectory), RADIUS
@@ -94,12 +94,12 @@ Marc Huber
    The following chapters utilize a couple of terms that may need
    further explanation:
 
-   NAC or Endpoint A Network Access Client, e.g. the source host
+   Client or NAC A Network Access Client, e.g. the source device
    of a ssh (or telnet) connection.
-   NAS or NAD A Network Access Server or Device, e.g. a Cisco box,
-   or any other client which makes TACACS+ authentication and
-   authorization requests, or generates TACACS+ accounting
-   packets.
+   Device or NAS or NAD A Network Access Server or Device, e.g. a
+   Cisco box, or any other client which makes TACACS+
+   authentication and authorization requests, or generates TACACS+
+   accounting packets.
    Daemon A program which services network requests for
    authentication and authorization, verifies identities, grants
    or denies authorizations, and logs accounting records.
@@ -300,29 +300,29 @@ CMEMBER
             address = 100.68.0.0/16 }
     }
 
-   Now, define host objects for your network access devices. Just
-   like realms and networks these can be hierarchic:
-    host world {
+   Now, define device objects for your network access devices.
+   Just like realms and networks these can be hierarchic:
+    device world {
         welcome banner = "\nHitherto shalt thou come, but no further. (J
 ob 38.11)\n\n"
         key = QaWsEdRfTgY
         enable 15 = clear test
         address = ::/0
-        host south {
+        device south {
             address = 100.99.0.0/16
         }
-        host west {
+        device west {
             address = 100.100.0.0/16
         }
     }
 
-    host localhost {
+    device localhost {
         address = 127.0.0.1
         welcome banner = "Welcome home\n"
         parent = world # for key and other definitions not set here
     }
 
-    host rfc {
+    device rfc {
         address = 172.16.0.0/12
         welcome banner = "Welcome private\n"
         key = labKey
@@ -444,7 +444,7 @@ ob 38.11)\n\n"
 
     1. global options
     2. realms
-    3. hosts
+    3. devices
     4. time specifications
     5. profiles
     6. groups
@@ -519,7 +519,7 @@ ob 38.11)\n\n"
 dns preload address 1.2.3.4 = router.example.com
 dns preload file = /etc/hosts
 
-host router.example.com {
+device router.example.com {
     # "address = 1.2.3.4" is implied
     key = mykey
 }
@@ -533,7 +533,7 @@ host router.example.com {
        available if compiled without DNS support.
 
    The following configuration options are available at global,
-   realm, host and net level.
+   realm, device and net level.
 
      * dns reverse-lookup [ nac | nas ] = ( yes | no )
        This will perform a DNS reverse lookup on the NAC address,
@@ -582,9 +582,9 @@ spawnd = {
    The syntax to use (and define) realms is
 realm realmName { ... }
 
-   at top configuration level. Realms cover hosts, users, groups,
-   profiles, rulesets, timespecs, MAVIS configurations other
-   configuration options.
+   at top configuration level. Realms cover devices, users,
+   groups, profiles, rulesets, timespecs, MAVIS configurations
+   other configuration options.
      __________________________________________________________
 
 4.2.2.1. Railroad Diagrams
@@ -857,7 +857,7 @@ umask = 0640
 4.2.3.2. User Messages
 
    User messages, e.g. the Username prompt, can be customized,
-   both at host and realm level:
+   both at device and realm level:
 message USERNAME = "utilisateur"
 
    Supported messages and their defaults:
@@ -978,7 +978,7 @@ Username:
        dialog with a new TACACS+ session or to close the
        (Telnet/SSH/...) session to the user if TACACS+
        authentication fails.
-       Thid directive can be used at host level, too.
+       Thid directive can be used at device level, too.
      * anonymous-enable = ( permit | deny )
        Several broken TACACS+ implementations send no or an
        invalid username in enable packets. Setting this option to
@@ -1000,7 +1000,8 @@ Router#
        password, or permit anonymous enable (which is disabled by
        default) with
     anonymous-enable = permit
-       in host context to use the enable passwords defined there.
+       in device context to use the enable passwords defined
+       there.
      * augmented-enable = ( permit | deny )
        For outdated TACACS+ client implementations that send
        $enable$ instead of the real username in an enable request,
@@ -1048,7 +1049,7 @@ enable user acl = custom_enable_acl
        When set to login, PAP authentication requests will be
        mapped to ASCII Login requests. You may wish to uses this
        for NEXUS devices.
-       May be overridden at host level.
+       May be overridden at device level.
      * user backend = mavis
        Get user data from the MAVIS back-end. Without that
        directive, only locally defined users will be available and
@@ -1130,7 +1131,7 @@ mavis user filter = __internal__username_acl__
 
      * tls psk = ( yes | no )
        This enables PSK support at realm level.
-       PSK identity and key can be declared at host level:
+       PSK identity and key can be declared at device level:
 tls psk id = myid
 tls psk key = 0123456789abcdef # in hex
 
@@ -1193,19 +1194,19 @@ id = spawnd {
    Realms inherit quite some configuration from their parent
    realm:
 
-   Declaration of ...           is taken from parent realm ...
-   acl                 if not found in current realm
-   dns forward mapping if not found in current realm
-   group               if not found in current realm
-   host (IP lookup)    if no hosts defined in current realm
-   host (name lookup)  if not found in current realm
-   log                 always
-   mavis module        if not set and no users defined in current realm
-   network             if not found in current realm
-   profile             if not found in current realm
-   ruleset             if not set or undefined result in current realm
-   timespec            if not found in current realm
-   user                if no users defined in current realm
+    Declaration of ...           is taken from parent realm ...
+   acl                  if not found in current realm
+   dns forward mapping  if not found in current realm
+   group                if not found in current realm
+   device (IP lookup)   if no device defined in current realm
+   device (name lookup) if not found in current realm
+   log                  always
+   mavis module         if not set and no users defined in current realm
+   network              if not found in current realm
+   profile              if not found in current realm
+   ruleset              if not set or undefined result in current realm
+   timespec             if not found in current realm
+   user                 if no users defined in current realm
      __________________________________________________________
 
 4.2.3.6. Railroad Diagrams
@@ -1258,7 +1259,7 @@ id = spawnd {
    any NAS which communicates with tac_plus.
 
    To specify a global key, use a statement similar to
-  host world4 {
+  device world4 {
     key = "your key here"
     address = 0.0.0.0/0
   }
@@ -1274,7 +1275,7 @@ id = spawnd {
    should never use double quotes when you configure the matching
    key on the NAS.
 
-   The daemon will reject connections from hosts that have no
+   The daemon will reject connections from devices that have no
    encryption key defined.
 
    Double quotes within double-quoted strings may be escaped using
@@ -1285,16 +1286,16 @@ key = "quo\\te me\"."
    translates to the ASCII sequence
 quo\te me".
 
-   Any CIDR range within a host definition needs to to be unique,
-   and the most specific definition will match. The requirement
-   for unambiguousness is quite simply based on the fact that
-   certain host object attributes (key, prompt, enable passwords)
-   may only exist once.
+   Any CIDR range within a device definition needs to to be
+   unique, and the most specific definition will match. The
+   requirement for unambiguousness is quite simply based on the
+   fact that certain device object attributes (key, prompt, enable
+   passwords) may only exist once.
 
-   If compiled with TLS support, primary criteria for host object
-   selection with TLS is no longer the NAS IP address but the
-   certificate subject and/or the common name. E.g.,
-   CN=server.tacacstest.demo,OU=org,OU=local will check for host
+   If compiled with TLS support, primary criteria for device
+   object selection with TLS is no longer the NAS IP address but
+   the certificate subject and/or the common name. E.g.,
+   CN=server.tacacstest.demo,OU=org,OU=local will check for device
    objects named CN=server.tacacstest.demo,OU=org,OU=local,
    OU=org,OU=local, OU=local and then for server.tacacstest.demo,
    tacacstest.demo and demo before falling back to IP based
@@ -1309,11 +1310,11 @@ tacacs-server host 192.168.0.1 single-connection key your key here
    multiple sessions may use the same TCP/IP connection to the
    server.
 
-   Generally, the syntax for host declarations conforms to
+   Generally, the syntax for device declarations conforms to
 
-   host name { key-value pairs }
+   device name { key-value pairs }
 
-   The key-value pairs permitted in host sections of the
+   The key-value pairs permitted in device sections of the
    configuration file are explained below.
 
      * key [warn] ( YYYY-MM-DD | s ) ] = string
@@ -1331,17 +1332,18 @@ key = ""
        after you've finished debugging.
      * address = cidr
        Adds the address range specified by cidr to the current
-       host definition.
+       device definition.
        [CIDR.eps]
        Railroad diagram: CIDR
      * address file = file
-       Add the addresses from file to the current host definition.
-       Shell wildcard patterns are expanded by glob(3).
+       Add the addresses from file to the current device
+       definition. Shell wildcard patterns are expanded by
+       glob(3).
      * single-connection ( may-close ) = ( yes | no )
        This directive may be used to permit or deny the
-       single-connection feature for a particular host object. The
-       may-close keyword tells the daemon to close the connection
-       if it's unused.
+       single-connection feature for a particular device object.
+       The may-close keyword tells the daemon to close the
+       connection if it's unused.
 
        Note Caveat Emptor
 
@@ -1353,13 +1355,13 @@ key = ""
    be explained otherwise, then try disabling single-connection on
    the router.
        This configuration will be accepted at realm level, too.
-     * parent = hostName
-       This sets the the parent hosts. Definitions not found in
-       the current host will be looked up there, recursively.
-     * host hostName { HostAttr }
-       Hosts can be defined in host context, too.
+     * parent = deviceName
+       This sets the the parent devices. Definitions not found in
+       the current device will be looked up there, recursively.
+     * device deviceName { DeviceAttr }
+       Devices can be defined in device context, too.
      * script { tacAction }
-       Scripts can be used in host context. These are run before
+       Scripts can be used in device context. These are run before
        AAA and mey be used to permit or deny access, or to rewrite
        usernames.
        This configuration will be accepted at realm level, too.
@@ -1377,7 +1379,7 @@ key = ""
 4.2.3.8.2. Authentication
 
    The following authentication related directives are available
-   at host object level:
+   at device object level:
 
      * pap password mapping = ( login | pap )
        When set to login, PAP authentication requests will be
@@ -1385,11 +1387,11 @@ key = ""
        for NEXUS devices.
      * enable [ level ] = ( permit | deny | login | ( clear |
        crypt) password )
-       This directive may be used to set host specific enable
+       This directive may be used to set device specific enable
        passwords, to use the login password, or to permit (without
        password) or refuse any enable attempt. level defaults to
        15.
-       Enable passwords specified at host level have a lower
+       Enable passwords specified at device level have a lower
        precedence as those defined at user or profile level.
 
        Note Password Hashes
@@ -1425,7 +1427,7 @@ aaa authentication enable default group tacacs+ enable
 4.2.3.8.3. Authorization
 
    The following authorization related directives are available at
-   host object level:
+   device object level:
 
      * permit if-authenticated = ( yes | no )
        This will cause authorization for users unknown to the
@@ -1445,7 +1447,7 @@ aaa authentication enable default group tacacs+ enable
      * reject banner = string
        The reject banner gets displayed in place of the welcome
        message if a connection was rejected by an access ACL
-       defined at host, user or group level.
+       defined at device, user or group level.
        These configurations will be accepted at realm level, too.
      * message = string
 
@@ -1453,7 +1455,7 @@ aaa authentication enable default group tacacs+ enable
    actual login method:
 
    Context Directive Telnet SSHv1 SSHv2
-   host welcome banner
+   device welcome banner
 
    displayed before
 
@@ -1463,10 +1465,10 @@ aaa authentication enable default group tacacs+ enable
    displayed before
 
    Password:
-   host reject banner displayed before closing connection not
+   device reject banner displayed before closing connection not
    displayed not displayed
-   host motd banner displayed after successful login not displayed
-   displayed after successful login
+   device motd banner displayed after successful login not
+   displayed displayed after successful login
    user or group message
 
    displayed after
@@ -1485,7 +1487,7 @@ aaa authentication enable default group tacacs+ enable
    unless specified as user level.
 
    Example:
-  host ... {
+  device ... {
     ...
     welcome banner = "Welcome. Today is %A.\n"
     ...
@@ -1512,7 +1514,7 @@ aaa authentication enable default group tacacs+ enable
    draft-ietf-opsawg-tacacs-tls13-03.txt).
 
    Example:
-  host ... {
+  device ... {
     ...
     bug compatibility = 2
     ...
@@ -1523,22 +1525,22 @@ aaa authentication enable default group tacacs+ enable
 
 4.2.3.8.6. Inheritance and Hosts
 
-   For address based host lookups, the daemon looks for the most
-   specific host definition. Values that aren't defined (if any)
-   will be lookup up in the host's parent, which may be either set
-   implicitely by defining a host in the context of it's parent
-   host, or expliitely, using the parent statement.
+   For address based device lookups, the daemon looks for the most
+   specific device definition. Values that aren't defined (if any)
+   will be lookup up in the device's parent, which may be either
+   set implicitely by defining a device in the context of it's
+   parent device, or expliitely, using the parent statement.
      __________________________________________________________
 
 4.2.3.8.7. Railroad Diagrams
 
-   [HostDecl.eps]
+   [DeviceDecl.eps]
 
-   Railroad diagram: HostDecl
+   Railroad diagram: DeviceDecl
 
-   [HostAttr.eps]
+   [DeviceAttr.eps]
 
-   Railroad diagram: HostAttr
+   Railroad diagram: DeviceAttr
 
    [EnableExpr.eps]
 
@@ -1547,7 +1549,7 @@ aaa authentication enable default group tacacs+ enable
 
 4.2.3.8.8. Example
 
-host = customer1 {
+device = customer1 {
     address = 10.0.0.0/8
     key = "your key here"
     welcome banner = "\nHitherto shalt thou come, but no further. (Job 3
@@ -1555,7 +1557,7 @@ host = customer1 {
     enable 15 = clear whatever
 }
 
-host = test123 {
+device = test123 {
     address = 10.1.2.0/28
     address = 10.12.1.30/28
     address = 10.1.1.2
@@ -1701,23 +1703,36 @@ set priv-lvl = 15
    local, tacacs+
    authen-type == != =~ !~ String or REGEX ascii, pap, chap,
    mschap, mschapv2, sshkey, sshcer
+   client == != Net object name or IP address or string. Net incl.
+   parents
+   client.name == != Client remote address
+   client.address == != Client remote address
+   client.dnsname == != Client DNS PTR record
    cmd == != =~ !~ String or REGEX shell command line
    context == != =~ !~ String or REGEX current exec context
+   device == != Device (host) object name, net object name or
+   device address incl. parents
+   device.name == != =~ !~ Device (host) or net object name incl.
+   parents
+   device.address == != Device (host) address
+   device.dnsname == != Device (host) DNS PTR record
    dn == != =~ !~ String or REGEX MAVIS dn attribute
-   host == != Host object name incl. Parents
    identity-source == != =~ !~ String or REGEX
    authenticating/authorizing MAVIS module
    member == != =~ !~ String or REGEX group membership
    memberof == != =~ !~ String or REGEX MAVIS memberOf attribute
-   nac == != =~ !~ String or REGEX net object name (incl.
-   Parents), client remote address (rem_addr)
-   nac-name == != =~ !~ String or REGEX client DNS PTR
-   nas == != =~ !~ String or REGEX host or net object name (incl.
-   Parents), matches NAS/NAD remote address (rem_addr)
-   nas-name == != =~ !~ String or REGEX NAS/NAD DNS PTR
+   nac == != =~ !~ [deprecated, use client] String or REGEX net
+   object name (incl. parents), client remote address (rem_addr)
+   nac-name == != =~ !~ [deprecated, use client.name] String or
+   REGEX client DNS PTR
+   nas == != =~ !~ [deprecated, use device] String or REGEX device
+   or net object name (incl. parents), matches NAC remote address
+   (rem_addr)
+   nas-name == != =~ !~ [deprecated, use device.name] String or
+   REGEX NAS/NAD DNS PTR
    password == != =~ !~ String or REGEX session user password
-   port == != =~ !~ String or REGEX session port (vty02, console,
-   ...)
+   port == != =~ !~ [deprecated, use device.port] String or REGEX
+   session port (vty02, console, ...)
    priv-lvlp == != =~ !~ String or REGEX session privilege level
    (0 ... 15)
    protocol == != =~ !~ String or REGEX session protocol (ppp,
@@ -1757,9 +1772,9 @@ set priv-lvl = 15
    This is experimental. It requires the binary to be built with
    PCRE v2 support (using the --with-pcre2 configure option).
 
-   A host may refer to a rewrite profile defined at realm level to
-   substitute user names. The following sample code will map both
-   admin and root to marc, and convert all other usernames to
+   A device may refer to a rewrite profile defined at realm level
+   to substitute user names. The following sample code will map
+   both admin and root to marc, and convert all other usernames to
    lower-case:
 rewrite rewriteRule {
     rewrite /^admin$/ jane.doe
@@ -1767,7 +1782,7 @@ rewrite rewriteRule {
     rewrite /^.*$/ \L$0
 }
 
-host ... {
+device ... {
     ...
     script { rewrite user = rewriteRule }
     ...
@@ -1836,7 +1851,7 @@ user marc {
        passwords, to use the login password, or to permit (without
        password) or refuse any enable attempt. Enable secrets
        defined at user level have precedence over those defined at
-       host level. level defaults to 15.
+       device level. level defaults to 15.
        The default privilege level for an ordinary user on the NAS
        is usually 1. When a user enables, she can reset this level
        to a value between 0 and 15 by using the NAS enable
@@ -2372,7 +2387,8 @@ int async 1
    Default: tacacs_schema
    LDAP_HOSTS
 
-   Space-separated list of LDAP URLs or IP addresses or hostnames
+   Space-separated list of LDAP URLs or IP addresses or device
+   names
 
    Examples:
 
@@ -2573,7 +2589,7 @@ defined below
         user backend = mavis
         pap backend = mavis
 
-        host world {
+        device world {
                 address = ::/0
                 welcome banner = "Welcome\n"
                 enable 15 = clear secret
@@ -2662,7 +2678,7 @@ id = tac_plus {
   }
   user backend = mavis
   login backend = mavis
-  host = global { address = 0.0.0.0/0 key = demo }
+  device = global { address = 0.0.0.0/0 key = demo }
 
   profile staff {
     service shell {
@@ -2793,8 +2809,8 @@ mavis module = tacinfo_cache {
 ## You can use either the Perl module ...
 #mavis module = external {
 #   exec = /usr/local/lib/mavis_tacplus_radius.pl
-#   setenv RADIUS_HOST = 1.2.3.4:1812 # could add more hosts here, comma
--separated
+#   setenv RADIUS_HOST = 1.2.3.4:1812 # could add more devices here, com
+ma-separated
 #   setenv RADIUS_SECRET = "mysecret"
 #   setenv RADIUS_GROUP_ATTR = Class
 #   setenv RADIUS_PASSWORD_ATTR = Password # defaults to: User-Password
@@ -2836,7 +2852,7 @@ lue
 
    To indicate that fallback mode is actually active, you may a
    display a different login prompt to your users:
-    host = ... {
+    device = ... {
         ...
         welcome banner = "Welcome\n"
         welcome banner fallback = "Welcome\nEmergency accounts are curre
@@ -2844,10 +2860,10 @@ ntly enabled.\n"
         ...
     }
 
-   Fallback can be enabled/disabled globally an on a per-host
+   Fallback can be enabled/disabled globally an on a per-device
    basis. Default is enabled.
     authentication fallback = permit
-    host = ... {
+    host ... {
         ...
         authentication fallback = deny
         ...
@@ -2869,9 +2885,9 @@ tac_plus -P config-file
 
 5.2. Trace Options
 
-   Trace (or debugging) options may be specified in global, host,
-   user and group context. The current debugging level is a
-   combination (read: OR) of all those. Generic syntax is:
+   Trace (or debugging) options may be specified in global,
+   device, user and group context. The current debugging level is
+   a combination (read: OR) of all those. Generic syntax is:
 debug = option ...
 
    For example, getting command authorization to work in a
@@ -3092,7 +3108,7 @@ aaa authorization exec default group tacacs+
 
    A single daemon can tell tenants apart by
 
-     * host identity, either
+     * device identity, either
           + by NAD IP address or
           + by certificate common name (currently irrelevant, as
             there's no NAD support)
@@ -3100,7 +3116,7 @@ aaa authorization exec default group tacacs+
           + by tacacs+ destination port or
           + by VRF (Linux, mostly)
 
-   Using the IP-based host identity should be sufficient for
+   Using the IP-based device identity should be sufficient for
    simple setups, but these don't scale and don't handle IP
    address conflicts. Options to cope with the latter involve
    realms. A realm is most basicly a text string the tcp listener
@@ -3160,7 +3176,7 @@ id = tac_plus-ng {
 
         net custnet { the IP ranges the end customer may log in from  }
 
-        host customer1 {
+        device customer1 {
             ....
             script {  if (nac == custsrc) rewrite user = normalizeCustom
 erAccount
@@ -3181,7 +3197,7 @@ erAccount
    between your own admin users and multiple tenants. The daemon
    will automatically prefix the customer accounts with a prefix
    and convert them to lower case. Note that the username
-   rewriting happens using a script in host context. Rewriting
+   rewriting happens using a script in device context. Rewriting
    won't work in scripts anywhere else.
      __________________________________________________________
 
