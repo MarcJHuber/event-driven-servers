@@ -857,6 +857,9 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_host:
 	    case S_device:
 	    case S_hostname:
+	    case S_server_name:
+	    case S_server_address:
+	    case S_server_port:
 	    case S_msgid:
 	    case S_accttype:
 	    case S_priority:
@@ -1495,6 +1498,26 @@ static char *eval_log_format_hostname(tac_session * session __attribute__((unuse
     return config.hostname;
 }
 
+static char *eval_log_format_server_port(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
+					 __attribute__((unused)), size_t *len)
+{
+    if (ctx) {
+	*len = ctx->server_port_ascii_len;
+	return ctx->server_port_ascii;
+    }
+    return NULL;
+}
+
+static char *eval_log_format_server_address(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
+					    __attribute__((unused)), size_t *len)
+{
+    if (ctx) {
+	*len = ctx->server_addr_ascii_len;
+	return ctx->server_addr_ascii;
+    }
+    return NULL;
+}
+
 static char *eval_log_format_nasname(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
 				     __attribute__((unused)), size_t *len __attribute__((unused)))
 {
@@ -1631,6 +1654,9 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_host] = &eval_log_format_host;
 	efun[S_device] = &eval_log_format_host;
 	efun[S_devicename] = &eval_log_format_hostname;
+	efun[S_server_name] = &eval_log_format_hostname;
+	efun[S_server_address] = &eval_log_format_server_address;
+	efun[S_server_port] = &eval_log_format_server_port;
 	efun[S_hostname] = &eval_log_format_hostname;
 	efun[S_label] = &eval_log_format_label;
 	efun[S_memberof] = &eval_log_format_memberof;
