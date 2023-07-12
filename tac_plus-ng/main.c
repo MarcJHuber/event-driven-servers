@@ -511,11 +511,13 @@ static void reject_conn(struct context *ctx, char *hint, char *tls)
 {
     if (ctx->proxy_addr_ascii) {
 	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
-	    report(NULL, LOG_INFO, ~0, "proxied %sconnection request from %s for %s (realm: %s%s%s) rejected%s%s", tls, ctx->proxy_addr_ascii,
-		   ctx->peer_addr_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", hint ? ": " : "", hint);
+	    report(NULL, LOG_INFO, ~0, "proxied %sconnection request from %s for %s to %s port %s (realm: %s%s%s) rejected%s",
+		   tls, ctx->proxy_addr_ascii, ctx->peer_addr_ascii,
+		   ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", hint);
     } else
-	report(NULL, LOG_INFO, ~0, "%sconnection request from %s (realm: %s%s%s) rejected%s%s", tls, ctx->peer_addr_ascii, ctx->realm->name,
-	       ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", hint ? ": " : "", hint);
+	report(NULL, LOG_INFO, ~0, "%sconnection request from %s to %s port %s (realm: %s%s%s) rejected%s",
+	       tls, ctx->peer_addr_ascii,
+	       ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", hint);
 
     ctx->msgid = "CONN-REJECT";
     ctx->msgid_len = 11;
