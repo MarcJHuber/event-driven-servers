@@ -3767,9 +3767,12 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	    {
 		sockaddr_union me;
 		socklen_t me_len = (socklen_t) sizeof(me);
-		char *buf = alloca(256);
 		memset(&me, 0, sizeof(me));
-		v = getsockname(session->ctx->sock, &me.sa, &me_len) ? NULL : su_ntop(&me, buf, 256);
+		if (!getsockname(session->ctx->sock, &me.sa, &me_len)) {
+		    char *buf = alloca(256);
+		    su_convert(&me, AF_INET);
+		    v = su_ntop(&me, buf, 256);
+		}
 		break;
 	    }
 	case S_string:
