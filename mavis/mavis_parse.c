@@ -174,41 +174,56 @@ void parse_error(struct sym *sym, char *fmt, ...)
     exit(EX_CONFIG);
 }
 
-void parse_error_expect(struct sym *sym, enum token token, ...)
+void parse_error_expect(struct sym *sym, ...)
 {
-    char s[1024];
-    int len = (int) sizeof(s) - 1;
-    char *p = s;
+    enum token token;
+    size_t len = 20;
+    char *s, *p;
     va_list ap;
-    *s = 0;
+    u_char a[S_null + 1];
+    size_t token_count = 0, i = 0, j = 0;
+    memset(a, 0, sizeof(a));
 
-    va_start(ap, token);
-
-    do {
-	enum token next_token = (enum token) va_arg(ap, int);
-	if (s != p) {
-	    if (next_token == S_unknown)
-		strncpy(p, " or '", len);
-	    else
-		strncpy(p, ", '", len);
-	} else
-	    strncpy(p, " '", len);
-	while (*p)
-	    p++, len--;
-	strncpy(p, codestring[token], len);
-	while (*p)
-	    p++, len--;
-	strncpy(p, "'", len);
-	while (*p)
-	    p++, len--;
-	token = next_token;
+    va_start(ap, sym);
+    for (token = va_arg(ap, enum token); token != S_unknown; token = va_arg(ap, enum token)) {
+	a[token] = 1;
+	token_count++;
+	len += 4 + codestring_len[token];
     }
-    while (token != S_unknown);
-
     va_end(ap);
 
-    parse_error(sym, "Expected%s, but got '%s'", s, sym->buf);
+    token_count--;
 
+    p = s = alloca(len);
+
+    for (i = 0; i < token_count; i++) {
+	while (!a[j])
+	    j++;
+	if (i) {
+	    *p++ = ',';
+	    *p++ = ' ';
+	}
+	*p++ = '\'';
+	memcpy(p, codestring[j], codestring_len[j]);
+	p += codestring_len[j];
+	*p++ = '\'';
+	j++;
+    }
+    if (token_count) {
+	while (!a[j])
+	    j++;
+	*p++ = ' ';
+	*p++ = 'o';
+	*p++ = 'r';
+	*p++ = ' ';
+	*p++ = '\'';
+	memcpy(p, codestring[j], codestring_len[j]);
+	p += codestring_len[j];
+	*p++ = '\'';
+    }
+    *p = 0;
+
+    parse_error(sym, "Expected %s, but got '%s'", s, sym->buf);
 }
 
 enum token parse_permission(struct sym *sym)

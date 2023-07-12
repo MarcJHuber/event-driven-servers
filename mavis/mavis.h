@@ -314,7 +314,7 @@ struct sym {
 };
 
 void parse_error(struct sym *, char *, ...);
-void parse_error_expect(struct sym *, enum token, ...);
+void parse_error_expect(struct sym *, ...);
 enum token parse_permission(struct sym *);
 u_int parse_bool(struct sym *);
 void parse(struct sym *, enum token);
