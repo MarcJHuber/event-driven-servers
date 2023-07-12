@@ -1738,6 +1738,9 @@ set priv-lvl = 15
    protocol == != =~ !~ String or REGEX session protocol (ppp,
    ...)
    realm == != Realm object name
+   server.address == != =~ !~ Server address
+   server.name == != =~ !~ Server host name
+   server.port == != =~ !~ Server TCP port
    service == != =~ !~ String or REGEX session service (shell,
    ...)
    time == != Timespec object name
