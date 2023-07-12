@@ -3304,6 +3304,9 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
     case S_vrf:
     case S_string:
     case S_identity_source:
+    case S_server_name:
+    case S_server_port:
+    case S_server_address:
 #if defined(WITH_TLS) || defined(WITH_SSL)
     case S_tls_conn_version:
     case S_tls_conn_cipher:
@@ -3512,6 +3515,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 			   S_client, S_clientname, S_clientdns, S_clientaddress,
 			   S_password, S_service, S_protocol, S_authen_action,
 			   S_authen_type, S_authen_service, S_authen_method, S_privlvl, S_vrf, S_dn, S_type, S_identity_source,
+			   S_server_name, S_server_address, S_server_port,
 #if defined(WITH_TLS) || defined(WITH_SSL)
 			   S_tls_conn_version, S_tls_conn_cipher,
 			   S_tls_peer_cert_issuer, S_tls_peer_cert_subject, S_tls_conn_cipher_strength, S_tls_peer_cn, S_tls_psk_identity,
@@ -3744,6 +3748,30 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_IDENTITY_SOURCE])
 		v = session->user->avc->arr[AV_A_IDENTITY_SOURCE];
 	    break;
+	case S_server_name:
+	    v = config.hostname;
+	    break;
+	case S_server_port:
+	    {
+		sockaddr_union me;
+		socklen_t me_len = (socklen_t) sizeof(me);
+		memset(&me, 0, sizeof(me));
+		if (!getsockname(session->ctx->sock, &me.sa, &me_len)) {
+		    uint16_t port = su_get_port(&me);
+		    v = alloca(10);
+		    snprintf(v, 10, "%u", port);
+		}
+		break;
+	    }
+	case S_server_address:
+	    {
+		sockaddr_union me;
+		socklen_t me_len = (socklen_t) sizeof(me);
+		char *buf = alloca(256);
+		memset(&me, 0, sizeof(me));
+		v = getsockname(session->ctx->sock, &me.sa, &me_len) ? NULL : su_ntop(&me, buf, 256);
+		break;
+	    }
 	case S_string:
 	    v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->u.s.lhs, io_now.tv_sec, NULL);
 	    break;

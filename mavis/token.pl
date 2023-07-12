@@ -477,3 +477,7 @@ client.address			S_clientaddress
 client.name			S_clientname
 client.dnsname			S_clientdns
 #
+server.name			S_server_name
+server.address			S_server_address
+server.port			S_server_port
+#
