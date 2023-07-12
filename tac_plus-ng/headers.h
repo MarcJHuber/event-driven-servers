@@ -759,6 +759,10 @@ struct context {
     char *tls_psk_identity;
     size_t tls_psk_identity_len;
 #endif
+    char *server_addr_ascii;
+    size_t server_addr_ascii_len;
+    char *server_port_ascii;
+    size_t server_port_ascii_len;
     char *proxy_addr_ascii;
     size_t proxy_addr_ascii_len;
     char *peer_addr_ascii;

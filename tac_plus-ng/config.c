@@ -3752,29 +3752,11 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	    v = config.hostname;
 	    break;
 	case S_server_port:
-	    {
-		sockaddr_union me;
-		socklen_t me_len = (socklen_t) sizeof(me);
-		memset(&me, 0, sizeof(me));
-		if (!getsockname(session->ctx->sock, &me.sa, &me_len)) {
-		    uint16_t port = su_get_port(&me);
-		    v = alloca(10);
-		    snprintf(v, 10, "%u", port);
-		}
-		break;
-	    }
+	    v = session->ctx->server_port_ascii;
+	    break;
 	case S_server_address:
-	    {
-		sockaddr_union me;
-		socklen_t me_len = (socklen_t) sizeof(me);
-		memset(&me, 0, sizeof(me));
-		if (!getsockname(session->ctx->sock, &me.sa, &me_len)) {
-		    char *buf = alloca(256);
-		    su_convert(&me, AF_INET);
-		    v = su_ntop(&me, buf, 256);
-		}
-		break;
-	    }
+	    v = session->ctx->server_addr_ascii;
+	    break;
 	case S_string:
 	    v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->u.s.lhs, io_now.tv_sec, NULL);
 	    break;

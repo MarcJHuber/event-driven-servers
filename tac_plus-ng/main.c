@@ -575,12 +575,12 @@ static void accept_control_tls(struct context *ctx, int cur)
 	break;
     }
 
-# ifndef OPENSSL_NO_PSK
+#ifndef OPENSSL_NO_PSK
     if (ctx->tls_psk_identity) {
 	accept_control_final(ctx);
 	return;
     }
-# endif
+#endif
 
     X509 *cert = NULL;
 #endif
@@ -831,7 +831,7 @@ void complete_host(tac_host * h)
 	    h->context_timeout = hp->context_timeout;
 
 #ifdef WITH_SSL
-# ifndef OPENSSL_NO_PSK
+#ifndef OPENSSL_NO_PSK
 	if (!h->tls_psk_id)
 	    h->tls_psk_id = hp->tls_psk_id;
 
@@ -839,7 +839,7 @@ void complete_host(tac_host * h)
 	    h->tls_psk_key = hp->tls_psk_key;
 	    h->tls_psk_key_len = hp->tls_psk_key_len;
 	}
-# endif
+#endif
 #endif
 
 	if (h->dns_timeout < 0)
@@ -993,6 +993,22 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	ctx->proxy_addr_ascii = mempool_strdup(ctx->pool, peer);
 	ctx->proxy_addr_ascii_len = strlen(peer);
     }
+    {
+	sockaddr_union me;
+	socklen_t me_len = (socklen_t) sizeof(me);
+	memset(&me, 0, sizeof(me));
+	if (!getsockname(ctx->sock, &me.sa, &me_len)) {
+	    char buf[256];
+	    su_convert(&me, AF_INET);
+	    snprintf(buf, 10, "%u", su_get_port(&me));
+	    ctx->server_port_ascii = mempool_strdup(ctx->pool, buf);
+	    ctx->server_port_ascii_len = strlen(buf);
+	    if (su_ntop(&me, buf, 256)) {
+		ctx->server_addr_ascii = mempool_strdup(ctx->pool, buf);
+		ctx->server_addr_ascii_len = strlen(buf);
+	    }
+	}
+    }
 
     ctx->nas_address = addr;	// FIXME, use origin
     if (vrf_len)
@@ -1012,15 +1028,15 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	io_set_cb_h(ctx->io, ctx->sock, (void *) cleanup);
 	io_set_cb_e(ctx->io, ctx->sock, (void *) cleanup);
 	io_sched_add(ctx->io, ctx, (void *) periodics_ctx, 60, 0);
-#  ifdef WITH_TLS
+#ifdef WITH_TLS
 	tls_accept_socket(r->tls, &ctx->tls, ctx->sock);
-#  endif
-#  ifdef WITH_SSL
+#endif
+#ifdef WITH_SSL
 	ctx->tls = SSL_new(r->tls);
 	SSL_set_fd(ctx->tls, ctx->sock);
 
 	SSL_CTX_set_cert_verify_callback(r->tls, app_verify_cb, ctx);
-#  endif
+#endif
 	accept_control_tls(ctx, ctx->sock);
 	return;
     }
