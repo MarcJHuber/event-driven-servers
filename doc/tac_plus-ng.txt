@@ -674,7 +674,7 @@ syslog default = deny
    ${profile} profile assigned to user
    ${service} service type (e.g. shell)
    ${result} typically permit or deny
-   ${port} NAS port
+   ${port} NAS port (console, tty, ...)
    ${hint} added/replaced for authorization, informal text for
    accounting
    ${host} Host name of matching host declaration
@@ -710,6 +710,9 @@ syslog default = deny
    ${identity-source} The IDENTITY_SOURCE backend value (the
    identitySourceName of the originating MAVIS module)
    ${memberof} Raw memberOf backend value, typically from LDAP
+   ${server.name} Server host name
+   ${server.address} Server address
+   ${server.port} Server TCP port
    ${tls.conn.version} TLS Connection Version (requires LibTLS or
    OpenSSL)
    ${tls.conn.cipher} TLS Connection Cipher (requires LibTLS or
