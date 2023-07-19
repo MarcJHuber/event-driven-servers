@@ -3290,6 +3290,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
     case S_type:
     case S_user:
     case S_member:
+    case S_group:
     case S_dn:
     case S_memberof:
     case S_password:
@@ -3347,6 +3348,8 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 	    m->type = S_equal;
 	    sym_get(sym);
 	    m->u.s.rhs_txt = strdup(sym->buf);
+	    if (m->u.s.token == S_group)
+		m->u.s.token = S_member;
 	    if (m->u.s.token == S_member) {
 		tac_group *g = lookup_group(sym->buf, realm);
 		if (!g)
@@ -3510,7 +3513,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
     default:
 	parse_error_expect(sym, S_leftbra, S_exclmark, S_acl, S_time, S_arg,
 			   S_cmd, S_context, S_client, S_nac, S_device, S_nas, S_nasname,
-			   S_nacname, S_host, S_port, S_user, S_member, S_memberof,
+			   S_nacname, S_host, S_port, S_user, S_group, S_member, S_memberof,
 			   S_device, S_devicename, S_deviceaddress, S_devicedns, S_deviceport,
 			   S_client, S_clientname, S_clientdns, S_clientaddress,
 			   S_password, S_service, S_protocol, S_authen_action,
