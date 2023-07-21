@@ -232,7 +232,6 @@ group-id = gid
 #define HAVE_mavis_parse_in
 static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 {
-    u_int line;
     char *env_name;
     size_t len;
     struct stat st;
@@ -290,13 +289,12 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 		sym_get(sym);
 		parse(sym, S_equal);
 		mcx->argv = calloc(1, sizeof(char *));
-		line = sym->line;
 		ostypef(sym->buf, buf, sizeof(buf));
 		if (stat(buf, &st))
 		    parse_error(sym, "%s: %s", buf, strerror(errno));
 		strset(&mcx->path, buf);
 		sym_get(sym);
-		while (sym->line == line || sym->code != S_closebra ) {
+		while (sym->code == S_string) {
 		    mcx->argv = realloc(mcx->argv, (mcx->argc + 2) * sizeof(char *));
 		    mcx->argv[mcx->argc] = strdup(sym->buf);
 		    mcx->argc++;
