@@ -296,7 +296,7 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 		    parse_error(sym, "%s: %s", buf, strerror(errno));
 		strset(&mcx->path, buf);
 		sym_get(sym);
-		while (sym->line == line) {
+		while (sym->line == line || sym->code != S_closebra ) {
 		    mcx->argv = realloc(mcx->argv, (mcx->argc + 2) * sizeof(char *));
 		    mcx->argv[mcx->argc] = strdup(sym->buf);
 		    mcx->argc++;

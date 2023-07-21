@@ -1643,7 +1643,9 @@ static void parse_ruleset(struct sym *sym, tac_realm * realm)
 	sym_get(sym);
 	r = &(*r)->next;
     }
-    parse(sym, S_closebra);
+    if (sym->code != S_closebra)
+	parse_error_expect(sym, S_closebra, S_rule, S_unknown);
+    sym_get(sym);
 }
 
 static enum token lookup_user_profile(tac_session * session)
