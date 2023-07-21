@@ -53,7 +53,7 @@ my @RADIUS_NODELIST = split(',', $RADIUS_HOST);
 $RADIUS_HOST=$RADIUS_NODELIST[0];
 
 my $radius = $ACCESS_REQUEST
-	? Authen::Radius->new( Host=>$RADIUS_HOST, Secret=>$RADIUS_SECRET, TimeOut=>$RADIUS_TIMEOUT, NodeList=>\@RADIUS_NODELIST)
+	? Authen::Radius->new( Secret=>$RADIUS_SECRET, TimeOut=>$RADIUS_TIMEOUT, NodeList=>\@RADIUS_NODELIST)
 	: Authen::Simple::RADIUS->new( host=>$RADIUS_HOST, secret=>$RADIUS_SECRET);
 
 die unless defined $radius;
