@@ -374,6 +374,9 @@ static void child_closed_stderr(struct context *ctx, int cur __attribute__((unus
 	logmsg("%s: %lu: %s", ctx->mcx->argv[0], (u_long) ctx->pid, ctx->b_err);
 	ctx->b_err_len = 0;
     }
+    if (ctx->fd_err > -1)
+	io_close(ctx->mcx->io, ctx->fd_err);
+    ctx->fd_err = -1;
     RB_search_and_delete(ctx->mcx->junkcontexts, ctx);
 }
 
@@ -383,8 +386,8 @@ static int mavis_send_in(mavis_ctx *, av_ctx **);
 
 static void child_died(struct context *ctx, int cur __attribute__((unused)))
 {
-    if (ctx->ac) {		// might be called multiple times else
-	int i = ctx->index;
+    int i = ctx->index;
+    if (ctx->ac || !ctx->mcx->cx[i]->counter) {	// might be called multiple times else
 	DebugIn(DEBUG_PROC);
 
 	if (ctx->mcx->cx[i]->counter < 2) {
@@ -393,8 +396,10 @@ static void child_died(struct context *ctx, int cur __attribute__((unused)))
 	    ctx->mcx->reapcur++;
 	    ctx->mcx->reapcur %= REAPMAX;
 	    ctx->mcx->usage--;
-	} else
+	} else {
 	    logmsg("%s: %lu: terminated after processing %llu requests", ctx->mcx->argv[0], (u_long) ctx->pid, ctx->mcx->cx[i]->counter);
+	    ctx->mcx->cx[i]->counter = 2;
+	}
 
 	ctx->mcx->cx[i]->counter = 0;
 
@@ -760,7 +765,7 @@ static int fork_child(mavis_ctx * mcx, int i)
 static void start_query(struct context *ctx)
 {
 
-    if (ctx) {
+    if (ctx && ctx->ac) {
 	int l;
 
 	Debug((DEBUG_PROC, "starting query on child %d (%s)\n", ctx->index, av_get(ctx->ac, AV_A_SERIAL)));
