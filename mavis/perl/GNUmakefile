@@ -11,6 +11,7 @@ ME = $(M)/extra
 BACKENDS =	ftp_passwd ldap_authonly tacplus_ads tacplus_ldap
 BACKENDS +=	tacplus_ldap_authonly tacplus_opie tacplus_passwd
 BACKENDS +=	tacplus_radius tacplus_sms tacplus_shadow
+BACKENDS +=	tacplus-ng_ldap
 
 BI = $(patsubst %,$(M)/mavis_%.pl, $(BACKENDS))
 
