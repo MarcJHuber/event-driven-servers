@@ -181,7 +181,7 @@ void parse_error_expect(struct sym *sym, ...)
     char *s, *p;
     va_list ap;
     u_char a[S_null + 1];
-    size_t token_count = 0, i = 0, j = 0;
+    size_t token_count = 0, i = 0, j = 0, dec = 1;
     memset(a, 0, sizeof(a));
 
     va_start(ap, sym);
@@ -192,10 +192,10 @@ void parse_error_expect(struct sym *sym, ...)
     }
     va_end(ap);
 
-    token_count--;
-
     p = s = alloca(len);
 
+    if (token_count > 1)
+	token_count--, dec = 0;
     for (i = 0; i < token_count; i++) {
 	while (!a[j])
 	    j++;
@@ -209,6 +209,7 @@ void parse_error_expect(struct sym *sym, ...)
 	*p++ = '\'';
 	j++;
     }
+    token_count -= dec;
     if (token_count) {
 	while (!a[j])
 	    j++;
