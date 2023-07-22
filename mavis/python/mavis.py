@@ -91,7 +91,7 @@ def write(av_pairs, result):
 
 def read():
 	av_pairs = { }
-	while sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+	while sys.stdin in select.select([sys.stdin], [], [])[0]:
 		line = sys.stdin.readline()
 		if line:
 			line = line.rstrip('\n')
@@ -148,7 +148,7 @@ class Mavis:
 
 	def __init__(self):
 		av_pairs = { }
-		while sys.stdin in select.select([sys.stdin], [], [], 0)[0]:
+		while sys.stdin in select.select([sys.stdin], [], [])[0]:
 			line = sys.stdin.readline()
 			if line:
 				line = line.rstrip('\n')
