@@ -205,7 +205,7 @@ while True:
 		attributes=["memberOf", "shadowExpire", "uidNumber", "gidNumber",
 			"loginShell", "homeDirectory", "sshPublicKey"])
 	if len(conn.entries) == 0:
-		D.write(MAVIS_FINAL, AV_V_RESULT_NOTFOUND, None)
+		D.write(MAVIS_DOWN, AV_V_RESULT_NOTFOUND, None)
 		continue
 	elif len(conn.entries) != 1:
 		D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, "User name not unique.")
