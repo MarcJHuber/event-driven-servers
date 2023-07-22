@@ -80,7 +80,7 @@ MAVIS_INIT_ERR = 1
 MAVIS_INIT_OK = 0
 MAVIS_TIMEOUT = 3
 
-import select, sys, os, re
+import sys, os, re
 
 def write(av_pairs, result):
 	for key in sorted(av_pairs):
@@ -91,8 +91,7 @@ def write(av_pairs, result):
 
 def read():
 	av_pairs = { }
-	while sys.stdin in select.select([sys.stdin], [], [])[0]:
-		line = sys.stdin.readline()
+	for line in sys.stdin:
 		if line:
 			line = line.rstrip('\n')
 			if line == "=":
@@ -148,8 +147,7 @@ class Mavis:
 
 	def __init__(self):
 		av_pairs = { }
-		while sys.stdin in select.select([sys.stdin], [], [])[0]:
-			line = sys.stdin.readline()
+		for line in sys.stdin:
 			if line:
 				line = line.rstrip('\n')
 				if line == "=":
