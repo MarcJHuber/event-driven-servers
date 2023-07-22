@@ -109,6 +109,11 @@ static int fixup_result(mavis_ctx * mcx, av_ctx ** ac, int result)
 	    av_set(*ac, AV_A_RESULT, AV_V_RESULT_NOTFOUND);
 	    return MAVIS_DOWN;
 	}
+	if (avres && mcx->action_notfound == S_continue && !strcmp(avres, AV_V_RESULT_NOTFOUND)) {
+	    av_unset(*ac, AV_A_USER_RESPONSE);
+	    av_set(*ac, AV_A_RESULT, AV_V_RESULT_NOTFOUND);
+	    return MAVIS_DOWN;
+	}
     } else if (*ac && (result == MAVIS_DOWN)) {
 	char *avres = av_get(*ac, AV_A_RESULT);
 	if (avres && mcx->action_notfound == S_reject && !strcmp(avres, AV_V_RESULT_NOTFOUND)) {
