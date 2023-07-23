@@ -303,6 +303,17 @@ id = ftpd {
 
 5.2. Backend Module Configuration
 
+   Generic configuration options for modules:
+
+     * action ( error | not-found ) = ( continue | reject )
+       A module typically either acknowledges an request (user
+       found/authenticated), rejects it (bad passsword) or handles
+       the request on to the next module (the "user not found"
+       case). This directives allows for overriding that verdict.
+       Defaults are:
+action error = reject       # reject request
+action not-found = continue # continue with next MAVIS module, if any
+
    The following modules are included in the distribution.
      __________________________________________________________
 
@@ -326,7 +337,7 @@ id = ftpd {
      * root = RootDirectory
      * home = HomeDirectory
 
-   There's one optional directive:
+   Optional directives are:
 
      * upload = UploadPathRegex
        By default, anonymous FTP uploads are denied. The upload
