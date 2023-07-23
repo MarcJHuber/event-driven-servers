@@ -194,7 +194,7 @@ libmavis_null.so: libmavis_null.o
 clean:
 	rm -f *.o *.so $(MAVIS_LIB).$(LIBVER_MAJOR) $(MAVIS_LIB).$(LIBVER_MAJOR).$(LIBVER_MINOR) cyg*.dll *~ *.a core mavistest
 
-install: install_lib install_libs install_prg install_perl
+install: install_lib install_libs install_prg install_perl install_python
 
 $(INSTALLROOT)$(LIBARCHDIR_DEST)/$(MAVIS_LIB).$(LIBVER_MAJOR).$(LIBVER_MINOR): $(MAVIS_LIB)
 	$(INSTALL) -m 0755 $< $(INSTALLROOT)$(LIBARCHDIR_DEST)/$<.$(LIBVER_MAJOR).$(LIBVER_MINOR) ;\
@@ -250,13 +250,19 @@ install_radmavis: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/ra
 
 install_prg: install_mavistest $(MAVIS_RADMAVIS_INSTALL) $(MAVIS_PAMMAVIS_INSTALL)
 
-install_perl: 
+install_perl:
 	@$(MAKE) -C $(BASE)/mavis/perl install
 
-install_perl_stage: 
+install_perl_stage:
 	@$(MAKE) -C $(BASE)/mavis/perl install_stage
 
-install_stage: install_perl_stage
+install_python:
+	@$(MAKE) -C $(BASE)/mavis/python install
+
+install_python_stage:
+	@$(MAKE) -C $(BASE)/mavis/python install_stage
+
+install_stage: install_perl_stage install_python_stage
 	@$(MAKE) -f $(BASE)/$(PROG)/Makefile.obj INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
 
 install_doc:

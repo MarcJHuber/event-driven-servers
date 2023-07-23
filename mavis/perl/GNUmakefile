@@ -1,8 +1,11 @@
 include ../../Makefile.inc
 
-all: Mavis.pm
+P=Mavis.pm
+SUF=pl
 
-Mavis.pm: ../mavis.h mk_Mavis.pl
+all: $(P)
+
+$(P): ../mavis.h mk_Mavis.pl
 	perl mk_Mavis.pl > $@
 
 M = $(INSTALLROOT)$(LIBDIR_DEST)/mavis
@@ -13,12 +16,12 @@ BACKENDS +=	tacplus_ldap_authonly tacplus_opie tacplus_passwd
 BACKENDS +=	tacplus_radius tacplus_sms tacplus_shadow
 BACKENDS +=	tacplus-ng_ldap
 
-BI = $(patsubst %,$(M)/mavis_%.pl, $(BACKENDS))
+BI = $(patsubst %,$(M)/mavis_%.$(SUF), $(BACKENDS))
 
-$(BI): $(M)/%.pl: %.pl
+$(BI): $(M)/%.$(SUF): %.$(SUF)
 	perl $(BASE)/scripts/install_ascii.pl -R "# REMOVE #" -b -S "s#${M}#${LIBDIR_DEST}/mavis#g" -S "s#/usr/local/lib/mavis#${LIBDIR_DEST}/mavis#g" -m 0755 $^ $@
 
-$(M)/Mavis.pm: Mavis.pm
+$(M)/$(P): $(P)
 	perl $(BASE)/scripts/install_ascii.pl -R "# REMOVE #" -b -m 0644 $^ $@
 
 $(M):
@@ -34,7 +37,7 @@ EI = $(patsubst %,$(ME)/%, $(EXTRA))
 $(EI): $(ME)/%: %
 	perl $(BASE)/scripts/install_ascii.pl -R "# REMOVE #" -b -m 0644 $^ $@
 
-install: $(M) $(ME) $(BI) $(M)/Mavis.pm $(EI)
+install: $(M) $(ME) $(BI) $(M)/$(P) $(EI)
 
 install_stage:
 	@$(MAKE) INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install

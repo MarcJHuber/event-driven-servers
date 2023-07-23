@@ -7,7 +7,7 @@ include ../Makefile.inc
 PROG	= mavis
 OD	= $(BASE)/build/$(OS)/$(PROG)
 
-all: token.h build perl_build
+all: token.h build perl_build python_build
 
 $(OD):
 	@mkdir -p "$@"
@@ -31,4 +31,10 @@ perl_build:
 
 perl_install:
 	@$(MAKE) -C perl "BASE=$(BASE)" install
+
+python_build:
+	@$(MAKE) -C python "BASE=$(BASE)"
+
+python_install:
+	@$(MAKE) -C python "BASE=$(BASE)" install
 
