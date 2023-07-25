@@ -837,7 +837,7 @@ static void do_enable(tac_session * session)
 		      eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL), 0, NULL, 0, 0);
 }
 
-static void do_ascii_login(tac_session * session)
+void do_ascii_login(tac_session * session)
 {
     enum pw_ix pw_ix = PW_LOGIN;
     struct pwdat *pwdat = NULL;

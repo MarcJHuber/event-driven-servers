@@ -339,6 +339,11 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    u->dynamic = io_now.tv_sec + r->caching_period;
 
 	session->passwd_mustchange = av_get(avc, AV_A_PASSWORD_MUSTCHANGE) ? 1 : 0;
+	// password changes are supported for ASCII login only
+	if (session->passwd_mustchange && (session->mavis_data->mavisfn != do_ascii_login)) {
+	    session->passwd_mustchange = 0;
+	    av_set(avc, AV_A_RESULT, AV_V_RESULT_FAIL);
+	}
 
 	u->passwd_oneshot = ((r->mavis_noauthcache == TRISTATE_YES) || av_get(avc, AV_A_PASSWORD_ONESHOT) || session->passwd_mustchange) ? 1 : 0;
 
