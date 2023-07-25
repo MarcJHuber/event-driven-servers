@@ -359,6 +359,7 @@ static void substitute_envvar(struct sym *sym)
 
 void getsym(struct sym *sym)
 {
+    char quote;
     *sym->buf = 0;
     sym->quoted = 0;
     sym->raw = sym->start;
@@ -439,10 +440,12 @@ void getsym(struct sym *sym)
 		sym_getchar(sym);
 	    continue;
 	case '"':
+	case '\'':
+	    quote = *sym->ch;
 	    sym_start(sym);
 	    sym_getchar(sym);
 	    /* implement C style quoting */
-	    while (*sym->ch != '"') {
+	    while (*sym->ch != quote) {
 		int i;
 		if (*sym->ch == (char) EOF)
 		    parse_error(sym, "EOF unexpected");
@@ -482,7 +485,8 @@ void getsym(struct sym *sym)
 			sc = '\\';
 			break;
 		    case '"':
-			sc = '"';
+		    case '\'':
+			sc = scc;
 			break;
 		    case '0':
 		    case '1':
