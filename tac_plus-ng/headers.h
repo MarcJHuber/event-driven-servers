@@ -686,6 +686,7 @@ struct tac_session {
      BISTATE(enable_getuser);
      BISTATE(password_bad_again);
      BISTATE(passwd_mustchange);
+     BISTATE(passwd_changeable);
      BISTATE(mavisauth_res_valid);
      BISTATE(user_is_session_specific);
      BISTATE(username_rewritten);
@@ -924,8 +925,6 @@ void attr_add(tac_session *, char ***, int *, char *, size_t);
 
 enum token validate_ssh_hash(tac_session *, char *, char **);
 enum token validate_ssh_key_id(tac_session *);
-
-void do_ascii_login(tac_session *);
 
 extern struct config config;
 extern int die_when_idle;
