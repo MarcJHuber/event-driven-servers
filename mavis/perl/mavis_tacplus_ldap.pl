@@ -665,7 +665,11 @@ bye:
 	}
 	my ($out) = "";
 	for (my $i = 0; $i <= $#V; $i++) {
-		$out .= sprintf ("%d %s\n", $i, $V[$i]) if defined $V[$i];
+		if (defined $V[$i]) {
+			$V[$i] =~ tr/\n/\r/;
+			$V[$i] =~ s/\0//g;
+			$out .= sprintf ("%d %s\n", $i, $V[$i]);
+		}
 	}
 	$out .= sprintf ("=%d\n", $result);
 	print $out;
