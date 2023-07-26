@@ -285,13 +285,37 @@ while ($in = <>) {
 		$val = $entry->get_value('shadowExpire');
 		if ($val && $val * 86400 < time){
 			$V[AV_A_USER_RESPONSE] = "Password has expired.";
-			goto fail;
+			$V[AV_A_PASSWORD_MUSTCHANGE] = 1;
 		}
 		my $authdn = $mesg->entry(0)->dn;
 		if ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_AUTH) {
 			$mesg =  $ldap->bind($authdn, password => $V[AV_A_PASSWORD]);
-			if ($mesg->code) {
-				$V[AV_A_USER_RESPONSE] = $mesg->error . " (" . __LINE__ . ")";
+			my $code = $mesg->code;
+			my $userresponse = undef;
+			if ($code == LDAP_INVALID_CREDENTIALS && $LDAP_SERVER_TYPE eq 'microsoft') {
+				my %ad_error_codes = (
+					"525" => "Invalid credentials.", # "User not found.", actually
+					"52e" => "Invalid credentials.",
+					"530" => "Not permitted to logon at this time.",
+					"531" => "Not permitted to logon at this workstation.",
+					"532" => "Password expired.",
+					"533" => "Account disabled.",
+					"701" => "Account expired.",
+					"773" => "User must reset password.",
+					"775" => "User account locked.",
+				);
+				my $m = $mesg->error;
+				$m =~ s/.*DSID-.*, data ([0-9A-Fa-f]+),.*/$1/;
+				if($m eq "532" || $m eq "533" || $m eq "773") {
+					$code = 0;
+					$V[AV_A_PASSWORD_MUSTCHANGE] = 1;
+				} elsif (exists $ad_error_codes{$m}) {
+					$userresponse = $ad_error_codes{$m};
+				}
+			}
+			if ($code) {
+				$userresponse = $mesg->error unless defined $userresponse;
+				$V[AV_A_USER_RESPONSE] = $userresponse;
 				goto fail if $mesg->code == LDAP_INVALID_CREDENTIALS || $mesg->code == LDAP_CONSTRAINT_VIOLATION;
 				goto fatal;
 			}
@@ -342,6 +366,7 @@ while ($in = <>) {
 				print STDERR "chpw for ", $authdn, ": ", $mesg->error, " (" , __LINE__ , ")", "\n";
 				goto fatal;
 			}
+			delete $V[AV_A_PASSWORD_MUSTCHANGE];
 			$V[AV_A_USER_RESPONSE] = "Password change was successful.";
 			$V[AV_A_PASSWORD_ONESHOT] = "1";
 			$V[AV_A_RESULT] = AV_V_RESULT_OK;
@@ -376,7 +401,11 @@ bye:
 	}
 	my ($out) = "";
 	for (my $i = 0; $i <= $#V; $i++) {
-		$out .= sprintf ("%d %s\n", $i, $V[$i]) if defined $V[$i];
+		if (defined $V[$i]) {
+			$V[$i] =~ tr/\n/\r/;
+			$V[$i] =~ s/\0//g;
+			$out .= sprintf ("%d %s\n", $i, $V[$i]);
+		}
 	}
 	$out .= sprintf ("=%d\n", $result);
 	print $out;
