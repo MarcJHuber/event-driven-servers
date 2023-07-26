@@ -217,12 +217,14 @@ while True:
 		if (LDAP_SERVER_TYPE == "generic"
 			and len(entry.shadowExpire) > 0  and int(entry.shadowExpire[0]) > 0
 			and int(entry.shadowExpire[0]) * 86400 < time.time()):
-			D.write(MAVIS_FINAL, AV_V_RESULT_FAIL,
-				"Password has expired.")
-			continue;
+			D.password_mustchange(1);
 		if not conn.rebind(user=entry.entry_dn, password=D.password):
-			D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn))
-			continue
+			if (LDAP_SERVER_TYPE == "microsoft" and conn.result == ldap3.core.results.RESULT_INVALID_CREDENTIALS
+				and re.search(r"DSID-.*, data (532|533|773) ", c.message)):
+				D.password_mustchange(1);
+			else:
+				D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn))
+				continue
 		D.remember_password(False)
 
 	user_msg = None
@@ -236,6 +238,7 @@ while True:
 			D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn))
 			continue;
 		user_msg = "Password change was successful."
+		D.password_mustchange();
 
 	D.set_dn(entry.entry_dn)
 
