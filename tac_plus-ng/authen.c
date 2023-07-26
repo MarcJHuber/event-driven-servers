@@ -837,7 +837,7 @@ static void do_enable(tac_session * session)
 		      eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL), 0, NULL, 0, 0);
 }
 
-void do_ascii_login(tac_session * session)
+static void do_ascii_login(tac_session * session)
 {
     enum pw_ix pw_ix = PW_LOGIN;
     struct pwdat *pwdat = NULL;
@@ -886,6 +886,7 @@ void do_ascii_login(tac_session * session)
 	    // memlist_free(session->memlist, &session->password);
 	    session->password = NULL;
 	    session->authen_data->authfn = do_chpass;
+	    session->flag_mavis_auth = 0;
 	    session->user_msg = eval_log_format(session, session->ctx, NULL, li_password_change_dialog, io_now.tv_sec, NULL);
 	    do_chpass(session);
 	    return;
@@ -1655,6 +1656,7 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 		    } else {
 			/* Standard ASCII login */
 			session->authen_data->authfn = do_ascii_login;
+			session->passwd_changeable = 1;
 			username_required = 0;
 			start->data_len = 0;	/* rfc8907 5.4.2.1 says to ignore the data field */
 		    }
@@ -1693,6 +1695,7 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 		case TAC_PLUS_AUTHEN_TYPE_ASCII:
 		    session->authen_data->authfn = do_chpass;
 		    session->chpass = 1;
+		    session->passwd_changeable = 1;
 		    username_required = 0;
 		    break;
 		}
