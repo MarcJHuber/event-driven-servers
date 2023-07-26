@@ -117,7 +117,8 @@ class Mavis:
 			self.av_pairs[AV_A_USER_RESPONSE] = user_response
 		for key in sorted(self.av_pairs):
 			if self.av_pairs[key]:
-				print(str(key) + " " + self.av_pairs[key])
+				val = self.av_pairs[key].replace('\n', '\r')
+				print(str(key) + " " + val)
 		print("=" + str(verdict))
 		sys.stdout.flush()
 
