@@ -93,6 +93,7 @@ void report(tac_session * session, int priority, int level, char *fmt, ...)
 	    fprintf(stderr, "%ld: %s.%.3lu %x/%.8x: %s %s\n", (long int) pid,
 		    now, (u_long) io_now.tv_usec / 1000, (session && session->ctx) ? session->ctx->id : 0, session ? session->session_id : 0, nas_addr, msg);
 	    fflush(stderr);
+	    return;
 	} else if (common_data.syslog_dflt) {
 	    syslog(LOG_DEBUG, "%x/%.8x: %s %s%s",
 		   (session && session->ctx) ? session->ctx->id : 0,
