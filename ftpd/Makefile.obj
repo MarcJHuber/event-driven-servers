@@ -61,6 +61,8 @@ OBJ +=	conversions.o tohex.o ident_buffer2socket.o ident_connect_out.o
 OBJ +=	ident_connected.o conf.o ident_socket2buffer.o sig_bus.o
 OBJ +=	h_esta.o h_mfmt.o h_mff.o mysendfile.o bug.o
 
+$(OBJ): headers.h ../mavis/mavis.h
+
 $(PROG)$(EXEC_EXT): $(OBJ)
 	$(CC) -o $@ $^ $(LIB)
 

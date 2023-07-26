@@ -20,6 +20,7 @@ main.o: main.c headers.h $(BASE)/misc/version.h
 
 OBJS+=main.o conf.o signals.o
 
+$(OBJS): ../mavis/mavis.h headers.h
 
 $(PROG)$(EXEC_EXT): $(OBJS)
 	$(CC) -o $@ $^ $(LIB)

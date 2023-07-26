@@ -84,6 +84,8 @@ ifeq ($(WITH_DNS), 1)
 	LIBMAVISOBJS += io_dns_revmap.o
 endif
 
+$(LIBMAVISOBJS): mavis.h
+
 mavis_parse.o: CFLAGS += -DMAVIS_DIR="\"$(LIBARCHDIR_DEST)/mavis\""
 
 ifeq ($(OSTYPE), darwin)

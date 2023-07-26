@@ -32,6 +32,8 @@ main.o: main.c headers.h $(BASE)/misc/version.h
 OBJ +=	main.o buffer2socket.o socket2buffer.o cleanup.o accepted.o
 OBJ +=	buffer.o connect_out.o connected.o signals.o conf.o structs.o
 
+$(OBJ): headers.h ../mavis/mavis.h
+
 $(PROG)$(EXEC_EXT): $(OBJ)
 	$(CC) -o $@ $^ $(LIB)
 
