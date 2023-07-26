@@ -104,12 +104,12 @@ static int fixup_result(mavis_ctx * mcx, av_ctx ** ac, int result)
 {
     if (*ac && (result == MAVIS_FINAL || result == MAVIS_FINAL_DEFERRED)) {
 	char *avres = av_get(*ac, AV_A_RESULT);
-	if (avres && mcx->action_error == S_continue && !strcmp(avres, AV_V_RESULT_ERROR)) {
+	if (mcx->down && avres && mcx->action_error == S_continue && !strcmp(avres, AV_V_RESULT_ERROR)) {
 	    av_unset(*ac, AV_A_USER_RESPONSE);
 	    av_set(*ac, AV_A_RESULT, AV_V_RESULT_NOTFOUND);
 	    return MAVIS_DOWN;
 	}
-	if (avres && mcx->action_notfound == S_continue && !strcmp(avres, AV_V_RESULT_NOTFOUND)) {
+	if (mcx->down && avres && mcx->action_notfound == S_continue && !strcmp(avres, AV_V_RESULT_NOTFOUND)) {
 	    av_unset(*ac, AV_A_USER_RESPONSE);
 	    av_set(*ac, AV_A_RESULT, AV_V_RESULT_NOTFOUND);
 	    return MAVIS_DOWN;
