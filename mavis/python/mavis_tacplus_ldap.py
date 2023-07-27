@@ -237,7 +237,7 @@ while True:
 			or  (LDAP_SERVER_TYPE == "generic"
 				and not conn.extend.standard.modify_password (
 				entry.entry_dn, D.password, D.password_new))):
-			D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn)
+			D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn))
 			continue
 		user_msg = "Password change was successful."
 		D.password_mustchange()
