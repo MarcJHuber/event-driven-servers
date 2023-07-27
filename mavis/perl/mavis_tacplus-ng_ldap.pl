@@ -282,13 +282,13 @@ while ($in = <>) {
 		$V[AV_A_HOME] = $val if $val = $entry->get_value('homeDirectory');
 		$V[AV_A_SSHKEY] = $val if $val = $entry->get_value('sshPublicKey');
 
-		$val = $entry->get_value('shadowExpire');
-		if ($val && $val * 86400 < time){
-			$V[AV_A_USER_RESPONSE] = "Password has expired.";
-			$V[AV_A_PASSWORD_MUSTCHANGE] = 1;
-		}
 		my $authdn = $mesg->entry(0)->dn;
 		if ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_AUTH) {
+			$val = $entry->get_value('shadowExpire');
+			if ($val && $val * 86400 < time){
+				$V[AV_A_USER_RESPONSE] = "Password has expired.";
+				$V[AV_A_PASSWORD_MUSTCHANGE] = 1;
+			}
 			$mesg =  $ldap->bind($authdn, password => $V[AV_A_PASSWORD]);
 			my $code = $mesg->code;
 			my $userresponse = undef;
