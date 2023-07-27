@@ -213,21 +213,23 @@ while True:
 
 	entry = conn.entries[0]
 
+	user_msg = None
 	if D.is_tacplus_authc:
 		if (LDAP_SERVER_TYPE == "generic"
 			and len(entry.shadowExpire) > 0  and int(entry.shadowExpire[0]) > 0
 			and int(entry.shadowExpire[0]) * 86400 < time.time()):
 			D.password_mustchange(1)
+			user_msg = "Password has expired."
 		if not conn.rebind(user=entry.entry_dn, password=D.password):
 			if (LDAP_SERVER_TYPE == "microsoft" and conn.result == ldap3.core.results.RESULT_INVALID_CREDENTIALS
 				and re.search(r"DSID-.*, data (532|533|773) ", c.message)):
 				D.password_mustchange(1)
+				user_msg = translate_ldap_error(conn))
 			else:
 				D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn))
 				continue
 		D.remember_password(False)
 
-	user_msg = None
 	if D.is_tacplus_chpw:
 		if ((LDAP_SERVER_TYPE == "microsoft"
 				and not conn.extend.microsoft.modify_password(
