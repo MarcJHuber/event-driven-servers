@@ -92,7 +92,7 @@ while True:
 
 	if FAULT != None:
 		sys.stderr.write("Pretended application fault.\n")
-		sys.exit(-1);
+		sys.exit(-1)
 
 	if D.user == USERNAME:
 		if (D.is_tacplus_authc and D.password == PASSWORD) or D.is_tacplus_authz:
