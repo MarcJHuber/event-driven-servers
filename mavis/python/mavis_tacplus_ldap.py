@@ -224,7 +224,7 @@ while True:
 			if (LDAP_SERVER_TYPE == "microsoft" and conn.result == ldap3.core.results.RESULT_INVALID_CREDENTIALS
 				and re.search(r"DSID-.*, data (532|533|773) ", c.message)):
 				D.password_mustchange(1)
-				user_msg = translate_ldap_error(conn))
+				user_msg = translate_ldap_error(conn)
 			else:
 				D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn))
 				continue
@@ -237,7 +237,7 @@ while True:
 			or  (LDAP_SERVER_TYPE == "generic"
 				and not conn.extend.standard.modify_password (
 				entry.entry_dn, D.password, D.password_new))):
-			D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn))
+			D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn)
 			continue
 		user_msg = "Password change was successful."
 		D.password_mustchange()
