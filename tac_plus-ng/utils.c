@@ -404,7 +404,7 @@ static void log_start(struct logfile *lf, struct context_logfile *deadctx)
 	} else if (lf->flag_syslog) {
 	    lf->ctx = new_context_logfile(NULL);
 	    lf->flag_sync = 1;
-	    openlog(lf->syslog_ident, 0, lf->syslog_priority / 8);
+	    openlog(lf->syslog_ident, 0, lf->syslog_priority & ~7);
 	} else {
 	    cur = open(path, O_CREAT | O_WRONLY | O_APPEND, config.mask);
 	    if (cur < 0 && errno != EACCES) {
