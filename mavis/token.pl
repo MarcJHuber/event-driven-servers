@@ -179,6 +179,7 @@ key				S_key
 keyfile				S_keyfile
 key-file			S_key_file
 level				S_level
+severity			S_severity
 limit				S_limit
 listen				S_listen
 local				S_local

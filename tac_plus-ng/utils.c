@@ -617,6 +617,7 @@ void parse_log(struct sym *sym, tac_realm * r)
 		sym_get(sym);
 		continue;
 	    case S_level:
+	    case S_severity:
 		sym_get(sym);
 		parse(sym, S_equal);
 		lf->syslog_priority &= ~7;
@@ -630,7 +631,7 @@ void parse_log(struct sym *sym, tac_realm * r)
 		sym_get(sym);
 		continue;
 	    default:
-		parse_error_expect(sym, S_facility, S_level, S_ident, S_unknown);
+		parse_error_expect(sym, S_facility, S_severity, S_ident, S_unknown);
 	    }
 	default:
 	    parse_error_expect(sym, S_destination, S_log, S_syslog, S_access, S_authorization, S_accounting, S_connection, S_unknown);

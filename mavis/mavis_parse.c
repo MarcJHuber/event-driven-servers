@@ -1624,6 +1624,7 @@ static void parse_syslog(struct sym *sym)
     sym_get(sym);
     switch (sym->code) {
     case S_level:
+    case S_severity:
 	sym_get(sym);
 	parse(sym, S_equal);
 	common_data.syslog_level = get_syslog_level(sym->buf);
@@ -1647,7 +1648,7 @@ static void parse_syslog(struct sym *sym)
 	common_data.syslog_dflt = parse_bool(sym) ? 1 : 0;
 	break;
     default:
-	parse_error_expect(sym, S_level, S_facility, S_ident, S_default, S_unknown);
+	parse_error_expect(sym, S_severity, S_facility, S_ident, S_default, S_unknown);
     }
     logopen();
 }
