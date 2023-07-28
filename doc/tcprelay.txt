@@ -157,12 +157,12 @@ id = tcprelay {
        If set, the daemon will terminate after processing count
        sessions, what may be useful to remedy the effects of
        memory leaks. By default, this is not set.
-     * syslog ( ( ident = Ident) | ( level = Level ) | ( facility
-       = Facility))
-       Selects syslog ident, level and facility. Defaults to:
+     * syslog ( ( ident = Ident) | ( severity = Level ) | (
+       facility = Facility))
+       Selects syslog ident, severity and facility. Defaults to:
 syslog ident = program-name
 syslog facility = UUCP
-syslog level = INFO
+syslog severity = INFO
      * idle timeout =Seconds
        Set session timeout (default: 0).
      * tls cert-file = CertFile

@@ -298,12 +298,12 @@ exec = /some/where/linux-2.3.35-i686/ftpd
      * tcp keepalive ( count | idle | interval ) = Number
        Sets various options for TCP keepalive probes, if supported
        by the operating system.
-     * syslog ( ( ident = Ident) | ( level = Level ) | ( facility
-       = Facility))
-       Selects syslog ident, level and facility. Defaults to:
+     * syslog ( ( ident = Ident) | ( severity = Level ) | (
+       facility = Facility))
+       Selects syslog ident, severity and facility. Defaults to:
 syslog ident = program-name
 syslog facility = UUCP
-syslog level = INFO
+syslog severity = INFO
      * single process = ( yes | no )
        Changes the execution model to single process mode.
        Connections will be accepted and processed by one single

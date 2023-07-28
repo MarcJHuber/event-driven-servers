@@ -388,9 +388,9 @@ current context. Default: <tt class="literal">no</tt>.</p>
 the programs basename.</p>
 </li>
 <li>
-<p><tt class="literal">syslog level =</tt> <span class=
+<p><tt class="literal">syslog severity =</tt> <span class=
 "emphasis"><i class="emphasis">Level</i></span></p>
-<p>Set the <tt class="literal">syslog</tt>(3) level. Default:
+<p>Set the <tt class="literal">syslog</tt>(3) severity. Default:
 <tt class="literal">INFO</tt>.</p>
 </li>
 <li>
@@ -441,7 +441,7 @@ of an identity. It will be assigned to the <span class=
 </li>
 </ul>
 <p>An actual configuration could look similar to:</p>
-<pre class="screen">syslog level = INFO
+<pre class="screen">syslog severity = INFO
 syslog facility = DAEMON
 
 id = spawnd {

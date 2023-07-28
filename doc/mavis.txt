@@ -237,8 +237,8 @@ debug = ALL -PARSE -NET
      * syslog ident = Ident
        Set the syslog(3) identity. Defaults to the programs
        basename.
-     * syslog level = Level
-       Set the syslog(3) level. Default: INFO.
+     * syslog severity = Level
+       Set the syslog(3) severity. Default: INFO.
      * syslog facility = Facility
        Set the syslog(3) facility. Default: UUCP.
      * syslog default = ( permit | deny )
@@ -262,7 +262,7 @@ debug = ALL -PARSE -NET
        IDENTITY_SOURCE attribute.
 
    An actual configuration could look similar to:
-syslog level = INFO
+syslog severity = INFO
 syslog facility = DAEMON
 
 id = spawnd {

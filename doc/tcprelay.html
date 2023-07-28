@@ -257,16 +257,16 @@ is not set.</p>
 </li>
 <li>
 <p><tt class="literal">syslog</tt> ( ( <tt class="literal">ident
-=</tt> Ident) | ( <tt class="literal">level =</tt> Level ) | (
+=</tt> Ident) | ( <tt class="literal">severity =</tt> Level ) | (
 <tt class="literal">facility =</tt> Facility))</p>
 <p>Selects syslog <span class="emphasis"><i class=
 "emphasis">ident</i></span>, <span class="emphasis"><i class=
-"emphasis">level</i></span> and <span class="emphasis"><i class=
+"emphasis">severity</i></span> and <span class="emphasis"><i class=
 "emphasis">facility</i></span>. Defaults to:</p>
 <pre class="screen">syslog ident = <span class="emphasis"><i class=
 "emphasis">program-name</i></span>
 syslog facility = UUCP
-syslog level = INFO</pre></li>
+syslog severity = INFO</pre></li>
 <li>
 <p><tt class="literal">idle timeout =</tt><span class=
 "emphasis"><i class="emphasis">Seconds</i></span></p>
