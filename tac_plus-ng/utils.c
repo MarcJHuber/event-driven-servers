@@ -178,8 +178,6 @@ struct logfile {
     void (*log_write)(struct logfile *, char *, size_t);
     void (*log_flush)(struct logfile *);
     int syslog_priority;
-    int syslog_compliance;
-    char *date_dest;
     sockaddr_union syslog_destination;
     int sock;
     time_t last;
@@ -573,7 +571,6 @@ void parse_log(struct sym *sym, tac_realm * r)
     lf->dest = "syslog";
     lf->syslog_ident = "tacplus";
     lf->syslog_priority = common_data.syslog_level | common_data.syslog_facility;
-    lf->date_dest = "%Y-%m-%d %H:%M:%S %z";
     sym_get(sym);
     parse(sym, S_openbra);
     while (sym->code != S_closebra) {
@@ -735,10 +732,7 @@ void parse_log(struct sym *sym, tac_realm * r)
 	    lf->flag_syslog = BISTATE_YES;
 	    lf->log_write = &log_write_common;
 	    lf->log_flush = &log_flush_syslog;
-	    lf->syslog_priority = common_data.syslog_level | common_data.syslog_facility;
 	} else if (!su_pton_p(&lf->syslog_destination, lf->dest, 514)) {
-	    char str[100];
-	    *str = 0;
 	    lf->flag_syslog = BISTATE_YES;
 	    lf->log_write = &log_write_common;
 	    lf->log_flush = &log_flush_syslog_udp;
