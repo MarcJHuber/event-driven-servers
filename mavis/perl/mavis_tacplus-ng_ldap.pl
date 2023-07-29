@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # $Id$
 #
-# mavis_tacplus_ldap2.pl
+# mavis_tacplus-ng_ldap2.pl
 # (C)2001-2023 Marc Huber <Marc.Huber@web.de>
 # All rights reserved.
 #

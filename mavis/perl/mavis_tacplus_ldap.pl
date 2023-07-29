@@ -7,6 +7,7 @@
 #
 # TACACS+ backend for libmavis_external.so
 # Authenticates/authorizes against LDAP, optionally supports password changes.
+# Please use mavis_tacplus-ng_ldap.pl for tac_plus-ng.
 #
 
 =pod
