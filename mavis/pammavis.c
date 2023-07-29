@@ -24,6 +24,18 @@
 
 static char *service = "mavis";
 
+static void usage(void)
+{
+    fprintf(stderr,		// The comments are here to keep indent(1) from messing with code formatting.
+	    "\n"		//
+	    "Usage: pammavis <options>]\n"	//
+	    "\n"		//
+	    "Options:\n"	//
+	    "  -s <service>     PAM service to use (default: mavis)\n"	//
+	    "\n");
+    exit(-1);
+}
+
 struct appdata {
     char *user;
     char *pass;
@@ -110,6 +122,7 @@ static int print_credentials(char *user)
 int main(int argc, char **argv)
 {
     extern char *optarg;
+    extern int optind;
     int c;
 
     char buf[4096], *user = NULL, *pass = NULL;
@@ -121,9 +134,12 @@ int main(int argc, char **argv)
 	    service = optarg;
 	    break;
 	default:
-	    fprintf(stderr, "pammavis version " VERSION "\n");
+	    usage();
 	    exit(EX_OK);
 	}
+
+    if (argv[optind])
+	usage();
 
     while (fgets(buf, sizeof(buf), stdin)) {
 	int mavis_attr;
