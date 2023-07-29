@@ -28,7 +28,7 @@ $(ME):
 	@mkdir -p -m 0755 $@
 
 install: $(M) $(ME) $(BI) $(M)/$(P)
-	@python3 --version 2>/dev/null || exit 0; python3 -m compileall $(M)
+	@python3 --version >/dev/null 2>/dev/null || exit 0; python3 -m compileall $(M)
 
 install_stage:
 	@$(MAKE) INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
