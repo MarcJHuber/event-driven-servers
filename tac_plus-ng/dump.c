@@ -106,6 +106,7 @@ static struct i2s map_type[] = {
     { TAC_PLUS_AUTHEN_TYPE_MSCHAPV2, "mschapv2", 0 },
     { TAC_PLUS_AUTHEN_TYPE_SSHKEY, "sshkey", 0 },
     { TAC_PLUS_AUTHEN_TYPE_SSHCERT, "sshcert", 0 },
+    { TAC_PLUS_AUTHEN_TYPE_EAP, "eap", 0 },
     { 0, NULL, 0 }
 };
 
