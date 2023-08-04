@@ -1006,9 +1006,10 @@ static void do_eap(tac_session * session)
     case EAP_SUCCESS:
 	res = TAC_PLUS_AUTHEN_STATUS_PASS;
 	break;
+    case -1: // delayed
+	return;
     default:
 	res = TAC_PLUS_AUTHEN_STATUS_FAIL;
-	break;
     }
 
     report_auth(session, "shell login", hint, res);
