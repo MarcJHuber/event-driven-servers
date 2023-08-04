@@ -71,6 +71,7 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     struct author_data *data;
     enum token res = S_unknown;
     tac_host *h = session->ctx->host;
+    size_t len = 0;
 
     report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "Start authorization request");
 
@@ -86,6 +87,28 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     session->pak_authen_method = pak->authen_method;
     session->username_len = (size_t) pak->user_len;
     session->username = memlist_strndup(session->memlist, p, session->username_len);
+    p += pak->user_len;
+    session->nas_port = memlist_strndup(session->memlist, p, (size_t) pak->port_len);
+    session->nas_port_len = pak->port_len;
+    p += pak->port_len;
+    session->nac_address_ascii = memlist_strndup(session->memlist, p, (size_t) pak->rem_addr_len);
+    session->nac_address_ascii_len = (size_t) pak->rem_addr_len;
+    p += pak->rem_addr_len;
+
+    for (i = 0; i < pak->arg_cnt; i++)
+	len += argsizep[i];
+    session->argp = memlist_malloc(session->memlist, len + session->arg_cnt);
+    memcpy(session->argp, p, len);
+    memcpy(session->argp + len, argsizep, pak->arg_cnt);
+    session->arg_len = session->argp + len;
+    session->arg_cnt = pak->arg_cnt;
+
+    session->priv_lvl = pak->priv_lvl;
+    session->privlvl_len = snprintf(session->privlvl, sizeof(session->privlvl), "%u", session->priv_lvl);
+
+    session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
+    if (session->nac_address_valid)
+	get_revmap_nac(session);
 
     while (res != S_permit && res != S_deny && h) {
 	if (h->action) {
@@ -96,7 +119,6 @@ void author(tac_session * session, tac_pak_hdr * hdr)
 		if (!li_denied_by_acl)
 		    li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
 		report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
-		log_exec(session, session->ctx, S_authorization, io_now.tv_sec);
 		send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message,
 				  eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL), 0, NULL);
 		return;
@@ -110,25 +132,6 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     }
 
     tac_rewrite_user(session, NULL);
-    p += pak->user_len;
-    session->nas_port = memlist_strndup(session->memlist, p, (size_t) pak->port_len);
-    session->nas_port_len = pak->port_len;
-    p += pak->port_len;
-    session->nac_address_ascii = memlist_strndup(session->memlist, p, (size_t) pak->rem_addr_len);
-    session->nac_address_ascii_len = (size_t) pak->rem_addr_len;
-    p += pak->rem_addr_len;
-
-    session->arg_cnt = pak->arg_cnt;
-    session->argp = p;
-    session->arg_len = argsizep;
-
-    session->priv_lvl = pak->priv_lvl;
-    session->privlvl_len = snprintf(session->privlvl, sizeof(session->privlvl), "%u", session->priv_lvl);
-
-    session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
-    if (session->nac_address_valid)
-	get_revmap_nac(session);
-
     data = memlist_malloc(session->memlist, sizeof(struct author_data));
     data->in_cnt = pak->arg_cnt;
 
