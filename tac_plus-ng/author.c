@@ -97,7 +97,7 @@ void author(tac_session * session, tac_pak_hdr * hdr)
 
     for (i = 0; i < pak->arg_cnt; i++)
 	len += argsizep[i];
-    session->argp = memlist_malloc(session->memlist, len + session->arg_cnt);
+    session->argp = memlist_malloc(session->memlist, len + pak->arg_cnt);
     memcpy(session->argp, p, len);
     memcpy(session->argp + len, argsizep, pak->arg_cnt);
     session->arg_len = session->argp + len;
