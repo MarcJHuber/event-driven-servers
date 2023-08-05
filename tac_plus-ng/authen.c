@@ -399,7 +399,7 @@ static void do_chap(tac_session * session)
 	if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
 	    if (session->user->passwd[PW_CHAP]->type != S_clear) {
 		hint = hint_no_cleartext;
-		res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+		res = TAC_PLUS_AUTHEN_STATUS_RESTART;
 	    } else if (session->authen_data->data_len - MD5_LEN > 0) {
 		u_char digest[MD5_LEN];
 		myMD5_CTX mdcontext;
@@ -1209,9 +1209,10 @@ static void do_mschap(tac_session * session)
 	return;
 
     if (session->user) {
-	if (session->user->passwd[PW_MSCHAP]->type != S_clear)
+	if (session->user->passwd[PW_MSCHAP]->type != S_clear) {
 	    hint = hint_no_cleartext;
-	else if (session->authen_data->data_len == 1 /* PPP id */  + 8 /* challenge length */  + MSCHAP_DIGEST_LEN) {
+	    res = TAC_PLUS_AUTHEN_STATUS_RESTART;
+	} else if (session->authen_data->data_len == 1 /* PPP id */  + 8 /* challenge length */  + MSCHAP_DIGEST_LEN) {
 	    u_char response[24];
 	    u_char *chal = session->authen_data->data + 1;
 	    u_char *resp = session->authen_data->data + session->authen_data->data_len - MSCHAP_DIGEST_LEN;
@@ -1284,9 +1285,10 @@ static void do_mschapv2(tac_session * session)
 	return;
 
     if (session->user) {
-	if (session->user->passwd[PW_MSCHAP]->type != S_clear)
+	if (session->user->passwd[PW_MSCHAP]->type != S_clear) {
 	    hint = hint_no_cleartext;
-	else if (session->authen_data->data_len == 1 /* PPP id */  + 16 /* challenge length */  + MSCHAP_DIGEST_LEN) {
+	    res = TAC_PLUS_AUTHEN_STATUS_RESTART;
+	} else if (session->authen_data->data_len == 1 /* PPP id */  + 16 /* challenge length */  + MSCHAP_DIGEST_LEN) {
 	    u_char *chal = session->authen_data->data + 1;
 	    u_char *resp = session->authen_data->data + session->authen_data->data_len - MSCHAP_DIGEST_LEN;
 	    session->authen_data->data = NULL;
