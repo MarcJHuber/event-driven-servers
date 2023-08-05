@@ -1965,3 +1965,22 @@ char *memlist_strndup(memlist_t * list, u_char * s, int len)
     report(NULL, LOG_ERR, ~0, "strndup failure");
     tac_exit(EX_OSERR);
 }
+
+char *memlist_attach(memlist_t * list, void *p)
+{
+    if (p)
+	memlist_add(list, p);
+    return p;
+}
+
+void *mempool_detach(rb_tree_t * pool, void *ptr)
+{
+    if (pool && ptr) {
+	rb_node_t *rbn = RB_search(pool, ptr);
+	if (rbn) {
+	    RB_payload_unlink(rbn);
+	    return ptr;
+	}
+    }
+    return NULL;
+}

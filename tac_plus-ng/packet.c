@@ -503,14 +503,16 @@ void tac_read(struct context *ctx, int cur)
 	    return;
 	}
     } else {
-	if (ctx->hdr.seq_no != 1) {
+	if (ctx->hdr.seq_no == 1) {
+	    session = new_session(ctx, &ctx->hdr);
+	    memlist_attach(session->memlist, mempool_detach(ctx->pool, ctx->in));
+	} else {
 	    report(NULL, LOG_ERR, ~0,
 		   "%s: %s packet (sequence number: %d) for session %.8x", "Stray", ctx->nas_address_ascii, (int) ctx->hdr.seq_no,
 		   ntohl(ctx->hdr.session_id));
 	    cleanup(ctx, cur);
 	    return;
 	}
-	session = new_session(ctx, &ctx->hdr);
     }
 
     if (

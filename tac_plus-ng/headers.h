@@ -837,6 +837,9 @@ void memlist_destroy(memlist_t *);
 char *memlist_strdup(memlist_t *, char *);
 char *memlist_strndup(memlist_t *, u_char *, int);
 void **memlist_add(memlist_t *, void *);
+char *memlist_attach(memlist_t *, void *);
+void *mempool_detach(rb_tree_t *, void *);
+
 
 int tac_exit(int) __attribute__((noreturn));
 
