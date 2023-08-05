@@ -970,6 +970,7 @@ static int eap_step(tac_session * session __attribute__((unused)),
     return eap_out[0];
 }
 
+#ifdef WITH_CRYPTO
 static void do_eap(tac_session * session)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
@@ -1021,6 +1022,7 @@ static void do_eap(tac_session * session)
     } else
 	send_authen_reply(session, res, NULL, 0, eap_out, eap_out_len, 0);
 }
+#endif
 
 static void do_enable_getuser(tac_session * session)
 {
