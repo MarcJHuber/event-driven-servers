@@ -71,7 +71,6 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     struct author_data *data;
     enum token res = S_unknown;
     tac_host *h = session->ctx->host;
-    size_t len = 0;
 
     report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "Start authorization request");
 
@@ -95,12 +94,8 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     session->nac_address_ascii_len = (size_t) pak->rem_addr_len;
     p += pak->rem_addr_len;
 
-    for (i = 0; i < pak->arg_cnt; i++)
-	len += argsizep[i];
-    session->argp = memlist_malloc(session->memlist, len + pak->arg_cnt);
-    memcpy(session->argp, p, len);
-    memcpy(session->argp + len, argsizep, pak->arg_cnt);
-    session->arg_len = session->argp + len;
+    session->argp = p;
+    session->arg_len = argsizep;
     session->arg_cnt = pak->arg_cnt;
 
     session->priv_lvl = pak->priv_lvl;
