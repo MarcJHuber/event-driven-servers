@@ -954,6 +954,7 @@ static void do_ascii_login(tac_session * session)
     }
 }
 
+#ifdef WITH_CRYPTO
 #define EAP_REQUEST     1
 #define EAP_RESPONSE    2
 #define EAP_SUCCESS     3
@@ -970,7 +971,6 @@ static int eap_step(tac_session * session __attribute__((unused)),
     return eap_out[0];
 }
 
-#ifdef WITH_CRYPTO
 static void do_eap(tac_session * session)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
