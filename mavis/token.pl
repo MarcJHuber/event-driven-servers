@@ -192,6 +192,7 @@ mask				S_mask
 mavis				S_mavis
 max				S_max
 max-attempts			S_maxattempts
+max-rounds			S_maxrounds
 member				S_member
 message				S_message
 mimetypes			S_mimetypes

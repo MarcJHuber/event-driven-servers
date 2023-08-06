@@ -403,6 +403,7 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
     r->default_host = calloc(1, sizeof(tac_host));
     r->default_host->name = "default";
     r->default_host->authen_max_attempts = -1;
+    r->default_host->max_rounds = 40;
     r->name = strdup(name);
     r->chalresp = TRISTATE_DUNNO;
     r->chpass = TRISTATE_DUNNO;
@@ -1088,6 +1089,13 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		default:
 		    parse_error_expect(sym, S_address, S_file, S_unknown);
 		}
+	    case S_maxrounds:
+		sym_get(sym);
+		parse(sym, S_equal);
+		r->default_host->max_rounds = parse_int(sym);
+		if (r->default_host->max_rounds < 1 || r->default_host->max_rounds > 127)
+		    parse_error(sym, "Illegal number of rounds (valid range: 1 ... 127)");
+		continue;;
 #ifdef WITH_DNS
 	    case S_timeout:
 		sym_get(sym);
@@ -2783,6 +2791,13 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    *p = tac_script_parse_r(sym, 0, r);
 	    return;
 	}
+    case S_maxrounds:
+	sym_get(sym);
+	parse(sym, S_equal);
+	host->max_rounds = parse_int(sym);
+	if (host->max_rounds < 1 || host->max_rounds > 127)
+	    parse_error(sym, "Illegal number of rounds (valid range: 1 ... 127)");
+	return;;
 #ifdef WITH_DNS
     case S_dns:
 	sym_get(sym);

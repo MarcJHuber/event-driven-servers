@@ -852,6 +852,9 @@ void complete_host(tac_host * h)
 	if (h->authen_max_attempts < 0)
 	    h->authen_max_attempts = hp->authen_max_attempts;
 
+	if (!h->max_rounds)
+	    h->max_rounds = hp->max_rounds;
+
 	if (!h->rewrite_user)
 	    h->rewrite_user = hp->rewrite_user;
 

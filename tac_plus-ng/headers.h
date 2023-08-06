@@ -193,6 +193,7 @@ struct tac_host {
     int context_timeout;	/* shell context idle timeout */
     int dns_timeout;
     int authen_max_attempts;	/* maximum number of password retries per session */
+    int max_rounds;		/* maximum number of packet exchanges */
     tac_realm *realm;
     tac_rewrite *rewrite_user;
     struct mavis_action *action;

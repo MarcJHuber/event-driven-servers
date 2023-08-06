@@ -492,6 +492,14 @@ void tac_read(struct context *ctx, int cur)
     session = RB_lookup_session(ctx->sessions, ctx->hdr.session_id);
 
     if (session) {
+	if (session->seq_no/2 == ctx->host->max_rounds) {
+	    report(session, LOG_ERR, ~0,
+		   "%s: Limit of %d rounds reached for session %.8x",
+		   ctx->nas_address_ascii, (int) ctx->host->max_rounds, ntohl(ctx->hdr.session_id));
+	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_ERROR, "Too many rounds.", 0, NULL, 0, 0);
+	    cleanup(ctx, cur);
+	    return;
+	}
 	session->seq_no++;
 	if (!session->user_is_session_specific)
 	    session->user = NULL;	/* may be outdated */
