@@ -1794,7 +1794,7 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	    if (session->nac_address_valid)
 		get_revmap_nac(session);
 	    p += start->rem_addr_len;
-	    session->authen_data->data = (u_char *) memlist_strndup(session->memlist, p, start->data_len);
+	    session->authen_data->data = (u_char *) memlist_copy(session->memlist, p, start->data_len);
 	    session->authen_data->data_len = start->data_len;
 
 	    session->priv_lvl = start->priv_lvl;
@@ -1821,11 +1821,11 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	// memlist_free(session->mempool, &session->authen_msg);
 	// session->authen_data->msg = NULL;
 	// session->authen_data->data = NULL;
-	session->authen_data->msg = memlist_strndup(session->memlist, (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE, ntohs(cont->user_msg_len));
 	session->authen_data->msg_len = ntohs(cont->user_msg_len);
-	session->authen_data->data = (u_char *)
-	    memlist_strndup(session->memlist, (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + ntohs(cont->user_msg_len), ntohs(cont->user_data_len));
+	session->authen_data->msg = memlist_copy(session->memlist, (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE, session->authen_data->msg_len);
 	session->authen_data->data_len = ntohs(cont->user_data_len);
+	session->authen_data->data = (u_char *)
+	    memlist_copy(session->memlist, (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + session->authen_data->msg_len, session->authen_data->data_len);
     }
 
     if (session->authen_data->authfn) {
