@@ -216,7 +216,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	(t = av_get(avc, AV_A_USER)) && !strcmp(t, session->username) &&
 	(t = av_get(avc, AV_A_TIMESTAMP)) && (atoi(t) == session->session_id) && (result = av_get(avc, AV_A_RESULT)) && !strcmp(result, AV_V_RESULT_OK)) {
 
-	tac_user *u = lookup_user(session->username, r);
+	tac_user *u = lookup_user(session);
 
 	if (strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_INFO))
 	    session->mavisauth_res_valid = 1;
@@ -324,7 +324,6 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    RB_insert(r->usertable, u);
 		} else
 		    session->user_is_session_specific = 1;
-		session->user = u;
 
 		if (strcmp(result, AV_V_RESULT_OK)) {
 		    report(session, LOG_INFO, ~0, "result for user %s is %s", session->username, result);
@@ -332,8 +331,6 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		}
 	    }
 	}
-
-	session->user = u;
 
 	if (u->dynamic)
 	    u->dynamic = io_now.tv_sec + r->caching_period;

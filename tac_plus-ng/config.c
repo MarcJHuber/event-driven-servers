@@ -509,25 +509,29 @@ void expire_dynamic_users(tac_realm * r)
 	    expire_dynamic_users(RB_payload(rbn, tac_realm *));
 }
 
-tac_user *lookup_user(char *username, tac_realm * r)
+tac_user *lookup_user(tac_session * session)
 {
     tac_user user;
-    user.name = username;
-    while (r) {
+    tac_realm *r = session->ctx->realm;
+    user.name = session->username;
+    session->user = NULL;
+    if (!session->username_len)
+	return NULL;
+    while (r && !session->user) {
 	if (r->usertable) {
 	    rb_node_t *rbn = RB_search(r->usertable, &user);
 	    if (rbn) {
 		tac_user *res = RB_payload(rbn, tac_user *);
 		if (res->dynamic && (res->dynamic < io_now.tv_sec)) {
 		    RB_delete(r->usertable, rbn);
-		    return NULL;
-		}
-		return res;
+		    session->user = NULL;
+		} else
+		    session->user = res;
 	    }
 	}
 	r = r->parent;
     }
-    return NULL;
+    return session->user;
 }
 
 static tac_profile *lookup_profile(char *name, tac_realm * r)

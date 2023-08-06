@@ -893,7 +893,7 @@ void cleanup_session(tac_session *);
 struct log_item *parse_log_format(struct sym *);
 
 void mavis_lookup(tac_session *, void (*)(tac_session *), char *, enum pw_ix);
-tac_user *lookup_user(char *, tac_realm *);
+tac_user *lookup_user(tac_session *);
 mavis_ctx *lookup_mcx(tac_realm *);
 tac_realm *lookup_realm(char *, tac_realm *);
 radixtree_t *lookup_hosttree(tac_realm *);

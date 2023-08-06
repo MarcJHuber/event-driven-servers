@@ -230,10 +230,8 @@ static void do_author(tac_session * session)
     size_t len = 0, tlen = 0;
     int is_shell = 0, is_cmd = 0;
 
-    if (!session->user && session->username[0]) {
-	session->user = lookup_user(session->username, session->ctx->realm);
-
-	if (session->user) {
+    if (!session->user && session->username_len) {
+	if (lookup_user(session)) {
 	    session->debug |= session->user->debug;
 	    if (session->profile)
 		session->debug |= session->profile->debug;

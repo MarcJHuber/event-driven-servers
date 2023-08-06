@@ -301,9 +301,8 @@ static enum token lookup_and_set_user(tac_session * session)
 
     tac_rewrite_user(session, NULL);
     report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "looking for user %s realm %s", session->username, session->ctx->realm->name);
-    if (!session->user_is_session_specific) {
-	session->user = lookup_user(session->username, session->ctx->realm);
-    }
+    if (!session->user_is_session_specific)
+	lookup_user(session);
     if (session->user && session->user->rewritten_only && !session->username_rewritten) {
 	report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Login for user %s is prohibited", session->user->name);
 	if (session->user_is_session_specific)
