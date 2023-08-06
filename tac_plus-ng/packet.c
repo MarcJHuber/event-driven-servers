@@ -638,7 +638,9 @@ void tac_read(struct context *ctx, int cur)
 	report(NULL, LOG_INFO, ~0, "%s uses deprecated key (line %d)", ctx->nas_address_ascii, ctx->key->line);
 
     ctx->key_fixed = 1;
-    if (!detached)
+    if (detached)
+	ctx->in = NULL;
+    else
 	mempool_free(ctx->pool, &ctx->in);
     ctx->hdroff = 0;
 }
