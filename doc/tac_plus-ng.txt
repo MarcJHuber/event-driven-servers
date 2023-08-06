@@ -907,6 +907,10 @@ message USERNAME = "utilisateur"
      * warning period = d
        Set warning period for password expiry to d days.
        Default: 14
+     * max-rounds = n
+       This sets an upper limit on the number of packet exchanges
+       per session. Default: 40, acceptable range is from 1 to
+       127.
      __________________________________________________________
 
 4.2.3.3.1. Authentication
