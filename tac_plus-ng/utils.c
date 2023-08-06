@@ -1984,3 +1984,14 @@ void *mempool_detach(rb_tree_t * pool, void *ptr)
     }
     return NULL;
 }
+
+char *memlist_copy(memlist_t *list, void *s, size_t len) {
+	char *p = NULL;
+	if (s) {
+		p = memlist_malloc(list, len + 1);
+		memcpy(p, s, len);
+		p[len] = 0;
+		return p;
+	}
+	return p;
+}
