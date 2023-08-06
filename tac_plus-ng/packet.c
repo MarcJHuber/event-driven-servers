@@ -429,6 +429,7 @@ void tac_read(struct context *ctx, int cur)
     u_int data_len;
     int more_keys = 0;
     int min_len = 1;
+    int detached = 0;
 
     ctx->last_io = io_now.tv_sec;
 
@@ -514,6 +515,7 @@ void tac_read(struct context *ctx, int cur)
 	if (ctx->hdr.seq_no == 1) {
 	    session = new_session(ctx, &ctx->hdr);
 	    memlist_attach(session->memlist, mempool_detach(ctx->pool, ctx->in));
+	    detached++;
 	} else {
 	    report(NULL, LOG_ERR, ~0,
 		   "%s: %s packet (sequence number: %d) for session %.8x", "Stray", ctx->nas_address_ascii, (int) ctx->hdr.seq_no,
@@ -636,7 +638,8 @@ void tac_read(struct context *ctx, int cur)
 	report(NULL, LOG_INFO, ~0, "%s uses deprecated key (line %d)", ctx->nas_address_ascii, ctx->key->line);
 
     ctx->key_fixed = 1;
-    mempool_free(ctx->pool, &ctx->in);
+    if (!detached)
+	mempool_free(ctx->pool, &ctx->in);
     ctx->hdroff = 0;
 }
 
