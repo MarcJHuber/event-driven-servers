@@ -3707,7 +3707,7 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	    break;
 #endif
 	case S_context:
-	    v = tac_script_get_exec_context(session, session->username, session->nas_port);
+	    v = tac_script_get_exec_context(session);
 	    break;
 	case S_cmd:
 	    v = session->cmdline;
@@ -3872,7 +3872,7 @@ enum token tac_script_eval_r(tac_session * session, struct mavis_action *m)
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s]", m->line, codestring[m->code]);
 	return m->code;
     case S_context:
-	tac_script_set_exec_context(session, session->username, session->nas_port, m->b.v);
+	tac_script_set_exec_context(session, m->b.v);
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s]", m->line, codestring[m->code]);
 	break;
     case S_message:

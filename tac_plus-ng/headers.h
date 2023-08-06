@@ -913,8 +913,8 @@ void get_pkt_data(tac_session *, struct authen_start *, struct author *);
 
 enum token tac_script_eval_r(tac_session *, struct mavis_action *);
 void tac_script_expire_exec_context(struct context *);
-void tac_script_set_exec_context(tac_session *, char *, char *, char *);
-char *tac_script_get_exec_context(tac_session *, char *, char *);
+void tac_script_set_exec_context(tac_session *, char *);
+char *tac_script_get_exec_context(tac_session *);
 enum token eval_tac_acl(tac_session *, struct tac_acl *);
 tac_host *lookup_host(char *, tac_realm *);
 

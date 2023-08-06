@@ -71,18 +71,18 @@ static void shellctx_free(void *payload)
 }
 
 
-static rb_node_t *tac_script_lookup_exec_context(tac_session * session, char *username, char *portname)
+static rb_node_t *tac_script_lookup_exec_context(tac_session * session)
 {
     struct shellctx sc;
     if (!session->ctx->shellctxcache)
 	return NULL;
-    sc.username = username;
-    sc.portname = portname;
+    sc.username = session->username;
+    sc.portname = session->nas_port;
     memcpy(&sc.nas_address, &session->ctx->nas_address, sizeof(struct in6_addr));
     return RB_search(session->ctx->shellctxcache, &sc);
 }
 
-void tac_script_set_exec_context(tac_session * session, char *username, char *portname, char *ctxname)
+void tac_script_set_exec_context(tac_session * session, char *ctxname)
 {
     rb_node_t *rb = NULL;
     struct shellctx *sc;
@@ -99,7 +99,7 @@ void tac_script_set_exec_context(tac_session * session, char *username, char *po
 	return;
 
     if (session->ctx->shellctxcache)
-	rb = tac_script_lookup_exec_context(session, username, portname);
+	rb = tac_script_lookup_exec_context(session);
     else
 	session->ctx->shellctxcache = RB_tree_new(shellctx_cmp, shellctx_free);
 
@@ -111,13 +111,11 @@ void tac_script_set_exec_context(tac_session * session, char *username, char *po
 	sc = RB_payload(rb, struct shellctx *);
 	free(sc->ctxname);
     } else {
-	size_t userlen = strlen(username);
-	size_t portlen = strlen(portname);
-	sc = calloc(1, sizeof(struct shellctx) + userlen + portlen);
+	sc = calloc(1, sizeof(struct shellctx) + session->username_len + session->nas_port_len);
 	sc->username = sc->data;
-	sc->portname = sc->data + userlen + 1;
-	memcpy(sc->username, username, userlen);
-	memcpy(sc->portname, portname, portlen);
+	sc->portname = sc->data + session->username_len + 1;
+	memcpy(sc->username, session->username, session->username_len);
+	memcpy(sc->portname, session->nas_port, session->nas_port_len);
 	memcpy(&sc->nas_address, &session->ctx->nas_address, sizeof(struct in6_addr));
 	RB_insert(session->ctx->shellctxcache, sc);
     }
@@ -125,9 +123,9 @@ void tac_script_set_exec_context(tac_session * session, char *username, char *po
     sc->expires = io_now.tv_sec + session->ctx->host->context_timeout;
 }
 
-char *tac_script_get_exec_context(tac_session * session, char *username, char *portname)
+char *tac_script_get_exec_context(tac_session * session)
 {
-    rb_node_t *rb = tac_script_lookup_exec_context(session, username, portname);
+    rb_node_t *rb = tac_script_lookup_exec_context(session);
     if (rb) {
 	RB_payload(rb, struct shellctx *)->expires = io_now.tv_sec + session->ctx->host->context_timeout;
 	return RB_payload(rb, struct shellctx *)->ctxname;

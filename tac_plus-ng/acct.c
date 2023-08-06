@@ -131,7 +131,7 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
 	int i;
 	for (i = 0; i < (int) acct->arg_cnt; i++) {
 	    if (!strcmp((char *) p, "service=exec")) {
-		tac_script_set_exec_context(session, session->username, session->nas_port, NULL);
+		tac_script_set_exec_context(session, NULL);
 		break;
 	    }
 	    p += *argsizep++;
