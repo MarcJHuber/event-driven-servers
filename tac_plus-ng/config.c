@@ -3612,6 +3612,7 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 {
     int i, res = 0;
     char *v = NULL;
+    size_t v_len = 0;
     if (!m)
 	return 0;
     switch (m->type) {
@@ -3682,43 +3683,56 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	switch (m->u.s.token) {
 	case S_authen_action:
 	    v = session->authen_action;
+	    v_len = session->authen_action_len;
 	    break;
 	case S_authen_type:
 	    v = session->authen_type;
+	    v_len = session->authen_type_len;
 	    break;
 	case S_authen_service:
 	    v = session->authen_service;
+	    v_len = session->authen_service_len;
 	    break;
 	case S_authen_method:
 	    v = session->authen_method;
+	    v_len = session->authen_method_len;
 	    break;
 	case S_privlvl:
 	    v = session->privlvl;
+	    v_len = session->privlvl_len;
 	    break;
 	case S_vrf:
 	    v = session->ctx->vrf;
+	    v_len = session->ctx->vrf_len;
 	    break;
 #if defined(WITH_TLS) ||defined(WITH_SSL)
 	case S_tls_conn_version:
 	    v = (char *) session->ctx->tls_conn_version;
+	    v_len = session->ctx->tls_conn_version_len;
 	    break;
 	case S_tls_conn_cipher:
 	    v = (char *) session->ctx->tls_conn_cipher;
+	    v_len = session->ctx->tls_conn_cipher_len;
 	    break;
 	case S_tls_peer_cert_issuer:
 	    v = (char *) session->ctx->tls_peer_cert_issuer;
+	    v_len = session->ctx->tls_peer_cert_issuer_len;
 	    break;
 	case S_tls_peer_cert_subject:
 	    v = (char *) session->ctx->tls_peer_cert_subject;
+	    v_len = session->ctx->tls_peer_cert_subject_len;
 	    break;
 	case S_tls_conn_cipher_strength:
 	    v = session->ctx->tls_conn_cipher_strength;
+	    v_len = session->ctx->tls_conn_cipher_strength_len;
 	    break;
 	case S_tls_peer_cn:
 	    v = session->ctx->tls_peer_cn;
+	    v_len = session->ctx->tls_peer_cn_len;
 	    break;
 	case S_tls_psk_identity:
 	    v = session->ctx->tls_psk_identity;
+	    v_len = session->ctx->tls_psk_identity_len;
 	    break;
 #endif
 	case S_context:
@@ -3726,43 +3740,55 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	    break;
 	case S_cmd:
 	    v = session->cmdline;
+	    v_len = session->cmdline_len;
 	    break;
 	case S_nac:
 	case S_clientaddress:
 	    v = session->nac_address_ascii;
+	    v_len = session->nac_address_ascii_len;
 	    break;
 	case S_nas:
 	case S_deviceaddress:
 	    v = session->ctx->nas_address_ascii;
+	    v_len = session->ctx->nas_address_ascii_len;
 	    break;
 	case S_clientdns:
 	case S_nacname:
-	    if (session->nac_dns_name && *session->nac_dns_name)
+	    if (session->nac_dns_name && *session->nac_dns_name) {
 		v = session->nac_dns_name;
+		v_len = session->nac_dns_name_len;
+	    }
 	    break;
 	case S_devicedns:
 	case S_nasname:
-	    if (session->ctx->nas_dns_name && *session->ctx->nas_dns_name)
+	    if (session->ctx->nas_dns_name && *session->ctx->nas_dns_name) {
 		v = session->ctx->nas_dns_name;
+		v_len = session->ctx->nas_dns_name_len;
+	    }
 	    break;
 	case S_deviceport:
 	case S_port:
 	    v = session->nas_port;
+	    v_len = session->nas_port_len;
 	    break;
 	case S_type:
 	    v = session->type;
+	    v_len = session->type_len;
 	    break;
 	case S_user:
 	    v = session->username;
+	    v_len = session->username_len;
 	    break;
 	case S_password:
 	    v = session->password_new ? session->password_new : session->password;
 	    break;
 	case S_service:
 	    v = session->service;
+	    v_len = session->service_len;
 	    break;
 	case S_protocol:
 	    v = session->protocol;
+	    v_len = session->protocol_len;
 	    break;
 	case S_dn:
 	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_DN])
@@ -3774,15 +3800,18 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	    break;
 	case S_server_name:
 	    v = config.hostname;
+	    v_len = config.hostname_len;
 	    break;
 	case S_server_port:
 	    v = session->ctx->server_port_ascii;
+	    v_len = session->ctx->server_port_ascii_len;
 	    break;
 	case S_server_address:
 	    v = session->ctx->server_addr_ascii;
+	    v_len = session->ctx->server_addr_ascii_len;
 	    break;
 	case S_string:
-	    v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->u.s.lhs, io_now.tv_sec, NULL);
+	    v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->u.s.lhs, io_now.tv_sec, &v_len);
 	    break;
 	case S_member:
 	    if (session->user)
@@ -3867,7 +3896,9 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	}
 	if (!v)
 	    return 0;
-	res = tac_mavis_cond_compare(session, m, v, strlen(v));
+	if (!v_len)
+	    v_len = strlen(v);
+	res = tac_mavis_cond_compare(session, m, v, v_len);
 	return tac_script_cond_eval_res(session, m, res);
     default:;
     }
