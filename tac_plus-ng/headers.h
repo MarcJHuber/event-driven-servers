@@ -839,7 +839,7 @@ char *memlist_strndup(memlist_t *, u_char *, int);
 void **memlist_add(memlist_t *, void *);
 char *memlist_attach(memlist_t *, void *);
 void *mempool_detach(rb_tree_t *, void *);
-
+char *memlist_copy(memlist_t *, void *, size_t);
 
 int tac_exit(int) __attribute__((noreturn));
 
