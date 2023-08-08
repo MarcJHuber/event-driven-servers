@@ -44,8 +44,16 @@ LDAP_SCOPE
 	LDAP search scope (BASE, LEVEL, SUBTREE)
 	Default: SUBTREE
 
+LDAP_SCOPE_GROUP
+	LDAP search scope (BASE, LEVEL, SUBTREE) for groups
+	Default: SUBTREE
+
 LDAP_BASE
 	Base DN of your LDAP server
+	Example: "dc=example,dc=com"
+
+LDAP_BASE_GROUP
+	Base groupe search DN of your LDAP server, defaults to LDAP_BASE
 	Example: "dc=example,dc=com"
 
 LDAP_CONNECT_TIMEOUT
@@ -55,7 +63,11 @@ LDAP_FILTER
 	LDAP search filter
 	Defaults depend on LDAP_SERVER_TYPE:
 	- generic:	"(uid=%s)"
-	- microsoft:	"(&(objectclass=user)(sAMAccountName=%s))"
+	- microsoft:	"(&(objectclass=user)(sAMAccountName={}))"
+
+LDAP_FILTER_GROUP
+	LDAP group search filter
+	Default: "(&(objectclass=groupOfNames)(cn={}))"
 
 LDAP_USER
 	User DN to use for LDAP bind if server doesn't permit anonymous searches.
@@ -74,7 +86,7 @@ TLS_OPTIONS
 """
 
 import os, sys, re, ldap3
-from mavis import ( Mavis,
+from mavis import (Mavis,
 	MAVIS_DOWN, MAVIS_FINAL,
 	AV_V_RESULT_OK, AV_V_RESULT_ERROR, AV_V_RESULT_FAIL,
 	AV_V_RESULT_NOTFOUND
@@ -95,10 +107,13 @@ for server in LDAP_HOSTS.split():
 	server_object = ldap3.Server(server, get_info=ldap3.DSA, tls=tls)
 	server_pool.add(server_object)
 eval_env('LDAP_BASE', 'dc=example,dc=local')
+eval_env('LDAP_BASE_GROUP', LDAP_BASE)
 eval_env('LDAP_USER', None)
 eval_env('LDAP_PASSWD', None)
 eval_env('LDAP_FILTER', None)
+eval_env('LDAP_FILTER_GROUP', '(&(objectclass=groupOfNames)(member={}))')
 eval_env('LDAP_SCOPE', 'SUBTREE')
+eval_env('LDAP_SCOPE_GROUP', LDAP_SCOPE)
 eval_env('LDAP_CONNECT_TIMEOUT', 5)
 memberof_regex = re.compile(eval_env('MEMBEROF_REGEX', '(?i)^cn=([^,]+),.*'))
 
@@ -121,7 +136,22 @@ if LDAP_SERVER_TYPE == None:
 	LDAP_SERVER_TYPE="generic"
 	LDAP_FILTER = '(&(objectclass=posixaccount)(uid={}))'
 
-# A helper function for resolving nested groups: #############################
+# A helper function for resolving nested groupOfNames groups: ################
+def expand_groupOfNames(g):
+	H = { }
+	def expand_groupOfNames_sub(m):
+		if ((not m in H) and ((m is g) or memberof_regex.match(m))):
+			if not m is g:
+				H[m] = True
+			conn.search(search_base = LDAP_BASE_GROUP,
+				search_filter = LDAP_FILTER_GROUP.format(m),
+				search_scope=LDAP_SCOPE_GROUP, attributes = ['dn'])
+			for e in conn.entries:
+				expand_groupOfNames_sub(e.entry_dn)
+	expand_groupOfNames_sub(g)
+	return H.keys()
+
+# A helper function for resolving nested memberOf groups: ####################
 def expand_memberof(g):
 	H = { }
 	def expand_memberof_sub(m):
@@ -221,7 +251,8 @@ while True:
 			D.password_mustchange(1)
 			user_msg = "Password has expired."
 		if not conn.rebind(user=entry.entry_dn, password=D.password):
-			if (LDAP_SERVER_TYPE == "microsoft" and conn.result == ldap3.core.results.RESULT_INVALID_CREDENTIALS
+			if (LDAP_SERVER_TYPE == "microsoft"
+				and conn.result == ldap3.core.results.RESULT_INVALID_CREDENTIALS
 				and re.search(r"DSID-.*, data (532|533|773) ", c.message)):
 				D.password_mustchange(1)
 				user_msg = translate_ldap_error(conn)
@@ -253,8 +284,13 @@ while True:
 	if len(entry.homeDirectory) > 0:
 		D.set_home(entry.homeDirectory[0])
 
+	L = None
 	if len(entry.memberOf) > 0:
 		L = expand_memberof(entry.memberOf)
+	else:
+		L = expand_groupOfNames(entry.entry_dn)
+
+	if L != None:
 		D.set_memberof("\"" + "\",\"".join(L) + "\"")
 		L = [memberof_regex.sub(r'\1', l) for l in L]
 		D.set_tacmember("\"" + "\",\"".join(L) + "\"")
