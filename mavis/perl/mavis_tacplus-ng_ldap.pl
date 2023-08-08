@@ -40,11 +40,19 @@ LDAP_HOST
 	Examples: "ldap01 ldap02", "ldaps://ads01:636 ldaps://ads02:636"
 
 LDAP_SCOPE
-	LDAP search scope (base, one, sub)
+	LDAP search scope (base, one, sub) for users
+	Default: sub
+
+LDAP_SCOPE_GROUP
+	LDAP search scope (base, one, sub) for groups
 	Default: sub
 
 LDAP_BASE
-	Base DN of your LDAP server
+	Base user search DN of your LDAP server
+	Example: "dc=example,dc=com"
+
+LDAP_BASE_GROUP
+	Base groupe search DN of your LDAP server, defaults to LDAP_BASE
 	Example: "dc=example,dc=com"
 
 LDAP_CONNECT_TIMEOUT
@@ -53,8 +61,12 @@ LDAP_CONNECT_TIMEOUT
 LDAP_FILTER
 	LDAP search filter
 	Defaults depend on LDAP_SERVER_TYPE:
-	- generic:	"(&(objectclass=posixaccount)(uid={}))"
+	- generic:	"(&(objectclass=posixaccount)(uid=%s))"
 	- microsoft:	"(&(objectclass=user)(sAMAccountName=%s))"
+
+LDAP_FILTER_GROUP
+	LDAP group search filter
+	Default: "(&(objectclass=groupOfNames)(member=%s))"
 
 LDAP_USER
 	User to use for LDAP bind if server doesn't permit anonymous searches.
@@ -64,12 +76,16 @@ LDAP_PASSWD
 	Password for LDAP_USER
 	Default: unset
 
+LDAP_MEMBEROF_REGEX
+	Regular expression to derive group names from memberOf
+	Default: "^cn=([^,]+),.*"
+
 USE_STARTTLS
 	If set, the server is required to support start_tls. Do not use this for plain LDAPS.
 	Default: unset
 
 FLAG_FALLTHROUGH
-	If LDAP search fails, try next module (if any).
+	If LDAP search fails, try next module (if any). Deprecated.
 	Default: unset
 
 FLAG_AUTHORIZE_ONLY
@@ -80,7 +96,6 @@ TLS_OPTIONS
 	See https://metacpan.org/pod/Net::LDAP for details.
 	Default: unset
 	Example: "sslversion => 'tlsv1_2'"
-
 =cut
 
 use lib '/usr/local/lib/mavis/';
@@ -91,10 +106,13 @@ use Mavis;
 my $LDAP_SERVER_TYPE;
 my @LDAP_BIND;
 my $LDAP_FILTER;
+my $LDAP_FILTER_GROUP = "(&(objectclass=groupOfNames)(member=%s))";
 my @LDAP_HOSTS		= ('https://localhost');
 my $LDAP_BASE		= 'dc=example,dc=com';
+my $LDAP_BASE_GROUP	= undef;
 my $LDAP_CONNECT_TIMEOUT = 1;
 my $LDAP_SCOPE		= 'sub';
+my $LDAP_SCOPE_GROUP	= undef;
 my $LDAP_MEMBEROF_REGEX = "^cn=([^,]+),.*";
 my $use_starttls;
 my %tls_options;
@@ -104,6 +122,11 @@ my %tls_options;
 @LDAP_HOSTS		= split /\s+/, $ENV{'LDAP_HOSTS'} if exists $ENV{'LDAP_HOSTS'};
 $LDAP_SCOPE		= $ENV{'LDAP_SCOPE'} if exists $ENV{'LDAP_SCOPE'};
 $LDAP_BASE		= $ENV{'LDAP_BASE'} if exists $ENV{'LDAP_BASE'};
+$LDAP_SCOPE_GROUP	= $LDAP_SCOPE;
+$LDAP_BASE_GROUP	= $LDAP_BASE;
+$LDAP_SCOPE_GROUP	= $ENV{'LDAP_SCOPE_GROUP'} if exists $ENV{'LDAP_SCOPE_GROUP'};
+$LDAP_FILTER_GROUP	= $ENV{'LDAP_FILTER_GROUP'} if exists $ENV{'LDAP_FILTER_GROUP'};
+$LDAP_BASE_GROUP	= $ENV{'LDAP_BASE_GROUP'} if exists $ENV{'LDAP_BASE_GROUP'};
 $LDAP_FILTER		= $ENV{'LDAP_FILTER'} if exists $ENV{'LDAP_FILTER'};
 $LDAP_CONNECT_TIMEOUT	= $ENV{'LDAP_CONNECT_TIMEOUT'} if exists $ENV{'LDAP_CONNECT_TIMEOUT'};
 @LDAP_BIND		= ($ENV{'LDAP_USER'}, password => $ENV{'LDAP_PASSWD'}) if (exists $ENV{'LDAP_USER'} && exists $ENV{'LDAP_PASSWD'});
@@ -127,6 +150,36 @@ my $ldap = undef;
 
 my @V;
 
+sub expand_groupOfNames($) {
+	my %H;
+	sub expand_groupOfNames_sub($) {
+		sub get_groupOfNames($) {
+			my $dn = $_[0];
+			my @res = ( );
+			my $mesg = $ldap->search(base => $LDAP_BASE_GROUP, scope=>$LDAP_SCOPE_GROUP, filter=>sprintf($LDAP_FILTER_GROUP, $dn), attrs=>['memberOf']);
+			if ($mesg->code){
+				$V[AV_A_USER_RESPONSE] = $mesg->error . " (" . __LINE__ . ")";
+				goto fatal;
+			}
+			foreach my $entry ($mesg->entries) {
+				push @res, $entry->dn unless exists $H{$entry->dn};
+			}
+			return @res;
+		}
+		sub expand_groupOfNames_sub($);
+
+		foreach my $g (get_groupOfNames($_[0])) {
+			unless (exists $H{$g}) {
+				$H{$g} = 1;
+				expand_groupOfNames_sub($g);
+			}
+		}
+	}
+	expand_groupOfNames_sub($_[0]);
+	my @res = sort keys %H;
+	return \@res;
+}
+
 sub expand_memberof($) {
 	sub expand_memberof_sub($$) {
 		sub get_memberof($) {
@@ -142,7 +195,7 @@ sub expand_memberof($) {
 		sub expand_memberof_sub($$);
 
 		my ($a, $H) = @_;
-		foreach my $m(@$a) {
+		foreach my $m (@$a) {
 			unless (exists $H->{$m}) {
 				$H->{$m} = 1;
 				my $g = get_memberof($m);
@@ -192,7 +245,7 @@ while ($in = <>) {
 	}
 
 	if ($ldap) {
-		# Cached LDAP connection still available?
+# Cached LDAP connection still available?
 		my $sock = $ldap->socket();
 		if ($sock) {
 			my ($rin, $ein) = (0, 0);
@@ -213,7 +266,7 @@ while ($in = <>) {
 	my $retry;
 	$retry = $ldap ? 1 : undef;
 
-  retry_once:
+retry_once:
 
 	unless ($ldap) {
 		$ldap = Net::LDAP->new(@LDAP_HOSTS, timeout=>$LDAP_CONNECT_TIMEOUT, %tls_options);
@@ -262,19 +315,21 @@ while ($in = <>) {
 		my $entry = $mesg->entry(0);
 
 		my $val = $entry->get_value('memberof', asref => 1);
+		$authdn = $entry->dn;
+		my (@M, @MO);
 		if ($#{$val} > -1) {
 			$val = expand_memberof($val);
-			my (@M, @MO);
-			foreach my $m (sort @$val) {
-				if ($m =~ /$LDAP_MEMBEROF_REGEX/i) {
-					push @M, $1;
-					push @MO, $m;
-				}
-			}
-			$V[AV_A_TACMEMBER] = '"' . join('","', @M) . '"' if $#M > -1;
-			$V[AV_A_MEMBEROF] = '"' . join('","', @MO) . '"' if $#MO > -1;
+		} else {
+			$val = expand_groupOfNames($entry->dn);
 		}
-		$authdn = $entry->dn;
+		foreach my $m (sort @$val) {
+			if ($m =~ /$LDAP_MEMBEROF_REGEX/i) {
+				push @M, $1;
+				push @MO, $m;
+			}
+		}
+		$V[AV_A_TACMEMBER] = '"' . join('","', @M) . '"' if $#M > -1;
+		$V[AV_A_MEMBEROF] = '"' . join('","', @MO) . '"' if $#MO > -1;
 		$V[AV_A_DN] = $authdn;
 		$V[AV_A_UID] = $val if $val = $entry->get_value('uidNumber');
 		$V[AV_A_GID] = $val if $val = $entry->get_value('gidNumber');
