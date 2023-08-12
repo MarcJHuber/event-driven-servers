@@ -1026,12 +1026,6 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		parse_error_expect(sym, S_timeout, S_log, S_unknown);
 	    }
 	    continue;
-	case S_session:
-	    sym_get(sym);
-	    parse(sym, S_timeout);
-	    parse(sym, S_equal);
-	    r->default_host->session_timeout = parse_seconds(sym);
-	    continue;
 	case S_dns:
 	    sym_get(sym);
 	    switch (sym->code) {
@@ -1330,6 +1324,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_context:
 	case S_script:
 	case S_message:
+	case S_session:
 	case S_maxrounds:
 	    parse_host_attr(sym, r, r->default_host);
 	    continue;
