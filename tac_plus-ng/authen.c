@@ -1516,8 +1516,7 @@ static void do_sshcerthash(tac_session * session)
     send_authen_reply(session, res, resp, 0, (u_char *) key, 0, 0);
 }
 
-#ifdef WITH_DNS
-static void free_reverse(void *payload, void *data __attribute__((unused)))
+void free_reverse(void *payload, void *data __attribute__((unused)))
 {
     free(((struct revmap *) payload)->name);
     free(payload);
@@ -1546,6 +1545,7 @@ void add_revmap(tac_realm * r, struct in6_addr *address, char *hostname, int ttl
     }
 }
 
+#ifdef WITH_DNS
 static void set_revmap_nac(tac_session * session, char *hostname, int ttl)
 {
     report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAC revmap(%s) = %s", session->nac_address_ascii, hostname ? hostname : "(not found)");

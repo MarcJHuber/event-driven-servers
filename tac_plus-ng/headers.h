@@ -909,6 +909,7 @@ struct revmap {
 void get_revmap_nac(tac_session *);
 void get_revmap_nas(tac_session *);
 void add_revmap(tac_realm *, struct in6_addr *, char *, int, int);
+void free_reverse(void *, void *);
 void resume_session(tac_session *, int);
 void get_pkt_data(tac_session *, struct authen_start *, struct author *);
 
