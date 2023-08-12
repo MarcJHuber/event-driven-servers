@@ -657,29 +657,38 @@ static int compare_dns_tree_a(const void *a, const void *b)
     return strcmp(((struct dns_forward_mapping *) a)->name, ((struct dns_forward_mapping *) b)->name);
 }
 
+static void free_dns_tree_a(void *payload)
+{
+    if (((struct dns_forward_mapping *) payload)->name)
+	free(((struct dns_forward_mapping *) payload)->name);
+    free(payload);
+}
+
 static void dns_add_a(rb_tree_t ** t, struct in6_addr *a, char *name)
 {
     struct dns_forward_mapping *ds, *dn = calloc(1, sizeof(struct dns_forward_mapping));
     struct dns_forward_mapping **dsp = &ds;
 
-    if (!*t)
-	*t = RB_tree_new(compare_dns_tree_a, NULL);
-
-    dn->name = name;
-    ds = (struct dns_forward_mapping *) RB_lookup(*t, dn);
-    if (ds) {
-	while (*dsp) {
-	    if (!memcmp(&(*dsp)->a, a, sizeof(struct in6_addr))) {
-		free(dn);
-		return;
+    if (*t) {
+	dn->name = name;
+	ds = (struct dns_forward_mapping *) RB_lookup(*t, dn);
+	if (ds) {
+	    while (*dsp) {
+		if (!memcmp(&(*dsp)->a, a, sizeof(struct in6_addr))) {
+		    // entry exists
+		    free(dn);
+		    return;
+		}
+		dsp = &(*dsp)->next;
 	    }
-	    dsp = &(*dsp)->next;
+	    *dsp = dn;
+	    dn->name = NULL;
+	    dn->a = *a;
+	    return;
 	}
-	*dsp = dn;
-	dn->name = ds->name;
-	dn->a = *a;
-	return;
-    }
+    } else
+	*t = RB_tree_new(compare_dns_tree_a, free_dns_tree_a);
+
     dn->a = *a;
     dn->name = strdup(name);
     RB_insert(*t, dn);
@@ -1134,6 +1143,8 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 			sym_get(sym);
 			parse(sym, S_equal);
 
+			if (!r->dns_tree_ptr[0])
+			    r->dns_tree_ptr[0] = radix_new(free_reverse, NULL);
 			radix_add(r->dns_tree_ptr[0], &a, cm, strdup(sym->buf));
 
 			sym_get(sym);
