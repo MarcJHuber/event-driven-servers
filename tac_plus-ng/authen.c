@@ -1523,7 +1523,7 @@ static void free_reverse(void *payload, void *data __attribute__((unused)))
     free(payload);
 }
 
-void add_revmap(tac_realm * r, struct in6_addr *address, char *hostname, int ttl)
+void add_revmap(tac_realm * r, struct in6_addr *address, char *hostname, int ttl, int table)
 {
     while (r && !r->idc)
 	r = r->parent;
@@ -1531,16 +1531,18 @@ void add_revmap(tac_realm * r, struct in6_addr *address, char *hostname, int ttl
 	struct revmap *rev;
 	if (!hostname)
 	    hostname = "";
-	if (!r->dns_tree_ptr[1])
-	    r->dns_tree_ptr[1] = radix_new(free_reverse, NULL);
-	rev = radix_lookup(r->dns_tree_ptr[1], address, NULL);
-	if (rev)
-	    free(rev->name);
-	else
+	if (!r->dns_tree_ptr[table])
+	    r->dns_tree_ptr[table] = radix_new(free_reverse, NULL);
+	rev = radix_lookup(r->dns_tree_ptr[table], address, NULL);
+	if (rev) {
+	    if (rev->name)
+		free(rev->name);
+	} else {
 	    rev = calloc(1, sizeof(struct revmap));
+	    radix_add(r->dns_tree_ptr[table], address, 128, rev);
+	}
 	rev->name = strdup(hostname);
-	rev->ttl = (ttl == -1) ? -1 : io_now.tv_sec + ttl;
-	radix_add(r->dns_tree_ptr[1], address, 128, rev);
+        rev->ttl = (ttl == -1) ? -1 : io_now.tv_sec + ttl;
     }
 }
 
@@ -1553,7 +1555,7 @@ static void set_revmap_nac(tac_session * session, char *hostname, int ttl)
     session->revmap_pending = 0;
     session->revmap_timedout = 0;
 
-    add_revmap(session->ctx->realm, &session->nac_address, hostname, ttl);
+    add_revmap(session->ctx->realm, &session->nac_address, hostname, ttl, 1);
 
     if (!session->ctx->revmap_pending && session->resumefn)
 	resume_session(session, -1);
@@ -1611,7 +1613,7 @@ static void set_revmap_nas(struct context *ctx, char *hostname, int ttl)
     ctx->revmap_pending = 0;
     ctx->revmap_timedout = 0;
 
-    add_revmap(ctx->realm, &ctx->nas_address, hostname, ttl);
+    add_revmap(ctx->realm, &ctx->nas_address, hostname, ttl, 1);
 
     for (rbn = RB_first(ctx->sessions); rbn; rbn = rbnext) {
 	tac_session *session = RB_payload(rbn, tac_session *);
