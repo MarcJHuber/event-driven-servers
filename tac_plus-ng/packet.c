@@ -770,14 +770,6 @@ void cleanup_session(tac_session * session)
     tac_session s;
     mavis_ctx *mcx = lookup_mcx(session->ctx->realm);
 
-    if (session->user && session->user_is_session_specific)
-	free_user(session->user);
-
-    s.session_id = session->session_id;
-    RB_search_and_delete(ctx->sessions, &s);
-
-    if (session->mavis_pending && mcx)
-	mavis_cancel(mcx, session);
 #ifdef WITH_DNS
     if (session->revmap_pending) {
 	tac_realm *r = session->ctx->realm;
@@ -790,6 +782,14 @@ void cleanup_session(tac_session * session)
     }
 #endif
 
+    if (session->user && session->user_is_session_specific)
+	free_user(session->user);
+
+    s.session_id = session->session_id;
+    RB_search_and_delete(ctx->sessions, &s);
+
+    if (session->mavis_pending && mcx)
+	mavis_cancel(mcx, session);
     memlist_destroy(session->memlist);
     mempool_free(ctx->pool, &session);
     if ((ctx->cleanup_when_idle == TRISTATE_YES)
