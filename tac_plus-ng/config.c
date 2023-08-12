@@ -852,19 +852,6 @@ static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent, i
     if (!empty)
 	parse_decls_real(sym, nrealm);
 
-    /* might need to fix that: */
-    if (!nrealm->parent)
-	nrealm->parent = parent;
-    if (nrealm->parent) {
-	nrealm->default_host->tcp_timeout = nrealm->parent->default_host->tcp_timeout;
-	nrealm->default_host->session_timeout = nrealm->parent->default_host->session_timeout;
-	nrealm->default_host->context_timeout = nrealm->parent->default_host->context_timeout;
-    } else {
-	nrealm->default_host->session_timeout = 240;
-	nrealm->default_host->tcp_timeout = 600;
-	nrealm->default_host->context_timeout = 3600;
-	nrealm->default_host->authen_max_attempts = 1;
-    }
     return nrealm;
 }
 
@@ -1154,36 +1141,9 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		    parse_error_expect(sym, S_address, S_file, S_unknown);
 		}
 #ifdef WITH_DNS
-	    case S_timeout:
-		sym_get(sym);
-		parse(sym, S_equal);
-		r->default_host->dns_timeout = parse_seconds(sym);
-		continue;
 	    case S_reverselookup:
-		sym_get(sym);
-		switch (sym->code) {
-		case S_equal:
-		    sym_get(sym);
-		    r->default_host->lookup_revmap_nac = r->default_host->lookup_revmap_nas = parse_tristate(sym);
-		    break;
-		case S_nac:
-		case S_client:
-		    sym_get(sym);
-		    parse(sym, S_equal);
-		    r->default_host->lookup_revmap_nac = parse_tristate(sym);
-		    break;
-		case S_nas:
-		case S_device:
-		    sym_get(sym);
-		    parse(sym, S_equal);
-		    r->default_host->lookup_revmap_nas = parse_tristate(sym);
-		    break;
-		default:
-		    parse_error_expect(sym, S_equal, S_client, S_nac, S_device, S_nas, S_unknown);
-		}
-		if ((r->default_host->lookup_revmap_nas == TRISTATE_YES || r->default_host->lookup_revmap_nac == TRISTATE_YES)
-		    && !r->idc)
-		    r->idc = io_dns_init(common_data.io);
+	    case S_timeout:
+		parse_host_dns(sym, r->default_host);
 		continue;
 	    case S_cache:
 		sym_get(sym);
@@ -1210,7 +1170,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	    default:
 		parse_error_expect(sym, S_preload,
 #ifdef WITH_DNS
-				   S_reverselookup, S_timeout,
+				   S_reverselookup, S_timeout, S_servers,
 #endif
 				   S_unknown);
 	    }
