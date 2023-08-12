@@ -69,6 +69,7 @@ PATH				S_PATH
 PROC				S_PROC
 REGEX				S_REGEX
 LWRES				S_LWRES
+DNS				S_DNS
 USERINPUT			S_USERINPUT
 accept				S_accept
 reject				S_reject
