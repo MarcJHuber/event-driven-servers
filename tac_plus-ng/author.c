@@ -319,7 +319,7 @@ static void do_author(tac_session * session)
     default:
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG,
 	       "%s@%s: svcname=%s protocol=%s not found",
-	       session->username, session->ctx->nas_address_ascii, session->service ? session->service : "", session->protocol ? session->protocol : "");;
+	       session->username, session->ctx->nas_address_ascii, session->service ? session->service : "", session->protocol ? session->protocol : "");
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
 	return;
     case S_permit:

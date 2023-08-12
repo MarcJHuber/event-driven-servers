@@ -1095,7 +1095,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		r->default_host->max_rounds = parse_int(sym);
 		if (r->default_host->max_rounds < 1 || r->default_host->max_rounds > 127)
 		    parse_error(sym, "Illegal number of rounds (valid range: 1 ... 127)");
-		continue;;
+		continue;
 #ifdef WITH_DNS
 	    case S_timeout:
 		sym_get(sym);
@@ -2346,7 +2346,7 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 	if (is_rfc4716)
 	    key = memlist_strdup(user->memlist, sym->buf);
 	else {
-	    int l = slen;;
+	    int l = slen;
 	    char *ck = alloca(slen + 200);
 	    *ck = 0;
 	    strcat(ck, begin_marker);
@@ -2797,7 +2797,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	host->max_rounds = parse_int(sym);
 	if (host->max_rounds < 1 || host->max_rounds > 127)
 	    parse_error(sym, "Illegal number of rounds (valid range: 1 ... 127)");
-	return;;
+	return;
 #ifdef WITH_DNS
     case S_dns:
 	sym_get(sym);

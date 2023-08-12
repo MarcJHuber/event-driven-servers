@@ -345,7 +345,7 @@ void cleanup(struct context *ctx, int cur)
 	struct scm_data sd;
 	sd.type = SCM_DONE;
 	if (common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1) < 0)
-	    die_when_idle = 1;;
+	    die_when_idle = 1;
     }
     common_data.users_cur--;
     if (common_data.debug & DEBUG_TACTRACE_FLAG)
@@ -937,7 +937,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	// Reminder to myself:
 	//      sysctl -w net.ipv4.tcp_l3mdev_accept=1 
 	// is the "vrf-also" variant in case the spawnd configuration wasn't adjusted to use VRFs.
-	socklen_t opt_len = sizeof(vrf);;
+	socklen_t opt_len = sizeof(vrf);
 	*vrf = 0;
 	if (getsockopt(s, SOL_SOCKET, SO_BINDTODEVICE, (u_char *) vrf, &opt_len))
 	    report(NULL, LOG_ERR, ~0, "getsockopt(SO_BINDTODEVICE) failed at %s:%d: %s", __FILE__, __LINE__, strerror(errno));

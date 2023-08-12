@@ -63,7 +63,7 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 void accounting(tac_session * session, tac_pak_hdr * hdr)
 {
     struct acct *acct = tac_payload(hdr, struct acct *);
-    u_char *p = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE + acct->arg_cnt;;
+    u_char *p = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE + acct->arg_cnt;
     enum token res = S_unknown;
     tac_host *h = session->ctx->host;
 

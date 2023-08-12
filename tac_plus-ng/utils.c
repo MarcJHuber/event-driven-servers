@@ -1771,7 +1771,7 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 			b += len;
 			if (total_len > sizeof(buf) - 20)
 			    break;
-			argp += (size_t) *arg_len;;
+			argp += (size_t) *arg_len;
 			separate = 1;
 		    }
 		    continue;
