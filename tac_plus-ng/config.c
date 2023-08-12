@@ -733,18 +733,31 @@ static void parse_etc_hosts(char *url, tac_realm * r)
 	int cm;
 	u_int line = sym.line;
 
-	if (!v6_ptoh(&a, &cm, sym.buf)) {
+	// Line:
+	// ip hostname hostname1 hostname2 <EOL>
+
+	// add first hostname to revmap:
+	if (v6_ptoh(&a, &cm, sym.buf)) {
+	    // IP invalid, skip line
+	    while (line == sym.line && sym.code != S_eof)
+		sym_get(&sym);
+	} else {
 	    sym_get(&sym);
 	    if (sym.line != line)
 		continue;
-	    radix_add(r->dns_tree_ptr[0], &a, cm, strdup(sym.buf));
 	}
+	if (sym.code != S_eof) {
+	    char *firstname = strdup(sym.buf);
+	    add_revmap(r, &a, firstname, cm, 0);
 
-	do {
-	    dns_add_a(&r->dns_tree_a, &a, sym.buf);
-	    sym_get(&sym);
+	    // add forward mapping for all hostnames:
+	    do {
+		dns_add_a(&r->dns_tree_a, &a, firstname);
+		sym_get(&sym);
+	    }
+	    while (sym.code != S_eof && sym.line == line);
+	    free(firstname);
 	}
-	while (sym.code != S_eof && sym.line == line);
     }
 
     cfg_close(url, buf, bufsize);
