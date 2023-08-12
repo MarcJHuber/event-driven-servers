@@ -395,15 +395,33 @@ static void parse_inline(tac_realm * r, char *format, char *file, int line)
     parse_tac_acl(&sym, r);
 }
 
+static tac_host *new_host(struct sym *sym, char *name, tac_host * parent, tac_realm * r, int top)
+{
+    tac_host *host = calloc(1, sizeof(tac_host));
+    if (sym) {
+	host->line = sym->line;
+	host->name = strdup(sym->buf);
+	sym_get(sym);
+    } else
+	host->name = name;
+    host->name_len = strlen(host->name);
+    host->parent = parent;
+    host->realm = r;
+    // short-hand syntax may help not to forget some variables
+    host->authen_max_attempts = top ? 1 : -1;
+    host->context_timeout = top ? 3600 : -1;
+    host->dns_timeout = top ? 1 : -1;
+    host->max_rounds = top ? 40 : -1;
+    host->session_timeout = top ? 240 : -1;
+    host->tcp_timeout = top ? 600 : -1;
+    return host;
+}
+
 static tac_realm *new_realm(char *name, tac_realm * parent)
 {
     tac_realm *r;
 
     r = calloc(1, sizeof(tac_realm));
-    r->default_host = calloc(1, sizeof(tac_host));
-    r->default_host->name = "default";
-    r->default_host->authen_max_attempts = -1;
-    r->default_host->max_rounds = 40;
     r->name = strdup(name);
     r->chalresp = TRISTATE_DUNNO;
     r->chpass = TRISTATE_DUNNO;
@@ -413,6 +431,9 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
     r->mavis_login = TRISTATE_DUNNO;
     r->mavis_pap_prefetch = TRISTATE_DUNNO;
     r->mavis_login_prefetch = TRISTATE_DUNNO;
+    r->default_host = new_host(NULL, "default", NULL, r, parent ? 1 : 0);
+
+    r->debug = parent ? 0 : common_data.debug;
 #if defined(WITH_TLS) || defined(WITH_SSL)
     r->tls_verify_depth = -1;
 #endif
@@ -2962,7 +2983,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 
 static void parse_host(struct sym *sym, tac_realm * r, tac_host * parent)
 {
-    tac_host *host = (tac_host *) calloc(1, sizeof(tac_host)), *hp;
+    tac_host *host, *hp;
     radixtree_t *ht;
     struct dns_forward_mapping *d;
 
@@ -2971,19 +2992,14 @@ static void parse_host(struct sym *sym, tac_realm * r, tac_host * parent)
 	r->hosttree = radix_new(NULL, NULL);
     }
 
-    host->line = sym->line;
-    host->parent = parent;
-
     sym_get(sym);
 
-    host->realm = r;
     ht = r->hosttree;
 
     if (sym->code == S_equal)
 	sym_get(sym);
 
-    host->name = strdup(sym->buf);
-    host->name_len = strlen(host->name);
+    host = new_host(sym, NULL, parent, r, 0);
     if (strchr(host->name, '=')) {	// likely a certificate subject. Normalize.
 	size_t i;
 	for (i = 0; i < host->name_len; i++)
@@ -2991,7 +3007,6 @@ static void parse_host(struct sym *sym, tac_realm * r, tac_host * parent)
     }
     if ((hp = RB_lookup(r->hosttable, (void *) host)))
 	parse_error(sym, "Host '%s' already defined at line %u", sym->buf, hp->line);
-    host->line = sym->line;
 
     d = dns_lookup_a(r, sym->buf, 0);
     while (d) {
@@ -3001,12 +3016,6 @@ static void parse_host(struct sym *sym, tac_realm * r, tac_host * parent)
 	d = d->next;
     }
 
-    host->tcp_timeout = -1;
-    host->session_timeout = -1;
-    host->context_timeout = -1;
-    host->authen_max_attempts = -1;
-
-    sym_get(sym);
     parse(sym, S_openbra);
 
     while (sym->code != S_closebra)
