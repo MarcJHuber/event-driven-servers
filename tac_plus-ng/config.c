@@ -2840,6 +2840,12 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    sym_get(sym);
 	    return;
 	}
+    case S_session:
+	sym_get(sym);
+	parse(sym, S_timeout);
+	parse(sym, S_equal);
+	host->session_timeout = parse_seconds(sym);
+	return;
     case S_script:
 	{
 	    struct mavis_action **p = &host->action;
