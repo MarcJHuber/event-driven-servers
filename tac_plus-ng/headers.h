@@ -595,6 +595,8 @@ struct author_data {
     char **in_args;		/* input arguments */
     int out_cnt;		/* output arg cnt */
     char **out_args;		/* output arguments */
+    int is_shell;
+    int is_cmd;
 };
 
 struct authen_data;
