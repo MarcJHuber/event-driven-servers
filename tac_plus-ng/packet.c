@@ -785,8 +785,8 @@ void cleanup_session(tac_session * session)
 	    r = r->parent;
 	if (r)
 	    io_dns_cancel(r->idc, session);
-	if (session->revmap_timedout)
-	    add_revmap(session->ctx->realm, &session->nac_address, NULL, -1);
+	if (session->revmap_timedout) // retry in 10 seconds
+	    add_revmap(session->ctx->realm, &session->nac_address, NULL, 10, 1);
     }
 #endif
 
