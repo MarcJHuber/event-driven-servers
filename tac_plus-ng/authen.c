@@ -1574,7 +1574,7 @@ void get_revmap_nac(tac_session * session)
 		    if (rev && rev->name && rev->ttl >= io_now.tv_sec) {
 			session->nac_dns_name = memlist_strdup(session->memlist, rev->name);
 			session->nac_dns_name_len = strlen(session->nac_dns_name);
-			report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAC revmap(%s) = %s [TTL: %lld, cached]\n", session->nac_address_ascii, rev->name,
+			report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAC revmap(%s) = %s [TTL: %lld]", session->nac_address_ascii, rev->name,
 			       (long long) (rev->ttl - io_now.tv_sec));
 			return;
 		    }
@@ -1605,7 +1605,7 @@ static void set_revmap_nas(struct context *ctx, char *hostname, int ttl)
     if (!hostname)
 	ttl = 60;
 
-    report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAS revmap(%s) = %s [TTL: %d]\n", ctx->nas_address_ascii, hostname ? hostname : "(not found)", ttl);
+    report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAS revmap(%s) = %s [TTL: %d]", ctx->nas_address_ascii, hostname ? hostname : "(not found)", ttl);
 
     if (hostname)
 	ctx->nas_dns_name = mempool_strdup(ctx->pool, hostname);
@@ -1639,7 +1639,7 @@ void get_revmap_nas(tac_session * session)
 		    if (rev && rev->name && rev->ttl >= io_now.tv_sec) {
 			ctx->nas_dns_name = mempool_strdup(ctx->pool, rev->name);
 			ctx->nas_dns_name_len = strlen(ctx->nas_dns_name);
-			report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAS revmap(%s) = %s [TTL: %lld, cached]\n", ctx->nas_address_ascii, rev->name,
+			report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAS revmap(%s) = %s [TTL: %lld]", ctx->nas_address_ascii, rev->name,
 			       (long long) (rev->ttl - io_now.tv_sec));
 			return;
 		    }
