@@ -761,33 +761,16 @@ void complete_host(tac_host * h)
 	tac_host *hp = h->parent;
 	complete_host(hp);
 
-	if (h->anon_enable == TRISTATE_DUNNO)
-	    h->anon_enable = hp->anon_enable;
-
-	if (h->anon_enable == TRISTATE_DUNNO)
-	    h->augmented_enable = hp->augmented_enable;
-
-	if (h->anon_enable == TRISTATE_DUNNO)
-	    h->anon_enable = hp->anon_enable;
-
-	if (h->single_connection == TRISTATE_DUNNO)
-	    h->single_connection = hp->single_connection;
-
-	if (h->authfallback == TRISTATE_DUNNO)
-	    h->authfallback = hp->authfallback;
-
-	if (h->cleanup_when_idle == TRISTATE_DUNNO)
-	    h->cleanup_when_idle = hp->cleanup_when_idle;
-
-	if (h->authz_if_authc == TRISTATE_DUNNO)
-	    h->authz_if_authc = hp->authz_if_authc;
-
-	if (h->map_pap_to_login == TRISTATE_DUNNO)
-	    h->map_pap_to_login = hp->map_pap_to_login;
-
+#define HS(A,B) if (h->A == B) h->A = hp->A;
+	HS(anon_enable,TRISTATE_DUNNO)
+	HS(augmented_enable,TRISTATE_DUNNO)
+	HS(single_connection,TRISTATE_DUNNO)
+	HS(authfallback,TRISTATE_DUNNO)
+	HS(cleanup_when_idle,TRISTATE_DUNNO)
+	HS(authz_if_authc,TRISTATE_DUNNO)
+	HS(map_pap_to_login,TRISTATE_DUNNO)
 #ifdef WITH_DNS
-	if (h->lookup_revmap_nas == TRISTATE_DUNNO)
-	    h->lookup_revmap_nas = hp->lookup_revmap_nas;
+	HS(lookup_revmap_nas,TRISTATE_DUNNO)
 	if (h->lookup_revmap_nas == TRISTATE_DUNNO) {
 	    tac_realm *r = h->realm;
 	    while (r && (r->default_host->lookup_revmap_nas == TRISTATE_DUNNO))
@@ -795,8 +778,7 @@ void complete_host(tac_host * h)
 	    if (r)
 		h->lookup_revmap_nas = r->default_host->lookup_revmap_nas;
 	}
-	if (h->lookup_revmap_nac == TRISTATE_DUNNO)
-	    h->lookup_revmap_nac = hp->lookup_revmap_nac;
+	HS(lookup_revmap_nac,TRISTATE_DUNNO)
 	if (h->lookup_revmap_nac == TRISTATE_DUNNO) {
 	    tac_realm *r = h->realm;
 	    while (r && (r->default_host->lookup_revmap_nac == TRISTATE_DUNNO))
@@ -805,38 +787,15 @@ void complete_host(tac_host * h)
 		h->lookup_revmap_nac = r->default_host->lookup_revmap_nac;
 	}
 #endif
-
-	if (!h->welcome_banner)
-	    h->welcome_banner = hp->welcome_banner;
-
-	if (!h->welcome_banner_fallback)
-	    h->welcome_banner_fallback = hp->welcome_banner_fallback;
-
-	if (!h->reject_banner)
-	    h->reject_banner = hp->reject_banner;
-
-	if (!h->motd)
-	    h->motd = hp->motd;
-
-	if (!h->key)
-	    h->key = hp->key;
-
-	h->debug |= hp->debug;
-
-	if (h->tcp_timeout < 0)
-	    h->tcp_timeout = hp->tcp_timeout;
-
-	if (h->session_timeout < 0)
-	    h->session_timeout = hp->session_timeout;
-
-	if (h->context_timeout < 0)
-	    h->context_timeout = hp->context_timeout;
-
+	HS(welcome_banner,NULL)
+	HS(welcome_banner_fallback,NULL)
+	HS(reject_banner,NULL)
+	HS(motd,NULL)
+	HS(key,NULL)
+	HS(rewrite_user,NULL)
 #ifdef WITH_SSL
 #ifndef OPENSSL_NO_PSK
-	if (!h->tls_psk_id)
-	    h->tls_psk_id = hp->tls_psk_id;
-
+	HS(tls_psk_id,NULL)
 	if (!h->tls_psk_key) {
 	    h->tls_psk_key = hp->tls_psk_key;
 	    h->tls_psk_key_len = hp->tls_psk_key_len;
@@ -844,20 +803,17 @@ void complete_host(tac_host * h)
 #endif
 #endif
 
-	if (h->dns_timeout < 0)
-	    h->dns_timeout = hp->dns_timeout;
-	if (h->dns_timeout < 0)
-	    h->dns_timeout = 0;
+#undef HS
+#define HS(A) if(h->A < 0) h->A = hp->A;
+	HS(tcp_timeout)
+	HS(session_timeout)
+	HS(context_timeout)
+	HS(dns_timeout)
+	HS(authen_max_attempts)
+	HS(max_rounds)
+#undef HS
 
-	if (h->authen_max_attempts < 0)
-	    h->authen_max_attempts = hp->authen_max_attempts;
-
-	if (!h->max_rounds)
-	    h->max_rounds = hp->max_rounds;
-
-	if (!h->rewrite_user)
-	    h->rewrite_user = hp->rewrite_user;
-
+	h->debug |= hp->debug;
 	h->bug_compatibility |= hp->bug_compatibility;
 
 	if (h->enable) {

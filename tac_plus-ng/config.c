@@ -193,46 +193,37 @@ void complete_realm(tac_realm * r)
 	enum user_message_enum um;
 	r->complete = 1;
 
-	if (r->chalresp == TRISTATE_DUNNO)
-	    r->chalresp = rp->chalresp;
-	if (r->chalresp_noecho == TRISTATE_DUNNO)
-	    r->chalresp_noecho = rp->chalresp_noecho;
-	if (r->chpass == TRISTATE_DUNNO)
-	    r->chpass = rp->chpass;
-	if (r->mavis_userdb == TRISTATE_DUNNO)
-	    r->mavis_userdb = rp->mavis_userdb;
-	if (r->mavis_noauthcache == TRISTATE_DUNNO)
-	    r->mavis_noauthcache = rp->mavis_noauthcache;
-	if (r->mavis_pap == TRISTATE_DUNNO)
-	    r->mavis_pap = rp->mavis_pap;
-	if (r->mavis_login == TRISTATE_DUNNO)
-	    r->mavis_login = rp->mavis_login;
-	if (r->mavis_pap_prefetch == TRISTATE_DUNNO)
-	    r->mavis_pap_prefetch = rp->mavis_pap_prefetch;
-	if (r->mavis_login_prefetch == TRISTATE_DUNNO)
-	    r->mavis_login_prefetch = rp->mavis_login_prefetch;
-	if (r->caching_period < 0)
-	    r->caching_period = rp->caching_period;
-#ifdef WITH_DNS
-	if (r->dns_caching_period < 0)
-	    r->dns_caching_period = rp->dns_caching_period;
-#endif
-	if (r->warning_period < 0)
-	    r->warning_period = rp->warning_period;
-	if (r->backend_failure_period < 0)
-	    r->backend_failure_period = rp->backend_failure_period;
-	if (!r->mavis_user_acl)
-	    r->mavis_user_acl = rp->mavis_user_acl;
-	if (!r->enable_user_acl)
-	    r->enable_user_acl = rp->enable_user_acl;
-	if (!r->password_acl)
-	    r->password_acl = rp->password_acl;
+#define RS(A,B) if(r->A == B) r->A = rp->A;
+	RS(chalresp,TRISTATE_DUNNO)
+	RS(chpass,TRISTATE_DUNNO)
+	RS(mavis_userdb,TRISTATE_DUNNO)
+	RS(mavis_noauthcache,TRISTATE_DUNNO)
+	RS(mavis_pap,TRISTATE_DUNNO)
+	RS(mavis_login,TRISTATE_DUNNO)
+	RS(mavis_pap_prefetch,TRISTATE_DUNNO)
+	RS(mavis_login_prefetch,TRISTATE_DUNNO)
+	RS(mavis_user_acl,NULL)
+	RS(enable_user_acl, NULL)
+	RS(password_acl,NULL)
 #if defined(WITH_TLS) || defined(WITH_SSL)
-	if (r->tls_accept_expired == TRISTATE_DUNNO)
-	    r->tls_accept_expired = rp->tls_accept_expired;
-	if (r->tls_verify_depth == -1)
-	    r->tls_verify_depth = rp->tls_verify_depth;
+	RS(tls_accept_expired,TRISTATE_DUNNO)
 #endif
+#undef RS
+#define RS(A) if(r->A < 0) r->A = rp->A;
+	RS(caching_period)
+	RS(dns_caching_period)
+	RS(warning_period)
+	RS(default_host->tcp_timeout)
+	RS(default_host->session_timeout)
+	RS(default_host->context_timeout)
+	RS(default_host->dns_timeout)
+	RS(default_host->max_rounds)
+	RS(default_host->authen_max_attempts)
+#if defined(WITH_TLS) || defined(WITH_SSL)
+	RS(tls_verify_depth)
+#endif
+#undef RS
+
 #ifdef WITH_TLS
 	if (r->tls_cfg && r->tls_cert) {
 	    uint8_t *p;
@@ -431,43 +422,25 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
     r->mavis_login = TRISTATE_DUNNO;
     r->mavis_pap_prefetch = TRISTATE_DUNNO;
     r->mavis_login_prefetch = TRISTATE_DUNNO;
+
     r->default_host = new_host(NULL, "default", NULL, r, parent ? 1 : 0);
 
     r->debug = parent ? 0 : common_data.debug;
 #if defined(WITH_TLS) || defined(WITH_SSL)
     r->tls_verify_depth = -1;
-#endif
 #ifdef WITH_TLS
     //r->tls_ciphers = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384";
 #endif
 #ifdef WITH_SSL
     //r->tls_ciphers = "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256";
 #endif
+#endif
 
     if (parent) {
 	r->parent = parent;
-	r->caching_period = -1;
-	r->dns_caching_period = -1;
-	r->warning_period = -1;
-	r->backend_failure_period = -1;
     } else {
 	config.default_realm = r;
 	r->complete = 1;
-	r->caching_period = 120;
-	r->dns_caching_period = 600;
-	r->warning_period = 86400 * 14;
-	r->backend_failure_period = 60;
-	r->debug = common_data.debug;
-#if defined(WITH_TLS) || defined(WITH_SSL)
-	r->tls_verify_depth = -1;
-#endif
-
-	parse_inline(r, "acl __internal__username_acl__ { if (user =~ \"[]<>/()|=[*\\\"':$]+\") deny permit }\n", __FILE__, __LINE__);
-	r->mavis_user_acl = tac_acl_lookup("__internal__username_acl__", r);
-
-	parse_inline(r, "acl __internal__enable_user__ { if (user =~ \"^\\\\$enab..?\\\\$$\") permit deny }", __FILE__, __LINE__);
-	r->enable_user_acl = tac_acl_lookup("__internal__enable_user__", r);
-
 	r->default_host->user_messages = calloc(UM_MAX, sizeof(char *));
 	r->default_host->user_messages[UM_PASSWORD] = "Password: ";
 	r->default_host->user_messages[UM_RESPONSE] = "Response: ";
@@ -488,6 +461,10 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
 	r->default_host->user_messages[UM_USERNAME] = "Username: ";
 	r->default_host->user_messages[UM_USER_ACCESS_VERIFICATION] = "User Access Verification";
 	r->default_host->user_messages[UM_DENIED_BY_ACL] = "Denied by ACL";
+	parse_inline(r, "acl __internal__username_acl__ { if (user =~ \"[]<>/()|=[*\\\"':$]+\") deny permit }\n", __FILE__, __LINE__);
+	r->mavis_user_acl = tac_acl_lookup("__internal__username_acl__", r);
+	parse_inline(r, "acl __internal__enable_user__ { if (user =~ \"^\\\\$enab..?\\\\$$\") permit deny }", __FILE__, __LINE__);
+	r->enable_user_acl = tac_acl_lookup("__internal__enable_user__", r);
     }
 
     return r;
