@@ -97,21 +97,14 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
     session->username = memlist_strndup(session->memlist, p, acct->user_len);
     session->username_len = acct->user_len;
 
-    while (res != S_permit && res != S_deny && h) {
-	if (h->action) {
+    // script-based user rewriting, current
+    while (h && res != S_permit && res != S_deny) {
+	if (h->action)
 	    res = tac_script_eval_r(session, h->action);
-	    switch (res) {
-	    case S_deny:
-	    case S_permit:
-		break;
-	    default:
-		break;
-	    }
-	}
 	h = h->parent;
     }
 
-
+    // legacy user rewriting, deprecated
     tac_rewrite_user(session, NULL);
     p += acct->user_len;
     session->nas_port = memlist_strndup(session->memlist, p, acct->port_len);
