@@ -122,7 +122,7 @@ static void parse_listen(struct sym *sym)
 	    parse(sym, S_equal);
 	    if (strlen(sym->buf) >= SCM_REALM_SIZE)
 		parse_error(sym, "Maximum tag length is limited to %d characters.", SCM_REALM_SIZE - 1);
-	    strset(&ctx->tag, sym->buf);
+	    strncpy(ctx->tag, sym->buf, SCM_REALM_SIZE + 1);
 	    ctx->tag_len = strlen(ctx->tag);
 	    sym_get(sym);
 	    break;

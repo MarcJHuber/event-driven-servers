@@ -96,7 +96,7 @@ struct spawnd_context {
     struct timeval tv;		/* server only */
     int use;			/* server only */
     pid_t pid;			/* server only */
-    char *tag;			/* listener only */
+    char tag[SCM_REALM_SIZE + 1];	/* listener only */
     ssize_t tag_len;		/* listener only */
 #ifdef VRF_BINDTODEVICE
     char *vrf;			/* server only */
