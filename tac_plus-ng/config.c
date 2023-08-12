@@ -872,6 +872,66 @@ static void parse_tls_psk_key(struct sym *sym, tac_host * host)
 
 static void parse_host_attr(struct sym *, tac_realm *, tac_host *);
 
+#ifdef WITH_DNS
+static void parse_host_dns(struct sym *sym, tac_host * host)
+{
+    switch (sym->code) {
+    case S_timeout:
+	sym_get(sym);
+	parse(sym, S_equal);
+	host->dns_timeout = parse_seconds(sym);
+	return;
+    case S_reverselookup:
+	sym_get(sym);
+	switch (sym->code) {
+	case S_equal:
+	    sym_get(sym);
+	    host->lookup_revmap_nac = host->lookup_revmap_nas = parse_tristate(sym);
+	    break;
+	case S_nac:
+	case S_client:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    host->lookup_revmap_nac = parse_tristate(sym);
+	    break;
+	case S_nas:
+	case S_device:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    host->lookup_revmap_nas = parse_tristate(sym);
+	    break;
+	default:
+	    parse_error_expect(sym, S_equal, S_client, S_nac, S_device, S_nas, S_unknown);
+	    if ((host->lookup_revmap_nas == TRISTATE_YES || host->lookup_revmap_nac == TRISTATE_YES)
+		&& !host->realm->idc)
+		host->realm->idc = io_dns_init(common_data.io);
+	}
+	return;
+    default:
+	;
+    }
+}
+#endif
+
+void parse_host_pap_password(struct sym *sym, tac_host * host)
+{
+    sym_get(sym);
+    if (sym->code == S_mapping)
+	sym_get(sym);
+    parse(sym, S_equal);
+    switch (sym->code) {
+    case S_pap:
+	host->map_pap_to_login = TRISTATE_NO;
+	break;
+    case S_login:
+	host->map_pap_to_login = TRISTATE_YES;
+	break;
+    default:
+	parse_error_expect(sym, S_login, S_pap, S_unknown);
+    }
+    sym_get(sym);
+}
+
 void parse_decls_real(struct sym *sym, tac_realm * r)
 {
     /* Top level of parser */
@@ -914,19 +974,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		r->mavis_userdb = TRISTATE_YES;
 		break;
 	    case S_password:
-		sym_get(sym);
-		parse(sym, S_equal);
-		switch (sym->code) {
-		case S_pap:
-		    r->default_host->map_pap_to_login = TRISTATE_NO;
-		    break;
-		case S_login:
-		    r->default_host->map_pap_to_login = TRISTATE_YES;
-		    break;
-		default:
-		    parse_error_expect(sym, S_login, S_pap, S_unknown);
-		}
-		sym_get(sym);
+		parse_host_pap_password(sym, r->default_host);
 		continue;
 	    default:
 		parse_error_expect(sym, S_backend, S_login, S_unknown);
@@ -2620,20 +2668,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	sym_get(sym);
 	switch (sym->code) {
 	case S_password:
-	    sym_get(sym);
-	    parse(sym, S_mapping);
-	    parse(sym, S_equal);
-	    switch (sym->code) {
-	    case S_pap:
-		host->map_pap_to_login = TRISTATE_NO;
-		break;
-	    case S_login:
-		host->map_pap_to_login = TRISTATE_YES;
-		break;
-	    default:
-		parse_error_expect(sym, S_login, S_pap, S_unknown);
-	    }
-	    sym_get(sym);
+	    parse_host_pap_password(sym, host);
 	    return;
 	default:
 	    parse_error_expect(sym, S_password, S_unknown);
@@ -2792,35 +2827,8 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	sym_get(sym);
 	switch (sym->code) {
 	case S_timeout:
-	    sym_get(sym);
-	    parse(sym, S_equal);
-	    host->dns_timeout = parse_seconds(sym);
-	    return;
 	case S_reverselookup:
-	    sym_get(sym);
-	    switch (sym->code) {
-	    case S_equal:
-		sym_get(sym);
-		host->lookup_revmap_nac = host->lookup_revmap_nas = parse_tristate(sym);
-		break;
-	    case S_nac:
-	    case S_client:
-		sym_get(sym);
-		parse(sym, S_equal);
-		host->lookup_revmap_nac = parse_tristate(sym);
-		break;
-	    case S_nas:
-	    case S_device:
-		sym_get(sym);
-		parse(sym, S_equal);
-		host->lookup_revmap_nas = parse_tristate(sym);
-		break;
-	    default:
-		parse_error_expect(sym, S_equal, S_client, S_nac, S_device, S_nas, S_unknown);
-	    }
-	    //FIXME, add realm specific options
-	    if ((host->lookup_revmap_nas == TRISTATE_YES || host->lookup_revmap_nac == TRISTATE_YES) && !r->idc)
-		r->idc = io_dns_init(common_data.io);
+	    parse_host_dns(sym, host);
 	    return;
 	default:
 	    parse_error_expect(sym, S_timeout, S_reverselookup, S_unknown);
