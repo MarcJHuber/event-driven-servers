@@ -1089,13 +1089,6 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		default:
 		    parse_error_expect(sym, S_address, S_file, S_unknown);
 		}
-	    case S_maxrounds:
-		sym_get(sym);
-		parse(sym, S_equal);
-		r->default_host->max_rounds = parse_int(sym);
-		if (r->default_host->max_rounds < 1 || r->default_host->max_rounds > 127)
-		    parse_error(sym, "Illegal number of rounds (valid range: 1 ... 127)");
-		continue;
 #ifdef WITH_DNS
 	    case S_timeout:
 		sym_get(sym);
@@ -1337,6 +1330,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_context:
 	case S_script:
 	case S_message:
+	case S_maxrounds:
 	    parse_host_attr(sym, r, r->default_host);
 	    continue;
 #if defined(WITH_TLS) || defined(WITH_SSL)
