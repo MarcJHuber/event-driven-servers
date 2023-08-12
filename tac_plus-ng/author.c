@@ -61,6 +61,7 @@
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
 static void do_author(tac_session *);
+static int bad_nas_args(tac_session *, struct author_data *);
 
 void author(tac_session * session, tac_pak_hdr * hdr)
 {
@@ -70,6 +71,8 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     struct author *pak = tac_payload(hdr, struct author *);
     struct author_data *data;
     enum token res = S_unknown;
+    char *cmdline, *t;
+    size_t len = 0, tlen = 0;
     tac_host *h = session->ctx->host;
 
     report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "Start authorization request");
@@ -105,28 +108,6 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     if (session->nac_address_valid)
 	get_revmap_nac(session);
 
-    while (res != S_permit && res != S_deny && h) {
-	if (h->action) {
-	    static struct log_item *li_denied_by_acl = NULL;
-	    res = tac_script_eval_r(session, h->action);
-	    switch (res) {
-	    case S_deny:
-		if (!li_denied_by_acl)
-		    li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
-		report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
-		send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message,
-				  eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL), 0, NULL);
-		return;
-	    case S_permit:
-		break;
-	    default:
-		break;
-	    }
-	}
-	h = h->parent;
-    }
-
-    tac_rewrite_user(session, NULL);
     data = memlist_malloc(session->memlist, sizeof(struct author_data));
     data->in_cnt = pak->arg_cnt;
 
@@ -141,6 +122,53 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     data->in_args = cmd_argp;	/* input command arguments */
     session->author_data = data;
     session->in_length = session->ctx->in->length;
+
+    // script-based user rewriting, current
+    while (h && res != S_permit && res != S_deny) {
+        if (h->action)
+            res = tac_script_eval_r(session, h->action);
+        h = h->parent;
+    }
+
+    // legacy user rewriting, deprecated
+    tac_rewrite_user(session, NULL);
+
+    t = cmdline = alloca(session->in_length);
+
+    for (i = 0; i < data->in_cnt; i++) {
+	size_t l = strlen(data->in_args[i]);
+	char *a = data->in_args[i];
+	if (l > 3 && (!strncmp(a, "cmd=", 4) || !strncmp(a, "cmd*", 4))) {
+	    session->author_data->is_cmd = (l > 4);
+	    len = l - 4;
+	    memcpy(t, a + 4, len);
+	    t += len;
+	    tlen += len;
+	} else if (l > 8 && !strncmp(a, "cmd-arg=", 8)) {
+	    *t++ = ' ';
+	    tlen++;
+	    len = l - 8;
+	    memcpy(t, a + 8, len);
+	    t += len;
+	    tlen += len;
+	} else if (l > 8 && !strncmp(a, "service=", 8)) {
+	    session->service_len = l - 8;
+	    session->service = memlist_strndup(session->memlist, (u_char *) (a + 8), l - 8);
+	    session->author_data->is_shell = !strcmp(session->service, "shell");
+	} else if (l > 9 && !strncmp(a, "protocol=", 9)) {
+	    session->protocol_len = l - 9;
+	    session->protocol = memlist_strndup(session->memlist, (u_char *) (a + 9), l - 9);
+	}
+    }
+
+    *t = 0;
+    session->cmdline = memlist_strdup(session->memlist, cmdline);
+    session->cmdline_len = tlen;
+
+    if (bad_nas_args(session, data)) {
+	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
+	return;
+    }
 
 #ifdef WITH_DNS
     if ((session->ctx->host->dns_timeout > 0) && (session->revmap_pending || session->ctx->revmap_pending)) {
@@ -188,7 +216,6 @@ static int bad_nas_args(tac_session * session, struct author_data *data)
     return 0;
 }
 
-
 static char *lookup_attrval(char **attrs, int cnt, char *na)
 {
     for (; cnt > 0; cnt--, attrs++) {
@@ -226,9 +253,28 @@ static void do_author(tac_session * session)
     char **out_args, **outp;
     enum token res = S_unknown;
     struct author_data *data = session->author_data;
-    char *cmdline, *t;
-    size_t len = 0, tlen = 0;
-    int is_shell = 0, is_cmd = 0;
+    tac_host *h = session->ctx->host;
+
+    while (res != S_permit && res != S_deny && h) {
+	if (h->action) {
+	    static struct log_item *li_denied_by_acl = NULL;
+	    res = tac_script_eval_r(session, h->action);
+	    switch (res) {
+	    case S_deny:
+		if (!li_denied_by_acl)
+		    li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
+		report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
+		send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message,
+				  eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL), 0, NULL);
+		return;
+	    case S_permit:
+		break;
+	    default:
+		break;
+	    }
+	}
+	h = h->parent;
+    }
 
     if (!session->user && session->username_len) {
 	if (lookup_user(session)) {
@@ -264,43 +310,6 @@ static void do_author(tac_session * session)
 
     report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s' found", session->username);
 
-    t = cmdline = alloca(session->in_length);
-
-    for (i = 0; i < data->in_cnt; i++) {
-	size_t l = strlen(data->in_args[i]);
-	char *a = data->in_args[i];
-	if (l > 3 && (!strncmp(a, "cmd=", 4) || !strncmp(a, "cmd*", 4))) {
-	    is_cmd = (l > 4);
-	    len = l - 4;
-	    memcpy(t, a + 4, len);
-	    t += len;
-	    tlen += len;
-	} else if (l > 8 && !strncmp(a, "cmd-arg=", 8)) {
-	    *t++ = ' ';
-	    tlen++;
-	    len = l - 8;
-	    memcpy(t, a + 8, len);
-	    t += len;
-	    tlen += len;
-	} else if (l > 8 && !strncmp(a, "service=", 8)) {
-	    session->service_len = l - 8;
-	    session->service = memlist_strndup(session->memlist, (u_char *) (a + 8), l - 8);
-	    is_shell = !strcmp(session->service, "shell");
-	} else if (l > 9 && !strncmp(a, "protocol=", 9)) {
-	    session->protocol_len = l - 9;
-	    session->protocol = memlist_strndup(session->memlist, (u_char *) (a + 9), l - 9);
-	}
-    }
-
-    *t = 0;
-    session->cmdline = memlist_strdup(session->memlist, cmdline);
-    session->cmdline_len = tlen;
-
-    if (bad_nas_args(session, data)) {
-	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
-	return;
-    }
-
     if (session->authorized)
 	res = S_permit;
     else {
@@ -324,7 +333,7 @@ static void do_author(tac_session * session)
 	return;
     case S_permit:
 	data->status = TAC_PLUS_AUTHOR_STATUS_PASS_ADD;
-	if (is_shell && is_cmd) {	// shortcut for command authorization, shell authz will take the regular way.
+	if (session->author_data->is_shell && session->author_data->is_cmd) {	// shortcut for command authorization, shell authz will take the regular way.
 	    send_author_reply(session, data->status, session->message, data->admin_msg, 0, NULL);
 	    return;
 	}
