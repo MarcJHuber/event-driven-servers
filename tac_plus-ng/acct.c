@@ -60,6 +60,8 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
+static void do_acct(tac_session *);
+
 void accounting(tac_session * session, tac_pak_hdr * hdr)
 {
     struct acct *acct = tac_payload(hdr, struct acct *);
@@ -106,6 +108,7 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
 
     // legacy user rewriting, deprecated
     tac_rewrite_user(session, NULL);
+
     p += acct->user_len;
     session->nas_port = memlist_strndup(session->memlist, p, acct->port_len);
     session->nas_port_len = acct->port_len;
@@ -117,7 +120,9 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
     session->arg_cnt = acct->arg_cnt;
     session->arg_len = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
 
-    log_exec(session, session->ctx, S_accounting, io_now.tv_sec);
+    session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
+    if (session->nac_address_valid)
+	get_revmap_nac(session);
 
     if (acct->flags & TAC_PLUS_ACCT_FLAG_STOP) {
 	u_char *argsizep = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
@@ -130,6 +135,17 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
 	    p += *argsizep++;
 	}
     }
+#ifdef WITH_DNS
+    if ((session->ctx->host->dns_timeout > 0) && (session->revmap_pending || session->ctx->revmap_pending)) {
+	session->resumefn = do_acct;
+	io_sched_add(session->ctx->io, session, (void *) resume_session, session->ctx->host->dns_timeout, 0);
+    } else
+#endif
+	do_acct(session);
+}
 
+static void do_acct(tac_session * session)
+{
+    log_exec(session, session->ctx, S_accounting, io_now.tv_sec);
     send_acct_reply(session, TAC_PLUS_ACCT_STATUS_SUCCESS, NULL, NULL);
 }
