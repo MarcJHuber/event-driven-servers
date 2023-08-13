@@ -405,6 +405,28 @@ static tac_host *new_host(struct sym *sym, char *name, tac_host * parent, tac_re
     host->max_rounds = top ? 40 : -1;
     host->session_timeout = top ? 240 : -1;
     host->tcp_timeout = top ? 600 : -1;
+    if (top) {
+	host->user_messages = calloc(UM_MAX, sizeof(char *));
+	host->user_messages[UM_PASSWORD] = "Password: ";
+	host->user_messages[UM_RESPONSE] = "Response: ";
+	host->user_messages[UM_PASSWORD_OLD] = "Old password: ";
+	host->user_messages[UM_PASSWORD_NEW] = "New password: ";
+	host->user_messages[UM_PASSWORD_ABORT] = "Password change dialog aborted.";
+	host->user_messages[UM_PASSWORD_AGAIN] = "Retype new password: ";
+	host->user_messages[UM_PASSWORD_NOMATCH] = "Passwords do not match.";
+	host->user_messages[UM_PASSWORD_MINREQ] = "Password doesn't meet minimum requirements.";
+	host->user_messages[UM_PERMISSION_DENIED] = "Permission denied.";
+	host->user_messages[UM_ENABLE_PASSWORD] = "Enable Password: ";
+	host->user_messages[UM_PASSWORD_CHANGE_DIALOG] = "Entering password change dialog";
+	host->user_messages[UM_BACKEND_FAILED] = "Authentication backend failure.";
+	host->user_messages[UM_CHANGE_PASSWORD] = "Please change your password.";
+	host->user_messages[UM_ACCOUNT_EXPIRES] = "This account will expire soon.";
+	host->user_messages[UM_PASSWORD_INCORRECT] = "Password incorrect.";
+	host->user_messages[UM_RESPONSE_INCORRECT] = "Response incorrect.";
+	host->user_messages[UM_USERNAME] = "Username: ";
+	host->user_messages[UM_USER_ACCESS_VERIFICATION] = "User Access Verification";
+	host->user_messages[UM_DENIED_BY_ACL] = "Denied by ACL";
+    }
     return host;
 }
 
@@ -423,7 +445,7 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
     r->mavis_pap_prefetch = TRISTATE_DUNNO;
     r->mavis_login_prefetch = TRISTATE_DUNNO;
 
-    r->default_host = new_host(NULL, "default", NULL, r, parent ? 1 : 0);
+    r->default_host = new_host(NULL, "default", NULL, r, parent ? 0 : 1);
 
     r->debug = parent ? 0 : common_data.debug;
 #if defined(WITH_TLS) || defined(WITH_SSL)
@@ -441,26 +463,6 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
     } else {
 	config.default_realm = r;
 	r->complete = 1;
-	r->default_host->user_messages = calloc(UM_MAX, sizeof(char *));
-	r->default_host->user_messages[UM_PASSWORD] = "Password: ";
-	r->default_host->user_messages[UM_RESPONSE] = "Response: ";
-	r->default_host->user_messages[UM_PASSWORD_OLD] = "Old password: ";
-	r->default_host->user_messages[UM_PASSWORD_NEW] = "New password: ";
-	r->default_host->user_messages[UM_PASSWORD_ABORT] = "Password change dialog aborted.";
-	r->default_host->user_messages[UM_PASSWORD_AGAIN] = "Retype new password: ";
-	r->default_host->user_messages[UM_PASSWORD_NOMATCH] = "Passwords do not match.";
-	r->default_host->user_messages[UM_PASSWORD_MINREQ] = "Password doesn't meet minimum requirements.";
-	r->default_host->user_messages[UM_PERMISSION_DENIED] = "Permission denied.";
-	r->default_host->user_messages[UM_ENABLE_PASSWORD] = "Enable Password: ";
-	r->default_host->user_messages[UM_PASSWORD_CHANGE_DIALOG] = "Entering password change dialog";
-	r->default_host->user_messages[UM_BACKEND_FAILED] = "Authentication backend failure.";
-	r->default_host->user_messages[UM_CHANGE_PASSWORD] = "Please change your password.";
-	r->default_host->user_messages[UM_ACCOUNT_EXPIRES] = "This account will expire soon.";
-	r->default_host->user_messages[UM_PASSWORD_INCORRECT] = "Password incorrect.";
-	r->default_host->user_messages[UM_RESPONSE_INCORRECT] = "Response incorrect.";
-	r->default_host->user_messages[UM_USERNAME] = "Username: ";
-	r->default_host->user_messages[UM_USER_ACCESS_VERIFICATION] = "User Access Verification";
-	r->default_host->user_messages[UM_DENIED_BY_ACL] = "Denied by ACL";
 	parse_inline(r, "acl __internal__username_acl__ { if (user =~ \"[]<>/()|=[*\\\"':$]+\") deny permit }\n", __FILE__, __LINE__);
 	r->mavis_user_acl = tac_acl_lookup("__internal__username_acl__", r);
 	parse_inline(r, "acl __internal__enable_user__ { if (user =~ \"^\\\\$enab..?\\\\$$\") permit deny }", __FILE__, __LINE__);
