@@ -508,7 +508,7 @@ id = tac_plus = {
 
 4.1.2. DNS
 
-   tac_plus can make use of static and, if compiled with lwres
+   tac_plus can make use of static and, if compiled with c-ares
    support, of dynamic DNS entries. The relevant global
    configuration options at global level are:
 
@@ -832,7 +832,7 @@ line XX
 
 4.3.2.1. DNS
 
-   tac_plus can make use of static and, if compiled with lwres
+   tac_plus can make use of static and, if compiled with c-ares
    support, of dynamic DNS entries. The relevant realm
    configuration options are:
 
@@ -1611,13 +1611,12 @@ acl = myacl {
        servers (or, for that matter, ports) are involved.
 
    When using the dns keyword, NAC regex matching is done against
-   the NACs DNS reverse mapping. This will only work if a) the
-   software was compiled with lwres support and b) lwresd is
-   actually running. However, keep in mind that DNS isn't
-   necessarily trustworthy and lookups might plain fail. Keep in
-   mind that you're best off enabling single-connection on your
-   NAS. This allows the daemon to take advantage of caching the
-   reverse-mapping results.
+   the NACs DNS reverse mapping. This will only work if the
+   software was compiled with c-ares support. However, keep in
+   mind that DNS isn't necessarily trustworthy and lookups might
+   plain fail. Keep in mind that you're best off enabling
+   single-connection on your NAS. This allows the daemon to take
+   advantage of caching the reverse-mapping results.
      __________________________________________________________
 
 4.3.5.1. Railroad Diagrams
@@ -3537,7 +3536,7 @@ debug = ALL -PARSE
    17 131072 INDEX Directory index related
    18 262144 AV Attribute-Value pair handling
    19 524288 MAVIS MAVIS related
-   20 1048576 LWRES DNS related
+   20 1048576 DNS DNS related
    21 2097152 USERINPUT Show user input (this may include
    passwords)
    31 2147483648 NONE Disable debugging
@@ -3600,8 +3599,7 @@ Router#
      * Does the daemon require a working DNS?
        No, DNS is not a requirement. You may however use DNS
        reverse mapping in NAC ACL lists, provided that the
-       software is compiled with lwres support and the
-       corresponding lwresd is running.
+       software is compiled with c-ares support.
      * Why do I get PPP authorization failures because of no
        username in request when I've already logged in and
        authenticated?

@@ -50,7 +50,7 @@ Marc Huber
      * Utilizes the MAVIS modular authentication system
      * A couple of wu-ftpd-like features (banners, checksum
        calculation, ...) are available
-     * DNS resolving is done if the daemon is compiled with lwres
+     * DNS resolving is done if the daemon is compiled with c-ares
        support
      * Asynchronous RFC1413 ident lookups
      * Large File support.

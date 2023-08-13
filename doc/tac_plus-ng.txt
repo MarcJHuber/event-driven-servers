@@ -505,16 +505,15 @@ ob 38.11)\n\n"
 
 4.2.1.2. DNS
 
-   tac_plus-ng can make use of bot static and dynamic DNS entries.
-   The relevant global configuration options at global (and realm)
-   level are:
+   tac_plus-ng can make use of both static and dynamic (via
+   c-ares) DNS entries. Configuration options at global (and
+   realm) level are:
 
      * dns preload address address = hostname
        Preload DNS cache with address-to-hostname mapping.
      * dns preload file = filename
        Preload DNS cache with address-to-hostname mappings from
-       filename (see your hosts(5) manpage for syntax). DNS
-       lookups via lwresd are no longer supported.
+       filename (see your hosts(5) manpage for syntax).
        Example:
 dns preload address 1.2.3.4 = router.example.com
 dns preload file = /etc/hosts
@@ -2943,7 +2942,7 @@ debug = ALL -PARSE
    17 131072 INDEX Directory index related
    18 262144 AV Attribute-Value pair handling
    19 524288 MAVIS MAVIS related
-   20 1048576 LWRES DNS related
+   20 1048576 DNS DNS related
    21 2097152 USERINPUT Show user input (this may include
    passwords)
    31 2147483648 NONE Disable debugging
