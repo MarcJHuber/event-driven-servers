@@ -933,7 +933,6 @@ static void do_ascii_login(tac_session * session)
 	    session->user_msg = eval_log_format(session, session->ctx, NULL, li_account_expires, io_now.tv_sec, &session->user_msg_len);
 
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_PASS, set_motd_banner(session), 0, NULL, 0, 0);
-	session->user_msg = NULL;
 	return;
     case TAC_PLUS_AUTHEN_STATUS_FAIL:
 	if (resp) {
