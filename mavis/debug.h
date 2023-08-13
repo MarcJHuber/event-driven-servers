@@ -58,8 +58,8 @@ void debug_setpid(void);
 #define DEBUG_AV DEBUG_AV_FLAG
 #define DEBUG_MAVIS_FLAG      (1<<19)	/* 512k */
 #define DEBUG_MAVIS DEBUG_MAVIS_FLAG
-#define DEBUG_LWRES_FLAG      (1<<20)	/* 1024k */
-#define DEBUG_LWRES DEBUG_LWRES_FLAG
+#define DEBUG_DNS_FLAG      (1<<20)	/* 1024k */
+#define DEBUG_DNS DEBUG_DNS_FLAG
 #define DEBUG_USERINPUT_FLAG      (1<<21)	/* 2048k */
 #define DEBUG_USERINPUT DEBUG_USERINPUT_FLAG
 #define DEBUG_TACTRACE_FLAG      (1<<22)	/* 4096k */

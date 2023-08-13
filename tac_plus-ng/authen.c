@@ -1550,7 +1550,7 @@ void add_revmap(tac_realm * r, struct in6_addr *address, char *hostname, int ttl
 #ifdef WITH_DNS
 static void set_revmap_nac(tac_session * session, char *hostname, int ttl)
 {
-    report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAC revmap(%s) = %s", session->nac_address_ascii, hostname ? hostname : "(not found)");
+    report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "NAC revmap(%s) = %s", session->nac_address_ascii, hostname ? hostname : "(not found)");
     if (hostname)
 	session->nac_dns_name = memlist_strdup(session->memlist, hostname);
 
@@ -1576,7 +1576,7 @@ void get_revmap_nac(tac_session * session)
 		    if (rev && rev->name && rev->ttl >= io_now.tv_sec) {
 			session->nac_dns_name = memlist_strdup(session->memlist, rev->name);
 			session->nac_dns_name_len = strlen(session->nac_dns_name);
-			report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAC revmap(%s) = %s [TTL: %lld]", session->nac_address_ascii, rev->name,
+			report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAC revmap(%s) = %s [TTL: %lld]", session->nac_address_ascii, rev->name,
 			       (long long) (rev->ttl - io_now.tv_sec));
 			return;
 		    }
@@ -1592,7 +1592,7 @@ void get_revmap_nac(tac_session * session)
 	    r = r->parent;
 	if (r) {
 	    session->revmap_pending = 1;
-	    report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "Querying NAC revmap (%s)", session->nac_address_ascii);
+	    report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "Querying NAC revmap (%s)", session->nac_address_ascii);
 	    io_dns_add_addr(config.default_realm->idc, &session->nac_address, (void *) set_revmap_nac, session);
 	}
     }
@@ -1607,7 +1607,7 @@ static void set_revmap_nas(struct context *ctx, char *hostname, int ttl)
     if (!hostname)
 	ttl = 60;
 
-    report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAS revmap(%s) = %s [TTL: %d]", ctx->nas_address_ascii, hostname ? hostname : "(not found)", ttl);
+    report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAS revmap(%s) = %s [TTL: %d]", ctx->nas_address_ascii, hostname ? hostname : "(not found)", ttl);
 
     if (hostname)
 	ctx->nas_dns_name = mempool_strdup(ctx->pool, hostname);
@@ -1641,7 +1641,7 @@ void get_revmap_nas(tac_session * session)
 		    if (rev && rev->name && rev->ttl >= io_now.tv_sec) {
 			ctx->nas_dns_name = mempool_strdup(ctx->pool, rev->name);
 			ctx->nas_dns_name_len = strlen(ctx->nas_dns_name);
-			report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAS revmap(%s) = %s [TTL: %lld]", ctx->nas_address_ascii, rev->name,
+			report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAS revmap(%s) = %s [TTL: %lld]", ctx->nas_address_ascii, rev->name,
 			       (long long) (rev->ttl - io_now.tv_sec));
 			return;
 		    }
@@ -1656,7 +1656,7 @@ void get_revmap_nas(tac_session * session)
 		r = r->parent;
 	    if (r->idc) {
 		ctx->revmap_pending = 1;
-		report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "Querying NAS revmap (%s)", ctx->nas_address_ascii);
+		report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "Querying NAS revmap (%s)", ctx->nas_address_ascii);
 		io_dns_add_addr(config.default_realm->idc, &ctx->nas_address, (void *) set_revmap_nas, ctx);
 	    }
 	}
@@ -1668,7 +1668,7 @@ void get_revmap_nas(tac_session * session)
 void resume_session(tac_session * session, int cur __attribute__((unused)))
 {
     void (*resumefn)(tac_session *) = session->resumefn;
-    report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "resuming");
+    report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "resuming");
     session->resumefn = NULL;
     if (session->revmap_pending)
 	session->revmap_timedout = 1;

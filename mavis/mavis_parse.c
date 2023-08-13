@@ -1318,7 +1318,7 @@ void parse_debug(struct sym *sym, u_int * d)
 	    break;
 	case S_DNS:
 	case S_LWRES: // deprecated
-	    bit = DEBUG_LWRES_FLAG;
+	    bit = DEBUG_DNS_FLAG;
 	    break;
 	case S_USERINPUT:
 	    bit = DEBUG_USERINPUT_FLAG;

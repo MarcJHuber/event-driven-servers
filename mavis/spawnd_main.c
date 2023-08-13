@@ -338,9 +338,6 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 #ifdef WITH_CRYPTO
 	"/CRYPTO"
 #endif
-#ifdef WITH_LWRES
-	"/LWRES (deprecated)"
-#endif
 #ifdef WITH_ARES
 	"/ARES"
 #endif
@@ -582,9 +579,6 @@ void scm_main(int argc, char **argv, char **envp)
 #endif
 #ifdef WITH_CRYPTO
 	"/CRYPTO"
-#endif
-#ifdef WITH_LWRES
-	"/LWRES (deprecated)"
 #endif
 #ifdef WITH_ARES
 	"/ARES"

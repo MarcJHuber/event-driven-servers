@@ -1592,7 +1592,7 @@ void add_revmap(struct in6_addr *address, char *hostname)
 
 static void set_revmap_nac(tac_session * session, char *hostname, int ttl __attribute__((unused)))
 {
-    report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAC revmap(%s) = %s", session->nac_address_ascii, hostname ? hostname : "(not found)");
+    report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "NAC revmap(%s) = %s", session->nac_address_ascii, hostname ? hostname : "(not found)");
 
     if (hostname)
 	session->nac_dns_name = mempool_strdup(session->pool, hostname);
@@ -1645,7 +1645,7 @@ void get_revmap_nac(tac_session * session, tac_host ** arr, int arr_min, int arr
 #ifdef WITH_DNS
 	    else {
 		session->revmap_pending = 1;
-		report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "Querying NAC revmap (%s)", session->nac_address_ascii);
+		report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "Querying NAC revmap (%s)", session->nac_address_ascii);
 		io_dns_add_addr(idc, &session->nac_address, (void *) set_revmap_nac, session);
 	    }
 #endif
@@ -1658,7 +1658,7 @@ static void set_revmap_nas(struct context *ctx, char *hostname, int ttl __attrib
 {
     rb_node_t *rbn, *rbnext;
 
-    report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "NAS revmap(%s) = %s", ctx->nas_address_ascii, hostname ? hostname : "(not found)");
+    report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAS revmap(%s) = %s", ctx->nas_address_ascii, hostname ? hostname : "(not found)");
 
     if (hostname)
 	ctx->nas_dns_name = mempool_strdup(ctx->pool, hostname);
@@ -1700,7 +1700,7 @@ void get_revmap_nas(struct context *ctx)
 #ifdef WITH_DNS
 	else {
 	    ctx->revmap_pending = 1;
-	    report(NULL, LOG_DEBUG, DEBUG_LWRES_FLAG, "Querying NAS revmap (%s)", ctx->nas_address_ascii);
+	    report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "Querying NAS revmap (%s)", ctx->nas_address_ascii);
 	    io_dns_add_addr(idc, &ctx->nas_address, (void *) set_revmap_nas, ctx);
 	}
 #endif
@@ -1710,7 +1710,7 @@ void get_revmap_nas(struct context *ctx)
 void resume_session(tac_session * session, int cur __attribute__((unused)))
 {
     void (*resumefn)(tac_session *) = session->resumefn;
-    report(session, LOG_DEBUG, DEBUG_LWRES_FLAG, "resuming");
+    report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "resuming");
     session->resumefn = NULL;
     if (session->revmap_pending)
 	session->revmap_timedout = 1;
