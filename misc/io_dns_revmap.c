@@ -37,6 +37,7 @@ struct io_dns_item {
     void *app_ctx;
 #ifdef WITH_ARES
     struct io_dns_ctx *idc;
+    int canceled;
 #endif
 #ifdef WITH_LWRES
     uint32_t serial;
@@ -281,8 +282,7 @@ void io_dns_cancel(struct io_dns_ctx *idc, void *app_ctx)
 	RB_delete(idc->by_app_ctx, r);
 #endif
 #ifdef WITH_ARES
-	RB_payload(r, struct io_dns_item *)->app_ctx = NULL;
-	RB_delete(idc->by_app_ctx, r);
+	RB_payload(r, struct io_dns_item *)->canceled = 1;
 #endif
     }
 }
@@ -430,7 +430,7 @@ static void a_callback(void *arg, int status, int timeouts __attribute__((unused
 {
     struct io_dns_item *idi = (struct io_dns_item *) arg;
 
-    if (idi->app_ctx) {
+    if (!idi->canceled) {
 	char *res = NULL;
 	struct hostent *host = NULL;
 	int ttl = -1;
@@ -453,8 +453,8 @@ static void a_callback(void *arg, int status, int timeouts __attribute__((unused
 	((void (*)(void *, char *, int)) idi->app_cb) (idi->app_ctx, res, ttl);
 	if (host)
 	    ares_free_hostent(host);
-	RB_search_and_delete(idi->idc->by_app_ctx, idi->app_ctx);
     }
+    RB_search_and_delete(idi->idc->by_app_ctx, idi);
     RB_search_and_delete(idi->idc->by_addr, idi);
     free(idi);
 }
