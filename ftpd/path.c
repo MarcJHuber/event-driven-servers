@@ -73,9 +73,9 @@ char *buildpath(struct context *ctx, char *path)
 {
     static char tmp[PATH_MAX + 1];
     char *t = tmp, *c = tmp;
-#if defined(WITH_PCRE) || defined(WITH_PCRE2)
+#ifdef WITH_PCRE2
     static char pcretmp[PATH_MAX + 1];
-#endif				/* WITH_PCRE */
+#endif				/* WITH_PCRE2 */
 
     Debug((DEBUG_PATH, "+ %s(\"%s\")\n", __func__, path));
     Debug((DEBUG_PATH, "  cwd =\"%s\"\n", ctx->cwd));
@@ -107,10 +107,10 @@ char *buildpath(struct context *ctx, char *path)
 	Debug((DEBUG_PATH, "- %s = NULL\n", __func__));
 	return NULL;
     }
-#if defined(WITH_PCRE) || defined(WITH_PCRE2)
+#ifdef WITH_PCRE2
     if (t && PCRE_exec(t, pcretmp, sizeof(pcretmp)))
 	t = *pcretmp ? pcretmp : NULL;
-#endif				/* WITH_PCRE */
+#endif				/* WITH_PCRE2 */
     Debug((DEBUG_PATH, "- %s = %s\n", __func__, t ? t : "NULL"));
     return t;
 }

@@ -55,10 +55,6 @@
 #include "misc/io_dns_revmap.h"
 #endif
 
-#ifdef WITH_PCRE
-#include <pcre.h>
-#endif
-
 #ifdef WITH_PCRE2
 #include <pcre2.h>
 #endif
@@ -273,7 +269,7 @@ int chunk_release(struct context *, off_t);
 
 void quota_add(struct context *, long long);
 
-#if defined(WITH_PCRE) || defined(WITH_PCRE2)
+#ifdef WITH_PCRE2
 int PCRE_add(char *, char *, char *);
 int PCRE_exec(const char *, char *, size_t);
 #endif

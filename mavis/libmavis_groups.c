@@ -26,9 +26,6 @@
 #include "debug.h"
 #include "log.h"
 
-#ifdef WITH_PCRE
-#include <pcre.h>
-#endif
 #ifdef WITH_PCRE2
 #include <pcre2.h>
 #endif
@@ -80,15 +77,6 @@ static void parse_filter_regex(struct sym *sym, struct regex_list **l)
 	*l = Xcalloc(1, sizeof(struct regex_list));
 	(*l)->negate = negate;
 	if (sym->code == S_slash) {
-#ifdef WITH_PCRE
-	    int erroffset;
-	    const char *errptr;
-	    (*l)->type = S_slash;
-	    (*l)->p = (void *)
-		pcre_compile2(sym->buf, PCRE_MULTILINE | common_data.regex_pcre_flags, &errcode, &errptr, &erroffset, NULL);
-	    if (!(*l)->p)
-		parse_error(sym, "In PCRE expression /%s/ at offset %d: %s", sym->buf, erroffset, errptr);
-#else
 #ifdef WITH_PCRE2
 	    PCRE2_SIZE erroffset;
 	    (*l)->type = S_slash;
@@ -97,11 +85,10 @@ static void parse_filter_regex(struct sym *sym, struct regex_list **l)
 	    if (!(*l)->p) {
 		PCRE2_UCHAR buffer[256];
 		pcre2_get_error_message(errcode, buffer, sizeof(buffer));
-		parse_error(sym, "In PCRE expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
+		parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
 	    }
 #else
-	    parse_error(sym, "You're using PCRE syntax, but this binary wasn't compiled with PCRE support.");
-#endif
+	    parse_error(sym, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
 #endif
 	} else {
 	    (*l)->type = S_regex;
@@ -249,9 +236,6 @@ static int rxmatch(void *v, char *s, enum token token)
 #endif
     switch (token) {
     case S_slash:
-#ifdef WITH_PCRE
-	return -1 < pcre_exec((pcre *) v, NULL, s, strlen(s), 0, 0, NULL, 0);
-#else
 #ifdef WITH_PCRE2
 	match_data = pcre2_match_data_create_from_pattern((pcre2_code *) v, NULL);
 	pcre_res = pcre2_match((pcre2_code *) v, (PCRE2_SPTR8) s, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
@@ -260,7 +244,6 @@ static int rxmatch(void *v, char *s, enum token token)
 	}
 	pcre2_match_data_free(match_data);
 	return -1 < pcre_res;
-#endif
 #endif
     default:
 	return !regexec((regex_t *) v, s, 0, NULL, 0);
@@ -432,16 +415,10 @@ static void drop_gr(struct regex_list *r)
 {
     while (r) {
 	struct regex_list *l = r->next;
-#ifdef WITH_PCRE
-	if (r->type == S_slash)
-	    pcre_free(r->p);
-	else
-#else
 #ifdef WITH_PCRE2
 	if (r->type == S_slash)
 	    pcre2_code_free(r->p);
 	else
-#endif
 #endif
 	    regfree(r->p);
 

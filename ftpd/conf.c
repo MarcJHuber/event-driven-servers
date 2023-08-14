@@ -38,9 +38,6 @@ struct acl_element {
 	struct in6_cidr *c;
 	struct mavis_timespec *t;
 	regex_t *r;
-#ifdef WITH_PCRE
-	pcre *p;
-#endif
 #ifdef WITH_PCRE2
 	pcre2_code *p;
 #endif
@@ -137,10 +134,6 @@ static int match_regex(void *reg, char *txt, enum ftp_acl_type tat)
     switch (tat) {
     case T_regex_posix:
 	return !regexec((regex_t *) reg, txt, 0, NULL, 0);
-#ifdef WITH_PCRE
-    case T_regex_pcre:
-	return -1 < pcre_exec((pcre *) reg, NULL, txt, (int) strlen(txt), 0, 0, NULL, 0);
-#endif
 #ifdef WITH_PCRE2
     case T_regex_pcre:{
 	    int res;
@@ -834,29 +827,19 @@ static enum ftp_acl_type parse_aclregex(struct sym *sym, struct acl_element *ae,
 {
     int errcode = 0;
     if (sym->code == S_slash) {
-#ifdef WITH_PCRE
-	int erroffset;
-	const char *errptr;
-	ae->blob.p = pcre_compile2(sym->buf, PCRE_MULTILINE | (ic ? PCRE_CASELESS : 0), &errcode, &errptr, &erroffset, NULL);
-	if (!ae->blob.p)
-	    parse_error(sym, "In PCRE expression /%s/ at offset %d: %s", sym->buf, erroffset, errptr);
-	sym_get(sym);
-	return T_regex_pcre;
-#else
-# ifdef WITH_PCRE2
+#ifdef WITH_PCRE2
 	PCRE2_SIZE erroffset;
 	ae->blob.p =
 	    pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | PCRE2_UTF | (ic ? PCRE2_CASELESS : 0), &errcode, &erroffset, NULL);
 	if (!ae->blob.p) {
 	    PCRE2_UCHAR buffer[256];
 	    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
-	    parse_error(sym, "In PCRE expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
+	    parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
 	}
 	sym_get(sym);
 	return T_regex_pcre;
-# else
-	parse_error(sym, "You're using PCRE syntax, but this binary wasn't compiled with PCRE support.");
-# endif
+#else
+	parse_error(sym, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
 #endif
     }
     ae->blob.r = calloc(1, sizeof(regex_t));
@@ -1644,7 +1627,7 @@ void parse_decls(struct sym *sym)
 #endif
 
 	case S_rewrite:{
-#if defined(WITH_PCRE) || defined(WITH_PCRE2)
+#ifdef WITH_PCRE2
 		char *a0 = NULL, *a1 = NULL;
 		u_int line = sym->line;
 		sym->flag_parse_pcre = 1;
@@ -1662,8 +1645,8 @@ void parse_decls(struct sym *sym)
 		} else
 		    PCRE_add(a0, a1, NULL);
 #else
-		parse_error(sym, "%s requires PCRE support.", codestring[S_rewrite]);
-#endif				/* WITH_PCRE */
+		parse_error(sym, "%s requires PCRE2 support.", codestring[S_rewrite]);
+#endif				/* WITH_PCRE2 */
 	    }
 
 	case S_cmd:

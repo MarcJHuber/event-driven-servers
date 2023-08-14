@@ -79,9 +79,6 @@
 #include <curl/curl.h>
 #endif
 
-#ifdef WITH_PCRE
-#include <pcre.h>
-#endif
 #ifdef WITH_PCRE2
 #include <pcre2.h>
 #endif
@@ -3449,18 +3446,6 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 		sym_get(sym);
 		m->u.s.rhs_txt = strdup(sym->buf);
 		if (sym->code == S_slash) {
-#ifdef WITH_PCRE
-		    int erroffset;
-		    const char *errptr;
-		    m->type = S_slash;
-		    m->u.s.rhs = pcre_compile2(sym->buf, PCRE_MULTILINE | common_data.regex_pcre_flags, &errcode, &errptr, &erroffset, NULL);
-
-		    if (!m->u.s.rhs)
-			parse_error(sym, "In PCRE expression /%s/ at offset %d: %s", sym->buf, erroffset, errptr);
-		    sym->flag_parse_pcre = 0;
-		    sym_get(sym);
-		    return p ? p : m;
-#else
 #ifdef WITH_PCRE2
 		    PCRE2_SIZE erroffset;
 		    m->type = S_slash;
@@ -3477,8 +3462,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 		    sym_get(sym);
 		    return p ? p : m;
 #else
-		    parse_error(sym, "You're using PCRE syntax, but this binary wasn't compiled with PCRE support.");
-#endif
+		    parse_error(sym, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
 #endif
 		}
 		m->u.s.rhs = calloc(1, sizeof(regex_t));
@@ -3553,10 +3537,6 @@ static int tac_mavis_cond_compare(tac_session * session, struct mavis_cond *m, c
 	res = !strcmp((char *) m->u.s.rhs, name);
 	hint = "cmp";
     } else if (m->type == S_slash) {
-#ifdef WITH_PCRE
-	res = pcre_exec((pcre *) m->u.s.rhs, NULL, name, (int) name_len, 0, 0, NULL, 0);
-	hint = "pcre";
-#endif
 #ifdef WITH_PCRE2
 	pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.rhs, NULL);
 	res = pcre2_match((pcre2_code *) m->u.s.rhs, (PCRE2_SPTR) name, (PCRE2_SIZE) name_len, 0, 0, match_data, NULL);

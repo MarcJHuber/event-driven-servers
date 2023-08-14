@@ -79,9 +79,6 @@
 #include <curl/curl.h>
 #endif
 
-#ifdef WITH_PCRE
-#include <pcre.h>
-#endif
 #ifdef WITH_PCRE2
 #include <pcre2.h>
 #endif
@@ -124,9 +121,6 @@ struct acl_element {
 	struct mavis_timespec *t;
 	struct tac_acl *a;
 	regex_t *r;
-#ifdef WITH_PCRE
-	pcre *p;
-#endif
 #ifdef WITH_PCRE2
 	pcre2_code *p;
 #endif
@@ -1158,7 +1152,7 @@ void free_user(tac_user * user)
     radix_drop(&user->nac_range, NULL);
     RB_tree_delete(user->svcs);
     RB_tree_delete(user->svc_prohibit);
-#if defined(WITH_PCRE) || defined(WITH_PCRE2)
+#ifdef WITH_PCRE2
     mempool_destroy(user->pool_pcre);
 #endif
     mempool_destroy(user->pool_regex);
@@ -1190,7 +1184,7 @@ tac_user *new_user(char *name, enum token type, tac_realm * r)
     user->pool = pool;
     user->realm = r;
     if (type == S_user) {
-#if defined(WITH_PCRE) || defined(WITH_PCRE2)
+#ifdef WITH_PCRE2
 	user->pool_pcre = tac_pcrepool_create();
 #endif
 	user->pool_regex = tac_regpool_create();
@@ -3714,18 +3708,6 @@ static enum tac_acl_type parse_regex(struct sym *sym, tac_user * user, void **rp
 {
     int errcode = 0;
     if (sym->code == S_slash) {
-#ifdef WITH_PCRE
-	int erroffset;
-	const char *errptr;
-	*rptr = pcre_compile2(sym->buf, PCRE_MULTILINE | common_data.regex_pcre_flags, &errcode, &errptr, &erroffset, NULL);
-	if (*rptr) {
-	    if (user->pool_pcre)
-		RB_insert(user->pool_pcre, *rptr);
-	} else
-	    parse_error(sym, "In PCRE expression /%s/ at offset %d: %s", sym->buf, erroffset, errptr);
-	tac_sym_get(sym);
-	return T_regex_pcre;
-#else
 #ifdef WITH_PCRE2
 	PCRE2_SIZE erroffset;
 	*rptr = pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
@@ -3740,8 +3722,7 @@ static enum tac_acl_type parse_regex(struct sym *sym, tac_user * user, void **rp
 	tac_sym_get(sym);
 	return T_regex_pcre;
 #else
-	parse_error(sym, "You're using PCRE syntax, but this binary wasn't compiled with PCRE support.");
-#endif
+	parse_error(sym, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
 #endif
     }
     *rptr = mempool_malloc(user->pool, sizeof(regex_t));
@@ -3761,15 +3742,6 @@ static enum tac_acl_type parse_aclregex(struct sym *sym, struct acl_element *ae)
 {
     int errcode = 0;
     if (sym->code == S_slash) {
-#ifdef WITH_PCRE
-	int erroffset;
-	const char *errptr;
-	ae->blob.p = pcre_compile2(sym->buf, PCRE_MULTILINE | common_data.regex_pcre_flags, &errcode, &errptr, &erroffset, NULL);
-	if (!ae->blob.p)
-	    parse_error(sym, "In PCRE expression /%s/ at offset %d: %s", sym->buf, erroffset, errptr);
-	tac_sym_get(sym);
-	return T_regex_pcre;
-#else
 #ifdef WITH_PCRE2
 	PCRE2_SIZE erroffset;
 	ae->blob.p = pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
@@ -3781,8 +3753,7 @@ static enum tac_acl_type parse_aclregex(struct sym *sym, struct acl_element *ae)
 	tac_sym_get(sym);
 	return T_regex_pcre;
 #else
-	parse_error(sym, "You're using PCRE syntax, but this binary wasn't compiled with PCRE support.");
-#endif
+	parse_error(sym, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
 #endif
     }
     ae->blob.r = calloc(1, sizeof(regex_t));
@@ -4424,10 +4395,6 @@ static int match_regex(tac_session * session, void *reg, char *txt, enum tac_acl
 	report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "regex: '%s' <=> '%s' = %d", string, txt, res);
 	return 0 == res;
     case T_regex_pcre:
-#ifdef WITH_PCRE
-	res = pcre_exec((pcre *) reg, NULL, txt, (int) strlen(txt), 0, 0, NULL, 0);
-	report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre: '%s' <=> '%s' = %d", string, txt, res);
-#endif
 #ifdef WITH_PCRE2
 	{
 	    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) reg, NULL);
@@ -4986,22 +4953,6 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 	} else {
 	    int errcode = 0;
 	    if (sym->code == S_slash) {
-#ifdef WITH_PCRE
-		int erroffset;
-		const char *errptr;
-		m->type = S_slash;
-		m->u.s.rhs = pcre_compile2(sym->buf, PCRE_MULTILINE | common_data.regex_pcre_flags, &errcode, &errptr, &erroffset, NULL);
-		if (u && u->pool_pcre) {
-		    RB_insert(u->pool_pcre, m->u.s.rhs);
-		    m->u.s.rhs_txt = mempool_strdup(u->pool, sym->buf);
-		}
-
-		if (!m->u.s.rhs)
-		    parse_error(sym, "In PCRE expression /%s/ at offset %d: %s", sym->buf, erroffset, errptr);
-		sym->flag_parse_pcre = 0;
-		tac_sym_get(sym);
-		return p ? p : m;
-#else
 #ifdef WITH_PCRE2
 		PCRE2_SIZE erroffset;
 		m->type = S_slash;
@@ -5021,8 +4972,7 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 		tac_sym_get(sym);
 		return p ? p : m;
 #else
-		parse_error(sym, "You're using PCRE syntax, but this binary wasn't compiled with PCRE support.");
-#endif
+		parse_error(sym, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
 #endif
 	    }
 	    m->u.s.rhs = mempool_malloc(pool, sizeof(regex_t));
@@ -5185,10 +5135,6 @@ static int tac_script_cond_eval(tac_session * session, char *cmd, struct mavis_c
 	    return 0;
 	if (m->type == S_slash) {
 	    int res = -1;
-#ifdef WITH_PCRE
-	    res = pcre_exec((pcre *) m->u.s.rhs, NULL, v, (int) strlen(v), 0, 0, NULL, 0);
-	    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre: '%s' <=> '%s' = %d", m->u.s.rhs_txt, v, res);
-#endif
 #ifdef WITH_PCRE2
 	    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.rhs, NULL);
 	    res = pcre2_match((pcre2_code *) m->u.s.rhs, (PCRE2_SPTR) v, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);

@@ -329,9 +329,6 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
     common_data.servers_max = 8;
     common_data.progname = Xstrdup(basename(argv[0]));
     common_data.version = VERSION
-#ifdef WITH_PCRE
-	"PCRE (deprecated)"
-#endif
 #ifdef WITH_PCRE2
 	"/PCRE2"
 #endif
@@ -571,9 +568,6 @@ void scm_main(int argc, char **argv, char **envp)
     common_data.progname = strdup(basename(argv[0]));
 
     common_data.version = VERSION
-#ifdef WITH_PCRE
-	"/PCRE (deprecated)"
-#endif
 #ifdef WITH_PCRE2
 	"/PCRE2"
 #endif
