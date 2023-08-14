@@ -436,14 +436,6 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
 
     r = calloc(1, sizeof(tac_realm));
     r->name = strdup(name);
-    r->chalresp = TRISTATE_DUNNO;
-    r->chpass = TRISTATE_DUNNO;
-    r->mavis_userdb = TRISTATE_DUNNO;
-    r->mavis_noauthcache = TRISTATE_DUNNO;
-    r->mavis_pap = TRISTATE_DUNNO;
-    r->mavis_login = TRISTATE_DUNNO;
-    r->mavis_pap_prefetch = TRISTATE_DUNNO;
-    r->mavis_login_prefetch = TRISTATE_DUNNO;
 
     r->default_host = new_host(NULL, "default", NULL, r, parent ? 0 : 1);
 
@@ -1511,8 +1503,6 @@ tac_user *new_user(char *name, enum token type, tac_realm * r)
     user->name_len = strlen(name);
     user->memlist = memlist;
     user->realm = r;
-    user->chalresp = TRISTATE_DUNNO;
-    user->hushlogin = TRISTATE_DUNNO;
 
     for (i = 0; i <= PW_MAVIS; i++)
 	user->passwd[i] = passwd_deny_dflt;
@@ -1540,7 +1530,6 @@ tac_profile *new_profile(char *name, tac_realm * r)
     profile->name = strdup(name);
     profile->name_len = strlen(name);
     profile->realm = r;
-    profile->hushlogin = TRISTATE_DUNNO;
     return profile;
 }
 
