@@ -120,6 +120,7 @@ static struct i2s map_service[] = {
     { TAC_PLUS_AUTHEN_SVC_RCMD, "rcmd", 0 },
     { TAC_PLUS_AUTHEN_SVC_X25, "x25", 0 },
     { TAC_PLUS_AUTHEN_SVC_NASI, "nasi", 0 },
+    { TAC_PLUS_AUTHEN_SVC_FWPROXY, "fwproxy", 0 },
     { 0, NULL, 0 }
 };
 

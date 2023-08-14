@@ -437,6 +437,7 @@ struct authen_start {
 #define TAC_PLUS_AUTHEN_SVC_RCMD   6
 #define TAC_PLUS_AUTHEN_SVC_X25    7
 #define TAC_PLUS_AUTHEN_SVC_NASI   8
+#define TAC_PLUS_AUTHEN_SVC_FWPROXY 9
 
     u_char user_len;
     u_char port_len;
