@@ -424,6 +424,10 @@ void av_free_private(av_ctx * ac)
 	    case AV_A_ARGS:
 	    case AV_A_RARGS:
 	    case AV_A_VERDICT:
+	    case AV_A_CUSTOM_0:
+	    case AV_A_CUSTOM_1:
+	    case AV_A_CUSTOM_2:
+	    case AV_A_CUSTOM_3:
 		break;
 	    default:
 		Xfree(&ac->arr[i]);
