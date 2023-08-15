@@ -484,3 +484,8 @@ server.name			S_server_name
 server.address			S_server_address
 server.port			S_server_port
 #
+custom_0			S_custom_0
+custom_1			S_custom_1
+custom_2			S_custom_2
+custom_3			S_custom_3
+#

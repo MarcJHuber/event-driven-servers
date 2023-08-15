@@ -141,14 +141,14 @@ extern struct av_char av_char[];
     AV_CHAR({"DBPASSWORD", S_unknown},)
 #define AV_A_IDENTITY_SOURCE	37
     AV_CHAR({"IDENTITY_SOURCE", S_identity_source},)
-#define AV_A_SPARE38		38
-    AV_CHAR({"SPARE38", S_unknown},)
-#define AV_A_SPARE39		39
-    AV_CHAR({"SPARE39", S_unknown},)
-#define AV_A_SPARE40		40
-    AV_CHAR({"SPARE40", S_unknown},)
-#define AV_A_SPARE41		41
-    AV_CHAR({"SPARE41", S_unknown},)
+#define AV_A_CUSTOM_0		38
+    AV_CHAR({"CUSTOM_0", S_custom_0},)
+#define AV_A_CUSTOM_1		39
+    AV_CHAR({"CUSTOM_1", S_custom_1},)
+#define AV_A_CUSTOM_2		40
+    AV_CHAR({"CUSTOM_2", S_custom_2},)
+#define AV_A_CUSTOM_3		41
+    AV_CHAR({"CUSTOM_3", S_custom_3},)
 #define AV_A_SPARE42		42
     AV_CHAR({"SPARE42", S_unknown},)
 #define AV_A_SPARE43			43

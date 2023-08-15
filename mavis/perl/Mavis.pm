@@ -19,6 +19,10 @@ BEGIN {
 		AV_A_CLASS
 		AV_A_COMMENT
 		AV_A_CURRENT_MODULE
+		AV_A_CUSTOM_0
+		AV_A_CUSTOM_1
+		AV_A_CUSTOM_2
+		AV_A_CUSTOM_3
 		AV_A_DBCERTSUBJ
 		AV_A_DBPASSWORD
 		AV_A_DN
@@ -99,6 +103,10 @@ use constant AV_A_CHALLENGE => 51;
 use constant AV_A_CLASS => 34;
 use constant AV_A_COMMENT => 17;
 use constant AV_A_CURRENT_MODULE => 55;
+use constant AV_A_CUSTOM_0 => 38;
+use constant AV_A_CUSTOM_1 => 39;
+use constant AV_A_CUSTOM_2 => 40;
+use constant AV_A_CUSTOM_3 => 41;
 use constant AV_A_DBCERTSUBJ => 45;
 use constant AV_A_DBPASSWORD => 36;
 use constant AV_A_DN => 5;
