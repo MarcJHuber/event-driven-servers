@@ -961,6 +961,8 @@ static int eap_step(tac_session * session __attribute__((unused)),
 		    u_char * eap_in __attribute__((unused)), size_t eap_in_len __attribute__((unused)),
 		    u_char * eap_out __attribute__((unused)), size_t *eap_out_len __attribute__((unused)))
 {
+    // This is a stub. An implementation bases on libeap (from hostapd) seems feasible,
+    // but makes no sense without client support.
     *eap_out_len = 4;
     eap_out[0] = EAP_FAILURE;
     eap_out[1] = 0;
