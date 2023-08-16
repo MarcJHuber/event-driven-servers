@@ -876,6 +876,10 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_shell:
 	    case S_memberof:
 	    case S_dn:
+	    case S_custom_0:
+	    case S_custom_1:
+	    case S_custom_2:
+	    case S_custom_3:
 	    case S_vrf:
 	    case S_realm:
 	    case S_label:
@@ -1529,6 +1533,38 @@ static char *eval_log_format_nacname(tac_session * session, struct context *ctx 
     return NULL;
 }
 
+static char *eval_log_format_custom_0(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				      __attribute__((unused)), size_t *len __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc)
+	return session->user->avc->arr[AV_A_CUSTOM_0];
+    return NULL;
+}
+
+static char *eval_log_format_custom_1(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				      __attribute__((unused)), size_t *len __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc)
+	return session->user->avc->arr[AV_A_CUSTOM_1];
+    return NULL;
+}
+
+static char *eval_log_format_custom_2(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				      __attribute__((unused)), size_t *len __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc)
+	return session->user->avc->arr[AV_A_CUSTOM_2];
+    return NULL;
+}
+
+static char *eval_log_format_custom_3(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				      __attribute__((unused)), size_t *len __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc)
+	return session->user->avc->arr[AV_A_CUSTOM_3];
+    return NULL;
+}
+
 #if defined(WITH_TLS) || defined(WITH_SSL)
 static char *eval_log_format_tls_conn_version(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
 					      __attribute__((unused)), size_t *len)
@@ -1688,6 +1724,10 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_nacname] = &eval_log_format_nacname;
 	efun[S_devicedns] = &eval_log_format_nasname;
 	efun[S_nasname] = &eval_log_format_nasname;
+	efun[S_custom_0] = &eval_log_format_custom_0;
+	efun[S_custom_1] = &eval_log_format_custom_1;
+	efun[S_custom_2] = &eval_log_format_custom_2;
+	efun[S_custom_3] = &eval_log_format_custom_3;
 #if defined(WITH_TLS) || defined(WITH_SSL)
 	efun[S_tls_conn_cipher] = &eval_log_format_tls_conn_cipher;
 	efun[S_tls_conn_cipher_strength] = &eval_log_format_tls_conn_cipher_strength;
@@ -1783,7 +1823,7 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	if (s) {
 	    if (!len)
 		len = strlen(s);
-	    if (li->token == S_umessage) {
+	    if (li->token == S_umessage || (session && session->eval_log_raw)) {
 		if (sizeof(buf) - total_len > len + 20)
 		    memcpy(b, s, len);
 	    } else
@@ -1986,13 +2026,13 @@ void *mempool_detach(rb_tree_t * pool, void *ptr)
     return NULL;
 }
 
-char *memlist_copy(memlist_t *list, void *s, size_t len) {
-	char *p = NULL;
-	if (s) {
-		p = memlist_malloc(list, len + 1);
-		memcpy(p, s, len);
-		p[len] = 0;
-		return p;
-	}
-	return p;
+char *memlist_copy(memlist_t * list, void *s, size_t len)
+{
+    char *p = NULL;
+    if (s) {
+	p = memlist_malloc(list, len + 1);
+	memcpy(p, s, len);
+	p[len] = 0;
+    }
+    return p;
 }

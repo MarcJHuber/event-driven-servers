@@ -3120,7 +3120,7 @@ static void parse_tac_acl(struct sym *sym, tac_realm * realm)
     parse(sym, S_closebra);
 }
 
-void attr_add(tac_session * session, char ***v, int *i, char *attr, size_t attr_len)
+static void attr_add_single(tac_session * session, char ***v, int *i, char *attr, size_t attr_len)
 {
     if (!*v) {
 	*v = memlist_malloc(session->memlist, 0x100 * sizeof(char *));
@@ -3128,6 +3128,51 @@ void attr_add(tac_session * session, char ***v, int *i, char *attr, size_t attr_
     }
     if (*i < 256)
 	(*v)[(*i)++] = memlist_strndup(session->memlist, (u_char *) attr, attr_len);
+}
+
+static void attr_add_multi(tac_session * session, char ***v, int *i, char *attr, size_t attr_len)
+{
+    char *a = alloca(attr_len + 1);
+    size_t a_len;
+
+    for (a_len = 0; a_len < attr_len && attr[a_len] != '*' && attr[a_len] != '='; a_len++);
+    if (a_len == attr_len)
+	return;
+    a_len++;
+
+    memcpy(a, attr, a_len);
+    a[a_len] = 0;
+
+    attr += a_len;
+    attr_len -= a_len;
+
+    while (attr_len) {
+	size_t j;
+	for (j = 0; j < attr_len && attr[j] != '\n'; j++);
+	if (j)
+	    memcpy(a + a_len, attr, j);
+	else
+	    a[a_len] = 0;
+	attr_add_single(session, v, i, a, a_len + j);
+	attr_len -= j;
+	attr += j;
+	if (attr_len) {
+	    attr_len--;
+	    attr++;
+	}
+    }
+}
+
+void attr_add(tac_session * session, char ***v, int *i, char *attr, size_t attr_len)
+{
+    if (attr && attr_len) {
+	size_t j;
+	for (j = 0; j < attr_len && attr[j] != '\n'; j++);
+	if (attr[j])
+	    attr_add_multi(session, v, i, attr, attr_len);
+	else
+	    attr_add_single(session, v, i, attr, attr_len);
+    }
 }
 
 void cfg_init(void)
@@ -3889,7 +3934,9 @@ enum token tac_script_eval_r(tac_session * session, struct mavis_action *m)
     case S_add:
     case S_set:
     case S_optional:
+	session->eval_log_raw = 1;
 	v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, NULL);
+	session->eval_log_raw = 0;
 	if (m->code == S_set)
 	    attr_add(session, &session->attrs_m, &session->cnt_m, v, strlen(v));
 	else if (m->code == S_add)
