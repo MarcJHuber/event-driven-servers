@@ -3168,10 +3168,10 @@ void attr_add(tac_session * session, char ***v, int *i, char *attr, size_t attr_
     if (attr && attr_len) {
 	size_t j;
 	for (j = 0; j < attr_len && attr[j] != '\n'; j++);
-	if (attr[j])
-	    attr_add_multi(session, v, i, attr, attr_len);
-	else
+	if (j == attr_len)
 	    attr_add_single(session, v, i, attr, attr_len);
+	else
+	    attr_add_multi(session, v, i, attr, attr_len);
     }
 }
 
