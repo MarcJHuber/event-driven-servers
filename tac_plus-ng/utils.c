@@ -158,18 +158,27 @@ static void create_dirs(char *path)
     }
 }
 
-static int tac_lock(int lockfd, int locktype)
+static int tac_lockfd(int lockfd)
 {
-    struct flock flock;
-
-    memset(&flock, 0, sizeof(flock));
-    flock.l_type = locktype;
-    flock.l_whence = SEEK_SET;
-    return fcntl(lockfd, F_SETLK, &flock);
+    static struct flock *flock = NULL;
+    if (!flock) {
+	flock = calloc(1, sizeof(struct flock));
+	flock->l_type = F_WRLCK;
+	flock->l_whence = SEEK_SET;
+    }
+    return fcntl(lockfd, F_SETLK, flock);
 }
 
-#define tac_lockfd(A) tac_lock(A,F_WRLCK)
-#define tac_unlockfd(A) tac_lock(A,F_UNLCK)
+static int tac_unlockfd(int lockfd)
+{
+    static struct flock *flock = NULL;
+    if (!flock) {
+	flock = calloc(1, sizeof(struct flock));
+	flock->l_type = F_UNLCK;
+	flock->l_whence = SEEK_SET;
+    }
+    return fcntl(lockfd, F_SETLK, flock);
+}
 
 struct logfile {
     char *dest;			/* log file dest specification */
