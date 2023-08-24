@@ -189,7 +189,7 @@ sub expand_memberof($) {
 				goto fatal;
 			}
 			my $entry = $mesg->entry(0);
-			return $entry->get_value('memberof', asref => 1) if $entry;
+			return $entry->get_value('memberOf', asref => 1) if $entry;
 			return [ ];
 		}
 		sub expand_memberof_sub($$);
@@ -314,7 +314,7 @@ retry_once:
 	if ($mesg->count() == 1) {
 		my $entry = $mesg->entry(0);
 
-		my $val = $entry->get_value('memberof', asref => 1);
+		my $val = $entry->get_value('memberOf', asref => 1);
 		$authdn = $entry->dn;
 		my (@M, @MO);
 		if ($#{$val} > -1) {

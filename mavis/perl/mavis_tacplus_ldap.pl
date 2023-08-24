@@ -331,7 +331,7 @@ sub get_memberof($) {
 		goto fatal;
 	}
 	my $entry = $mesg->entry(0);
-	return $entry->get_value('memberof', asref => 1) if $entry;
+	return $entry->get_value('memberOf', asref => 1) if $entry;
 	return [ ];
 }
 
