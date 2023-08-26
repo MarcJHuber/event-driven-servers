@@ -74,9 +74,9 @@ Directives</a></dt>
 <dt>5.3. <a href="#AEN942">MAVIS Scripting Language</a></dt>
 </dl>
 </dd>
-<dt>6. <a href="#AEN1137">Testing your MAVIS configuration</a></dt>
-<dt>7. <a href="#AEN1146">Environmental Variables</a></dt>
-<dt>8. <a href="#AEN1151">Copyrights and Acknowledgements</a></dt>
+<dt>6. <a href="#AEN1142">Testing your MAVIS configuration</a></dt>
+<dt>7. <a href="#AEN1151">Environmental Variables</a></dt>
+<dt>8. <a href="#AEN1156">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -788,8 +788,8 @@ Configuration directives</a></h5>
 "emphasis">Arguments ...</i></span></p>
 <p>Set path and arguments (including <tt class=
 "literal">argv[0]</tt>) of the authentication program. It's
-recommended to enclose the individual arguments in double quotes if
-they contain non-alphanumeric characters.</p>
+recommended to enclose the individual arguments in double quotes to
+avoid potential conflicts with pre-defined keywords.</p>
 </li>
 </ul>
 </div>
@@ -1647,8 +1647,23 @@ doubled.</p>
 <p>Likewise, the <tt class="literal">pammavis</tt> program may be
 used for authentication using PAM. Example for TACACS+:</p>
 <pre class="screen">    mavis module = external {
-        exec = /usr/local/sbin/pammavis pammavis -s pamservicename
+        exec = /usr/local/sbin/pammavis "pammavis" "-s" "pamservicename"
     }</pre>
+<div class="tip">
+<table class="tip" width="100%" border="0">
+<tr>
+<td width="25" align="center" valign="top"><img src=
+"../images/tip.gif" hspace="5" alt="Tip"></td>
+<td align="left" valign="top">
+<p><tt class="literal">pammavis</tt> might require root privileges
+on your system. In case you're not running the daemon as root
+anyway you can either set the <tt class="literal">setuid</tt> bit
+(and perhaps limit access to a particular user group) or use an
+adequate <tt class="literal">sudo</tt> configuration.</p>
+</td>
+</tr>
+</table>
+</div>
 <p>As detailed in the <span class="emphasis"><i class=
 "emphasis">PAM</i></span> module section above, take care not to
 use a PAM service which implements login delays. The PAM service
@@ -1745,7 +1760,7 @@ supported attributes.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1137" id="AEN1137">6. Testing your
+<h2 class="section"><a name="AEN1142" id="AEN1142">6. Testing your
 MAVIS configuration</a></h2>
 <p>You'll almost certainly want to validate that your backend
 configuration behaves as expected. You can do so using the
@@ -1776,7 +1791,7 @@ Sample usage: mavistest -d -1  /usr/local/etc/tac_plus.cfg tac_plus TACPLUS joe 
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1146" id="AEN1146">7. Environmental
+<h2 class="section"><a name="AEN1151" id="AEN1151">7. Environmental
 Variables</a></h2>
 <p>Text enclosed in double quotes may make use of environment
 variables, e.g.:</p>
@@ -1785,7 +1800,7 @@ variables, e.g.:</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1151" id="AEN1151">8. Copyrights
+<h2 class="section"><a name="AEN1156" id="AEN1156">8. Copyrights
 and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of
 individual files.</p>
@@ -1874,7 +1889,7 @@ with the distribution.</p>
 <li>
 <p>The end-user documentation included with the redistribution, if
 any, must include the following acknowledgment:</p>
-<a name="AEN1200" id="AEN1200"></a>
+<a name="AEN1205" id="AEN1205"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber
 (<code class="email">&lt;<a href=

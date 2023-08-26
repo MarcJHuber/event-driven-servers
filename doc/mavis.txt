@@ -495,8 +495,8 @@ cache expire FTP = 0
      * exec = Path Arguments ...
        Set path and arguments (including argv[0]) of the
        authentication program. It's recommended to enclose the
-       individual arguments in double quotes if they contain
-       non-alphanumeric characters.
+       individual arguments in double quotes to avoid potential
+       conflicts with pre-defined keywords.
      __________________________________________________________
 
 5.2.5.2. Railroad Diagram
@@ -1018,8 +1018,15 @@ ormat.
    Likewise, the pammavis program may be used for authentication
    using PAM. Example for TACACS+:
     mavis module = external {
-        exec = /usr/local/sbin/pammavis pammavis -s pamservicename
+        exec = /usr/local/sbin/pammavis "pammavis" "-s" "pamservicename"
     }
+
+   Tip
+
+   pammavis might require root privileges on your system. In case
+   you're not running the daemon as root anyway you can either set
+   the setuid bit (and perhaps limit access to a particular user
+   group) or use an adequate sudo configuration.
 
    As detailed in the PAM module section above, take care not to
    use a PAM service which implements login delays. The PAM

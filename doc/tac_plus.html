@@ -518,7 +518,7 @@ id = tac_plus {
     }
 
     mavis module = external {
-      exec = /usr/local/sbin/pammavis pammavis -s mavis
+      exec = /usr/local/sbin/pammavis "pammavis" "-s" "mavis"
     }
 
     user backend = mavis
@@ -4460,7 +4460,7 @@ id = tac_plus {
     }
   }
   mavis module = external {
-    exec = /usr/local/sbin/pammavis pammavis -s sshd
+    exec = /usr/local/sbin/pammavis pammavis "-s" "sshd"
   }
   user backend = mavis
   login backend = mavis

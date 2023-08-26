@@ -279,7 +279,7 @@ CMEMBER
     }
 
     mavis module = external {
-        exec = /usr/local/sbin/pammavis pammavis -s sshd
+        exec = /usr/local/sbin/pammavis "pammavis" "-s" "sshd"
     }
 
     user backend = mavis
@@ -2686,7 +2686,7 @@ id = tac_plus {
     }
   }
   mavis module = external {
-    exec = /usr/local/sbin/pammavis pammavis -s sshd
+    exec = /usr/local/sbin/pammavis "pammavis" "-s" "sshd"
   }
   user backend = mavis
   login backend = mavis
@@ -2829,8 +2829,8 @@ ma-separated
 # }
 ## ... or the freeradius-client based code:
 mavis module = external {
-    exec = /usr/local/sbin/radmavis radmavis "group_attribute=Class" "au
-thserver=1.2.3.4:1812:mysecret"
+    exec = /usr/local/sbin/radmavis "radmavis" "group_attribute=Class" "
+authserver=1.2.3.4:1812:mysecret"
 }
      __________________________________________________________
 
