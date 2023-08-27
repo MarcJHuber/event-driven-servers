@@ -132,6 +132,13 @@ if LDAP_USER is not None:
 				LDAP_FILTER = '(&(objectclass=user)(sAMAccountName={}))'
 			LDAP_USER = conn.user
 
+if conn.server.info.vendor_name != None:
+	if (LDAP_USER == None or LDAP_PASSWD == None) and '389 Project' in conn.server.info.vendor_name:
+		print('\
+The 389 directory server will not return the memberOf attribute for anonymous binds. \
+Please set the LDAP_USER and LDAP_PASSWD environment variables.\
+		', file=sys.stderr)
+
 if LDAP_SERVER_TYPE == None:
 	LDAP_SERVER_TYPE="generic"
 	LDAP_FILTER = '(&(objectclass=posixaccount)(uid={}))'

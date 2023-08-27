@@ -290,6 +290,11 @@ retry_once:
 				$LDAP_FILTER = '(&(objectclass=posixAccount)(uid=%s))' unless defined $LDAP_FILTER;
 			}
 		}
+		my $vendor = $ldap->root_dse->get_value('vendorname');
+		if (defined($vendor) && $vendor =~ /389 Project/ && $#LDAP_BIND < 0) {
+			printf STDERR "The 389 directory server will not return the memberOf attribute for anonymous binds. " .
+				      "Please set the LDAP_USER and LDAP_PASSWD environment variables.\n";
+		}
 	}
 
 	my $authdn = undef;
