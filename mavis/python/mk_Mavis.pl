@@ -51,14 +51,6 @@ def read():
 	exit(0)
 
 class Mavis:
-	av_pairs = { }
-	is_tacplus_authc = False
-	is_tacplus_authz = False
-	is_tacplus_chpw = False
-	user = None
-	password = None
-	password_new = None
-
 	def write(self, verdict, result, user_response):
 		self.av_pairs[AV_A_RESULT] = result
 		if user_response is not None:
@@ -95,7 +87,7 @@ class Mavis:
 		return True
 
 	def __init__(self):
-		av_pairs = { }
+		self.av_pairs = { }
 		for line in sys.stdin:
 			if line:
 				line = line.rstrip('\\n')
