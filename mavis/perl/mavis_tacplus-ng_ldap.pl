@@ -347,7 +347,11 @@ retry_once:
 			$val = $entry->get_value('shadowExpire');
 			if ($val && $val * 86400 < time){
 				$V[AV_A_USER_RESPONSE] = "Password has expired.";
-				$V[AV_A_PASSWORD_MUSTCHANGE] = 1;
+				if ($has_extension_password_modify) {
+					$V[AV_A_PASSWORD_MUSTCHANGE] = 1;
+				} else {
+					goto fail;
+				}
 			}
 			$mesg =  $ldap->bind($authdn, password => $V[AV_A_PASSWORD]);
 			my $code = $mesg->code;

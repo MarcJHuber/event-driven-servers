@@ -255,8 +255,13 @@ while True:
 		if (LDAP_SERVER_TYPE == "generic"
 			and len(entry.shadowExpire) > 0  and int(entry.shadowExpire[0]) > 0
 			and int(entry.shadowExpire[0]) * 86400 < time.time()):
-			D.password_mustchange(1)
 			user_msg = "Password has expired."
+			if '1.3.6.1.4.1.4203.1.11.1' in map (
+				lambda x: x[0], conn.server.info.supported_extensions):
+				D.password_mustchange(1)
+			else:
+				D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, None)
+				continue
 		if not conn.rebind(user=entry.entry_dn, password=D.password):
 			if (LDAP_SERVER_TYPE == "microsoft"
 				and conn.result == ldap3.core.results.RESULT_INVALID_CREDENTIALS
