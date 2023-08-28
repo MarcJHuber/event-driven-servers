@@ -847,16 +847,22 @@ umask = 0640
 
 4.2.3.1.2. Spoofing Syslog Packets
 
-   The script tacspooflog.pl (which comes bundled with this
-   distribution) may be used to make syslogd believe that logs
-   come straight from your router, not from tac_plus.
+   The script tacspooflog-ng.pl (which comes bundled with this
+   distribution, have a look at the tac_plus-ng/extra/ directory)
+   may be used to make syslogd believe that logs come straight
+   from your router, not from tac_plus-ng.
 
    E.g., if your syslogd is listening on 127.0.0.1, you may try:
-  access log = "|exec sudo /path/to/tacspooflog.pl 127.0.0.1"
+  access log = "|exec sudo /path/to/tacspooflog-ng.pl 127.0.0.1"
 
    This may be useful if you want to keep logs in a common place.
 
-   Please note that this will work for IPv4 destinations only.
+   In contrast to the older tacspooflog.pl script
+   tacspooflog-ng.pl will handle both IPv4 and IPv6 addresses and
+   has more configuration options.
+
+   Please read tac_plus-ng/extra/tacspooflog-ng.README too, if
+   you're thinking about using this script.
      __________________________________________________________
 
 4.2.3.2. User Messages
