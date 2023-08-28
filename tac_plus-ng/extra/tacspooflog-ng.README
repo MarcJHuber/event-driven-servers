@@ -1,0 +1,36 @@
+On Linux, packets sent by tacspooflog-ng.pl don't seem to make it to the
+input queue of the local Linux system.
+
+To work around this you can setup a network namespace with a veth pair and
+reverse-path filtering disabled. Sample code (you might need to adjust
+addressing):
+
+ ip netns add spooflog
+ ip link add name spooflog0 type veth peer name spooflog1
+ ip link set spooflog1 netns spooflog
+ ip addr add 100.64.0.1/30 dev spooflog0
+ ip -6 addr add fcff::1/126 dev spooflog0
+ ip netns exec spooflog ip addr add 100.64.0.2/30 dev spooflog1
+ ip netns exec spooflog ip -6 addr add fcff::2/126 dev spooflog1
+ ip link set spooflog0 up
+ ip netns exec spooflog ip link set spooflog1 up
+ echo 0 > /proc/sys/net/ipv4/conf/spooflog0/rp_filter
+
+Then run the script in that namespace:
+
+ log ... {
+    destination =
+      "|exec /usr/bin/ip netns exec spooflog /path/to/tacspooflog-ng.pl 100.64.0.1 fcff::1"
+ }
+
+The Perl script needs root privileges, so
+
+ log ... {
+    destination =
+      "|exec /usr/bin/sudo ip netns exec spooflog /path/to/tacspooflog-ng.pl 100.64.0.1 fcff::1"
+ }
+
+plus an approriate SUDO configuration might be required.
+
+The example above is for tac_plus-ng. Tac_plus syntax differs.
+
