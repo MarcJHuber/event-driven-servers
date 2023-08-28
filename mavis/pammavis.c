@@ -141,6 +141,13 @@ int main(int argc, char **argv)
     if (argv[optind])
 	usage();
 
+    if (snprintf(buf, sizeof(buf), "/etc/pam.d/%s", service) < (int) sizeof(buf)) {
+	if (access(buf, F_OK))
+	    fprintf(stderr,
+		"Service file %s for PAM service %s does not exist, you may need to specify "
+		"a valid service using the '-s <service>' option.\n", buf, service);
+    }
+
     while (fgets(buf, sizeof(buf), stdin)) {
 	int mavis_attr;
 	char mavis_val[4096];
