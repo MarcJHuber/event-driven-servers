@@ -85,7 +85,7 @@ TLS_OPTIONS
 
 """
 
-import os, sys, re, ldap3
+import os, sys, re, ldap3, time
 from mavis import (Mavis,
 	MAVIS_DOWN, MAVIS_FINAL,
 	AV_V_RESULT_OK, AV_V_RESULT_ERROR, AV_V_RESULT_FAIL,
