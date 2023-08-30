@@ -218,7 +218,7 @@ class Mavis:
 
 	def password_mustchange(self, arg):
 		if arg:
-			self.av_pairs.pop(AV_A_PASSWORD_MUSTCHANGE, None)
-		else:
 			self.av_pairs[AV_A_PASSWORD_MUSTCHANGE] = "1"
+		else:
+			self.av_pairs.pop(AV_A_PASSWORD_MUSTCHANGE, None)
 		return arg
