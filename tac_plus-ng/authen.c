@@ -1708,6 +1708,7 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	li_password_incorrect = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n\"", __FILE__, __LINE__);
 	li_password_incorrect_retry = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n${PASSWORD}\"", __FILE__, __LINE__);
 	li_response_incorrect = parse_log_format_inline("\"${RESPONSE_INCORRECT}\n${RESPONSE}\"", __FILE__, __LINE__);
+	li_account_expires = parse_log_format_inline("\"${ACCOUNT_EXPIRES}\n\"", __FILE__, __LINE__);
     }
 
     if (!session->authen_data)
