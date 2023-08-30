@@ -155,14 +155,14 @@ class Mavis:
 
 	def remember_password(self, arg):
 		if arg:
-			self.av_pairs.popr(AV_A_PASSWORD_ONESHOT, None)
+			self.av_pairs.pop(AV_A_PASSWORD_ONESHOT, None)
 		else:
 			self.av_pairs[AV_A_PASSWORD_ONESHOT] = "1"
 		return arg
 
 	def password_mustchange(self, arg):
 		if arg:
-			self.av_pairs.popr(AV_A_PASSWORD_MUSTCHANGE, None)
+			self.av_pairs.pop(AV_A_PASSWORD_MUSTCHANGE, None)
 		else:
 			self.av_pairs[AV_A_PASSWORD_MUSTCHANGE] = "1"
 		return arg
