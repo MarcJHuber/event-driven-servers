@@ -138,6 +138,7 @@ use Net::LDAP::Constant qw(LDAP_EXTENSION_PASSWORD_MODIFY LDAP_CAP_ACTIVE_DIRECT
 use Net::LDAP::Extension::SetPassword;
 use Net::LDAP::Extra qw(AD);
 use IO::Socket::SSL;
+use POSIX qw(mktime);
 
 $| = 1;
 
@@ -315,7 +316,8 @@ retry_once:
 			$ldap->root_dse->supported_extension(LDAP_EXTENSION_PASSWORD_MODIFY);
 	}
 	$mesg = $ldap->search(base => $LDAP_BASE, filter => sprintf($LDAP_FILTER, $V[AV_A_USER]), scope => $LDAP_SCOPE,
-		attrs => ['shadowExpire','memberOf','dn', 'uidNumber', 'gidNumber', 'loginShell', 'homeDirectory', 'sshPublicKey']);
+		attrs => ['shadowExpire','memberOf','dn', 'uidNumber', 'gidNumber', 'loginShell', 'homeDirectory', 'sshPublicKey',
+			  'krbPasswordExpiration']);
 	if ($mesg->count() == 1) {
 		my $entry = $mesg->entry(0);
 
@@ -344,13 +346,26 @@ retry_once:
 
 		my $authdn = $mesg->entry(0)->dn;
 		if ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_AUTH) {
+			my $expiry = undef;
 			$val = $entry->get_value('shadowExpire');
-			if ($val && $val * 86400 < time){
-				$V[AV_A_USER_RESPONSE] = "Password has expired.";
-				if ($has_extension_password_modify) {
-					$V[AV_A_PASSWORD_MUSTCHANGE] = 1;
-				} else {
-					goto fail;
+			if ($val) {
+				$expiry = 86400 * $val if $val > -1;
+			} else {
+				$val = $entry->get_value('krbPasswordExpiration');
+				if ($val) {
+					if ($val =~ /^(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)Z$/) {
+						$expiry = mktime($6, $5, $4, $3, $2 - 1, $1 - 1970);
+					}
+				}
+			}
+			if (defined $expiry) {
+				if ($expiry < time) {
+					$V[AV_A_USER_RESPONSE] = "Password has expired.";
+					if ($has_extension_password_modify) {
+						$V[AV_A_PASSWORD_MUSTCHANGE] = 1;
+					} else {
+						goto fail;
+					}
 				}
 			}
 			$mesg =  $ldap->bind($authdn, password => $V[AV_A_PASSWORD]);

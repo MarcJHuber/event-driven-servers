@@ -139,6 +139,10 @@ The 389 directory server will not return the memberOf attribute for anonymous bi
 Please set the LDAP_USER and LDAP_PASSWD environment variables.\
 		', file=sys.stderr)
 
+has_extension_password_modify = None
+if '1.3.6.1.4.1.4203.1.11.1' in map (lambda x: x[0], conn.server.info.supported_extensions):
+	has_extension_password_modify = 1
+
 if LDAP_SERVER_TYPE == None:
 	LDAP_SERVER_TYPE="generic"
 	LDAP_FILTER = '(&(objectclass=posixaccount)(uid={}))'
@@ -240,7 +244,7 @@ while True:
 	conn.search(search_base=LDAP_BASE, search_scope=LDAP_SCOPE,
 		search_filter=LDAP_FILTER.format(D.user),
 		attributes=["memberOf", "shadowExpire", "uidNumber", "gidNumber",
-			"loginShell", "homeDirectory", "sshPublicKey"])
+			"loginShell", "homeDirectory", "sshPublicKey", "krbPasswordExpiration"])
 	if len(conn.entries) == 0:
 		D.write(MAVIS_DOWN, AV_V_RESULT_NOTFOUND, None)
 		continue
@@ -252,26 +256,37 @@ while True:
 
 	user_msg = None
 	if D.is_tacplus_authc:
-		if (LDAP_SERVER_TYPE == "generic"
-			and len(entry.shadowExpire) > 0  and int(entry.shadowExpire[0]) > 0
-			and int(entry.shadowExpire[0]) * 86400 < time.time()):
-			user_msg = "Password has expired."
-			if '1.3.6.1.4.1.4203.1.11.1' in map (
-				lambda x: x[0], conn.server.info.supported_extensions):
-				D.password_mustchange(1)
+		if LDAP_SERVER_TYPE == "generic":
+			expiry = None
+			if len (entry.shadowExpire) > 0:
+				if int(entry.shadowExpire[0]) > -1:
+					expiry = int(entry.shadowExpire[0]) * 86400
 			else:
-				D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, None)
-				continue
+				if len (entry.krbPasswordExpiration) > 0:
+					r = re.compile(r'^(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)Z$')
+					m = r.search(entry.krbPasswordExpiration[0])
+					if len(m.groups()) == 6:
+						t = (int (m.group(1)), int(m.group(2)), int(m.group(3)),
+							int(m.group(4)), int(m.group(5)), int(m.group(6)),
+							0, 0, 0)
+						expiry = int(time.mktime(t))
+			if expiry is not None:
+				if expiry < time.time():
+					user_msg = "Password has expired."
+					if has_extension_password_modify is not None:
+						D.password_mustchange(True)
+					else:
+						D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, None)
+						continue
 		if not conn.rebind(user=entry.entry_dn, password=D.password):
 			if (LDAP_SERVER_TYPE == "microsoft"
 				and conn.result == ldap3.core.results.RESULT_INVALID_CREDENTIALS
 				and re.search(r"DSID-.*, data (532|533|773) ", c.message)):
-				D.password_mustchange(1)
+				D.password_mustchange(True)
 				user_msg = translate_ldap_error(conn)
 			else:
 				D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn))
 				continue
-		D.remember_password(False)
 
 	if D.is_tacplus_chpw:
 		if ((LDAP_SERVER_TYPE == "microsoft"
@@ -283,7 +298,10 @@ while True:
 			D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, translate_ldap_error(conn))
 			continue
 		user_msg = "Password change was successful."
-		D.password_mustchange()
+		D.password_mustchange(False)
+
+	if D.is_tacplus_authc:
+		D.remember_password(False)
 
 	D.set_dn(entry.entry_dn)
 
