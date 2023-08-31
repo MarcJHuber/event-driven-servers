@@ -36,6 +36,7 @@ BEGIN {
 		AV_A_LIMIT
 		AV_A_MEMBEROF
 		AV_A_PASSWORD
+		AV_A_PASSWORD_EXPIRY
 		AV_A_PASSWORD_MUSTCHANGE
 		AV_A_PASSWORD_NEW
 		AV_A_PASSWORD_ONESHOT
@@ -120,6 +121,7 @@ use constant AV_A_IPADDR => 14;
 use constant AV_A_LIMIT => 11;
 use constant AV_A_MEMBEROF => 1;
 use constant AV_A_PASSWORD => 8;
+use constant AV_A_PASSWORD_EXPIRY => 35;
 use constant AV_A_PASSWORD_MUSTCHANGE => 53;
 use constant AV_A_PASSWORD_NEW => 50;
 use constant AV_A_PASSWORD_ONESHOT => 52;
