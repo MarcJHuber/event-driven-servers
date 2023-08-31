@@ -348,13 +348,13 @@ retry_once:
 		if ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_AUTH) {
 			my $expiry = undef;
 			$val = $entry->get_value('shadowExpire');
-			if ($val) {
+			if (defined $val) {
 				$expiry = 86400 * $val if $val > -1;
 			} else {
 				$val = $entry->get_value('krbPasswordExpiration');
-				if ($val) {
+				if (defined $val) {
 					if ($val =~ /^(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)Z$/) {
-						$expiry = mktime($6, $5, $4, $3, $2 - 1, $1 - 1970);
+						$expiry = mktime($6, $5, $4, $3, $2 - 1, $1 - 1900);
 					}
 				}
 			}
@@ -366,6 +366,8 @@ retry_once:
 					} else {
 						goto fail;
 					}
+				} else {
+					$V[AV_A_PASSWORD_EXPIRY] = $expiry;
 				}
 			}
 			$mesg =  $ldap->bind($authdn, password => $V[AV_A_PASSWORD]);
