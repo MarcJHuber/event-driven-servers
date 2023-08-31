@@ -135,8 +135,8 @@ extern struct av_char av_char[];
     AV_CHAR({"VERDICT", S_verdict},)
 #define AV_A_CLASS		34
     AV_CHAR({"CLASS", S_unknown},)
-#define AV_A_SPARE35		35
-    AV_CHAR({"SPARE35", S_unknown},)
+#define AV_A_PASSWORD_EXPIRY	35
+    AV_CHAR({"PASSWORD_EXPIRY", S_unknown},)
 #define AV_A_DBPASSWORD		36
     AV_CHAR({"DBPASSWORD", S_unknown},)
 #define AV_A_IDENTITY_SOURCE	37
