@@ -10,6 +10,9 @@
 # Supported servers are AD and OpenLDAP, the latter with memberOf overlay only.
 # Password changing for OpenLDAP requires a multi-master configuration.
 #
+# This script should have feature-parity to mavis_tacplus-ng_ldap.pl, however
+# it's more of a proof-of-concept than anything else. I'm not fluent at Python.
+#
 
 """
 Test input for authentication:
@@ -198,11 +201,10 @@ while True:
 		continue
 
 	if try_once:
-		# Check for MS AD LDAP (but only for non-anonymous binds): ####################
-
 		try:
 			conn = ldap3.Connection(server_pool, user=LDAP_USER, password=LDAP_PASSWD,
 				receive_timeout=LDAP_CONNECT_TIMEOUT, auto_bind=True)
+			# Check for MS AD LDAP (but only for non-anonymous binds):
 			if LDAP_USER is not None:
 				if conn.bind():
 					if '1.2.840.113556.1.4.800' in map(
