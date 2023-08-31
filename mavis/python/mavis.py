@@ -212,3 +212,6 @@ class Mavis:
 			self.av_pairs[AV_A_PASSWORD_MUSTCHANGE] = "1"
 		else:
 			self.av_pairs.pop(AV_A_PASSWORD_MUSTCHANGE, None)
+
+	def set_expiry(self, arg):
+		self.av_pairs[AV_A_PASSWORD_EXPIRY] = str(arg)
