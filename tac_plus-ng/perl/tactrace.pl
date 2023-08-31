@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 #
 # tactrace.pl
-# (C) 2022 by Marc Huber <Marc.Huber@web.de>
+# (C) 2022-2023 by Marc Huber <Marc.Huber@web.de>
 #
 
 use POSIX;
@@ -21,7 +21,7 @@ my $version = '$Id$';
 # #
 our $mode = "authz";
 our $username = $ENV{"USER"};
-our $password = $ENV{"TACTRACEPASSWORD"}; # No CLI option, don't want this to be visible via ps
+our $password = $ENV{"TACTRACEPASSWORD"};
 our $port = "vty0";
 our $remote = "127.0.0.1";
 our $key = "demo";
@@ -50,6 +50,7 @@ Options:
   --defaults=<file>	read default settings from <file>
   --mode=<mode>		authc, authz or acct [$mode]
   --username=<username> username [$username]
+  --password=<password>	user password [\$TACTRACEPASSWORD]
   --port=<port>		port [$port]
   --remote=<client ip>	remote client ip [$remote]
   --key=<key>		encryption key [$key]
@@ -98,6 +99,7 @@ GetOptions (
 	"defaults=s"	=> \&read_defaults,
 	"mode=s"	=> \$mode,
 	"username=s"	=> \$username,
+	"password=s"	=> \$password,
 	"port=s"	=> \$port,
 	"remote=s"	=> \$remote,
 	"key=s"		=> \$key,
