@@ -119,52 +119,41 @@ class Mavis:
 
 	def set_dn(self, arg):
 		self.av_pairs[AV_A_DN] = arg
-		return arg
 
 	def set_memberof(self, arg):
 		self.av_pairs[AV_A_MEMBEROF] = arg
-		return arg
 
 	def set_tacmember(self, arg):
 		self.av_pairs[AV_A_TACMEMBER] = arg
-		return arg
 
 	def set_dbpassword(self, arg):
 		self.av_pairs[AV_A_DBPASSWORD] = arg
-		return arg
 
 	def set_uid(self, arg):
 		self.av_pairs[AV_A_UID] = arg
-		return arg
 
 	def set_gid(self, arg):
 		self.av_pairs[AV_A_GID] = arg
-		return arg
 
 	def set_shell(self, arg):
 		self.av_pairs[AV_A_SHELL] = arg
-		return arg
 
 	def set_home(self, arg):
 		self.av_pairs[AV_A_HOME] = arg
-		return arg
 
 	def set_sshpubkey(self, arg):
 		self.av_pairs[AV_A_SSHKEY] = arg
-		return arg
 
 	def remember_password(self, arg):
 		if arg:
 			self.av_pairs.pop(AV_A_PASSWORD_ONESHOT, None)
 		else:
 			self.av_pairs[AV_A_PASSWORD_ONESHOT] = "1"
-		return arg
 
 	def password_mustchange(self, arg):
 		if arg:
 			self.av_pairs[AV_A_PASSWORD_MUSTCHANGE] = "1"
 		else:
 			self.av_pairs.pop(AV_A_PASSWORD_MUSTCHANGE, None)
-		return arg
 EOT
 
