@@ -61,7 +61,7 @@ LDAP_CONNECT_TIMEOUT
 
 LDAP_FILTER
 	LDAP search filter
-	Defaults depend on LDAP_SERVER_TYPE:
+	Defaults depend on LDAP_SERVER_TYPE (which is auto-detected):
 	- generic:	"(uid=%s)"
 	- microsoft:	"(&(objectclass=user)(sAMAccountName={}))"
 
@@ -98,14 +98,6 @@ def eval_env(var, dflt):
 	return globals()[var]
 
 # Environment variable evaluation ############################################
-tls = None
-if eval_env('TLS_OPTIONS', None) is not None:
-	tls = eval("{ " + TLS_OPTIONS + "}")
-eval_env('LDAP_HOSTS', 'ldaps://localhost')
-server_pool = ldap3.ServerPool(None, ldap3.ROUND_ROBIN, active=True)
-for server in LDAP_HOSTS.split():
-	server_object = ldap3.Server(server, get_info=ldap3.DSA, tls=tls)
-	server_pool.add(server_object)
 eval_env('LDAP_BASE', 'dc=example,dc=local')
 eval_env('LDAP_BASE_GROUP', LDAP_BASE)
 eval_env('LDAP_USER', None)
@@ -115,37 +107,19 @@ eval_env('LDAP_FILTER_GROUP', '(&(objectclass=groupOfNames)(member={}))')
 eval_env('LDAP_SCOPE', 'SUBTREE')
 eval_env('LDAP_SCOPE_GROUP', LDAP_SCOPE)
 eval_env('LDAP_CONNECT_TIMEOUT', 5)
-memberof_regex = re.compile(eval_env('MEMBEROF_REGEX', '(?i)^cn=([^,]+),.*'))
+memberof_regex = re.compile('(?i)' + eval_env('LDAP_MEMBEROF_REGEX', '^cn=([^,]+),.*'))
+tls = None
+if eval_env('TLS_OPTIONS', None) is not None:
+	tls = eval("{ " + TLS_OPTIONS + "}")
+eval_env('LDAP_HOSTS', 'ldaps://localhost')
+server_pool = ldap3.ServerPool(None, ldap3.FIRST, active=0)
+for server in LDAP_HOSTS.split():
+	server_object = ldap3.Server(server, get_info=ldap3.DSA, tls=tls, connect_timeout=LDAP_CONNECT_TIMEOUT)
+	server_pool.add(server_object)
 
 # Default to OpenLDAP: #######################################################
-conn = ldap3.Connection(server_pool, user=LDAP_USER, password=LDAP_PASSWD,
-	receive_timeout=LDAP_CONNECT_TIMEOUT, auto_bind=True)
-LDAP_SERVER_TYPE=None
-
-# Check for MS AD LDAP (but only for non-anonymous binds): ####################
-if LDAP_USER is not None:
-	if conn.bind():
-		if '1.2.840.113556.1.4.800' in map(
-			lambda x: x[0], conn.server.info.supported_features):
-			LDAP_SERVER_TYPE = "microsoft"
-			if LDAP_FILTER == None:
-				LDAP_FILTER = '(&(objectclass=user)(sAMAccountName={}))'
-			LDAP_USER = conn.user
-
-if conn.server.info.vendor_name != None:
-	if (LDAP_USER == None or LDAP_PASSWD == None) and '389 Project' in conn.server.info.vendor_name:
-		print('\
-The 389 directory server will not return the memberOf attribute for anonymous binds. \
-Please set the LDAP_USER and LDAP_PASSWD environment variables.\
-		', file=sys.stderr)
-
-has_extension_password_modify = None
-if '1.3.6.1.4.1.4203.1.11.1' in map (lambda x: x[0], conn.server.info.supported_extensions):
-	has_extension_password_modify = 1
-
-if LDAP_SERVER_TYPE == None:
-	LDAP_SERVER_TYPE="generic"
-	LDAP_FILTER = '(&(objectclass=posixaccount)(uid={}))'
+#ldap3.set_config_parameter("POOLING_LOOP_TIMEOUT", LDAP_CONNECT_TIMEOUT)
+conn = None
 
 # A helper function for resolving nested groupOfNames groups: ################
 def expand_groupOfNames(g):
@@ -209,10 +183,13 @@ def translate_ldap_error(conn):
 		return "Permission denied."
 	return "Permission denied (" + message.replace("\n", "") + ")."
 
+
+LDAP_SERVER_TYPE=None
+try_once = True
+
 # The main loop: #############################################################
 while True:
 	D = Mavis()
-
 	if not D.is_tacplus():
 		D.write(MAVIS_DOWN, None, None)
 		continue
@@ -220,25 +197,62 @@ while True:
 		D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "Invalid input.")
 		continue
 
+	if try_once:
+		# Check for MS AD LDAP (but only for non-anonymous binds): ####################
+
+		try:
+			conn = ldap3.Connection(server_pool, user=LDAP_USER, password=LDAP_PASSWD,
+				receive_timeout=LDAP_CONNECT_TIMEOUT, auto_bind=True)
+			if LDAP_USER is not None:
+				if conn.bind():
+					if '1.2.840.113556.1.4.800' in map(
+						lambda x: x[0], conn.server.info.supported_features):
+						LDAP_SERVER_TYPE = "microsoft"
+						if LDAP_FILTER == None:
+							LDAP_FILTER = '(&(objectclass=user)(sAMAccountName={}))'
+						LDAP_USER = conn.user
+
+			if conn.server.info.vendor_name != None:
+				if (LDAP_USER == None or LDAP_PASSWD == None) and '389 Project' in conn.server.info.vendor_name:
+					print('\
+The 389 directory server will not return the memberOf attribute for anonymous binds. \
+Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stderr)
+
+			has_extension_password_modify = None
+			if '1.3.6.1.4.1.4203.1.11.1' in map (lambda x: x[0], conn.server.info.supported_extensions):
+				has_extension_password_modify = 1
+
+			if LDAP_SERVER_TYPE == None:
+				LDAP_SERVER_TYPE="generic"
+				LDAP_FILTER = '(&(objectclass=posixaccount)(uid={}))'
+			try_once = False
+		except:
+			D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "No answer from LDAP backend.")
+			continue
+
 	if conn == None:
-		conn = ldap3.Connection(server_pool,
-			user=LDAP_USER, password=LDAP_PASSWD,
-			receive_timeout=LDAP_CONNECT_TIMEOUT, auto_bind=True)
-		# Try to uise STARTTLS. Might not be required here.
-		if not conn.tls_started and '1.3.6.1.4.1.1466.20037' in map (
-			lambda x: x[0], conn.server.info.supported_extensions):
-			conn.start_tls()
-		if conn.bind():
-			LDAP_USER = conn.user
-		else:
-			D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "LDAP backend failure.")
+		try:
+			conn = ldap3.Connection(server_pool,
+				user=LDAP_USER, password=LDAP_PASSWD,
+				receive_timeout=LDAP_CONNECT_TIMEOUT, auto_bind=True)
+			# Try to uise STARTTLS. Might not be required here.
+			if not conn.tls_started and '1.3.6.1.4.1.1466.20037' in map (
+				lambda x: x[0], conn.server.info.supported_extensions):
+				conn.start_tls()
+			if conn.bind():
+				LDAP_USER = conn.user
+			else:
+				D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "LDAP bind failure.")
+				continue
+		except:
+			D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "No answer from LDAP backend.")
 			continue
 
 	if not conn.bind():
 		conn.rebind(user=LDAP_USER, password=LDAP_PASSWD)
 
 	if not conn.bind():
-		D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "LDAP backend failure.")
+		D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "LDAP bind failure.")
 		continue
 
 	conn.search(search_base=LDAP_BASE, search_scope=LDAP_SCOPE,
@@ -278,6 +292,8 @@ while True:
 					else:
 						D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, None)
 						continue
+				else:
+					D.set_expiry(expiry)
 		if not conn.rebind(user=entry.entry_dn, password=D.password):
 			if (LDAP_SERVER_TYPE == "microsoft"
 				and conn.result == ldap3.core.results.RESULT_INVALID_CREDENTIALS
@@ -308,7 +324,7 @@ while True:
 	if len(entry.uidNumber) > 0:
 		D.set_uid(entry.uidNumber[0])
 	if len(entry.gidNumber) > 0:
-		D.set_gid(entry.uidNumber[0])
+		D.set_gid(entry.gidNumber[0])
 	if len(entry.loginShell) > 0:
 		D.set_shell(entry.loginShell[0])
 	if len(entry.homeDirectory) > 0:
