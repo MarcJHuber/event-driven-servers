@@ -59,6 +59,7 @@
 #include "headers.h"
 #include "misc/version.h"
 #include "misc/strops.h"
+#include "misc/crc32.h"
 #include <setjmp.h>
 #include <pwd.h>
 #include <grp.h>
@@ -1718,8 +1719,13 @@ static void parse_ruleset(struct sym *sym, tac_realm * realm)
 static enum token lookup_user_profile(tac_session * session)
 {
     int i;
+    uint32_t crc32 = INITCRC32;
+    if (session->nac_address_ascii)
+	crc32 = crc32_update(crc32, (u_char *) session->nac_address_ascii, session->nac_address_ascii_len);
+    if (session->nas_port)
+	crc32 = crc32_update(crc32, (u_char *) session->nas_port, session->nas_port_len);
     for (i = 0; i < USER_PROFILE_CACHE_SIZE; i++) {
-	if (session->ctx->user_profile_cache[i].user == session->user) {
+	if (session->ctx->user_profile_cache[i].user == session->user && session->ctx->user_profile_cache[i].crc32 == crc32) {
 	    if (session->ctx->user_profile_cache[i].valid_until >= io_now.tv_sec) {
 		session->profile = session->ctx->user_profile_cache[i].profile;
 		return session->ctx->user_profile_cache[i].res;
@@ -1735,9 +1741,14 @@ static enum token lookup_user_profile(tac_session * session)
 static void cache_user_profile(tac_session * session, enum token res)
 {
     int i, j = 0;
+    uint32_t crc32 = INITCRC32;
+    if (session->nac_address_ascii)
+	crc32 = crc32_update(crc32, (u_char *) session->nac_address_ascii, session->nac_address_ascii_len);
+    if (session->nas_port)
+	crc32 = crc32_update(crc32, (u_char *) session->nas_port, session->nas_port_len);
 
     for (i = 0; i < USER_PROFILE_CACHE_SIZE; i++) {
-	if (session->ctx->user_profile_cache[i].user == session->user) {
+	if (session->ctx->user_profile_cache[i].user == session->user && session->ctx->user_profile_cache[i].crc32 == crc32) {
 	    j = i;
 	    goto set;
 	}
@@ -1752,6 +1763,7 @@ static void cache_user_profile(tac_session * session, enum token res)
     }
   set:
     session->ctx->user_profile_cache[j].user = session->user;
+    session->ctx->user_profile_cache[j].crc32 = crc32;
     session->ctx->user_profile_cache[j].profile = session->profile;
     session->ctx->user_profile_cache[j].res = res;
     session->ctx->user_profile_cache[j].valid_until = io_now.tv_sec + 120;

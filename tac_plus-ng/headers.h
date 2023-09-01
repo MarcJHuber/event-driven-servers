@@ -723,6 +723,7 @@ struct user_profile_cache {
     tac_profile *profile;
     time_t valid_until;
     enum token res;
+    uint32_t crc32;
 };
 
 struct context {
