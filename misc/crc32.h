@@ -6,10 +6,11 @@
 
 #ifndef __CRC32_H_
 #define __CRC32_H_
+#include <stdint.h>
 #include <sys/types.h>
 
 #define INITCRC32  0		/* Initial CRC value */
 
-u_int crc32_update(u_int, u_char *, off_t);
-u_int crc32_final(u_int, off_t);
+u_int crc32_update(uint32_t, u_char *, off_t);
+u_int crc32_final(uint32_t, off_t);
 #endif				/* __CRC32_H_ */

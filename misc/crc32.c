@@ -35,7 +35,7 @@ int main()
 }
 #endif
 
-static u_int crctab_32[256] = {
+static uint32_t crctab_32[256] = {
     0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b,
     0x1a864db2, 0x1e475005, 0x2608edb8, 0x22c9f00f, 0x2f8ad6d6, 0x2b4bcb61,
     0x350c9b64, 0x31cd86d3, 0x3c8ea00a, 0x384fbdbd, 0x4c11db70, 0x48d0c6c7,
@@ -81,14 +81,14 @@ static u_int crctab_32[256] = {
     0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4
 };
 
-u_int crc32_update(u_int crc, u_char * cp, off_t len)
+uint32_t crc32_update(uint32_t crc, u_char * cp, off_t len)
 {
     while (len--)
 	crc = (crc << 8) ^ crctab_32[((crc >> 24) ^ *cp++) & 0xff];
     return crc;
 }
 
-u_int crc32_final(u_int crc, off_t len)
+uint32_t crc32_final(uint32_t crc, off_t len)
 {
     for (; len > 0; len >>= 8)
 	crc = (crc << 8) ^ crctab_32[((crc >> 24) ^ len) & 0xff];
