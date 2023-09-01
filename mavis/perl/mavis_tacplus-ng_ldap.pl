@@ -434,7 +434,7 @@ retry_once:
 					$mesg = $ldap->set_password(oldpasswd => $V[AV_A_PASSWORD], newpasswd => $V[AV_A_PASSWORD_NEW]);
 				} else {
 					$V[AV_A_USER_RESPONSE] = "LDAP server doesn't support password modifications.";
-					goto fatal;
+					goto fail;
 				}
 			}
 
@@ -445,7 +445,7 @@ retry_once:
 					$V[AV_A_USER_RESPONSE] = $mesg->error;
 				}
 				print STDERR "chpw for ", $authdn, ": ", $mesg->error, " (" , __LINE__ , ")", "\n";
-				goto fatal;
+				goto fail;
 			}
 			delete $V[AV_A_PASSWORD_MUSTCHANGE];
 			$V[AV_A_USER_RESPONSE] = "Password change was successful.";
