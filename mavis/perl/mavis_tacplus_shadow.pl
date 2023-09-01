@@ -251,6 +251,7 @@ while ($in = <>) {
 		$V[AV_A_USER_RESPONSE] = "Please change your password. "
 			. "It will expire in $d day$ds.";
 	}
+	$V[AV_A_PASSWORD_EXPIRY] = 86400 * ($lastchange + $maxage);
 
 	if ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_CHPW) {
 		if ($minage > 0 && $today < $lastchange + $minage) {
