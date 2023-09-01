@@ -873,26 +873,29 @@ message USERNAME = "utilisateur"
 
    Supported messages and their defaults:
 
-             ID                            Default value
-  ACCOUNT_EXPIRES          "This account will expire soon."
-  BACKEND_FAILED           "Authentication backend failure."
-  CHANGE_PASSWORD          "Please change your password."
-  DENIED_BY_ACL            "Denied by ACL"
-  ENABLE_PASSWORD          "Enable Password: "
-  PASSWORD                 "Password: "
-  PASSWORD_ABORT           "Password change dialog aborted."
-  PASSWORD_AGAIN           "Retype new password: "
-  PASSWORD_CHANGE_DIALOG   "Entering password change dialog"
-  PASSWORD_INCORRECT       "Password incorrect."
-  PASSWORD_MINREQ          "Password doesn't meet minimum requirements."
-  PASSWORD_NEW             "New password: "
-  PASSWORD_NOMATCH         "Passwords do not match."
-  PASSWORD_OLD             "Old password: "
-  PERMISSION_DENIED        "Permission denied."
-  RESPONSE                 "Response: "
-  RESPONSE_INCORRECT       "Response incorrect."
-  USERNAME                 "Username: "
-  USER_ACCESS_VERIFICATION "User Access Verification"
+   ID Default value
+   ACCOUNT_EXPIRES "This account will expire soon."
+   BACKEND_FAILED "Authentication backend failure."
+   CHANGE_PASSWORD "Please change your password."
+   DENIED_BY_ACL "Denied by ACL"
+   ENABLE_PASSWORD "Enable Password: "
+   PASSWORD "Password: "
+   PASSWORD_ABORT "Password change dialog aborted."
+   PASSWORD_AGAIN "Retype new password: "
+   PASSWORD_CHANGE_DIALOG "Entering password change dialog"
+   PASSWORD_EXPIRED "Password has expired."
+   PASSWORD_EXPIRES "Password will expire at %c." (fed to
+   strftime(3))
+   PASSWORD_INCORRECT "Password incorrect."
+   PASSWORD_MINREQ "Password doesn't meet minimum requirements."
+   PASSWORD_NEW "New password: "
+   PASSWORD_NOMATCH "Passwords do not match."
+   PASSWORD_OLD "Old password: "
+   PERMISSION_DENIED "Permission denied."
+   RESPONSE "Response: "
+   RESPONSE_INCORRECT "Response incorrect."
+   USERNAME "Username: "
+   USER_ACCESS_VERIFICATION "User Access Verification"
      __________________________________________________________
 
 4.2.3.3. Limits and timeouts
@@ -1262,12 +1265,12 @@ id = spawnd {
    Railroad diagram: NetAttr
      __________________________________________________________
 
-4.2.3.8. Hosts
+4.2.3.8. Devices (Hosts)
 
    The daemon will talk to known NAS addresses only. Connections
    from unknown addresses will be rejected.
 
-   If you want tac_plus to encrypt its packets (and you almost
+   If you want tac_plus-ng to encrypt its packets (and you almost
    certainly do want this, as there can be usernames and passwords
    contained in there), then you'll have to specify an (non-empty)
    encryption key. The identical key must also be configured on
@@ -1436,6 +1439,12 @@ aaa authentication enable default group tacacs+ enable
        The max-attempts parameter limits the number of Password:
        prompts per TACACS+ session at login. It currently defaults
        to 1.
+       This configuration will be accepted at realm level, too.
+     * password expiry warning = number
+       A password expiry warning will be displayed to the user if
+       less than number time is left. Appending s (that's the
+       default) or any of m, h, d, w will scale the number up as
+       expeced.
        This configuration will be accepted at realm level, too.
      __________________________________________________________
 
