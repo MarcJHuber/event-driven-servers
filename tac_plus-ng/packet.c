@@ -493,10 +493,9 @@ void tac_read(struct context *ctx, int cur)
     session = RB_lookup_session(ctx->sessions, ctx->hdr.session_id);
 
     if (session) {
-	if (session->seq_no/2 == ctx->host->max_rounds) {
+	if (session->seq_no / 2 == ctx->host->max_rounds) {
 	    report(session, LOG_ERR, ~0,
-		   "%s: Limit of %d rounds reached for session %.8x",
-		   ctx->nas_address_ascii, (int) ctx->host->max_rounds, ntohl(ctx->hdr.session_id));
+		   "%s: Limit of %d rounds reached for session %.8x", ctx->nas_address_ascii, (int) ctx->host->max_rounds, ntohl(ctx->hdr.session_id));
 	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_ERROR, "Too many rounds.", 0, NULL, 0, 0);
 	    cleanup(ctx, cur);
 	    return;
@@ -528,7 +527,7 @@ void tac_read(struct context *ctx, int cur)
     if (
 #if defined(WITH_TLS) || defined(WITH_SSL)
 	   (ctx->tls && !(ctx->in->hdr.flags & TAC_PLUS_UNENCRYPTED_FLAG) && !(session->ctx->bug_compatibility & CLIENT_BUG_TLS_OBFUSCATED))
-	|| (!ctx->tls && (ctx->in->hdr.flags & TAC_PLUS_UNENCRYPTED_FLAG))
+	   || (!ctx->tls && (ctx->in->hdr.flags & TAC_PLUS_UNENCRYPTED_FLAG))
 #else
 	   (ctx->in->hdr.flags & TAC_PLUS_UNENCRYPTED_FLAG)
 #endif
@@ -746,6 +745,7 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr * hdr)
     session->session_timeout = io_now.tv_sec + ctx->host->session_timeout;
     session->type = types[hdr->type & 3].str;
     session->type_len = types[hdr->type & 3].str_len;
+    session->password_expiry = -1;
     RB_insert(ctx->sessions, session);
 
     if ((ctx->host->single_connection == TRISTATE_YES) && !ctx->single_connection_flag) {
@@ -777,7 +777,7 @@ void cleanup_session(tac_session * session)
 	    r = r->parent;
 	if (r)
 	    io_dns_cancel(r->idc, session);
-	if (session->revmap_timedout) // retry in 10 seconds
+	if (session->revmap_timedout)	// retry in 10 seconds
 	    add_revmap(session->ctx->realm, &session->nac_address, NULL, 10, 1);
     }
 #endif

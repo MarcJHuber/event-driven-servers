@@ -918,6 +918,8 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_BACKEND_FAILED:
 	    case S_CHANGE_PASSWORD:
 	    case S_ACCOUNT_EXPIRES:
+	    case S_PASSWORD_EXPIRED:
+	    case S_PASSWORD_EXPIRES:
 	    case S_PASSWORD_INCORRECT:
 	    case S_RESPONSE_INCORRECT:
 	    case S_USERNAME:
@@ -1448,6 +1450,22 @@ static char *eval_log_format_ACCOUNT_EXPIRES(tac_session * session __attribute__
     return NULL;
 }
 
+static char *eval_log_format_PASSWORD_EXPIRES(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
+					      __attribute__((unused)), size_t *len __attribute__((unused)))
+{
+    if (ctx)
+	return ctx->host->user_messages[UM_PASSWORD_EXPIRES];
+    return NULL;
+}
+
+static char *eval_log_format_PASSWORD_EXPIRED(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
+					      __attribute__((unused)), size_t *len __attribute__((unused)))
+{
+    if (ctx)
+	return ctx->host->user_messages[UM_PASSWORD_EXPIRED];
+    return NULL;
+}
+
 static char *eval_log_format_PASSWORD_INCORRECT(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
 						__attribute__((unused)), size_t *len __attribute__((unused)))
 {
@@ -1670,6 +1688,8 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_PASSWORD_ABORT] = &eval_log_format_PASSWORD_ABORT;
 	efun[S_PASSWORD_AGAIN] = &eval_log_format_PASSWORD_AGAIN;
 	efun[S_PASSWORD_CHANGE_DIALOG] = &eval_log_format_PASSWORD_CHANGE_DIALOG;
+	efun[S_PASSWORD_EXPIRED] = &eval_log_format_PASSWORD_EXPIRED;
+	efun[S_PASSWORD_EXPIRES] = &eval_log_format_PASSWORD_EXPIRES;
 	efun[S_PASSWORD_INCORRECT] = &eval_log_format_PASSWORD_INCORRECT;
 	efun[S_PASSWORD_MINREQ] = &eval_log_format_PASSWORD_MINREQ;
 	efun[S_PASSWORD_NEW] = &eval_log_format_PASSWORD_NEW;

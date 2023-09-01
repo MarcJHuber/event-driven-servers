@@ -342,6 +342,10 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    av_set(avc, AV_A_RESULT, AV_V_RESULT_FAIL);
 	}
 
+	t = av_get(avc, AV_A_PASSWORD_EXPIRY);
+	if (t)
+	    session->password_expiry = (time_t) strtol(t, NULL, 10);
+
 	u->passwd_oneshot = ((r->mavis_noauthcache == TRISTATE_YES) || av_get(avc, AV_A_PASSWORD_ONESHOT) || session->passwd_mustchange) ? 1 : 0;
 
 	if (!strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_CHAL)) {

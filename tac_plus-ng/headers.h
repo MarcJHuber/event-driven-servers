@@ -162,7 +162,7 @@ struct log_item {
 enum user_message_enum { UM_PASSWORD = 0, UM_RESPONSE, UM_PASSWORD_OLD, UM_PASSWORD_NEW, UM_PASSWORD_ABORT, UM_PASSWORD_AGAIN,
     UM_PASSWORD_NOMATCH, UM_PASSWORD_MINREQ, UM_PERMISSION_DENIED, UM_ENABLE_PASSWORD, UM_PASSWORD_CHANGE_DIALOG,
     UM_BACKEND_FAILED, UM_CHANGE_PASSWORD, UM_ACCOUNT_EXPIRES, UM_PASSWORD_INCORRECT, UM_RESPONSE_INCORRECT,
-    UM_USERNAME, UM_USER_ACCESS_VERIFICATION, UM_DENIED_BY_ACL, UM_MAX
+    UM_USERNAME, UM_USER_ACCESS_VERIFICATION, UM_DENIED_BY_ACL, UM_PASSWORD_EXPIRED, UM_PASSWORD_EXPIRES, UM_MAX
 };
 
 struct tac_host {
@@ -198,6 +198,7 @@ struct tac_host {
     tac_rewrite *rewrite_user;
     struct mavis_action *action;
     char **user_messages;
+    time_t password_expiry_warning;
     u_int debug;
 #ifdef WITH_SSL
     char *tls_psk_id;
@@ -714,6 +715,7 @@ struct tac_session {
     int cnt_a;
     ssize_t in_length;
     enum token attr_dflt;
+    time_t password_expiry;
 };
 
 struct user_profile_cache {

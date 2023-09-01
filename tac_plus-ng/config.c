@@ -191,38 +191,38 @@ void complete_realm(tac_realm * r)
 	r->complete = 1;
 
 #define RS(A,B) if(r->A == B) r->A = rp->A;
-	RS(chalresp,TRISTATE_DUNNO)
-	RS(chpass,TRISTATE_DUNNO)
-	RS(mavis_userdb,TRISTATE_DUNNO)
-	RS(mavis_noauthcache,TRISTATE_DUNNO)
-	RS(mavis_pap,TRISTATE_DUNNO)
-	RS(mavis_login,TRISTATE_DUNNO)
-	RS(mavis_pap_prefetch,TRISTATE_DUNNO)
-	RS(mavis_login_prefetch,TRISTATE_DUNNO)
-	RS(mavis_user_acl,NULL)
-	RS(enable_user_acl, NULL)
-	RS(password_acl,NULL)
+	RS(chalresp, TRISTATE_DUNNO)
+	    RS(chpass, TRISTATE_DUNNO)
+	    RS(mavis_userdb, TRISTATE_DUNNO)
+	    RS(mavis_noauthcache, TRISTATE_DUNNO)
+	    RS(mavis_pap, TRISTATE_DUNNO)
+	    RS(mavis_login, TRISTATE_DUNNO)
+	    RS(mavis_pap_prefetch, TRISTATE_DUNNO)
+	    RS(mavis_login_prefetch, TRISTATE_DUNNO)
+	    RS(mavis_user_acl, NULL)
+	    RS(enable_user_acl, NULL)
+	    RS(password_acl, NULL)
 #if defined(WITH_TLS) || defined(WITH_SSL)
-	RS(tls_accept_expired,TRISTATE_DUNNO)
+	    RS(tls_accept_expired, TRISTATE_DUNNO)
 #endif
 #undef RS
 #define RS(A) if(r->A < 0) r->A = rp->A;
-	RS(caching_period)
-	RS(dns_caching_period)
-	RS(warning_period)
-	RS(default_host->tcp_timeout)
-	RS(default_host->session_timeout)
-	RS(default_host->context_timeout)
-	RS(default_host->dns_timeout)
-	RS(default_host->max_rounds)
-	RS(default_host->authen_max_attempts)
+	    RS(caching_period)
+	    RS(dns_caching_period)
+	    RS(warning_period)
+	    RS(default_host->tcp_timeout)
+	    RS(default_host->session_timeout)
+	    RS(default_host->context_timeout)
+	    RS(default_host->dns_timeout)
+	    RS(default_host->max_rounds)
+	    RS(default_host->authen_max_attempts)
+	    RS(default_host->password_expiry_warning)
 #if defined(WITH_TLS) || defined(WITH_SSL)
-	RS(tls_verify_depth)
+	    RS(tls_verify_depth)
 #endif
 #undef RS
-
 #ifdef WITH_TLS
-	if (r->tls_cfg && r->tls_cert) {
+	    if (r->tls_cfg && r->tls_cert) {
 	    uint8_t *p;
 	    size_t p_len;
 
@@ -418,6 +418,8 @@ static tac_host *new_host(struct sym *sym, char *name, tac_host * parent, tac_re
 	host->user_messages[UM_BACKEND_FAILED] = "Authentication backend failure.";
 	host->user_messages[UM_CHANGE_PASSWORD] = "Please change your password.";
 	host->user_messages[UM_ACCOUNT_EXPIRES] = "This account will expire soon.";
+	host->user_messages[UM_PASSWORD_EXPIRED] = "Pasword has expired.";
+	host->user_messages[UM_PASSWORD_EXPIRES] = "Password will expire at %c.";
 	host->user_messages[UM_PASSWORD_INCORRECT] = "Password incorrect.";
 	host->user_messages[UM_RESPONSE_INCORRECT] = "Response incorrect.";
 	host->user_messages[UM_USERNAME] = "Username: ";
@@ -930,6 +932,46 @@ void parse_host_pap_password(struct sym *sym, tac_host * host)
     sym_get(sym);
 }
 
+static time_t to_seconds(struct sym *sym)
+{
+    time_t n = 0;
+    char *b = sym->buf;
+    for (; *b; b++)
+	switch (tolower((int) *b)) {
+	case 's':
+	    break;
+	case 'm':
+	    n *= 60;
+	    break;
+	case 'h':
+	    n *= 60 * 60;
+	    break;
+	case 'd':
+	    n *= 60 * 60 * 24;
+	    break;
+	case 'w':
+	    n *= 60 * 60 * 24 * 7;
+	    break;
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
+	    n *= 10;
+	    n += *b - '0';
+	    break;
+	default:
+	    parse_error(sym, "Expected a number followed by a valid size unit (s, m, h, d, w)");
+	}
+    sym_get(sym);
+    return n;
+}
+
 void parse_decls_real(struct sym *sym, tac_realm * r)
 {
     /* Top level of parser */
@@ -954,8 +996,14 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		parse(sym, S_equal);
 		r->default_host->authen_max_attempts = parse_int(sym);
 		return;
+	    case S_expiry:
+		sym_get(sym);
+		parse(sym, S_warning);
+		parse(sym, S_equal);
+		r->default_host->password_expiry_warning = to_seconds(sym);
+		continue;
 	    default:
-		parse_error_expect(sym, S_acl, S_maxattempts, S_unknown);
+		parse_error_expect(sym, S_acl, S_maxattempts, S_expiry, S_unknown);
 	    }
 	case S_pap:
 	    sym_get(sym);
@@ -2754,10 +2802,21 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	return;
     case S_password:
 	sym_get(sym);
-	parse(sym, S_maxattempts);
-	parse(sym, S_equal);
-	host->authen_max_attempts = parse_int(sym);
-	return;
+	switch (sym->code) {
+	case S_maxattempts:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    host->authen_max_attempts = parse_int(sym);
+	    return;
+	case S_expiry:
+	    sym_get(sym);
+	    parse(sym, S_warning);
+	    parse(sym, S_equal);
+	    host->password_expiry_warning = to_seconds(sym);
+	    return;
+	default:
+	    parse_error_expect(sym, S_maxattempts, S_expiry, S_unknown);
+	}
     case S_context:
 	sym_get(sym);
 	parse(sym, S_timeout);
