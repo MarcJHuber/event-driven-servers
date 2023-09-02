@@ -973,6 +973,8 @@ static time_t to_seconds(struct sym *sym)
     return n;
 }
 
+static void parse_enable(struct sym *, memlist_t *, struct pwdat **);
+
 void parse_decls_real(struct sym *sym, tac_realm * r)
 {
     /* Top level of parser */
@@ -1293,17 +1295,26 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	    }
 	case S_enable:
 	    sym_get(sym);
-	    parse(sym, S_user);
-	    parse(sym, S_acl);
-	    parse(sym, S_equal);
-	    r->enable_user_acl = tac_acl_lookup(sym->buf, r);
-	    if (!r->enable_user_acl)
-		parse_error(sym, "ACL '%s' not found)", sym->buf);
-	    sym_get(sym);
-	    continue;
-	case S_host:
-	case S_device:
-	    parse_host(sym, r, r->default_host);
+	    switch (sym->code) {
+	    case S_user:
+		sym_get(sym);
+		parse(sym, S_acl);
+		parse(sym, S_equal);
+		r->enable_user_acl = tac_acl_lookup(sym->buf, r);
+		if (!r->enable_user_acl)
+		    parse_error(sym, "ACL '%s' not found)", sym->buf);
+		sym_get(sym);
+		break;
+	    default:
+		{
+		    int dummy;
+		    if (!r->default_host->enable)
+			r->default_host->enable = calloc(sizeof(struct pwdat *), TAC_PLUS_PRIV_LVL_MAX + 1);
+		    if (sym->code != S_equal || 1 != sscanf(sym->buf, "%d", &dummy))
+			parse_error(sym, "Expected '=', 'user' or a privilege level, but got '%s'", sym->buf);
+		    parse_enable(sym, NULL, r->default_host->enable);
+		}
+	    }
 	    continue;
 	case S_net:
 	    parse_net(sym, r, NULL);
@@ -1396,6 +1407,8 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_message:
 	case S_session:
 	case S_maxrounds:
+	case S_host:
+	case S_device:
 	    parse_host_attr(sym, r, r->default_host);
 	    continue;
 #if defined(WITH_TLS) || defined(WITH_SSL)
@@ -2058,7 +2071,6 @@ static void parse_enable(struct sym *sym, memlist_t * memlist, struct pwdat **en
 {
     int level = TAC_PLUS_PRIV_LVL_MAX;
 
-    sym_get(sym);
     if (1 == sscanf(sym->buf, "%d", &level)) {
 	if (level < TAC_PLUS_PRIV_LVL_MIN)
 	    level = TAC_PLUS_PRIV_LVL_MIN;
@@ -2096,6 +2108,7 @@ static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm
 	    profile->hushlogin = parse_tristate(sym);
 	    continue;
 	case S_enable:
+	    sym_get(sym);
 	    if (!profile->enable)
 		profile->enable = calloc(sizeof(struct pwdat *), TAC_PLUS_PRIV_LVL_MAX + 1);
 	    parse_enable(sym, NULL, profile->enable);
@@ -2493,6 +2506,7 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	    parse_password(sym, user);
 	    continue;
 	case S_enable:
+	    sym_get(sym);
 	    if (!user->enable)
 		user->enable = memlist_malloc(user->memlist, sizeof(struct pwdat *) * (TAC_PLUS_PRIV_LVL_MAX + 1));
 	    parse_enable(sym, user->memlist, user->enable);
@@ -2771,6 +2785,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	fixup_banner(&host->reject_banner, __FILE__, __LINE__);
 	return;
     case S_enable:
+	sym_get(sym);
 	if (!host->enable)
 	    host->enable = calloc(sizeof(struct pwdat *), TAC_PLUS_PRIV_LVL_MAX + 1);
 	parse_enable(sym, NULL, host->enable);
