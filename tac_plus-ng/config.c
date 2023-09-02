@@ -420,7 +420,7 @@ static tac_host *new_host(struct sym *sym, char *name, tac_host * parent, tac_re
 	host->user_messages[UM_CHANGE_PASSWORD] = "Please change your password.";
 	host->user_messages[UM_ACCOUNT_EXPIRES] = "This account will expire soon.";
 	host->user_messages[UM_PASSWORD_EXPIRED] = "Pasword has expired.";
-	host->user_messages[UM_PASSWORD_EXPIRES] = "Password will expire at %c.";
+	host->user_messages[UM_PASSWORD_EXPIRES] = "Password will expire on %c.";
 	host->user_messages[UM_PASSWORD_INCORRECT] = "Password incorrect.";
 	host->user_messages[UM_RESPONSE_INCORRECT] = "Response incorrect.";
 	host->user_messages[UM_USERNAME] = "Username: ";
