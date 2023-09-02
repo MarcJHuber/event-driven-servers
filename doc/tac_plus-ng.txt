@@ -884,7 +884,7 @@ message USERNAME = "utilisateur"
    PASSWORD_AGAIN "Retype new password: "
    PASSWORD_CHANGE_DIALOG "Entering password change dialog"
    PASSWORD_EXPIRED "Password has expired."
-   PASSWORD_EXPIRES "Password will expire at %c." (fed to
+   PASSWORD_EXPIRES "Password will expire on %c." (fed to
    strftime(3))
    PASSWORD_INCORRECT "Password incorrect."
    PASSWORD_MINREQ "Password doesn't meet minimum requirements."
