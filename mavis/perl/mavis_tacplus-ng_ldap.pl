@@ -270,7 +270,7 @@ while ($in = <>) {
 retry_once:
 
 	unless ($ldap) {
-		$ldap = Net::LDAP->new(@LDAP_HOSTS, timeout=>$LDAP_CONNECT_TIMEOUT, %tls_options);
+		$ldap = Net::LDAP->new(\@LDAP_HOSTS, timeout=>$LDAP_CONNECT_TIMEOUT, %tls_options);
 		unless ($ldap) {
 			$V[AV_A_USER_RESPONSE] = "No answer from LDAP backend.";
 			goto fatal;
@@ -411,7 +411,7 @@ retry_once:
 					$ldap->disconnect;
 					$ldap = undef;
 				}
-				$ldap = Net::LDAP->new(@LDAP_HOSTS, %tls_options);
+				$ldap = Net::LDAP->new(\@LDAP_HOSTS, %tls_options);
 				unless ($ldap) {
 					$V[AV_A_USER_RESPONSE] = "No answer from LDAP backend.";
 					goto fatal;
