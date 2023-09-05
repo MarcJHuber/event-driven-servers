@@ -115,7 +115,7 @@ tls = None
 if eval_env('TLS_OPTIONS', None) is not None:
 	tls = eval("{ " + TLS_OPTIONS + "}")
 eval_env('LDAP_HOSTS', 'ldaps://localhost')
-server_pool = ldap3.ServerPool(None, ldap3.FIRST, active=0)
+server_pool = ldap3.ServerPool(None, ldap3.FIRST, active=True)
 for server in LDAP_HOSTS.split():
 	server_object = ldap3.Server(server, get_info=ldap3.DSA, tls=tls, connect_timeout=LDAP_CONNECT_TIMEOUT)
 	server_pool.add(server_object)
