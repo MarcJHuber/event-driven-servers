@@ -125,9 +125,9 @@ void author(tac_session * session, tac_pak_hdr * hdr)
 
     // script-based user rewriting, current
     while (h && res != S_permit && res != S_deny) {
-        if (h->action)
-            res = tac_script_eval_r(session, h->action);
-        h = h->parent;
+	if (h->action)
+	    res = tac_script_eval_r(session, h->action);
+	h = h->parent;
     }
 
     // legacy user rewriting, deprecated
@@ -169,7 +169,6 @@ void author(tac_session * session, tac_pak_hdr * hdr)
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
 	return;
     }
-
 #ifdef WITH_DNS
     if ((session->ctx->host->dns_timeout > 0) && (session->revmap_pending || session->ctx->revmap_pending)) {
 	session->resumefn = do_author;

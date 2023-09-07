@@ -191,39 +191,39 @@ void complete_realm(tac_realm * r)
 	enum user_message_enum um;
 	r->complete = 1;
 
-#define RS(A,B) if(r->A == B) r->A = rp->A;
-	RS(chalresp, TRISTATE_DUNNO)
-	    RS(chpass, TRISTATE_DUNNO)
-	    RS(mavis_userdb, TRISTATE_DUNNO)
-	    RS(mavis_noauthcache, TRISTATE_DUNNO)
-	    RS(mavis_pap, TRISTATE_DUNNO)
-	    RS(mavis_login, TRISTATE_DUNNO)
-	    RS(mavis_pap_prefetch, TRISTATE_DUNNO)
-	    RS(mavis_login_prefetch, TRISTATE_DUNNO)
-	    RS(mavis_user_acl, NULL)
-	    RS(enable_user_acl, NULL)
-	    RS(password_acl, NULL)
+#define RS(A,B) if(r->A == B) r->A = rp->A
+	RS(chalresp, TRISTATE_DUNNO);
+	RS(chpass, TRISTATE_DUNNO);
+	RS(mavis_userdb, TRISTATE_DUNNO);
+	RS(mavis_noauthcache, TRISTATE_DUNNO);
+	RS(mavis_pap, TRISTATE_DUNNO);
+	RS(mavis_login, TRISTATE_DUNNO);
+	RS(mavis_pap_prefetch, TRISTATE_DUNNO);
+	RS(mavis_login_prefetch, TRISTATE_DUNNO);
+	RS(mavis_user_acl, NULL);
+	RS(enable_user_acl, NULL);
+	RS(password_acl, NULL);
 #if defined(WITH_TLS) || defined(WITH_SSL)
-	    RS(tls_accept_expired, TRISTATE_DUNNO)
+	RS(tls_accept_expired, TRISTATE_DUNNO);
 #endif
 #undef RS
 #define RS(A) if(r->A < 0) r->A = rp->A;
-	    RS(caching_period)
-	    RS(dns_caching_period)
-	    RS(warning_period)
-	    RS(default_host->tcp_timeout)
-	    RS(default_host->session_timeout)
-	    RS(default_host->context_timeout)
-	    RS(default_host->dns_timeout)
-	    RS(default_host->max_rounds)
-	    RS(default_host->authen_max_attempts)
-	    RS(default_host->password_expiry_warning)
+	RS(caching_period);
+	RS(dns_caching_period);
+	RS(warning_period);
+	RS(default_host->tcp_timeout);
+	RS(default_host->session_timeout);
+	RS(default_host->context_timeout);
+	RS(default_host->dns_timeout);
+	RS(default_host->max_rounds);
+	RS(default_host->authen_max_attempts);
+	RS(default_host->password_expiry_warning);
 #if defined(WITH_TLS) || defined(WITH_SSL)
-	    RS(tls_verify_depth)
+	RS(tls_verify_depth);
 #endif
 #undef RS
 #ifdef WITH_TLS
-	    if (r->tls_cfg && r->tls_cert) {
+	if (r->tls_cfg && r->tls_cert) {
 	    uint8_t *p;
 	    size_t p_len;
 
