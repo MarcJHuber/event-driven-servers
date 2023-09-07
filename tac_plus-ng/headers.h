@@ -234,11 +234,14 @@ typedef struct tac_group tac_group;
 struct tac_profile {
     char *name;			/* profile name */
     size_t name_len;
-    u_int line;			/* line number defined on */
+    struct tac_profile *parent;
     struct pwdat **enable;
     struct mavis_action *action;
     tac_realm *realm;
      TRISTATE(hushlogin);
+     BISTATE(complete);
+     BISTATE(visited);
+    u_int line;			/* configuration file line number */
     u_int debug;		/* debug flags */
 };
 

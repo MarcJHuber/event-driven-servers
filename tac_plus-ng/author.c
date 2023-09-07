@@ -312,9 +312,16 @@ static void do_author(tac_session * session)
     if (session->authorized)
 	res = S_permit;
     else {
+	tac_profile *profile;
 	res = eval_ruleset(session, session->ctx->realm);
-	if (session->profile && res == S_permit)
-	    res = tac_script_eval_r(session, session->profile->action);
+	profile = session->profile;
+	if (res == S_permit) {
+	    res = S_unknown;
+	    while (profile && res == S_unknown) {
+		res = tac_script_eval_r(session, profile->action);
+		profile = profile->parent;
+	    }
+	}
     }
 
     switch (res) {

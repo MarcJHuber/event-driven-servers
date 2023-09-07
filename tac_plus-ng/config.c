@@ -104,7 +104,7 @@ static void parse_net(struct sym *, tac_realm *, tac_net *);
 static void parse_user(struct sym *, tac_realm *);
 static void parse_group(struct sym *, tac_realm *, tac_group *);
 static void parse_ruleset(struct sym *, tac_realm *);
-static void parse_profile(struct sym *, tac_realm *);
+static void parse_profile(struct sym *, tac_realm *, tac_profile *);
 static void parse_profile_attr(struct sym *, tac_profile *, tac_realm *);
 static void parse_user_attr(struct sym *, tac_user *);
 static void parse_tac_acl(struct sym *, tac_realm *);
@@ -360,6 +360,30 @@ tac_realm *lookup_realm(char *name, tac_realm * r)
 		return res;
     }
     return NULL;
+}
+
+void complete_profile(tac_profile * p)
+{
+    if (p && !p->complete) {
+	p->complete = BISTATE_YES;
+	if (p->parent) {
+	    tac_profile *pp = p->parent;
+	    complete_profile(pp);
+	    if (p->enable) {
+		if (pp->enable) {
+		    int level;
+		    for (level = TAC_PLUS_PRIV_LVL_MIN; level < TAC_PLUS_PRIV_LVL_MAX + 1; level++)
+			if (!p->enable[level])
+			    p->enable[level] = pp->enable[level];
+		}
+	    } else
+		p->enable = pp->enable;
+#define PS(A,B) if(p->A == B) p->A = pp->A
+	    PS(hushlogin, 0);
+#undef PS
+	    p->debug |= pp->debug;
+	}
+    }
 }
 
 radixtree_t *lookup_hosttree(tac_realm * r)
@@ -828,9 +852,22 @@ static int loopcheck_host(tac_host * h)
     return res;
 }
 
+static int loopcheck_profile(tac_profile * p)
+{
+    int res = 0;
+    if (p->visited)
+	return -1;
+    p->visited = 1;
+    if (p->parent)
+	res = loopcheck_profile(p->parent);
+    p->visited = 0;
+    return res;
+}
+
 static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent, int empty)
 {
     tac_realm *nrealm;
+    rb_node_t *rbn;
 
     nrealm = new_realm(sym->buf, parent);
     nrealm->line = sym->line;
@@ -845,6 +882,9 @@ static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent, i
 
     if (!empty)
 	parse_decls_real(sym, nrealm);
+
+    for (rbn = RB_first(nrealm->profiletable); rbn; rbn = RB_next(rbn))
+	complete_profile(RB_payload(rbn, tac_profile *));
 
     return nrealm;
 }
@@ -1256,7 +1296,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	    parse_group(sym, r, 0);
 	    continue;
 	case S_profile:
-	    parse_profile(sym, r);
+	    parse_profile(sym, r, NULL);
 	    continue;
 	case S_acl:
 	    parse_tac_acl(sym, r);
@@ -1636,7 +1676,7 @@ static void parse_group(struct sym *sym, tac_realm * r, tac_group * parent)
     }
 }
 
-static void parse_profile(struct sym *sym, tac_realm * r)
+static void parse_profile(struct sym *sym, tac_realm * r, tac_profile * parent)
 {
     tac_profile *n, *profile;
 
@@ -1653,6 +1693,7 @@ static void parse_profile(struct sym *sym, tac_realm * r)
     if (n)
 	parse_error(sym, "Profile '%s' already defined at line %u", profile->name, n->line);
 
+    profile->parent = parent;
     profile->line = sym->line;
     sym_get(sym);
     parse_profile_attr(sym, profile, r);
@@ -2113,8 +2154,28 @@ static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm
 		profile->enable = calloc(sizeof(struct pwdat *), TAC_PLUS_PRIV_LVL_MAX + 1);
 	    parse_enable(sym, NULL, profile->enable);
 	    continue;
+	case S_profile:
+	    parse_profile(sym, r, profile);
+	    continue;
+	case S_parent:
+	    {
+		sym_get(sym);
+		parse(sym, S_equal);
+		tac_realm *rp = r;
+		profile->parent = NULL;
+		while (rp && !profile->parent) {
+		    profile->parent = lookup_profile(sym->buf, r);
+		    rp = rp->parent;
+		}
+		if (!profile->parent)
+		    parse_error(sym, "Host '%s' not found.", sym->buf);
+		if (loopcheck_profile(profile))
+		    parse_error(sym, "'%s': circular reference rejected", sym->buf);
+		sym_get(sym);
+		continue;
+	    }
 	default:
-	    parse_error_expect(sym, S_script, S_debug, S_hushlogin, S_enable, S_unknown);
+	    parse_error_expect(sym, S_script, S_debug, S_hushlogin, S_enable, S_profile, S_unknown);
 	}
     sym_get(sym);
 }
