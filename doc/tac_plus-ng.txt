@@ -1953,31 +1953,30 @@ group groupname {  ...  }
 
    SHELL (EXEC) Service
 
-   Shell startup should have an appropriate service
-service shell { }
+   Shell startup should have an appropriate script definition
+script {
+if (service == "shell" && cmd == "")
+    permit
+}
 
    defined. Valid configuration directive within the curly
    brackets are:
 
-     * message ( permit | deny ) = string
-       This specifies a message to be presented to the user on
-       accepting or rejecting a command. Recognized string
-       substitutions within string are %c for the command name, %a
-       for the command arguments and %C for the currenly set
-       context. Example:
-message permit "Permitted '%c %a'"
-message deny "Denied '%c %a'"
-       This directive may appear in cmd sections, too, where it
-       overrides the service section definitions.
      * script { tacAction }
        Commands can be permitted or denied using script syntax:
-service shell
-    script {
-        if (cmd =~ /^write term/) deny
-        if (cmd =~ /^configure /) deny
+script {
+    if (service == "shell" && cmd == "")
         permit
-    }
+    if (cmd =~ /^write term/) deny
+    if (cmd =~ /^configure /) deny
+    permit
 }
+     * profile SubProfileName { ... }
+       This defines a new profile that inherits most values from
+       its parent profile.
+     * parent = ParentProfileName
+       This sets ParentProfileName as parent profile. Parent
+       profiles defined in parent realms are accepted, too.
 
    Have a look at the authorization log in case you're unsure what
    commands and arguments the router actually sends for
@@ -1986,29 +1985,35 @@ service shell
    Non-Shell Services
 
    E.g. for PPP, protocol definitions may be used:
-service ppp {
-    protocol = ip { set addr = 1.2.3.4 }
+script {
+    if (service == "ppp" && protocol == "ip") {
+        set addr = 1.1.3.4
+        permit
+    }
 }
 
-   Use
-    default protocol = permit
+   The historical
+default protocol = permit
 
-   or
-    default protocol = deny
-
-   to specify the default for protocols not explicitly defined
-   within a service declaration. (default: deny).
+   will no longer be recognized but can be replaced with a simple
+script {
+    permit
+}
 
    For a Juniper Networks-specific authorization service, use:
-service junos-exec {
-   set local-user-name = NOC
-   # see the Junos documentation for more attributes
+script {
+    if (service == junos-exec) {
+        set local-user-name = NOC
+        # see the Junos documentation for more attributes
+    }
 }
 
    Likewise, for Raritan Dominion SX IP Console Servers:
-service dominionsx {
-    set port-list = "1 3 4 15"
-    set user-type = administator # or operator, or observer
+script {
+    if (service == dominionsx) {
+        set port-list = "1 3 4 15"
+        set user-type = administator # or operator, or observer
+    }
 }
 
    Tip Quotes
@@ -2017,14 +2022,10 @@ service dominionsx {
    If your router expects double-quoted values (e.g. Cisco Nexus
    devices do), you can advise the parser to automatically add
    these:
-service shell {
-    set shell:roles="\"network-admin\""
-}
+set shell:roles = "\"network-admin\""
 
    and
-service shell {
-    double-quote-values = yes
-    set shell:roles="network-admin"
+set shell:roles = '"network-admin"'
 }
 
    are equivalent, but the latter is more readable.
@@ -3049,17 +3050,6 @@ Router#
          6. NAS prompts user for password
          7. NAS sends packet to daemon
          8. Daemon sends accept, reject or error to NAS
-     * What does "default service = permit" really do?
-       When a request comes in to authorize exec startup, or ppp
-       (with protocol lcp, ip, ipx), or slip or a specific
-       command, the daemon looks for a matching declarations for
-       the user (or groups the user is a member of).
-       For exec startup, it looks for a service=shell.
-       For PPP, it looks for a service=ppp and protocol= one of
-       lcp, ip, ipx.
-       For commands, the script defined must permit the command.
-       If these aren't found, authorization will fail, unless you
-       say default service = permit.
      * How do I limit the number of sessions a user can have?
        With this version of the daemon you can't.
      * How can I configure time-outs on an interface via TACACS+?
