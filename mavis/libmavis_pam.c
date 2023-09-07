@@ -202,6 +202,9 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 
 	av_setf(*ac, AV_A_UID, "%lu", (u_long) pw->pw_uid);
 	av_setf(*ac, AV_A_GID, "%lu", (u_long) pw->pw_gid);
+	av_set(*ac, AV_A_GIDS, groups_getlist(pw->pw_name, pw->pw_gid, buf, sizeof(buf)));
+	if (pw->pw_shell)
+	    av_set(*ac, AV_A_SHELL, pw->pw_shell);
 
 	/* attempt to get supplemental groups */
 
