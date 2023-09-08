@@ -599,40 +599,32 @@ static int globerror(const char *epath, int eerrno)
     return 0;
 }
 
-static void sym_from_file(struct sym *sym, char *url, struct sym *nsym)
+static void sym_from_file(char *url, struct sym *sym)
 {
     char *buf;
     int buflen;
 
-    memset(sym, 0, sizeof(struct sym));
-    sym->filename = strdup(url);
-    sym->line = 0;
-    sym->next = nsym;
-
     if (cfg_open_and_read(url, &buf, &buflen)) {
 	report_cfg_error(LOG_ERR, ~0, "Couldn't open %s: %s", url, strerror(errno));
-	for (; sym; sym = sym->next)
-	    report_cfg_error(LOG_ERR, ~0,
-			     "file=%s line=%u sym=[%s%s%s] buf='%s%s%s'",
-			     sym->filename ? sym->filename : "(unset)",
-			     sym->line, common_data.font_red,
-			     codestring[sym->code], common_data.font_plain, common_data.font_blue, sym->buf, common_data.font_plain);
 	report_cfg_error(LOG_ERR, ~0, "Exiting.");
 	exit(EX_NOINPUT);
     }
 
+    sym->filename = strdup(url);
     sym->tlen = sym->len = buflen;
     sym->tin = sym->in = buf;
 
-    sym_getchar(sym);
+    sym_init(sym);
 }
 
 static void sym_prepend_file(struct sym *sym, char *url)
 {
-    struct sym *nsym = calloc(1, sizeof(struct sym));
-    memcpy(nsym, sym, sizeof(struct sym));
-    sym_from_file(sym, url, nsym);
-    memcpy(sym->env, nsym->env, sizeof(jmp_buf));
+    struct sym nsym;
+    memset(&nsym, 0, sizeof(struct sym));
+    sym_from_file(url, &nsym);
+    nsym.next = calloc(1, sizeof(struct sym));
+    memcpy(nsym.next, sym, sizeof(struct sym));
+    memcpy(sym, &nsym, sizeof(struct sym));
 }
 
 struct token_list {
@@ -749,9 +741,10 @@ void sym_get(struct sym *sym)
 	globerror_sym = sym;
 	switch (glob(sb, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOMAGIC | GLOB_BRACE, globerror, &globbuf)) {
 	case 0:
-	    for (i = (int) globbuf.gl_pathc - 1; i > -1; i--)
+	    for (i = (int) globbuf.gl_pathc - 1; i > -1; i--) {
+		sym_get(sym);
 		sym_prepend_file(sym, globbuf.gl_pathv[i]);
-	    sym_get(sym);
+	    }
 	    break;
 #ifdef GLOB_NOMATCH
 	case GLOB_NOMATCH:
@@ -759,21 +752,20 @@ void sym_get(struct sym *sym)
 	    break;
 #endif				/* GLOB_NOMATCH */
 	default:
-	    sym_prepend_file(sym, sb);
 	    sym_get(sym);
+	    sym_prepend_file(sym, sb);
 	}
 	globfree(&globbuf);
     }
-    if (sym->code == S_eof && sym->next) {
+    while (sym->code == S_eof && sym->next) {
 	struct sym *nsym = sym->next;
 	if (sym->filename) {
 	    cfg_close(sym->filename, sym->in, sym->len);
 	    free(sym->filename);
 	}
-	memcpy(sym, nsym, sizeof(struct sym));
+	memcpy(sym, sym->next, sizeof(struct sym));
 	sym->next = nsym->next;
 	free(nsym);
-	sym_get(sym);
     }
 }
 
@@ -1299,7 +1291,7 @@ void parse_debug(struct sym *sym, u_int * d)
 	    bit = DEBUG_PROC_FLAG;
 	    break;
 	case S_DNS:
-	case S_LWRES: // deprecated
+	case S_LWRES:		// deprecated
 	    bit = DEBUG_DNS_FLAG;
 	    break;
 	case S_USERINPUT:
@@ -1953,7 +1945,8 @@ int sym_normalize_cond_start(struct sym *sym, struct sym **mysym)
 	    b++;
 
 	*mysym = calloc(1, sizeof(struct sym));
-	memcpy(*mysym, sym, sizeof(struct sym));
+	(*mysym)->filename = strdup(sym->filename);
+	(*mysym)->line = sym->line;
 	(*mysym)->tlen = (*mysym)->len = (int) (b - buf);
 	(*mysym)->tin = (*mysym)->in = buf;
 	sym_init(*mysym);
@@ -1965,6 +1958,8 @@ int sym_normalize_cond_start(struct sym *sym, struct sym **mysym)
 void sym_normalize_cond_end(struct sym **mysym)
 {
     if (*mysym) {
+	if ((*mysym)->filename)
+	    free((*mysym)->filename);
 	if ((*mysym)->in)
 	    free((*mysym)->in);
 	free(*mysym);
@@ -2316,9 +2311,7 @@ static enum token mavis_script_eval_r(mavis_ctx * mcx, av_ctx * ac, struct mavis
 #endif
 		    v++;
 #ifdef WITH_PCRE2
-		    if (pcre_arg
-			&& ovector
-			&& i < ovector_count && ovector[2 * i] < ovector[2 * i + 1]) {
+		    if (pcre_arg && ovector && i < ovector_count && ovector[2 * i] < ovector[2 * i + 1]) {
 			size_t l = ovector[2 * i + 1] - ovector[2 * i];
 			if (((int) (se - t) > (int) l)) {
 			    strncpy(t, (char *) pcre_arg + ovector[2 * i], l);

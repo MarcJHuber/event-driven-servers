@@ -1020,7 +1020,6 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
     /* Top level of parser */
     while (sym->code != S_closebra)
 	switch (sym->code) {
-	case S_closebra:
 	case S_eof:
 	    parse_error(sym, "EOF unexpected");
 	case S_password:
