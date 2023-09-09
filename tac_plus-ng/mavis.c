@@ -233,7 +233,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		int show[] = { AV_A_USER, AV_A_DN, AV_A_TACMEMBER, AV_A_MEMBEROF, AV_A_USER_RESPONSE, AV_A_SERVERIP,
 		    AV_A_IPADDR, AV_A_REALM, AV_A_TACPROFILE, AV_A_SSHKEY, AV_A_SSHKEYHASH, AV_A_SSHKEYID, AV_A_PATH,
 		    AV_A_UID, AV_A_GID, AV_A_HOME, AV_A_ROOT, AV_A_SHELL, AV_A_GIDS, AV_A_PASSWORD_MUSTCHANGE, AV_A_ARGS,
-		    AV_A_RARGS, AV_A_VERDICT, AV_A_IDENTITY_SOURCE, -1
+		    AV_A_RARGS, AV_A_VERDICT, AV_A_IDENTITY_SOURCE, AV_A_CUSTOM_0, AV_A_CUSTOM_1, AV_A_CUSTOM_2, AV_A_CUSTOM_3, -1
 		};
 		report(session, LOG_INFO, ~0, "user found by MAVIS backend, av pairs:");
 		for (i = 0; show[i] > -1; i++)
