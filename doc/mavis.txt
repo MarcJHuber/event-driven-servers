@@ -922,8 +922,6 @@ id = ftpd {
        the latest condition matching operation.
      * unset attribute
        Clears the specified MAVIS attribute.
-     * reset attribute
-       Resets the specified MAVIS attribute to its original value.
      * toupper attribute
        Converts the specified MAVIS attribute to upper case.
      * tolower attribute
@@ -981,10 +979,15 @@ id = ftpd {
     mavis module = external {
         script in = {
             if ($TYPE == FTP) {
+                # Copy $USER to one of the CUSTOM variables. We'll need
+to restore
+                # it later to the original value:
+                eval ($USER =~ /^(.*)$/)
+                set $CUSTOM_0 = $1
                 # Make sure $USER is a) lowercase and b) in user@realm f
 ormat.
-                # This isn't mandatory; I just want to show how to do it
-:
+                # This isn't mandatory; I just want to demonstrate how t
+o do it:
                 tolower $USER
                 if ( $USER =~ /^([^\\\\]+)\\\\(.*)$/ )
                     set $USER = $2@$1
@@ -1003,9 +1006,10 @@ ormat.
                 set $GID = 100
                 set $GIDS = "100,102,129"
                 set $RESULT = ACK
-                # Reset the username to the original value, or upstream
-                # will complain:
-                reset $USER
+                # Restore the oritinal username or the upstream will mod
+ule complain:
+                eval ($CUSTOM_0 =~ /^(.*)$/)
+                set $USER = $1
             }
         }
         exec = /usr/local/sbin/radmavis radmavis "authserver=localhost:1
