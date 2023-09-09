@@ -106,7 +106,6 @@ static int fork_child(mavis_ctx *, int);
 struct query {
     mavis_ctx *mcx;
     av_ctx *ac;
-    av_ctx *ac_bak;
     time_t when;
     u_long counter;
     u_int serial_crc;
@@ -165,7 +164,6 @@ static int compare_ctx(const void *v1, const void *v2)
 static void free_payload(void *p)
 {
     av_free(((struct query *) p)->ac);
-    av_free(((struct query *) p)->ac_bak);
     free(p);
 }
 
@@ -556,14 +554,7 @@ static void read_from_child(struct context *ctx, int cur)
 			while ((r = RB_first(ctx->mcx->outgoing))) {
 			    struct query *qp = RB_payload(r, struct query *);
 
-			    if (ctx->mcx->ac_bak)
-				av_free(ctx->mcx->ac_bak);
-			    ctx->mcx->ac_bak = qp->ac_bak;
-			    qp->ac_bak = NULL;
-
 			    if (q->canceled) {
-				av_free(ctx->mcx->ac_bak);
-				ctx->mcx->ac_bak = NULL;
 				RB_delete(ctx->mcx->outgoing, r);
 			    } else
 				((void (*)(void *)) qp->ac->app_cb) (qp->ac->app_ctx);
@@ -822,9 +813,6 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	q->mcx = mcx;
 	q->ac = *ac;
 	*ac = NULL;
-
-	q->ac_bak = mcx->ac_bak;
-	mcx->ac_bak = NULL;
 
 	q->serial_crc = crc32_update(INITCRC32, (u_char *) serial, strlen(serial));
 	q->when = io_now.tv_sec;

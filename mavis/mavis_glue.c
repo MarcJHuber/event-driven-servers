@@ -63,9 +63,6 @@ static void *Mavis_drop(mavis_ctx * mcx)
     mavis_script_drop(&mcx->script_in);
     mavis_script_drop(&mcx->script_out);
 
-    av_free(mcx->ac_bak);
-    mcx->ac_bak = NULL;
-
     handle = mcx->handle;
 
     if (mcx->identifier)
@@ -133,13 +130,6 @@ static int Mavis_send(mavis_ctx * mcx, av_ctx ** ac)
     DebugIn(DEBUG_MAVIS);
 
     if (!current_module) {
-
-	if (mcx->ac_bak_required) {
-	    if (!mcx->ac_bak)
-		mcx->ac_bak = av_new(NULL, NULL);
-	    av_copy(mcx->ac_bak, *ac);
-	}
-
 	if (mcx->script_in) {
 	    script_verdict = mavis_script_eval(mcx, *ac, mcx->script_in);
 	    switch (script_verdict) {

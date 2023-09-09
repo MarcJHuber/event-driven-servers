@@ -236,8 +236,6 @@ struct mavis_ctx {
     void *(*drop)(mavis_ctx *);
     mavis_ctx *down;
     mavis_ctx *top;
-    av_ctx *ac_bak;
-    int ac_bak_required;
     int last_result;
     struct mavis_action *script_in;
     struct mavis_action *script_out;

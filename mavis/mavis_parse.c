@@ -2347,11 +2347,6 @@ static enum token mavis_script_eval_r(mavis_ctx * mcx, av_ctx * ac, struct mavis
 	if (common_data.debug & DEBUG_ACL_FLAG)
 	    fprintf(stderr, "%s/line %u: [%s] %s\n", mcx->identity_source_name, m->line, codestring[m->code], av_char[m->a.a].name);
 	break;
-    case S_reset:
-	if (mcx->ac_bak)
-	    av_set(ac, m->a.a, av_get(mcx->ac_bak, m->a.a));
-	mavis_script_eval_debug(mcx, m);
-	break;
     case S_toupper:{
 	    char *t = av_get(ac, m->a.a);
 	    if (t)
@@ -2419,8 +2414,6 @@ static struct mavis_action *mavis_script_parse_r(mavis_ctx * mcx, struct sym *sy
     case S_skip:
 	m = mavis_action_new(sym);
 	break;
-    case S_reset:
-	mcx->ac_bak_required = 1;
     case S_set:
     case S_unset:
     case S_toupper:
@@ -2453,7 +2446,7 @@ static struct mavis_action *mavis_script_parse_r(mavis_ctx * mcx, struct sym *sy
 	}
 	break;
     default:
-	parse_error_expect(sym, S_if, S_unset, S_set, S_skip, S_reset, S_toupper, S_tolower, S_return, S_continue, S_openbra, S_unknown);
+	parse_error_expect(sym, S_if, S_unset, S_set, S_skip, S_toupper, S_tolower, S_return, S_continue, S_openbra, S_unknown);
     }
     if (section && sym->code != S_closebra && sym->code != S_eof)
 	m->n = mavis_script_parse_r(mcx, sym, section);

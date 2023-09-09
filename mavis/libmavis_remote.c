@@ -72,7 +72,6 @@ struct query {
     mavis_ctx *mcx;
     struct remote_addr_s *ra;
     av_ctx *ac;
-    av_ctx *ac_bak;
     int tries;
     int result;
     u_int serial_crc;
@@ -153,7 +152,6 @@ static int compare_app_ctx(const void *v1, const void *v2)
 static void free_payload(void *p)
 {
     av_free(((struct query *) p)->ac);
-    av_free(((struct query *) p)->ac_bak);
     free(p);
 }
 
@@ -492,10 +490,6 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 		q->mcx = mcx;
 		q->ra = ra;
 		q->ac = *ac;
-		if (mcx->ac_bak) {
-		    q->ac_bak = mcx->ac_bak;
-		    mcx->ac_bak = NULL;
-		}
 		*ac = NULL;
 		q->serial_crc = crc32_update(INITCRC32, (u_char *) serial, strlen(serial));
 		io_sched_add(mcx->io, q, (void *) retransmit, mcx->timeout, 0);
@@ -584,10 +578,6 @@ static void mavis_io(mavis_ctx * mcx, int cur __attribute__((unused)))
 		Debug((DEBUG_MAVIS, "%s:%d\n", __FILE__, __LINE__));
 		while ((r = RB_first(mcx->outgoing))) {
 		    qp = RB_payload(r, struct query *);
-		    if (mcx->ac_bak)
-			av_free(mcx->ac_bak);
-		    mcx->ac_bak = qp->ac_bak;
-		    qp->ac_bak = NULL;
 		    ((void (*)(void *)) qp->ac->app_cb) (qp->ac->app_ctx);
 		}
 	    }
