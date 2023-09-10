@@ -277,6 +277,7 @@ void av_dump(av_ctx *);
 void av_move(av_ctx *, av_ctx *);
 void av_merge(av_ctx *, av_ctx *);
 void av_copy(av_ctx *, av_ctx *);
+size_t av_array_to_char_len(av_ctx *);
 int av_array_to_char(av_ctx *, char *, size_t, fd_set *);
 int av_char_to_array(av_ctx *, char *, fd_set *);
 int av_attribute_to_i(char *);

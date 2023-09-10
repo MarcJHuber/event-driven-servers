@@ -324,6 +324,21 @@ int av_attr_token_to_i(struct sym *sym)
     return av_attribute_to_i(b);
 }
 
+size_t av_array_to_char_len(av_ctx * ac)
+{
+    size_t j = 1;		// terminating \0
+    int i;
+
+    for (i = 0; i < AV_A_ARRAYSIZE; i++) {
+	char *u = av_get(ac, i);
+	if (u) {
+	    j += 3 + (j > 9) ? 1 : 0;
+	    j += strlen(u);
+	}
+    }
+    return j;
+}
+
 int av_array_to_char(av_ctx * ac, char *buffer, size_t buflen, fd_set * set)
 {
     int i, j, k;
