@@ -332,7 +332,7 @@ size_t av_array_to_char_len(av_ctx * ac)
     for (i = 0; i < AV_A_ARRAYSIZE; i++) {
 	char *u = av_get(ac, i);
 	if (u) {
-	    j += 3 + (j > 9) ? 1 : 0;
+	    j += 3 + ((j > 9) ? 1 : 0);
 	    j += strlen(u);
 	}
     }
