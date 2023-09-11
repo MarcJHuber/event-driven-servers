@@ -23,16 +23,17 @@ Marc Huber
               5.2.3. The auth module
               5.2.4. The cache module
               5.2.5. The external module
-              5.2.6. The group module
-              5.2.7. The limit module
-              5.2.8. The log module
-              5.2.9. The PAM module
-              5.2.10. The remote module
-              5.2.11. The tacinfo_cache module
-              5.2.12. The system module
-              5.2.13. The userdb module
-              5.2.14. The tee module
-              5.2.15. The null module
+              5.2.6. The external-mt module
+              5.2.7. The group module
+              5.2.8. The limit module
+              5.2.9. The log module
+              5.2.10. The PAM module
+              5.2.11. The remote module
+              5.2.12. The tacinfo_cache module
+              5.2.13. The system module
+              5.2.14. The userdb module
+              5.2.15. The tee module
+              5.2.16. The null module
 
         5.3. MAVIS Scripting Language
 
@@ -506,7 +507,40 @@ cache expire FTP = 0
    Railroad diagram: ExternalConf
      __________________________________________________________
 
-5.2.6. The group module
+5.2.6. The external-mt module
+
+   Just like the external module the external-mt module implements
+   an interface to external authentication backends. However,
+   external-mt expects a multi-threaded backend which is capable
+   of processing concurrent authentications. Currently, only the
+   pammavis-mt backend is supported:
+    mavis module = external-mt {
+        exec = /usr/local/sbin/pammavis-mt "pammavis-mt" "-s" "pamservic
+ename"
+    }
+     __________________________________________________________
+
+5.2.6.1. Configuration directives
+
+   The following configuration directives are available:
+
+     * setenv Variable = Value
+       Set environment variables.
+     * exec = Path Arguments ...
+       Set path and arguments (including argv[0]) of the
+       authentication program. It's recommended to enclose the
+       individual arguments in double quotes to avoid potential
+       conflicts with pre-defined keywords.
+     __________________________________________________________
+
+5.2.6.2. Railroad Diagram
+
+   [ExternalMTConf.eps]
+
+   Railroad diagram: ExternalMTConf
+     __________________________________________________________
+
+5.2.7. The group module
 
    This module resolves numerical group IDs returned by a
    downstream backend to their corresponding ASCII names.
@@ -515,7 +549,7 @@ cache expire FTP = 0
    attributes.
      __________________________________________________________
 
-5.2.6.1. Configuration directives
+5.2.7.1. Configuration directives
 
    The following configuration directives are available:
 
@@ -548,13 +582,13 @@ memberof filter = /(?i)^cn=ops,dc=/
    will work, too.)
      __________________________________________________________
 
-5.2.7. The limit module
+5.2.8. The limit module
 
    This module implements limitations on the number of failed
    authentications per IP address.
      __________________________________________________________
 
-5.2.7.1. Configuration directives
+5.2.8.1. Configuration directives
 
    Available configuration directives are:
 
@@ -571,20 +605,20 @@ memberof filter = /(?i)^cn=ops,dc=/
        period to Seconds (default: 300).
      __________________________________________________________
 
-5.2.7.2. Railroad Diagram
+5.2.8.2. Railroad Diagram
 
    [LimitConf.eps]
 
    Railroad diagram: LimitConf
      __________________________________________________________
 
-5.2.8. The log module
+5.2.9. The log module
 
    This module performs query logging to syslogd. There are no
    configuration options.
      __________________________________________________________
 
-5.2.9. The PAM module
+5.2.10. The PAM module
 
    This module implements an interface for FTP authentication via
    pluggable authentication modules (PAM). The PAM module doesn't
@@ -626,7 +660,7 @@ session  required       pam_opendirectory.so
    id of root if access to the shadow password file is required.
      __________________________________________________________
 
-5.2.9.1. Configuration directives
+5.2.10.1. Configuration directives
 
    Available configuration options are:
 
@@ -641,19 +675,19 @@ session  required       pam_opendirectory.so
        initialization. It defaults to mavis.
      __________________________________________________________
 
-5.2.9.2. Railroad Diagram
+5.2.10.2. Railroad Diagram
 
    [PAMConf.eps]
 
    Railroad diagram: PAMConf
      __________________________________________________________
 
-5.2.10. The remote module
+5.2.11. The remote module
 
    This module implements communication with mavisd.
      __________________________________________________________
 
-5.2.10.1. Configuration directives
+5.2.11.1. Configuration directives
 
    Available configuration options are:
 
@@ -687,14 +721,14 @@ session  required       pam_opendirectory.so
        one of the remote peers. Default is 6 tries.
      __________________________________________________________
 
-5.2.10.2. Railroad Diagram
+5.2.11.2. Railroad Diagram
 
    [RemoteConf.eps]
 
    Railroad diagram: RemoteConf
      __________________________________________________________
 
-5.2.10.3. Possible legal restrictions
+5.2.11.3. Possible legal restrictions
 
    This module utilizes Bruce Schneier's Blowfish algorithm. Your
    government may have choosen to implement ridiculous legal
@@ -702,7 +736,7 @@ session  required       pam_opendirectory.so
    Take care.
      __________________________________________________________
 
-5.2.11. The tacinfo_cache module
+5.2.12. The tacinfo_cache module
 
    This module implements on-disk caching of authentication
    attributes for later authorization. It may be useful to reduce
@@ -710,7 +744,7 @@ session  required       pam_opendirectory.so
    data between tac_plus worker processes.
      __________________________________________________________
 
-5.2.11.1. Configuration directives
+5.2.12.1. Configuration directives
 
      * userid = UserID
        Specifies the uid to use for disk access.
@@ -722,7 +756,7 @@ session  required       pam_opendirectory.so
        there.
      __________________________________________________________
 
-5.2.11.2. Example
+5.2.12.2. Example
 
 mavis module = tacinfo_cache {
   directory = /tmp/tacinfo
@@ -732,7 +766,7 @@ mavis module = external {
 }
      __________________________________________________________
 
-5.2.12. The system module
+5.2.13. The system module
 
    This module implements FTP authentication via UNIX system
    accounts or accounts defined in UNIX password-style files.
@@ -745,7 +779,7 @@ mavis module = external {
    is required.
      __________________________________________________________
 
-5.2.12.1. Configuration directives
+5.2.13.1. Configuration directives
 
      * chroot = ( yes | no )
        This activates a chroot environment for system users
@@ -776,20 +810,20 @@ openssl x509 -subject -noout -in cert.pem
        Enables checking of the specified file type.
      __________________________________________________________
 
-5.2.12.2. Railroad Diagram
+5.2.13.2. Railroad Diagram
 
    [SystemConf.eps]
 
    Railroad diagram: SystemConf
      __________________________________________________________
 
-5.2.13. The userdb module
+5.2.14. The userdb module
 
    This module can be used to define static users, e.g. for FTP.
    It requires the auth module for user authentication.
      __________________________________________________________
 
-5.2.13.1. Configuration directives
+5.2.14.1. Configuration directives
 
    Syntax for defining users is user = UserName { ... }. The
    following configuration directives inside the curly brackets
@@ -814,14 +848,14 @@ openssl x509 -subject -noout -in cert.pem
      * set AttributeName = Value
      __________________________________________________________
 
-5.2.13.2. Railroad Diagram
+5.2.14.2. Railroad Diagram
 
    [UserDBConf.eps]
 
    Railroad diagram: UserDBConf
      __________________________________________________________
 
-5.2.13.3. Example
+5.2.14.3. Example
 
    The following is a valid configuration for ftpd which utilizes
    various MAVIS backends:
@@ -860,7 +894,7 @@ id = ftpd {
 }
      __________________________________________________________
 
-5.2.14. The tee module
+5.2.15. The tee module
 
    This module is used for development only. It writes sent and
    received attribute-value pairs to disk in a format which may,
@@ -868,7 +902,7 @@ id = ftpd {
    description of the external module).
      __________________________________________________________
 
-5.2.14.1. Configuration directives
+5.2.15.1. Configuration directives
 
    Available configuration options are:
 
@@ -878,14 +912,14 @@ id = ftpd {
      * path ( in | out ) Path
      __________________________________________________________
 
-5.2.14.2. Railroad Diagram
+5.2.15.2. Railroad Diagram
 
    [TeeConf.eps]
 
    Railroad diagram: TeeConf
      __________________________________________________________
 
-5.2.15. The null module
+5.2.16. The null module
 
    This module comes without any functionality on its own. It may
    however be used in conjunction with the scripting feature
