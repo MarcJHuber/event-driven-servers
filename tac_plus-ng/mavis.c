@@ -235,10 +235,10 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    AV_A_UID, AV_A_GID, AV_A_HOME, AV_A_ROOT, AV_A_SHELL, AV_A_GIDS, AV_A_PASSWORD_MUSTCHANGE, AV_A_ARGS,
 		    AV_A_RARGS, AV_A_VERDICT, AV_A_IDENTITY_SOURCE, AV_A_CUSTOM_0, AV_A_CUSTOM_1, AV_A_CUSTOM_2, AV_A_CUSTOM_3, -1
 		};
-		report(session, LOG_INFO, ~0, "user found by MAVIS backend, av pairs:");
+		report(session, LOG_DEBUG, ~0, "user found by MAVIS backend, av pairs:");
 		for (i = 0; show[i] > -1; i++)
 		    if (avc->arr[show[i]])
-			report_string(session, LOG_INFO, DEBUG_TACTRACE_FLAG, av_char[show[i]].name, avc->arr[show[i]], strlen(avc->arr[show[i]]));
+			report_string(session, LOG_DEBUG, DEBUG_TACTRACE_FLAG, av_char[show[i]].name, avc->arr[show[i]], strlen(avc->arr[show[i]]));
 	    }
 
 	    if (!u || u->dynamic) {

@@ -94,7 +94,8 @@ void report(tac_session * session, int priority, int level, char *fmt, ...)
 		    now, (u_long) io_now.tv_usec / 1000, (session && session->ctx) ? session->ctx->id : 0, session ? session->session_id : 0, nas_addr, msg);
 	    fflush(stderr);
 	    return;
-	} else if (common_data.syslog_dflt) {
+	}
+	if (common_data.syslog_dflt) {
 	    syslog(LOG_DEBUG, "%x/%.8x: %s %s%s",
 		   (session && session->ctx) ? session->ctx->id : 0,
 		   session ? session->session_id : 0, nas_addr, (priority & LOG_PRIMASK) == LOG_ERR ? "Error: " : "", msg);
@@ -102,7 +103,7 @@ void report(tac_session * session, int priority, int level, char *fmt, ...)
 	}
     }
 
-    if (common_data.syslog_dflt)
+    if (priority != LOG_DEBUG && common_data.syslog_dflt)
 	syslog(priority, "%s %s%s", nas_addr, (priority & LOG_PRIMASK) == LOG_ERR ? "Error: " : "", msg);
 }
 
