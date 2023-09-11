@@ -30,6 +30,10 @@ ifeq ($(WITH_PAM),1)
 	MAVIS_LIBNAMES += pam
 	MAVIS_PRG += pammavis
 	MAVIS_PAMMAVIS_INSTALL = install_pammavis
+	ifeq ($(WITH_PTHREAD),1)
+		MAVIS_PRG += pammavis-mt
+		MAVIS_PAMMAVIS_INSTALL += install_pammavis-mt
+	endif
 endif
 
 ifeq ($(WITH_FREERADIUS),1)
@@ -46,6 +50,7 @@ endif
 
 MAVIS_LIBNAMES += remote system groups anonftp asciiftp limit
 MAVIS_LIBNAMES += cache auth log external userdb tee null tacinfo_cache
+MAVIS_LIBNAMES += external-mt
 
 MAVIS_LIBS = $(patsubst %,libmavis_%.so, $(MAVIS_LIBNAMES))
 
@@ -69,6 +74,13 @@ pammavis.o: $(BASE)/misc/version.h
 
 pammavis$(EXEC_EXT): pammavis.o
 	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PAM) $(LIB_NET)
+
+pammavis-mt.o: CFLAGS += $(INC_PAM)
+
+pammavis-mt.o: $(BASE)/misc/version.h
+
+pammavis-mt$(EXEC_EXT): pammavis-mt.o
+	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PTHREAD) $(LIB_PAM) $(LIB_NET)
 
 spawnd_main.o: $(BASE)/misc/version.h
 
@@ -138,6 +150,11 @@ libmavis_anonftp.so: libmavis_anonftp.o
 libmavis_external.o: libmavis_external.c mavis_glue.c
 
 libmavis_external.so: libmavis_external.o
+	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
+
+libmavis_external-mt.o: libmavis_external-mt.c mavis_glue.c
+
+libmavis_external-mt.so: libmavis_external-mt.o
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
 libmavis_userdb.o: libmavis_userdb.c mavis_glue.c
@@ -243,7 +260,12 @@ install_mavistest: $(INSTALLROOT)$(BINDIR_DEST) $(INSTALLROOT)$(BINDIR_DEST)/mav
 $(INSTALLROOT)$(SBINDIR_DEST)/pammavis$(EXEC_EXT): pammavis$(EXEC_EXT)
 	$(INSTALL) -m 0755 $< $@
 
+$(INSTALLROOT)$(SBINDIR_DEST)/pammavis-mt$(EXEC_EXT): pammavis-mt$(EXEC_EXT)
+	$(INSTALL) -m 0755 $< $@
+
 install_pammavis: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/pammavis$(EXEC_EXT)
+
+install_pammavis-mt: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/pammavis-mt$(EXEC_EXT)
 
 $(INSTALLROOT)$(SBINDIR_DEST)/radmavis$(EXEC_EXT): radmavis$(EXEC_EXT)
 	$(INSTALL) -m 0755 $< $@

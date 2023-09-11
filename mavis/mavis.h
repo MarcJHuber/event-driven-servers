@@ -479,6 +479,13 @@ void mavis_detach(void);
 
 void mavis_module_parse_action(mavis_ctx *, struct sym *);
 
+#define MAVIS_EXT_MAGIC_V1 0x4d610001
+struct mavis_ext_hdr_v1 {
+    uint32_t magic;
+    uint32_t body_len;
+    uint32_t result;
+} __attribute__((__packed__));
+
 #if defined(MAVIS_name) && defined(DEBUG)
 #undef DebugIn
 #undef DebugOut

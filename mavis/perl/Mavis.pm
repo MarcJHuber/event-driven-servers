@@ -86,6 +86,7 @@ BEGIN {
 		MAVIS_CONF_OK
 		MAVIS_DEFERRED
 		MAVIS_DOWN
+		MAVIS_EXT_MAGIC_V1
 		MAVIS_FINAL
 		MAVIS_FINAL_DEFERRED
 		MAVIS_IGNORE
@@ -171,6 +172,7 @@ use constant MAVIS_CONF_ERR => 1;
 use constant MAVIS_CONF_OK => 0;
 use constant MAVIS_DEFERRED => 1;
 use constant MAVIS_DOWN => 16;
+use constant MAVIS_EXT_MAGIC_V1 => 0x4d610001;
 use constant MAVIS_FINAL => 0;
 use constant MAVIS_FINAL_DEFERRED => 4;
 use constant MAVIS_IGNORE => 2;

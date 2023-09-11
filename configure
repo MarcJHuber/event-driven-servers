@@ -643,7 +643,7 @@ check_for("CURL", "libcurl", "curl/curl.h", "curl", undef);
 check_for("PAM", "libpam", "security/pam_appl.h", "pam", "-DHAVE_SECURITY_PAM_APPL_H");
 check_for("PAM", "libpam", "pam/pam_appl.h", "pam", undef);
 check_for("SCTP", "sctp", "netinet/sctp.h", "sctp", undef);
-
+check_for("PTHREAD", "pthread", "pthread.h", "pthread", undef);
 
 $DEFS{"LIB_DL"} = "-ldl" if $sysname eq "linux";
 
