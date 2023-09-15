@@ -238,7 +238,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		report(session, LOG_DEBUG, ~0, "user found by MAVIS backend, av pairs:");
 		for (i = 0; show[i] > -1; i++)
 		    if (avc->arr[show[i]])
-			report_string(session, LOG_DEBUG, DEBUG_TACTRACE_FLAG, av_char[show[i]].name, avc->arr[show[i]], strlen(avc->arr[show[i]]));
+			report_string(session, LOG_DEBUG, DEBUG_MAVIS_FLAG | DEBUG_TACTRACE_FLAG, av_char[show[i]].name, avc->arr[show[i]], strlen(avc->arr[show[i]]));
 	    }
 
 	    if (!u || u->dynamic) {
