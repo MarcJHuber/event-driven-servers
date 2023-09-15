@@ -3545,9 +3545,11 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 		if (hp) {
 		    m->type = S_host;
 		    m->u.s.rhs = hp;
+		    m->u.s.rhs_txt = hp->name;
 		} else if (np) {
 		    m->type = S_net;
 		    m->u.s.rhs = np;
+		    m->u.s.rhs_txt = np->name;
 		} else if (m->u.s.token == S_device || m->u.s.token == S_deviceaddress) {
 		    struct in6_cidr *c = calloc(1, sizeof(struct in6_cidr));
 		    m->u.s.rhs = c;
@@ -3555,6 +3557,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 			parse_error(sym, "Expected a %san IP address/network in CIDR notation, but got '%s'.",
 				    (m->u.s.token == S_device || m->u.s.token == S_devicename) ? "host or net name or " : "", sym->buf);
 		    m->type = S_address;
+		    m->u.s.rhs_txt = strdup(sym->buf);
 		} else
 		    parse_error(sym, "Expected a host or net name, but got '%s'.", sym->buf);
 		sym_get(sym);
@@ -3564,11 +3567,11 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 		tac_net *np = NULL;
 		if (m->u.s.token == S_client || m->u.s.token == S_clientname)
 		    np = lookup_net(sym->buf, realm);
-		m->u.s.rhs_txt = strdup(sym->buf);
+		m->u.s.rhs_txt = np ? np->name : strdup(sym->buf);
 		if (np) {
 		    m->type = S_net;
 		    m->u.s.rhs = np;
-		} else if (m->u.s.token == S_device || m->u.s.token == S_deviceaddress) {
+		} else if (m->u.s.token == S_client || m->u.s.token == S_clientaddress) {
 		    struct in6_cidr *c = calloc(1, sizeof(struct in6_cidr));
 		    m->u.s.rhs = c;
 		    if (!v6_ptoh(&c->addr, &c->mask, sym->buf)) {
@@ -3577,29 +3580,33 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 			return p ? p : m;
 		    }
 		}
-		m->u.s.rhs = m->u.s.rhs_txt;
+		if (!m->u.s.rhs)
+			m->u.s.rhs = m->u.s.rhs_txt;
 		sym_get(sym);
 		return p ? p : m;
 	    }
 	    if (m->u.s.token == S_nac || m->u.s.token == S_nas || m->u.s.token == S_host) {
 		tac_host *hp;
 		tac_net *np;
-		m->u.s.rhs_txt = strdup(sym->buf);
 		if (m->u.s.token == S_host) {
 		    hp = lookup_host(sym->buf, realm);
 		    if (!hp)
 			parse_error(sym, "host %s is not known", sym->buf);
 		    m->type = S_host;
 		    m->u.s.rhs = hp;
+		    m->u.s.rhs_txt = hp->name;
 		} else if (m->u.s.token == S_nas && (hp = lookup_host(sym->buf, realm))) {
 		    m->type = S_host;
 		    m->u.s.rhs = hp;
+		    m->u.s.rhs_txt = hp->name;
 		} else if (m->u.s.token == S_nas && (np = lookup_net(sym->buf, realm))) {
 		    m->type = S_net;
 		    m->u.s.rhs = np;
+		    m->u.s.rhs_txt = np->name;
 		} else if (m->u.s.token == S_nac && (np = lookup_net(sym->buf, realm))) {
 		    m->type = S_net;
 		    m->u.s.rhs = np;
+		    m->u.s.rhs_txt = np->name;
 		} else {
 		    struct in6_cidr *c = calloc(1, sizeof(struct in6_cidr));
 		    m->u.s.rhs = c;
@@ -3608,6 +3615,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 				    "Expected a net%s name or an IP address/network in CIDR notation, but got '%s'.",
 				    (m->u.s.token == S_nas) ? " or host" : "", sym->buf);
 		    m->type = S_address;
+		    m->u.s.rhs_txt = strdup(sym->buf);
 		}
 		sym_get(sym);
 		return p ? p : m;
