@@ -39,6 +39,8 @@ struct regex_list;
 
 #define MAVIS_CTX_PRIVATE	int resolve_gid; \
 				int resolve_gids; \
+				int resolve_gid_attr; \
+				int resolve_gids_attr; \
 				struct regex_list *group_regex; \
 				struct regex_list *groups_regex; \
 				struct regex_list *memberof_regex; \
@@ -136,30 +138,60 @@ static void parse_gid(struct sym *sym, struct gid_list **l)
 #define HAVE_mavis_parse_in
 static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 {
+    mcx->resolve_gid_attr = AV_A_GID;
+    mcx->resolve_gids_attr = AV_A_GIDS;
+
     while (1) {
 	switch (sym->code) {
 	case S_script:
 	    mavis_script_parse(mcx, sym);
 	    continue;
 	case S_resolve:
+	    // resolve gid = (yes|no)
+	    // resolve gid attribute = <attr>
 	    sym_get(sym);
 	    switch (sym->code) {
 	    case S_gid:
-		// resolve gid = (yes|no)
 		sym_get(sym);
-		parse(sym, S_equal);
-		mcx->resolve_gid = parse_bool(sym);
-		continue;
+		switch (sym->code) {
+		case S_attr:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    mcx->resolve_gid_attr = av_attribute_to_i(sym->buf);
+		    if (mcx->resolve_gid_attr < 0)
+			parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
+		    sym_get(sym);
+		    continue;
+		case S_equal:
+		    parse(sym, S_equal);
+		    mcx->resolve_gid = parse_bool(sym);
+		    continue;
+		default:
+		    parse_error_expect(sym, S_attr, S_equal, S_unknown);
+		}
 	    case S_gids:
 		// resolve gids = (yes|no)
+		// resolve gids attribute = <attr>
 		sym_get(sym);
-		parse(sym, S_equal);
-		mcx->resolve_gids = parse_bool(sym);
-		continue;
+		switch (sym->code) {
+		case S_attr:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    mcx->resolve_gids_attr = av_attribute_to_i(sym->buf);
+		    if (mcx->resolve_gids_attr < 0)
+			parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
+		    sym_get(sym);
+		    continue;
+		case S_equal:
+		    parse(sym, S_equal);
+		    mcx->resolve_gids = parse_bool(sym);
+		    continue;
+		default:
+		    parse_error_expect(sym, S_attr, S_equal, S_unknown);
+		}
 	    default:
 		parse_error_expect(sym, S_gid, S_gids, S_unknown);
 	    }
-	    continue;
 	case S_group:
 	    sym_get(sym);
 	    parse(sym, S_filter);
@@ -282,12 +314,12 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 		} else {
 		    g = getgrgid((gid_t) u);
 		    if (g && good_name(mcx->group_regex, g->gr_name))
-			av_set(*ac, AV_A_GID, g->gr_name);
+			av_set(*ac, mcx->resolve_gid_attr, g->gr_name);
 		    else
-			av_unset(*ac, AV_A_GID);
+			av_unset(*ac, mcx->resolve_gid_attr);
 		}
 	    } else
-		av_unset(*ac, AV_A_GID);
+		av_unset(*ac, mcx->resolve_gid_attr);
 	}
     }
 
@@ -321,9 +353,9 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 		    s++;
 
 	    if (b[0])
-		av_set(*ac, AV_A_GIDS, b);
+		av_set(*ac, mcx->resolve_gids_attr, b);
 	    else
-		av_unset(*ac, AV_A_GIDS);
+		av_unset(*ac, mcx->resolve_gids_attr);
 	}
     }
 
