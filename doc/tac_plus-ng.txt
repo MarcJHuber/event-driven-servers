@@ -269,13 +269,8 @@ id = tac_plus-ng {
    Then, there's the MAVIS part:
     mavis module = groups {
         resolve gids = yes
+        resolve gids attribute = TACMEMBER
         groups filter = /^(guest|staff|ubuntu)$/
-        script out = {
-                # copy the already filtered UNIX group access list to TA
-CMEMBER
-                eval $GIDS =~ /^(.*)$/
-                set $TACMEMBER = $1
-        }
     }
 
     mavis module = external {
@@ -2694,12 +2689,8 @@ id = spawnd { listen = { port = 49 } }
 id = tac_plus {
   mavis module = groups {
     resolve gids = yes
+    resolve gids attribute = TACMEMBER
     groups filter = /^(guest|staff)$/
-    script out = {
-      # copy the already filtered UNIX group access list to TACMEMBER
-      eval $GIDS =~ /^(.*)$/
-      set $TACMEMBER = $1
-    }
   }
   mavis module = external {
     exec = /usr/local/sbin/pammavis "pammavis" "-s" "sshd"

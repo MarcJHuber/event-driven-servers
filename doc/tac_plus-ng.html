@@ -399,12 +399,8 @@ and restart its worker processes:</p>
 "emphasis">MAVIS</i></span> part:</p>
 <pre class="screen">    mavis module = groups {
         resolve gids = yes
+        resolve gids attribute = TACMEMBER
         groups filter = /^(guest|staff|ubuntu)$/
-        script out = {
-                # copy the already filtered UNIX group access list to TACMEMBER
-                eval $GIDS =~ /^(.*)$/
-                set $TACMEMBER = $1
-        }
     }
 
     mavis module = external {
@@ -4222,12 +4218,8 @@ back-end</a></h4>
 id = tac_plus {
   mavis module = groups {
     resolve gids = yes
+    resolve gids attribute = TACMEMBER
     groups filter = /^(guest|staff)$/
-    script out = {
-      # copy the already filtered UNIX group access list to TACMEMBER
-      eval $GIDS =~ /^(.*)$/
-      set $TACMEMBER = $1
-    }
   }
   mavis module = external {
     exec = /usr/local/sbin/pammavis "pammavis" "-s" "sshd"

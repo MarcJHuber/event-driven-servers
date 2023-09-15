@@ -513,8 +513,13 @@ cache expire FTP = 0
    an interface to external authentication backends. However,
    external-mt expects a multi-threaded backend which is capable
    of processing concurrent authentications. Currently, only the
-   pammavis-mt backend is supported:
+   pammavis-mt backend is supported.
+
+   Using pammavis-mt primarily makes sense if your PAM backend
+   would block, e.g. by waiting for a push notification
+   validation.
     mavis module = external-mt {
+        # -s specifies the service, which defaults to "mavis"
         exec = /usr/local/sbin/pammavis-mt "pammavis-mt" "-s" "pamservic
 ename"
     }
@@ -555,8 +560,16 @@ ename"
 
      * resolve gid = ( yes | no )
        This tells the module to resolve the primary group id.
+     * resolve gid attribute = attribute
+       Put the resolved group id to attribute instead of GID.
+       Example:
+resolve gids attribute = TACMEMBER
      * resolve gids = ( yes | no )
        This tells the module to resolve the group access list.
+     * resolve gids attribute = attribute
+       Put the resolved group ids to attribute instead of GIDS.
+       Example:
+resolve gids attribute = TACMEMBER
      * gid filter = [ not ]
        gid_start[-gid_end][,gid_start[-gid_end]]*
        Establishes a filter on the GID MAVIS attribute. Example:
