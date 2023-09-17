@@ -440,6 +440,7 @@ static tac_host *new_host(struct sym *sym, char *name, tac_host * parent, tac_re
 	host->user_messages[UM_PERMISSION_DENIED] = "Permission denied.";
 	host->user_messages[UM_ENABLE_PASSWORD] = "Enable Password: ";
 	host->user_messages[UM_PASSWORD_CHANGE_DIALOG] = "Entering password change dialog";
+	host->user_messages[UM_PASSWORD_CHANGED] = "Password change succeeded.";
 	host->user_messages[UM_BACKEND_FAILED] = "Authentication backend failure.";
 	host->user_messages[UM_CHANGE_PASSWORD] = "Please change your password.";
 	host->user_messages[UM_ACCOUNT_EXPIRES] = "This account will expire soon.";
@@ -2995,6 +2996,9 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    case S_PASSWORD_CHANGE_DIALOG:
 		um = UM_PASSWORD_CHANGE_DIALOG;
 		break;
+	    case S_PASSWORD_CHANGED:
+		um = UM_PASSWORD_CHANGED;
+		break;
 	    case S_BACKEND_FAILED:
 		um = UM_BACKEND_FAILED;
 		break;
@@ -3024,7 +3028,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 				   S_PASSWORD_NEW, S_PASSWORD_ABORT,
 				   S_PASSWORD_AGAIN, S_PASSWORD_NOMATCH,
 				   S_PASSWORD_MINREQ, S_PERMISSION_DENIED,
-				   S_ENABLE_PASSWORD, S_PASSWORD_CHANGE_DIALOG,
+				   S_ENABLE_PASSWORD, S_PASSWORD_CHANGE_DIALOG, S_PASSWORD_CHANGED,
 				   S_BACKEND_FAILED, S_CHANGE_PASSWORD,
 				   S_ACCOUNT_EXPIRES, S_PASSWORD_INCORRECT,
 				   S_RESPONSE_INCORRECT, S_USERNAME, S_USER_ACCESS_VERIFICATION, S_DENIED_BY_ACL, S_unknown);

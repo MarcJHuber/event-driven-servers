@@ -105,6 +105,7 @@ static struct log_item *li_password_nomatch = NULL;
 static struct log_item *li_enable_password = NULL;
 static struct log_item *li_password_minreq = NULL;
 static struct log_item *li_password_change_dialog = NULL;
+static struct log_item *li_password_changed = NULL;
 static struct log_item *li_motd_dflt = NULL;
 static struct log_item *li_change_password = NULL;
 static struct log_item *li_password_incorrect_retry = NULL;
@@ -636,12 +637,19 @@ static void do_chpass(tac_session * session)
 
     res = check_access(session, pwdat, session->password_new, &hint, &resp);
 
-    if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
+    if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
 	session->passwd_mustchange = 0;
+	if (resp) {
+		session->user_msg = resp;
+		session->user_msg_len = strlen(resp);
+	} else
+		session->user_msg = eval_log_format(session, session->ctx, NULL, li_password_changed, io_now.tv_sec, &session->user_msg_len);
+	resp = set_motd_banner(session);
+    }
 
     report_auth(session, "password change", hint, res);
 
-    send_authen_reply(session, res, resp ? resp : set_motd_banner(session), 0, NULL, 0, 0);
+    send_authen_reply(session, res, resp, 0, NULL, 0, 0);
 }
 
 static void send_password_prompt(tac_session * session, enum pw_ix pw_ix, void (*f)(tac_session *))
@@ -1725,6 +1733,7 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	li_password_minreq = parse_log_format_inline("\"${PASSWORD_MINREQ}\n\"", __FILE__, __LINE__);
 	li_motd_dflt = parse_log_format_inline("\"${message}${umessage}\"", __FILE__, __LINE__);
 	li_password_change_dialog = parse_log_format_inline("\"${PASSWORD_CHANGE_DIALOG}\n\n\"", __FILE__, __LINE__);
+	li_password_changed = parse_log_format_inline("\"${PASSWORD_CHANGED}\"", __FILE__, __LINE__);
 	li_change_password = parse_log_format_inline("\"${CHANGE_PASSWORD}\n\"", __FILE__, __LINE__);
 	li_password_incorrect = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n\"", __FILE__, __LINE__);
 	li_password_incorrect_retry = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n${PASSWORD}\"", __FILE__, __LINE__);
