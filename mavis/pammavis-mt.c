@@ -88,7 +88,7 @@ static int check_auth(char *user, char *pass, int chpass, const char **pamerr)
 
     res = pam_start(service, user, &pc, &ph);
 
-    if (res != PAM_SUCCESS)
+    if (res != PAM_SUCCESS && res != PAM_AUTHTOK_EXPIRED)
 	return 0;
 
     res = chpass ? pam_chauthtok(ph, PAM_SILENT) : pam_authenticate(ph, PAM_SILENT);
@@ -132,7 +132,7 @@ static void *run_thread(void *arg)
     char *pass = av_get(ac, AV_A_PASSWORD);
     int res = check_auth(user, pass, 0, &pamerr);
 
-    if (res == PAM_SUCCESS && !strcmp(av_get(ac, AV_A_TACTYPE), AV_V_TACTYPE_CHPW)) {
+    if ((res == PAM_SUCCESS || res == PAM_AUTHTOK_EXPIRED) && !strcmp(av_get(ac, AV_A_TACTYPE), AV_V_TACTYPE_CHPW)) {
 	pass = av_get(ac, AV_A_PASSWORD_NEW);
 	res = check_auth(user, pass, 1, &pamerr);
     }

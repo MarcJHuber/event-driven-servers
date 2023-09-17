@@ -86,7 +86,7 @@ static int check_auth(char *user, char *pass, int chpass, const char **pamerr)
 
     res = pam_start(service, user, &pc, &ph);
 
-    if (res != PAM_SUCCESS)
+    if (res != PAM_SUCCESS && res != PAM_AUTHTOK_EXPIRED)
 	return 0;
 
     res = chpass ? pam_chauthtok(ph, PAM_SILENT) : pam_authenticate(ph, PAM_SILENT);
@@ -179,7 +179,7 @@ int main(int argc, char **argv)
 	    if (pass) {
 		const char *pamerr = NULL;
 		int res = getpwnam(user) ? check_auth(user, pass, 0, &pamerr) : PAM_USER_UNKNOWN;
-		if (res == PAM_SUCCESS && tact_chpw && pass_new) {
+		if ((res == PAM_SUCCESS || res == PAM_AUTHTOK_EXPIRED) && tact_chpw && pass_new) {
 		    free(pass);
 		    pass = pass_new;
 		    pass_new = NULL;
