@@ -147,6 +147,8 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), char *type, e
     av_setf(avc, AV_A_TIMESTAMP, "%d", session->session_id);
     av_set(avc, AV_A_TACTYPE, type);
     av_set(avc, AV_A_SERVERIP, session->ctx->nas_address_ascii);
+    if (session->passwd_changeable)
+	av_set(avc, AV_A_CALLER_CAP, ":chpw:");
     if (session->nac_address_valid)
 	av_set(avc, AV_A_IPADDR, session->nac_address_ascii);
     if (r->name)

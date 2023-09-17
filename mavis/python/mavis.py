@@ -6,6 +6,7 @@
 AV_A_ANON_INCOMING = 29
 AV_A_ARGS = 26
 AV_A_ARRAYSIZE = 56
+AV_A_CALLER_CAP = 42
 AV_A_CERTSUBJ = 44
 AV_A_CHALLENGE = 51
 AV_A_CLASS = 34
@@ -216,3 +217,6 @@ class Mavis:
 
 	def set_expiry(self, arg):
 		self.av_pairs[AV_A_PASSWORD_EXPIRY] = str(arg)
+
+	def get_caller_cap_chpw(self):
+		return AV_A_CALLER_CAP in self.av_pairs and ":chpw:" in self.av_pairs[AV_A_CALLER_CAP]

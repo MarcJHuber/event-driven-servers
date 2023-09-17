@@ -158,5 +158,8 @@ class Mavis:
 
 	def set_expiry(self, arg):
 		self.av_pairs[AV_A_PASSWORD_EXPIRY] = str(arg)
+
+	def get_caller_cap_chpw(self):
+		return AV_A_CALLER_CAP in self.av_pairs and ":chpw:" in self.av_pairs[AV_A_CALLER_CAP]
 EOT
 

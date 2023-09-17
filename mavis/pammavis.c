@@ -128,6 +128,7 @@ int main(int argc, char **argv)
     char buf[4096], *user = NULL, *pass = NULL, *pass_new = NULL;
     int tact_info = 0;
     int tact_chpw = 0;
+    int caller_cap_chpw = 0;
 
     while ((c = getopt(argc, argv, "s:")) != EOF)
 	switch (c) {
@@ -171,6 +172,9 @@ int main(int argc, char **argv)
 		tact_info = !strcmp(mavis_val + 1, AV_V_TACTYPE_INFO);
 		tact_chpw = !strcmp(mavis_val + 1, AV_V_TACTYPE_CHPW);
 		break;
+	    case AV_A_CALLER_CAP:
+		caller_cap_chpw = strstr(mavis_val + 1, ":chpw:") ? 1 : 0;
+		break;
 	    default:;
 	    }
 	} else if (!strcmp(buf, "=\n")) {
@@ -196,6 +200,11 @@ int main(int argc, char **argv)
 		case PAM_USER_UNKNOWN:
 		    printf("=%d\n", MAVIS_DOWN);
 		    break;
+		case PAM_AUTHTOK_EXPIRED:
+		    if (caller_cap_chpw) {
+			printf("%d %s\n%d %s\n%d 1\n=%d\n", AV_A_RESULT, AV_V_RESULT_OK, AV_A_DBPASSWORD, pass, AV_A_PASSWORD_MUSTCHANGE, MAVIS_FINAL);
+			break;
+		    }
 		default:
 		    if (pamerr)
 			printf("%d %s\n", AV_A_COMMENT, pamerr);
@@ -229,6 +238,7 @@ int main(int argc, char **argv)
 	    }
 	    tact_info = 0;
 	    tact_chpw = 0;
+	    caller_cap_chpw = 0;
 	} else {
 	    fprintf(stderr, "%s: Protocol violation. Exiting.\n", argv[0]);
 	    exit(-1);

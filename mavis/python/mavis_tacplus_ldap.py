@@ -289,15 +289,15 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 			if expiry is not None:
 				if expiry < time.time():
 					user_msg = "Password has expired."
-					if has_extension_password_modify is not None:
+					if D.get_caller_cap_chpw is False and has_extension_password_modify is not None:
 						D.password_mustchange(True)
 					else:
-						D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, None)
+						D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, user_msg)
 						continue
 				else:
 					D.set_expiry(expiry)
 		if not conn.rebind(user=entry.entry_dn, password=D.password):
-			if (LDAP_SERVER_TYPE == "microsoft"
+			if (LDAP_SERVER_TYPE == "microsoft" and D.get_caller_cap_chpw
 				and conn.result == ldap3.core.results.RESULT_INVALID_CREDENTIALS
 				and re.search(r"DSID-.*, data (532|533|773) ", c.message)):
 				D.password_mustchange(True)
@@ -307,6 +307,9 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 				continue
 
 	if D.is_tacplus_chpw:
+		if LDAP_SERVER_TYPE != "microsoft" and has_extension_password_modify is None:
+			D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, "Password change is unsupported.")
+			continue
 		if ((LDAP_SERVER_TYPE == "microsoft"
 				and not conn.extend.microsoft.modify_password(
 				entry.entry_dn, D.password, D.password_new))

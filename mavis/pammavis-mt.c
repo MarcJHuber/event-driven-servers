@@ -142,6 +142,15 @@ static void *run_thread(void *arg)
 	av_set(ac, AV_A_DBPASSWORD, pass);
 	av_set(ac, AV_A_RESULT, AV_V_RESULT_OK);
 	break;
+    case PAM_AUTHTOK_EXPIRED:
+	{
+	    char *cap = av_get(ac, AV_A_CALLER_CAP);
+	    if (cap && strstr(cap, ":chpw:")) {
+		av_get(ac, AV_A_PASSWORD_MUSTCHANGE);
+		av_set(ac, AV_A_RESULT, AV_V_RESULT_OK);
+		break;
+	    }
+	}
     default:
 	if (pamerr)
 	    av_set(ac, AV_A_COMMENT, (char *) pamerr);

@@ -343,9 +343,10 @@ retry_once:
 		$V[AV_A_SHELL] = $val if $val = $entry->get_value('loginShell');
 		$V[AV_A_HOME] = $val if $val = $entry->get_value('homeDirectory');
 		$V[AV_A_SSHKEY] = $val if $val = $entry->get_value('sshPublicKey');
-
 		my $authdn = $mesg->entry(0)->dn;
+
 		if ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_AUTH) {
+			my $caller_cap_chpw = exists($V[AV_A_CALLER_CAP]) && $V[AV_A_CALLER_CAP] =~ /:chpw:/;
 			my $expiry = undef;
 			$val = $entry->get_value('shadowExpire');
 			if (defined $val) {
@@ -361,7 +362,7 @@ retry_once:
 			if (defined $expiry) {
 				if ($expiry < time) {
 					$V[AV_A_USER_RESPONSE] = "Password has expired.";
-					if ($has_extension_password_modify) {
+					if ($caller_cap_chpw && $has_extension_password_modify) {
 						$V[AV_A_PASSWORD_MUSTCHANGE] = 1;
 					} else {
 						goto fail;
@@ -387,7 +388,7 @@ retry_once:
 				);
 				my $m = $mesg->error;
 				$m =~ s/.*DSID-.*, data ([0-9A-Fa-f]+),.*/$1/;
-				if($m eq "532" || $m eq "533" || $m eq "773") {
+				if($caller_cap_chpw && ($m eq "532" || $m eq "533" || $m eq "773")) {
 					$code = 0;
 					$V[AV_A_PASSWORD_MUSTCHANGE] = 1;
 				} elsif (exists $ad_error_codes{$m}) {
@@ -406,6 +407,10 @@ retry_once:
 			if ($LDAP_SERVER_TYPE eq 'microsoft') {
 				$mesg = $ldap->change_ADpassword($authdn, $V[AV_A_PASSWORD], $V[AV_A_PASSWORD_NEW]);
 			} else {
+				unless (defined($has_extension_password_modify)) {
+					$V[AV_A_USER_RESPONSE] = "Password change is unsupported.";
+					goto fail;
+				}
 				if (defined $ldap) {
 					$ldap->unbind;
 					$ldap->disconnect;
