@@ -201,7 +201,7 @@ int main(int argc, char **argv)
 		    "a valid service using the '-s <service>' option.\n", buf, service);
     }
 
-    if (!geteuid())
+    if (geteuid())
 	fprintf(stderr, "Not running as root, PAM may or may not work as expected.\n");
 
     while (1) {
