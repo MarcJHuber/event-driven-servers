@@ -86,8 +86,8 @@ static int check_auth(char *user, char *pass, int chpass, const char **pamerr)
 
     res = pam_start(service, user, &pc, &ph);
 
-    if (res != PAM_SUCCESS && res != PAM_AUTHTOK_EXPIRED)
-	return 0;
+    if (res != PAM_SUCCESS && (!chpass || res != PAM_AUTHTOK_EXPIRED))
+	return res;
 
     res = chpass ? pam_chauthtok(ph, PAM_SILENT) : pam_authenticate(ph, PAM_SILENT);
 
