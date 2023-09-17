@@ -61,8 +61,8 @@ void catchsegv(int sig __attribute__((unused)))
     logmsg("a bug report to the mailing-list at");
     logmsg("    event-driven-servers@googlegroups.com");
     logmsg("and include the backtraces.");
-    logmsg("Please do NOT mail bug reports it to the private mail address of");
-    logmsg("the author, unless you have a pretty good reason for doing so.");
+    logmsg("Please do NOT mail bug reports to the private mail address of");
+    logmsg("the author, unless you have a prior permit for that.");
     logmsg("Thank you.");
 
     snprintf(buf, sizeof(buf), "CRASHPID=%lu", (long unsigned) getpid());
