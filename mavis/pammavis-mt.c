@@ -73,7 +73,7 @@ static int pam_conv(int num_msg, PAM_CONV_ARG2_TYPE ** msg, struct pam_response 
     return PAM_SUCCESS;
 }
 
-static int check_auth(char *user, char *pass, const char **pamerr)
+static int check_auth(char *user, char *pass, int chpass, const char **pamerr)
 {
     struct pam_conv pc;
     struct appdata ad;
@@ -91,7 +91,7 @@ static int check_auth(char *user, char *pass, const char **pamerr)
     if (res != PAM_SUCCESS)
 	return 0;
 
-    res = pam_authenticate(ph, PAM_SILENT);
+    res = chpass ? pam_chauthtok(ph, PAM_SILENT) : pam_authenticate(ph, PAM_SILENT);
 
     /* check whether user account is to be considered healthy */
     if (res == PAM_SUCCESS)
@@ -130,7 +130,12 @@ static void *run_thread(void *arg)
     const char *pamerr = NULL;
     char *user = av_get(ac, AV_A_USER);
     char *pass = av_get(ac, AV_A_PASSWORD);
-    int res = check_auth(user, pass, &pamerr);
+    int res = check_auth(user, pass, 0, &pamerr);
+
+    if (res == PAM_SUCCESS && !strcmp(av_get(ac, AV_A_TACTYPE), AV_V_TACTYPE_CHPW)) {
+	pass = av_get(ac, AV_A_PASSWORD_NEW);
+	res = check_auth(user, pass, 1, &pamerr);
+    }
 
     switch (res) {
     case PAM_SUCCESS:
@@ -240,6 +245,9 @@ int main(int argc, char **argv)
 	if (!tactype || !pw) {
 	    av_write(ac, MAVIS_DOWN);
 	} else if (!av_get(ac, AV_A_PASSWORD) && !strcmp(tactype, AV_V_TACTYPE_AUTH)) {
+	    av_set(ac, AV_A_RESULT, AV_V_RESULT_FAIL);
+	    av_write(ac, MAVIS_FINAL);
+	} else if ((!av_get(ac, AV_A_PASSWORD) || !av_get(ac, AV_A_PASSWORD_NEW)) && !strcmp(tactype, AV_V_TACTYPE_CHPW)) {
 	    av_set(ac, AV_A_RESULT, AV_V_RESULT_FAIL);
 	    av_write(ac, MAVIS_FINAL);
 	} else {

@@ -71,7 +71,7 @@ static int pam_conv(int num_msg, PAM_CONV_ARG2_TYPE ** msg, struct pam_response 
     return PAM_SUCCESS;
 }
 
-static int check_auth(char *user, char *pass, const char **pamerr)
+static int check_auth(char *user, char *pass, int chpass, const char **pamerr)
 {
     struct pam_conv pc;
     struct appdata ad;
@@ -89,7 +89,7 @@ static int check_auth(char *user, char *pass, const char **pamerr)
     if (res != PAM_SUCCESS)
 	return 0;
 
-    res = pam_authenticate(ph, PAM_SILENT);
+    res = chpass ? pam_chauthtok(ph, PAM_SILENT) : pam_authenticate(ph, PAM_SILENT);
 
     /* check whether user account is to be considered healthy */
     if (res == PAM_SUCCESS)
@@ -125,8 +125,9 @@ int main(int argc, char **argv)
     extern int optind;
     int c;
 
-    char buf[4096], *user = NULL, *pass = NULL;
+    char buf[4096], *user = NULL, *pass = NULL, *pass_new = NULL;
     int tact_info = 0;
+    int tact_chpw = 0;
 
     while ((c = getopt(argc, argv, "s:")) != EOF)
 	switch (c) {
@@ -144,9 +145,12 @@ int main(int argc, char **argv)
     if (snprintf(buf, sizeof(buf), "/etc/pam.d/%s", service) < (int) sizeof(buf)) {
 	if (access(buf, F_OK))
 	    fprintf(stderr,
-		"Service file %s for PAM service %s does not exist, you may need to specify "
-		"a valid service using the '-s <service>' option.\n", buf, service);
+		    "Service file %s for PAM service %s does not exist, you may need to specify "
+		    "a valid service using the '-s <service>' option.\n", buf, service);
     }
+
+    if (geteuid())
+	fprintf(stderr, "Not running as root, PAM may or may not work as expected.\n");
 
     while (fgets(buf, sizeof(buf), stdin)) {
 	int mavis_attr;
@@ -160,8 +164,12 @@ int main(int argc, char **argv)
 	    case AV_A_PASSWORD:
 		pass = strdup(mavis_val + 1);
 		break;
+	    case AV_A_PASSWORD_NEW:
+		pass_new = strdup(mavis_val + 1);
+		break;
 	    case AV_A_TACTYPE:
 		tact_info = !strcmp(mavis_val + 1, AV_V_TACTYPE_INFO);
+		tact_chpw = !strcmp(mavis_val + 1, AV_V_TACTYPE_CHPW);
 		break;
 	    default:;
 	    }
@@ -170,7 +178,14 @@ int main(int argc, char **argv)
 
 	    if (pass) {
 		const char *pamerr = NULL;
-		int res = getpwnam(user) ? check_auth(user, pass, &pamerr) : PAM_USER_UNKNOWN;
+		int res = getpwnam(user) ? check_auth(user, pass, 0, &pamerr) : PAM_USER_UNKNOWN;
+		if (res == PAM_SUCCESS && tact_chpw && pass_new) {
+		    free(pass);
+		    pass = pass_new;
+		    pass_new = NULL;
+		    res = check_auth(user, pass, 1, &pamerr);
+		}
+
 		switch (res) {
 		case PAM_SUCCESS:
 		    if (print_credentials(user))	// not found by getpwnam()
@@ -208,7 +223,12 @@ int main(int argc, char **argv)
 		free(pass);
 		pass = NULL;
 	    }
+	    if (pass_new) {
+		free(pass_new);
+		pass_new = NULL;
+	    }
 	    tact_info = 0;
+	    tact_chpw = 0;
 	} else {
 	    fprintf(stderr, "%s: Protocol violation. Exiting.\n", argv[0]);
 	    exit(-1);
