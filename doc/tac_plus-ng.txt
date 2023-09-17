@@ -878,6 +878,7 @@ message USERNAME = "utilisateur"
    PASSWORD_ABORT "Password change dialog aborted."
    PASSWORD_AGAIN "Retype new password: "
    PASSWORD_CHANGE_DIALOG "Entering password change dialog"
+   PASSWORD_CHANGED "Password change succeeded."
    PASSWORD_EXPIRED "Password has expired."
    PASSWORD_EXPIRES "Password will expire on %c." (fed to
    strftime(3))
