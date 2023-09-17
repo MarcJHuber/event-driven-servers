@@ -86,13 +86,13 @@ static int check_auth(char *user, char *pass, int chpass, const char **pamerr)
 
     res = pam_start(service, user, &pc, &ph);
 
-    if (res != PAM_SUCCESS && (!chpass || res != PAM_AUTHTOK_EXPIRED))
+    if (res != PAM_SUCCESS)
 	return res;
 
     res = chpass ? pam_chauthtok(ph, PAM_SILENT) : pam_authenticate(ph, PAM_SILENT);
 
     /* check whether user account is to be considered healthy */
-    if (res == PAM_SUCCESS)
+    if (res == PAM_SUCCESS || (chpass && res == PAM_AUTHTOK_EXPIRED))
 	res = pam_acct_mgmt(ph, PAM_SILENT);
 
     *pamerr = pam_strerror(ph, res);
