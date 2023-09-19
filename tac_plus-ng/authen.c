@@ -110,6 +110,7 @@ static struct log_item *li_motd_dflt = NULL;
 static struct log_item *li_change_password = NULL;
 static struct log_item *li_password_incorrect_retry = NULL;
 static struct log_item *li_password_incorrect = NULL;
+static struct log_item *li_response_incorrect_retry = NULL;
 static struct log_item *li_response_incorrect = NULL;
 static struct log_item *li_account_expires = NULL;
 static struct log_item *li_password_expires = NULL;
@@ -972,12 +973,15 @@ static void do_ascii_login(tac_session * session)
 
     if (++session->authen_data->iterations < session->ctx->host->authen_max_attempts) {
 	m = eval_log_format(session, session->ctx, NULL,
-			    (session->user && (session->user->chalresp == TRISTATE_YES)) ? li_response_incorrect : li_password_incorrect_retry,
+			    (session->user && (session->user->chalresp == TRISTATE_YES)) ? li_response_incorrect_retry : li_password_incorrect_retry,
 			    io_now.tv_sec, NULL);
 	session->flag_mavis_auth = 0;
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS, m, 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
     } else {
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+	m = eval_log_format(session, session->ctx, NULL,
+			    (session->user && (session->user->chalresp == TRISTATE_YES)) ? li_response_incorrect : li_password_incorrect,
+			    io_now.tv_sec, NULL);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, m, 0, NULL, 0, 0);
     }
 }
 
@@ -1736,8 +1740,9 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	li_password_changed = parse_log_format_inline("\"${PASSWORD_CHANGED}\"", __FILE__, __LINE__);
 	li_change_password = parse_log_format_inline("\"${CHANGE_PASSWORD}\n\"", __FILE__, __LINE__);
 	li_password_incorrect = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n\"", __FILE__, __LINE__);
+	li_response_incorrect = parse_log_format_inline("\"${RESPONSE_INCORRECT}\n\"", __FILE__, __LINE__);
 	li_password_incorrect_retry = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n${PASSWORD}\"", __FILE__, __LINE__);
-	li_response_incorrect = parse_log_format_inline("\"${RESPONSE_INCORRECT}\n${RESPONSE}\"", __FILE__, __LINE__);
+	li_response_incorrect_retry = parse_log_format_inline("\"${RESPONSE_INCORRECT}\n${RESPONSE}\"", __FILE__, __LINE__);
 	li_account_expires = parse_log_format_inline("\"${ACCOUNT_EXPIRES}\n\"", __FILE__, __LINE__);
 	li_password_expired = parse_log_format_inline("\"${PASSWORD_EXPIRED}\n\"", __FILE__, __LINE__);
 	li_password_expires = parse_log_format_inline("\"${PASSWORD_EXPIRES}\n\"", __FILE__, __LINE__);
