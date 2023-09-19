@@ -1533,7 +1533,15 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	    parse_common(sym);
 	    continue;
 	default:
-	    parse_error(sym, "Unrecognized token '%s'", sym->buf);
+	    parse_error_expect(sym, S_password, S_pap, S_login, S_accounting, S_authentication, S_access, S_authorization, S_warning,
+			       S_connection, S_dns, S_cache, S_log, S_umask, S_retire, S_user, S_group, S_profile, S_acl, S_mavis,
+			       S_enable, S_net, S_parent, S_ruleset, S_timespec, S_time, S_realm, S_trace, S_debug, S_rewrite, S_anonenable,
+			       S_key, S_motd, S_welcome, S_reject, S_permit, S_bug, S_augmented_enable, S_singleconnection, S_context,
+			       S_script, S_message, S_session, S_maxrounds, S_host, S_device, S_syslog, S_proctitle, S_coredump, S_alias,
+#if defined(WITH_TLS) || defined(WITH_SSL)
+			       S_tls,
+#endif
+			       S_unknown);
 	}
 #ifdef WITH_TLS
     if ((r->tls_cert || r->tls_key || r->tls_cafile)
@@ -3585,7 +3593,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 		    }
 		}
 		if (!m->u.s.rhs)
-			m->u.s.rhs = m->u.s.rhs_txt;
+		    m->u.s.rhs = m->u.s.rhs_txt;
 		sym_get(sym);
 		return p ? p : m;
 	    }
