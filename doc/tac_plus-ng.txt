@@ -1469,6 +1469,9 @@ aaa authentication enable default group tacacs+ enable
        message if a connection was rejected by an access ACL
        defined at device, user or group level.
        These configurations will be accepted at realm level, too.
+     * failed authentication banner = string
+       The failed authentication banner gets displayed upon final
+       failure of an authentication attempt.
      * message = string
 
    The time when those texts get displayed largely depends on the
