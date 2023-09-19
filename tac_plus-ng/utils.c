@@ -926,6 +926,7 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_USERNAME:
 	    case S_USER_ACCESS_VERIFICATION:
 	    case S_DENIED_BY_ACL:
+	    case S_AUTHFAIL_BANNER:
 		break;
 	    case S_config_file:
 		(*li)->token = S_string;
@@ -1428,7 +1429,7 @@ static char *eval_log_format_PASSWORD_CHANGE_DIALOG(tac_session * session __attr
 }
 
 static char *eval_log_format_PASSWORD_CHANGED(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
-						    __attribute__((unused)), size_t *len __attribute__((unused)))
+					      __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (ctx)
 	return ctx->host->user_messages[UM_PASSWORD_CHANGED];
@@ -1515,6 +1516,15 @@ static char *eval_log_format_DENIED_BY_ACL(tac_session * session __attribute__((
 	return ctx->host->user_messages[UM_DENIED_BY_ACL];
     return NULL;
 }
+
+static char *eval_log_format_AUTHFAIL_BANNER(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					     __attribute__((unused)), size_t *len)
+{
+    if (session && ctx && ctx->host->authfail_banner)
+	return eval_log_format(session, session->ctx, NULL, ctx->host->authfail_banner, io_now.tv_sec, len);
+    return NULL;
+}
+
 
 static char *eval_log_format_priority(tac_session * session
 				      __attribute__((unused)), struct context *ctx __attribute((unused)), struct logfile *lf, size_t *len)
@@ -1689,6 +1699,7 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	initialized = 1;
 	memset(efun, 0, sizeof(efun));
 	efun[S_ACCOUNT_EXPIRES] = &eval_log_format_ACCOUNT_EXPIRES;
+	efun[S_AUTHFAIL_BANNER] = &eval_log_format_AUTHFAIL_BANNER;
 	efun[S_BACKEND_FAILED] = &eval_log_format_BACKEND_FAILED;
 	efun[S_CHANGE_PASSWORD] = &eval_log_format_CHANGE_PASSWORD;
 	efun[S_DENIED_BY_ACL] = &eval_log_format_DENIED_BY_ACL;
@@ -1862,7 +1873,7 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	if (s) {
 	    if (!len)
 		len = strlen(s);
-	    if (li->token == S_umessage || (session && session->eval_log_raw)) {
+	    if (li->token == S_umessage || li->token == S_AUTHFAIL_BANNER || (session && session->eval_log_raw)) {
 		if (sizeof(buf) - total_len > len + 20)
 		    memcpy(b, s, len);
 	    } else

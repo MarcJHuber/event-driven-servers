@@ -187,6 +187,7 @@ struct tac_host {
     struct log_item *welcome_banner;	/* prompt */
     struct log_item *welcome_banner_fallback;	/* fallback prompt */
     struct log_item *reject_banner;
+    struct log_item *authfail_banner;
     struct pwdat **enable;
     int tcp_timeout;		/* tcp connection idle timeout */
     int session_timeout;	/* session idle timeout */

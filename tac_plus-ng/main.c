@@ -791,6 +791,7 @@ void complete_host(tac_host * h)
 	HS(welcome_banner, NULL);
 	HS(welcome_banner_fallback, NULL);
 	HS(reject_banner, NULL);
+	HS(authfail_banner, NULL);
 	HS(motd, NULL);
 	HS(key, NULL);
 	HS(rewrite_user, NULL);

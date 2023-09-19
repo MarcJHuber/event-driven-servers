@@ -108,6 +108,7 @@ static struct log_item *li_password_change_dialog = NULL;
 static struct log_item *li_password_changed = NULL;
 static struct log_item *li_motd_dflt = NULL;
 static struct log_item *li_change_password = NULL;
+static struct log_item *li_enable_password_incorrect = NULL;
 static struct log_item *li_password_incorrect_retry = NULL;
 static struct log_item *li_password_incorrect = NULL;
 static struct log_item *li_response_incorrect_retry = NULL;
@@ -337,8 +338,8 @@ static enum token lookup_and_set_user(tac_session * session)
 static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&& ((!session->user && (session->ctx->realm->mavis_login == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
-	    || (session->user && pw_ix == PW_MAVIS));
+	&&( (!session->user &&(session->ctx->realm->mavis_login == TRISTATE_YES) &&(session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
+	   ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -366,7 +367,7 @@ static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *
 
 static int query_mavis_info_login(tac_session * session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
+    int res = !session->flag_mavis_info && !session->user &&(session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_LOGIN);
@@ -385,8 +386,8 @@ int query_mavis_info(tac_session * session, void (*f)(tac_session *), enum pw_ix
 static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
-	((!session->user && (session->ctx->realm->mavis_pap == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
-	 || (session->user && pw_ix == PW_MAVIS));
+	( (!session->user &&(session->ctx->realm->mavis_pap == TRISTATE_YES) &&(session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
+	 ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_PAP);
@@ -395,7 +396,7 @@ static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *),
 
 static int query_mavis_info_pap(tac_session * session, void (*f)(tac_session *))
 {
-    int res = !session->user && (session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
+    int res = !session->user &&(session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_PAP);
@@ -641,10 +642,10 @@ static void do_chpass(tac_session * session)
     if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
 	session->passwd_mustchange = 0;
 	if (resp) {
-		session->user_msg = resp;
-		session->user_msg_len = strlen(resp);
+	    session->user_msg = resp;
+	    session->user_msg_len = strlen(resp);
 	} else
-		session->user_msg = eval_log_format(session, session->ctx, NULL, li_password_changed, io_now.tv_sec, &session->user_msg_len);
+	    session->user_msg = eval_log_format(session, session->ctx, NULL, li_password_changed, io_now.tv_sec, &session->user_msg_len);
 	resp = set_motd_banner(session);
     }
 
@@ -655,8 +656,8 @@ static void do_chpass(tac_session * session)
 
 static void send_password_prompt(tac_session * session, enum pw_ix pw_ix, void (*f)(tac_session *))
 {
-    if ((session->ctx->realm->chalresp == TRISTATE_YES) && (!session->user || ((pw_ix == PW_MAVIS) && (TRISTATE_NO != session->user->chalresp)))) {
-	if (!session->flag_chalresp) {
+    if( (session->ctx->realm->chalresp == TRISTATE_YES) &&(!session->user ||( (pw_ix == PW_MAVIS) &&(TRISTATE_NO != session->user->chalresp)))) {
+	if(!session->flag_chalresp) {
 	    session->flag_chalresp = 1;
 	    mavis_lookup(session, f, AV_V_TACTYPE_CHAL, PW_LOGIN);
 	    return;
@@ -1062,7 +1063,7 @@ static void do_enable_getuser(tac_session * session)
     enum pw_ix pw_ix = PW_LOGIN;
     struct pwdat *pwdat = NULL;
     enum hint_enum hint = hint_nosuchuser;
-    char *resp = eval_log_format(session, session->ctx, NULL, li_password_incorrect, io_now.tv_sec, NULL);
+    char *resp = eval_log_format(session, session->ctx, NULL, li_enable_password_incorrect, io_now.tv_sec, NULL);
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 
     if (!session->username[0] && session->authen_data->msg) {
@@ -1739,8 +1740,9 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	li_password_change_dialog = parse_log_format_inline("\"${PASSWORD_CHANGE_DIALOG}\n\n\"", __FILE__, __LINE__);
 	li_password_changed = parse_log_format_inline("\"${PASSWORD_CHANGED}\"", __FILE__, __LINE__);
 	li_change_password = parse_log_format_inline("\"${CHANGE_PASSWORD}\n\"", __FILE__, __LINE__);
-	li_password_incorrect = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n\"", __FILE__, __LINE__);
-	li_response_incorrect = parse_log_format_inline("\"${RESPONSE_INCORRECT}\n\"", __FILE__, __LINE__);
+	li_enable_password_incorrect = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n\"", __FILE__, __LINE__);
+	li_password_incorrect = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n${AUTHFAIL_BANNER}\"", __FILE__, __LINE__);
+	li_response_incorrect = parse_log_format_inline("\"${RESPONSE_INCORRECT}\n${AUTHFAIL_BANNER}\"", __FILE__, __LINE__);
 	li_password_incorrect_retry = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n${PASSWORD}\"", __FILE__, __LINE__);
 	li_response_incorrect_retry = parse_log_format_inline("\"${RESPONSE_INCORRECT}\n${RESPONSE}\"", __FILE__, __LINE__);
 	li_account_expires = parse_log_format_inline("\"${ACCOUNT_EXPIRES}\n\"", __FILE__, __LINE__);

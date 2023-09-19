@@ -2853,6 +2853,14 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	host->reject_banner = parse_log_format(sym);
 	fixup_banner(&host->reject_banner, __FILE__, __LINE__);
 	return;
+    case S_failed:
+	sym_get(sym);
+	parse(sym, S_authentication);
+	parse(sym, S_banner);
+	parse(sym, S_equal);
+	host->authfail_banner = parse_log_format(sym);
+	fixup_banner(&host->authfail_banner, __FILE__, __LINE__);
+	return;
     case S_enable:
 	sym_get(sym);
 	if (!host->enable)
