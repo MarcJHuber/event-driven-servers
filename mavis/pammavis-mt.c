@@ -26,6 +26,12 @@
 #include "misc/version.h"
 
 static char *service = "mavis";
+
+#define TRISTATE_DUNNO  0
+#define TRISTATE_YES    1
+#define TRISTATE_NO     2
+static int is_mt = TRISTATE_DUNNO;
+
 static void usage(void)
 {
     fprintf(stderr,		// The comments are here to keep indent(1) from messing with code formatting.
@@ -34,7 +40,7 @@ static void usage(void)
 	    "\n"		//
 	    "Options:\n"	//
 	    "  -s <service>     PAM service to use (default: mavis)\n"	//
-	    "  -o <string>      generate test input on stdout\n"	//
+	    "  -o <string>      generate v1 test output on stdout\n"	//
 	    "\n");
     exit(-1);
 }
@@ -117,10 +123,15 @@ static void av_write(av_ctx * ac, uint32_t result)
     h->body_len = htonl((uint32_t) len);
     h->result = htonl(result);
 
-    len += sizeof(struct mavis_ext_hdr_v1);
-    pthread_mutex_lock(&mutex_lock);
+    if (is_mt == TRISTATE_YES)
+	len += sizeof(struct mavis_ext_hdr_v1);
+    else
+	buf += sizeof(struct mavis_ext_hdr_v1);
+    if (is_mt == TRISTATE_YES)
+	pthread_mutex_lock(&mutex_lock);
     write(1, buf, len);
-    pthread_mutex_unlock(&mutex_lock);
+    if (is_mt == TRISTATE_YES)
+	pthread_mutex_unlock(&mutex_lock);
     av_free(ac);
 }
 
@@ -186,18 +197,14 @@ int main(int argc, char **argv)
     extern char *optarg;
     extern int optind;
     int c;
-    char buf[4096];
     struct mavis_ext_hdr_v1 hdr;
-
-    if (pthread_mutex_init(&mutex_lock, NULL))
-	fprintf(stderr, "pthread_mutex_init() failed, expect trouble\n");
-
     while ((c = getopt(argc, argv, "s:o:")) != EOF)
 	switch (c) {
 	case 's':
 	    service = optarg;
 	    break;
 	case 'o':
+	    is_mt = TRISTATE_YES;
 	    generate_test_output(optarg);
 	    exit(EX_OK);
 	default:
@@ -208,11 +215,14 @@ int main(int argc, char **argv)
     if (argv[optind])
 	usage();
 
-    if (snprintf(buf, sizeof(buf), "/etc/pam.d/%s", service) < (int) sizeof(buf)) {
-	if (access(buf, F_OK))
-	    fprintf(stderr,
-		    "Service file %s for PAM service %s does not exist, you may need to specify "
-		    "a valid service using the '-s <service>' option.\n", buf, service);
+    {
+	char buf[256];
+	if (snprintf(buf, sizeof(buf), "/etc/pam.d/%s", service) < (int) sizeof(buf)) {
+	    if (access(buf, F_OK))
+		fprintf(stderr,
+			"Service file %s for PAM service %s does not exist, you may need to specify "
+			"a valid service using the '-s <service>' option.\n", buf, service);
+	}
     }
 
     if (geteuid())
@@ -220,35 +230,82 @@ int main(int argc, char **argv)
 
     while (1) {
 	size_t hdr_off = 0;
-	while (sizeof(struct mavis_ext_hdr_v1) != hdr_off) {
-	    int len = read(0, (char *) &hdr + hdr_off, sizeof(struct mavis_ext_hdr_v1) - hdr_off);
-	    if (len < 1) {
-		fprintf(stderr, "Short read (header).\n");
-		exit(-1);
+	av_ctx *ac = NULL;
+
+	if (is_mt != TRISTATE_NO) {
+	    while (sizeof(struct mavis_ext_hdr_v1) != hdr_off) {
+		int len = read(0, (char *) &hdr + hdr_off, sizeof(struct mavis_ext_hdr_v1) - hdr_off);
+		if (len < 1) {
+		    fprintf(stderr, "Short read (header).\n");
+		    exit(-1);
+		}
+		hdr_off += len;
 	    }
-	    hdr_off += len;
-	}
-	if (ntohl(hdr.magic) != MAVIS_EXT_MAGIC_V1) {
-	    fprintf(stderr, "Bad magic.\n");
-	    exit(-1);
-	}
-	size_t len = ntohl(hdr.body_len);
-	char *b = calloc(1, len + 1);
-	size_t off = 0;
-	while (len - off > 0) {
-	    size_t nlen = read(0, b + off, len - off);
-	    if (nlen < 1) {
-		fprintf(stderr, "Short read (body).\n");
-		exit(1);
-	    }
-	    off += nlen;
 	}
 
-	av_ctx *ac = av_new(NULL, NULL);
-	av_char_to_array(ac, b, NULL);
+	if (is_mt != TRISTATE_NO && ntohl(hdr.magic) == MAVIS_EXT_MAGIC_V1) {
+	    if (is_mt == TRISTATE_DUNNO) {
+		if (pthread_mutex_init(&mutex_lock, NULL))
+		    fprintf(stderr, "pthread_mutex_init() failed, expect trouble\n");
+		is_mt = TRISTATE_YES;
+	    }
+	    size_t len = ntohl(hdr.body_len);
+	    char *b = calloc(1, len + 1);
+	    size_t off = 0;
+	    while (len - off > 0) {
+		size_t nlen = read(0, b + off, len - off);
+		if (nlen < 1) {
+		    fprintf(stderr, "Short read (body).\n");
+		    exit(1);
+		}
+		off += nlen;
+	    }
+	    ac = av_new(NULL, NULL);
+	    av_char_to_array(ac, b, NULL);
+	    free(b);
+	} else {
+	    if (is_mt == TRISTATE_YES) {
+		fprintf(stderr, "Bad magic.\n");
+		exit(-1);
+	    } else {
+		char buf[4096];
+		size_t off = 0;
+		if (is_mt == TRISTATE_DUNNO) {
+		    memcpy(buf, &hdr, sizeof(hdr));
+		    off = sizeof(hdr);
+		    fcntl(0, F_SETFL, O_NONBLOCK);
+		    is_mt = TRISTATE_NO;
+		}
+		struct pollfd pfd;
+		memset(&pfd, 0, sizeof(pfd));
+		pfd.events = POLLIN;
+		while (1 == poll(&pfd, 1, -1) && off < sizeof(buf)) {
+		    ssize_t len = read(0, buf + off, sizeof(buf) - off);
+		    if (len < 1) {
+			fprintf(stderr, "Short read (legacy)");
+			exit(-1);
+		    }
+		    off += len;
+		    // no pipelining support at all.
+		    if (off > 3 && buf[off - 1] == '\n' && buf[off - 2] == '=' && buf[off - 3] == '\n') {
+			buf[off - 2] = 0;
+			ac = av_new(NULL, NULL);
+			av_char_to_array(ac, buf, NULL);
+			break;
+		    }
+		}
+		if (!ac) {
+		    fprintf(stderr, "Legacy read buffer too small\n");
+		    exit(-1);
+		}
+	    }
+	}
+
 	char *user = av_get(ac, AV_A_USER);
-	if (!user)
+	if (!user) {
+	    fprintf(stderr, "User not set\n");
 	    exit(-1);
+	}
 	struct passwd *pw = getpwnam(user);
 	char *tactype = av_get(ac, AV_A_TACTYPE);
 	if (!tactype || !pw) {
@@ -262,7 +319,10 @@ int main(int argc, char **argv)
 	} else {
 	    av_setf(ac, AV_A_UID, "%lu", (u_long) pw->pw_uid);
 	    av_setf(ac, AV_A_GID, "%lu", (u_long) pw->pw_gid);
-	    av_set(ac, AV_A_GIDS, groups_getlist(pw->pw_name, pw->pw_gid, buf, sizeof(buf)));
+	    {
+		char buf[4096];
+		av_set(ac, AV_A_GIDS, groups_getlist(pw->pw_name, pw->pw_gid, buf, sizeof(buf)));
+	    }
 	    if (pw->pw_dir)
 		av_set(ac, AV_A_HOME, pw->pw_dir);
 	    if (pw->pw_shell)
@@ -271,7 +331,7 @@ int main(int argc, char **argv)
 	    if (!strcmp(tactype, AV_V_TACTYPE_INFO)) {
 		av_set(ac, AV_A_RESULT, AV_V_RESULT_OK);
 		av_write(ac, MAVIS_FINAL);
-	    } else {
+	    } else if (is_mt == TRISTATE_YES) {
 		pthread_t thread;
 		pthread_attr_t thread_attr;
 		pthread_attr_init(&thread_attr);
@@ -288,9 +348,10 @@ int main(int argc, char **argv)
 		    av_set(ac, AV_A_RESULT, AV_V_RESULT_ERROR);
 		    av_write(ac, MAVIS_FINAL);
 		}
+	    } else {
+		run_thread(ac);
 	    }
 	}
-	free(b);
     }
     exit(EX_OK);
 }
