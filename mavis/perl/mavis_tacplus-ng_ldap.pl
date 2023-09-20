@@ -80,6 +80,14 @@ LDAP_MEMBEROF_REGEX
 	Regular expression to derive group names from memberOf
 	Default: "^cn=([^,]+),.*"
 
+LDAP_TACMEMBER
+	LDAP attribute to use for group membership (fallback only).
+	Default: "tacMember"
+
+LDAP_TACMEMBER_MAP_OU
+	Map organizational units from user DN to group membership.
+	Default: unset
+
 USE_STARTTLS
 	If set, the server is required to support start_tls. Do not use this for plain LDAPS.
 	Default: unset
@@ -114,6 +122,8 @@ my $LDAP_CONNECT_TIMEOUT = 1;
 my $LDAP_SCOPE		= 'sub';
 my $LDAP_SCOPE_GROUP	= undef;
 my $LDAP_MEMBEROF_REGEX = "^cn=([^,]+),.*";
+my $LDAP_TACMEMBER	= "tacMember";
+my $LDAP_TACMEMBER_MAP_OU	= undef;
 my $use_starttls;
 my %tls_options;
 
@@ -132,6 +142,8 @@ $LDAP_CONNECT_TIMEOUT	= $ENV{'LDAP_CONNECT_TIMEOUT'} if exists $ENV{'LDAP_CONNEC
 @LDAP_BIND		= ($ENV{'LDAP_USER'}, password => $ENV{'LDAP_PASSWD'}) if (exists $ENV{'LDAP_USER'} && exists $ENV{'LDAP_PASSWD'});
 $use_starttls		= $ENV{'USE_STARTTLS'} if exists $ENV{'USE_STARTTLS'};
 $LDAP_MEMBEROF_REGEX	= $ENV{'LDAP_MEMBEROF_REGEX'} if exists $ENV{'LDAP_MEMBEROF_REGEX'};
+$LDAP_TACMEMBER		= $ENV{'LDAP_TACMEMBER'} if exists $ENV{'LDAP_TACMEMBER'};
+$LDAP_TACMEMBER_MAP_OU	= $ENV{'LDAP_TACMEMBER_MAP_OU'} if exists $ENV{'LDAP_TACMEMBER_MAP_OU'};
 
 use Net::LDAP qw(LDAP_INVALID_CREDENTIALS LDAP_CONSTRAINT_VIOLATION);
 use Net::LDAP::Constant qw(LDAP_EXTENSION_PASSWORD_MODIFY LDAP_CAP_ACTIVE_DIRECTORY);
@@ -317,7 +329,7 @@ retry_once:
 	}
 	$mesg = $ldap->search(base => $LDAP_BASE, filter => sprintf($LDAP_FILTER, $V[AV_A_USER]), scope => $LDAP_SCOPE,
 		attrs => ['shadowExpire','memberOf','dn', 'uidNumber', 'gidNumber', 'loginShell', 'homeDirectory', 'sshPublicKey',
-			  'krbPasswordExpiration']);
+			  'krbPasswordExpiration', $LDAP_TACMEMBER]);
 	if ($mesg->count() == 1) {
 		my $entry = $mesg->entry(0);
 
@@ -344,6 +356,22 @@ retry_once:
 		$V[AV_A_HOME] = $val if $val = $entry->get_value('homeDirectory');
 		$V[AV_A_SSHKEY] = $val if $val = $entry->get_value('sshPublicKey');
 		my $authdn = $mesg->entry(0)->dn;
+
+		unless (exists($V[AV_A_MEMBEROF])) {
+			$val = $entry->get_value($LDAP_TACMEMBER, asref => 1);
+			$V[AV_A_MEMBEROF] = '"' . join('","', @$val) . '"' if $#{$val} > -1;
+		}
+
+		if (defined $LDAP_TACMEMBER_MAP_OU) {
+			for my $ou (split(/,/, $authdn)) {
+				next unless $ou =~ /^ou=(.+)$/i;
+				if (exists ($V[AV_A_TACMEMBER])) {
+					$V[AV_A_TACMEMBER] .= ",\"$1\"";
+				} else {
+					$V[AV_A_TACMEMBER] = "\"$1\"";
+				}
+			}
+		}
 
 		if ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_AUTH) {
 			my $caller_cap_chpw = exists($V[AV_A_CALLER_CAP]) && $V[AV_A_CALLER_CAP] =~ /:chpw:/;

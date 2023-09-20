@@ -80,6 +80,18 @@ LDAP_PASSWD
 	Password for LDAP_USER
 	Default: unset
 
+LDAP_MEMBEROF_REGEX
+	Regular expression to derive group names from memberOf
+	Default: "^cn=([^,]+),.*"
+
+LDAP_TACMEMBER
+	LDAP attribute to use for group membership (fallback only).
+	Default: "tacMember"
+
+LDAP_TACMEMBER_MAP_OU
+	Map organizational units from user DN to group membership.
+	Default: unset
+
 TLS_OPTIONS
 	Extra options for LDAPS or STARTTLS, in Python hash syntax.
 	See https://ldap3.readthedocs.io/en/latest/ssltls.html for details.
@@ -111,6 +123,9 @@ eval_env('LDAP_SCOPE', 'SUBTREE')
 eval_env('LDAP_SCOPE_GROUP', LDAP_SCOPE)
 eval_env('LDAP_CONNECT_TIMEOUT', 5)
 memberof_regex = re.compile('(?i)' + eval_env('LDAP_MEMBEROF_REGEX', '^cn=([^,]+),.*'))
+eval_env('LDAP_TACMEMBER', 'tacMember')
+ou_regex = re.compile('(?i)^ou=(.+)$')
+eval_env('LDAP_TACMEMBER_MAP_OU', None)
 tls = None
 if eval_env('TLS_OPTIONS', None) is not None:
 	tls = eval("{ " + TLS_OPTIONS + "}")
@@ -260,7 +275,8 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 	conn.search(search_base=LDAP_BASE, search_scope=LDAP_SCOPE,
 		search_filter=LDAP_FILTER.format(D.user),
 		attributes=["memberOf", "shadowExpire", "uidNumber", "gidNumber",
-			"loginShell", "homeDirectory", "sshPublicKey", "krbPasswordExpiration"])
+			"loginShell", "homeDirectory", "sshPublicKey", "krbPasswordExpiration",
+			LDAP_TACMEMBER])
 	if len(conn.entries) == 0:
 		D.write(MAVIS_DOWN, AV_V_RESULT_NOTFOUND, None)
 		continue
@@ -341,10 +357,23 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 	else:
 		L = expand_groupOfNames(entry.entry_dn)
 
-	if L != None:
+	TACMEMBER = [];
+
+	if L == None:
+		if len(entry[LDAP_TACMEMBER]) > 0:
+			TACMEMBER.extend(entry[LDAP_TACMEMBER])
+	else:
 		D.set_memberof("\"" + "\",\"".join(L) + "\"")
-		L = [memberof_regex.sub(r'\1', l) for l in L]
-		D.set_tacmember("\"" + "\",\"".join(L) + "\"")
+		TACMEMBER.extend([memberof_regex.sub(r'\1', l) for l in L])
+
+	if LDAP_TACMEMBER_MAP_OU != None:
+		for ou in entry.entry_dn.split(','):
+			r = ou_regex.match(ou)
+			if r:
+				TACMEMBER.append(r.group(1))
+
+	if len(TACMEMBER) > 0:
+		D.set_tacmember("\"" + "\",\"".join(TACMEMBER) + "\"")
 
 	if len(entry.sshPublicKey) > 0:
 		D.set_sshpubkey("\"" + "\",\"".join(entry.sshPublicKey) + "\"")
