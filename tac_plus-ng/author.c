@@ -70,10 +70,8 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     int i;
     struct author *pak = tac_payload(hdr, struct author *);
     struct author_data *data;
-    enum token res = S_unknown;
     char *cmdline, *t;
     size_t len = 0, tlen = 0;
-    tac_host *h = session->ctx->host;
 
     report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "Start authorization request");
 
@@ -122,13 +120,6 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     data->in_args = cmd_argp;	/* input command arguments */
     session->author_data = data;
     session->in_length = session->ctx->in->length;
-
-    // script-based user rewriting, current
-    while (h && res != S_permit && res != S_deny) {
-	if (h->action)
-	    res = tac_script_eval_r(session, h->action);
-	h = h->parent;
-    }
 
     // legacy user rewriting, deprecated
     tac_rewrite_user(session, NULL);
@@ -246,33 +237,49 @@ static char *lookup_attr(char **attrs, int cnt, char *na)
     return NULL;
 }
 
+static enum token author_eval_host(tac_session * session, tac_host * h, int parent_first)
+{
+    enum token res = S_unknown;
+    if (!h)
+	return res;
+    if (parent_first)
+	res = author_eval_host(session, h->parent, parent_first);
+    if (res != S_permit && res != S_deny && h->action)
+	res = tac_script_eval_r(session, h->action);
+    if (!parent_first && res != S_permit && res != S_deny)
+	res = author_eval_host(session, h->parent, parent_first);
+    return res;
+}
+
+static enum token author_eval_profile(tac_session * session, tac_profile * p, int parent_first)
+{
+    enum token res = S_unknown;
+    if (!p)
+	return res;
+    if (parent_first)
+	res = author_eval_profile(session, p->parent, parent_first);
+    if (res != S_permit && res != S_deny && p->action)
+	res = tac_script_eval_r(session, p->action);
+    if (!parent_first && res != S_permit && res != S_deny)
+	res = author_eval_profile(session, p->parent, parent_first);
+    return res;
+}
+
 static void do_author(tac_session * session)
 {
     int i, replaced = 0, added = 0, out_cnt = 0;
     char **out_args, **outp;
     enum token res = S_unknown;
     struct author_data *data = session->author_data;
-    tac_host *h = session->ctx->host;
 
-    while (res != S_permit && res != S_deny && h) {
-	if (h->action) {
-	    static struct log_item *li_denied_by_acl = NULL;
-	    res = tac_script_eval_r(session, h->action);
-	    switch (res) {
-	    case S_deny:
-		if (!li_denied_by_acl)
-		    li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
-		report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
-		send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message,
-				  eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL), 0, NULL);
-		return;
-	    case S_permit:
-		break;
-	    default:
-		break;
-	    }
-	}
-	h = h->parent;
+    res = author_eval_host(session, session->ctx->host, config.script_host_parent_first);
+    if (res == S_deny) {
+	static struct log_item *li_denied_by_acl = NULL;
+	if (!li_denied_by_acl)
+	    li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
+	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
+	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message,
+			  eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL), 0, NULL);
     }
 
     if (!session->user && session->username_len) {
@@ -312,16 +319,9 @@ static void do_author(tac_session * session)
     if (session->authorized)
 	res = S_permit;
     else {
-	tac_profile *profile;
 	res = eval_ruleset(session, session->ctx->realm);
-	profile = session->profile;
-	if (res == S_permit) {
-	    res = S_unknown;
-	    while (profile && res == S_unknown) {
-		res = tac_script_eval_r(session, profile->action);
-		profile = profile->parent;
-	    }
-	}
+	if (res == S_permit)
+	    res = author_eval_profile(session, session->profile, config.script_profile_parent_first);
     }
 
     switch (res) {

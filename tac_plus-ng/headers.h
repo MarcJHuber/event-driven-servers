@@ -283,6 +283,9 @@ struct config {
     int retire;			/* die after <retire> invocations */
     time_t suicide;		/* when to commit suicide */
     tac_realm *default_realm;	/* actually the one called "default" */
+     BISTATE(script_profile_parent_first);
+     BISTATE(script_host_parent_first);
+     BISTATE(script_realm_parent_first);
 };
 
 struct rewrite_expr {

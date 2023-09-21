@@ -1014,6 +1014,23 @@ static time_t to_seconds(struct sym *sym)
     return n;
 }
 
+static int parse_script_order(struct sym *sym)
+{
+    sym_get(sym);
+    parse(sym, S_equal);
+    switch (sym->code) {
+    case S_top_down:
+	sym_get(sym);
+	return 1;
+    case S_bottom_up:
+	sym_get(sym);
+	return 0;
+    default:
+	parse_error_expect(sym, S_bottom_up, S_top_down, S_unknown);
+    }
+    return 0;
+}
+
 static void parse_enable(struct sym *, memlist_t *, struct pwdat **);
 
 void parse_decls_real(struct sym *sym, tac_realm * r)
@@ -1531,6 +1548,22 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_alias:
 	    top_only(sym, r);
 	    parse_common(sym);
+	case S_script_order:
+	    top_only(sym, r);
+	    sym_get(sym);
+	    switch (sym->code) {
+	    case S_realm:
+		config.script_realm_parent_first = parse_script_order(sym);
+		break;
+	    case S_host:
+		config.script_host_parent_first = parse_script_order(sym);
+		break;
+	    case S_profile:
+		config.script_profile_parent_first = parse_script_order(sym);
+		break;
+	    default:
+		parse_error_expect(sym, S_host, S_realm, S_profile, S_unknown);
+	    }
 	    continue;
 	default:
 	    parse_error_expect(sym, S_password, S_pap, S_login, S_accounting, S_authentication, S_access, S_authorization, S_warning,
@@ -1831,6 +1864,43 @@ static void cache_user_profile(tac_session * session, enum token res)
     session->ctx->user_profile_cache[j].valid_until = io_now.tv_sec + 120;
 }
 
+enum token eval_ruleset_r(tac_session * session, tac_realm * realm, int parent_first)
+{
+    enum token res = S_unknown;
+
+    if (!realm)
+	return res;
+
+    if (parent_first)
+	res = eval_ruleset_r(session, realm->parent, parent_first);
+
+    if (res == S_permit || res == S_deny)
+	return res;
+
+    struct tac_rule *rule = realm->rules;
+    while (rule) {
+	if (rule->enabled) {
+	    res = eval_tac_acl(session, &rule->acl);
+	    report(session, LOG_DEBUG, DEBUG_ACL_FLAG | DEBUG_REGEX_FLAG,
+		   "%s@%s: ACL %s: %s (profile: %s)", session->username,
+		   session->nac_address_ascii, rule->acl.name, codestring[res], session->profile ? session->profile->name : "n/a");
+	    switch (res) {
+	    case S_permit:
+	    case S_deny:
+		cache_user_profile(session, res);
+		session->rule = rule->acl.name;
+		session->rule_len = rule->acl.name_len;
+		return res;
+	    default:;
+	    }
+	}
+	rule = rule->next;
+    }
+
+    if (!parent_first)
+	res = eval_ruleset_r(session, realm->parent, parent_first);
+    return res;
+}
 
 enum token eval_ruleset(tac_session * session, tac_realm * realm)
 {
@@ -1841,29 +1911,9 @@ enum token eval_ruleset(tac_session * session, tac_realm * realm)
 	       session->nac_address_ascii, codestring[res], session->profile ? session->profile->name : "n/a");
 	return res;
     }
-
-    while (realm) {
-	struct tac_rule *rule = realm->rules;
-	while (rule) {
-	    if (rule->enabled) {
-		res = eval_tac_acl(session, &rule->acl);
-		report(session, LOG_DEBUG, DEBUG_ACL_FLAG | DEBUG_REGEX_FLAG,
-		       "%s@%s: ACL %s: %s (profile: %s)", session->username,
-		       session->nac_address_ascii, rule->acl.name, codestring[res], session->profile ? session->profile->name : "n/a");
-		switch (res) {
-		case S_permit:
-		case S_deny:
-		    cache_user_profile(session, res);
-		    session->rule = rule->acl.name;
-		    session->rule_len = rule->acl.name_len;
-		    return res;
-		default:;
-		}
-	    }
-	    rule = rule->next;
-	}
-	realm = realm->parent;
-    }
+    res = eval_ruleset_r(session, realm, config.script_realm_parent_first);
+    if (res == S_permit)
+	return res;
     return S_deny;
 }
 
