@@ -1378,7 +1378,8 @@ key = ""
        Scripts can be used in device context. These are run before
        AAA and mey be used to permit or deny access, or to rewrite
        usernames.
-       This configuration will be accepted at realm level, too.
+       This configuration will be accepted at realm level (for the
+       default host, too.
      __________________________________________________________
 
 4.2.3.8.1. Timeouts
@@ -1629,8 +1630,40 @@ timespec example {
    Access Control Lists (or, more exactly, Access Control Scripts)
    are the main component of ruleset evaluation.
 
-   Scripts may currently be used for ACLs, in service declaration
-   scope and for rule sets:
+   Scripts may currently be used for ACLs, in host and profile
+   declaration scope and in rule sets. If a script in a hierarchy
+   doesn't return a final verdict (these are permit and deny),
+   other scripts in the hierarchy may be evaluated. Default
+   evaluation order is
+script-order host = bottom-up
+script-order realm = bottom-up
+script-order profile = bottom-up
+
+   but you may prefer to change that to top-down to have parent
+   scripts executed first.
+
+   To provide an example for that: In
+profile A {
+    script { ... }
+    profile B {
+        script { ... }
+    }
+
+   the script part from A will by default (bottom-up be evaluated,
+   if the B script result isn't final.
+
+   In contrast, for
+script-order profile = top-down
+profile A {
+    script { ... }
+    profile B {
+        script { ... }
+    }
+
+   the A part takes precedence and the B script will one be
+   evaluated if the A result isn't final.
+
+   Scripting examples:
 
      * acl acl_name { tac_action ... }
        Example:
@@ -1640,12 +1673,14 @@ le\\.com$/) deny
     }
      * script = { tac_action ... }
        Example:
-    profile messUp {
-        service shell {
-            script {
+    profile tunnelAdmin {
+        script {
+            if (service == shell) {
                 if (cmd == "") permit # required for shell startup
-                if (cmd =~ /^(no\s)?shutdown\s/) permit }
+                if (cmd =~ /^(no\s)?shutdown\s/) permit
+                if (cmd =~ /^interface Tunnel/) permit
                 deny
+            }
         }
     }
 
@@ -1657,7 +1692,7 @@ le\\.com$/) deny
         rule opsRule {
             script {
                 if (group == ops)
-                    profile = messUp
+                    profile = tunnelAdmin
                     permit
             }
         }
