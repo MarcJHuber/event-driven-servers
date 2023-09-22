@@ -200,6 +200,9 @@ void complete_realm(tac_realm * r)
 	RS(mavis_login, TRISTATE_DUNNO);
 	RS(mavis_pap_prefetch, TRISTATE_DUNNO);
 	RS(mavis_login_prefetch, TRISTATE_DUNNO);
+	RS(script_profile_parent_first, TRISTATE_DUNNO);
+	RS(script_host_parent_first, TRISTATE_DUNNO);
+	RS(script_realm_parent_first, TRISTATE_DUNNO);
 	RS(mavis_user_acl, NULL);
 	RS(enable_user_acl, NULL);
 	RS(password_acl, NULL);
@@ -1021,10 +1024,10 @@ static int parse_script_order(struct sym *sym)
     switch (sym->code) {
     case S_top_down:
 	sym_get(sym);
-	return 1;
+	return TRISTATE_YES;
     case S_bottom_up:
 	sym_get(sym);
-	return 0;
+	return TRISTATE_NO;
     default:
 	parse_error_expect(sym, S_bottom_up, S_top_down, S_unknown);
     }
@@ -1450,6 +1453,13 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	    sym_get(sym);
 	    parse_rewrite(sym, r);
 	    continue;
+	case S_skip:
+		sym_get(sym);
+		parse(sym, S_parent_script);
+		parse(sym, S_equal);
+		r->skip_parent_script = parse_bistate(sym);
+		r->default_host->skip_parent_script = r->skip_parent_script;
+		continue;
 	case S_anonenable:
 	case S_key:
 	case S_motd:
@@ -1548,18 +1558,18 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_alias:
 	    top_only(sym, r);
 	    parse_common(sym);
+	    break;
 	case S_script_order:
-	    top_only(sym, r);
 	    sym_get(sym);
 	    switch (sym->code) {
 	    case S_realm:
-		config.script_realm_parent_first = parse_script_order(sym);
+		r->script_realm_parent_first = parse_script_order(sym);
 		break;
 	    case S_host:
-		config.script_host_parent_first = parse_script_order(sym);
+		r->script_host_parent_first = parse_script_order(sym);
 		break;
 	    case S_profile:
-		config.script_profile_parent_first = parse_script_order(sym);
+		r->script_profile_parent_first = parse_script_order(sym);
 		break;
 	    default:
 		parse_error_expect(sym, S_host, S_realm, S_profile, S_unknown);
@@ -1571,6 +1581,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 			       S_enable, S_net, S_parent, S_ruleset, S_timespec, S_time, S_realm, S_trace, S_debug, S_rewrite, S_anonenable,
 			       S_key, S_motd, S_welcome, S_reject, S_permit, S_bug, S_augmented_enable, S_singleconnection, S_context,
 			       S_script, S_message, S_session, S_maxrounds, S_host, S_device, S_syslog, S_proctitle, S_coredump, S_alias,
+			       S_script_order, S_skip,
 #if defined(WITH_TLS) || defined(WITH_SSL)
 			       S_tls,
 #endif
@@ -1871,7 +1882,7 @@ enum token eval_ruleset_r(tac_session * session, tac_realm * realm, int parent_f
     if (!realm)
 	return res;
 
-    if (parent_first)
+    if (parent_first == TRISTATE_YES && realm->skip_parent_script != BISTATE_YES)
 	res = eval_ruleset_r(session, realm->parent, parent_first);
 
     if (res == S_permit || res == S_deny)
@@ -1897,7 +1908,7 @@ enum token eval_ruleset_r(tac_session * session, tac_realm * realm, int parent_f
 	rule = rule->next;
     }
 
-    if (!parent_first)
+    if (parent_first != TRISTATE_YES && realm->skip_parent_script != BISTATE_YES)
 	res = eval_ruleset_r(session, realm->parent, parent_first);
     return res;
 }
@@ -1911,7 +1922,7 @@ enum token eval_ruleset(tac_session * session, tac_realm * realm)
 	       session->nac_address_ascii, codestring[res], session->profile ? session->profile->name : "n/a");
 	return res;
     }
-    res = eval_ruleset_r(session, realm, config.script_realm_parent_first);
+    res = eval_ruleset_r(session, realm, session->ctx->realm->script_realm_parent_first);
     if (res == S_permit)
 	return res;
     return S_deny;
@@ -2232,8 +2243,14 @@ static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm
 		sym_get(sym);
 		continue;
 	    }
+	case S_skip:
+		sym_get(sym);
+		parse(sym, S_parent_script);
+		parse(sym, S_equal);
+		profile->skip_parent_script = parse_bistate(sym);
+		continue;
 	default:
-	    parse_error_expect(sym, S_script, S_debug, S_hushlogin, S_enable, S_profile, S_unknown);
+	    parse_error_expect(sym, S_script, S_debug, S_hushlogin, S_enable, S_profile, S_skip, S_unknown);
 	}
     sym_get(sym);
 }
@@ -3011,6 +3028,12 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	if (host->max_rounds < 1 || host->max_rounds > 127)
 	    parse_error(sym, "Illegal number of rounds (valid range: 1 ... 127)");
 	return;
+    case S_skip:
+	sym_get(sym);
+	parse(sym, S_parent_script);
+	parse(sym, S_equal);
+	host->skip_parent_script = parse_bistate(sym);
+	break;
 #ifdef WITH_DNS
     case S_dns:
 	sym_get(sym);
@@ -3130,7 +3153,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 #endif
     default:
 	parse_error_expect(sym, S_host, S_device, S_parent, S_authentication, S_permit,
-			   S_bug, S_pap, S_address, S_key, S_motd, S_welcome,
+			   S_bug, S_pap, S_address, S_key, S_motd, S_welcome, S_skip,
 			   S_reject, S_enable, S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_script,
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 			   S_tls,

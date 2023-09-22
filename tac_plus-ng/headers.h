@@ -178,6 +178,7 @@ struct tac_host {
      TRISTATE(authz_if_authc);
      BISTATE(complete);
      BISTATE(visited);
+     BISTATE(skip_parent_script);
     u_int bug_compatibility;
     char *name;			/* host name */
     size_t name_len;
@@ -242,6 +243,7 @@ struct tac_profile {
      TRISTATE(hushlogin);
      BISTATE(complete);
      BISTATE(visited);
+     BISTATE(skip_parent_script);
     u_int line;			/* configuration file line number */
     u_int debug;		/* debug flags */
 };
@@ -283,9 +285,6 @@ struct config {
     int retire;			/* die after <retire> invocations */
     time_t suicide;		/* when to commit suicide */
     tac_realm *default_realm;	/* actually the one called "default" */
-     BISTATE(script_profile_parent_first);
-     BISTATE(script_host_parent_first);
-     BISTATE(script_realm_parent_first);
 };
 
 struct rewrite_expr {
@@ -350,8 +349,12 @@ struct realm {
      TRISTATE(mavis_login);
      TRISTATE(mavis_pap_prefetch);
      TRISTATE(mavis_login_prefetch);
+     TRISTATE(script_profile_parent_first);
+     TRISTATE(script_host_parent_first);
+     TRISTATE(script_realm_parent_first);
      BISTATE(use_tls_psk);
      BISTATE(visited);
+     BISTATE(skip_parent_script);
     int dns_caching_period;	/* dns caching period */
     time_t dnspurge_last;
     int caching_period;		/* user caching period */

@@ -242,11 +242,11 @@ static enum token author_eval_host(tac_session * session, tac_host * h, int pare
     enum token res = S_unknown;
     if (!h)
 	return res;
-    if (parent_first)
+    if (parent_first == TRISTATE_YES && h->skip_parent_script != BISTATE_YES)
 	res = author_eval_host(session, h->parent, parent_first);
     if (res != S_permit && res != S_deny && h->action)
 	res = tac_script_eval_r(session, h->action);
-    if (!parent_first && res != S_permit && res != S_deny)
+    if (parent_first != TRISTATE_YES && res != S_permit && res != S_deny && h->skip_parent_script != BISTATE_YES)
 	res = author_eval_host(session, h->parent, parent_first);
     return res;
 }
@@ -256,11 +256,11 @@ static enum token author_eval_profile(tac_session * session, tac_profile * p, in
     enum token res = S_unknown;
     if (!p)
 	return res;
-    if (parent_first)
+    if (parent_first == TRISTATE_YES && p->skip_parent_script != BISTATE_YES)
 	res = author_eval_profile(session, p->parent, parent_first);
     if (res != S_permit && res != S_deny && p->action)
 	res = tac_script_eval_r(session, p->action);
-    if (!parent_first && res != S_permit && res != S_deny)
+    if (parent_first != TRISTATE_YES && res != S_permit && res != S_deny && p->skip_parent_script != BISTATE_YES)
 	res = author_eval_profile(session, p->parent, parent_first);
     return res;
 }
@@ -272,7 +272,7 @@ static void do_author(tac_session * session)
     enum token res = S_unknown;
     struct author_data *data = session->author_data;
 
-    res = author_eval_host(session, session->ctx->host, config.script_host_parent_first);
+    res = author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first);
     if (res == S_deny) {
 	static struct log_item *li_denied_by_acl = NULL;
 	if (!li_denied_by_acl)
@@ -321,7 +321,7 @@ static void do_author(tac_session * session)
     else {
 	res = eval_ruleset(session, session->ctx->realm);
 	if (res == S_permit)
-	    res = author_eval_profile(session, session->profile, config.script_profile_parent_first);
+	    res = author_eval_profile(session, session->profile, session->ctx->realm->script_profile_parent_first);
     }
 
     switch (res) {
