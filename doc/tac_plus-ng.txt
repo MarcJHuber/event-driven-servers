@@ -1663,6 +1663,10 @@ profile A {
    the A part takes precedence and the B script will one be
    evaluated if the A result isn't final.
 
+   skip parent-script = yes may be used (at profile, host and
+   realm level) to ignore scripts defined at a higher hierarchy
+   level.
+
    Scripting examples:
 
      * acl acl_name { tac_action ... }
