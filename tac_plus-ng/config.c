@@ -480,7 +480,13 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
 
     if (parent) {
 	r->parent = parent;
+	r->caching_period = -1;
+	r->dns_caching_period = -1;
+	r->warning_period = -1;
     } else {
+	r->caching_period = 120;
+	r->dns_caching_period = 1800;
+	r->warning_period = 14 * 86400;
 	config.default_realm = r;
 	r->complete = 1;
 	parse_inline(r, "acl __internal__username_acl__ { if (user =~ \"[]<>/()|=[*\\\"':$]+\") deny permit }\n", __FILE__, __LINE__);
