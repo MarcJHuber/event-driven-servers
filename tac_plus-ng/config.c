@@ -3739,6 +3739,9 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 		if (m->u.s.token == S_clientname)
 		    parse_error(sym, "REGEX matching isn't supported for '%s'", codestring[m->u.s.token]);
 
+		if (m->u.s.token == S_group)
+		    m->u.s.token = S_member;
+
 		m->type = S_regex;
 		sym->flag_parse_pcre = 1;
 		sym_get(sym);
