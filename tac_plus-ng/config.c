@@ -1057,7 +1057,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		parse(sym, S_equal);
 		r->password_acl = tac_acl_lookup(sym->buf, r);
 		if (!r->password_acl)
-		    parse_error(sym, "ACL '%s' not found)", sym->buf);
+		    parse_error(sym, "ACL '%s' not found.", sym->buf);
 		sym_get(sym);
 		continue;
 	    case S_maxattempts:
@@ -1353,7 +1353,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		parse(sym, S_equal);
 		r->mavis_user_acl = tac_acl_lookup(sym->buf, r);
 		if (!r->mavis_user_acl)
-		    parse_error(sym, "ACL '%s' not found)", sym->buf);
+		    parse_error(sym, "ACL '%s' not found.", sym->buf);
 		sym_get(sym);
 		continue;
 	    default:
@@ -1368,7 +1368,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		parse(sym, S_equal);
 		r->enable_user_acl = tac_acl_lookup(sym->buf, r);
 		if (!r->enable_user_acl)
-		    parse_error(sym, "ACL '%s' not found)", sym->buf);
+		    parse_error(sym, "ACL '%s' not found.", sym->buf);
 		sym_get(sym);
 		break;
 	    default:
@@ -1390,7 +1390,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	    parse(sym, S_equal);
 	    r->parent = lookup_realm(sym->buf, config.default_realm);
 	    if (!r->parent)
-		parse_error(sym, "realm '%s' not found", sym->buf);
+		parse_error(sym, "Realm '%s' not found.", sym->buf);
 	    if (loopcheck_realm(r))
 		parse_error(sym, "'%s': circular reference rejected", sym->buf);
 	    sym_get(sym);
@@ -1636,7 +1636,6 @@ void free_user(tac_user * user)
     memlist_destroy(user->memlist);
 }
 
-struct groups_s;
 static struct pwdat *passwd_deny = NULL;
 static struct pwdat *passwd_mavis = NULL;
 static struct pwdat *passwd_login = NULL;
@@ -1718,7 +1717,7 @@ static void parse_group(struct sym *sym, tac_realm * r, tac_group * parent)
 		parse(sym, S_equal);
 		ng = lookup_group(sym->buf, r);
 		if (!ng)
-		    parse_error(sym, "group '%s' not found.", sym->buf);
+		    parse_error(sym, "Group '%s' not found.", sym->buf);
 		g->parent = ng->parent;
 		if (loopcheck_group(g))
 		    parse_error(sym, "'%s': circular reference rejected", sym->buf);
@@ -2175,8 +2174,10 @@ static void parse_member(struct sym *sym, tac_groups ** groups, memlist_t * meml
 	tac_group *g = lookup_group(sym->buf, r);
 	if (g)
 	    tac_group_add(g, *groups, memlist);
-	else if (!setjmp(sym->env))
+	else if (!setjmp(sym->env)) {
+	    tac_group_new(sym, sym->buf, r);
 	    parse_error(sym, "Group '%s' not found.", sym->buf);
+	}
 
 	sym_get(sym);
     }
@@ -3538,7 +3539,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 
 	m->u.s.rhs = lookup_timespec(sym->buf, realm);
 	if (!m->u.s.rhs)
-	    parse_error(sym, "timespec '%s' not found", sym->buf);
+	    parse_error(sym, "Timespec '%s' not found", sym->buf);
 	sym_get(sym);
 	return m;
     case S_arg:
@@ -3625,7 +3626,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 	    if (m->u.s.token == S_member) {
 		tac_group *g = lookup_group(sym->buf, realm);
 		if (!g)
-		    parse_error(sym, "group %s is not known", sym->buf);
+		    parse_error(sym, "Group '%s' not found", sym->buf);
 		m->u.s.rhs_txt = strdup(sym->buf);
 		sym_get(sym);
 		m->type = S_member;
@@ -3722,7 +3723,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 	    if (m->u.s.token == S_realm) {
 		tac_realm *r = lookup_realm(sym->buf, config.default_realm);
 		if (!r)
-		    parse_error(sym, "realm '%s' not found", sym->buf);
+		    parse_error(sym, "Realm '%s' not found", sym->buf);
 		m->u.s.rhs = r;
 		m->u.s.rhs_txt = r->name;
 		m->type = S_realm;
@@ -4243,7 +4244,7 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, int section, tac
 	parse(sym, S_equal);
 	m->b.v = (char *) lookup_profile(sym->buf, realm);
 	if (!m->b.v)
-	    parse_error(sym, "profile '%s' not found", sym->buf);
+	    parse_error(sym, "Profile '%s' not found.", sym->buf);
 	sym_get(sym);
 	break;
     case S_context:
@@ -4263,7 +4264,7 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, int section, tac
 	parse(sym, S_equal);
 	m->b.v = (char *) lookup_rewrite(sym->buf, realm);
 	if (!m->b.v)
-	    parse_error(sym, "rewrite '%s' not found", sym->buf);
+	    parse_error(sym, "Rewrite '%s' not found.", sym->buf);
 	sym_get(sym);
 	break;
     case S_label:
