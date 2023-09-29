@@ -121,9 +121,6 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     session->author_data = data;
     session->in_length = session->ctx->in->length;
 
-    // legacy user rewriting, deprecated
-    tac_rewrite_user(session, NULL);
-
     t = cmdline = alloca(session->in_length);
 
     for (i = 0; i < data->in_cnt; i++) {

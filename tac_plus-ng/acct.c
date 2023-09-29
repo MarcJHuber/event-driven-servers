@@ -106,9 +106,6 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
 	h = h->parent;
     }
 
-    // legacy user rewriting, deprecated
-    tac_rewrite_user(session, NULL);
-
     p += acct->user_len;
     session->nas_port = memlist_strndup(session->memlist, p, acct->port_len);
     session->nas_port_len = acct->port_len;

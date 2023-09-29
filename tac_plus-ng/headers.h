@@ -119,10 +119,6 @@ struct tac_acl;
 
 struct realm;
 typedef struct realm tac_realm;
-struct rewrite_expr;
-typedef struct rewrite_expr tac_rewrite_expr;
-struct rewrite;
-typedef struct rewrite tac_rewrite;
 
 #define TAC_PLUS_PRIV_LVL_MIN 0x0
 #define TAC_PLUS_PRIV_LVL_MAX 0xf
@@ -197,7 +193,6 @@ struct tac_host {
     int authen_max_attempts;	/* maximum number of password retries per session */
     int max_rounds;		/* maximum number of packet exchanges */
     tac_realm *realm;
-    tac_rewrite *rewrite_user;
     struct mavis_action *action;
     char **user_messages;
     time_t password_expiry_warning;
@@ -285,20 +280,6 @@ struct config {
     int retire;			/* die after <retire> invocations */
     time_t suicide;		/* when to commit suicide */
     tac_realm *default_realm;	/* actually the one called "default" */
-};
-
-struct rewrite_expr {
-    char *name;
-#ifdef WITH_PCRE2
-    pcre2_code *code;
-    PCRE2_SPTR replacement;
-#endif
-    struct rewrite_expr *next;
-};
-
-struct rewrite {
-    char *name;
-    tac_rewrite_expr *expr;
 };
 
 struct tac_acl {
@@ -894,11 +875,6 @@ void cfg_init(void);
 enum token tac_keycode(char *);
 enum token eval_ruleset(tac_session *, tac_realm *);
 
-#ifdef WITH_PCRE2
-void tac_rewrite_user(tac_session *, tac_rewrite *);
-#else
-#define tac_rewrite_user(A,B) /**/
-#endif
 static __inline__ int minimum(int a, int b)
 {
     return (a < b) ? a : b;

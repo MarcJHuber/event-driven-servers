@@ -99,6 +99,21 @@ struct in6_cidr {
     int mask;
 };
 
+struct rewrite_expr {
+    char *name;
+#ifdef WITH_PCRE2
+    pcre2_code *code;
+    PCRE2_SPTR replacement;
+#endif
+    struct rewrite_expr *next;
+};
+typedef struct rewrite_expr tac_rewrite_expr;
+
+typedef struct {
+    char *name;
+    tac_rewrite_expr *expr;
+} tac_rewrite;
+
 static void parse_host(struct sym *, tac_realm *, tac_host *);
 static void parse_net(struct sym *, tac_realm *, tac_net *);
 static void parse_user(struct sym *, tac_realm *);
@@ -1455,17 +1470,19 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		parse_error_expect(sym, S_redirect, S_equal, S_unknown);
 	    }
 	    continue;
+#ifdef WITH_PCRE2
 	case S_rewrite:
 	    sym_get(sym);
 	    parse_rewrite(sym, r);
 	    continue;
+#endif
 	case S_skip:
-		sym_get(sym);
-		parse(sym, S_parent_script);
-		parse(sym, S_equal);
-		r->skip_parent_script = parse_bistate(sym);
-		r->default_host->skip_parent_script = r->skip_parent_script;
-		continue;
+	    sym_get(sym);
+	    parse(sym, S_parent_script);
+	    parse(sym, S_equal);
+	    r->skip_parent_script = parse_bistate(sym);
+	    r->default_host->skip_parent_script = r->skip_parent_script;
+	    continue;
 	case S_anonenable:
 	case S_key:
 	case S_motd:
@@ -1584,10 +1601,14 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	default:
 	    parse_error_expect(sym, S_password, S_pap, S_login, S_accounting, S_authentication, S_access, S_authorization, S_warning,
 			       S_connection, S_dns, S_cache, S_log, S_umask, S_retire, S_user, S_group, S_profile, S_acl, S_mavis,
-			       S_enable, S_net, S_parent, S_ruleset, S_timespec, S_time, S_realm, S_trace, S_debug, S_rewrite, S_anonenable,
+			       S_enable, S_net, S_parent, S_ruleset, S_timespec, S_time, S_realm, S_trace, S_debug,
+			       S_anonenable,
 			       S_key, S_motd, S_welcome, S_reject, S_permit, S_bug, S_augmented_enable, S_singleconnection, S_context,
 			       S_script, S_message, S_session, S_maxrounds, S_host, S_device, S_syslog, S_proctitle, S_coredump, S_alias,
 			       S_script_order, S_skip,
+#ifdef WITH_PCRE2
+			       S_rewrite,
+#endif
 #if defined(WITH_TLS) || defined(WITH_SSL)
 			       S_tls,
 #endif
@@ -2251,11 +2272,11 @@ static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm
 		continue;
 	    }
 	case S_skip:
-		sym_get(sym);
-		parse(sym, S_parent_script);
-		parse(sym, S_equal);
-		profile->skip_parent_script = parse_bistate(sym);
-		continue;
+	    sym_get(sym);
+	    parse(sym, S_parent_script);
+	    parse(sym, S_equal);
+	    profile->skip_parent_script = parse_bistate(sym);
+	    continue;
 	default:
 	    parse_error_expect(sym, S_script, S_debug, S_hushlogin, S_enable, S_profile, S_skip, S_unknown);
 	}
@@ -2658,10 +2679,12 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	    sym_get(sym);
 	    user->fallback_only = 1;
 	    continue;
+#ifdef WITH_PCRE2
 	case S_rewritten_only:
 	    sym_get(sym);
 	    user->rewritten_only = 1;
 	    continue;
+#endif
 	case S_hushlogin:
 	    sym_get(sym);
 	    parse(sym, S_equal);
@@ -2685,7 +2708,14 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	    parse_sshkeyid(sym, user);
 	    continue;
 	default:
-	    parse_error_expect(sym, S_member, S_valid, S_debug, S_message, S_password, S_enable, S_fallback_only, S_hushlogin, S_unknown);
+	    parse_error_expect(sym, S_member, S_valid, S_debug, S_message, S_password, S_enable, S_fallback_only, S_hushlogin, S_ssh_key_id,
+#ifdef WITH_PCRE2
+			       S_rewritten_only,
+#endif
+#ifdef WITH_CRYPTO
+			       S_ssh_key,
+#endif
+			       S_unknown);
 	}
     }
     sym_get(sym);
@@ -3001,18 +3031,6 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	parse(sym, S_equal);
 	host->context_timeout = parse_seconds(sym);
 	return;
-    case S_rewrite:
-	{			// legacy option, will be removed late on
-	    sym_get(sym);
-	    parse(sym, S_user);
-	    if (sym->code == S_equal)
-		sym_get(sym);
-	    host->rewrite_user = lookup_rewrite(sym->buf, r);
-	    if (!host->rewrite_user)
-		parse_error(sym, "Rewrite set '%s' not found", sym->buf);
-	    sym_get(sym);
-	    return;
-	}
     case S_session:
 	sym_get(sym);
 	parse(sym, S_timeout);
@@ -3161,7 +3179,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
     default:
 	parse_error_expect(sym, S_host, S_device, S_parent, S_authentication, S_permit,
 			   S_bug, S_pap, S_address, S_key, S_motd, S_welcome, S_skip,
-			   S_reject, S_enable, S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_rewrite, S_script,
+			   S_reject, S_enable, S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_script,
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 			   S_tls,
 #endif
@@ -3626,7 +3644,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 	    if (m->u.s.token == S_member) {
 		tac_group *g = lookup_group(sym->buf, realm);
 		if (!g)
-		    parse_error(sym, "Group '%s' not found", sym->buf);
+		    parse_error(sym, "Group '%s' not found.", sym->buf);
 		m->u.s.rhs_txt = strdup(sym->buf);
 		sym_get(sym);
 		m->type = S_member;
@@ -4151,6 +4169,10 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
     return 0;
 }
 
+#ifdef WITH_PCRE2
+void tac_rewrite_user(tac_session *, tac_rewrite *);
+#endif
+
 enum token tac_script_eval_r(tac_session * session, struct mavis_action *m)
 {
     enum token r;
@@ -4171,10 +4193,12 @@ enum token tac_script_eval_r(tac_session * session, struct mavis_action *m)
 	session->message = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->message_len);
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code], session->message ? session->message : "");
 	break;
+#ifdef WITH_PCRE2
     case S_rewrite:
 	tac_rewrite_user(session, (tac_rewrite *) m->b.v);
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s]", m->line, codestring[m->code]);
 	break;
+#endif
     case S_label:
 	session->label = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->label_len);
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code], session->label ? session->label : "");
@@ -4258,6 +4282,7 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, int section, tac
 	parse(sym, S_equal);
 	m->b.v = (char *) parse_log_format(sym);
 	break;
+#ifdef WITH_PCRE2
     case S_rewrite:
 	m = mavis_action_new(sym);
 	parse(sym, S_user);
@@ -4267,6 +4292,7 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, int section, tac
 	    parse_error(sym, "Rewrite '%s' not found.", sym->buf);
 	sym_get(sym);
 	break;
+#endif
     case S_label:
 	m = mavis_action_new(sym);
 	parse(sym, S_equal);
@@ -4312,11 +4338,7 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, int section, tac
 void tac_rewrite_user(tac_session * session, tac_rewrite * rewrite)
 {
     if (!session->username_rewritten) {
-	tac_rewrite_expr *e = NULL;
-	if (rewrite)
-	    e = rewrite->expr;
-	if (!e && session->ctx->host->rewrite_user)
-	    e = session->ctx->host->rewrite_user->expr;
+	tac_rewrite_expr *e = rewrite->expr;
 
 	if (e) {
 	    int rc = -1;

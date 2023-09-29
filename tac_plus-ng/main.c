@@ -794,7 +794,6 @@ void complete_host(tac_host * h)
 	HS(authfail_banner, NULL);
 	HS(motd, NULL);
 	HS(key, NULL);
-	HS(rewrite_user, NULL);
 #ifdef WITH_SSL
 #ifndef OPENSSL_NO_PSK
 	HS(tls_psk_id, NULL);
