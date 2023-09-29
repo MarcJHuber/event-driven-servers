@@ -518,8 +518,8 @@ device router.example.com {
     key = mykey
 }
      * dns cache period = seconds
-       This option specifies the minimum DNS response caching
-       time.
+       This option specifies the minimum DNS response caching time
+       (default: 1800 seconds).
      * dns servers = "string"
        This option specifies the servers to use. This string will
        be evaluated by ares_set_servers_ports_csv(3), please see
@@ -1796,7 +1796,7 @@ set priv-lvl = 15
    port == != =~ !~ [deprecated, use device.port] String or REGEX
    session port (vty02, console, ...)
    priv-lvlp == != =~ !~ String or REGEX session privilege level
-   (0 ... 15)
+   (0 ... 15) reported by the device
    protocol == != =~ !~ String or REGEX session protocol (ppp,
    ...)
    realm == != Realm object name
@@ -1831,15 +1831,9 @@ set priv-lvl = 15
 
 4.2.3.11. Rewriting User Names
 
-   Configuration syntax is deprecated. Please use the rewrite user
-   script action.
-
-   This is experimental. It requires the binary to be built with
-   PCRE v2 support (using the --with-pcre2 configure option).
-
-   A device may refer to a rewrite profile defined at realm level
-   to substitute user names. The following sample code will map
-   both admin and root to marc, and convert all other usernames to
+   A script may refer to a rewrite profile defined at realm level
+   to rewrite user names. For example, the following will map both
+   admin and root to jane.doe, and convert all other usernames to
    lower-case:
 rewrite rewriteRule {
     rewrite /^admin$/ jane.doe
@@ -1855,7 +1849,7 @@ device ... {
 
    You can limit the usage of a rewritten-to user with the
    rewritten-only directive, e.g.:
-    rewrite reswriteRule {
+    rewrite rewriteRule {
         rewrite /^.*$/ nopassword
     }
     user nopassword {
@@ -3230,7 +3224,7 @@ id = tac_plus-ng {
         device customer1 {
             ....
             script {  if (nac == custsrc) rewrite user = normalizeCustom
-erAccount
+erAccount }
         }
 
         ruleset {
