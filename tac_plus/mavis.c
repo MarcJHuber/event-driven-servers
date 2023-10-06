@@ -186,16 +186,13 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
     else
 	mr = ar;
 
-    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    session->mavisauth_res = 0;
 
     if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&
 	(t = av_get(avc, AV_A_USER)) && !strcmp(t, session->username) &&
 	(t = av_get(avc, AV_A_TIMESTAMP)) && (atoi(t) == session->session_id) && (result = av_get(avc, AV_A_RESULT)) && !strcmp(result, AV_V_RESULT_OK)) {
 	tac_user *u = lookup_user(ar->usertable, session->username);
 	struct pwdat **pp = NULL;
-
-	if (strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_INFO))
-	    session->mavisauth_res_valid = 1;
 
 	if (ar->mavis_userdb && (!u || u->dynamic)) {
 	    char *tacprofile = av_get(avc, AV_A_TACPROFILE);
@@ -240,7 +237,6 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    free_user(u);
 		    session->user = NULL;
 		    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_ERROR;
-		    session->mavisauth_res_valid = 1;
 
 #define errfmt \
 "\n" \
@@ -274,7 +270,6 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 			if (pp[session->mavis_data->pw_ix]->type != S_mavis) {
 			    /* Authenticated via backend, but the profile tells otherwise */
 			    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
-			    session->mavisauth_res_valid = 0;
 			    result = AV_V_RESULT_FAIL;
 			    report(session, LOG_ERR, ~0, "profile for user %s conflicts with MAVIS authentication", session->username);
 			    report(session, LOG_ERR, ~0,
@@ -320,7 +315,6 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 
 	if (strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_INFO)) {
 	    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_PASS;
-	    session->mavisauth_res_valid = 1;
 	    if ((TRISTATE_YES != u->chalresp) && session->password && !u->passwd_oneshot) {
 		char *pass = session->password_new ? session->password_new : session->password;
 		pp[PW_MAVIS] = mempool_malloc(u->pool, sizeof(struct pwdat) + strlen(pass));
@@ -331,10 +325,8 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	}
     } else if (result && !strcmp(result, AV_V_RESULT_ERROR)) {
 	session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_ERROR;
-	session->mavisauth_res_valid = 1;
 	mr->last_backend_failure = io_now.tv_sec;
     } else if (result && !strcmp(result, AV_V_RESULT_FAIL)) {
 	session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
-	session->mavisauth_res_valid = 1;
     }
 }

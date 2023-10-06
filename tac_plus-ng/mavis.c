@@ -212,7 +212,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
     char *t, *result = NULL;
     tac_realm *r = session->ctx->realm;
 
-    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    session->mavisauth_res = 0;
 
     if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&
 	(t = av_get(avc, AV_A_USER)) && !strcmp(t, session->username) &&
@@ -220,8 +220,6 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 
 	tac_user *u = lookup_user(session);
 
-	if (strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_INFO))
-	    session->mavisauth_res_valid = 1;
 	if (u)
 	    r = u->realm;
 
@@ -277,7 +275,6 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    free_user(u);
 		    session->user = NULL;
 		    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_ERROR;
-		    session->mavisauth_res_valid = 1;
 
 #define errfmt \
 "\n" \
@@ -309,7 +306,6 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 			if (u->passwd[session->mavis_data->pw_ix]->type != S_mavis) {
 			    /* Authenticated via backend, but the profile tells otherwise */
 			    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
-			    session->mavisauth_res_valid = 0;
 			    result = AV_V_RESULT_FAIL;
 			    report(session, LOG_ERR, ~0, "profile for user %s conflicts with MAVIS authentication", session->username);
 			    report(session, LOG_ERR, ~0,
@@ -363,7 +359,6 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 
 	if (strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_INFO)) {
 	    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_PASS;
-	    session->mavisauth_res_valid = 1;
 	    if ((TRISTATE_YES != u->chalresp) && session->password && !u->passwd_oneshot) {
 		char *pass = session->password_new ? session->password_new : session->password;
 #if 1
@@ -390,11 +385,9 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	}
     } else if (result && !strcmp(result, AV_V_RESULT_ERROR)) {
 	session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_ERROR;
-	session->mavisauth_res_valid = 1;
 	r->last_backend_failure = io_now.tv_sec;
     } else if (result && !strcmp(result, AV_V_RESULT_FAIL)) {
 	session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
-	session->mavisauth_res_valid = 1;
     }
     if (result)
 	report(session, LOG_INFO, ~0, "result for user %s is %s", session->username, result);

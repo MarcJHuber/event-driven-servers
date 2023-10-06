@@ -684,7 +684,6 @@ struct tac_session {
      BISTATE(password_bad_again);
      BISTATE(passwd_mustchange);
      BISTATE(passwd_changeable);
-     BISTATE(mavisauth_res_valid);
      BISTATE(user_is_session_specific);
      BISTATE(username_rewritten);
      BISTATE(chpass);

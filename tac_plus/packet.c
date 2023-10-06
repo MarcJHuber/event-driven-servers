@@ -610,7 +610,6 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr * hdr)
     session->version = hdr->version;
     session->session_id = hdr->session_id;
     session->seq_no = 1;
-    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     session->timeout = io_now.tv_sec + ctx->realm->session_timeout;
     session->dns_timeout = -1;
     session->final_match = NULL;

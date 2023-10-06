@@ -741,7 +741,6 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr * hdr)
     session->version = hdr->version;
     session->session_id = hdr->session_id;
     session->seq_no = 1;
-    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     session->session_timeout = io_now.tv_sec + ctx->host->session_timeout;
     session->type = types[hdr->type & 3].str;
     session->type_len = types[hdr->type & 3].str_len;

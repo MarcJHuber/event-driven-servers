@@ -452,9 +452,9 @@ static int check_access(tac_session * session, struct pwdat *pwdat, char *passwd
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 
-    if (session->mavisauth_res_valid) {
+    if (session->mavisauth_res) {
 	res = session->mavisauth_res;
-	session->mavisauth_res_valid = 0;
+	session->mavisauth_res = 0;
 	if (res == TAC_PLUS_AUTHEN_STATUS_ERROR && session->ctx->host->authfallback != TRISTATE_YES)
 	    res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     } else if (pwdat)
