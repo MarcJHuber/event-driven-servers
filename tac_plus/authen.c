@@ -628,24 +628,27 @@ static int check_access(tac_session * session, struct pwdat *pwdat, char *passwd
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 
-    if (session->user) {
-	if (session->mavisauth_res_valid) {
-	    res = session->mavisauth_res;
-	    switch (res) {
-	    case TAC_PLUS_AUTHEN_STATUS_PASS:
-		*hint = hint_succeeded;
-		break;
-	    case TAC_PLUS_AUTHEN_STATUS_ERROR:
-		*hint = hint_backend_error;
-		break;
-	    default:
-		*hint = hint_failed;
-		break;
-	    }
-	    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
-	} else if (pwdat)
-	    res = compare_pwdat(pwdat, passwd, hint, follow);
+    if (session->mavisauth_res_valid) {
+	res = session->mavisauth_res;
+	session->mavisauth_res_valid = 0;
+	if (res == TAC_PLUS_AUTHEN_STATUS_ERROR && session->ctx->authfallback != TRISTATE_YES)
+	    res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    } else if (pwdat)
+	res = compare_pwdat(pwdat, passwd, hint, follow);
 
+    switch (res) {
+    case TAC_PLUS_AUTHEN_STATUS_PASS:
+	*hint = hint_succeeded;
+	break;
+    case TAC_PLUS_AUTHEN_STATUS_ERROR:
+	*hint = hint_backend_error;
+	break;
+    default:
+	*hint = hint_failed;
+	break;
+    }
+
+    if (session->user) {
 	mempool_free(session->pool, &session->password_bad);
 	if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
 	    mempool_free(session->pool, &session->password);
@@ -658,8 +661,7 @@ static int check_access(tac_session * session, struct pwdat *pwdat, char *passwd
 	    session->password_bad = session->password;
 	    session->password = NULL;
 	}
-    } else if (session->mavisauth_res_valid && session->mavisauth_res == TAC_PLUS_AUTHEN_STATUS_FAIL)
-	*hint = hint_failed;
+    }
 
     return res;
 }
