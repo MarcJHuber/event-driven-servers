@@ -583,71 +583,71 @@ void parse_log(struct sym *sym, tac_realm * r)
     lf->syslog_priority = common_data.syslog_level | common_data.syslog_facility;
     if (sym->code == S_openbra) {
 	sym_get(sym);
-    while (sym->code != S_closebra) {
-	switch (sym->code) {
-	case S_authentication:
-	case S_access:
-	    sym_get(sym);
-	    parse(sym, S_format);
-	    parse(sym, S_equal);
-	    lf->access = parse_log_format(sym);
-	    continue;
-	case S_authorization:
-	    sym_get(sym);
-	    parse(sym, S_format);
-	    parse(sym, S_equal);
-	    lf->author = parse_log_format(sym);
-	    continue;
-	case S_accounting:
-	    sym_get(sym);
-	    parse(sym, S_format);
-	    parse(sym, S_equal);
-	    lf->acct = parse_log_format(sym);
-	    continue;
-	case S_connection:
-	    sym_get(sym);
-	    parse(sym, S_format);
-	    parse(sym, S_equal);
-	    lf->conn = parse_log_format(sym);
-	    continue;
-	case S_destination:
-	    sym_get(sym);
-	    parse(sym, S_equal);
-	    lf->dest = strdup(sym->buf);
-	    sym_get(sym);
-	    continue;
-	case S_syslog:
-	    sym_get(sym);
+	while (sym->code != S_closebra) {
 	    switch (sym->code) {
-	    case S_facility:
+	    case S_authentication:
+	    case S_access:
+		sym_get(sym);
+		parse(sym, S_format);
+		parse(sym, S_equal);
+		lf->access = parse_log_format(sym);
+		continue;
+	    case S_authorization:
+		sym_get(sym);
+		parse(sym, S_format);
+		parse(sym, S_equal);
+		lf->author = parse_log_format(sym);
+		continue;
+	    case S_accounting:
+		sym_get(sym);
+		parse(sym, S_format);
+		parse(sym, S_equal);
+		lf->acct = parse_log_format(sym);
+		continue;
+	    case S_connection:
+		sym_get(sym);
+		parse(sym, S_format);
+		parse(sym, S_equal);
+		lf->conn = parse_log_format(sym);
+		continue;
+	    case S_destination:
 		sym_get(sym);
 		parse(sym, S_equal);
-		lf->syslog_priority &= 7;
-		lf->syslog_priority |= get_syslog_facility(sym->buf);
+		lf->dest = strdup(sym->buf);
 		sym_get(sym);
 		continue;
-	    case S_level:
-	    case S_severity:
+	    case S_syslog:
 		sym_get(sym);
-		parse(sym, S_equal);
-		lf->syslog_priority &= ~7;
-		lf->syslog_priority |= get_syslog_level(sym->buf);
-		sym_get(sym);
-		continue;
-	    case S_ident:
-		sym_get(sym);
-		parse(sym, S_equal);
-		lf->syslog_ident = strdup(sym->buf);
-		sym_get(sym);
-		continue;
+		switch (sym->code) {
+		case S_facility:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    lf->syslog_priority &= 7;
+		    lf->syslog_priority |= get_syslog_facility(sym->buf);
+		    sym_get(sym);
+		    continue;
+		case S_level:
+		case S_severity:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    lf->syslog_priority &= ~7;
+		    lf->syslog_priority |= get_syslog_level(sym->buf);
+		    sym_get(sym);
+		    continue;
+		case S_ident:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    lf->syslog_ident = strdup(sym->buf);
+		    sym_get(sym);
+		    continue;
+		default:
+		    parse_error_expect(sym, S_facility, S_severity, S_ident, S_unknown);
+		}
 	    default:
-		parse_error_expect(sym, S_facility, S_severity, S_ident, S_unknown);
+		parse_error_expect(sym, S_destination, S_syslog, S_access, S_authorization, S_accounting, S_connection, S_closebra, S_unknown);
 	    }
-	default:
-	    parse_error_expect(sym, S_destination, S_syslog, S_access, S_authorization, S_accounting, S_connection, S_closebra, S_unknown);
 	}
-    }
-    sym_get(sym);
+	sym_get(sym);
     }
     {
 	char buf[10];
