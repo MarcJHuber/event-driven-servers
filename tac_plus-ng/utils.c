@@ -575,13 +575,14 @@ void parse_log(struct sym *sym, tac_realm * r)
     if (sym->code == S_equal)
 	sym_get(sym);
     lf->name = strdup(sym->buf);
+    sym_get(sym);
     if (r->logdestinations && RB_search(r->logdestinations, lf))
 	parse_error(sym, "log destination '%s' already defined", lf->name);
     lf->dest = "syslog";
     lf->syslog_ident = "tacplus";
     lf->syslog_priority = common_data.syslog_level | common_data.syslog_facility;
-    sym_get(sym);
-    parse(sym, S_openbra);
+    if (sym->code == S_openbra) {
+	sym_get(sym);
     while (sym->code != S_closebra) {
 	switch (sym->code) {
 	case S_authentication:
@@ -643,10 +644,11 @@ void parse_log(struct sym *sym, tac_realm * r)
 		parse_error_expect(sym, S_facility, S_severity, S_ident, S_unknown);
 	    }
 	default:
-	    parse_error_expect(sym, S_destination, S_log, S_syslog, S_access, S_authorization, S_accounting, S_connection, S_unknown);
+	    parse_error_expect(sym, S_destination, S_syslog, S_access, S_authorization, S_accounting, S_connection, S_closebra, S_unknown);
 	}
     }
     sym_get(sym);
+    }
     {
 	char buf[10];
 	lf->priority_len = snprintf(buf, sizeof(buf), "%d", lf->syslog_priority);
