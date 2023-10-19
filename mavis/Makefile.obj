@@ -41,6 +41,10 @@ ifeq ($(WITH_FREERADIUS),1)
 	MAVIS_RADMAVIS_INSTALL = install_radmavis
 	LIB_RADCLI=
 	INC_RADCLI=
+	ifeq ($(WITH_PTHREAD),1)
+		MAVIS_PRG += radmavis-mt
+		MAVIS_PAMMAVIS_INSTALL += install_radmavis-mt
+	endif
 else
 	ifeq ($(WITH_RADCLI),1)
 		MAVIS_PRG += radmavis
@@ -50,7 +54,9 @@ endif
 
 MAVIS_LIBNAMES += remote system groups anonftp asciiftp limit
 MAVIS_LIBNAMES += cache auth log external userdb tee null tacinfo_cache
-MAVIS_LIBNAMES += external-mt
+ifeq ($(WITH_PTHREAD),1)
+	MAVIS_LIBNAMES += external-mt
+endif
 
 MAVIS_LIBS = $(patsubst %,libmavis_%.so, $(MAVIS_LIBNAMES))
 
@@ -62,6 +68,11 @@ all:	$(ALL) install_stage
 
 mavistest$(EXEC_EXT): mavistest.o
 	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_NET)
+
+radmavis-mt.o: INC += $(INC_FREERADIUS) $(INC_RADCLI)
+
+radmavis-mt$(EXEC_EXT): radmavis-mt.o
+	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PTHREAD) $(LIB_FREERADIUS) $(LIB_NET)
 
 radmavis.o: INC += $(INC_FREERADIUS) $(INC_RADCLI)
 
@@ -263,6 +274,9 @@ $(INSTALLROOT)$(SBINDIR_DEST)/pammavis$(EXEC_EXT): pammavis$(EXEC_EXT)
 $(INSTALLROOT)$(SBINDIR_DEST)/pammavis-mt$(EXEC_EXT): pammavis-mt$(EXEC_EXT)
 	$(INSTALL) -m 0755 $< $@
 
+$(INSTALLROOT)$(SBINDIR_DEST)/radmavis-mt$(EXEC_EXT): radmavis-mt$(EXEC_EXT)
+	$(INSTALL) -m 0755 $< $@
+
 install_pammavis: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/pammavis$(EXEC_EXT)
 
 install_pammavis-mt: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/pammavis-mt$(EXEC_EXT)
@@ -271,6 +285,8 @@ $(INSTALLROOT)$(SBINDIR_DEST)/radmavis$(EXEC_EXT): radmavis$(EXEC_EXT)
 	$(INSTALL) -m 0755 $< $@
 
 install_radmavis: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/radmavis$(EXEC_EXT)
+
+install_radmavis-mt: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/radmavis-mt$(EXEC_EXT)
 
 install_prg: install_mavistest $(MAVIS_RADMAVIS_INSTALL) $(MAVIS_PAMMAVIS_INSTALL)
 
