@@ -1062,8 +1062,6 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
     /* Top level of parser */
     while (sym->code != S_closebra)
 	switch (sym->code) {
-	case S_eof:
-	    parse_error(sym, "EOF unexpected");
 	case S_password:
 	    sym_get(sym);
 	    switch (sym->code) {
@@ -1748,7 +1746,7 @@ static void parse_group(struct sym *sym, tac_realm * r, tac_group * parent)
 		parse_member(sym, &g->groups, NULL, r);
 		continue;
 	    default:
-		parse_error_expect(sym, S_group, S_parent, S_unknown);
+		parse_error_expect(sym, S_group, S_parent, S_closebra, S_unknown);
 	    }
 	sym_get(sym);
     }
@@ -1837,7 +1835,7 @@ static void parse_ruleset(struct sym *sym, tac_realm * realm)
 
 		continue;
 	    default:
-		parse_error_expect(sym, S_enabled, S_script, S_unknown);
+		parse_error_expect(sym, S_enabled, S_script, S_closebra, S_unknown);
 	    }
 	}
 	sym_get(sym);
@@ -2278,7 +2276,7 @@ static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm
 	    profile->skip_parent_script = parse_bistate(sym);
 	    continue;
 	default:
-	    parse_error_expect(sym, S_script, S_debug, S_hushlogin, S_enable, S_profile, S_skip, S_unknown);
+	    parse_error_expect(sym, S_script, S_debug, S_hushlogin, S_enable, S_profile, S_skip, S_closebra, S_unknown);
 	}
     sym_get(sym);
 }
@@ -3517,8 +3515,6 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 	sym_get(sym);
 	m = mavis_cond_add(mavis_cond_new(sym, S_exclmark), tac_script_cond_parse_r(sym, realm));
 	return m;
-    case S_eof:
-	parse_error(sym, "EOF unexpected");
     case S_acl:
 	m = mavis_cond_new(sym, S_acl);
 
