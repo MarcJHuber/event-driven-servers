@@ -305,7 +305,7 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 			if expiry is not None:
 				if expiry < time.time():
 					user_msg = "Password has expired."
-					if D.get_caller_cap_chpw is False and has_extension_password_modify is not None:
+					if D.get_caller_cap_chpw and has_extension_password_modify is not None:
 						D.password_mustchange(True)
 					else:
 						D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, user_msg)
@@ -315,7 +315,7 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 		if not conn.rebind(user=entry.entry_dn, password=D.password):
 			if (LDAP_SERVER_TYPE == "microsoft" and D.get_caller_cap_chpw
 				and conn.result == ldap3.core.results.RESULT_INVALID_CREDENTIALS
-				and re.search(r"DSID-.*, data (532|533|773) ", c.message)):
+				and re.search(r"DSID-.*, data (532|533|773) ", conn.message)):
 				D.password_mustchange(True)
 				user_msg = translate_ldap_error(conn)
 			else:
