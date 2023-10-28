@@ -70,6 +70,7 @@
 #include "misc/mymd4.h"
 #include "misc/mymd5.h"
 #include "misc/md5crypt.h"
+#include "misc/utf.h"
 
 #if defined(WITH_CRYPTO)
 #if OPENSSL_VERSION_NUMBER < 0x30000000
@@ -1208,18 +1209,27 @@ static void mschap_lmchalresp(u_char * chal, char *password, u_char * resp)
 static void mschap_nthash(char *password, u_char * hash)
 {
     myMD4_CTX context;
-    int i = 0;
-    size_t j = 2 * strlen(password);
-    char *unicode = alloca(j);
 
-    while (*password) {
-	unicode[i++] = *password++;
-	unicode[i++] = 0;
+    char *enc = NULL;
+    size_t enc_len = 0;
+    size_t password_len = strlen(password);
+
+    if (utf8_to_utf16le(password, password_len, &enc, &enc_len)) {
+	// Not utf8, fallback to old behavior. I don't expect this to actually work.
+	enc_len = 2 * password_len;
+    	enc = calloc(1, enc_len);
+	char *e = enc;
+    	while (*password) {
+		*e++ = *password++;
+		e++; // 0x00
+	}
     }
 
     MD4Init(&context);
-    MD4Update(&context, (u_char *) unicode, i);
+    MD4Update(&context, (u_char *) enc, enc_len);
     MD4Final(hash, &context);
+    if (enc)
+	free(enc);
 }
 
 static void mschap_ntchalresp(u_char * chal, char *password, u_char * resp)
