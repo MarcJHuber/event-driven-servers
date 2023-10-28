@@ -12,3 +12,4 @@ int utf8_to_local(char *, u_int, u_char *);
 int utf8_valid(const u_char *, u_int);
 u_int ucs4_to_utf8(u_int *, u_int, u_char *);
 int utf8_to_ucs4(u_int *, u_int, u_char *);
+int utf8_to_utf16le(char *, size_t, char **, size_t *);
