@@ -172,61 +172,63 @@ static int LDAP_init(LDAP ** ldap, int *capabilities)
     if (*ldap)
 	return 0;
 
-    int result = ldap_initialize(ldap, ldap_url);
-    if (result)
-	return result;
+    int rc = ldap_initialize(ldap, ldap_url);
+    if (rc)
+	return rc;
 
     int i = LDAP_VERSION3;
-    result = ldap_set_option(*ldap, LDAP_OPT_PROTOCOL_VERSION, &i);
-    if (result != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
+    rc = ldap_set_option(*ldap, LDAP_OPT_PROTOCOL_VERSION, &i);
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
     i = LDAP_OPT_X_TLS_NEVER;
-    result = ldap_set_option(*ldap, LDAP_OPT_X_TLS_REQUIRE_CERT, &i);
+    rc = ldap_set_option(*ldap, LDAP_OPT_X_TLS_REQUIRE_CERT, &i);
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
     i = 0;
-    result = ldap_set_option(*ldap, LDAP_OPT_X_TLS_NEWCTX, &i);
-    if (result != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
+    rc = ldap_set_option(*ldap, LDAP_OPT_X_TLS_NEWCTX, &i);
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
-    result = ldap_set_option(*ldap, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
-    if (result != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
+    rc = ldap_set_option(*ldap, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
-    result = ldap_set_option(*ldap, LDAP_OPT_RESTART, LDAP_OPT_ON);
-    if (result != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
+    rc = ldap_set_option(*ldap, LDAP_OPT_RESTART, LDAP_OPT_ON);
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
-    result = ldap_set_option(*ldap, LDAP_OPT_X_TLS_PROTOCOL_MIN, &ldap_tls_protocol_min);
-    if (result != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
+    rc = ldap_set_option(*ldap, LDAP_OPT_X_TLS_PROTOCOL_MIN, &ldap_tls_protocol_min);
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
     struct timeval tv;
     tv.tv_usec = 0;
 
     tv.tv_sec = ldap_timeout;
-    result = ldap_set_option(*ldap, LDAP_OPT_TIMEOUT, &tv);
-    if (result != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
+    rc = ldap_set_option(*ldap, LDAP_OPT_TIMEOUT, &tv);
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
     tv.tv_sec = ldap_network_timeout;
-    result = ldap_set_option(*ldap, LDAP_OPT_NETWORK_TIMEOUT, &tv);
-    if (result != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
+    rc = ldap_set_option(*ldap, LDAP_OPT_NETWORK_TIMEOUT, &tv);
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
     char *attrs[] = { "+", NULL };	// OpenLDAP
     LDAPMessage *res;
-    result = ldap_search_ext_s(*ldap, "", LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, 100, &res);
-    if (result != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
+    rc = ldap_search_ext_s(*ldap, "", LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, 100, &res);
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
     if (ldap_count_entries(*ldap, res))
 	*capabilities = LDAP_eval_rootdse(*ldap, res);
     ldap_msgfree(res);
     if (!*capabilities) {
 	res = NULL;
-	result = ldap_search_ext_s(*ldap, "", LDAP_SCOPE_BASE, "(objectClass=*)", NULL, 0, NULL, NULL, NULL, 100, &res);
-	if (result != LDAP_SUCCESS)
-	    fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
+	rc = ldap_search_ext_s(*ldap, "", LDAP_SCOPE_BASE, "(objectClass=*)", NULL, 0, NULL, NULL, NULL, 100, &res);
+	if (rc != LDAP_SUCCESS)
+	    fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 	if (ldap_count_entries(*ldap, res))
 	    *capabilities = LDAP_eval_rootdse(*ldap, res);
 	ldap_msgfree(res);
@@ -234,9 +236,9 @@ static int LDAP_init(LDAP ** ldap, int *capabilities)
     if (*capabilities & CAP_STARTTLS)
 	ldap_start_tls_s(*ldap, NULL, NULL);
 
-    if (result != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
-    return result;
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
+    return rc;
 }
 
 static int LDAP_bind(LDAP * ldap, const char *ldap_dn, const char *ldap_password)
@@ -255,29 +257,29 @@ static int LDAP_bind_user(LDAP ** ldap, const char *ldap_dn, const char *ldap_pa
     if (*ldap)
 	return 0;
 
-    int result = ldap_initialize(ldap, ldap_url);
-    if (result)
-	return result;
+    int rc = ldap_initialize(ldap, ldap_url);
+    if (rc)
+	return rc;
 
     int i = LDAP_VERSION3;
-    result = ldap_set_option(*ldap, LDAP_OPT_PROTOCOL_VERSION, &i);
-    if (result != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
+    rc = ldap_set_option(*ldap, LDAP_OPT_PROTOCOL_VERSION, &i);
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
     i = LDAP_OPT_X_TLS_NEVER;
-    result = ldap_set_option(*ldap, LDAP_OPT_X_TLS_REQUIRE_CERT, &i);
+    rc = ldap_set_option(*ldap, LDAP_OPT_X_TLS_REQUIRE_CERT, &i);
     i = 0;
-    result = ldap_set_option(*ldap, LDAP_OPT_X_TLS_NEWCTX, &i);
-    if (result != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
+    rc = ldap_set_option(*ldap, LDAP_OPT_X_TLS_NEWCTX, &i);
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
-    result = ldap_set_option(*ldap, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
-    if (result != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
+    rc = ldap_set_option(*ldap, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
-    result = ldap_set_option(*ldap, LDAP_OPT_RESTART, LDAP_OPT_ON);
-    if (result != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
+    rc = ldap_set_option(*ldap, LDAP_OPT_RESTART, LDAP_OPT_ON);
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
     struct berval ber;
     ber.bv_len = strlen(ldap_password);
@@ -359,17 +361,17 @@ static int dnhash_add_entry(struct dnhash **h, char *dn)
 	match_len = ovector[3] - ovector[2];
     }
 
-    int result = dnhash_add(h, dn, match_start, match_len);
+    int rc = dnhash_add(h, dn, match_start, match_len);
     if (match_data)
 	pcre2_match_data_free(match_data);
-    if (result)
+    if (rc)
 	return -1;
 
     char *attrs[] = { "memberOf", NULL };
     LDAPMessage *res = NULL;
-    result = ldap_search_ext_s(ldap_main, dn, LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, 100, &res);
+    rc = ldap_search_ext_s(ldap_main, dn, LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, 100, &res);
 
-    if (result == LDAP_SUCCESS && ldap_count_entries(ldap_main, res) == 1) {
+    if (rc == LDAP_SUCCESS && ldap_count_entries(ldap_main, res) == 1) {
 	LDAPMessage *entry = ldap_first_entry(ldap_main, res);
 
 	BerElement *be = NULL;
@@ -399,9 +401,9 @@ static int dnhash_add_entry_groupOfNames(struct dnhash **h, char *dn)
     size_t filter_len = strlen(dn) + ldap_filter_group_len;
     char *filter = alloca(filter_len);
     snprintf(filter, filter_len, ldap_filter_group, dn);
-    int result = ldap_search_ext_s(ldap_main, base_dn_group, scope_group, filter, attrs, 0, NULL, NULL, NULL, 100, &res);
+    int rc = ldap_search_ext_s(ldap_main, base_dn_group, scope_group, filter, attrs, 0, NULL, NULL, NULL, 100, &res);
 
-    if (result == LDAP_SUCCESS) {
+    if (rc == LDAP_SUCCESS) {
 	LDAPMessage *entry;
 	for (entry = ldap_first_entry(ldap_main, res); entry; entry = ldap_next_entry(ldap_main, entry)) {
 	    char *gdn = ldap_get_dn(ldap_main, entry);
@@ -426,8 +428,8 @@ static int dnhash_add_entry_groupOfNames(struct dnhash **h, char *dn)
 		    match_len = ovector[3] - ovector[2];
 		}
 
-		int result = dnhash_add(h, gdn, match_start, match_len);
-		if (!result)
+		int rc = dnhash_add(h, gdn, match_start, match_len);
+		if (!rc)
 		    dnhash_add_entry_groupOfNames(h, gdn);
 	    }
 	    if (match_data)
@@ -518,9 +520,9 @@ static void *run_thread(void *arg)
     snprintf(filter, filter_len, ldap_filter, username);
 
     LDAPMessage *res = NULL;
-    result = ldap_search_ext_s(ldap_main, base_dn, scope, filter, attrs, 0, NULL, NULL, NULL, 100, &res);
+    int rc = ldap_search_ext_s(ldap_main, base_dn, scope, filter, attrs, 0, NULL, NULL, NULL, 100, &res);
 
-    if (result == LDAP_SUCCESS && ldap_count_entries(ldap_main, res) == 1) {
+    if (rc == LDAP_SUCCESS && ldap_count_entries(ldap_main, res) == 1) {
 	LDAPMessage *entry = ldap_first_entry(ldap_main, res);
 
 	char *dn = ldap_get_dn(ldap_main, entry);
@@ -702,15 +704,15 @@ static void *run_thread(void *arg)
 		    return NULL;
 		}
 	    }
-	    int bind_result = LDAP_bind_user(&ldap, dn, av_get(ac, AV_A_PASSWORD));
-	    if (bind_result == LDAP_SUCCESS) {
+	    rc = LDAP_bind_user(&ldap, dn, av_get(ac, AV_A_PASSWORD));
+	    if (rc == LDAP_SUCCESS) {
 		av_set(ac, AV_A_RESULT, AV_V_RESULT_OK);
 	    } else {
 		char *diag = NULL;
 		char *out = NULL;
 		ldap_get_option(ldap, LDAP_OPT_DIAGNOSTIC_MESSAGE, (void *) &diag);
-		char *err = ldap_err2string(bind_result);
-		if (bind_result == LDAP_INVALID_CREDENTIALS && (capabilities & CAP_AD) && caller_cap_chpw
+		char *err = ldap_err2string(rc);
+		if (rc == LDAP_INVALID_CREDENTIALS && (capabilities & CAP_AD) && caller_cap_chpw
 		    && !pcre2_match((pcre2_code *) ad_dsid_regex, (PCRE2_SPTR8) diag, (PCRE2_SIZE) strlen(diag), 0, 0, NULL, NULL)
 		    ) {
 		    if (!strcmp(tactype, AV_V_TACTYPE_AUTH)) {
