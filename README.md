@@ -72,7 +72,8 @@ Documentation
 =============
 
 The distribution comes with documentation located in the
-top-level "doc" directory.
+top-level "doc" director, and you can view it online at
+https://www.pro-bono-publico.de/projects, too.
 
 Support
 =======
