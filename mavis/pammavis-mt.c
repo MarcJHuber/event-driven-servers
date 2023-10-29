@@ -236,7 +236,7 @@ int main(int argc, char **argv)
 	    while (sizeof(struct mavis_ext_hdr_v1) != hdr_off) {
 		int len = read(0, (char *) &hdr + hdr_off, sizeof(struct mavis_ext_hdr_v1) - hdr_off);
 		if (len < 1) {
-		    fprintf(stderr, "Short read (header).\n");
+		    //fprintf(stderr, "Short read (header).\n");
 		    exit(-1);
 		}
 		hdr_off += len;
@@ -282,7 +282,7 @@ int main(int argc, char **argv)
 		while (1 == poll(&pfd, 1, -1) && off < sizeof(buf)) {
 		    ssize_t len = read(0, buf + off, sizeof(buf) - off);
 		    if (len < 1) {
-			fprintf(stderr, "Short read (legacy)");
+			//fprintf(stderr, "Short read (legacy)");
 			exit(-1);
 		    }
 		    off += len;
