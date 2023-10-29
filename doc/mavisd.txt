@@ -2,7 +2,7 @@ MAVIS Daemon
 
 Marc Huber
 
-   $Id: manual.xml,v 1.16 2015/02/01 09:29:01 marc Exp $
+   $Id: a9ec2b985fb54c0272eb87655fbef96fdf558cb7 $
      __________________________________________________________
 
    Table of Contents

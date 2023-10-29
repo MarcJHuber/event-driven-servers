@@ -15,7 +15,7 @@
 <h1 class="title"><a name="AEN2" id="AEN2">TACACS+ NG</a></h1>
 <h3 class="author"><a name="AEN4" id="AEN4">Marc Huber</a></h3>
 <span class="releaseinfo">$Id:
-9704fe988810d06058fde14507598d0fd0b0a43a $<br></span>
+cf070c3cde56d424334f3d09218a6da215a89dfb $<br></span>
 <hr></div>
 <div class="TOC">
 <dl>
@@ -453,10 +453,9 @@ later:</p>
 <pre class="screen">    profile readwrite {
         script {
             if (service == shell) {
-                if (cmd == "") {
+                if (cmd == "")
                     set priv-lvl = 15
-                    permit
-                }
+                permit
             }
         }
     }

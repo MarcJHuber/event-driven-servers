@@ -2,7 +2,7 @@ MAVIS ‐ Modular Attribute-Value Interchange System
 
 Marc Huber
 
-   $Id: a9ceec932700e501ae22343787972a06c5e68137 $
+   $Id: feea0b989df93a0f03a07220becab84ba21b4c88 $
      __________________________________________________________
 
    Table of Contents
@@ -512,11 +512,12 @@ cache expire FTP = 0
    Just like the external module the external-mt module implements
    an interface to external authentication backends. However,
    external-mt expects a multi-threaded backend which is capable
-   of processing concurrent authentications. Currently, only the
-   pammavis-mt backend is supported.
+   of processing concurrent authentications. Backends for
+   radmavis-mt are pammavis-mt (PAM), radmavis-mt (RADIUS) and
+   ldapmavis-mt (LDAP).
 
-   Using pammavis-mt primarily makes sense if your PAM backend
-   would block, e.g. by waiting for a push notification
+   Using external-mt primarily makes sense for blocking backends,
+   e.g. because these would wait waiting for a push notification
    validation.
     mavis module = external-mt {
         # -s specifies the service, which defaults to "mavis"

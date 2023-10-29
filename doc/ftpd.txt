@@ -2,7 +2,7 @@ FTP Daemon
 
 Marc Huber
 
-   $Id: manual.xml,v 1.25 2015/02/01 09:29:01 marc Exp $
+   $Id: 5f2c32c5cca23e2488a1cf109c6fc31c73f97b08 $
      __________________________________________________________
 
    Table of Contents

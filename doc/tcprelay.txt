@@ -2,7 +2,7 @@ TCP-Relay
 
 Marc Huber
 
-   $Id: manual.xml,v 1.20 2015/02/01 09:29:01 marc Exp $
+   $Id: c7794025437463f7df2ee9bde97656535d6c6243 $
      __________________________________________________________
 
    Table of Contents

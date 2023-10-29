@@ -2,7 +2,7 @@ TACACS+ NG
 
 Marc Huber
 
-   $Id: 9704fe988810d06058fde14507598d0fd0b0a43a $
+   $Id: cf070c3cde56d424334f3d09218a6da215a89dfb $
      __________________________________________________________
 
    Table of Contents
@@ -328,10 +328,9 @@ ob 38.11)\n\n"
     profile readwrite {
         script {
             if (service == shell) {
-                if (cmd == "") {
+                if (cmd == "")
                     set priv-lvl = 15
-                    permit
-                }
+                permit
             }
         }
     }
