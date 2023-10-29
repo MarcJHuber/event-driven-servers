@@ -52,6 +52,13 @@ else
 	endif
 endif
 
+ifeq ($(WITH_LDAP),1)
+	ifeq ($(WITH_PTHREAD),1)
+		MAVIS_PRG += ldapmavis-mt
+		MAVIS_RADMAVIS_INSTALL = install_ldapmavis-mt
+	endif
+endif
+
 MAVIS_LIBNAMES += remote system groups anonftp asciiftp limit
 MAVIS_LIBNAMES += cache auth log external userdb tee null tacinfo_cache
 ifeq ($(WITH_PTHREAD),1)
@@ -73,6 +80,11 @@ radmavis-mt.o: INC += $(INC_FREERADIUS) $(INC_RADCLI)
 
 radmavis-mt$(EXEC_EXT): radmavis-mt.o
 	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PTHREAD) $(LIB_FREERADIUS) $(LIB_NET)
+
+ldapavis-mt.o: INC += $(INC_LDAP)
+
+ldapmavis-mt$(EXEC_EXT): ldapmavis-mt.o
+	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PTHREAD) $(LIB_LDAP) $(LIB_LBER) $(LIB_NET) $(LIB_PCRE)
 
 radmavis.o: INC += $(INC_FREERADIUS) $(INC_RADCLI)
 
@@ -101,7 +113,7 @@ LIBMAVISOBJS	+= memops.o ostype.o io_sched.o mavis_parse.o token.o
 LIBMAVISOBJS	+= setproctitle.o mymd5.o mymd4.o io_child.o set_proctitle.o
 LIBMAVISOBJS	+= spawnd_accepted.o spawnd_conf.o spawnd_main.o
 LIBMAVISOBJS	+= spawnd_scm_spawn.o spawnd_signals.o pid_write.o
-LIBMAVISOBJS	+= sig_segv.o md5crypt.o av_send.o
+LIBMAVISOBJS	+= sig_segv.o md5crypt.o av_send.o utf16.o
 
 ifeq ($(WITH_DNS), 1)
 	LIBMAVISOBJS += io_dns_revmap.o
@@ -277,6 +289,9 @@ $(INSTALLROOT)$(SBINDIR_DEST)/pammavis-mt$(EXEC_EXT): pammavis-mt$(EXEC_EXT)
 $(INSTALLROOT)$(SBINDIR_DEST)/radmavis-mt$(EXEC_EXT): radmavis-mt$(EXEC_EXT)
 	$(INSTALL) -m 0755 $< $@
 
+$(INSTALLROOT)$(SBINDIR_DEST)/ldapmavis-mt$(EXEC_EXT): ldapmavis-mt$(EXEC_EXT)
+	$(INSTALL) -m 0755 $< $@
+
 install_pammavis: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/pammavis$(EXEC_EXT)
 
 install_pammavis-mt: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/pammavis-mt$(EXEC_EXT)
@@ -287,6 +302,8 @@ $(INSTALLROOT)$(SBINDIR_DEST)/radmavis$(EXEC_EXT): radmavis$(EXEC_EXT)
 install_radmavis: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/radmavis$(EXEC_EXT)
 
 install_radmavis-mt: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/radmavis-mt$(EXEC_EXT)
+
+install_ldapmavis-mt: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/ldapmavis-mt$(EXEC_EXT)
 
 install_prg: install_mavistest $(MAVIS_RADMAVIS_INSTALL) $(MAVIS_PAMMAVIS_INSTALL)
 

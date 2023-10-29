@@ -88,7 +88,7 @@ my @ALLDIRS = qw(mavis spawnd mavisd ftpd tac_plus tac_plus-ng tcprelay );
 my $DIRS_DEFAULT = join(" ", @DIRS_DEFAULT);
 my $ALLDIRS = join(" ", @ALLDIRS);
 
-my @options = qw(pcre2 ssl tls zlib freeradius pam execinfo sctp curl ipc ares crypto);
+my @options = qw(pcre2 ssl tls zlib freeradius pam execinfo sctp curl ipc ares crypto ldap);
 my %COMMENT;
 
 my $sbin = "sbin";
@@ -153,6 +153,10 @@ $COMMENT{"zlib"} =
 
 $COMMENT{"execinfo"} =
 "In case of a program crash, execinfo may return a backtrace of the crashed process, which may be valuable for debugging.
+";
+
+$COMMENT{"ldap"} =
+"This will add \"ldapmavis-mt\" to the build, a pthread() enabled LDAP backend.
 ";
 
 if ($#ARGV > -1 && $ARGV[0] =~ /^--help$/)
@@ -644,6 +648,8 @@ check_for("PAM", "libpam", "security/pam_appl.h", "pam", "-DHAVE_SECURITY_PAM_AP
 check_for("PAM", "libpam", "pam/pam_appl.h", "pam", undef);
 check_for("SCTP", "sctp", "netinet/sctp.h", "sctp", undef);
 check_for("PTHREAD", "pthread", "pthread.h", "pthread", undef);
+check_for("LDAP", "ldap", "ldap.h", "ldap", undef);
+check_for("LBER", "lber", "lber.h", "lber", undef);
 
 $DEFS{"LIB_DL"} = "-ldl" if $sysname eq "linux";
 
