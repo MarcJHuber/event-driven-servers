@@ -1217,11 +1217,11 @@ static void mschap_nthash(char *password, u_char * hash)
     if (utf8_to_utf16le(password, password_len, &enc, &enc_len)) {
 	// Not utf8, fallback to old behavior. I don't expect this to actually work.
 	enc_len = 2 * password_len;
-    	enc = calloc(1, enc_len);
+	enc = calloc(1, enc_len);
 	char *e = enc;
-    	while (*password) {
-		*e++ = *password++;
-		e++; // 0x00
+	while (*password) {
+	    *e++ = *password++;
+	    e++;		// 0x00
 	}
     }
 
