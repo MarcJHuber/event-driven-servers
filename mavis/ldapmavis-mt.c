@@ -1,5 +1,5 @@
 /*
- * ldapmavis-mt [ -s service ]
+ * ldapmavis-mt
  '
  ' multithread-enabled ldapmavis variant, for use with external-mt
  *
