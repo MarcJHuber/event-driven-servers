@@ -105,7 +105,6 @@ static void av_write(av_ctx * ac, uint32_t result)
 
 static int LDAP_eval_rootdse(LDAP * ldap, LDAPMessage * res)
 {
-    int capabilities = 0;
 #define LDAP_CAP_ACTIVE_DIRECTORY_OID "1.2.840.113556.1.4.800"	// supportedCapabilities
 #define LDAP_CAP_ACTIVE_DIRECTORY_ADAM_OID "1.2.840.113556.1.4.1851"	// supportedCapabilities
 #define LDAP_SERVER_FAST_BIND_OID "1.2.840.113556.1.4.1781"	// supportedCapabilities
