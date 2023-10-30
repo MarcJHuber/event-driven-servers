@@ -233,7 +233,6 @@ int main(int argc, char **argv)
 	    while (sizeof(struct mavis_ext_hdr_v1) != hdr_off) {
 		int len = read(0, (char *) &hdr + hdr_off, sizeof(struct mavis_ext_hdr_v1) - hdr_off);
 		if (len < 1) {
-		    //fprintf(stderr, "Short read (header).\n");
 		    exit(-1);
 		}
 		hdr_off += len;
@@ -265,8 +264,11 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Bad magic.\n");
 		exit(-1);
 	    } else {
-		char buf[4096];
-		size_t off = 0;
+		static char *buf = NULL;
+#define BUFSIZE 4095
+		if (!buf)
+		    buf = calloc(1, BUFSIZE + 1);
+		static size_t off = 0;
 		if (is_mt == TRISTATE_DUNNO) {
 		    memcpy(buf, &hdr, sizeof(hdr));
 		    off = sizeof(hdr);
@@ -276,18 +278,24 @@ int main(int argc, char **argv)
 		struct pollfd pfd;
 		memset(&pfd, 0, sizeof(pfd));
 		pfd.events = POLLIN;
-		while (1 == poll(&pfd, 1, -1) && off < sizeof(buf)) {
-		    ssize_t len = read(0, buf + off, sizeof(buf) - off);
-		    if (len < 1) {
-			//fprintf(stderr, "Short read (legacy)");
-			exit(-1);
+		char *end = strstr(buf, "\n=\n");
+		while (end || (1 == poll(&pfd, 1, -1) && off < BUFSIZE)) {
+		    if (!end) {
+			ssize_t len = read(0, buf + off, BUFSIZE - off);
+			if (len < 1) {
+			    exit(-1);
+			}
+			off += len;
+			buf[off] = 0;
+			end = strstr(buf, "\n=\n");
 		    }
-		    off += len;
-		    // no pipelining support at all.
-		    if (off > 3 && buf[off - 1] == '\n' && buf[off - 2] == '=' && buf[off - 3] == '\n') {
-			buf[off - 2] = 0;
+		    if (end) {
+			*(end + 1) = 0;
 			ac = av_new(NULL, NULL);
 			av_char_to_array(ac, buf, NULL);
+			end += 3;
+			memmove(buf, end, off - (end - buf) + 1);
+			off -= end - buf;
 			break;
 		    }
 		}
