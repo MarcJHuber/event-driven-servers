@@ -517,8 +517,8 @@ cache expire FTP = 0
    ldapmavis-mt (LDAP).
 
    Using external-mt primarily makes sense for blocking backends,
-   e.g. because these would wait waiting for a push notification
-   validation.
+   in particular if the latter would wait for interaction on a
+   secondary channel, e.g. for a push notification validation.
     mavis module = external-mt {
         # -s specifies the service, which defaults to "mavis"
         exec = /usr/local/sbin/pammavis-mt "pammavis-mt" "-s" "pamservic

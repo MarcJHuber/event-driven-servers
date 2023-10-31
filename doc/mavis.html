@@ -824,8 +824,9 @@ for <tt class="literal">radmavis-mt</tt> are <tt class=
 "literal">radmavis-mt</tt> (RADIUS) and <tt class=
 "literal">ldapmavis-mt</tt> (LDAP).</p>
 <p>Using <tt class="literal">external-mt</tt> primarily makes sense
-for blocking backends, e.g. because these would wait waiting for a
-push notification validation.</p>
+for blocking backends, in particular if the latter would wait for
+interaction on a secondary channel, e.g. for a push notification
+validation.</p>
 <pre class="screen">    mavis module = external-mt {
         # -s specifies the service, which defaults to "mavis"
         exec = /usr/local/sbin/pammavis-mt "pammavis-mt" "-s" "pamservicename"
