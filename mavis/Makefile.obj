@@ -36,7 +36,7 @@ ifeq ($(WITH_PAM),1)
 	endif
 endif
 
-ifeq ($(WITH_FREERADIUS),1)
+ifeq ($(WITH_FREERADIUS_CLIENT),1)
 	MAVIS_PRG += radmavis
 	MAVIS_RADMAVIS_INSTALL = install_radmavis
 	LIB_RADCLI=
@@ -76,20 +76,20 @@ all:	$(ALL) install_stage
 mavistest$(EXEC_EXT): mavistest.o
 	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_NET)
 
-radmavis-mt.o: INC += $(INC_FREERADIUS) $(INC_RADCLI)
+radmavis-mt.o: INC += $(INC_FREERADIUS_CLIENT) $(INC_RADCLI)
 
 radmavis-mt$(EXEC_EXT): radmavis-mt.o
-	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PTHREAD) $(LIB_FREERADIUS) $(LIB_NET)
+	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PTHREAD) $(LIB_FREERADIUS_CLIENT) $(LIB_NET)
 
 ldapavis-mt.o: INC += $(INC_LDAP)
 
 ldapmavis-mt$(EXEC_EXT): ldapmavis-mt.o
 	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PTHREAD) $(LIB_LDAP) $(LIB_LBER) $(LIB_NET) $(LIB_PCRE)
 
-radmavis.o: INC += $(INC_FREERADIUS) $(INC_RADCLI)
+radmavis.o: INC += $(INC_FREERADIUS_CLIENT) $(INC_RADCLI)
 
 radmavis$(EXEC_EXT): radmavis.o
-	$(CC) -o $@ $^ $(LIB) $(LIB_FREERADIUS) $(LIB_RADCLI) $(LIB_NET)
+	$(CC) -o $@ $^ $(LIB) $(LIB_FREERADIUS_CLIENT) $(LIB_RADCLI) $(LIB_NET)
 
 pammavis.o: CFLAGS += $(INC_PAM)
 
