@@ -116,22 +116,23 @@ static void av_write(av_ctx * ac, uint32_t result)
 {
     size_t len = av_array_to_char_len(ac);
     char *buf = alloca(len + sizeof(struct mavis_ext_hdr_v1));
-    len = av_array_to_char(ac, buf + sizeof(struct mavis_ext_hdr_v1), len, NULL);
+    if (is_mt == TRISTATE_YES) {
+	len = av_array_to_char(ac, buf + sizeof(struct mavis_ext_hdr_v1), len, NULL);
 
-    struct mavis_ext_hdr_v1 *h = (struct mavis_ext_hdr_v1 *) buf;
-    h->magic = htonl(MAVIS_EXT_MAGIC_V1);
-    h->body_len = htonl((uint32_t) len);
-    h->result = htonl(result);
+	struct mavis_ext_hdr_v1 *h = (struct mavis_ext_hdr_v1 *) buf;
+	h->magic = htonl(MAVIS_EXT_MAGIC_V1);
+	h->body_len = htonl((uint32_t) len);
+	h->result = htonl(result);
 
-    if (is_mt == TRISTATE_YES)
 	len += sizeof(struct mavis_ext_hdr_v1);
-    else
-	buf += sizeof(struct mavis_ext_hdr_v1);
-    if (is_mt == TRISTATE_YES)
 	pthread_mutex_lock(&mutex_lock);
-    write(1, buf, len);
-    if (is_mt == TRISTATE_YES)
+	write(1, buf, len);
 	pthread_mutex_unlock(&mutex_lock);
+    } else {
+	len = av_array_to_char(ac, buf, len, NULL);
+	len += snprintf(buf + len, sizeof(struct mavis_ext_hdr_v1), "=%u\n", result);
+	write(1, buf, len);
+    }
     av_free(ac);
 }
 

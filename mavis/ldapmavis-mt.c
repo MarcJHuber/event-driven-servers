@@ -78,31 +78,6 @@ Copyright (C) 2023 by Marc Huber <Marc.Huber@web.de>\n\
     exit(-1);
 }
 
-static pthread_mutex_t mutex_lock;
-
-static void av_write(av_ctx * ac, uint32_t result)
-{
-    size_t len = av_array_to_char_len(ac);
-    char *buf = alloca(len + sizeof(struct mavis_ext_hdr_v1));
-    len = av_array_to_char(ac, buf + sizeof(struct mavis_ext_hdr_v1), len, NULL);
-
-    struct mavis_ext_hdr_v1 *h = (struct mavis_ext_hdr_v1 *) buf;
-    h->magic = htonl(MAVIS_EXT_MAGIC_V1);
-    h->body_len = htonl((uint32_t) len);
-    h->result = htonl(result);
-
-    if (is_mt == TRISTATE_YES)
-	len += sizeof(struct mavis_ext_hdr_v1);
-    else
-	buf += sizeof(struct mavis_ext_hdr_v1);
-    if (is_mt == TRISTATE_YES)
-	pthread_mutex_lock(&mutex_lock);
-    write(1, buf, len);
-    if (is_mt == TRISTATE_YES)
-	pthread_mutex_unlock(&mutex_lock);
-    av_free(ac);
-}
-
 static int LDAP_eval_rootdse(LDAP * ldap, LDAPMessage * res)
 {
 #define LDAP_CAP_ACTIVE_DIRECTORY_OID "1.2.840.113556.1.4.800"	// supportedCapabilities
@@ -501,6 +476,32 @@ static char *translate_ldap_error(char *err /* from ldap_err2string() */ , char 
     *out = calloc(1, out_len);
     snprintf(*out, out_len, "Permission denied (%s).", message);
     return *out;
+}
+
+static pthread_mutex_t mutex_lock;
+
+static void av_write(av_ctx * ac, uint32_t result)
+{
+    size_t len = av_array_to_char_len(ac);
+    char *buf = alloca(len + sizeof(struct mavis_ext_hdr_v1));
+    if (is_mt == TRISTATE_YES) {
+	len = av_array_to_char(ac, buf + sizeof(struct mavis_ext_hdr_v1), len, NULL);
+
+	struct mavis_ext_hdr_v1 *h = (struct mavis_ext_hdr_v1 *) buf;
+	h->magic = htonl(MAVIS_EXT_MAGIC_V1);
+	h->body_len = htonl((uint32_t) len);
+	h->result = htonl(result);
+
+	len += sizeof(struct mavis_ext_hdr_v1);
+	pthread_mutex_lock(&mutex_lock);
+	write(1, buf, len);
+	pthread_mutex_unlock(&mutex_lock);
+    } else {
+	len = av_array_to_char(ac, buf, len, NULL);
+	len += snprintf(buf + len, sizeof(struct mavis_ext_hdr_v1), "=%u\n", result);
+	write(1, buf, len);
+    }
+    av_free(ac);
 }
 
 static void *run_thread(void *arg)
