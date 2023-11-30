@@ -1319,11 +1319,7 @@ host = nms { address = 1.2.3.4 user = nmsuser }
    hashes. For example,
 openssl passwd -1 clear_text_password
 
-   returns a MD5 hash, while
-openssl passwd -crypt clear_text_password
-
-   returns a DES hash.
-   DES passwords are by design truncated to eight characters.
+   returns a MD5 hash.
        You can enable via TACACS+ by configuring on the NAS:
 aaa authentication enable default group tacacs+ enable
      * anonymous-enable = ( permit | deny )
