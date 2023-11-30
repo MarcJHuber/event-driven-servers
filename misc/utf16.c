@@ -7,9 +7,9 @@
  *
  */
 
-#include <alloca.h>
 #include <string.h>
 #include <stdlib.h>
+#include "misc/sysconf.h"
 #include "misc/utf.h"
 
 static int is_valid_utf8(char *in, size_t len)
