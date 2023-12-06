@@ -2820,8 +2820,8 @@ static void parse_host(struct sym *sym, tac_realm * r)
 		break;
 	    case S_any:
 	    case S_all:
-		host->valid_for_nas = TRISTATE_NO;
-		host->valid_for_nac = TRISTATE_NO;
+		host->valid_for_nas = TRISTATE_YES;
+		host->valid_for_nac = TRISTATE_YES;
 		break;
 	    case S_client:
 		host->valid_for_nas = TRISTATE_NO;
@@ -4075,8 +4075,16 @@ static tac_user *member_lookup(tac_session * session, radixtree_t * t, char *tag
 
 static radixtree_t *eval_nas_member_acl(tac_session * session, tac_user * user)
 {
-    struct tac_acllist *a = eval_tac_acllist(session, NULL, &user->nas_member_acl);
-    return a ? a->u.rt : NULL;
+    struct tac_acllist *a = user->nas_member_acl;
+    while (a) {
+	a = eval_tac_acllist(session, NULL, &a);
+	if (a) {
+	    if (a->u.rt && radix_lookup(a->u.rt, &session->ctx->nas_address, NULL))
+		return a->u.rt;
+	    a = a->next;
+	}
+    }
+    return NULL;
 }
 
 static int cfg_get(tac_session * session, int (*fun)(tac_user *))
