@@ -1148,10 +1148,9 @@ mavis user filter = __internal__username_acl__
 tls psk id = myid
 tls psk key = 0123456789abcdef # in hex
      * tls alpn = ALPN-Protocol-ID
-       There's currently no ALPN Protcol ID registered for
+       There's currently no ALPN Protocol ID registered for
        TACACS-over-TLS, the official list is here: TLS
        Application-Layer Protocol Negotiation (ALPN) Protocol IDs.
-     *
 
    Example:
 id = spawnd {
