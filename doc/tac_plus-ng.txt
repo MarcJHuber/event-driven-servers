@@ -1139,14 +1139,19 @@ mavis user filter = __internal__username_acl__
      * tls cafile = cafile
        Specifies a file with the CAs to use.
 
-   If compiled with OpenSSL support, TLSv1.3 Preshared Keys are
-   supported:
+   If compiled with OpenSSL support, TLSv1.3 Preshared Keys and
+   ALPN are supported:
 
      * tls psk = ( yes | no )
        This enables PSK support at realm level.
        PSK identity and key can be declared at device level:
 tls psk id = myid
 tls psk key = 0123456789abcdef # in hex
+     * tls alpn = ALPN-Protocol-ID
+       There's currently no ALPN Protcol ID registered for
+       TACACS-over-TLS, the official list is here: TLS
+       Application-Layer Protocol Negotiation (ALPN) Protocol IDs.
+     *
 
    Example:
 id = spawnd {

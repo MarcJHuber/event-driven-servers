@@ -91,8 +91,8 @@ Marc Huber
    accounting services.
 
    This version is a major rewrite of the original Cisco source
-   code. However, it's outdated. Feel encouraged to use
-   tac_plus-ng.
+   code. However, it's outdated and unsupported. Feel encouraged
+   to use tac_plus-ng.
 
    Key features include:
 

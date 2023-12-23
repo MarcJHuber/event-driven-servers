@@ -47,38 +47,38 @@ cf070c3cde56d424334f3d09218a6da215a89dfb $<br></span>
 <dt>4.2.3. <a href="#AEN385">Realm attributes</a></dt>
 </dl>
 </dd>
-<dt>4.3. <a href="#AEN2730">MAVIS Backends</a></dt>
+<dt>4.3. <a href="#AEN2737">MAVIS Backends</a></dt>
 <dd>
 <dl>
-<dt>4.3.1. <a href="#AEN2738">LDAP Backends</a></dt>
-<dt>4.3.2. <a href="#AEN2951">PAM back-end</a></dt>
-<dt>4.3.3. <a href="#AEN2956">System Password Backends</a></dt>
-<dt>4.3.4. <a href="#AEN2963">Shadow Backend</a></dt>
-<dt>4.3.5. <a href="#AEN2986">RADIUS Backends</a></dt>
-<dt>4.3.6. <a href="#AEN3020">Experimental Backends</a></dt>
-<dt>4.3.7. <a href="#AEN3024">Error Handling</a></dt>
+<dt>4.3.1. <a href="#AEN2745">LDAP Backends</a></dt>
+<dt>4.3.2. <a href="#AEN2958">PAM back-end</a></dt>
+<dt>4.3.3. <a href="#AEN2963">System Password Backends</a></dt>
+<dt>4.3.4. <a href="#AEN2970">Shadow Backend</a></dt>
+<dt>4.3.5. <a href="#AEN2993">RADIUS Backends</a></dt>
+<dt>4.3.6. <a href="#AEN3027">Experimental Backends</a></dt>
+<dt>4.3.7. <a href="#AEN3031">Error Handling</a></dt>
 </dl>
 </dd>
 </dl>
 </dd>
-<dt>5. <a href="#AEN3032">Debugging</a></dt>
+<dt>5. <a href="#AEN3039">Debugging</a></dt>
 <dd>
 <dl>
-<dt>5.1. <a href="#AEN3035">Debugging Configuration Files</a></dt>
-<dt>5.2. <a href="#AEN3043">Trace Options</a></dt>
+<dt>5.1. <a href="#AEN3042">Debugging Configuration Files</a></dt>
+<dt>5.2. <a href="#AEN3050">Trace Options</a></dt>
 </dl>
 </dd>
-<dt>6. <a href="#AEN3201">Frequently Asked Questions</a></dt>
-<dt>7. <a href="#AEN3278">Multi-tenant setups</a></dt>
+<dt>6. <a href="#AEN3208">Frequently Asked Questions</a></dt>
+<dt>7. <a href="#AEN3285">Multi-tenant setups</a></dt>
 <dd>
 <dl>
-<dt>7.1. <a href="#AEN3309">AD, Realms and Tenants</a></dt>
+<dt>7.1. <a href="#AEN3316">AD, Realms and Tenants</a></dt>
 </dl>
 </dd>
-<dt>8. <a href="#AEN3314">AAA rule tracing</a></dt>
-<dt>9. <a href="#AEN3330">Bugs</a></dt>
-<dt>10. <a href="#AEN3344">References</a></dt>
-<dt>11. <a href="#AEN3354">Copyrights and Acknowledgements</a></dt>
+<dt>8. <a href="#AEN3321">AAA rule tracing</a></dt>
+<dt>9. <a href="#AEN3337">Bugs</a></dt>
+<dt>10. <a href="#AEN3351">References</a></dt>
+<dt>11. <a href="#AEN3361">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -1848,8 +1848,8 @@ in PEM format.</p>
 <p>Specifies a file with the CAs to use.</p>
 </li>
 </ul>
-<p>If compiled with OpenSSL support, TLSv1.3 Preshared Keys are
-supported:</p>
+<p>If compiled with OpenSSL support, TLSv1.3 Preshared Keys and
+ALPN are supported:</p>
 <ul>
 <li>
 <p><tt class="literal">tls psk =</tt> ( <tt class=
@@ -1858,6 +1858,15 @@ supported:</p>
 <p>PSK identity and key can be declared at device level:</p>
 <pre class="screen">tls psk id = myid
 tls psk key = 0123456789abcdef # in hex</pre></li>
+<li>
+<p><tt class="literal">tls alpn =</tt> <span class=
+"emphasis"><i class="emphasis">ALPN-Protocol-ID</i></span></p>
+<p>There's currently no ALPN Protcol ID registered for
+TACACS-over-TLS, the official list is here: <a href=
+"https://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml#alpn-protocol-ids"
+target="_top">TLS Application-Layer Protocol Negotiation (ALPN)
+Protocol IDs</a>.</p>
+</li>
 </ul>
 <p>Example:</p>
 <pre class="screen">id = spawnd {
@@ -1878,7 +1887,7 @@ tls psk key = 0123456789abcdef # in hex</pre></li>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN1253" id="AEN1253">4.2.3.4.
+<h5 class="section"><a name="AEN1260" id="AEN1260">4.2.3.4.
 Miscellaneous</a></h5>
 <p>In <span class="bold"><b class="emphasis">spawnd
 listen</b></span> context,</p>
@@ -1931,11 +1940,11 @@ OpenBSD).</p>
 }</pre></div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN1286" id="AEN1286">4.2.3.5. Realm
+<h5 class="section"><a name="AEN1293" id="AEN1293">4.2.3.5. Realm
 Inheritance</a></h5>
 <p>Realms inherit quite some configuration from their parent
 realm:</p>
-<div class="informaltable"><a name="AEN1289" id="AEN1289"></a>
+<div class="informaltable"><a name="AEN1296" id="AEN1296"></a>
 <table border="1" frame="border" class="CALSTABLE">
 <col width="20%" title="col1">
 <col width="80%" title="col2">
@@ -2000,7 +2009,7 @@ realm:</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN1334" id="AEN1334">4.2.3.6.
+<h5 class="section"><a name="AEN1341" id="AEN1341">4.2.3.6.
 Railroad Diagrams</a></h5>
 <div class="mediaobject">
 <p><img src="railroad/tac_plus-ng/RealmAttr.svg"></p>
@@ -2017,7 +2026,7 @@ Railroad Diagrams</a></h5>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN1350" id="AEN1350">4.2.3.7.
+<h5 class="section"><a name="AEN1357" id="AEN1357">4.2.3.7.
 Networks</a></h5>
 <p>Networks consist of IP addresses or other networks. They may
 overlap. Networks can be used in ACLs. The parent of a network may
@@ -2033,7 +2042,7 @@ explicitly.</p>
   }</pre>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN1354" id="AEN1354">4.2.3.7.1.
+<h6 class="section"><a name="AEN1361" id="AEN1361">4.2.3.7.1.
 Railroad Diagrams</a></h6>
 <div class="mediaobject">
 <p><img src="railroad/tac_plus-ng/NetDecl.svg"></p>
@@ -2051,7 +2060,7 @@ Railroad Diagrams</a></h6>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN1370" id="AEN1370">4.2.3.8. Devices
+<h5 class="section"><a name="AEN1377" id="AEN1377">4.2.3.8. Devices
 (Hosts)</a></h5>
 <p>The daemon will talk to known NAS addresses only. Connections
 from unknown addresses will be rejected.</p>
@@ -2223,7 +2232,7 @@ too.</p>
 </ul>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN1480" id="AEN1480">4.2.3.8.1.
+<h6 class="section"><a name="AEN1487" id="AEN1487">4.2.3.8.1.
 Timeouts</a></h6>
 <p>The connection timeout may be specified:</p>
 <ul>
@@ -2238,7 +2247,7 @@ seconds. Defaults to the global option.</p>
 </div>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN1490" id="AEN1490">4.2.3.8.2.
+<h6 class="section"><a name="AEN1497" id="AEN1497">4.2.3.8.2.
 Authentication</a></h6>
 <p>The following authentication related directives are available at
 device object level:</p>
@@ -2334,7 +2343,7 @@ default) or any of <tt class="literal">m</tt>, <tt class=
 </div>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN1566" id="AEN1566">4.2.3.8.3.
+<h6 class="section"><a name="AEN1573" id="AEN1573">4.2.3.8.3.
 Authorization</a></h6>
 <p>The following authorization related directives are available at
 device object level:</p>
@@ -2351,7 +2360,7 @@ while initially configuring TACACS+ support and messing up).</p>
 </div>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN1577" id="AEN1577">4.2.3.8.4.
+<h6 class="section"><a name="AEN1584" id="AEN1584">4.2.3.8.4.
 Banners and Messages</a></h6>
 <p>The daemon allows for various banners to be displayed to the
 user:</p>
@@ -2388,7 +2397,7 @@ displayed upon final failure of an authentication attempt.</p>
 </ul>
 <p>The time when those texts get displayed largely depends on the
 actual login method:</p>
-<div class="informaltable"><a name="AEN1610" id="AEN1610"></a>
+<div class="informaltable"><a name="AEN1617" id="AEN1617"></a>
 <table border="1" frame="border" class="CALSTABLE">
 <col>
 <col>
@@ -2464,7 +2473,7 @@ unless specified as user level.</p>
   }</pre></div>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN1675" id="AEN1675">4.2.3.8.5.
+<h6 class="section"><a name="AEN1682" id="AEN1682">4.2.3.8.5.
 Workarounds for Client Bugs</a></h6>
 <p>The directive</p>
 <p><tt class="literal">bug compatibility =</tt> <span class=
@@ -2472,7 +2481,7 @@ Workarounds for Client Bugs</a></h6>
 <p>may improve compatibility with clients that violate the TACACS+
 protocol. Currently, the following bit values (yes, you can use
 bitwise OR here) are recognized:</p>
-<div class="informaltable"><a name="AEN1682" id="AEN1682"></a>
+<div class="informaltable"><a name="AEN1689" id="AEN1689"></a>
 <table border="1" frame="border" class="CALSTABLE">
 <col width="5%" title="col1">
 <col width="5%" title="col2">
@@ -2519,7 +2528,7 @@ with Palo Alto systems.</td>
 </div>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN1712" id="AEN1712">4.2.3.8.6.
+<h6 class="section"><a name="AEN1719" id="AEN1719">4.2.3.8.6.
 Inheritance and Hosts</a></h6>
 <p>For address based device lookups, the daemon looks for the most
 specific device definition. Values that aren't defined (if any)
@@ -2530,7 +2539,7 @@ statement.</p>
 </div>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN1716" id="AEN1716">4.2.3.8.7.
+<h6 class="section"><a name="AEN1723" id="AEN1723">4.2.3.8.7.
 Railroad Diagrams</a></h6>
 <div class="mediaobject">
 <p><img src="railroad/tac_plus-ng/DeviceDecl.svg"></p>
@@ -2553,7 +2562,7 @@ Railroad Diagrams</a></h6>
 </div>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN1739" id="AEN1739">4.2.3.8.8.
+<h6 class="section"><a name="AEN1746" id="AEN1746">4.2.3.8.8.
 Example</a></h6>
 <pre class="screen">device = customer1 {
     address = 10.0.0.0/8
@@ -2574,7 +2583,7 @@ device = test123 {
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN1742" id="AEN1742">4.2.3.9. Time
+<h5 class="section"><a name="AEN1749" id="AEN1749">4.2.3.9. Time
 Ranges</a></h5>
 <p><tt class="literal">timespec</tt> objects may be used for time
 based profile assignments. Both <tt class="literal">cron</tt> and
@@ -2605,7 +2614,7 @@ timespec example {
 }</pre>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN1759" id="AEN1759">4.2.3.9.1.
+<h6 class="section"><a name="AEN1766" id="AEN1766">4.2.3.9.1.
 Railroad Diagrams</a></h6>
 <div class="mediaobject">
 <p><img src="railroad/tac_plus-ng/TimespecDecl.svg"></p>
@@ -2617,7 +2626,7 @@ Railroad Diagrams</a></h6>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN1768" id="AEN1768">4.2.3.10. Access
+<h5 class="section"><a name="AEN1775" id="AEN1775">4.2.3.10. Access
 Control Lists</a></h5>
 <p>Access Control Lists (or, more exactly, Access Control Scripts)
 are the main component of ruleset evaluation.</p>
@@ -2697,7 +2706,7 @@ tac_action ... <tt class="literal">}</tt></p>
 </ul>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN1809" id="AEN1809">4.2.3.10.1.
+<h6 class="section"><a name="AEN1816" id="AEN1816">4.2.3.10.1.
 Syntax</a></h6>
 <p>A script consists of a series of actions:</p>
 <div class="mediaobject">
@@ -2780,7 +2789,7 @@ from checking for the same service in the groups the current user
 </li>
 </ul>
 <p>Conditions:</p>
-<div class="informaltable"><a name="AEN1871" id="AEN1871"></a>
+<div class="informaltable"><a name="AEN1878" id="AEN1878"></a>
 <table border="1" class="CALSTABLE">
 <col width="20%" title="col1">
 <col width="10%" title="col2">
@@ -3088,7 +3097,7 @@ conditions require <span class="emphasis"><i class=
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2215" id="AEN2215">4.2.3.11.
+<h5 class="section"><a name="AEN2222" id="AEN2222">4.2.3.11.
 Rewriting User Names</a></h5>
 <p>A script may refer to a rewrite profile defined at realm level
 to rewrite user names. For example, the following will map both
@@ -3119,7 +3128,7 @@ device ... {
     }</pre></div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2225" id="AEN2225">4.2.3.12.
+<h5 class="section"><a name="AEN2232" id="AEN2232">4.2.3.12.
 Users</a></h5>
 <p>The basic form of a user declarations is</p>
 <pre class="screen">user <span class="emphasis"><i class=
@@ -3255,7 +3264,7 @@ multiple groups and groups can be members of a parent group.</p>
 </ul>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN2349" id="AEN2349">4.2.3.12.1.
+<h6 class="section"><a name="AEN2356" id="AEN2356">4.2.3.12.1.
 Railroad Diagrams</a></h6>
 <div class="mediaobject">
 <p><img src="railroad/tac_plus-ng/UserDecl.svg"></p>
@@ -3273,7 +3282,7 @@ Railroad Diagrams</a></h6>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2365" id="AEN2365">4.2.3.13.
+<h5 class="section"><a name="AEN2372" id="AEN2372">4.2.3.13.
 Groups</a></h5>
 <p>A user can be a member of multiple groups. A user that is a
 member of a group that comes with a parent group is a member of the
@@ -3302,7 +3311,7 @@ latter, too. Group are defined using</p>
 </ul>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN2390" id="AEN2390">4.2.3.13.1.
+<h6 class="section"><a name="AEN2397" id="AEN2397">4.2.3.13.1.
 Railroad Diagrams</a></h6>
 <div class="mediaobject">
 <p><img src="railroad/tac_plus-ng/GroupDecl.svg"></p>
@@ -3320,7 +3329,7 @@ Railroad Diagrams</a></h6>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2406" id="AEN2406">4.2.3.14.
+<h5 class="section"><a name="AEN2413" id="AEN2413">4.2.3.14.
 Profiles</a></h5>
 <p>Profiles are collections of services that can be assigned to
 users via the policy rule-set. Syntax is</p>
@@ -3428,7 +3437,7 @@ these:</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2464" id="AEN2464">4.2.3.15.
+<h5 class="section"><a name="AEN2471" id="AEN2471">4.2.3.15.
 Railroad Diagrams</a></h5>
 <div class="mediaobject">
 <p><img src="railroad/tac_plus-ng/UserMessage.svg"></p>
@@ -3535,7 +3544,7 @@ Railroad Diagrams</a></h5>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2585" id="AEN2585">4.2.3.16.
+<h5 class="section"><a name="AEN2592" id="AEN2592">4.2.3.16.
 Configuring Non-local Users via MAVIS</a></h5>
 <p><span class="bold"><b class="emphasis">MAVIS</b></span>
 configuration is optional. You don't need it if you're content with
@@ -3558,7 +3567,7 @@ may change that period using</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2598" id="AEN2598">4.2.3.17.
+<h5 class="section"><a name="AEN2605" id="AEN2605">4.2.3.17.
 Configuring Local Users for MAVIS authentication</a></h5>
 <p>Under certain circumstances you may wish to keep the user
 definitions in the plain text configuration file, but authenticate
@@ -3571,7 +3580,7 @@ do so, just specify one of</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2603" id="AEN2603">4.2.3.18.
+<h5 class="section"><a name="AEN2610" id="AEN2610">4.2.3.18.
 Configuring User Authentication</a></h5>
 <p>User Authentication can be specified separately for PAP, CHAP,
 and normal logins. CHAP and global user authentication must be
@@ -3608,7 +3617,7 @@ mavis</tt> directive in this case):</p>
 <pre class="screen">user mary { login = mavis }</pre></div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2619" id="AEN2619">4.2.3.19.
+<h5 class="section"><a name="AEN2626" id="AEN2626">4.2.3.19.
 Configuring Expiry Dates</a></h5>
 <p>An entry of the form:</p>
 <pre class="screen">user lol {
@@ -3635,7 +3644,7 @@ directive.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2636" id="AEN2636">4.2.3.20.
+<h5 class="section"><a name="AEN2643" id="AEN2643">4.2.3.20.
 Configuring Authentication on the NAS</a></h5>
 <p>On the NAS, to configure login authentication, try</p>
 <pre class="screen">aaa new-model
@@ -3680,7 +3689,7 @@ way out.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2652" id="AEN2652">4.2.3.21.
+<h5 class="section"><a name="AEN2659" id="AEN2659">4.2.3.21.
 Configuring Authorization</a></h5>
 <p>Authorization must be configured on both the NAS and the daemon
 to operate correctly. By default, the NAS will allow everything
@@ -3696,7 +3705,7 @@ commands and services.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2657" id="AEN2657">4.2.3.22.
+<h5 class="section"><a name="AEN2664" id="AEN2664">4.2.3.22.
 Authorizing Commands</a></h5>
 <p>Exec commands are those commands which are typed at a NAS exec
 prompt. When authorization is requested by the NAS, the entire
@@ -3707,7 +3716,7 @@ details.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2661" id="AEN2661">4.2.3.23. The
+<h5 class="section"><a name="AEN2668" id="AEN2668">4.2.3.23. The
 Authorization Process</a></h5>
 <p>Authorizing a single session can result in multiple requests
 being sent to the daemon. For example, in order to authorize a
@@ -3753,7 +3762,7 @@ going to agree and they shut down PPP instead.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2680" id="AEN2680">4.2.3.24.
+<h5 class="section"><a name="AEN2687" id="AEN2687">4.2.3.24.
 Authorization Relies on Authentication</a></h5>
 <p>Since we pretty much rely on having a username in authorization
 requests to decide which addresses etc. to hand out, it is
@@ -3785,7 +3794,7 @@ missing.</p>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2692" id="AEN2692">4.2.3.25.
+<h5 class="section"><a name="AEN2699" id="AEN2699">4.2.3.25.
 Configuring Service Authorization</a></h5>
 <p>A list of AV pairs is placed in the daemon's configuration file
 in order to authorize services. The daemon compares each NAS AV
@@ -3795,7 +3804,7 @@ delete AV pairs before returning them to the NAS, thereby
 restricting what the user is permitted to do.</p>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN2695" id="AEN2695">4.2.3.25.1. The
+<h6 class="section"><a name="AEN2702" id="AEN2702">4.2.3.25.1. The
 Authorization Algorithm</a></h6>
 <p>The complete algorithm by which the daemon processes its
 configured AV pairs against the list the NAS sends, is given
@@ -3873,7 +3882,7 @@ each optional attribute).</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN2730" id="AEN2730">4.3. MAVIS
+<h3 class="section"><a name="AEN2737" id="AEN2737">4.3. MAVIS
 Backends</a></h3>
 <p>The distribution comes with various <span class=
 "emphasis"><i class="emphasis">MAVIS</i></span> modules, of which
@@ -3889,7 +3898,7 @@ environment.</p>
 gives examples for RADIUS and PAM authentication, too.</p>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2738" id="AEN2738">4.3.1. LDAP
+<h4 class="section"><a name="AEN2745" id="AEN2745">4.3.1. LDAP
 Backends</a></h4>
 <p><tt class="literal">mavis_tacplus_ldap.pl</tt> is an
 authentication/authorization back-end for the <span class=
@@ -3897,7 +3906,7 @@ authentication/authorization back-end for the <span class=
 interfaces to various kinds of LDAP servers, e.g. OpenLDAP, Fedora
 DS and Active Directory. Its behaviour is controlled by a list of
 environmental variables:</p>
-<div class="informaltable"><a name="AEN2743" id="AEN2743"></a>
+<div class="informaltable"><a name="AEN2750" id="AEN2750"></a>
 <table border="1" frame="border" class="CALSTABLE">
 <col width="30%" title="col1">
 <col width="70%" title="col2">
@@ -4092,7 +4101,7 @@ running <span class="emphasis"><i class=
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2913" id="AEN2913">4.3.1.1. LDAP
+<h5 class="section"><a name="AEN2920" id="AEN2920">4.3.1.1. LDAP
 Custom Schema Backend</a></h5>
 <p>For <tt class="literal">LDAP_SERVER_TYPE</tt> set to <tt class=
 "literal">tacacs_schema</tt>, the program expects the LDAP server
@@ -4142,7 +4151,7 @@ versions of OpenLDAP: Use <tt class="literal">ldapadd</tt> to add
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2936" id="AEN2936">4.3.1.2. Active
+<h5 class="section"><a name="AEN2943" id="AEN2943">4.3.1.2. Active
 Directory Backend</a></h5>
 <p>If <tt class="literal">LDAP_SERVER_TYPE</tt> is set to
 <tt class="literal">microsoft</tt>, the script back-ends to AD
@@ -4240,7 +4249,7 @@ id = tac_plus-ng {
 }</pre></div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2943" id="AEN2943">4.3.1.3. Generic
+<h5 class="section"><a name="AEN2950" id="AEN2950">4.3.1.3. Generic
 LDAP Backend</a></h5>
 <p>If <tt class="literal">LDAP_SERVER_TYPE</tt> is set to
 <tt class="literal">generic</tt>, the script won't require any
@@ -4253,7 +4262,7 @@ authorization is done by this back-end.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2951" id="AEN2951">4.3.2. PAM
+<h4 class="section"><a name="AEN2958" id="AEN2958">4.3.2. PAM
 back-end</a></h4>
 <p>Example configuration for using <span class="emphasis"><i class=
 "emphasis">Pluggable Authentication Modules</i></span>:</p>
@@ -4294,7 +4303,7 @@ id = tac_plus {
 }</pre></div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2956" id="AEN2956">4.3.3. System
+<h4 class="section"><a name="AEN2963" id="AEN2963">4.3.3. System
 Password Backends</a></h4>
 <p><tt class="literal">mavis_tacplus_passwd.pl</tt> authenticates
 against your local password database. Alas, to use this
@@ -4307,7 +4316,7 @@ one-time passwords for authentication.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2963" id="AEN2963">4.3.4. Shadow
+<h4 class="section"><a name="AEN2970" id="AEN2970">4.3.4. Shadow
 Backend</a></h4>
 <p><tt class="literal">mavis_tacplus_shadow.pl</tt> may be used to
 keep user passwords out of the <span class="bold"><b class=
@@ -4361,7 +4370,7 @@ test:$1$pQtQsMuj$GKpIr5r2GNaZNfDfnCBtw.:15218:1:30:
 ...</pre></div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN2986" id="AEN2986">4.3.5. RADIUS
+<h4 class="section"><a name="AEN2993" id="AEN2993">4.3.5. RADIUS
 Backends</a></h4>
 <p><tt class="literal">mavis_tacplus_radius.pl</tt> authenticates
 against a RADIUS server. No authorization is done, unless the
@@ -4410,7 +4419,7 @@ login time.</p>
 equivalent.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN3017" id="AEN3017">4.3.5.1. Sample
+<h5 class="section"><a name="AEN3024" id="AEN3024">4.3.5.1. Sample
 Configuration</a></h5>
 <pre class=
 "screen">## Use tacinfo_cache to cache authorization data to disk:
@@ -4433,7 +4442,7 @@ mavis module = external {
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN3020" id="AEN3020">4.3.6.
+<h4 class="section"><a name="AEN3027" id="AEN3027">4.3.6.
 Experimental Backends</a></h4>
 <p><tt class="literal">mavis_tacplus_sms.pl</tt> is a sample
 (skeleton) script to send One-Time Passwords via a SMS
@@ -4441,7 +4450,7 @@ back-end.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN3024" id="AEN3024">4.3.7. Error
+<h4 class="section"><a name="AEN3031" id="AEN3031">4.3.7. Error
 Handling</a></h4>
 <p>If a back-end script fails due to an external problem (e.g. LDAP
 server unavailability), your router may or may not fall back to
@@ -4479,11 +4488,11 @@ basis. Default is enabled.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3032" id="AEN3032">5.
+<h2 class="section"><a name="AEN3039" id="AEN3039">5.
 Debugging</a></h2>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN3035" id="AEN3035">5.1. Debugging
+<h3 class="section"><a name="AEN3042" id="AEN3042">5.1. Debugging
 Configuration Files</a></h3>
 <p>When creating configuration files, it is convenient to check
 their syntax using the <tt class="literal">-P</tt> flag to
@@ -4495,7 +4504,7 @@ messages on the terminal.</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN3043" id="AEN3043">5.2. Trace
+<h3 class="section"><a name="AEN3050" id="AEN3050">5.2. Trace
 Options</a></h3>
 <p>Trace (or debugging) options may be specified in <span class=
 "emphasis"><i class="emphasis">global</i></span>, <span class=
@@ -4521,7 +4530,7 @@ information to <tt class="literal">syslog</tt>.</p>
 <pre class="screen">debug = ALL -PARSE</pre>
 <p>The debugging options available are summarized in the following
 table:</p>
-<div class="informaltable"><a name="AEN3063" id="AEN3063"></a>
+<div class="informaltable"><a name="AEN3070" id="AEN3070"></a>
 <table border="1" frame="border" class="CALSTABLE">
 <col width="5%" title="col1">
 <col width="15%" title="col2">
@@ -4708,7 +4717,7 @@ option.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3201" id="AEN3201">6. Frequently
+<h2 class="section"><a name="AEN3208" id="AEN3208">6. Frequently
 Asked Questions</a></h2>
 <ul>
 <li>
@@ -4883,7 +4892,7 @@ anyway.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3278" id="AEN3278">7. Multi-tenant
+<h2 class="section"><a name="AEN3285" id="AEN3285">7. Multi-tenant
 setups</a></h2>
 <p>While using a dedictated tac_plus-ng installation per tenant is
 certainly possible it lacks some elegance. There are other
@@ -4953,7 +4962,7 @@ with</p>
 from as realm name.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN3309" id="AEN3309">7.1. AD, Realms
+<h3 class="section"><a name="AEN3316" id="AEN3316">7.1. AD, Realms
 and Tenants</a></h3>
 <p>The suggested setup for giving customers limited access to NADs
 is:</p>
@@ -4997,7 +5006,7 @@ scripts anywhere else.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3314" id="AEN3314">8. AAA rule
+<h2 class="section"><a name="AEN3321" id="AEN3321">8. AAA rule
 tracing</a></h2>
 <p>The distribution includes the <tt class=
 "literal">tactrace.pl</tt> Perl script. It's usually not installed
@@ -5103,7 +5112,7 @@ supported as the password would show up as clear text in the process listing.</p
 127.0.0.1 ---&lt;end packet&gt;---</pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3330" id="AEN3330">9. Bugs</a></h2>
+<h2 class="section"><a name="AEN3337" id="AEN3337">9. Bugs</a></h2>
 <ul>
 <li>
 <p>There may still be some nasty bugs lurking in the code. Please
@@ -5131,7 +5140,7 @@ guidance.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3344" id="AEN3344">10.
+<h2 class="section"><a name="AEN3351" id="AEN3351">10.
 References</a></h2>
 <ul>
 <li>
@@ -5148,7 +5157,7 @@ System Plus (TACACS+) Protocol</a></p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3354" id="AEN3354">11. Copyrights
+<h2 class="section"><a name="AEN3361" id="AEN3361">11. Copyrights
 and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of
 individual files.</p>
@@ -5230,7 +5239,7 @@ with the distribution.</p>
 <li>
 <p>The end-user documentation included with the redistribution, if
 any, must include the following acknowledgment:</p>
-<a name="AEN3397" id="AEN3397"></a>
+<a name="AEN3404" id="AEN3404"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber
 (<code class="email">&lt;<a href=
