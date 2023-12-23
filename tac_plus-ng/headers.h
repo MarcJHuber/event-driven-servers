@@ -364,6 +364,10 @@ struct realm {
     int tls_verify_depth;
      TRISTATE(tls_accept_expired);
 #endif
+#ifdef WITH_SSL
+    u_char *alpn_vec;
+    size_t alpn_vec_len;
+#endif
     u_int debug;
     int rulecount;
     struct io_dns_ctx *idc;
@@ -742,6 +746,7 @@ struct context {
 #endif
 #ifdef WITH_SSL
     SSL *tls;
+     BISTATE(alpn_passed);
 #endif
 #if defined(WITH_TLS) || defined(WITH_SSL)
     const char *tls_conn_version;

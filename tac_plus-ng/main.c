@@ -577,6 +577,13 @@ static void accept_control_tls(struct context *ctx, int cur)
 	break;
     }
 
+#ifdef WITH_SSL
+    if (ctx->alpn_passed != BISTATE_YES) {
+	hint = "ALPN";
+	goto bye;
+    }
+#endif
+
 #ifndef OPENSSL_NO_PSK
     if (ctx->tls_psk_identity) {
 	accept_control_final(ctx);
@@ -842,6 +849,18 @@ static int app_verify_cb(X509_STORE_CTX * ctx, void *app_ctx __attribute__((unus
 {
     return (X509_verify_cert(ctx) == 1) ? 1 : 0;
 }
+
+static int alpn_cb(SSL * s __attribute__((unused)), const unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg)
+{
+    struct context *ctx = (struct context *) arg;
+    if (SSL_select_next_proto((unsigned char **) out, outlen, ctx->realm->alpn_vec, ctx->realm->alpn_vec_len, in, inlen) != OPENSSL_NPN_NEGOTIATED) {
+	return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+    ctx->alpn_passed = BISTATE_YES;
+
+    return SSL_TLSEXT_ERR_OK;
+}
 #endif
 
 static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_union * nad_address)
@@ -997,6 +1016,11 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	SSL_set_fd(ctx->tls, ctx->sock);
 
 	SSL_CTX_set_cert_verify_callback(r->tls, app_verify_cb, ctx);
+
+	if (ctx->realm->alpn_vec && ctx->realm->alpn_vec_len > 1)
+	    SSL_CTX_set_alpn_select_cb(r->tls, alpn_cb, ctx);
+	else
+	    ctx->alpn_passed = BISTATE_YES;
 #endif
 	accept_control_tls(ctx, ctx->sock);
 	return;

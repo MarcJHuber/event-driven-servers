@@ -221,6 +221,11 @@ void complete_realm(tac_realm * r)
 	RS(mavis_user_acl, NULL);
 	RS(enable_user_acl, NULL);
 	RS(password_acl, NULL);
+#ifdef WITH_SSL
+	RS(alpn_vec, NULL);
+	if (!r->alpn_vec_len)
+	    r->alpn_vec_len = rp->alpn_vec_len;
+#endif
 #if defined(WITH_TLS) || defined(WITH_SSL)
 	RS(tls_accept_expired, TRISTATE_DUNNO);
 #endif
@@ -1057,6 +1062,32 @@ static int parse_script_order(struct sym *sym)
 
 static void parse_enable(struct sym *, memlist_t *, struct pwdat **);
 
+#ifdef WITH_SSL
+static u_char *str2protocollist(char *in, size_t *outlen)
+{
+    *outlen = strlen(in) + 1;
+    u_char *out = calloc(1, *outlen);
+    u_char *outp = out;
+
+    while (*in) {
+	char *inp = in;
+	while (*inp && *inp != ',')
+	    inp++;
+	if (inp - in > 255) {
+	    free(out);
+	    *outlen = 0;
+	    return NULL;
+	}
+	*outp++ = (u_char) (inp - in);
+	while (in != inp)
+	    *outp++ = *in++;
+	if (*in)
+	    in++;
+    }
+    return out;
+}
+#endif
+
 void parse_decls_real(struct sym *sym, tac_realm * r)
 {
     /* Top level of parser */
@@ -1568,8 +1599,18 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		parse(sym, S_equal);
 		r->tls_verify_depth = parse_int(sym);
 		continue;
+#ifdef WITH_SSL
+	    case S_alpn:
+		sym_get(sym);
+		parse(sym, S_equal);
+		r->alpn_vec = str2protocollist(sym->buf, &r->alpn_vec_len);
+		if (!r->alpn_vec)
+		    parse_error(sym, "TLS ALPN is malformed.");
+		sym_get(sym);
+		continue;
+#endif
 	    default:
-		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_passphrase, S_ciphers, S_peer, S_accept, S_verify_depth, S_unknown);
+		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_passphrase, S_ciphers, S_peer, S_accept, S_verify_depth, S_alpn, S_unknown);
 	    }
 	    continue;
 #endif

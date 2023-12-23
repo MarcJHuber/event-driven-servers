@@ -81,6 +81,7 @@ address-mismatch		S_addressmismatch
 alias				S_alias
 all				S_all
 allow-dotfiles			S_allowdotfiles
+alpn				S_alpn
 anon				S_anon
 anonymous-enable		S_anonenable
 augmented-enable		S_augmented_enable
