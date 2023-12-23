@@ -8,6 +8,7 @@
 
 #include "misc/sysconf.h"
 #include "mavis.h"
+#include <stdlib.h>
 #include <sysexits.h>
 #include <stdio.h>
 #include <unistd.h>
