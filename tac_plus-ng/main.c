@@ -1023,15 +1023,14 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	tls_accept_socket(r->tls, &ctx->tls, ctx->sock);
 #endif
 #ifdef WITH_SSL
-	ctx->tls = SSL_new(r->tls);
-	SSL_set_fd(ctx->tls, ctx->sock);
-
 	SSL_CTX_set_cert_verify_callback(r->tls, app_verify_cb, ctx);
 
 	if (ctx->realm->alpn_vec && ctx->realm->alpn_vec_len > 1)
 	    SSL_CTX_set_alpn_select_cb(r->tls, alpn_cb, ctx);
 	else
 	    ctx->alpn_passed = BISTATE_YES;
+	ctx->tls = SSL_new(r->tls);
+	SSL_set_fd(ctx->tls, ctx->sock);
 #endif
 	accept_control_tls(ctx, ctx->sock);
 	return;
