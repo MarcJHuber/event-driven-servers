@@ -368,6 +368,9 @@ struct realm {
     u_char *alpn_vec;
     size_t alpn_vec_len;
 #endif
+#ifdef WITH_TLS
+    char *alpn;
+#endif
     u_int debug;
     int rulecount;
     struct io_dns_ctx *idc;

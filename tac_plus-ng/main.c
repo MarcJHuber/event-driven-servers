@@ -509,15 +509,21 @@ static void read_px(struct context_px *ctx, int cur)
 
 static void reject_conn(struct context *ctx, char *hint, char *tls)
 {
+    char *prehint = "", *posthint = "";
+    if (hint && *hint)
+	prehint = " (", posthint = ")";
+
     if (ctx->proxy_addr_ascii) {
 	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
-	    report(NULL, LOG_INFO, ~0, "proxied %sconnection request from %s for %s to %s port %s (realm: %s%s%s) rejected%s",
+	    report(NULL, LOG_INFO, ~0, "proxied %sconnection request from %s for %s to %s port %s (realm: %s%s%s) rejected%s%s%s",
 		   tls, ctx->proxy_addr_ascii, ctx->peer_addr_ascii,
-		   ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", hint);
+		   ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", prehint, hint,
+		   posthint);
     } else
-	report(NULL, LOG_INFO, ~0, "%sconnection request from %s to %s port %s (realm: %s%s%s) rejected%s",
+	report(NULL, LOG_INFO, ~0, "%sconnection request from %s to %s port %s (realm: %s%s%s) rejected%s%s%s",
 	       tls, ctx->peer_addr_ascii,
-	       ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", hint);
+	       ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", prehint, hint,
+	       posthint);
 
     ctx->msgid = "CONN-REJECT";
     ctx->msgid_len = 11;
@@ -577,13 +583,10 @@ static void accept_control_tls(struct context *ctx, int cur)
 	break;
     }
 
-#ifdef WITH_SSL
     if (ctx->alpn_passed != BISTATE_YES) {
 	hint = "ALPN";
 	goto bye;
     }
-#endif
-
 #ifndef OPENSSL_NO_PSK
     if (ctx->tls_psk_identity) {
 	accept_control_final(ctx);
@@ -593,6 +596,14 @@ static void accept_control_tls(struct context *ctx, int cur)
 
     X509 *cert = NULL;
 #endif
+
+#ifdef WITH_TLS
+    if (ctx->realm->alpn && !tls_conn_alpn_selected(ctx->tls)) {
+	hint = "ALPN";
+	goto bye;
+    }
+#endif
+
     if (
 #ifdef WITH_TLS
 	   tls_peer_cert_provided(ctx->tls)

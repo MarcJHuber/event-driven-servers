@@ -226,6 +226,9 @@ void complete_realm(tac_realm * r)
 	if (!r->alpn_vec_len)
 	    r->alpn_vec_len = rp->alpn_vec_len;
 #endif
+#ifdef WITH_TLS
+	RS(alpn, NULL);
+#endif
 #if defined(WITH_TLS) || defined(WITH_SSL)
 	RS(tls_accept_expired, TRISTATE_DUNNO);
 #endif
@@ -273,6 +276,11 @@ void complete_realm(tac_realm * r)
 	    if (tls_config_set_cert_mem(r->tls_cfg, p, p_len)) {
 		const char *terr = tls_config_error(r->tls_cfg);
 		report(NULL, LOG_ERR, ~0, "realm %s: tls_config_set_cert_mem failed%s%s", r->name, terr ? ": " : "", terr ? terr : "");
+		exit(EX_CONFIG);
+	    }
+	    if (r->alpn && tls_config_set_alpn(r->tls_cfg, r->alpn)) {
+		const char *terr = tls_config_error(r->tls_cfg);
+		report(NULL, LOG_ERR, ~0, "realm %s: tls_config_set_alpn failed%s%s", r->name, terr ? ": " : "", terr ? terr : "");
 		exit(EX_CONFIG);
 	    }
 	    if (!r->tls_key) {
@@ -1599,16 +1607,19 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		parse(sym, S_equal);
 		r->tls_verify_depth = parse_int(sym);
 		continue;
-#ifdef WITH_SSL
 	    case S_alpn:
 		sym_get(sym);
 		parse(sym, S_equal);
+#ifdef WITH_SSL
 		r->alpn_vec = str2protocollist(sym->buf, &r->alpn_vec_len);
 		if (!r->alpn_vec)
 		    parse_error(sym, "TLS ALPN is malformed.");
+#endif
+#ifdef WITH_TLS
+		r->alpn = strdup(sym->buf);
+#endif
 		sym_get(sym);
 		continue;
-#endif
 	    default:
 		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_passphrase, S_ciphers, S_peer, S_accept, S_verify_depth, S_alpn, S_unknown);
 	    }
