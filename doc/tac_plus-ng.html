@@ -14,8 +14,8 @@
 <div class="TITLEPAGE">
 <h1 class="title"><a name="AEN2" id="AEN2">TACACS+ NG</a></h1>
 <h3 class="author"><a name="AEN4" id="AEN4">Marc Huber</a></h3>
-<span class="releaseinfo">$Id:
-cf070c3cde56d424334f3d09218a6da215a89dfb $<br></span>
+<span class="releaseinfo">$Id: manual.xml,v 1.1 2023/12/24 12:17:35
+ubuntu Exp ubuntu $<br></span>
 <hr></div>
 <div class="TOC">
 <dl>
@@ -1811,8 +1811,8 @@ mavis user filter = __internal__username_acl__ </pre></li>
 TLS</a></h6>
 <p>TACACS+-over-TLS is not a standard. These features are
 experimental.</p>
-<p>If compiled with LibTLS support the following configuration
-options are available:</p>
+<p>If compiled with OpenSSL or LibTLS support the following
+configuration options are available:</p>
 <ul>
 <li>
 <p><tt class="literal">tls cert-file =</tt> <span class=
@@ -1847,17 +1847,6 @@ in PEM format.</p>
 "emphasis"><i class="emphasis">cafile</i></span></p>
 <p>Specifies a file with the CAs to use.</p>
 </li>
-</ul>
-<p>If compiled with OpenSSL support, TLSv1.3 Preshared Keys and
-ALPN are supported:</p>
-<ul>
-<li>
-<p><tt class="literal">tls psk =</tt> ( <tt class=
-"literal">yes</tt> | <tt class="literal">no</tt> )</p>
-<p>This enables PSK support at realm level.</p>
-<p>PSK identity and key can be declared at device level:</p>
-<pre class="screen">tls psk id = myid
-tls psk key = 0123456789abcdef # in hex</pre></li>
 <li>
 <p><tt class="literal">tls alpn =</tt> <span class=
 "emphasis"><i class="emphasis">ALPN-Protocol-ID</i></span></p>
@@ -1867,6 +1856,17 @@ TACACS-over-TLS, the official list is here: <a href=
 target="_top">TLS Application-Layer Protocol Negotiation (ALPN)
 Protocol IDs</a>.</p>
 </li>
+</ul>
+<p>If compiled with OpenSSL support, TLSv1.3 Preshared Keys are
+supported:</p>
+<ul>
+<li>
+<p><tt class="literal">tls psk =</tt> ( <tt class=
+"literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p>This enables PSK support at realm level.</p>
+<p>PSK identity and key can be declared at device level:</p>
+<pre class="screen">tls psk id = myid
+tls psk key = 0123456789abcdef # in hex</pre></li>
 </ul>
 <p>Example:</p>
 <pre class="screen">id = spawnd {
