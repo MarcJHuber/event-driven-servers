@@ -222,6 +222,7 @@ void complete_realm(tac_realm * r)
 	RS(enable_user_acl, NULL);
 	RS(password_acl, NULL);
 #ifdef WITH_SSL
+	RS(tls_autodetect, TRISTATE_DUNNO);
 	RS(alpn_vec, NULL);
 	if (!r->alpn_vec_len)
 	    r->alpn_vec_len = rp->alpn_vec_len;
@@ -1620,8 +1621,13 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 #endif
 		sym_get(sym);
 		continue;
+	    case S_autodetect:
+		sym_get(sym);
+		parse(sym, S_equal);
+		r->tls_autodetect = parse_tristate(sym);
+		continue;
 	    default:
-		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_passphrase, S_ciphers, S_peer, S_accept, S_verify_depth, S_alpn, S_unknown);
+		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_passphrase, S_ciphers, S_peer, S_accept, S_verify_depth, S_alpn, S_autodetect, S_unknown);
 	    }
 	    continue;
 #endif

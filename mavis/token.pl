@@ -98,6 +98,7 @@ authentication-failures 	S_authenticationfailures
 authmode			S_authmode
 authorization			S_authorization
 auto-conversion			S_autoconversion
+auto-detect			S_autodetect
 backend				S_backend
 background			S_background
 backlog				S_backlog

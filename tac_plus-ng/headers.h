@@ -363,6 +363,7 @@ struct realm {
     char *tls_cafile;
     int tls_verify_depth;
      TRISTATE(tls_accept_expired);
+     TRISTATE(tls_autodetect);
 #endif
 #ifdef WITH_SSL
     u_char *alpn_vec;
@@ -783,6 +784,7 @@ struct context {
     size_t vrf_len;
 #define USER_PROFILE_CACHE_SIZE 8
     struct user_profile_cache user_profile_cache[USER_PROFILE_CACHE_SIZE];
+    char *hint;
      TRISTATE(cleanup_when_idle);	/* cleanup context when idle */
      BISTATE(unencrypted_flag);	/* not MD5 encryped ? */
      BISTATE(single_connection_flag);	/* single-connection enabled? */
@@ -792,6 +794,7 @@ struct context {
      BISTATE(key_fixed);
      BISTATE(revmap_pending);
      BISTATE(revmap_timedout);
+     BISTATE(use_tls);
     u_int id;
     u_int bug_compatibility;
     u_int debug;

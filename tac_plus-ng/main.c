@@ -100,6 +100,7 @@ struct context *new_context(struct io_context *io, tac_realm * r)
     struct context *c = calloc(1, sizeof(struct context));
     c->io = io;
     c->pool = mempool_create();
+    c->hint = "";
     RB_insert(c->pool, c);
     if (r) {
 	c->sessions = RB_tree_new(compare_session, NULL);
@@ -200,6 +201,7 @@ static void accept_control_common(int, struct scm_data_accept *, sockaddr_union 
 static void accept_control_singleprocess(int, struct scm_data_accept *);
 static void accept_control_raw(int, struct scm_data_accept *);
 static void accept_control_px(int, struct scm_data_accept *);
+static void accept_control_check_tls(struct context *, int);
 #if defined(WITH_TLS) || defined(WITH_SSL)
 static void accept_control_tls(struct context *, int);
 #endif
@@ -878,7 +880,6 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 {
     char afrom[256];
     char pfrom[256];
-    char *hint = "", *peer = NULL;
     tac_host *h = NULL;
     struct in6_addr addr;
     tac_realm *r;
@@ -886,6 +887,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
     struct context *ctx = NULL;
     char vrf[IFNAMSIZ + 1];
     size_t vrf_len = 0;
+    char *peer = NULL;
 
     fcntl(s, F_SETFD, FD_CLOEXEC);
     fcntl(s, F_SETFL, O_NONBLOCK);
@@ -965,16 +967,18 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
     if (h)
 	complete_host(h);
 
-    if (!sd->use_tls) {
-	if (h) {
-	    if (!h->key)
-		hint = ": no encryption key found";
-	} else
-	    hint = ": host unknown";
-    }
-
     ctx = new_context(common_data.io, r);
     ctx->sock = s;
+    ctx->use_tls = sd->use_tls ? BISTATE_YES : BISTATE_NO;
+
+    if (ctx->use_tls == BISTATE_NO) {
+	if (h) {
+	    if (!h->key)
+		ctx->hint = "no encryption key found";
+	} else
+	    ctx->hint = "host unknown";
+    }
+
     ctx->peer_addr_ascii = mempool_strdup(ctx->pool, su_ntop(nad_address, afrom, sizeof(afrom)) ? afrom : "<unknown>");
     ctx->peer_addr_ascii_len = strlen(ctx->peer_addr_ascii);
     if (h)
@@ -1001,15 +1005,32 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	}
     }
 
-    ctx->nas_address = addr;	// FIXME, use origin
+    ctx->nas_address = addr;
     if (vrf_len)
 	ctx->vrf = mempool_strndup(ctx->pool, (u_char *) vrf, vrf_len);
     ctx->vrf_len = vrf_len;
 
+    io_register(ctx->io, ctx->sock, ctx);
+    io_set_cb_i(ctx->io, ctx->sock, (void *) accept_control_check_tls);
+    io_set_cb_o(ctx->io, ctx->sock, (void *) accept_control_check_tls);
+    io_set_cb_h(ctx->io, ctx->sock, (void *) cleanup);
+    io_set_cb_e(ctx->io, ctx->sock, (void *) cleanup);
+    io_sched_add(ctx->io, ctx, (void *) periodics_ctx, 60, 0);
+    io_set_i(ctx->io, ctx->sock);
+}
+
+static void accept_control_check_tls(struct context *ctx, int cur __attribute__((unused)))
+{
+    char tmp[6];
+    memset(&tmp, 0, sizeof(tmp));
+    ssize_t len = recv(ctx->sock, &tmp, sizeof(tmp), MSG_PEEK);
+    if (ctx->realm->tls_autodetect == TRISTATE_YES)
+	ctx->use_tls = (len == (ssize_t) sizeof(tmp) && tmp[0] == 0x16 && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
 #if defined(WITH_TLS) || defined(WITH_SSL)
-    if (h && sd->use_tls) {
-	if (!r->tls) {
-	    report(NULL, LOG_ERR, ~0, "spawnd set TLS flag but realm %s isn't configured suitably", r->name);
+    if (ctx->host && ctx->use_tls) {
+	if (!ctx->realm->tls) {
+	    report(NULL, LOG_ERR, ~0, "%s but realm %s isn't configured suitably",
+		   (ctx->realm->tls_autodetect == TRISTATE_YES) ? "TLS detected" : "spawnd set TLS flag", ctx->realm->name);
 	    cleanup(ctx, ctx->sock);
 	    return;
 	}
@@ -1023,21 +1044,21 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	tls_accept_socket(r->tls, &ctx->tls, ctx->sock);
 #endif
 #ifdef WITH_SSL
-	SSL_CTX_set_cert_verify_callback(r->tls, app_verify_cb, ctx);
+	SSL_CTX_set_cert_verify_callback(ctx->realm->tls, app_verify_cb, ctx);
 
 	if (ctx->realm->alpn_vec && ctx->realm->alpn_vec_len > 1)
-	    SSL_CTX_set_alpn_select_cb(r->tls, alpn_cb, ctx);
+	    SSL_CTX_set_alpn_select_cb(ctx->realm->tls, alpn_cb, ctx);
 	else
 	    ctx->alpn_passed = BISTATE_YES;
-	ctx->tls = SSL_new(r->tls);
+	ctx->tls = SSL_new(ctx->realm->tls);
 	SSL_set_fd(ctx->tls, ctx->sock);
 #endif
 	accept_control_tls(ctx, ctx->sock);
 	return;
     }
 #endif
-    if (!h || !h->key)
-	reject_conn(ctx, hint, "");
+    if (!ctx->host || !ctx->host->key)
+	reject_conn(ctx, ctx->hint, "");
     else
 	accept_control_final(ctx);
 }
