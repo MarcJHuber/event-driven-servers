@@ -1142,6 +1142,8 @@ mavis user filter = __internal__username_acl__
        There's currently no ALPN Protocol ID registered for
        TACACS-over-TLS, the official list is here: TLS
        Application-Layer Protocol Negotiation (ALPN) Protocol IDs.
+     * tls auto-detect = ( yes | no )
+       Enable TLS auto-detection. Defaults to no.
 
    If compiled with OpenSSL support, TLSv1.3 Preshared Keys are
    supported:
