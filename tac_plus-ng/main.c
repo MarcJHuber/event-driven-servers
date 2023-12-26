@@ -599,10 +599,8 @@ static void accept_control_tls(struct context *ctx, int cur)
 	return;
     }
 #endif
-
-    X509 *cert = NULL;
+    X509 *cert = SSL_get_peer_certificate(ctx->tls);
 #endif
-
 #ifdef WITH_TLS
     if (ctx->realm->alpn && !tls_conn_alpn_selected(ctx->tls)) {
 	hint = "ALPN";
@@ -615,7 +613,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	   tls_peer_cert_provided(ctx->tls)
 #endif
 #ifdef WITH_SSL
-	   (cert = SSL_get_peer_certificate(ctx->tls))
+	   cert
 #endif
 	) {
 	char buf[40];
@@ -660,7 +658,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 		}
 	    }
 	}
-	X509_free(cert);
 #endif
 	if (ctx->tls_conn_version)
 	    ctx->tls_conn_version_len = strlen(ctx->tls_conn_version);
@@ -680,9 +677,44 @@ static void accept_control_tls(struct context *ctx, int cur)
 		ctx->tls_peer_cert_issuer++;
 	    ctx->tls_peer_cert_issuer_len = strlen(ctx->tls_peer_cert_issuer);
 	}
-	if (notafter > -1 && notbefore > -1 && ctx->realm->tls_accept_expired != TRISTATE_YES && notafter > io_now.tv_sec + 30 * 86400)
+	if (notafter > -1 && notbefore > -1 && ctx->realm->tls_accept_expired != TRISTATE_YES && notafter < io_now.tv_sec + 30 * 86400)
 	    report(NULL, LOG_INFO, ~0, "peer certificate for %s will expire in %lld days", ctx->peer_addr_ascii,
-		   (long long) (io_now.tv_sec - notafter) / 86400);
+		   (long long) (notafter - io_now.tv_sec) / 86400);
+
+#ifdef WITH_SSL
+	// check SANs -- cycle through all DNS SANs and find the best host match
+
+	STACK_OF(GENERAL_NAME) * san;
+	if (cert && (san = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL))) {
+	    int skipped_max = 1024;
+	    int i, san_count = sk_GENERAL_NAME_num(san);
+	    for (i = 0; i < san_count; i++) {
+		GENERAL_NAME *val = sk_GENERAL_NAME_value(san, i);
+		if (val->type == GEN_DNS) {
+		    char *t = (char *) ASN1_STRING_get0_data(val->d.dNSName);
+		    int skipped;
+		    for (skipped = 0; skipped < skipped_max && t; skipped++) {
+			tac_host *h = lookup_host(t, ctx->realm);
+			if (h && skipped_max > skipped) {
+			    skipped_max = skipped;
+			    ctx->host = h;
+			    break;
+			}
+			t = strchr(t, '.');
+			if (t)
+			    t++;
+		    }
+		}
+	    }
+	    GENERAL_NAMES_free(san);
+	    if (ctx->host) {
+		complete_host(ctx->host);
+		accept_control_final(ctx);
+		return;
+	    }
+	}
+	X509_free(cert);
+#endif
 
 	if (ctx->tls_peer_cert_subject) {
 	    size_t i;
@@ -864,7 +896,8 @@ void complete_host(tac_host * h)
 #ifdef WITH_SSL
 static int app_verify_cb(X509_STORE_CTX * ctx, void *app_ctx __attribute__((unused)))
 {
-    return (X509_verify_cert(ctx) == 1) ? 1 : 0;
+    X509 *cert = X509_STORE_CTX_get0_cert(ctx);
+    return (cert && (X509_check_purpose(cert, X509_PURPOSE_SSL_CLIENT, 0) == 1) && (X509_verify_cert(ctx) == 1)) ? 1 : 0;
 }
 
 static int alpn_cb(SSL * s __attribute__((unused)), const unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg)
@@ -1072,7 +1105,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	io_set_cb_e(ctx->io, ctx->sock, (void *) cleanup);
 	io_sched_add(ctx->io, ctx, (void *) periodics_ctx, 60, 0);
 #ifdef WITH_TLS
-	tls_accept_socket(r->tls, &ctx->tls, ctx->sock);
+	tls_accept_socket(ctx->realm->tls, &ctx->tls, ctx->sock);
 #endif
 #ifdef WITH_SSL
 	SSL_CTX_set_cert_verify_callback(ctx->realm->tls, app_verify_cb, ctx);
