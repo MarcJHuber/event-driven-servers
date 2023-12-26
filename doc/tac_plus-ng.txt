@@ -1145,14 +1145,18 @@ mavis user filter = __internal__username_acl__
      * tls auto-detect = ( yes | no )
        Enable TLS auto-detection. Defaults to no.
 
-   If compiled with OpenSSL support, TLSv1.3 Preshared Keys are
-   supported:
+   If compiled with OpenSSL support, TLSv1.3 Preshared Keys and
+   SNIs are supported:
 
      * tls psk = ( yes | no )
        This enables PSK support at realm level.
        PSK identity and key can be declared at device level:
 tls psk id = myid
 tls psk key = 0123456789abcdef # in hex
+     * tls sni = SNI
+       This adds SNI to the server name list of the current realm.
+       A TLS connection requesting SNI will automatically be
+       mapped to that realm.
 
    Example:
 id = spawnd {
