@@ -708,6 +708,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    }
 	    GENERAL_NAMES_free(san);
 	    if (ctx->host) {
+		X509_free(cert);
 		complete_host(ctx->host);
 		accept_control_final(ctx);
 		return;
