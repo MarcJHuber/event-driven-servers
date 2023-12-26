@@ -2127,7 +2127,8 @@ device object attributes (key, prompt, enable passwords) may only
 exist once.</p>
 <p>If compiled with TLS support, primary criteria for device object
 selection with TLS is no longer the NAS IP address but the
-certificate subject and/or the common name. E.g., <tt class=
+certificate DNS SANs (OpenSSL only), the subject and/or the common
+name. E.g., <tt class=
 "literal">CN=server.tacacstest.demo,OU=org,OU=local</tt> will check
 for device objects named <tt class=
 "literal">CN=server.tacacstest.demo,OU=org,OU=local</tt>,

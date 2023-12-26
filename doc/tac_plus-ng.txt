@@ -1317,12 +1317,12 @@ quo\te me".
 
    If compiled with TLS support, primary criteria for device
    object selection with TLS is no longer the NAS IP address but
-   the certificate subject and/or the common name. E.g.,
-   CN=server.tacacstest.demo,OU=org,OU=local will check for device
-   objects named CN=server.tacacstest.demo,OU=org,OU=local,
-   OU=org,OU=local, OU=local and then for server.tacacstest.demo,
-   tacacstest.demo and demo before falling back to IP based
-   selection.
+   the certificate DNS SANs (OpenSSL only), the subject and/or the
+   common name. E.g., CN=server.tacacstest.demo,OU=org,OU=local
+   will check for device objects named
+   CN=server.tacacstest.demo,OU=org,OU=local, OU=org,OU=local,
+   OU=local and then for server.tacacstest.demo, tacacstest.demo
+   and demo before falling back to IP based selection.
 
    On the NAS, you also need to configure the same key. Do this by
    issuing the current variant of:
