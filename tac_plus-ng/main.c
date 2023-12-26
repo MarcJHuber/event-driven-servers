@@ -864,7 +864,7 @@ void complete_host(tac_host * h)
 #ifdef WITH_SSL
 static int app_verify_cb(X509_STORE_CTX * ctx, void *app_ctx __attribute__((unused)))
 {
-    return (X509_verify_cert(ctx) == 1) ? 1 : 0;
+    return ((X509_check_purpose(ctx, X509_PURPOSE_SSL_CLIENT, 0) == 1) && (X509_verify_cert(ctx) == 1)) ? 1 : 0;
 }
 
 static int alpn_cb(SSL * s __attribute__((unused)), const unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg)
