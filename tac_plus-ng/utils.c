@@ -904,6 +904,7 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_tls_psk_identity:
 	    case S_ssh_key_hash:
 	    case S_ssh_key_id:
+	    case S_tls_conn_sni:
 	    case S_nacname:
 	    case S_nasname:
 	    case S_PASSWORD:
@@ -1685,6 +1686,16 @@ static char *eval_log_format_tls_psk_identity(tac_session * session __attribute_
     }
     return NULL;
 }
+
+static char *eval_log_format_tls_conn_sni(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
+					  __attribute__((unused)), size_t *len)
+{
+    if (ctx) {
+	*len = ctx->tls_sni_len;
+	return ctx->tls_sni;
+    }
+    return NULL;
+}
 #endif
 
 char *eval_log_format(tac_session * session, struct context *ctx, struct logfile *lf, struct log_item *start, time_t sec, size_t *outlen)
@@ -1788,6 +1799,7 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_tls_peer_cert_subject] = &eval_log_format_tls_peer_cert_subject;
 	efun[S_tls_peer_cn] = &eval_log_format_tls_peer_cn;
 	efun[S_tls_psk_identity] = &eval_log_format_tls_psk_identity;
+	efun[S_tls_conn_sni] = &eval_log_format_tls_conn_sni;
 #endif
     }
 

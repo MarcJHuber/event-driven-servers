@@ -82,6 +82,7 @@ alias				S_alias
 all				S_all
 allow-dotfiles			S_allowdotfiles
 alpn				S_alpn
+sni				S_sni
 anon				S_anon
 anonymous-enable		S_anonenable
 augmented-enable		S_augmented_enable
@@ -427,6 +428,7 @@ tls.peer.cert.issuer		S_tls_peer_cert_issuer
 tls.peer.cert.subject		S_tls_peer_cert_subject
 tls.peer.cn			S_tls_peer_cn
 tls.psk.identity		S_tls_psk_identity
+tls.conn.sni			S_tls_conn_sni
 #
 expired				S_expired
 uid				S_uid

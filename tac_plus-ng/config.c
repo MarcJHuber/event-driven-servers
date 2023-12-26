@@ -222,6 +222,7 @@ void complete_realm(tac_realm * r)
 	RS(enable_user_acl, NULL);
 	RS(password_acl, NULL);
 #ifdef WITH_SSL
+	RS(tls_sni_required, TRISTATE_DUNNO);
 	RS(tls_autodetect, TRISTATE_DUNNO);
 	RS(alpn_vec, NULL);
 	if (!r->alpn_vec_len)
@@ -340,7 +341,6 @@ void complete_realm(tac_realm * r)
 			SSL_CTX_set_verify_depth(r->tls, r->tls_verify_depth);
 		}
 		SSL_CTX_set_verify(r->tls, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
-
 	    }
 	}
 #ifndef OPENSSL_NO_PSK
@@ -1097,6 +1097,47 @@ static u_char *str2protocollist(char *in, size_t *outlen)
 }
 #endif
 
+#ifdef WITH_SSL
+struct sni_list {
+    struct sni_list *next;
+    size_t name_len;
+    char name[1];
+};
+
+tac_realm *lookup_sni(const char *name, size_t name_len, tac_realm * r)
+{
+    struct sni_list *l = r->sni_list;
+    while (l) {
+	if (name_len == l->name_len && !strcmp(name, l->name))
+	    return r;
+	l = l->next;
+    }
+
+    if (r->realms) {
+	tac_realm *res;
+	rb_node_t *rbn;
+	for (rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
+	    if ((res = lookup_sni(name, name_len, RB_payload(rbn, tac_realm *))))
+		return res;
+    }
+    return NULL;
+}
+
+static void add_sni(struct sym *sym, tac_realm * r)
+{
+    size_t len = strlen(sym->buf);
+    tac_realm *q = lookup_sni(sym->buf, len, r);
+    if (q)
+	parse_error(sym, "SNI %s already associated to realm %s", sym->buf, q->name);
+    struct sni_list *l = calloc(1, sizeof(struct sni_list) + len);
+    l->next = r->sni_list;
+    memcpy(l->name, sym->buf, len);
+    l->name_len = len;
+    r->sni_list = l;
+    sym_get(sym);
+}
+#endif
+
 void parse_decls_real(struct sym *sym, tac_realm * r)
 {
     /* Top level of parser */
@@ -1621,13 +1662,34 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 #endif
 		sym_get(sym);
 		continue;
+#ifdef WITH_SSL
+	    case S_sni:
+		sym_get(sym);
+		switch (sym->code) {
+		case S_equal:
+		    sym_get(sym);
+		    add_sni(sym, r);
+		    continue;
+		case S_required:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->tls_sni_required = parse_tristate(sym);
+		    continue;
+		default:
+		    parse_error_expect(sym, S_equal, S_required, S_unknown);
+		}
+#endif
 	    case S_autodetect:
 		sym_get(sym);
 		parse(sym, S_equal);
 		r->tls_autodetect = parse_tristate(sym);
 		continue;
 	    default:
-		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_passphrase, S_ciphers, S_peer, S_accept, S_verify_depth, S_alpn, S_autodetect, S_unknown);
+		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_passphrase, S_ciphers, S_peer, S_accept, S_verify_depth, S_alpn, S_autodetect,
+#ifdef WITH_SSL
+				   S_sni,
+#endif
+				   S_unknown);
 	    }
 	    continue;
 #endif

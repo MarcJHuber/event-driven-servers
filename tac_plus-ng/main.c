@@ -589,6 +589,10 @@ static void accept_control_tls(struct context *ctx, int cur)
 	hint = "ALPN";
 	goto bye;
     }
+    if (ctx->sni_passed != BISTATE_YES) {
+	hint = "SNI";
+	goto bye;
+    }
 #ifndef OPENSSL_NO_PSK
     if (ctx->tls_psk_identity) {
 	accept_control_final(ctx);
@@ -866,13 +870,40 @@ static int app_verify_cb(X509_STORE_CTX * ctx, void *app_ctx __attribute__((unus
 static int alpn_cb(SSL * s __attribute__((unused)), const unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg)
 {
     struct context *ctx = (struct context *) arg;
-    if (SSL_select_next_proto((unsigned char **) out, outlen, ctx->realm->alpn_vec, ctx->realm->alpn_vec_len, in, inlen) != OPENSSL_NPN_NEGOTIATED) {
+    if (SSL_select_next_proto((unsigned char **) out, outlen, ctx->realm->alpn_vec, ctx->realm->alpn_vec_len, in, inlen) != OPENSSL_NPN_NEGOTIATED)
 	return SSL_TLSEXT_ERR_ALERT_FATAL;
-    }
 
     ctx->alpn_passed = BISTATE_YES;
 
     return SSL_TLSEXT_ERR_OK;
+}
+
+static int sni_cb(SSL * s, int *al __attribute__((unused)), void *arg)
+{
+    struct context *ctx = (struct context *) arg;
+    const char *servername = SSL_get_servername(s, TLSEXT_NAMETYPE_host_name);
+    tac_realm *r = servername ? lookup_sni(servername, strlen(servername), ctx->realm) : NULL;
+
+    if (!r)
+	goto fatal;
+
+    if (r != ctx->realm) {
+	ctx->realm = r;
+	while (r && !r->tls)
+	    r = r->parent;
+	if (!r || !r->tls || !SSL_set_SSL_CTX(s, r->tls))
+	    goto fatal;
+    }
+
+    ctx->sni_passed = BISTATE_YES;
+    ctx->tls_sni = (char *) servername;
+    ctx->tls_sni_len = strlen(servername);
+
+    return SSL_TLSEXT_ERR_OK;
+
+  fatal:
+    *al = SSL_AD_UNRECOGNIZED_NAME;
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
 }
 #endif
 
@@ -1050,6 +1081,13 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    SSL_CTX_set_alpn_select_cb(ctx->realm->tls, alpn_cb, ctx);
 	else
 	    ctx->alpn_passed = BISTATE_YES;
+
+	if (ctx->realm->tls_sni_required == TRISTATE_YES) {
+	    SSL_CTX_set_tlsext_servername_callback(ctx->realm->tls, sni_cb);
+	    SSL_CTX_set_tlsext_servername_arg(ctx->realm->tls, ctx);
+	} else
+	    ctx->sni_passed = BISTATE_YES;
+
 	ctx->tls = SSL_new(ctx->realm->tls);
 	SSL_set_fd(ctx->tls, ctx->sock);
 #endif

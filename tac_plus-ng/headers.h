@@ -294,6 +294,8 @@ struct tac_rule {
     struct tac_acl acl;
 };
 
+struct sni_list;
+
 struct realm {
     u_int line;			/* configuration file line number */
     char *name;
@@ -366,6 +368,8 @@ struct realm {
      TRISTATE(tls_autodetect);
 #endif
 #ifdef WITH_SSL
+     TRISTATE(tls_sni_required);
+    struct sni_list *sni_list;
     u_char *alpn_vec;
     size_t alpn_vec_len;
 #endif
@@ -751,6 +755,7 @@ struct context {
 #ifdef WITH_SSL
     SSL *tls;
      BISTATE(alpn_passed);
+     BISTATE(sni_passed);
 #endif
 #if defined(WITH_TLS) || defined(WITH_SSL)
     const char *tls_conn_version;
@@ -767,6 +772,8 @@ struct context {
     size_t tls_peer_cn_len;
     char *tls_psk_identity;
     size_t tls_psk_identity_len;
+    char *tls_sni;;
+    size_t tls_sni_len;
 #endif
     char *server_addr_ascii;
     size_t server_addr_ascii_len;
@@ -934,6 +941,8 @@ void attr_add(tac_session *, char ***, int *, char *, size_t);
 
 enum token validate_ssh_hash(tac_session *, char *, char **);
 enum token validate_ssh_key_id(tac_session *);
+
+tac_realm *lookup_sni(const char *, size_t, tac_realm *);
 
 extern struct config config;
 extern int die_when_idle;
