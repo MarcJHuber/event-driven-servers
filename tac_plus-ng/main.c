@@ -681,46 +681,9 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    report(NULL, LOG_INFO, ~0, "peer certificate for %s will expire in %lld days", ctx->peer_addr_ascii,
 		   (long long) (notafter - io_now.tv_sec) / 86400);
 
-#ifdef WITH_SSL
-	// check SANs -- cycle through all DNS SANs and find the best host match
-
-	STACK_OF(GENERAL_NAME) * san;
-	if (cert && (san = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL))) {
-	    int skipped_max = 1024;
-	    int i, san_count = sk_GENERAL_NAME_num(san);
-	    for (i = 0; i < san_count; i++) {
-		GENERAL_NAME *val = sk_GENERAL_NAME_value(san, i);
-		if (val->type == GEN_DNS) {
-		    char *t = (char *) ASN1_STRING_get0_data(val->d.dNSName);
-		    int skipped;
-		    for (skipped = 0; skipped < skipped_max && t; skipped++) {
-			tac_host *h = lookup_host(t, ctx->realm);
-			if (h && skipped_max > skipped) {
-			    skipped_max = skipped;
-			    ctx->host = h;
-			    break;
-			}
-			t = strchr(t, '.');
-			if (t)
-			    t++;
-		    }
-		}
-	    }
-	    GENERAL_NAMES_free(san);
-	    if (ctx->host) {
-		X509_free(cert);
-		complete_host(ctx->host);
-		accept_control_final(ctx);
-		return;
-	    }
-	}
-	X509_free(cert);
-#endif
-
 	if (ctx->tls_peer_cert_subject) {
 	    size_t i;
 	    char *cn = alloca(ctx->tls_peer_cert_subject_len + 1);
-	    char *t;
 
 	    // normalize subject
 	    cn[ctx->tls_peer_cert_subject_len] = 0;
@@ -753,8 +716,62 @@ static void accept_control_tls(struct context *ctx, int cur)
 		    break;
 	    }
 
-	    // check for dn match:
-	    t = (char *) ctx->tls_peer_cert_subject;
+	}
+#ifdef WITH_SSL
+	// check SANs -- cycle through all DNS SANs and find the best host match
+
+	STACK_OF(GENERAL_NAME) * san;
+	if (cert && (san = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL))) {
+	    int skipped_max = 1024;
+	    int i, san_count = sk_GENERAL_NAME_num(san);
+	    tac_host *h = NULL;
+	    for (i = 0; i < san_count; i++) {
+		GENERAL_NAME *val = sk_GENERAL_NAME_value(san, i);
+		if (val->type == GEN_DNS) {
+		    char *t = (char *) ASN1_STRING_get0_data(val->d.dNSName);
+		    int skipped;
+		    for (skipped = 0; skipped < skipped_max && t; skipped++) {
+			h = lookup_host(t, ctx->realm);
+			if (h && skipped_max > skipped) {
+			    skipped_max = skipped;
+			    ctx->host = h;
+			    break;
+			}
+			t = strchr(t, '.');
+			if (t)
+			    t++;
+		    }
+		}
+	    }
+	    GENERAL_NAMES_free(san);
+	    if (ctx->host) {
+		X509_free(cert);
+		ctx->host = h;
+		complete_host(ctx->host);
+		accept_control_final(ctx);
+		return;
+	    }
+	}
+	X509_free(cert);
+#endif
+
+	// check for dn match:
+	char *t = (char *) ctx->tls_peer_cert_subject;
+	while (t) {
+	    tac_host *h = lookup_host(t, ctx->realm);
+	    if (h) {
+		ctx->host = h;
+		complete_host(ctx->host);
+		accept_control_final(ctx);
+		return;
+	    }
+	    t = strchr(t, ',');
+	    if (t)
+		t++;
+	}
+
+	if (ctx->tls_peer_cn) {	// check for cn match:
+	    t = ctx->tls_peer_cn;
 	    while (t) {
 		tac_host *h = lookup_host(t, ctx->realm);
 		if (h) {
@@ -763,25 +780,9 @@ static void accept_control_tls(struct context *ctx, int cur)
 		    accept_control_final(ctx);
 		    return;
 		}
-		t = strchr(t, ',');
+		t = strchr(t, '.');
 		if (t)
 		    t++;
-	    }
-
-	    if (ctx->tls_peer_cn) {	// check for cn match:
-		t = ctx->tls_peer_cn;
-		while (t) {
-		    tac_host *h = lookup_host(t, ctx->realm);
-		    if (h) {
-			ctx->host = h;
-			complete_host(ctx->host);
-			accept_control_final(ctx);
-			return;
-		    }
-		    t = strchr(t, '.');
-		    if (t)
-			t++;
-		}
 	    }
 	}
     }
