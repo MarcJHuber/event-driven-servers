@@ -1090,9 +1090,8 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
     char tmp[6];
     memset(&tmp, 0, sizeof(tmp));
 #if defined(WITH_TLS) || defined(WITH_SSL)
-    ssize_t len = recv(ctx->sock, &tmp, sizeof(tmp), MSG_PEEK);
     if (ctx->realm->tls_autodetect == TRISTATE_YES)
-	ctx->use_tls = (len == (ssize_t) sizeof(tmp) && tmp[0] == 0x16 && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
+	ctx->use_tls = (recv(ctx->sock, &tmp, sizeof(tmp), MSG_PEEK) == (ssize_t) sizeof(tmp) && tmp[0] == 0x16 && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
     if (ctx->host && ctx->use_tls) {
 	if (!ctx->realm->tls) {
 	    report(NULL, LOG_ERR, ~0, "%s but realm %s isn't configured suitably",
