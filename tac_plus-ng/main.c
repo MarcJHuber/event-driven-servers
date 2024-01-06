@@ -983,7 +983,7 @@ tac_realm *set_sd_realm(int s, struct scm_data_accept_ext *sd)
 	if (getsockopt(s, SOL_SOCKET, SO_RTABLE, &opt, &optlen))
 	    report(NULL, LOG_ERR, ~0, "getsockopt(SO_RTABLE) failed at %s:%d: %s", __FILE__, __LINE__, strerror(errno));
 	else
-	    sd->vrf_len = snprintf(vrf, sizeof(sd->vrf), "%u", opt);
+	    sd->vrf_len = snprintf(sd->vrf, sizeof(sd->vrf), "%u", opt);
     }
 #endif
 
