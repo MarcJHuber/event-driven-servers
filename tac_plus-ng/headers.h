@@ -335,6 +335,7 @@ struct realm {
      TRISTATE(script_profile_parent_first);
      TRISTATE(script_host_parent_first);
      TRISTATE(script_realm_parent_first);
+     TRISTATE(haproxy_autodetect);
      BISTATE(use_tls_psk);
      BISTATE(visited);
      BISTATE(skip_parent_script);

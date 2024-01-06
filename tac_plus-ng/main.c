@@ -195,12 +195,19 @@ static void periodics_ctx(struct context *ctx, int cur __attribute__((unused)))
 	io_sched_renew_proc(ctx->io, ctx, (void *) periodics_ctx);
 }
 
+struct scm_data_accept_ext {
+    struct scm_data_accept sd;
+    tac_realm *realm;
+    size_t vrf_len;
+    char vrf[IFNAMSIZ + 1];
+};
+
 static void accept_control(struct context *, int __attribute__((unused)));
 static void accept_control_final(struct context *);
-static void accept_control_common(int, struct scm_data_accept *, sockaddr_union *);
+static void accept_control_common(int, struct scm_data_accept_ext *, sockaddr_union *);
 static void accept_control_singleprocess(int, struct scm_data_accept *);
-static void accept_control_raw(int, struct scm_data_accept *);
-static void accept_control_px(int, struct scm_data_accept *);
+static void accept_control_raw(int, struct scm_data_accept_ext *);
+static void accept_control_px(int, struct scm_data_accept_ext *);
 static void accept_control_check_tls(struct context *, int);
 #if defined(WITH_TLS) || defined(WITH_SSL)
 static void accept_control_tls(struct context *, int);
@@ -393,7 +400,7 @@ struct context_px {
     int sock;			/* socket for this connection */
     int type;
     io_context_t *io;
-    struct scm_data_accept sd;
+    struct scm_data_accept_ext sd;
 };
 
 static void cleanup_px(struct context_px *ctx, int cur)
@@ -443,25 +450,31 @@ static void setup_signals()
     sigprocmask(SIG_SETMASK, &master_set, NULL);
 }
 
+static tac_realm *set_sd_realm(int, struct scm_data_accept_ext *);
+
 static void accept_control_singleprocess(int s, struct scm_data_accept *sd)
 {
+    struct scm_data_accept_ext sd_ext;
+    memset(&sd_ext, 0, sizeof(sd_ext));
+    memcpy(&sd_ext, sd, sizeof(struct scm_data_accept));
+    tac_realm *r = set_sd_realm(-1, &sd_ext);
     common_data.users_cur++;
-    if (sd->haproxy)
-	accept_control_px(s, sd);
+    if (sd->haproxy || r->haproxy_autodetect == TRISTATE_YES)
+	accept_control_px(s, &sd_ext);
     else
-	accept_control_raw(s, sd);
+	accept_control_raw(s, &sd_ext);
 }
 
-static void accept_control_raw(int s, struct scm_data_accept *sd)
+static void accept_control_raw(int s, struct scm_data_accept_ext *sd)
 {
     accept_control_common(s, sd, NULL);
 }
 
-static struct context_px *new_context_px(struct io_context *io, struct scm_data_accept *sd)
+static struct context_px *new_context_px(struct io_context *io, struct scm_data_accept_ext *sd)
 {
     struct context_px *c = calloc(1, sizeof(struct context_px));
     c->io = io;
-    memcpy(&c->sd, sd, sizeof(struct scm_data_accept));
+    memcpy(&c->sd, sd, sizeof(*sd));
     return c;
 }
 
@@ -481,7 +494,10 @@ static void read_px(struct context_px *ctx, int cur)
 	|| ((uint16_t) len < (hlen = ntohs(hdr->len)) + sizeof(struct proxy_hdr_v2))
 	|| (hdr->fam == 0x11 && hlen != 12)
 	|| (hdr->fam == 0x21 && hlen != 36)) {
-	try_raw(ctx, cur);
+	if (ctx->sd.realm->haproxy_autodetect == TRISTATE_YES)
+	    try_raw(ctx, cur);
+	else
+	    cleanup_px(ctx, cur);
 	return;
     }
     UNUSED_RESULT(read(cur, &tmp, sizeof(struct proxy_hdr_v2) + hlen));
@@ -800,7 +816,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 }
 #endif
 
-static void accept_control_px(int s, struct scm_data_accept *sd)
+static void accept_control_px(int s, struct scm_data_accept_ext *sd)
 {
     struct context_px *ctx = new_context_px(common_data.io, sd);
     ctx->sock = s;
@@ -942,7 +958,54 @@ static int sni_cb(SSL * s, int *al __attribute__((unused)), void *arg)
 }
 #endif
 
-static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_union * nad_address)
+tac_realm *set_sd_realm(int s, struct scm_data_accept_ext *sd)
+{
+#ifdef VRF_BINDTODEVICE
+    if (s > 0) {
+	// Reminder to myself:
+	//      sysctl -w net.ipv4.tcp_l3mdev_accept=1
+	// is the "vrf-also" variant in case the spawnd configuration wasn't adjusted to use VRFs.
+	socklen_t opt_len = sizeof(sd->vrf);
+	*sd->vrf = 0;
+	if (getsockopt(s, SOL_SOCKET, SO_BINDTODEVICE, (u_char *) sd->vrf, &opt_len))
+	    report(NULL, LOG_ERR, ~0, "getsockopt(SO_BINDTODEVICE) failed at %s:%d: %s", __FILE__, __LINE__, strerror(errno));
+	else if (opt_len > 0) {
+	    if (!sd->vrf[opt_len - 1])
+		opt_len--;
+	    sd->vrf_len = opt_len;
+	}
+    }
+#endif
+#ifdef VRF_RTABLE
+    if (s > 0) {
+	unsigned int opt;
+	socklen_t optlen = sizeof(opt);
+	if (getsockopt(s, SOL_SOCKET, SO_RTABLE, &opt, &optlen))
+	    report(NULL, LOG_ERR, ~0, "getsockopt(SO_RTABLE) failed at %s:%d: %s", __FILE__, __LINE__, strerror(errno));
+	else
+	    sd->vrf_len = snprintf(vrf, sizeof(sd->vrf), "%u", opt);
+    }
+#endif
+
+    tac_realm *r = config.default_realm;
+
+    if (*sd->sd.realm)
+	r = lookup_realm(sd->sd.realm, r);
+    if (!sd->realm)
+	r = config.default_realm;
+
+    // Still at the default realm? Try the VRF name:
+    if (sd->vrf_len && (r == config.default_realm))
+	r = lookup_realm(sd->vrf, r);
+
+    if (!r)
+	r = config.default_realm;
+
+    sd->realm = r;
+    return r;
+}
+
+static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, sockaddr_union * nad_address)
 {
     char afrom[256];
     char pfrom[256];
@@ -951,8 +1014,6 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
     tac_realm *r;
     radixtree_t *rxt;
     struct context *ctx = NULL;
-    char vrf[IFNAMSIZ + 1];
-    size_t vrf_len = 0;
     char *peer = NULL;
 
     fcntl(s, F_SETFD, FD_CLOEXEC);
@@ -986,45 +1047,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
     su_convert(nad_address, AF_INET);
     su_ptoh(nad_address, &addr);
 
-#ifdef VRF_BINDTODEVICE
-    {
-	// Reminder to myself:
-	//      sysctl -w net.ipv4.tcp_l3mdev_accept=1 
-	// is the "vrf-also" variant in case the spawnd configuration wasn't adjusted to use VRFs.
-	socklen_t opt_len = sizeof(vrf);
-	*vrf = 0;
-	if (getsockopt(s, SOL_SOCKET, SO_BINDTODEVICE, (u_char *) vrf, &opt_len))
-	    report(NULL, LOG_ERR, ~0, "getsockopt(SO_BINDTODEVICE) failed at %s:%d: %s", __FILE__, __LINE__, strerror(errno));
-	else if (opt_len > 0) {
-	    if (!vrf[opt_len - 1])
-		opt_len--;
-	    vrf_len = opt_len;
-	}
-    }
-#endif
-#ifdef VRF_RTABLE
-    {
-	unsigned int opt;
-	socklen_t optlen = sizeof(opt);
-	if (getsockopt(s, SOL_SOCKET, SO_RTABLE, &opt, &optlen))
-	    report(NULL, LOG_ERR, ~0, "getsockopt(SO_RTABLE) failed at %s:%d: %s", __FILE__, __LINE__, strerror(errno));
-	else
-	    vrf_len = snprintf(vrf, sizeof(vrf), "%u", opt);
-    }
-#endif
-
-    r = config.default_realm;
-    if (*sd->realm)
-	r = lookup_realm(sd->realm, r);
-    if (!r)
-	r = config.default_realm;
-
-    // Still at the default realm? Try the VRF name:
-    if (vrf_len && (r == config.default_realm))
-	r = lookup_realm(vrf, r);
-
-    if (!r)
-	r = config.default_realm;
+    r = set_sd_realm(s, sd_ext);
 
     rxt = lookup_hosttree(r);
     if (rxt)
@@ -1035,7 +1058,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 
     ctx = new_context(common_data.io, r);
     ctx->sock = s;
-    ctx->use_tls = sd->use_tls ? BISTATE_YES : BISTATE_NO;
+    ctx->use_tls = sd_ext->sd.use_tls ? BISTATE_YES : BISTATE_NO;
 
     if (ctx->use_tls == BISTATE_NO) {
 	if (h) {
@@ -1072,9 +1095,9 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
     }
 
     ctx->nas_address = addr;
-    if (vrf_len)
-	ctx->vrf = mempool_strndup(ctx->pool, (u_char *) vrf, vrf_len);
-    ctx->vrf_len = vrf_len;
+    if (sd_ext->vrf_len)
+	ctx->vrf = mempool_strndup(ctx->pool, (u_char *) sd_ext->vrf, sd_ext->vrf_len);
+    ctx->vrf_len = sd_ext->vrf_len;
 
     io_register(ctx->io, ctx->sock, ctx);
     io_set_cb_i(ctx->io, ctx->sock, (void *) accept_control_check_tls);
@@ -1149,8 +1172,8 @@ static void accept_control_final(struct context *ctx)
 	report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "connection request from %s (realm: %s%s%s)", ctx->peer_addr_ascii, ctx->realm->name,
 	       ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "");
 
-    ctx->nas_address_ascii = ctx->peer_addr_ascii;	//  FIXME, use origin
-    ctx->nas_address_ascii_len = strlen(ctx->peer_addr_ascii);	// FIXME, use origin
+    ctx->nas_address_ascii = ctx->peer_addr_ascii;
+    ctx->nas_address_ascii_len = strlen(ctx->peer_addr_ascii);
     get_revmap_nas(&session);
 
     io_register(ctx->io, ctx->sock, ctx);
@@ -1179,13 +1202,14 @@ static void accept_control_final(struct context *ctx)
 static void accept_control(struct context *ctx, int cur)
 {
     int s, one = 1;
-    struct scm_data_accept sd;
+    struct scm_data_accept_ext sd_ext;
+    memset(&sd_ext, 0, sizeof(sd_ext));
 
-    if (common_data.scm_recv_msg(cur, &sd, sizeof(sd), &s)) {
+    if (common_data.scm_recv_msg(cur, &sd_ext.sd, sizeof(sd_ext.sd), &s)) {
 	cleanup_spawnd(ctx, cur);
 	return;
     }
-    switch (sd.type) {
+    switch (sd_ext.sd.type) {
     case SCM_MAY_DIE:
 	cleanup_spawnd(ctx, cur);
 	return;
@@ -1194,10 +1218,11 @@ static void accept_control(struct context *ctx, int cur)
 	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (char *) &one, (socklen_t) sizeof(one));
 	common_data.users_cur++;
 	set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
-	if (sd.haproxy)
-	    accept_control_px(s, &sd);
+	set_sd_realm(cur, &sd_ext);
+	if (sd_ext.sd.haproxy || (sd_ext.realm->haproxy_autodetect == TRISTATE_YES))
+	    accept_control_px(s, &sd_ext);
 	else
-	    accept_control_raw(s, &sd);
+	    accept_control_raw(s, &sd_ext);
 	return;
     default:
 	if (s > -1)

@@ -221,6 +221,7 @@ void complete_realm(tac_realm * r)
 	RS(mavis_user_acl, NULL);
 	RS(enable_user_acl, NULL);
 	RS(password_acl, NULL);
+	RS(haproxy_autodetect, TRISTATE_DUNNO);
 #ifdef WITH_SSL
 	RS(tls_sni_required, TRISTATE_DUNNO);
 	RS(tls_autodetect, TRISTATE_DUNNO);
@@ -1579,6 +1580,12 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_host:
 	case S_device:
 	    parse_host_attr(sym, r, r->default_host);
+	    continue;
+	case S_haproxy:
+	    sym_get(sym);
+	    parse(sym, S_autodetect);
+	    parse(sym, S_equal);
+	    r->haproxy_autodetect = parse_tristate(sym);
 	    continue;
 #if defined(WITH_TLS) || defined(WITH_SSL)
 	case S_tls:
