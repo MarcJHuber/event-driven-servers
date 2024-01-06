@@ -1177,6 +1177,11 @@ id = spawnd {
 
 4.2.3.4. Miscellaneous
 
+   In realm context:
+
+     * haproxy auto-detect = ( yes | no )
+       Enable HAProxy protocol v2 auto-detection. Defaults to no.
+
    In spawnd listen context,
 
      * haproxy = ( yes | no )
@@ -1229,7 +1234,7 @@ id = spawnd {
    profile              if not found in current realm
    ruleset              if not set or undefined result in current realm
    timespec             if not found in current realm
-   user                 if no users defined in current realm
+   user                 if not found in current realm
      __________________________________________________________
 
 4.2.3.6. Railroad Diagrams
