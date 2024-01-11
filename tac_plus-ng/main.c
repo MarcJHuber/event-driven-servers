@@ -958,7 +958,7 @@ static int sni_cb(SSL * s, int *al __attribute__((unused)), void *arg)
 }
 #endif
 
-tac_realm *set_sd_realm(int s, struct scm_data_accept_ext *sd)
+static tac_realm *set_sd_realm(int s __attribute__((unused)), struct scm_data_accept_ext *sd)
 {
 #ifdef VRF_BINDTODEVICE
     if (s > 0) {
