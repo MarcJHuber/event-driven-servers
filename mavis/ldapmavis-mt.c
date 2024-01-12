@@ -915,8 +915,10 @@ int main(int argc, char **argv __attribute__((unused)))
 	    ldap_tls_protocol_min = LDAP_OPT_X_TLS_PROTOCOL_TLS1_1;
 	else if (!strcmp(tmp, "TLS1_2"))
 	    ldap_tls_protocol_min = LDAP_OPT_X_TLS_PROTOCOL_TLS1_2;
+#ifdef LDAP_OPT_X_TLS_PROTOCOL_TLS1_3
 	else if (!strcmp(tmp, "TLS1_3"))
 	    ldap_tls_protocol_min = LDAP_OPT_X_TLS_PROTOCOL_TLS1_3;
+#endif
 	else
 	    fprintf(stderr, "LDAP_TLS_PROTOCOL_MIN: %s unrecognized, ignoring\n", tmp);
     }
