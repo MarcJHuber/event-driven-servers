@@ -67,9 +67,13 @@ Leaving the ones below as-is is likely safe:\n\
  LDAP_TIMEOUT                  5 [seconds]\n\
  LDAP_NETWORK_TIMEOUT          5 [seconds]\n\
  LDAP_TACMEMBER                tacMember\n\
- LDAP_TACMEMBER_MAP_OU         unset (set to map OUs to TACMEMBER)\n\
- LDAP_TLS_PROTOCOL_MIN         TLS1_2 (TLS1_0, TLS1_1, TLS1_2, TLS1_3)\n\
- LDAP_FILTER                   (&(objectclass=user)(sAMAccountName=%%s)) for AD,\n\
+ LDAP_TACMEMBER_MAP_OU         unset (set to map OUs to TACMEMBER)\n"
+#ifdef LDAP_OPT_X_TLS_PROTOCOL_TLS1_3
+	    " LDAP_TLS_PROTOCOL_MIN         TLS1_2 (TLS1_0, TLS1_1, TLS1_2, TLS1_3)\n"
+#else
+	    " LDAP_TLS_PROTOCOL_MIN         TLS1_2 (TLS1_0, TLS1_1, TLS1_2)\n"
+#endif
+	    " LDAP_FILTER                   (&(objectclass=user)(sAMAccountName=%%s)) for AD,\n\
                                (uid=%%s) else\n\
  LDAP_FILTER_GROUP             (&(objectclass=groupOfNames)(member=%%s))\n\
 \n\
