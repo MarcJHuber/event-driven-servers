@@ -847,6 +847,7 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_clientdns:
 	    case S_clientname:
 	    case S_clientaddress:
+	    case S_context:
 	    case S_devicedns:
 	    case S_devicename:
 	    case S_deviceaddress:
@@ -1614,6 +1615,14 @@ static char *eval_log_format_custom_3(tac_session * session, struct context *ctx
     return NULL;
 }
 
+static char *eval_log_format_context(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				      __attribute__((unused)), size_t *len __attribute__((unused)))
+{
+    if (session)
+	return tac_script_get_exec_context(session);
+    return NULL;
+}
+
 #if defined(WITH_TLS) || defined(WITH_SSL)
 static char *eval_log_format_tls_conn_version(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
 					      __attribute__((unused)), size_t *len)
@@ -1758,6 +1767,7 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_msgid] = &eval_log_format_msgid;
 	efun[S_clientname] = &eval_log_format_nac;
 	efun[S_clientaddress] = &eval_log_format_nac;
+	efun[S_context] = &eval_log_format_context;
 	efun[S_nac] = &eval_log_format_nac;
 	efun[S_deviceaddress] = &eval_log_format_nas;
 	efun[S_nas] = &eval_log_format_nas;
