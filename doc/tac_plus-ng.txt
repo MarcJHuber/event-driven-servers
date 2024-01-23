@@ -693,6 +693,7 @@ syslog default = deny
    ${label} Ruleset label, if any.
    ${config-file} Configuration file name
    ${config-line} Configuration file line number
+   ${context} Context variable (set via context = ...)
    ${vrf} Name of the current socket IPv4 vrf, supported on Linux
    (requires sysctl net.ipv4.tcp_l3mdev_accept=1) and possibly
    OpenBSD.
