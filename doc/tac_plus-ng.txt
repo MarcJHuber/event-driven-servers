@@ -894,7 +894,67 @@ message USERNAME = "utilisateur"
    USER_ACCESS_VERIFICATION "User Access Verification"
      __________________________________________________________
 
-4.2.3.3. Limits and timeouts
+4.2.3.3. CLI Context
+
+   The daemon is CLI context aware if (and only if) your device
+   uses the single-connection feature.
+
+   Sample configuration:
+id = spawnd {
+    listen {
+        port = 49
+    }
+}
+
+id = tac_plus-ng {
+    device world {
+        address = ::/0
+        welcome banner = "Welcome\n"
+        key = demo
+    }
+
+    profile demo {
+        script {
+            if (service == shell) {
+                if (cmd == "") {
+                    set priv-lvl = 15
+                    permit
+                }
+                if (cmd =~ /^interface FastEthernet 0\/0 <cr> {
+                    context = Fa0/0
+                    message = "context is ${context}"
+                    permit
+                }
+                if (cmd =~ /^interface/) {
+                    context = ""
+                    message = "context was reset"
+                }
+                if (cmd =~ /^(no )?shutdown/) {
+                    if (context == Fa0/0)
+                        permit
+                    deny
+                }
+                permit
+            }
+        }
+    }
+
+    user demo {
+        password login = clear demo
+    }
+
+    ruleset {
+        rule demo {
+            script {
+                profile = demo
+                permit
+            }
+        }
+    }
+}
+     __________________________________________________________
+
+4.2.3.4. Limits and timeouts
 
    A number of global limits and timeouts may be specified at
    realm and global level:
@@ -917,7 +977,7 @@ message USERNAME = "utilisateur"
        127.
      __________________________________________________________
 
-4.2.3.3.1. Authentication
+4.2.3.4.1. Authentication
 
      * password acl = acl
        password acl may be used to perform simple compliance
@@ -1051,7 +1111,7 @@ enable user acl = custom_enable_acl
        SHA256:kOkclqivcjludf/jdsfkyqpddffdk38U12+CkA8fBAC
      __________________________________________________________
 
-4.2.3.3.2. User back-end options
+4.2.3.4.2. User back-end options
 
    These options are relevant for configuring the MAVIS user
    back-end:
@@ -1117,7 +1177,7 @@ acl __internal__username_acl__ { if (user =~ "[]<>/()|=[]+") deny permit
 mavis user filter = __internal__username_acl__
      __________________________________________________________
 
-4.2.3.3.3. TLS
+4.2.3.4.3. TLS
 
    TACACS+-over-TLS is not a standard. These features are
    experimental.
@@ -1176,7 +1236,7 @@ id = spawnd {
 }
      __________________________________________________________
 
-4.2.3.4. Miscellaneous
+4.2.3.5. Miscellaneous
 
    In realm context:
 
@@ -1218,7 +1278,7 @@ id = spawnd {
 }
      __________________________________________________________
 
-4.2.3.5. Realm Inheritance
+4.2.3.6. Realm Inheritance
 
    Realms inherit quite some configuration from their parent
    realm:
@@ -1238,7 +1298,7 @@ id = spawnd {
    user                 if not found in current realm
      __________________________________________________________
 
-4.2.3.6. Railroad Diagrams
+4.2.3.7. Railroad Diagrams
 
    [RealmAttr.eps]
 
@@ -1249,7 +1309,7 @@ id = spawnd {
    Railroad diagram: RealmAttrAuthen
      __________________________________________________________
 
-4.2.3.7. Networks
+4.2.3.8. Networks
 
    Networks consist of IP addresses or other networks. They may
    overlap. Networks can be used in ACLs. The parent of a network
@@ -1265,7 +1325,7 @@ id = spawnd {
   }
      __________________________________________________________
 
-4.2.3.7.1. Railroad Diagrams
+4.2.3.8.1. Railroad Diagrams
 
    [NetDecl.eps]
 
@@ -1276,7 +1336,7 @@ id = spawnd {
    Railroad diagram: NetAttr
      __________________________________________________________
 
-4.2.3.8. Devices (Hosts)
+4.2.3.9. Devices (Hosts)
 
    The daemon will talk to known NAS addresses only. Connections
    from unknown addresses will be rejected.
@@ -1397,7 +1457,7 @@ key = ""
        default host, too.
      __________________________________________________________
 
-4.2.3.8.1. Timeouts
+4.2.3.9.1. Timeouts
 
    The connection timeout may be specified:
 
@@ -1406,7 +1466,7 @@ key = ""
        at least s seconds. Defaults to the global option.
      __________________________________________________________
 
-4.2.3.8.2. Authentication
+4.2.3.9.2. Authentication
 
    The following authentication related directives are available
    at device object level:
@@ -1460,7 +1520,7 @@ aaa authentication enable default group tacacs+ enable
        This configuration will be accepted at realm level, too.
      __________________________________________________________
 
-4.2.3.8.3. Authorization
+4.2.3.9.3. Authorization
 
    The following authorization related directives are available at
    device object level:
@@ -1473,7 +1533,7 @@ aaa authentication enable default group tacacs+ enable
        This configuration will be accepted at realm level, too.
      __________________________________________________________
 
-4.2.3.8.4. Banners and Messages
+4.2.3.9.4. Banners and Messages
 
    The daemon allows for various banners to be displayed to the
    user:
@@ -1533,7 +1593,7 @@ aaa authentication enable default group tacacs+ enable
   }
      __________________________________________________________
 
-4.2.3.8.5. Workarounds for Client Bugs
+4.2.3.9.5. Workarounds for Client Bugs
 
    The directive
 
@@ -1562,7 +1622,7 @@ aaa authentication enable default group tacacs+ enable
    This configuration will be accepted at realm level, too.
      __________________________________________________________
 
-4.2.3.8.6. Inheritance and Hosts
+4.2.3.9.6. Inheritance and Hosts
 
    For address based device lookups, the daemon looks for the most
    specific device definition. Values that aren't defined (if any)
@@ -1571,7 +1631,7 @@ aaa authentication enable default group tacacs+ enable
    parent device, or expliitely, using the parent statement.
      __________________________________________________________
 
-4.2.3.8.7. Railroad Diagrams
+4.2.3.9.7. Railroad Diagrams
 
    [DeviceDecl.eps]
 
@@ -1586,7 +1646,7 @@ aaa authentication enable default group tacacs+ enable
    Railroad diagram: EnableExpr
      __________________________________________________________
 
-4.2.3.8.8. Example
+4.2.3.9.8. Example
 
 device = customer1 {
     address = 10.0.0.0/8
@@ -1607,7 +1667,7 @@ device = test123 {
 }
      __________________________________________________________
 
-4.2.3.9. Time Ranges
+4.2.3.10. Time Ranges
 
    timespec objects may be used for time based profile
    assignments. Both cron and Taylor-UUCP syntax are supported;
@@ -1633,14 +1693,14 @@ timespec example {
 }
      __________________________________________________________
 
-4.2.3.9.1. Railroad Diagrams
+4.2.3.10.1. Railroad Diagrams
 
    [TimespecDecl.eps]
 
    Railroad diagram: TimespecDecl
      __________________________________________________________
 
-4.2.3.10. Access Control Lists
+4.2.3.11. Access Control Lists
 
    Access Control Lists (or, more exactly, Access Control Scripts)
    are the main component of ruleset evaluation.
@@ -1718,7 +1778,7 @@ le\\.com$/) deny
     }
      __________________________________________________________
 
-4.2.3.10.1. Syntax
+4.2.3.11.1. Syntax
 
    A script consists of a series of actions:
 
@@ -1844,7 +1904,7 @@ set priv-lvl = 15
    conditions require libtls.
      __________________________________________________________
 
-4.2.3.11. Rewriting User Names
+4.2.3.12. Rewriting User Names
 
    A script may refer to a rewrite profile defined at realm level
    to rewrite user names. For example, the following will map both
@@ -1875,7 +1935,7 @@ device ... {
     }
      __________________________________________________________
 
-4.2.3.12. Users
+4.2.3.13. Users
 
    The basic form of a user declarations is
 user username { ...  }
@@ -1948,7 +2008,7 @@ user marc {
        group.
      __________________________________________________________
 
-4.2.3.12.1. Railroad Diagrams
+4.2.3.13.1. Railroad Diagrams
 
    [UserDecl.eps]
 
@@ -1959,7 +2019,7 @@ user marc {
    Railroad diagram: ServiceDecl
      __________________________________________________________
 
-4.2.3.13. Groups
+4.2.3.14. Groups
 
    A user can be a member of multiple groups. A user that is a
    member of a group that comes with a parent group is a member of
@@ -1976,7 +2036,7 @@ group groupname {  ...  }
        Groups may be parents of other groups.
      __________________________________________________________
 
-4.2.3.13.1. Railroad Diagrams
+4.2.3.14.1. Railroad Diagrams
 
    [GroupDecl.eps]
 
@@ -1987,7 +2047,7 @@ group groupname {  ...  }
    Railroad diagram: GroupAttr
      __________________________________________________________
 
-4.2.3.14. Profiles
+4.2.3.15. Profiles
 
    Profiles are collections of services that can be assigned to
    users via the policy rule-set. Syntax is
@@ -2078,7 +2138,7 @@ set shell:roles = '"network-admin"'
    are equivalent, but the latter is more readable.
      __________________________________________________________
 
-4.2.3.15. Railroad Diagrams
+4.2.3.16. Railroad Diagrams
 
    [UserMessage.eps]
 
@@ -2149,7 +2209,7 @@ set shell:roles = '"network-admin"'
    Railroad diagram: ProtoDecl
      __________________________________________________________
 
-4.2.3.16. Configuring Non-local Users via MAVIS
+4.2.3.17. Configuring Non-local Users via MAVIS
 
    MAVIS configuration is optional. You don't need it if you're
    content with user configuration in the main configuration file.
@@ -2172,7 +2232,7 @@ cache timeout = seconds
    in the global configuration section.
      __________________________________________________________
 
-4.2.3.17. Configuring Local Users for MAVIS authentication
+4.2.3.18. Configuring Local Users for MAVIS authentication
 
    Under certain circumstances you may wish to keep the user
    definitions in the plain text configuration file, but
@@ -2185,7 +2245,7 @@ cache timeout = seconds
    in the corresponding user definition.
      __________________________________________________________
 
-4.2.3.18. Configuring User Authentication
+4.2.3.19. Configuring User Authentication
 
    User Authentication can be specified separately for PAP, CHAP,
    and normal logins. CHAP and global user authentication must be
@@ -2227,7 +2287,7 @@ login backend = mavis
 user mary { login = mavis }
      __________________________________________________________
 
-4.2.3.19. Configuring Expiry Dates
+4.2.3.20. Configuring Expiry Dates
 
    An entry of the form:
 user lol {
@@ -2249,7 +2309,7 @@ user lol {
    activates a profile at the given date.
      __________________________________________________________
 
-4.2.3.20. Configuring Authentication on the NAS
+4.2.3.21. Configuring Authentication on the NAS
 
    On the NAS, to configure login authentication, try
 aaa new-model
@@ -2282,7 +2342,7 @@ aaa authentication login default group tacacs+ local
    way out.
      __________________________________________________________
 
-4.2.3.21. Configuring Authorization
+4.2.3.22. Configuring Authorization
 
    Authorization must be configured on both the NAS and the daemon
    to operate correctly. By default, the NAS will allow everything
@@ -2299,7 +2359,7 @@ aaa authentication login default group tacacs+ local
    parts: commands and services.
      __________________________________________________________
 
-4.2.3.22. Authorizing Commands
+4.2.3.23. Authorizing Commands
 
    Exec commands are those commands which are typed at a NAS exec
    prompt. When authorization is requested by the NAS, the entire
@@ -2310,7 +2370,7 @@ aaa authentication login default group tacacs+ local
    details.
      __________________________________________________________
 
-4.2.3.23. The Authorization Process
+4.2.3.24. The Authorization Process
 
    Authorizing a single session can result in multiple requests
    being sent to the daemon. For example, in order to authorize a
@@ -2344,7 +2404,7 @@ aaa authentication login default group tacacs+ local
        they shut down PPP instead.
      __________________________________________________________
 
-4.2.3.24. Authorization Relies on Authentication
+4.2.3.25. Authorization Relies on Authentication
 
    Since we pretty much rely on having a username in authorization
    requests to decide which addresses etc. to hand out, it is
@@ -2374,7 +2434,7 @@ int async 1
    missing.
      __________________________________________________________
 
-4.2.3.25. Configuring Service Authorization
+4.2.3.26. Configuring Service Authorization
 
    A list of AV pairs is placed in the daemon's configuration file
    in order to authorize services. The daemon compares each NAS AV
@@ -2384,7 +2444,7 @@ int async 1
    restricting what the user is permitted to do.
      __________________________________________________________
 
-4.2.3.25.1. The Authorization Algorithm
+4.2.3.26.1. The Authorization Algorithm
 
    The complete algorithm by which the daemon processes its
    configured AV pairs against the list the NAS sends, is given
