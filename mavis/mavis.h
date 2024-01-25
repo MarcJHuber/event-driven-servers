@@ -14,7 +14,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/time.h>
+#ifdef WITH_SYSPOLL
 #include <sys/poll.h>
+#else
+#include <poll.h>
+#endif
 #include <sys/types.h>
 #include <stdarg.h>
 #include <setjmp.h>

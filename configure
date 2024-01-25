@@ -668,8 +668,13 @@ $DEFS{"WITH_IPC"} = 1 if -f "$USRINCLUDESYS/ipc.h";
 
 my $mech_found;
 
+if (!exists $DEFS{"WITH_POLL"} && -e "/usr/include/poll.h") {
+	$DEFS{"WITH_POLL"} = 1;
+	$mech_found = 1;
+}
 if (!exists $DEFS{"WITH_POLL"} && -e "$USRINCLUDESYS/poll.h") {
 	$DEFS{"WITH_POLL"} = 1;
+	$DEFS{"WITH_SYSPOLL"} = 1;
 	$mech_found = 1;
 }
 if (!exists $DEFS{"WITH_EPOLL"} && -e "$USRINCLUDESYS/epoll.h") {
@@ -680,7 +685,7 @@ if (!exists $DEFS{"WITH_SELECT"} && -e "$USRINCLUDESYS/select.h") {
 	$DEFS{"WITH_SELECT"} = 1;
 	$mech_found = 1;
 }
-if (!exists $DEFS{"WITH_KQUEUE"} && -e "/usr/include/sys/event.h") {
+if (!exists $DEFS{"WITH_KQUEUE"} && -e "$USRINCLUDESYS/event.h") {
 	$DEFS{"WITH_KQUEUE"} = 1;
 	$mech_found = 1;
 }

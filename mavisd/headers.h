@@ -36,8 +36,6 @@
 #include "mavis/mavis.h"
 #include "misc/setproctitle.h"
 
-#include <sys/poll.h>
-
 #ifdef __MAIN__
 #define WHERE
 #define INITVAL(x) = x

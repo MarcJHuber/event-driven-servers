@@ -33,7 +33,6 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
-#include <sys/poll.h>
 
 #include "misc/setproctitle.h"
 #include "mavis/set_proctitle.h"

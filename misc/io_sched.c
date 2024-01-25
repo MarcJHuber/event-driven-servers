@@ -12,7 +12,6 @@
 #include "misc/sysconf.h"
 
 #include <sys/types.h>
-#include <sys/poll.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -40,7 +39,11 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 #include <sys/epoll.h>
 #endif
 #ifdef WITH_POLL
+#ifdef WITH_SYSPOLL
 #include <sys/poll.h>
+#else
+#include <poll.h>
+#endif
 #endif
 #ifdef WITH_DEVPOLL
 #include <sys/devpoll.h>
