@@ -983,10 +983,10 @@ static void parse_host_dns(struct sym *sym, tac_host * host)
 	    break;
 	default:
 	    parse_error_expect(sym, S_equal, S_client, S_nac, S_device, S_nas, S_unknown);
-	    if ((host->lookup_revmap_nas == TRISTATE_YES || host->lookup_revmap_nac == TRISTATE_YES)
-		&& !host->realm->idc)
-		host->realm->idc = io_dns_init(common_data.io);
 	}
+	if ((host->lookup_revmap_nas == TRISTATE_YES || host->lookup_revmap_nac == TRISTATE_YES)
+	    && !host->realm->idc)
+	    host->realm->idc = io_dns_init(common_data.io);
 	return;
     default:
 	;
