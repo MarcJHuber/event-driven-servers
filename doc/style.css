@@ -1,0 +1,23 @@
+@media (prefers-color-scheme: light) {
+	body		{ font-family:sans-serif; background-color:#F8F8F8; color:#000000; margin-top:0; }
+	tt,code,pre	{ font-family:monospace; }
+	a:hover		{ color:#ffffff; background-color:#808080;}
+
+	pre.screen	{ color:#000000; background-color:#E0E0E0; border-style:solid; border-width:thin; border-color:#BBBBBB; padding:2px; white-space:pre-wrap; word-break: break-all; }
+	.section	{ text-align:justify; }
+
+	img		{ max-width:100%; }
+
+}
+
+@media (prefers-color-scheme: dark) {
+
+	body		{ font-family:sans-serif; background-color:#0d1117; color:#EEEEEE; margin-top:0; }
+	tt,code,pre	{ font-family:monospace; }
+
+	pre.screen	{ color:#F0F0F0; background-color:#070707; border-style:solid; border-width:medium; border-color:#333333; padding:2px; white-space:pre-wrap; word-break: break-all; }
+	.section	{ text-align:justify; }
+
+	img		{ max-width:100%; filter:invert(1); }
+}
+
