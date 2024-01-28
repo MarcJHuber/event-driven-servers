@@ -2,140 +2,83 @@
 "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <head>
-<meta name="generator" content=
-"HTML Tidy for HTML5 for Linux version 5.6.0">
+<meta name="generator" content="HTML Tidy for HTML5 for Linux version 5.6.0">
 <link rel="stylesheet" type="text/css" href="style.css">
-<meta http-equiv="Content-Type" content=
-"text/html; charset=iso-8859-1">
-<meta name="viewport" content=
-"width=device-width, initial-scale=1">
-<title>MAVIS &#8208; Modular Attribute-Value Interchange
-System</title>
-<meta name="GENERATOR" content=
-"Modular DocBook HTML Stylesheet Version 1.79">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAVIS â&euro; Modular Attribute-Value Interchange System</title>
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79">
 </head>
-<body class="article" bgcolor="#FFFFFF" text="#000000" link=
-"#0000FF" vlink="#840084" alink="#0000FF">
+<body class="article" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084" alink="#0000FF">
 <div class="ARTICLE">
 <div class="TITLEPAGE">
-<h1 class="title"><a name="AEN2" id="AEN2">MAVIS &#8208; Modular
-Attribute-Value Interchange System</a></h1>
+<h1 class="title"><a name="AEN2" id="AEN2">MAVIS â&euro; Modular Attribute-Value Interchange System</a></h1>
 <h3 class="author"><a name="AEN4" id="AEN4">Marc Huber</a></h3>
-<span class="releaseinfo">$Id:
-feea0b989df93a0f03a07220becab84ba21b4c88 $<br></span>
+<span class="releaseinfo">$Id: feea0b989df93a0f03a07220becab84ba21b4c88 $<br></span>
 <hr></div>
 <div class="TOC">
 <dl>
 <dt><b>Table of Contents</b></dt>
-<dt>1. <a href="#AEN9">Introduction</a></dt>
+<dt>1. <a class="lk" href="#AEN9">Introduction</a></dt>
 <dd>
 <dl>
-<dt>1.1. <a href="#AEN13">Download</a></dt>
+<dt>1.1. <a class="lk" href="#AEN13">Download</a></dt>
 </dl>
 </dd>
-<dt>2. <a href="#AEN18">Design overview</a></dt>
-<dt>3. <a href="#AEN35">Authentication setups</a></dt>
-<dt>4. <a href="#AEN39">Sample setups</a></dt>
-<dt>5. <a href="#AEN53">Configuration Syntax</a></dt>
+<dt>2. <a class="lk" href="#AEN18">Design overview</a></dt>
+<dt>3. <a class="lk" href="#AEN35">Authentication setups</a></dt>
+<dt>4. <a class="lk" href="#AEN39">Sample setups</a></dt>
+<dt>5. <a class="lk" href="#AEN53">Configuration Syntax</a></dt>
 <dd>
 <dl>
-<dt>5.1. <a href="#AEN63">Standard Configuration
-Directives</a></dt>
-<dt>5.2. <a href="#AEN234">Backend Module Configuration</a></dt>
+<dt>5.1. <a class="lk" href="#AEN63">Standard Configuration Directives</a></dt>
+<dt>5.2. <a class="lk" href="#AEN234">Backend Module Configuration</a></dt>
 <dd>
 <dl>
-<dt>5.2.1. <a href="#AEN249">The <span class="emphasis"><i class=
-"emphasis">anonftp</i></span> module</a></dt>
-<dt>5.2.2. <a href="#AEN298">The <span class="emphasis"><i class=
-"emphasis">asciiftp</i></span> module</a></dt>
-<dt>5.2.3. <a href="#AEN342">The <span class="emphasis"><i class=
-"emphasis">auth</i></span> module</a></dt>
-<dt>5.2.4. <a href="#AEN373">The <span class="emphasis"><i class=
-"emphasis">cache</i></span> module</a></dt>
-<dt>5.2.5. <a href="#AEN413">The <span class="emphasis"><i class=
-"emphasis">external</i></span> module</a></dt>
-<dt>5.2.6. <a href="#AEN483">The <span class="emphasis"><i class=
-"emphasis">external-mt</i></span> module</a></dt>
-<dt>5.2.7. <a href="#AEN525">The <span class="emphasis"><i class=
-"emphasis">group</i></span> module</a></dt>
-<dt>5.2.8. <a href="#AEN627">The <span class="emphasis"><i class=
-"emphasis">limit</i></span> module</a></dt>
-<dt>5.2.9. <a href="#AEN661">The <span class="emphasis"><i class=
-"emphasis">log</i></span> module</a></dt>
-<dt>5.2.10. <a href="#AEN666">The <span class="emphasis"><i class=
-"emphasis">PAM</i></span> module</a></dt>
-<dt>5.2.11. <a href="#AEN714">The <span class="emphasis"><i class=
-"emphasis">remote</i></span> module</a></dt>
-<dt>5.2.12. <a href="#AEN786">The <span class="emphasis"><i class=
-"emphasis">tacinfo_cache</i></span> module</a></dt>
-<dt>5.2.13. <a href="#AEN815">The <span class="emphasis"><i class=
-"emphasis">system</i></span> module</a></dt>
-<dt>5.2.14. <a href="#AEN889">The <span class="emphasis"><i class=
-"emphasis">userdb</i></span> module</a></dt>
-<dt>5.2.15. <a href="#AEN959">The <span class="emphasis"><i class=
-"emphasis">tee</i></span> module</a></dt>
-<dt>5.2.16. <a href="#AEN996">The <span class="emphasis"><i class=
-"emphasis">null</i></span> module</a></dt>
+<dt>5.2.1. <a class="lk" href="#AEN249">The <span class="emphasis"><i class="emphasis">anonftp</i></span> module</a></dt>
+<dt>5.2.2. <a class="lk" href="#AEN298">The <span class="emphasis"><i class="emphasis">asciiftp</i></span> module</a></dt>
+<dt>5.2.3. <a class="lk" href="#AEN342">The <span class="emphasis"><i class="emphasis">auth</i></span> module</a></dt>
+<dt>5.2.4. <a class="lk" href="#AEN373">The <span class="emphasis"><i class="emphasis">cache</i></span> module</a></dt>
+<dt>5.2.5. <a class="lk" href="#AEN413">The <span class="emphasis"><i class="emphasis">external</i></span> module</a></dt>
+<dt>5.2.6. <a class="lk" href="#AEN483">The <span class="emphasis"><i class="emphasis">external-mt</i></span> module</a></dt>
+<dt>5.2.7. <a class="lk" href="#AEN525">The <span class="emphasis"><i class="emphasis">group</i></span> module</a></dt>
+<dt>5.2.8. <a class="lk" href="#AEN627">The <span class="emphasis"><i class="emphasis">limit</i></span> module</a></dt>
+<dt>5.2.9. <a class="lk" href="#AEN661">The <span class="emphasis"><i class="emphasis">log</i></span> module</a></dt>
+<dt>5.2.10. <a class="lk" href="#AEN666">The <span class="emphasis"><i class="emphasis">PAM</i></span> module</a></dt>
+<dt>5.2.11. <a class="lk" href="#AEN714">The <span class="emphasis"><i class="emphasis">remote</i></span> module</a></dt>
+<dt>5.2.12. <a class="lk" href="#AEN786">The <span class="emphasis"><i class="emphasis">tacinfo_cache</i></span> module</a></dt>
+<dt>5.2.13. <a class="lk" href="#AEN815">The <span class="emphasis"><i class="emphasis">system</i></span> module</a></dt>
+<dt>5.2.14. <a class="lk" href="#AEN889">The <span class="emphasis"><i class="emphasis">userdb</i></span> module</a></dt>
+<dt>5.2.15. <a class="lk" href="#AEN959">The <span class="emphasis"><i class="emphasis">tee</i></span> module</a></dt>
+<dt>5.2.16. <a class="lk" href="#AEN996">The <span class="emphasis"><i class="emphasis">null</i></span> module</a></dt>
 </dl>
 </dd>
-<dt>5.3. <a href="#AEN1000">MAVIS Scripting Language</a></dt>
+<dt>5.3. <a class="lk" href="#AEN1000">MAVIS Scripting Language</a></dt>
 </dl>
 </dd>
-<dt>6. <a href="#AEN1195">Testing your MAVIS configuration</a></dt>
-<dt>7. <a href="#AEN1204">Environmental Variables</a></dt>
-<dt>8. <a href="#AEN1209">Copyrights and Acknowledgements</a></dt>
+<dt>6. <a class="lk" href="#AEN1195">Testing your MAVIS configuration</a></dt>
+<dt>7. <a class="lk" href="#AEN1204">Environmental Variables</a></dt>
+<dt>8. <a class="lk" href="#AEN1209">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
-<h2 class="section"><a name="AEN9" id="AEN9">1.
-Introduction</a></h2>
-<p>The MAVIS libraries provide a modular and extensible protocol
-for authorization and authentication tasks.
-Authorization/authentication modules are stackable and
-configurable. Both synchronous and asynchronous operation modes are
-available.</p>
+<h2 class="section"><a name="AEN9" id="AEN9">1. Introduction</a></h2>
+<p>The MAVIS libraries provide a modular and extensible protocol for authorization and authentication tasks. Authorization/authentication modules are stackable and configurable. Both synchronous and asynchronous operation modes are available.</p>
 <p>The modules are reentrant, but not thread-save.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN13" id="AEN13">1.1.
-Download</a></h3>
-<p>You can download the source code from the GitHub repository at
-<a href="https://github.com/MarcJHuber/event-driven-servers/"
-target=
-"_top">https://github.com/MarcJHuber/event-driven-servers/</a>.
-Documentation is available on the original site, <a href=
-"https://www.pro-bono-publico.de/projects/" target=
-"_top">https://www.pro-bono-publico.de/projects/</a>, too.</p>
+<h3 class="section"><a name="AEN13" id="AEN13">1.1. Download</a></h3>
+<p>You can download the source code from the GitHub repository at <a class="lk" href="https://github.com/MarcJHuber/event-driven-servers/" target="_top">https://github.com/MarcJHuber/event-driven-servers/</a>. Documentation is available on the original site, <a class="lk" href="https://www.pro-bono-publico.de/projects/" target="_top">https://www.pro-bono-publico.de/projects/</a>, too.</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN18" id="AEN18">2. Design
-overview</a></h2>
-<p>The MAVIS system consists of the MAVIS library (<tt class=
-"literal">libmavis.so</tt>) and various MAVIS modules (<tt class=
-"literal">libmavis_*.so</tt>). The library glues the modules
-together, sends requests to and receives answers from the modules.
-A module may answer (or modify) a request or pass it on to the
-module loaded later. It may intercept and modify the response from
-that module.</p>
+<h2 class="section"><a name="AEN18" id="AEN18">2. Design overview</a></h2>
+<p>The MAVIS system consists of the MAVIS library (<tt class="literal">libmavis.so</tt>) and various MAVIS modules (<tt class="literal">libmavis_*.so</tt>). The library glues the modules together, sends requests to and receives answers from the modules. A module may answer (or modify) a request or pass it on to the module loaded later. It may intercept and modify the response from that module.</p>
 <p>Example: Consider the following set-up:</p>
-<p>An incoming request, e.g. for FTP authentication, first reaches
-the <tt class="literal">log</tt> module, which simply passes it on
-to the limit module. The <tt class="literal">limit</tt> module
-checks the IP address of the client and rejects the request if that
-address is blacklisted. Otherwise, the request is passed on to the
-<tt class="literal">auth</tt> module, which leaves it alone and
-passes it on to the <tt class="literal">cache</tt> module. If the
-request is not cached within the <tt class="literal">cache</tt>
-module it is passed on to the <tt class="literal">pam</tt> module,
-which sets some attribute-value pairs and sends the request back to
-the <tt class="literal">cache</tt> module. The <tt class=
-"literal">cache</tt> module in turn adds the request data to its
-cache database and passes it back the <tt class="literal">auth</tt>
-module for authentication checking. [Remaining steps omitted.]</p>
-<pre class=
-"screen">     --.                                                      .--&gt;
+<p>An incoming request, e.g. for FTP authentication, first reaches the <tt class="literal">log</tt> module, which simply passes it on to the limit module. The <tt class="literal">limit</tt> module checks the IP address of the client and rejects the request if that address is blacklisted. Otherwise, the request is passed on to the <tt class="literal">auth</tt> module, which leaves it alone and passes it on to the <tt class="literal">cache</tt> module. If the request is not cached within the <tt class="literal">cache</tt> module it is passed on to the <tt class="literal">pam</tt> module, which sets some attribute-value pairs and sends the request back to the <tt class="literal">cache</tt> module. The <tt class="literal">cache</tt> module in turn adds the request data to its cache database and passes it back the <tt class="literal">auth</tt> module for authentication checking. [Remaining steps omitted.]</p>
+<pre class="screen">
+     --.                                                      .--&gt;
        |                                                      |
    .===|===&lt;log&gt;==============================================|===.
    |   |                                           log   -----'   |
@@ -162,32 +105,17 @@ module for authentication checking. [Remaining steps omitted.]</p>
  </pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN35" id="AEN35">3. Authentication
-setups</a></h2>
-<p>Some MAVIS modules have both synchronous and asynchronous
-operation modes. For low and medium performance applications it's
-sufficient to have one authentication daemon processing all
-incoming requests, with all the MAVIS modules utilized by
-<span class="emphasis"><i class="emphasis">mavisd</i></span>
-operating synchronously. However, this introduces a serialization
-of all queries, causing requests that could immediately be answered
-by e.g. the limit or cache module to be deferred until database
-queries got processed. One possible solution to remedy this is to
-add one or more secondary authentication daemon for asynchronous
-processing of queries for synchronous-only modules. The remote
-module automatically distributes queries between the configured
-MAVIS daemons.</p>
+<h2 class="section"><a name="AEN35" id="AEN35">3. Authentication setups</a></h2>
+<p>Some MAVIS modules have both synchronous and asynchronous operation modes. For low and medium performance applications it's sufficient to have one authentication daemon processing all incoming requests, with all the MAVIS modules utilized by <span class="emphasis"><i class="emphasis">mavisd</i></span> operating synchronously. However, this introduces a serialization of all queries, causing requests that could immediately be answered by e.g. the limit or cache module to be deferred until database queries got processed. One possible solution to remedy this is to add one or more secondary authentication daemon for asynchronous processing of queries for synchronous-only modules. The remote module automatically distributes queries between the configured MAVIS daemons.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN39" id="AEN39">4. Sample
-setups</a></h2>
+<h2 class="section"><a name="AEN39" id="AEN39">4. Sample setups</a></h2>
 <ol type="1">
 <li>
-<p>Stand alone setup: Authentication requests are processed
-synchronously. Only recommended for low-latency modules where no
-common database is required, e.g. the anonftp module.</p>
-<pre class="screen">       .-----------.
+<p>Stand alone setup: Authentication requests are processed synchronously. Only recommended for low-latency modules where no common database is required, e.g. the anonftp module.</p>
+<pre class="screen">
+       .-----------.
      .-----------. |
    .-----------. |-|
    |  Client   |-| |
@@ -197,12 +125,9 @@ common database is required, e.g. the anonftp module.</p>
    `-----------'
  </pre></li>
 <li>
-<p>Remote authentication setup: Authentication request processing
-is done asynchronous by <span class="emphasis"><i class=
-"emphasis">mavisd</i></span>. Recommended for medium-latency
-modules or modules that require access to shared data, e.g. the
-limit or cache module.</p>
-<pre class="screen">       .------------.     .-----------.
+<p>Remote authentication setup: Authentication request processing is done asynchronous by <span class="emphasis"><i class="emphasis">mavisd</i></span>. Recommended for medium-latency modules or modules that require access to shared data, e.g. the limit or cache module.</p>
+<pre class="screen">
+       .------------.     .-----------.
      .------------. |&lt;===&gt;|  mavisd   |
    .------------. |&lt;=====&gt;|-----------|
    |  Client    |&lt;=======&gt;| [ log   ] |
@@ -213,12 +138,9 @@ limit or cache module.</p>
                           `-----------'
  </pre></li>
 <li>
-<p>Remote authentication setup with redundancy: Recommended for
-high-latency modules that are only capable of synchronous request
-processing, high- performance setups or where redundancy is
-desired, e.g. suitable for database access modules.</p>
-<pre class=
-"screen">       .------------.     .------------.         .-----------.
+<p>Remote authentication setup with redundancy: Recommended for high-latency modules that are only capable of synchronous request processing, high- performance setups or where redundancy is desired, e.g. suitable for database access modules.</p>
+<pre class="screen">
+       .------------.     .------------.         .-----------.
      .------------. |&lt;===&gt;|  mavisd    |&lt;=======&gt;|  mavisd   |
    .------------. |&lt;=====&gt;|------------|       .-----------.-|
    |  Client    |&lt;=======&gt;| [ log    ] |&lt;=====&gt;|  mavisd   | |
@@ -232,59 +154,37 @@ desired, e.g. suitable for database access modules.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN53" id="AEN53">5. Configuration
-Syntax</a></h2>
-<p>MAVIS modules are configured within the context of the
-application utilizing them. There's no special configuration file
-required or even supported.</p>
+<h2 class="section"><a name="AEN53" id="AEN53">5. Configuration Syntax</a></h2>
+<p>MAVIS modules are configured within the context of the application utilizing them. There's no special configuration file required or even supported.</p>
 <div class="mediaobject">
-<p><img src="railroad/mavis/MavisDecl.svg"></p>
+<p><img alt="" src="railroad/mavis/MavisDecl.svg"></p>
 <div class="caption">
 <p>Railroad diagram: MavisDecl</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN63" id="AEN63">5.1. Standard
-Configuration Directives</a></h3>
-<p>Top-level configuration directives common to all of the
-applications using the MAVIS interface are:</p>
+<h3 class="section"><a name="AEN63" id="AEN63">5.1. Standard Configuration Directives</a></h3>
+<p>Top-level configuration directives common to all of the applications using the MAVIS interface are:</p>
 <ul>
 <li>
-<p><tt class="literal">include =</tt> <span class=
-"emphasis"><i class="emphasis">config</i></span></p>
-<p>Evaluates configuration file <span class="emphasis"><i class=
-"emphasis">config</i></span>.</p>
+<p><tt class="literal">include =</tt> <span class="emphasis"><i class="emphasis">config</i></span></p>
+<p>Evaluates configuration file <span class="emphasis"><i class="emphasis">config</i></span>.</p>
 </li>
 <li>
-<p><tt class="literal">id =</tt> <span class="emphasis"><i class=
-"emphasis">ID</i></span><tt class="literal">{</tt> ... <tt class=
-"literal">}</tt></p>
-<p>Defines a configuration section <span class="emphasis"><i class=
-"emphasis">ID</i></span>, which will be evaluated by a matching
-server process.</p>
+<p><tt class="literal">id =</tt> <span class="emphasis"><i class="emphasis">ID</i></span><tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
+<p>Defines a configuration section <span class="emphasis"><i class="emphasis">ID</i></span>, which will be evaluated by a matching server process.</p>
 </li>
 </ul>
-<p>Standard configuration directives which may be used both at
-top-level and inside the <span class="emphasis"><i class=
-"emphasis">ID</i></span> sections are:</p>
+<p>Standard configuration directives which may be used both at top-level and inside the <span class="emphasis"><i class="emphasis">ID</i></span> sections are:</p>
 <ul>
 <li>
-<p><tt class="literal">alias =</tt> <span class=
-"emphasis"><i class="emphasis">name</i></span> <tt class=
-"literal">{</tt> ... <tt class="literal">}</tt></p>
-<p>Defines an alias for the configuration directives inside the
-curly brackets.</p>
+<p><tt class="literal">alias =</tt> <span class="emphasis"><i class="emphasis">name</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
+<p>Defines an alias for the configuration directives inside the curly brackets.</p>
 </li>
 <li>
-<p><tt class="literal">debug =</tt> <span class=
-"emphasis"><i class="emphasis">Level</i></span> ...</p>
-<p><span class="emphasis"><i class="emphasis">Level</i></span> can
-be either a integer value or a sequence of debugging keywords, each
-of which may, optionally, start with <tt class="literal">+</tt> or
-<tt class="literal">-</tt>, where <tt class="literal">+</tt> will
-enable debugging, and <tt class="literal">-</tt> will disable it.
-Supported keywords and their corresponding integer values are:</p>
+<p><tt class="literal">debug =</tt> <span class="emphasis"><i class="emphasis">Level</i></span> ...</p>
+<p><span class="emphasis"><i class="emphasis">Level</i></span> can be either a integer value or a sequence of debugging keywords, each of which may, optionally, start with <tt class="literal">+</tt> or <tt class="literal">-</tt>, where <tt class="literal">+</tt> will enable debugging, and <tt class="literal">-</tt> will disable it. Supported keywords and their corresponding integer values are:</p>
 <div class="informaltable"><a name="AEN101" id="AEN101"></a>
 <table border="1" class="CALSTABLE">
 <col>
@@ -373,78 +273,41 @@ Supported keywords and their corresponding integer values are:</p>
 </tbody>
 </table>
 </div>
-<p>Not all of these debugging flags may have an actual effect. The
-flags are additive; use the special flag <tt class=
-"literal">NONE</tt> to clear all flags, use <tt class=
-"literal">ALL</tt> to set all flags.</p>
-<p>Debugging options may only be available when the package was
-configured with the <tt class="literal">--debug</tt> command line
-switch.</p>
+<p>Not all of these debugging flags may have an actual effect. The flags are additive; use the special flag <tt class="literal">NONE</tt> to clear all flags, use <tt class="literal">ALL</tt> to set all flags.</p>
+<p>Debugging options may only be available when the package was configured with the <tt class="literal">--debug</tt> command line switch.</p>
 <p>Example:</p>
 <pre class="screen">debug = ALL -PARSE -NET</pre></li>
 <li>
-<p><tt class="literal">regex-match-case =</tt> ( <tt class=
-"literal">yes</tt> | <tt class="literal">no</tt> )</p>
-<p>Enables/disables case-sensitive regex pattern matching for the
-current context. Default: <tt class="literal">no</tt>.</p>
+<p><tt class="literal">regex-match-case =</tt> ( <tt class="literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p>Enables/disables case-sensitive regex pattern matching for the current context. Default: <tt class="literal">no</tt>.</p>
 </li>
 <li>
-<p><tt class="literal">syslog ident =</tt> <span class=
-"emphasis"><i class="emphasis">Ident</i></span></p>
-<p>Set the <tt class="literal">syslog</tt>(3) identity. Defaults to
-the programs basename.</p>
+<p><tt class="literal">syslog ident =</tt> <span class="emphasis"><i class="emphasis">Ident</i></span></p>
+<p>Set the <tt class="literal">syslog</tt>(3) identity. Defaults to the programs basename.</p>
 </li>
 <li>
-<p><tt class="literal">syslog severity =</tt> <span class=
-"emphasis"><i class="emphasis">Level</i></span></p>
-<p>Set the <tt class="literal">syslog</tt>(3) severity. Default:
-<tt class="literal">INFO</tt>.</p>
+<p><tt class="literal">syslog severity =</tt> <span class="emphasis"><i class="emphasis">Level</i></span></p>
+<p>Set the <tt class="literal">syslog</tt>(3) severity. Default: <tt class="literal">INFO</tt>.</p>
 </li>
 <li>
-<p><tt class="literal">syslog facility =</tt> <span class=
-"emphasis"><i class="emphasis">Facility</i></span></p>
-<p>Set the <tt class="literal">syslog</tt>(3) facility. Default:
-<tt class="literal">UUCP</tt>.</p>
+<p><tt class="literal">syslog facility =</tt> <span class="emphasis"><i class="emphasis">Facility</i></span></p>
+<p>Set the <tt class="literal">syslog</tt>(3) facility. Default: <tt class="literal">UUCP</tt>.</p>
 </li>
 <li>
-<p><tt class="literal">syslog default =</tt> ( <tt class=
-"literal">permit</tt> | <tt class="literal">deny</tt> )</p>
-<p>Enables or disables implicit logging to <tt class=
-"literal">syslog</tt>(3) (if supported). Default is <tt class=
-"literal">permit</tt>.</p>
+<p><tt class="literal">syslog default =</tt> ( <tt class="literal">permit</tt> | <tt class="literal">deny</tt> )</p>
+<p>Enables or disables implicit logging to <tt class="literal">syslog</tt>(3) (if supported). Default is <tt class="literal">permit</tt>.</p>
 </li>
 </ul>
-<p>Standard configuration directives which may be used inside the
-<span class="emphasis"><i class="emphasis">ID</i></span> section of
-<span class="emphasis"><i class="emphasis">MAVIS</i></span> enabled
-applications are:</p>
+<p>Standard configuration directives which may be used inside the <span class="emphasis"><i class="emphasis">ID</i></span> section of <span class="emphasis"><i class="emphasis">MAVIS</i></span> enabled applications are:</p>
 <ul>
 <li>
-<p><tt class="literal">mavis path =</tt> <span class=
-"emphasis"><i class="emphasis">Path</i></span></p>
-<p>Add <span class="emphasis"><i class="emphasis">Path</i></span>
-to the module search path.</p>
+<p><tt class="literal">mavis path =</tt> <span class="emphasis"><i class="emphasis">Path</i></span></p>
+<p>Add <span class="emphasis"><i class="emphasis">Path</i></span> to the module search path.</p>
 </li>
 <li>
-<p><tt class="literal">mavis module</tt> ( <span class=
-"emphasis"><i class="emphasis">identitySourceName</i></span> )
-<tt class="literal">=</tt> <span class="emphasis"><i class=
-"emphasis">ModuleName</i></span> <tt class="literal">{</tt> ...
-<tt class="literal">}</tt></p>
-<p>This directive searchs for module <span class=
-"emphasis"><i class="emphasis">ModuleName</i></span> in the
-compiled-in and configured search paths. Alternatively to
-auto-search, <span class="emphasis"><i class=
-"emphasis">ModuleName</i></span> may be an absolute path to a MAVIS
-module. The module will be loaded and will parse the configuration
-data inside the curly brackets.</p>
-<p><span class="emphasis"><i class=
-"emphasis">identitySourceName</i></span> is an optional parameter
-to provide better visibility of the source (the originating
-<span class="emphasis"><i class="emphasis">MAVIS</i></span> module)
-of an identity. It will be assigned to the <span class=
-"emphasis"><i class="emphasis">MAVIS</i></span> <tt class=
-"literal">IDENTITY_SOURCE</tt> attribute.</p>
+<p><tt class="literal">mavis module</tt> ( <span class="emphasis"><i class="emphasis">identitySourceName</i></span> ) <tt class="literal">=</tt> <span class="emphasis"><i class="emphasis">ModuleName</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
+<p>This directive searchs for module <span class="emphasis"><i class="emphasis">ModuleName</i></span> in the compiled-in and configured search paths. Alternatively to auto-search, <span class="emphasis"><i class="emphasis">ModuleName</i></span> may be an absolute path to a MAVIS module. The module will be loaded and will parse the configuration data inside the curly brackets.</p>
+<p><span class="emphasis"><i class="emphasis">identitySourceName</i></span> is an optional parameter to provide better visibility of the source (the originating <span class="emphasis"><i class="emphasis">MAVIS</i></span> module) of an identity. It will be assigned to the <span class="emphasis"><i class="emphasis">MAVIS</i></span> <tt class="literal">IDENTITY_SOURCE</tt> attribute.</p>
 </li>
 </ul>
 <p>An actual configuration could look similar to:</p>
@@ -487,79 +350,51 @@ id = ftpd {
 }</pre></div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN234" id="AEN234">5.2. Backend
-Module Configuration</a></h3>
+<h3 class="section"><a name="AEN234" id="AEN234">5.2. Backend Module Configuration</a></h3>
 <p>Generic configuration options for modules:</p>
 <ul>
 <li>
-<p><tt class="literal">action</tt> ( <tt class="literal">error</tt>
-| <tt class="literal">not-found</tt> ) <tt class="literal">=</tt> (
-<tt class="literal">continue</tt> | <tt class="literal">reject</tt>
-)</p>
-<p>A module typically either acknowledges an request (user
-found/authenticated), rejects it (bad passsword) or handles the
-request on to the next module (the "user not found" case). This
-directives allows for overriding that verdict. Defaults are:</p>
+<p><tt class="literal">action</tt> ( <tt class="literal">error</tt> | <tt class="literal">not-found</tt> ) <tt class="literal">=</tt> ( <tt class="literal">continue</tt> | <tt class="literal">reject</tt> )</p>
+<p>A module typically either acknowledges an request (user found/authenticated), rejects it (bad passsword) or handles the request on to the next module (the "user not found" case). This directives allows for overriding that verdict. Defaults are:</p>
 <pre class="screen">action error = reject       # reject request
 action not-found = continue # continue with next MAVIS module, if any</pre></li>
 </ul>
 <p>The following modules are included in the distribution.</p>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN249" id="AEN249">5.2.1. The
-<span class="emphasis"><i class="emphasis">anonftp</i></span>
-module</a></h4>
-<p>This module implements anonymous FTP authentication. If the
-<tt class="literal">cache</tt> module is to be used, it has to be
-loaded <span class="emphasis"><i class="emphasis">after</i></span>
-the <tt class="literal">anonftp</tt> module, because the <tt class=
-"literal">cache</tt> module will only cache FTP type queries
-compatible with the <tt class="literal">auth</tt> module, and
-queries answered by the <tt class="literal">anonftp</tt> module
-aren't.</p>
+<h4 class="section"><a name="AEN249" id="AEN249">5.2.1. The <span class="emphasis"><i class="emphasis">anonftp</i></span> module</a></h4>
+<p>This module implements anonymous FTP authentication. If the <tt class="literal">cache</tt> module is to be used, it has to be loaded <span class="emphasis"><i class="emphasis">after</i></span> the <tt class="literal">anonftp</tt> module, because the <tt class="literal">cache</tt> module will only cache FTP type queries compatible with the <tt class="literal">auth</tt> module, and queries answered by the <tt class="literal">anonftp</tt> module aren't.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN259" id="AEN259">5.2.1.1.
-Configuration directives</a></h5>
-<p>The following configuration directives are mandatory, unless a
-<tt class="literal">ftp</tt> user exists in the local password
-database, in which case that information may be gathered from
-there:</p>
+<h5 class="section"><a name="AEN259" id="AEN259">5.2.1.1. Configuration directives</a></h5>
+<p>The following configuration directives are mandatory, unless a <tt class="literal">ftp</tt> user exists in the local password database, in which case that information may be gathered from there:</p>
 <ul>
 <li>
-<p><tt class="literal">userid =</tt> <span class=
-"emphasis"><i class="emphasis">UserID</i></span></p>
+<p><tt class="literal">userid =</tt> <span class="emphasis"><i class="emphasis">UserID</i></span></p>
 </li>
 <li>
-<p><tt class="literal">groupid =</tt> <span class=
-"emphasis"><i class="emphasis">GroupID</i></span></p>
+<p><tt class="literal">groupid =</tt> <span class="emphasis"><i class="emphasis">GroupID</i></span></p>
 </li>
 <li>
-<p><tt class="literal">root =</tt> <span class="emphasis"><i class=
-"emphasis">RootDirectory</i></span></p>
+<p><tt class="literal">root =</tt> <span class="emphasis"><i class="emphasis">RootDirectory</i></span></p>
 </li>
 <li>
-<p><tt class="literal">home =</tt> <span class="emphasis"><i class=
-"emphasis">HomeDirectory</i></span></p>
+<p><tt class="literal">home =</tt> <span class="emphasis"><i class="emphasis">HomeDirectory</i></span></p>
 </li>
 </ul>
 <p>Optional directives are:</p>
 <ul>
 <li>
-<p><tt class="literal">upload =</tt> <span class=
-"emphasis"><i class="emphasis">UploadPathRegex</i></span></p>
-<p>By default, anonymous FTP uploads are denied. The <tt class=
-"literal">upload</tt> directive specifies a POSIX regular
-expression where uploads are permitted.</p>
+<p><tt class="literal">upload =</tt> <span class="emphasis"><i class="emphasis">UploadPathRegex</i></span></p>
+<p>By default, anonymous FTP uploads are denied. The <tt class="literal">upload</tt> directive specifies a POSIX regular expression where uploads are permitted.</p>
 </li>
 </ul>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN288" id="AEN288">5.2.1.2. Railroad
-Diagram</a></h5>
+<h5 class="section"><a name="AEN288" id="AEN288">5.2.1.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
-<p><img src="railroad/mavis/AnonftpConf.svg"></p>
+<p><img alt="" src="railroad/mavis/AnonftpConf.svg"></p>
 <div class="caption">
 <p>Railroad diagram: AnonftpConf</p>
 </div>
@@ -568,52 +403,37 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN298" id="AEN298">5.2.2. The
-<span class="emphasis"><i class="emphasis">asciiftp</i></span>
-module</a></h4>
+<h4 class="section"><a name="AEN298" id="AEN298">5.2.2. The <span class="emphasis"><i class="emphasis">asciiftp</i></span> module</a></h4>
 <p>This module implements FTP authentication via an ASCII file.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN302" id="AEN302">5.2.2.1.
-Configuration directives</a></h5>
+<h5 class="section"><a name="AEN302" id="AEN302">5.2.2.1. Configuration directives</a></h5>
 <ul>
 <li>
-<p><tt class="literal">file =</tt> <span class="emphasis"><i class=
-"emphasis">path</i></span></p>
-<p>Authentication data is read from <span class=
-"emphasis"><i class="emphasis">path</i></span>. The generic syntax
-for individual configuration file lines is:</p>
-<pre class=
-"screen">user:password:uid:gids:type:root:home<span class=
-"emphasis"><i class="emphasis">[</i></span>:certsubj<span class=
-"emphasis"><i class="emphasis">]</i></span></pre>
+<p><tt class="literal">file =</tt> <span class="emphasis"><i class="emphasis">path</i></span></p>
+<p>Authentication data is read from <span class="emphasis"><i class="emphasis">path</i></span>. The generic syntax for individual configuration file lines is:</p>
+<pre class="screen">user:password:uid:gids:type:root:home<span class="emphasis"><i class="emphasis">[</i></span>:certsubj<span class="emphasis"><i class="emphasis">]</i></span></pre>
 <p>Example file:</p>
-<pre class=
-"screen">customer1:whatever:10000:10001:anon:/home/customers/customer1:/
+<pre class="screen">customer1:whatever:10000:10001:anon:/home/customers/customer1:/
 customer2:whatever:10000:10002:anon:/home/customers/customer2:/:/C=DE/ST=...
 admin:whatever:10000:10001,10002:real:/home/customers:/admin</pre>
 <p>This configuration directive is mandatory.</p>
 </li>
 <li>
-<p><tt class="literal">userid</tt> ( <tt class="literal">min</tt> |
-<tt class="literal">max</tt> ) <span class="emphasis"><i class=
-"emphasis">UserID</i></span></p>
+<p><tt class="literal">userid</tt> ( <tt class="literal">min</tt> | <tt class="literal">max</tt> ) <span class="emphasis"><i class="emphasis">UserID</i></span></p>
 <p>This directive specifies upper and lower UID limits.</p>
 </li>
 <li>
-<p><tt class="literal">groupid</tt> ( <tt class="literal">min</tt>
-| <tt class="literal">max</tt> ) <span class="emphasis"><i class=
-"emphasis">GroupID</i></span></p>
+<p><tt class="literal">groupid</tt> ( <tt class="literal">min</tt> | <tt class="literal">max</tt> ) <span class="emphasis"><i class="emphasis">GroupID</i></span></p>
 <p>This directive specifies upper and lower GID limits.</p>
 </li>
 </ul>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN332" id="AEN332">5.2.2.2. Railroad
-Diagram</a></h5>
+<h5 class="section"><a name="AEN332" id="AEN332">5.2.2.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
-<p><img src="railroad/mavis/ASCIIftpConf.svg"></p>
+<p><img alt="" src="railroad/mavis/ASCIIftpConf.svg"></p>
 <div class="caption">
 <p>Railroad diagram: ASCIIftpConf</p>
 </div>
@@ -622,45 +442,25 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN342" id="AEN342">5.2.3. The
-<span class="emphasis"><i class="emphasis">auth</i></span>
-module</a></h4>
-<p>This module implements the server side of plain text and
-certificate based authentication schemes.</p>
-<p>The <span class="emphasis"><i class="emphasis">auth</i></span>
-module is mandatory for most authentication to work. It needs to be
-loaded before any caching or database access module, and it won't
-work over remote links unless mavisd is configured with
-"transmit-password yes". The <span class="emphasis"><i class=
-"emphasis">anonftp</i></span> and, depending on the backend, the
-<span class="emphasis"><i class="emphasis">external</i></span>
-module are the only ones that doesn't require this module to be
-loaded.</p>
+<h4 class="section"><a name="AEN342" id="AEN342">5.2.3. The <span class="emphasis"><i class="emphasis">auth</i></span> module</a></h4>
+<p>This module implements the server side of plain text and certificate based authentication schemes.</p>
+<p>The <span class="emphasis"><i class="emphasis">auth</i></span> module is mandatory for most authentication to work. It needs to be loaded before any caching or database access module, and it won't work over remote links unless mavisd is configured with "transmit-password yes". The <span class="emphasis"><i class="emphasis">anonftp</i></span> and, depending on the backend, the <span class="emphasis"><i class="emphasis">external</i></span> module are the only ones that doesn't require this module to be loaded.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN350" id="AEN350">5.2.3.1.
-Configuration Syntax</a></h5>
+<h5 class="section"><a name="AEN350" id="AEN350">5.2.3.1. Configuration Syntax</a></h5>
 <p>The only configuration option available is</p>
 <ul>
 <li>
-<p><tt class="literal">authentication-mode = cert</tt> [ <tt class=
-"literal">sufficient</tt> | <tt class="literal">required</tt> ]</p>
-<p>This option may be used when authentication via digital
-certificates (currently supported by the <span class=
-"emphasis"><i class="emphasis">system</i></span> module) is used.
-If the <tt class="literal">sufficient</tt> keyword is used, no
-additional password authentication is necessary. The <tt class=
-"literal">required</tt> keyword makes certificate authentication
-mandatory</p>
+<p><tt class="literal">authentication-mode = cert</tt> [ <tt class="literal">sufficient</tt> | <tt class="literal">required</tt> ]</p>
+<p>This option may be used when authentication via digital certificates (currently supported by the <span class="emphasis"><i class="emphasis">system</i></span> module) is used. If the <tt class="literal">sufficient</tt> keyword is used, no additional password authentication is necessary. The <tt class="literal">required</tt> keyword makes certificate authentication mandatory</p>
 </li>
 </ul>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN363" id="AEN363">5.2.3.2. Railroad
-Diagram</a></h5>
+<h5 class="section"><a name="AEN363" id="AEN363">5.2.3.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
-<p><img src="railroad/mavis/AuthConf.svg"></p>
+<p><img alt="" src="railroad/mavis/AuthConf.svg"></p>
 <div class="caption">
 <p>Railroad diagram: AuthConf</p>
 </div>
@@ -669,54 +469,33 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN373" id="AEN373">5.2.4. The
-<span class="emphasis"><i class="emphasis">cache</i></span>
-module</a></h4>
-<p>Please note that this module doesn't support <span class=
-"bold"><b class="emphasis">tac_plus</b></span>/<span class=
-"bold"><b class="emphasis">tac_plus-ng</b></span>. These do their
-own caching.</p>
-<p>This module stores the most recently answered queries in RAM for
-faster processing of subsequent queries for the same data. For most
-applications, it has to be loaded <span class="emphasis"><i class=
-"emphasis">after</i></span> the auth module.</p>
+<h4 class="section"><a name="AEN373" id="AEN373">5.2.4. The <span class="emphasis"><i class="emphasis">cache</i></span> module</a></h4>
+<p>Please note that this module doesn't support <span class="bold"><b class="emphasis">tac_plus</b></span>/<span class="bold"><b class="emphasis">tac_plus-ng</b></span>. These do their own caching.</p>
+<p>This module stores the most recently answered queries in RAM for faster processing of subsequent queries for the same data. For most applications, it has to be loaded <span class="emphasis"><i class="emphasis">after</i></span> the auth module.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN381" id="AEN381">5.2.4.1.
-Configuration directives</a></h5>
+<h5 class="section"><a name="AEN381" id="AEN381">5.2.4.1. Configuration directives</a></h5>
 <p>Available configuration directives are:</p>
 <ul>
 <li>
-<p><tt class="literal">expire</tt> [ <span class=
-"emphasis"><i class="emphasis">Type</i></span> ] <tt class=
-"literal">=</tt> <span class="emphasis"><i class=
-"emphasis">Seconds</i></span></p>
-<p>Specifies the caching period for requests of type <span class=
-"emphasis"><i class="emphasis">Type</i></span> (or of all requests,
-if no type is given). No caching will be performed unless this
-directive is given. Valid values for <span class=
-"emphasis"><i class="emphasis">Type</i></span> are: <tt class=
-"literal">FTP</tt>, <tt class="literal">TACPLUS</tt>.</p>
+<p><tt class="literal">expire</tt> [ <span class="emphasis"><i class="emphasis">Type</i></span> ] <tt class="literal">=</tt> <span class="emphasis"><i class="emphasis">Seconds</i></span></p>
+<p>Specifies the caching period for requests of type <span class="emphasis"><i class="emphasis">Type</i></span> (or of all requests, if no type is given). No caching will be performed unless this directive is given. Valid values for <span class="emphasis"><i class="emphasis">Type</i></span> are: <tt class="literal">FTP</tt>, <tt class="literal">TACPLUS</tt>.</p>
 <p>Example:</p>
 <pre class="screen"># cache everything 100 seconds by default:
 expire = 100
 # Don't cache FTP requests:
 cache expire FTP = 0</pre></li>
 <li>
-<p><tt class="literal">purge-outdated =</tt> <span class=
-"emphasis"><i class="emphasis">Seconds</i></span></p>
-<p>Periodically, outdated entries have to be removed from the
-cache. By default, this happens every 300 seconds, but you may
-specify a different garbage collection interval.</p>
+<p><tt class="literal">purge-outdated =</tt> <span class="emphasis"><i class="emphasis">Seconds</i></span></p>
+<p>Periodically, outdated entries have to be removed from the cache. By default, this happens every 300 seconds, but you may specify a different garbage collection interval.</p>
 </li>
 </ul>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN403" id="AEN403">5.2.4.2. Railroad
-Diagram</a></h5>
+<h5 class="section"><a name="AEN403" id="AEN403">5.2.4.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
-<p><img src="railroad/mavis/CacheConf.svg"></p>
+<p><img alt="" src="railroad/mavis/CacheConf.svg"></p>
 <div class="caption">
 <p>Railroad diagram: CacheConf</p>
 </div>
@@ -725,87 +504,46 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN413" id="AEN413">5.2.5. The
-<span class="emphasis"><i class="emphasis">external</i></span>
-module</a></h4>
-<p>This module implements an interface to external authentication
-programs. An authentication program is expected to read a list of
-attribute-value pairs on <tt class="literal">stdin</tt>, and write
-the processed list (plus a result code) to <tt class=
-"literal">stdout</tt>. The programs <tt class="literal">stderr</tt>
-output will be logged to <tt class="literal">syslogd</tt>.</p>
-<p>Sample authentication backends for the <tt class=
-"literal">external</tt> module include various Perl scripts, e.g.
-for RADIUS and LDAP authentication (see the <tt class=
-"literal">mavis/perl/</tt> directory), plus C backends. The latter
-are <tt class="literal">radmavis</tt> (for RADIUS authentication)
-and <tt class="literal">pammavis</tt> (for PAM authentication, as
-an alternative to the <span class="emphasis"><i class=
-"emphasis">PAM</i></span> module). While those may not be as
-flexible and easily to modify as the Perl scripts, they carry far
-fewer dependencies, and quite a lot of the usual attribute
-modifications can be performed using scripts; see the Scripting
-section below.</p>
-<p>Using the <span class="emphasis"><i class=
-"emphasis">external</i></span> module to interface to external
-authenticators is probably in most cases favourable to writing
-custom modules, as external authentication programs may be
-implemented as easy-to-deploy Perl programs. Plus, you're likely to
-get get parallelism for free.</p>
+<h4 class="section"><a name="AEN413" id="AEN413">5.2.5. The <span class="emphasis"><i class="emphasis">external</i></span> module</a></h4>
+<p>This module implements an interface to external authentication programs. An authentication program is expected to read a list of attribute-value pairs on <tt class="literal">stdin</tt>, and write the processed list (plus a result code) to <tt class="literal">stdout</tt>. The programs <tt class="literal">stderr</tt> output will be logged to <tt class="literal">syslogd</tt>.</p>
+<p>Sample authentication backends for the <tt class="literal">external</tt> module include various Perl scripts, e.g. for RADIUS and LDAP authentication (see the <tt class="literal">mavis/perl/</tt> directory), plus C backends. The latter are <tt class="literal">radmavis</tt> (for RADIUS authentication) and <tt class="literal">pammavis</tt> (for PAM authentication, as an alternative to the <span class="emphasis"><i class="emphasis">PAM</i></span> module). While those may not be as flexible and easily to modify as the Perl scripts, they carry far fewer dependencies, and quite a lot of the usual attribute modifications can be performed using scripts; see the Scripting section below.</p>
+<p>Using the <span class="emphasis"><i class="emphasis">external</i></span> module to interface to external authenticators is probably in most cases favourable to writing custom modules, as external authentication programs may be implemented as easy-to-deploy Perl programs. Plus, you're likely to get get parallelism for free.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN429" id="AEN429">5.2.5.1.
-Configuration directives</a></h5>
+<h5 class="section"><a name="AEN429" id="AEN429">5.2.5.1. Configuration directives</a></h5>
 <p>The following configuration directives are available:</p>
 <ul>
 <li>
-<p><tt class="literal">userid =</tt> <span class=
-"emphasis"><i class="emphasis">UserID</i></span></p>
-<p>Set user id of child process to <span class="emphasis"><i class=
-"emphasis">UserID</i></span>.</p>
+<p><tt class="literal">userid =</tt> <span class="emphasis"><i class="emphasis">UserID</i></span></p>
+<p>Set user id of child process to <span class="emphasis"><i class="emphasis">UserID</i></span>.</p>
 </li>
 <li>
-<p><tt class="literal">groupid =</tt> <span class=
-"emphasis"><i class="emphasis">GroupID</i></span></p>
-<p>Set group id of child process to <span class=
-"emphasis"><i class="emphasis">GroupID</i></span>.</p>
+<p><tt class="literal">groupid =</tt> <span class="emphasis"><i class="emphasis">GroupID</i></span></p>
+<p>Set group id of child process to <span class="emphasis"><i class="emphasis">GroupID</i></span>.</p>
 </li>
 <li>
-<p><tt class="literal">home =</tt> <span class="emphasis"><i class=
-"emphasis">Directory</i></span></p>
-<p>Change to <span class="emphasis"><i class=
-"emphasis">Directory</i></span> before executing child process.</p>
+<p><tt class="literal">home =</tt> <span class="emphasis"><i class="emphasis">Directory</i></span></p>
+<p>Change to <span class="emphasis"><i class="emphasis">Directory</i></span> before executing child process.</p>
 </li>
 <li>
-<p><tt class="literal">childs</tt> ( <tt class="literal">min</tt> |
-<tt class="literal">max</tt> ) <tt class="literal">=</tt>
-<span class="emphasis"><i class="emphasis">Number</i></span></p>
-<p>Set the minimum or maximum number of child processes (defaults:
-4, 20).</p>
+<p><tt class="literal">childs</tt> ( <tt class="literal">min</tt> | <tt class="literal">max</tt> ) <tt class="literal">=</tt> <span class="emphasis"><i class="emphasis">Number</i></span></p>
+<p>Set the minimum or maximum number of child processes (defaults: 4, 20).</p>
 </li>
 <li>
-<p><tt class="literal">setenv</tt> <span class="emphasis"><i class=
-"emphasis">Variable</i></span> <tt class="literal">=</tt>
-<span class="emphasis"><i class="emphasis">Value</i></span></p>
+<p><tt class="literal">setenv</tt> <span class="emphasis"><i class="emphasis">Variable</i></span> <tt class="literal">=</tt> <span class="emphasis"><i class="emphasis">Value</i></span></p>
 <p>Set environment variables.</p>
 </li>
 <li>
-<p><tt class="literal">exec =</tt> <span class="emphasis"><i class=
-"emphasis">Path</i></span> <span class="emphasis"><i class=
-"emphasis">Arguments ...</i></span></p>
-<p>Set path and arguments (including <tt class=
-"literal">argv[0]</tt>) of the authentication program. It's
-recommended to enclose the individual arguments in double quotes to
-avoid potential conflicts with pre-defined keywords.</p>
+<p><tt class="literal">exec =</tt> <span class="emphasis"><i class="emphasis">Path</i></span> <span class="emphasis"><i class="emphasis">Arguments ...</i></span></p>
+<p>Set path and arguments (including <tt class="literal">argv[0]</tt>) of the authentication program. It's recommended to enclose the individual arguments in double quotes to avoid potential conflicts with pre-defined keywords.</p>
 </li>
 </ul>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN473" id="AEN473">5.2.5.2. Railroad
-Diagram</a></h5>
+<h5 class="section"><a name="AEN473" id="AEN473">5.2.5.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
-<p><img src="railroad/mavis/ExternalConf.svg"></p>
+<p><img alt="" src="railroad/mavis/ExternalConf.svg"></p>
 <div class="caption">
 <p>Railroad diagram: ExternalConf</p>
 </div>
@@ -814,57 +552,33 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN483" id="AEN483">5.2.6. The
-<span class="emphasis"><i class="emphasis">external-mt</i></span>
-module</a></h4>
-<p>Just like the <span class="emphasis"><i class=
-"emphasis">external</i></span> module the <span class=
-"emphasis"><i class="emphasis">external-mt</i></span> module
-implements an interface to external authentication backends.
-However, <span class="emphasis"><i class=
-"emphasis">external-mt</i></span> expects a multi-threaded backend
-which is capable of processing concurrent authentications. Backends
-for <tt class="literal">radmavis-mt</tt> are <tt class=
-"literal">pammavis-mt</tt> (PAM), <tt class=
-"literal">radmavis-mt</tt> (RADIUS) and <tt class=
-"literal">ldapmavis-mt</tt> (LDAP).</p>
-<p>Using <tt class="literal">external-mt</tt> primarily makes sense
-for blocking backends, in particular if the latter would wait for
-interaction on a secondary channel, e.g. for a push notification
-validation.</p>
+<h4 class="section"><a name="AEN483" id="AEN483">5.2.6. The <span class="emphasis"><i class="emphasis">external-mt</i></span> module</a></h4>
+<p>Just like the <span class="emphasis"><i class="emphasis">external</i></span> module the <span class="emphasis"><i class="emphasis">external-mt</i></span> module implements an interface to external authentication backends. However, <span class="emphasis"><i class="emphasis">external-mt</i></span> expects a multi-threaded backend which is capable of processing concurrent authentications. Backends for <tt class="literal">radmavis-mt</tt> are <tt class="literal">pammavis-mt</tt> (PAM), <tt class="literal">radmavis-mt</tt> (RADIUS) and <tt class="literal">ldapmavis-mt</tt> (LDAP).</p>
+<p>Using <tt class="literal">external-mt</tt> primarily makes sense for blocking backends, in particular if the latter would wait for interaction on a secondary channel, e.g. for a push notification validation.</p>
 <pre class="screen">    mavis module = external-mt {
         # -s specifies the service, which defaults to "mavis"
         exec = /usr/local/sbin/pammavis-mt "pammavis-mt" "-s" "pamservicename"
     }</pre>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN497" id="AEN497">5.2.6.1.
-Configuration directives</a></h5>
+<h5 class="section"><a name="AEN497" id="AEN497">5.2.6.1. Configuration directives</a></h5>
 <p>The following configuration directives are available:</p>
 <ul>
 <li>
-<p><tt class="literal">setenv</tt> <span class="emphasis"><i class=
-"emphasis">Variable</i></span> <tt class="literal">=</tt>
-<span class="emphasis"><i class="emphasis">Value</i></span></p>
+<p><tt class="literal">setenv</tt> <span class="emphasis"><i class="emphasis">Variable</i></span> <tt class="literal">=</tt> <span class="emphasis"><i class="emphasis">Value</i></span></p>
 <p>Set environment variables.</p>
 </li>
 <li>
-<p><tt class="literal">exec =</tt> <span class="emphasis"><i class=
-"emphasis">Path</i></span> <span class="emphasis"><i class=
-"emphasis">Arguments ...</i></span></p>
-<p>Set path and arguments (including <tt class=
-"literal">argv[0]</tt>) of the authentication program. It's
-recommended to enclose the individual arguments in double quotes to
-avoid potential conflicts with pre-defined keywords.</p>
+<p><tt class="literal">exec =</tt> <span class="emphasis"><i class="emphasis">Path</i></span> <span class="emphasis"><i class="emphasis">Arguments ...</i></span></p>
+<p>Set path and arguments (including <tt class="literal">argv[0]</tt>) of the authentication program. It's recommended to enclose the individual arguments in double quotes to avoid potential conflicts with pre-defined keywords.</p>
 </li>
 </ul>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN515" id="AEN515">5.2.6.2. Railroad
-Diagram</a></h5>
+<h5 class="section"><a name="AEN515" id="AEN515">5.2.6.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
-<p><img src="railroad/mavis/ExternalMTConf.svg"></p>
+<p><img alt="" src="railroad/mavis/ExternalMTConf.svg"></p>
 <div class="caption">
 <p>Railroad diagram: ExternalMTConf</p>
 </div>
@@ -873,145 +587,79 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN525" id="AEN525">5.2.7. The
-<span class="emphasis"><i class="emphasis">group</i></span>
-module</a></h4>
-<p>This module resolves numerical group IDs returned by a
-downstream backend to their corresponding ASCII names.</p>
-<p>In addition, it allows for filtering group and <span class=
-"emphasis"><i class="emphasis">memberOf</i></span> attributes.</p>
+<h4 class="section"><a name="AEN525" id="AEN525">5.2.7. The <span class="emphasis"><i class="emphasis">group</i></span> module</a></h4>
+<p>This module resolves numerical group IDs returned by a downstream backend to their corresponding ASCII names.</p>
+<p>In addition, it allows for filtering group and <span class="emphasis"><i class="emphasis">memberOf</i></span> attributes.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN531" id="AEN531">5.2.7.1.
-Configuration directives</a></h5>
+<h5 class="section"><a name="AEN531" id="AEN531">5.2.7.1. Configuration directives</a></h5>
 <p>The following configuration directives are available:</p>
 <ul>
 <li>
-<p><tt class="literal">resolve gid =</tt> ( <tt class=
-"literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p><tt class="literal">resolve gid =</tt> ( <tt class="literal">yes</tt> | <tt class="literal">no</tt> )</p>
 <p>This tells the module to resolve the primary group id.</p>
 </li>
 <li>
-<p><tt class="literal">resolve gid attribute =</tt> <span class=
-"emphasis"><i class="emphasis">attribute</i></span></p>
-<p>Put the resolved group id to <span class="emphasis"><i class=
-"emphasis">attribute</i></span> instead of <tt class=
-"literal">GID</tt>. Example:</p>
+<p><tt class="literal">resolve gid attribute =</tt> <span class="emphasis"><i class="emphasis">attribute</i></span></p>
+<p>Put the resolved group id to <span class="emphasis"><i class="emphasis">attribute</i></span> instead of <tt class="literal">GID</tt>. Example:</p>
 <pre class="screen">resolve gids attribute = TACMEMBER</pre></li>
 <li>
-<p><tt class="literal">resolve gids =</tt> ( <tt class=
-"literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p><tt class="literal">resolve gids =</tt> ( <tt class="literal">yes</tt> | <tt class="literal">no</tt> )</p>
 <p>This tells the module to resolve the group access list.</p>
 </li>
 <li>
-<p><tt class="literal">resolve gids attribute =</tt> <span class=
-"emphasis"><i class="emphasis">attribute</i></span></p>
-<p>Put the resolved group ids to <span class="emphasis"><i class=
-"emphasis">attribute</i></span> instead of <tt class=
-"literal">GIDS</tt>. Example:</p>
+<p><tt class="literal">resolve gids attribute =</tt> <span class="emphasis"><i class="emphasis">attribute</i></span></p>
+<p>Put the resolved group ids to <span class="emphasis"><i class="emphasis">attribute</i></span> instead of <tt class="literal">GIDS</tt>. Example:</p>
 <pre class="screen">resolve gids attribute = TACMEMBER</pre></li>
 <li>
-<p><tt class="literal">gid filter =</tt> [ <tt class=
-"literal">not</tt> ] <span class="emphasis"><i class=
-"emphasis">gid_start</i></span>[<tt class=
-"literal">-</tt><span class="emphasis"><i class=
-"emphasis">gid_end</i></span>][<tt class=
-"literal">,</tt><span class="emphasis"><i class=
-"emphasis">gid_start</i></span>[<tt class=
-"literal">-</tt><span class="emphasis"><i class=
-"emphasis">gid_end</i></span>]]*</p>
-<p>Establishes a filter on the <tt class="literal">GID</tt> MAVIS
-attribute. Example:</p>
+<p><tt class="literal">gid filter =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">gid_start</i></span>[<tt class="literal">-</tt><span class="emphasis"><i class="emphasis">gid_end</i></span>][<tt class="literal">,</tt><span class="emphasis"><i class="emphasis">gid_start</i></span>[<tt class="literal">-</tt><span class="emphasis"><i class="emphasis">gid_end</i></span>]]*</p>
+<p>Establishes a filter on the <tt class="literal">GID</tt> MAVIS attribute. Example:</p>
 <pre class="screen">gid filter = 100,1000-1050</pre></li>
 <li>
-<p><tt class="literal">gids filter =</tt> [ <tt class=
-"literal">not</tt> ] <span class="emphasis"><i class=
-"emphasis">gid_start</i></span>[<tt class=
-"literal">-</tt><span class="emphasis"><i class=
-"emphasis">gid_end</i></span>][<tt class=
-"literal">,</tt><span class="emphasis"><i class=
-"emphasis">gid_start</i></span>[<tt class=
-"literal">-</tt><span class="emphasis"><i class=
-"emphasis">gid_end</i></span>]]*</p>
-<p>Establishes a filter on the <tt class="literal">GIDS</tt> MAVIS
-attribute. Example:</p>
+<p><tt class="literal">gids filter =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">gid_start</i></span>[<tt class="literal">-</tt><span class="emphasis"><i class="emphasis">gid_end</i></span>][<tt class="literal">,</tt><span class="emphasis"><i class="emphasis">gid_start</i></span>[<tt class="literal">-</tt><span class="emphasis"><i class="emphasis">gid_end</i></span>]]*</p>
+<p>Establishes a filter on the <tt class="literal">GIDS</tt> MAVIS attribute. Example:</p>
 <pre class="screen">gid filter = 100,1000-1050</pre></li>
 <li>
-<p><tt class="literal">group filter =</tt> [ <tt class=
-"literal">not</tt> ] <span class="emphasis"><i class=
-"emphasis">regex</i></span>[<tt class="literal">,</tt><span class=
-"emphasis"><i class="emphasis">regex</i></span>]*</p>
-<p>Establishes a filter on the <tt class="literal">GID</tt> MAVIS
-attribute <span class="emphasis"><i class=
-"emphasis">after</i></span> name resolving. Example:</p>
+<p><tt class="literal">group filter =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">regex</i></span>[<tt class="literal">,</tt><span class="emphasis"><i class="emphasis">regex</i></span>]*</p>
+<p>Establishes a filter on the <tt class="literal">GID</tt> MAVIS attribute <span class="emphasis"><i class="emphasis">after</i></span> name resolving. Example:</p>
 <pre class="screen">group filter = /^com/</pre></li>
 <li>
-<p><tt class="literal">groups filter =</tt> [ <tt class=
-"literal">not</tt> ] <span class="emphasis"><i class=
-"emphasis">regex</i></span>[<tt class="literal">,</tt><span class=
-"emphasis"><i class="emphasis">regex</i></span>]*</p>
-<p>Establishes a filter on the <tt class="literal">GIDS</tt> and
-<tt class="literal">TACMEMBER</tt>MAVIS attributes (for GIDS:
-<span class="emphasis"><i class="emphasis">after</i></span> name
-resolving). Example:</p>
+<p><tt class="literal">groups filter =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">regex</i></span>[<tt class="literal">,</tt><span class="emphasis"><i class="emphasis">regex</i></span>]*</p>
+<p>Establishes a filter on the <tt class="literal">GIDS</tt> and <tt class="literal">TACMEMBER</tt>MAVIS attributes (for GIDS: <span class="emphasis"><i class="emphasis">after</i></span> name resolving). Example:</p>
 <pre class="screen">groups filter = /^com/</pre></li>
 <li>
-<p><tt class="literal">memberof filter =</tt> [ <tt class=
-"literal">not</tt> ] <span class="emphasis"><i class=
-"emphasis">regex</i></span>[<tt class="literal">,</tt><span class=
-"emphasis"><i class="emphasis">regex</i></span>]*</p>
-<p>Establishes a filter on the <tt class="literal">MEMBEROF</tt>
-MAVIS attribute <span class="emphasis"><i class=
-"emphasis">after</i></span> name resolving. Example:</p>
+<p><tt class="literal">memberof filter =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">regex</i></span>[<tt class="literal">,</tt><span class="emphasis"><i class="emphasis">regex</i></span>]*</p>
+<p>Establishes a filter on the <tt class="literal">MEMBEROF</tt> MAVIS attribute <span class="emphasis"><i class="emphasis">after</i></span> name resolving. Example:</p>
 <pre class="screen">memberof filter = /(?i)^cn=ops,dc=/</pre></li>
 </ul>
-<p>(<span class="emphasis"><i class="emphasis">regex</i></span>
-syntax in these examples is PCRE, but standard POSIX will work,
-too.)</p>
+<p>(<span class="emphasis"><i class="emphasis">regex</i></span> syntax in these examples is PCRE, but standard POSIX will work, too.)</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN627" id="AEN627">5.2.8. The
-<span class="emphasis"><i class="emphasis">limit</i></span>
-module</a></h4>
-<p>This module implements limitations on the number of failed
-authentications per IP address.</p>
+<h4 class="section"><a name="AEN627" id="AEN627">5.2.8. The <span class="emphasis"><i class="emphasis">limit</i></span> module</a></h4>
+<p>This module implements limitations on the number of failed authentications per IP address.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN631" id="AEN631">5.2.8.1.
-Configuration directives</a></h5>
+<h5 class="section"><a name="AEN631" id="AEN631">5.2.8.1. Configuration directives</a></h5>
 <p>Available configuration directives are:</p>
 <ul>
 <li>
-<p><tt class="literal">blacklist time =</tt> <span class=
-"emphasis"><i class="emphasis">Seconds</i></span></p>
-<p><tt class="literal">blacklist count =</tt> <span class=
-"emphasis"><i class="emphasis">Count</i></span></p>
-<p>This limits the number of failed authentication requests per
-client IP address to <span class="emphasis"><i class=
-"emphasis">Count</i></span> per <span class="emphasis"><i class=
-"emphasis">Seconds</i></span> interval. Subsequent requests from
-the same client IP address will be rejected. This is disabled by
-default.</p>
+<p><tt class="literal">blacklist time =</tt> <span class="emphasis"><i class="emphasis">Seconds</i></span></p>
+<p><tt class="literal">blacklist count =</tt> <span class="emphasis"><i class="emphasis">Count</i></span></p>
+<p>This limits the number of failed authentication requests per client IP address to <span class="emphasis"><i class="emphasis">Count</i></span> per <span class="emphasis"><i class="emphasis">Seconds</i></span> interval. Subsequent requests from the same client IP address will be rejected. This is disabled by default.</p>
 </li>
 <li>
-<p><tt class="literal">purge-outdated =</tt> <span class=
-"emphasis"><i class="emphasis">Seconds</i></span></p>
-<p>Periodically, the module will start a garbage collection run in
-order to remove outdated data from its internal data structures.
-This directive sets the garbage-collection period to <span class=
-"emphasis"><i class="emphasis">Seconds</i></span> (default:
-300).</p>
+<p><tt class="literal">purge-outdated =</tt> <span class="emphasis"><i class="emphasis">Seconds</i></span></p>
+<p>Periodically, the module will start a garbage collection run in order to remove outdated data from its internal data structures. This directive sets the garbage-collection period to <span class="emphasis"><i class="emphasis">Seconds</i></span> (default: 300).</p>
 </li>
 </ul>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN651" id="AEN651">5.2.8.2. Railroad
-Diagram</a></h5>
+<h5 class="section"><a name="AEN651" id="AEN651">5.2.8.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
-<p><img src="railroad/mavis/LimitConf.svg"></p>
+<p><img alt="" src="railroad/mavis/LimitConf.svg"></p>
 <div class="caption">
 <p>Railroad diagram: LimitConf</p>
 </div>
@@ -1020,36 +668,17 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN661" id="AEN661">5.2.9. The
-<span class="emphasis"><i class="emphasis">log</i></span>
-module</a></h4>
-<p>This module performs query logging to <span class=
-"bold"><b class="emphasis">syslogd</b></span>. There are no
-configuration options.</p>
+<h4 class="section"><a name="AEN661" id="AEN661">5.2.9. The <span class="emphasis"><i class="emphasis">log</i></span> module</a></h4>
+<p>This module performs query logging to <span class="bold"><b class="emphasis">syslogd</b></span>. There are no configuration options.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN666" id="AEN666">5.2.10. The
-<span class="emphasis"><i class="emphasis">PAM</i></span>
-module</a></h4>
-<p>This module implements an interface for FTP authentication via
-pluggable authentication modules (PAM). The <span class=
-"emphasis"><i class="emphasis">PAM</i></span> module doesn't
-support asynchronous operation; you might be better off using the
-<span class="emphasis"><i class="emphasis">external</i></span>
-module in conjunction with the <tt class="literal">pammavis</tt>
-program, giving you parallelism and a lot more flexibility for
-free.</p>
-<p>PAMs that perform queries other than the standard
-username/password aren't supported.</p>
-<p>Please take care not to use PAM modules with login delays
-enabled. E.g., for the <tt class="literal">pam_unix</tt> module,
-configure your PAM subsystem to use the <tt class=
-"literal">nodelay</tt> (or whatever it's called in your setup)
-option, e.g. in /etc/pam.conf:</p>
+<h4 class="section"><a name="AEN666" id="AEN666">5.2.10. The <span class="emphasis"><i class="emphasis">PAM</i></span> module</a></h4>
+<p>This module implements an interface for FTP authentication via pluggable authentication modules (PAM). The <span class="emphasis"><i class="emphasis">PAM</i></span> module doesn't support asynchronous operation; you might be better off using the <span class="emphasis"><i class="emphasis">external</i></span> module in conjunction with the <tt class="literal">pammavis</tt> program, giving you parallelism and a lot more flexibility for free.</p>
+<p>PAMs that perform queries other than the standard username/password aren't supported.</p>
+<p>Please take care not to use PAM modules with login delays enabled. E.g., for the <tt class="literal">pam_unix</tt> module, configure your PAM subsystem to use the <tt class="literal">nodelay</tt> (or whatever it's called in your setup) option, e.g. in /etc/pam.conf:</p>
 <pre class="screen">mavis required pam_unix.so nodelay</pre>
-<p>or in /etc/pam.d/mavis (or whatever service you've specified,
-see below):</p>
+<p>or in /etc/pam.d/mavis (or whatever service you've specified, see below):</p>
 <pre class="screen">auth     required       pam_unix.so nodelay
 account  required       pam_unix.so
 password required       pam_unix.so
@@ -1062,53 +691,38 @@ session  required       pam_opendirectory.so</pre>
 <div class="note">
 <table class="note" width="100%" border="0">
 <tr>
-<td width="25" align="center" valign="top"><img src=
-"images/note.svg" hspace="5" alt="Note"></td>
-<th align="left" valign="middle"><b>Pluggable Authentiation
-Modules</b></th>
+<td width="25" align="center" valign="top"><img src="images/note.svg" hspace="5" alt="Note"></td>
+<th align="left" valign="middle"><b>Pluggable Authentiation Modules</b></th>
 </tr>
 <tr>
 <td>&nbsp;</td>
 <td align="left" valign="top">
-<p>Configuring PAM correctly is pretty system specific. Do not
-assume that one of the examples above will work on your box. Have a
-look at your existing PAM configurations instead, and read the
-documentation that comes with your system.</p>
+<p>Configuring PAM correctly is pretty system specific. Do not assume that one of the examples above will work on your box. Have a look at your existing PAM configurations instead, and read the documentation that comes with your system.</p>
 </td>
 </tr>
 </table>
 </div>
-<p>Programs utilizing this module may have to run under the user id
-of root if access to the shadow password file is required.</p>
+<p>Programs utilizing this module may have to run under the user id of root if access to the shadow password file is required.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN686" id="AEN686">5.2.10.1.
-Configuration directives</a></h5>
+<h5 class="section"><a name="AEN686" id="AEN686">5.2.10.1. Configuration directives</a></h5>
 <p>Available configuration options are:</p>
 <ul>
 <li>
-<p><tt class="literal">chroot =</tt> ( <tt class="literal">yes
-<tt class="literal">|</tt> no</tt> )</p>
-<p>This activates a chroot environment for PAM users (default:
-<tt class="literal">yes</tt>). The chroot root directory is either
-the users' home directory or, if the home directory path contains a
-<tt class="literal">/./</tt> sequence, the directory denoted by the
-path up to that sequence.</p>
+<p><tt class="literal">chroot =</tt> ( <tt class="literal">yes <tt class="literal">|</tt> no</tt> )</p>
+<p>This activates a chroot environment for PAM users (default: <tt class="literal">yes</tt>). The chroot root directory is either the users' home directory or, if the home directory path contains a <tt class="literal">/./</tt> sequence, the directory denoted by the path up to that sequence.</p>
 </li>
 <li>
-<p><tt class="literal">service =</tt> <span class=
-"emphasis"><i class="emphasis">Service</i></span></p>
-<p>This specifies the service name to use for PAM initialization.
-It defaults to <tt class="literal">mavis</tt>.</p>
+<p><tt class="literal">service =</tt> <span class="emphasis"><i class="emphasis">Service</i></span></p>
+<p>This specifies the service name to use for PAM initialization. It defaults to <tt class="literal">mavis</tt>.</p>
 </li>
 </ul>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN704" id="AEN704">5.2.10.2. Railroad
-Diagram</a></h5>
+<h5 class="section"><a name="AEN704" id="AEN704">5.2.10.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
-<p><img src="railroad/mavis/PAMConf.svg"></p>
+<p><img alt="" src="railroad/mavis/PAMConf.svg"></p>
 <div class="caption">
 <p>Railroad diagram: PAMConf</p>
 </div>
@@ -1117,86 +731,60 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN714" id="AEN714">5.2.11. The
-<span class="emphasis"><i class="emphasis">remote</i></span>
-module</a></h4>
+<h4 class="section"><a name="AEN714" id="AEN714">5.2.11. The <span class="emphasis"><i class="emphasis">remote</i></span> module</a></h4>
 <p>This module implements communication with mavisd.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN718" id="AEN718">5.2.11.1.
-Configuration directives</a></h5>
+<h5 class="section"><a name="AEN718" id="AEN718">5.2.11.1. Configuration directives</a></h5>
 <p>Available configuration options are:</p>
 <ul>
 <li>
-<p><tt class="literal">local address =</tt> <span class=
-"emphasis"><i class="emphasis">IPAddress</i></span></p>
+<p><tt class="literal">local address =</tt> <span class="emphasis"><i class="emphasis">IPAddress</i></span></p>
 <p>Set address for outgoing IP connections.</p>
 </li>
 <li>
-<p><tt class="literal">rebalance =</tt> <span class=
-"emphasis"><i class="emphasis">Count</i></span></p>
-<p>Re-balances peers after <span class="emphasis"><i class=
-"emphasis">Count</i></span> requests. May be used to reactivate
-dead peers. Use with care.</p>
+<p><tt class="literal">rebalance =</tt> <span class="emphasis"><i class="emphasis">Count</i></span></p>
+<p>Re-balances peers after <span class="emphasis"><i class="emphasis">Count</i></span> requests. May be used to reactivate dead peers. Use with care.</p>
 <p>Default: unset.</p>
 </li>
 <li>
-<p><tt class="literal">server = {</tt> ... <tt class=
-"literal">}</tt></p>
-<p>Specifies a server <span class="bold"><b class=
-"emphasis">mavisd</b></span> runs on. Inside the curly brackets,
-the following directives are permitted:</p>
+<p><tt class="literal">server = {</tt> ... <tt class="literal">}</tt></p>
+<p>Specifies a server <span class="bold"><b class="emphasis">mavisd</b></span> runs on. Inside the curly brackets, the following directives are permitted:</p>
 <ul>
 <li>
-<p><tt class="literal">path =</tt> <span class="emphasis"><i class=
-"emphasis">UnixPath</i></span></p>
+<p><tt class="literal">path =</tt> <span class="emphasis"><i class="emphasis">UnixPath</i></span></p>
 </li>
 <li>
-<p><tt class="literal">address =</tt> <span class=
-"emphasis"><i class="emphasis">IPAddress</i></span></p>
+<p><tt class="literal">address =</tt> <span class="emphasis"><i class="emphasis">IPAddress</i></span></p>
 </li>
 <li>
-<p><tt class="literal">port =</tt> <span class="emphasis"><i class=
-"emphasis">UDPPort</i></span></p>
+<p><tt class="literal">port =</tt> <span class="emphasis"><i class="emphasis">UDPPort</i></span></p>
 </li>
 <li>
-<p><tt class="literal">blowfish key =</tt> <span class=
-"emphasis"><i class="emphasis">Key</i></span></p>
+<p><tt class="literal">blowfish key =</tt> <span class="emphasis"><i class="emphasis">Key</i></span></p>
 </li>
 <li>
-<p><tt class="literal">blowfish keyfile =</tt> <span class=
-"emphasis"><i class="emphasis">KeyFile</i></span></p>
+<p><tt class="literal">blowfish keyfile =</tt> <span class="emphasis"><i class="emphasis">KeyFile</i></span></p>
 </li>
 </ul>
-<p>These set remote connection endpoint and blowfish key. This
-directive may be used multiple times. Communication will be
-Blowfish encrypted if a key is specified.</p>
-<p>Communication via PF_UNIX sockets may only work if the host
-system supports anonymous binds for that protocol family. This
-works on Linux, which supports an abstract namespace which is
-independent of the file system, but may or may not be an option on
-other operating systems.</p>
+<p>These set remote connection endpoint and blowfish key. This directive may be used multiple times. Communication will be Blowfish encrypted if a key is specified.</p>
+<p>Communication via PF_UNIX sockets may only work if the host system supports anonymous binds for that protocol family. This works on Linux, which supports an abstract namespace which is independent of the file system, but may or may not be an option on other operating systems.</p>
 </li>
 <li>
-<p><tt class="literal">timeout =</tt> <span class=
-"emphasis"><i class="emphasis">Seconds</i></span></p>
-<p>Sets the maximum number of seconds to wait for a response from
-one of the remote peers. Defaults to: 5.</p>
+<p><tt class="literal">timeout =</tt> <span class="emphasis"><i class="emphasis">Seconds</i></span></p>
+<p>Sets the maximum number of seconds to wait for a response from one of the remote peers. Defaults to: 5.</p>
 </li>
 <li>
-<p><tt class="literal">tries =</tt> <span class=
-"emphasis"><i class="emphasis">Count</i></span></p>
-<p>Sets the maximum number of attempts to get a response from one
-of the remote peers. Default is 6 tries.</p>
+<p><tt class="literal">tries =</tt> <span class="emphasis"><i class="emphasis">Count</i></span></p>
+<p>Sets the maximum number of attempts to get a response from one of the remote peers. Default is 6 tries.</p>
 </li>
 </ul>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN773" id="AEN773">5.2.11.2. Railroad
-Diagram</a></h5>
+<h5 class="section"><a name="AEN773" id="AEN773">5.2.11.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
-<p><img src="railroad/mavis/RemoteConf.svg"></p>
+<p><img alt="" src="railroad/mavis/RemoteConf.svg"></p>
 <div class="caption">
 <p>Railroad diagram: RemoteConf</p>
 </div>
@@ -1204,52 +792,35 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN783" id="AEN783">5.2.11.3. Possible
-legal restrictions</a></h5>
-<p>This module utilizes Bruce Schneier's Blowfish algorithm. Your
-government may have choosen to implement ridiculous legal
-restrictions regarding use or export of cryptographic software.
-Take care.</p>
+<h5 class="section"><a name="AEN783" id="AEN783">5.2.11.3. Possible legal restrictions</a></h5>
+<p>This module utilizes Bruce Schneier's Blowfish algorithm. Your government may have choosen to implement ridiculous legal restrictions regarding use or export of cryptographic software. Take care.</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN786" id="AEN786">5.2.12. The
-<span class="emphasis"><i class="emphasis">tacinfo_cache</i></span>
-module</a></h4>
-<p>This module implements on-disk caching of authentication
-attributes for later authorization. It may be useful to reduce load
-from the backend, or just to share RADIUS authorization data
-between tac_plus worker processes.</p>
+<h4 class="section"><a name="AEN786" id="AEN786">5.2.12. The <span class="emphasis"><i class="emphasis">tacinfo_cache</i></span> module</a></h4>
+<p>This module implements on-disk caching of authentication attributes for later authorization. It may be useful to reduce load from the backend, or just to share RADIUS authorization data between tac_plus worker processes.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN790" id="AEN790">5.2.12.1.
-Configuration directives</a></h5>
+<h5 class="section"><a name="AEN790" id="AEN790">5.2.12.1. Configuration directives</a></h5>
 <ul>
 <li>
-<p><tt class="literal">userid =</tt> <span class=
-"emphasis"><i class="emphasis">UserID</i></span></p>
-<p>Specifies the <span class="emphasis"><i class=
-"emphasis">uid</i></span> to use for disk access.</p>
+<p><tt class="literal">userid =</tt> <span class="emphasis"><i class="emphasis">UserID</i></span></p>
+<p>Specifies the <span class="emphasis"><i class="emphasis">uid</i></span> to use for disk access.</p>
 </li>
 <li>
-<p><tt class="literal">groupid =</tt> <span class=
-"emphasis"><i class="emphasis">GroupID</i></span></p>
-<p>Specifies the <span class="emphasis"><i class=
-"emphasis">gid</i></span> to use for disk access.</p>
+<p><tt class="literal">groupid =</tt> <span class="emphasis"><i class="emphasis">GroupID</i></span></p>
+<p>Specifies the <span class="emphasis"><i class="emphasis">gid</i></span> to use for disk access.</p>
 </li>
 <li>
-<p><tt class="literal">directory</tt> <span class=
-"emphasis"><i class="emphasis">CacheDir</i></span></p>
-<p>Specifies the directory to use for caching. Please consider that
-the daemon will not clean up the files/directories in there.</p>
+<p><tt class="literal">directory</tt> <span class="emphasis"><i class="emphasis">CacheDir</i></span></p>
+<p>Specifies the directory to use for caching. Please consider that the daemon will not clean up the files/directories in there.</p>
 </li>
 </ul>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN811" id="AEN811">5.2.12.2.
-Example</a></h5>
+<h5 class="section"><a name="AEN811" id="AEN811">5.2.12.2. Example</a></h5>
 <pre class="screen">mavis module = tacinfo_cache {
   directory = /tmp/tacinfo
 }
@@ -1259,85 +830,48 @@ mavis module = external {
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN815" id="AEN815">5.2.13. The
-<span class="emphasis"><i class="emphasis">system</i></span>
-module</a></h4>
-<p>This module implements FTP authentication via UNIX system
-accounts or accounts defined in UNIX password-style files.
-Optionally, certificate based authentication is available. Please
-note that the <tt class="literal">pam</tt> module may be a better
-choice for most installations.</p>
-<p>Programs utilizing this module will most likely have to run
-under the user id of root if access to the shadow password file is
-required.</p>
+<h4 class="section"><a name="AEN815" id="AEN815">5.2.13. The <span class="emphasis"><i class="emphasis">system</i></span> module</a></h4>
+<p>This module implements FTP authentication via UNIX system accounts or accounts defined in UNIX password-style files. Optionally, certificate based authentication is available. Please note that the <tt class="literal">pam</tt> module may be a better choice for most installations.</p>
+<p>Programs utilizing this module will most likely have to run under the user id of root if access to the shadow password file is required.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN821" id="AEN821">5.2.13.1.
-Configuration directives</a></h5>
+<h5 class="section"><a name="AEN821" id="AEN821">5.2.13.1. Configuration directives</a></h5>
 <ul>
 <li>
-<p><tt class="literal">chroot =</tt> ( <tt class="literal">yes</tt>
-| <tt class="literal">no</tt> )</p>
-<p>This activates a chroot environment for system users (default:
-<tt class="literal">yes</tt>). The chroot root directory is either
-the users home directory or, if the home directory path contains a
-<tt class="literal">/./</tt> sequence, the directory denoted by the
-path up to that sequence.</p>
+<p><tt class="literal">chroot =</tt> ( <tt class="literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p>This activates a chroot environment for system users (default: <tt class="literal">yes</tt>). The chroot root directory is either the users home directory or, if the home directory path contains a <tt class="literal">/./</tt> sequence, the directory denoted by the path up to that sequence.</p>
 </li>
 <li>
-<p><tt class="literal">ftpusers file =</tt> <span class=
-"emphasis"><i class="emphasis">Path</i></span></p>
-<p>Select ftpusers file (default: <tt class=
-"literal">/etc/ftpusers</tt>).</p>
+<p><tt class="literal">ftpusers file =</tt> <span class="emphasis"><i class="emphasis">Path</i></span></p>
+<p>Select ftpusers file (default: <tt class="literal">/etc/ftpusers</tt>).</p>
 </li>
 <li>
-<p><tt class="literal">passwd file =</tt> <span class=
-"emphasis"><i class="emphasis">Path</i></span></p>
-<p>Select UNIX password file. If this is omitted, the systems UNIX
-accounts are used. On *BSD systems you may wish to set <span class=
-"emphasis"><i class="emphasis">path</i></span> to <tt class=
-"literal">/etc/master.passwd</tt>.</p>
+<p><tt class="literal">passwd file =</tt> <span class="emphasis"><i class="emphasis">Path</i></span></p>
+<p>Select UNIX password file. If this is omitted, the systems UNIX accounts are used. On *BSD systems you may wish to set <span class="emphasis"><i class="emphasis">path</i></span> to <tt class="literal">/etc/master.passwd</tt>.</p>
 </li>
 <li>
-<p><tt class="literal">shells file =</tt> <span class=
-"emphasis"><i class="emphasis">Path</i></span></p>
-<p>Select shells file (default: <tt class=
-"literal">/etc/shells</tt>).</p>
+<p><tt class="literal">shells file =</tt> <span class="emphasis"><i class="emphasis">Path</i></span></p>
+<p>Select shells file (default: <tt class="literal">/etc/shells</tt>).</p>
 </li>
 <li>
-<p><tt class="literal">sslusers file =</tt> <span class=
-"emphasis"><i class="emphasis">Path</i></span></p>
-<p>Select sslusers file (default: <tt class=
-"literal">/etc/ssl.users</tt>).</p>
-<p>The <span class="emphasis"><i class=
-"emphasis">sslusers</i></span> file is compatible to the one
-proposed by Tim Hudson (<a href="mailto:tjh@cryptsoft.com" target=
-"_top">tjh@cryptsoft.com</a>) in his SSLeay patches to the BSD ftp
-daemon. It contains lines of the form</p>
+<p><tt class="literal">sslusers file =</tt> <span class="emphasis"><i class="emphasis">Path</i></span></p>
+<p>Select sslusers file (default: <tt class="literal">/etc/ssl.users</tt>).</p>
+<p>The <span class="emphasis"><i class="emphasis">sslusers</i></span> file is compatible to the one proposed by Tim Hudson (<a class="lk" href="mailto:tjh@cryptsoft.com" target="_top">tjh@cryptsoft.com</a>) in his SSLeay patches to the BSD ftp daemon. It contains lines of the form</p>
 <pre class="screen">user1,user2:/C=US/....</pre>
-<p>where <tt class="literal">user1</tt> and <tt class=
-"literal">user2</tt> are user names, and the <tt class=
-"literal">/C=US/....</tt> part is a certificate subject.</p>
-<p>In case you're unfamiliar with OpenSSL: you may retrieve the
-certificate subject of a certificate <tt class=
-"literal">cert.pem</tt> using</p>
-<pre class=
-"screen">openssl x509 -subject -noout -in cert.pem</pre></li>
+<p>where <tt class="literal">user1</tt> and <tt class="literal">user2</tt> are user names, and the <tt class="literal">/C=US/....</tt> part is a certificate subject.</p>
+<p>In case you're unfamiliar with OpenSSL: you may retrieve the certificate subject of a certificate <tt class="literal">cert.pem</tt> using</p>
+<pre class="screen">openssl x509 -subject -noout -in cert.pem</pre></li>
 <li>
-<p><tt class="literal">check</tt> ( <tt class=
-"literal">ftpusers</tt> | <tt class="literal">shells</tt> |
-<tt class="literal">sslusers</tt> ) <tt class="literal">=</tt> (
-<tt class="literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p><tt class="literal">check</tt> ( <tt class="literal">ftpusers</tt> | <tt class="literal">shells</tt> | <tt class="literal">sslusers</tt> ) <tt class="literal">=</tt> ( <tt class="literal">yes</tt> | <tt class="literal">no</tt> )</p>
 <p>Enables checking of the specified file type.</p>
 </li>
 </ul>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN879" id="AEN879">5.2.13.2. Railroad
-Diagram</a></h5>
+<h5 class="section"><a name="AEN879" id="AEN879">5.2.13.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
-<p><img src="railroad/mavis/SystemConf.svg"></p>
+<p><img alt="" src="railroad/mavis/SystemConf.svg"></p>
 <div class="caption">
 <p>Railroad diagram: SystemConf</p>
 </div>
@@ -1346,73 +880,48 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN889" id="AEN889">5.2.14. The
-<span class="emphasis"><i class="emphasis">userdb</i></span>
-module</a></h4>
-<p>This module can be used to define static users, e.g. for FTP. It
-requires the <tt class="literal">auth</tt> module for user
-authentication.</p>
+<h4 class="section"><a name="AEN889" id="AEN889">5.2.14. The <span class="emphasis"><i class="emphasis">userdb</i></span> module</a></h4>
+<p>This module can be used to define static users, e.g. for FTP. It requires the <tt class="literal">auth</tt> module for user authentication.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN894" id="AEN894">5.2.14.1.
-Configuration directives</a></h5>
-<p>Syntax for defining users is <tt class="literal">user =</tt>
-<span class="emphasis"><i class="emphasis">UserName</i></span>
-<tt class="literal">{</tt> ... <tt class="literal">}</tt>. The
-following configuration directives inside the curly brackets are
-mandatory for FTP, but not enforced:</p>
+<h5 class="section"><a name="AEN894" id="AEN894">5.2.14.1. Configuration directives</a></h5>
+<p>Syntax for defining users is <tt class="literal">user =</tt> <span class="emphasis"><i class="emphasis">UserName</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt>. The following configuration directives inside the curly brackets are mandatory for FTP, but not enforced:</p>
 <ul>
 <li>
-<p><tt class="literal">userid =</tt> <span class=
-"emphasis"><i class="emphasis">UserID</i></span></p>
+<p><tt class="literal">userid =</tt> <span class="emphasis"><i class="emphasis">UserID</i></span></p>
 </li>
 <li>
-<p><tt class="literal">groupid =</tt> <span class=
-"emphasis"><i class="emphasis">GroupID</i></span></p>
+<p><tt class="literal">groupid =</tt> <span class="emphasis"><i class="emphasis">GroupID</i></span></p>
 </li>
 <li>
-<p><tt class="literal">home =</tt> <span class="emphasis"><i class=
-"emphasis">HomeDirectory</i></span></p>
+<p><tt class="literal">home =</tt> <span class="emphasis"><i class="emphasis">HomeDirectory</i></span></p>
 </li>
 <li>
-<p><tt class="literal">password =</tt> ( ( <tt class=
-"literal">clear</tt> | <tt class="literal">crypt</tt>) <span class=
-"emphasis"><i class="emphasis">PasswordString</i></span>) |
-<tt class="literal">mavis</tt></p>
-<p><tt class="literal">clear</tt> indicates a clear-text password,
-while <tt class="literal">crypt</tt> tells the parser that
-<span class="emphasis"><i class=
-"emphasis">PasswordString</i></span> is DES (or MD5) encrypted. The
-<tt class="literal">mavis</tt> keyword expects the password to be
-set by a downstream module.</p>
+<p><tt class="literal">password =</tt> ( ( <tt class="literal">clear</tt> | <tt class="literal">crypt</tt>) <span class="emphasis"><i class="emphasis">PasswordString</i></span>) | <tt class="literal">mavis</tt></p>
+<p><tt class="literal">clear</tt> indicates a clear-text password, while <tt class="literal">crypt</tt> tells the parser that <span class="emphasis"><i class="emphasis">PasswordString</i></span> is DES (or MD5) encrypted. The <tt class="literal">mavis</tt> keyword expects the password to be set by a downstream module.</p>
 </li>
 </ul>
 <p>Optional directives are:</p>
 <ul>
 <li>
-<p><tt class="literal">root =</tt> <span class="emphasis"><i class=
-"emphasis">RootDirectory</i></span></p>
+<p><tt class="literal">root =</tt> <span class="emphasis"><i class="emphasis">RootDirectory</i></span></p>
 </li>
 <li>
-<p><tt class="literal">cert subject =</tt> <span class=
-"emphasis"><i class="emphasis">CertSubject</i></span></p>
+<p><tt class="literal">cert subject =</tt> <span class="emphasis"><i class="emphasis">CertSubject</i></span></p>
 </li>
 </ul>
 <p>Arbitrary other MAVIS attributes may be set with</p>
 <ul>
 <li>
-<p><tt class="literal">set</tt> <span class="emphasis"><i class=
-"emphasis">AttributeName</i></span> <tt class="literal">=</tt>
-<span class="emphasis"><i class="emphasis">Value</i></span></p>
+<p><tt class="literal">set</tt> <span class="emphasis"><i class="emphasis">AttributeName</i></span> <tt class="literal">=</tt> <span class="emphasis"><i class="emphasis">Value</i></span></p>
 </li>
 </ul>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN944" id="AEN944">5.2.14.2. Railroad
-Diagram</a></h5>
+<h5 class="section"><a name="AEN944" id="AEN944">5.2.14.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
-<p><img src="railroad/mavis/UserDBConf.svg"></p>
+<p><img alt="" src="railroad/mavis/UserDBConf.svg"></p>
 <div class="caption">
 <p>Railroad diagram: UserDBConf</p>
 </div>
@@ -1420,11 +929,8 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN954" id="AEN954">5.2.14.3.
-Example</a></h5>
-<p>The following is a valid configuration for <span class=
-"bold"><b class="emphasis">ftpd</b></span> which utilizes various
-MAVIS backends:</p>
+<h5 class="section"><a name="AEN954" id="AEN954">5.2.14.3. Example</a></h5>
+<p>The following is a valid configuration for <span class="bold"><b class="emphasis">ftpd</b></span> which utilizes various MAVIS backends:</p>
 <pre class="screen">id = spawnd {
     listen = { port = 21 }
     spawn = { instances min = 1 }
@@ -1461,45 +967,32 @@ id = ftpd {
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN959" id="AEN959">5.2.15. The
-<span class="emphasis"><i class="emphasis">tee</i></span>
-module</a></h4>
-<p>This module is used for development only. It writes sent and
-received attribute-value pairs to disk in a format which may, for
-example, be used to test external authenticators (see the
-description of the <span class="emphasis"><i class=
-"emphasis">external</i></span> module).</p>
+<h4 class="section"><a name="AEN959" id="AEN959">5.2.15. The <span class="emphasis"><i class="emphasis">tee</i></span> module</a></h4>
+<p>This module is used for development only. It writes sent and received attribute-value pairs to disk in a format which may, for example, be used to test external authenticators (see the description of the <span class="emphasis"><i class="emphasis">external</i></span> module).</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN964" id="AEN964">5.2.15.1.
-Configuration directives</a></h5>
+<h5 class="section"><a name="AEN964" id="AEN964">5.2.15.1. Configuration directives</a></h5>
 <p>Available configuration options are:</p>
 <ul>
 <li>
-<p><tt class="literal">userid =</tt> <span class=
-"emphasis"><i class="emphasis">UserID</i></span></p>
+<p><tt class="literal">userid =</tt> <span class="emphasis"><i class="emphasis">UserID</i></span></p>
 </li>
 <li>
-<p><tt class="literal">groupid =</tt> <span class=
-"emphasis"><i class="emphasis">GroupID</i></span></p>
+<p><tt class="literal">groupid =</tt> <span class="emphasis"><i class="emphasis">GroupID</i></span></p>
 </li>
 <li>
-<p><tt class="literal">mode =</tt> <span class="emphasis"><i class=
-"emphasis">Mode</i></span></p>
+<p><tt class="literal">mode =</tt> <span class="emphasis"><i class="emphasis">Mode</i></span></p>
 </li>
 <li>
-<p><tt class="literal">path</tt> ( <tt class="literal">in</tt> |
-<tt class="literal">out</tt> ) <span class="emphasis"><i class=
-"emphasis">Path</i></span></p>
+<p><tt class="literal">path</tt> ( <tt class="literal">in</tt> | <tt class="literal">out</tt> ) <span class="emphasis"><i class="emphasis">Path</i></span></p>
 </li>
 </ul>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN986" id="AEN986">5.2.15.2. Railroad
-Diagram</a></h5>
+<h5 class="section"><a name="AEN986" id="AEN986">5.2.15.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
-<p><img src="railroad/mavis/TeeConf.svg"></p>
+<p><img alt="" src="railroad/mavis/TeeConf.svg"></p>
 <div class="caption">
 <p>Railroad diagram: TeeConf</p>
 </div>
@@ -1508,172 +1001,113 @@ Diagram</a></h5>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN996" id="AEN996">5.2.16. The
-<span class="emphasis"><i class="emphasis">null</i></span>
-module</a></h4>
-<p>This module comes without any functionality on its own. It may
-however be used in conjunction with the scripting feature described
-below.</p>
+<h4 class="section"><a name="AEN996" id="AEN996">5.2.16. The <span class="emphasis"><i class="emphasis">null</i></span> module</a></h4>
+<p>This module comes without any functionality on its own. It may however be used in conjunction with the scripting feature described below.</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN1000" id="AEN1000">5.3. MAVIS
-Scripting Language</a></h3>
-<p>All MAVIS modules in the distribution come with some basic
-scripting language support for modifying AV pair and/or module
-behavior. Scripts can be called when entering or leaving a module
-and are defined using the <tt class="literal">script</tt>
-keyword.</p>
+<h3 class="section"><a name="AEN1000" id="AEN1000">5.3. MAVIS Scripting Language</a></h3>
+<p>All MAVIS modules in the distribution come with some basic scripting language support for modifying AV pair and/or module behavior. Scripts can be called when entering or leaving a module and are defined using the <tt class="literal">script</tt> keyword.</p>
 <p>Generic syntax for the scripting feature is:</p>
-<p><tt class="literal">script</tt> ( <tt class="literal">in</tt> |
-<tt class="literal">out</tt> | <tt class="literal">interim</tt>)
-<tt class="literal">= {</tt> <span class="emphasis"><i class=
-"emphasis">action</i></span>+ <tt class="literal">}</tt></p>
-<p>Valid <span class="emphasis"><i class=
-"emphasis">action</i></span>s are:</p>
+<p><tt class="literal">script</tt> ( <tt class="literal">in</tt> | <tt class="literal">out</tt> | <tt class="literal">interim</tt>) <tt class="literal">= {</tt> <span class="emphasis"><i class="emphasis">action</i></span>+ <tt class="literal">}</tt></p>
+<p>Valid <span class="emphasis"><i class="emphasis">action</i></span>s are:</p>
 <ul>
 <li>
-<p><tt class="literal">{</tt> <span class="emphasis"><i class=
-"emphasis">action</i></span>+ <tt class="literal">}</tt></p>
+<p><tt class="literal">{</tt> <span class="emphasis"><i class="emphasis">action</i></span>+ <tt class="literal">}</tt></p>
 <p>Defines an action block consisting of multiple actions.</p>
 </li>
 <li>
 <p><tt class="literal">continue</tt></p>
-<p>Stops processing the remainder of the script and continues with
-regular module operation.</p>
+<p>Stops processing the remainder of the script and continues with regular module operation.</p>
 </li>
 <li>
 <p><tt class="literal">return</tt></p>
-<p>Stops processing the remainder of the script and returns the
-currently set attributes to the caller.</p>
+<p>Stops processing the remainder of the script and returns the currently set attributes to the caller.</p>
 </li>
 <li>
 <p><tt class="literal">skip</tt></p>
 <p>Skips this module and continue with the next one.</p>
 </li>
 <li>
-<p><tt class="literal">set</tt> <span class="emphasis"><i class=
-"emphasis">attribute</i></span> <tt class="literal">=</tt>
-<span class="emphasis"><i class="emphasis">value</i></span></p>
-<p>Sets the specified MAVIS attribute. If the software was compiled
-with PCRE support (strongly recommended!), the strings $1 ... $9
-will be replaced with the substrings from the latest <span class=
-"emphasis"><i class="emphasis">condition</i></span> matching
-operation.</p>
+<p><tt class="literal">set</tt> <span class="emphasis"><i class="emphasis">attribute</i></span> <tt class="literal">=</tt> <span class="emphasis"><i class="emphasis">value</i></span></p>
+<p>Sets the specified MAVIS attribute. If the software was compiled with PCRE support (strongly recommended!), the strings $1 ... $9 will be replaced with the substrings from the latest <span class="emphasis"><i class="emphasis">condition</i></span> matching operation.</p>
 </li>
 <li>
-<p><tt class="literal">unset</tt> <span class="emphasis"><i class=
-"emphasis">attribute</i></span></p>
+<p><tt class="literal">unset</tt> <span class="emphasis"><i class="emphasis">attribute</i></span></p>
 <p>Clears the specified MAVIS attribute.</p>
 </li>
 <li>
-<p><tt class="literal">toupper</tt> <span class=
-"emphasis"><i class="emphasis">attribute</i></span></p>
+<p><tt class="literal">toupper</tt> <span class="emphasis"><i class="emphasis">attribute</i></span></p>
 <p>Converts the specified MAVIS attribute to upper case.</p>
 </li>
 <li>
-<p><tt class="literal">tolower</tt> <span class=
-"emphasis"><i class="emphasis">attribute</i></span></p>
+<p><tt class="literal">tolower</tt> <span class="emphasis"><i class="emphasis">attribute</i></span></p>
 <p>Converts the specified MAVIS attribute to lower case.</p>
 </li>
 <li>
-<p><tt class="literal">eval</tt> <span class="emphasis"><i class=
-"emphasis">condition</i></span></p>
-<p>Evaluates <span class="emphasis"><i class=
-"emphasis">condition</i></span>, and populates the PCRE substring
-information vector ($1 ... $9).</p>
+<p><tt class="literal">eval</tt> <span class="emphasis"><i class="emphasis">condition</i></span></p>
+<p>Evaluates <span class="emphasis"><i class="emphasis">condition</i></span>, and populates the PCRE substring information vector ($1 ... $9).</p>
 </li>
 <li>
-<p><tt class="literal">if (</tt> <span class="emphasis"><i class=
-"emphasis">condition</i></span> <tt class="literal">)</tt>
-<span class="emphasis"><i class="emphasis">action</i></span> [
-<tt class="literal">else</tt> <span class="emphasis"><i class=
-"emphasis">action</i></span> ]</p>
-<p>Evaluates <span class="emphasis"><i class=
-"emphasis">condition</i></span> and executes one of the
-<span class="emphasis"><i class="emphasis">action</i></span>s, if
-any.</p>
+<p><tt class="literal">if (</tt> <span class="emphasis"><i class="emphasis">condition</i></span> <tt class="literal">)</tt> <span class="emphasis"><i class="emphasis">action</i></span> [ <tt class="literal">else</tt> <span class="emphasis"><i class="emphasis">action</i></span> ]</p>
+<p>Evaluates <span class="emphasis"><i class="emphasis">condition</i></span> and executes one of the <span class="emphasis"><i class="emphasis">action</i></span>s, if any.</p>
 </li>
 </ul>
-<p>Syntax for <span class="emphasis"><i class=
-"emphasis">condition</i></span>:</p>
+<p>Syntax for <span class="emphasis"><i class="emphasis">condition</i></span>:</p>
 <ul>
 <li>
-<p><tt class="literal">!</tt> <span class="emphasis"><i class=
-"emphasis">condition</i></span></p>
+<p><tt class="literal">!</tt> <span class="emphasis"><i class="emphasis">condition</i></span></p>
 <p>Boolean negation.</p>
 </li>
 <li>
-<p><span class="emphasis"><i class="emphasis">condition</i></span>
-<tt class="literal">&amp;&amp;</tt> <span class=
-"emphasis"><i class="emphasis">condition</i></span></p>
+<p><span class="emphasis"><i class="emphasis">condition</i></span> <tt class="literal">&amp;&amp;</tt> <span class="emphasis"><i class="emphasis">condition</i></span></p>
 <p>Boolean AND.</p>
 </li>
 <li>
-<p><span class="emphasis"><i class="emphasis">condition</i></span>
-<tt class="literal">||</tt> <span class="emphasis"><i class=
-"emphasis">condition</i></span></p>
+<p><span class="emphasis"><i class="emphasis">condition</i></span> <tt class="literal">||</tt> <span class="emphasis"><i class="emphasis">condition</i></span></p>
 <p>Boolean OR.</p>
 </li>
 <li>
-<p><span class="emphasis"><i class="emphasis">attribute</i></span>
-<tt class="literal">==</tt> ( <span class="emphasis"><i class=
-"emphasis">attribute</i></span> | <span class="emphasis"><i class=
-"emphasis">value</i></span> )</p>
+<p><span class="emphasis"><i class="emphasis">attribute</i></span> <tt class="literal">==</tt> ( <span class="emphasis"><i class="emphasis">attribute</i></span> | <span class="emphasis"><i class="emphasis">value</i></span> )</p>
 <p>Exact match.</p>
 </li>
 <li>
-<p><span class="emphasis"><i class="emphasis">attribute</i></span>
-<tt class="literal">!=</tt> ( <span class="emphasis"><i class=
-"emphasis">attribute</i></span> | <span class="emphasis"><i class=
-"emphasis">value</i></span> )</p>
+<p><span class="emphasis"><i class="emphasis">attribute</i></span> <tt class="literal">!=</tt> ( <span class="emphasis"><i class="emphasis">attribute</i></span> | <span class="emphasis"><i class="emphasis">value</i></span> )</p>
 <p>No exact match.</p>
 </li>
 <li>
-<p><span class="emphasis"><i class="emphasis">attribute</i></span>
-<tt class="literal">=~</tt> <span class="emphasis"><i class=
-"emphasis">regex</i></span></p>
-<p>Exact match. Enclose <span class="emphasis"><i class=
-"emphasis">regex</i></span> in <tt class="literal">/</tt> for
-PCRE.</p>
+<p><span class="emphasis"><i class="emphasis">attribute</i></span> <tt class="literal">=~</tt> <span class="emphasis"><i class="emphasis">regex</i></span></p>
+<p>Exact match. Enclose <span class="emphasis"><i class="emphasis">regex</i></span> in <tt class="literal">/</tt> for PCRE.</p>
 </li>
 <li>
-<p><span class="emphasis"><i class="emphasis">attribute</i></span>
-<tt class="literal">!~</tt> <span class="emphasis"><i class=
-"emphasis">regex</i></span></p>
+<p><span class="emphasis"><i class="emphasis">attribute</i></span> <tt class="literal">!~</tt> <span class="emphasis"><i class="emphasis">regex</i></span></p>
 <p>No exact match.</p>
 </li>
 <li>
-<p><tt class="literal">defined (</tt> <span class=
-"emphasis"><i class="emphasis">attribute</i></span> <tt class=
-"literal">)</tt></p>
+<p><tt class="literal">defined (</tt> <span class="emphasis"><i class="emphasis">attribute</i></span> <tt class="literal">)</tt></p>
 <p>TRUE if attribute is set, false else.</p>
 </li>
 <li>
-<p><tt class="literal">undef (</tt> <span class=
-"emphasis"><i class="emphasis">attribute</i></span> <tt class=
-"literal">)</tt></p>
+<p><tt class="literal">undef (</tt> <span class="emphasis"><i class="emphasis">attribute</i></span> <tt class="literal">)</tt></p>
 <p>TRUE if attribute is not set, false else.</p>
 </li>
 </ul>
-<p>At least the top-level <span class="emphasis"><i class=
-"emphasis">condition</i></span> needs to be enclosed in round
-brackets.</p>
+<p>At least the top-level <span class="emphasis"><i class="emphasis">condition</i></span> needs to be enclosed in round brackets.</p>
 <div class="mediaobject">
-<p><img src="railroad/mavis/MavisScript.svg"></p>
+<p><img alt="" src="railroad/mavis/MavisScript.svg"></p>
 <div class="caption">
 <p>Railroad diagram: MavisScript</p>
 </div>
 </div>
 <div class="mediaobject">
-<p><img src="railroad/mavis/MavisCond.svg"></p>
+<p><img alt="" src="railroad/mavis/MavisCond.svg"></p>
 <div class="caption">
 <p>Railroad diagram: MavisCond</p>
 </div>
 </div>
 <div class="mediaobject">
-<p><img src="railroad/mavis/MavisAction.svg"></p>
+<p><img alt="" src="railroad/mavis/MavisAction.svg"></p>
 <div class="caption">
 <p>Railroad diagram: MavisAction</p>
 </div>
@@ -1684,9 +1118,7 @@ brackets.</p>
 <p>MAVIS module flow</p>
 </div>
 </div>
-<p>Here's a sample configuration for FTP authentication via RADIUS,
-using the <tt class="literal">radmavis</tt> binary, called via the
-<tt class="literal">external</tt> module:</p>
+<p>Here's a sample configuration for FTP authentication via RADIUS, using the <tt class="literal">radmavis</tt> binary, called via the <tt class="literal">external</tt> module:</p>
 <pre class="screen">    mavis module = external {
         script in = {
             if ($TYPE == FTP) {
@@ -1721,45 +1153,28 @@ using the <tt class="literal">radmavis</tt> binary, called via the
         }
         exec = /usr/local/sbin/radmavis radmavis "authserver=localhost:1812:mYrAdIuSsEcReT"
     }</pre>
-<p>Note that backslashes in regular expressions need to be
-doubled.</p>
-<p>Likewise, the <tt class="literal">pammavis</tt> program may be
-used for authentication using PAM. Example for TACACS+:</p>
+<p>Note that backslashes in regular expressions need to be doubled.</p>
+<p>Likewise, the <tt class="literal">pammavis</tt> program may be used for authentication using PAM. Example for TACACS+:</p>
 <pre class="screen">    mavis module = external {
         exec = /usr/local/sbin/pammavis "pammavis" "-s" "pamservicename"
     }</pre>
 <div class="tip">
 <table class="tip" width="100%" border="0">
 <tr>
-<td width="25" align="center" valign="top"><img src=
-"images/tip.svg" hspace="5" alt="Tip"></td>
+<td width="25" align="center" valign="top"><img src="images/tip.svg" hspace="5" alt="Tip"></td>
 <td align="left" valign="top">
-<p><tt class="literal">pammavis</tt> might require root privileges
-on your system. In case you're not running the daemon as root
-anyway you can either set the <tt class="literal">setuid</tt> bit
-(and perhaps limit access to a particular user group) or use an
-adequate <tt class="literal">sudo</tt> configuration.</p>
+<p><tt class="literal">pammavis</tt> might require root privileges on your system. In case you're not running the daemon as root anyway you can either set the <tt class="literal">setuid</tt> bit (and perhaps limit access to a particular user group) or use an adequate <tt class="literal">sudo</tt> configuration.</p>
 </td>
 </tr>
 </table>
 </div>
-<p>As detailed in the <span class="emphasis"><i class=
-"emphasis">PAM</i></span> module section above, take care not to
-use a PAM service which implements login delays. The PAM service
-can be selected using the <tt class="literal">-s
-pamservicename</tt> option and defaults to <tt class=
-"literal">mavis</tt>. PAMs that perform queries other than the
-standard username/password aren't supported.</p>
+<p>As detailed in the <span class="emphasis"><i class="emphasis">PAM</i></span> module section above, take care not to use a PAM service which implements login delays. The PAM service can be selected using the <tt class="literal">-s pamservicename</tt> option and defaults to <tt class="literal">mavis</tt>. PAMs that perform queries other than the standard username/password aren't supported.</p>
 <div class="tip">
 <table class="tip" width="100%" border="0">
 <tr>
-<td width="25" align="center" valign="top"><img src=
-"images/tip.svg" hspace="5" alt="Tip"></td>
+<td width="25" align="center" valign="top"><img src="images/tip.svg" hspace="5" alt="Tip"></td>
 <td align="left" valign="top">
-<p>Cisco Duo will work just fine with <tt class=
-"literal">pammavis</tt> if you're using <tt class=
-"literal">autopush = yes</tt>. Example configuration (for
-Ubuntu):</p>
+<p>Cisco Duo will work just fine with <tt class="literal">pammavis</tt> if you're using <tt class="literal">autopush = yes</tt>. Example configuration (for Ubuntu):</p>
 <pre class="screen"># cat /etc/security/pam_duo.conf
 [duo]**
 host = api-&lt;snip&gt;.duosecurity.com
@@ -1780,9 +1195,7 @@ include common-password*
 </tr>
 </table>
 </div>
-<p>A more sophisticated example for TACACS+ (no, that's not
-compatible to <span class="emphasis"><i class=
-"emphasis">tac_plus-ng</i></span>):</p>
+<p>A more sophisticated example for TACACS+ (no, that's not compatible to <span class="emphasis"><i class="emphasis">tac_plus-ng</i></span>):</p>
 <pre class="screen">id = spawnd { listen = { port = 49 } }
 
 id = tac_plus {
@@ -1817,8 +1230,7 @@ id = tac_plus {
     }
   }
 }</pre>
-<p>Another example script emulates the <tt class=
-"literal">anonftp</tt> module functionality:</p>
+<p>Another example script emulates the <tt class="literal">anonftp</tt> module functionality:</p>
 <pre class="screen">    mavis module = null {
         script in = {
             if ($TYPE == FTP &amp;&amp; ($USER == ftp || $USER == anonymous)) {
@@ -1833,19 +1245,14 @@ id = tac_plus {
             }
         }
     }</pre>
-<p>See <tt class="literal">mavis/mavis.h</tt> for a list of
-supported attributes.</p>
+<p>See <tt class="literal">mavis/mavis.h</tt> for a list of supported attributes.</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1195" id="AEN1195">6. Testing your
-MAVIS configuration</a></h2>
-<p>You'll almost certainly want to validate that your backend
-configuration behaves as expected. You can do so using the
-<tt class="literal">mavistest</tt> binary. Syntax is:</p>
-<pre class=
-"screen">mavistest [options] &lt;config&gt; &lt;id&gt; &lt;type&gt; &lt;user&gt; [&lt;password&gt;]
+<h2 class="section"><a name="AEN1195" id="AEN1195">6. Testing your MAVIS configuration</a></h2>
+<p>You'll almost certainly want to validate that your backend configuration behaves as expected. You can do so using the <tt class="literal">mavistest</tt> binary. Syntax is:</p>
+<pre class="screen">mavistest [options] &lt;config&gt; &lt;id&gt; &lt;type&gt; &lt;user&gt; [&lt;password&gt;]
 
 Options:
   -P                  (parse only)
@@ -1858,11 +1265,9 @@ Sample usage: mavistest -d -1  /usr/local/etc/tac_plus.cfg tac_plus TACPLUS joe 
 <div class="tip">
 <table class="tip" width="100%" border="0">
 <tr>
-<td width="25" align="center" valign="top"><img src=
-"images/tip.svg" hspace="5" alt="Tip"></td>
+<td width="25" align="center" valign="top"><img src="images/tip.svg" hspace="5" alt="Tip"></td>
 <td align="left" valign="top">
-<p>Use <tt class="literal">tactrace.pl</tt> for <tt class=
-"literal">tac_plus-ng</tt> related testing.</p>
+<p>Use <tt class="literal">tactrace.pl</tt> for <tt class="literal">tac_plus-ng</tt> related testing.</p>
 </td>
 </tr>
 </table>
@@ -1870,51 +1275,33 @@ Sample usage: mavistest -d -1  /usr/local/etc/tac_plus.cfg tac_plus TACPLUS joe 
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1204" id="AEN1204">7. Environmental
-Variables</a></h2>
-<p>Text enclosed in double quotes may make use of environment
-variables, e.g.:</p>
+<h2 class="section"><a name="AEN1204" id="AEN1204">7. Environmental Variables</a></h2>
+<p>Text enclosed in double quotes may make use of environment variables, e.g.:</p>
 <pre class="screen">filename = "${HOME}/log.txt"</pre>
 <p>The braces are required.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1209" id="AEN1209">8. Copyrights
-and Acknowledgements</a></h2>
-<p>Please see the source for copyright and licensing information of
-individual files.</p>
+<h2 class="section"><a name="AEN1209" id="AEN1209">8. Copyrights and Acknowledgements</a></h2>
+<p>Please see the source for copyright and licensing information of individual files.</p>
 <ul>
 <li>
-<p><span class="bold"><b class="emphasis">The following applies if
-the software was compiled with TLS support:</b></span></p>
-<p>This product includes software developed by the OpenSSL Project
-for use in the OpenSSL Toolkit.</p>
-<p>(<a href="http://www.openssl.org/" target=
-"_top">http://www.openssl.org/</a>)</p>
-<p>This product includes cryptographic software written by Eric
-Young (<code class="email">&lt;<a href=
-"mailto:eay@cryptsoft.com">eay@cryptsoft.com</a>&gt;</code>).</p>
+<p><span class="bold"><b class="emphasis">The following applies if the software was compiled with TLS support:</b></span></p>
+<p>This product includes software developed by the OpenSSL Project for use in the OpenSSL Toolkit.</p>
+<p>(<a class="lk" href="http://www.openssl.org/" target="_top">http://www.openssl.org/</a>)</p>
+<p>This product includes cryptographic software written by Eric Young (<code class="email">&lt;<a class="lk" href="mailto:eay@cryptsoft.com">eay@cryptsoft.com</a>&gt;</code>).</p>
 </li>
 <li>
-<p><span class="bold"><b class="emphasis">If the software was
-compiled with PCRE (Perl Compatible Regular Expressions) support,
-the following applies:</b></span></p>
-<p>Regular expression support is provided by the PCRE library
-package, which is open source software, written by Philip Hazel,
-and copyright by the University of Cambridge, England.</p>
-<p>(<a href=
-"ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/" target=
-"_top">ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/</a>).</p>
+<p><span class="bold"><b class="emphasis">If the software was compiled with PCRE (Perl Compatible Regular Expressions) support, the following applies:</b></span></p>
+<p>Regular expression support is provided by the PCRE library package, which is open source software, written by Philip Hazel, and copyright by the University of Cambridge, England.</p>
+<p>(<a class="lk" href="ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/" target="_top">ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/</a>).</p>
 </li>
 <li>
-<p><span class="bold"><b class="emphasis">MD5
-algorithm</b></span></p>
-<p>The software uses the RSA Data Security, Inc. MD5 Message-Digest
-Algorithm.</p>
+<p><span class="bold"><b class="emphasis">MD5 algorithm</b></span></p>
+<p>The software uses the RSA Data Security, Inc. MD5 Message-Digest Algorithm.</p>
 </li>
 <li>
-<p><span class="bold"><b class="emphasis">The Blowfish
-algorithm:</b></span></p>
+<p><span class="bold"><b class="emphasis">The Blowfish algorithm:</b></span></p>
 <p>This software uses Bruce Schneier's Blowfish algorithm.</p>
 </li>
 <li>
@@ -1925,71 +1312,32 @@ can do whatever you want with this stuff. If we meet some day, and you think
 this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 </pre></li>
 <li>
-<p><span class="bold"><b class="emphasis">Portions of the parsing
-code are taken from Cisco's tac_plus developers kit which is
-distributed under the following license:</b></span></p>
+<p><span class="bold"><b class="emphasis">Portions of the parsing code are taken from Cisco's tac_plus developers kit which is distributed under the following license:</b></span></p>
 <p>Copyright (c) 1995-1998 by Cisco systems, Inc.</p>
-<p>Permission to use, copy, modify, and distribute this software
-for any purpose and without fee is hereby granted, provided that
-this copyright and permission notice appear on all copies of the
-software and supporting documentation, the name of Cisco Systems,
-Inc. not be used in advertising or publicity pertaining to
-distribution of the program without specific prior permission, and
-notice be given in supporting documentation that modification,
-copying and distribution is by permission of Cisco Systems,
-Inc.</p>
-<p>Cisco Systems, Inc. makes no representations about the
-suitability of this software for any purpose. THIS SOFTWARE IS
-PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
-INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.</p>
+<p>Permission to use, copy, modify, and distribute this software for any purpose and without fee is hereby granted, provided that this copyright and permission notice appear on all copies of the software and supporting documentation, the name of Cisco Systems, Inc. not be used in advertising or publicity pertaining to distribution of the program without specific prior permission, and notice be given in supporting documentation that modification, copying and distribution is by permission of Cisco Systems, Inc.</p>
+<p>Cisco Systems, Inc. makes no representations about the suitability of this software for any purpose. THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.</p>
 </li>
 <li>
-<p><span class="bold"><b class="emphasis">The code written by Marc
-Huber is distributed under the following license:</b></span></p>
-<p>Copyright (C) 1999-2022 Marc Huber (<code class=
-"email">&lt;<a href=
-"mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>). All
-rights reserved.</p>
-<p>Redistribution and use in source and binary forms, with or
-without modification, are permitted provided that the following
-conditions are met:</p>
+<p><span class="bold"><b class="emphasis">The code written by Marc Huber is distributed under the following license:</b></span></p>
+<p>Copyright (C) 1999-2022 Marc Huber (<code class="email">&lt;<a class="lk" href="mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>). All rights reserved.</p>
+<p>Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:</p>
 <ol type="1">
 <li>
-<p>Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.</p>
+<p>Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.</p>
 </li>
 <li>
-<p>Redistributions in binary form must reproduce the above
-copyright notice, this list of conditions and the following
-disclaimer in the documentation and/or other materials provided
-with the distribution.</p>
+<p>Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.</p>
 </li>
 <li>
-<p>The end-user documentation included with the redistribution, if
-any, must include the following acknowledgment:</p>
+<p>The end-user documentation included with the redistribution, if any, must include the following acknowledgment:</p>
 <a name="AEN1258" id="AEN1258"></a>
 <blockquote class="BLOCKQUOTE">
-<p>This product includes software developed by Marc Huber
-(<code class="email">&lt;<a href=
-"mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>).</p>
+<p>This product includes software developed by Marc Huber (<code class="email">&lt;<a class="lk" href="mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>).</p>
 </blockquote>
-<p>Alternately, this acknowledgment may appear in the software
-itself, if and wherever such third-party acknowledgments normally
-appear.</p>
+<p>Alternately, this acknowledgment may appear in the software itself, if and wherever such third-party acknowledgments normally appear.</p>
 </li>
 </ol>
-<p>THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
-WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL ITS AUTHOR BE LIABLE FOR ANY DIRECT,
-INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-OF THE POSSIBILITY OF SUCH DAMAGE.</p>
+<p>THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ITS AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
 </li>
 </ul>
 </div>

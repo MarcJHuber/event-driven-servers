@@ -2,118 +2,76 @@
 "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <head>
-<meta name="generator" content=
-"HTML Tidy for HTML5 for Linux version 5.6.0">
+<meta name="generator" content="HTML Tidy for HTML5 for Linux version 5.6.0">
 <link rel="stylesheet" type="text/css" href="style.css">
-<meta http-equiv="Content-Type" content=
-"text/html; charset=iso-8859-1">
-<meta name="viewport" content=
-"width=device-width, initial-scale=1">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MAVIS Daemon</title>
-<meta name="GENERATOR" content=
-"Modular DocBook HTML Stylesheet Version 1.79">
+<meta name="GENERATOR" content="Modular DocBook HTML Stylesheet Version 1.79">
 </head>
-<body class="article" bgcolor="#FFFFFF" text="#000000" link=
-"#0000FF" vlink="#840084" alink="#0000FF">
+<body class="article" bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#840084" alink="#0000FF">
 <div class="ARTICLE">
 <div class="TITLEPAGE">
 <h1 class="title"><a name="AEN2" id="AEN2">MAVIS Daemon</a></h1>
 <h3 class="author"><a name="AEN4" id="AEN4">Marc Huber</a></h3>
-<span class="releaseinfo">$Id:
-a9ec2b985fb54c0272eb87655fbef96fdf558cb7 $<br></span>
+<span class="releaseinfo">$Id: a9ec2b985fb54c0272eb87655fbef96fdf558cb7 $<br></span>
 <hr></div>
 <div class="TOC">
 <dl>
 <dt><b>Table of Contents</b></dt>
-<dt>1. <a href="#AEN9">Introduction</a></dt>
+<dt>1. <a class="lk" href="#AEN9">Introduction</a></dt>
 <dd>
 <dl>
-<dt>1.1. <a href="#AEN13">Download</a></dt>
+<dt>1.1. <a class="lk" href="#AEN13">Download</a></dt>
 </dl>
 </dd>
-<dt>2. <a href="#AEN18">Command line syntax</a></dt>
-<dt>3. <a href="#AEN34">Event mechanism selection</a></dt>
-<dt>4. <a href="#AEN58">Configuration file syntax</a></dt>
+<dt>2. <a class="lk" href="#AEN18">Command line syntax</a></dt>
+<dt>3. <a class="lk" href="#AEN34">Event mechanism selection</a></dt>
+<dt>4. <a class="lk" href="#AEN58">Configuration file syntax</a></dt>
 <dd>
 <dl>
-<dt>4.1. <a href="#AEN269">Railroad Diagrams</a></dt>
+<dt>4.1. <a class="lk" href="#AEN269">Railroad Diagrams</a></dt>
 </dl>
 </dd>
-<dt>5. <a href="#AEN293">Sample configuration</a></dt>
-<dt>6. <a href="#AEN297">Copyrights and Acknowledgements</a></dt>
+<dt>5. <a class="lk" href="#AEN293">Sample configuration</a></dt>
+<dt>6. <a class="lk" href="#AEN297">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
-<h2 class="section"><a name="AEN9" id="AEN9">1.
-Introduction</a></h2>
-<p>In conjunction with the <span class="bold"><b class=
-"emphasis">remote</b></span> module, this daemon allows extending
-MAVIS (modular attribute-value interchange system) functionality
-over the network, using UDP packets for communication with clients
-and/or other MAVIS daemons.</p>
+<h2 class="section"><a name="AEN9" id="AEN9">1. Introduction</a></h2>
+<p>In conjunction with the <span class="bold"><b class="emphasis">remote</b></span> module, this daemon allows extending MAVIS (modular attribute-value interchange system) functionality over the network, using UDP packets for communication with clients and/or other MAVIS daemons.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN13" id="AEN13">1.1.
-Download</a></h3>
-<p>You can download the source code from the GitHub repository at
-<a href="https://github.com/MarcJHuber/event-driven-servers/"
-target=
-"_top">https://github.com/MarcJHuber/event-driven-servers/</a>.
-Documentation is available on the original site, <a href=
-"https://www.pro-bono-publico.de/projects/" target=
-"_top">https://www.pro-bono-publico.de/projects/</a>, too.</p>
+<h3 class="section"><a name="AEN13" id="AEN13">1.1. Download</a></h3>
+<p>You can download the source code from the GitHub repository at <a class="lk" href="https://github.com/MarcJHuber/event-driven-servers/" target="_top">https://github.com/MarcJHuber/event-driven-servers/</a>. Documentation is available on the original site, <a class="lk" href="https://www.pro-bono-publico.de/projects/" target="_top">https://www.pro-bono-publico.de/projects/</a>, too.</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN18" id="AEN18">2. Command line
-syntax</a></h2>
+<h2 class="section"><a name="AEN18" id="AEN18">2. Command line syntax</a></h2>
 <p>Command line syntax is:</p>
-<pre class="screen">mavisd [ <span class="emphasis"><i class=
-"emphasis">-P</i></span> ] [ <span class="emphasis"><i class=
-"emphasis">-d level</i></span> ] <span class="emphasis"><i class=
-"emphasis">configuration-file</i></span> [ <span class=
-"emphasis"><i class="emphasis">id</i></span> ]</pre>
-<p>The path to the configuration file is the only command line
-argument mandatory. <span class="emphasis"><i class=
-"emphasis">id</i></span> defaults to <tt class=
-"literal">tac_plus</tt> and may be used to select a non-default
-section of the configuration file.</p>
-<p>The <span class="emphasis"><i class="emphasis">-P</i></span>
-option enables <span class="emphasis"><i class="emphasis">config
-parse mode</i></span>. Keep this one in mind; it is imperative that
-the configuration file supplied is syntactically correct, as the
-daemon won't start if there are any parsing errors at start-up.</p>
-<p>The <tt class="literal">-d</tt> switch enables debugging. You
-most likely don't want to use this. Read the source if you need
-to.</p>
+<pre class="screen">mavisd [ <span class="emphasis"><i class="emphasis">-P</i></span> ] [ <span class="emphasis"><i class="emphasis">-d level</i></span> ] <span class="emphasis"><i class="emphasis">configuration-file</i></span> [ <span class="emphasis"><i class="emphasis">id</i></span> ]</pre>
+<p>The path to the configuration file is the only command line argument mandatory. <span class="emphasis"><i class="emphasis">id</i></span> defaults to <tt class="literal">tac_plus</tt> and may be used to select a non-default section of the configuration file.</p>
+<p>The <span class="emphasis"><i class="emphasis">-P</i></span> option enables <span class="emphasis"><i class="emphasis">config parse mode</i></span>. Keep this one in mind; it is imperative that the configuration file supplied is syntactically correct, as the daemon won't start if there are any parsing errors at start-up.</p>
+<p>The <tt class="literal">-d</tt> switch enables debugging. You most likely don't want to use this. Read the source if you need to.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN34" id="AEN34">3. Event mechanism
-selection</a></h2>
-<p>Several level-triggered event mechanisms are supported. By
-default, the one best suited for your operating system will be
-used. However, you may set the environment variable <tt class=
-"literal">IO_POLL_MECHANISM</tt> to select a specific one.</p>
-<p>The following event mechanisms are supported (in order of
-preference):</p>
+<h2 class="section"><a name="AEN34" id="AEN34">3. Event mechanism selection</a></h2>
+<p>Several level-triggered event mechanisms are supported. By default, the one best suited for your operating system will be used. However, you may set the environment variable <tt class="literal">IO_POLL_MECHANISM</tt> to select a specific one.</p>
+<p>The following event mechanisms are supported (in order of preference):</p>
 <ul>
 <li>
-<p>port (Sun Solaris 10 and higher only, <tt class=
-"literal">IO_POLL_MECHANISM=32</tt>)</p>
+<p>port (Sun Solaris 10 and higher only, <tt class="literal">IO_POLL_MECHANISM=32</tt>)</p>
 </li>
 <li>
-<p>kqueue (*BSD and Darwin only, <tt class=
-"literal">IO_POLL_MECHANISM=1</tt>)</p>
+<p>kqueue (*BSD and Darwin only, <tt class="literal">IO_POLL_MECHANISM=1</tt>)</p>
 </li>
 <li>
-<p>/dev/poll (Sun Solaris only, <tt class=
-"literal">IO_POLL_MECHANISM=2</tt>)</p>
+<p>/dev/poll (Sun Solaris only, <tt class="literal">IO_POLL_MECHANISM=2</tt>)</p>
 </li>
 <li>
-<p>epoll (Linux only, <tt class=
-"literal">IO_POLL_MECHANISM=4</tt>)</p>
+<p>epoll (Linux only, <tt class="literal">IO_POLL_MECHANISM=4</tt>)</p>
 </li>
 <li>
 <p>poll (<tt class="literal">IO_POLL_MECHANISM=8</tt>)</p>
@@ -125,40 +83,27 @@ preference):</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN58" id="AEN58">4. Configuration
-file syntax</a></h2>
-<p>A typical <span class="bold"><b class=
-"emphasis">mavisd</b></span> configuration file consists of a
-single <tt class="literal">id</tt> section:</p>
+<h2 class="section"><a name="AEN58" id="AEN58">4. Configuration file syntax</a></h2>
+<p>A typical <span class="bold"><b class="emphasis">mavisd</b></span> configuration file consists of a single <tt class="literal">id</tt> section:</p>
 <pre class="screen">section = mavisd { ... }</pre>
-<p>Default section ID is <tt class="literal">mavisd</tt>, but that
-a different ID may be selected via the command line.</p>
+<p>Default section ID is <tt class="literal">mavisd</tt>, but that a different ID may be selected via the command line.</p>
 <p>Configuration directives are:</p>
 <ul>
 <li>
-<p>( <tt class="literal">permit</tt> | <tt class=
-"literal">deny</tt> ) [ <tt class="literal">not</tt>] CIDR</p>
-<p>Accept or reject requests from specific IP address ranges. This
-directive may appear multiple times. Matches are tried in order.
-IPv6 ACLs are supported. Default is to accept everything.</p>
+<p>( <tt class="literal">permit</tt> | <tt class="literal">deny</tt> ) [ <tt class="literal">not</tt>] CIDR</p>
+<p>Accept or reject requests from specific IP address ranges. This directive may appear multiple times. Matches are tried in order. IPv6 ACLs are supported. Default is to accept everything.</p>
 <p>Example:</p>
 <pre class="screen">permit 127.0.0.1/8
 permit accept ::1
 deny not 192.168.0.0/16
 permit 192.168.0.5/32</pre></li>
 <li>
-<p><tt class="literal">background =</tt> ( <tt class=
-"literal">yes</tt> | <tt class="literal">no</tt> )</p>
-<p>If set, the daemon will release its controlling terminal on
-startup and fork itself to the background (default: <tt class=
-"literal">no</tt>).</p>
+<p><tt class="literal">background =</tt> ( <tt class="literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p>If set, the daemon will release its controlling terminal on startup and fork itself to the background (default: <tt class="literal">no</tt>).</p>
 </li>
 <li>
-<p><tt class="literal">listen = {</tt> ... <tt class=
-"literal">}</tt></p>
-<p>The listen directive specifies where to listen for incoming
-queries. Acceptable connection endpoints are both IPv4/IPv6 based
-UDP and UNIX datagram sockets.</p>
+<p><tt class="literal">listen = {</tt> ... <tt class="literal">}</tt></p>
+<p>The listen directive specifies where to listen for incoming queries. Acceptable connection endpoints are both IPv4/IPv6 based UDP and UNIX datagram sockets.</p>
 <p>For IP sockets, the following options are available:</p>
 <ul>
 <li>
@@ -167,8 +112,7 @@ UDP and UNIX datagram sockets.</p>
 </li>
 <li>
 <p><tt class="literal">address =</tt> IPAddress</p>
-<p>Specifiy an IP address to bind to (optional, default: all local
-IP addresses).</p>
+<p>Specifiy an IP address to bind to (optional, default: all local IP addresses).</p>
 </li>
 </ul>
 <p>UNIX sockets support these directives:</p>
@@ -190,10 +134,7 @@ IP addresses).</p>
 <p>Permissions for socket creation.</p>
 </li>
 </ul>
-<p>Communication via PF_UNIX sockets may only work if the host
-system supports anonymous binds for that protocol family. This
-works for Linux, which supports an abstract namespace which is
-independent of the file system, but, e.g., not for Sun Solaris.</p>
+<p>Communication via PF_UNIX sockets may only work if the host system supports anonymous binds for that protocol family. This works for Linux, which supports an abstract namespace which is independent of the file system, but, e.g., not for Sun Solaris.</p>
 <p>Options common to both variants are:</p>
 <ul>
 <li>
@@ -205,192 +146,126 @@ independent of the file system, but, e.g., not for Sun Solaris.</p>
 <p>Specifies a file to read the a key from (optional).</p>
 </li>
 </ul>
-<p>The <tt class="literal">listen</tt> directive may be used
-multiple times and is mandatory.</p>
+<p>The <tt class="literal">listen</tt> directive may be used multiple times and is mandatory.</p>
 </li>
 <li>
-<p><tt class="literal">mavis module =</tt> <span class=
-"emphasis"><i class="emphasis">module</i></span> <tt class=
-"literal">{</tt> ... <tt class="literal">}</tt></p>
-<p>Load MAVIS module <span class="emphasis"><i class=
-"emphasis">module</i></span>. See the MAVIS documentation for
-configuration guidance.</p>
+<p><tt class="literal">mavis module =</tt> <span class="emphasis"><i class="emphasis">module</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
+<p>Load MAVIS module <span class="emphasis"><i class="emphasis">module</i></span>. See the MAVIS documentation for configuration guidance.</p>
 </li>
 <li>
-<p><tt class="literal">mavis path =</tt> <span class=
-"emphasis"><i class="emphasis">path</i></span></p>
-<p>Add <span class="emphasis"><i class="emphasis">path</i></span>
-to the search-path for MAVIS modules.</p>
-<p>Magic cookie substitution applies. The available conversions
-are:</p>
+<p><tt class="literal">mavis path =</tt> <span class="emphasis"><i class="emphasis">path</i></span></p>
+<p>Add <span class="emphasis"><i class="emphasis">path</i></span> to the search-path for MAVIS modules.</p>
+<p>Magic cookie substitution applies. The available conversions are:</p>
 <ul>
 <li>
-<p><tt class="literal">%o</tt> &#8208; run-time OS type</p>
+<p><tt class="literal">%o</tt> â&euro; run-time OS type</p>
 </li>
 <li>
-<p><tt class="literal">%O</tt> &#8208; compile-time OS type</p>
+<p><tt class="literal">%O</tt> â&euro; compile-time OS type</p>
 </li>
 </ul>
 </li>
 <li>
-<p><tt class="literal">pidfile =</tt> <span class=
-"emphasis"><i class="emphasis">file</i></span></p>
-<p>The daemons process id will be written to <span class=
-"emphasis"><i class="emphasis">file</i></span> (default:
-unset).</p>
+<p><tt class="literal">pidfile =</tt> <span class="emphasis"><i class="emphasis">file</i></span></p>
+<p>The daemons process id will be written to <span class="emphasis"><i class="emphasis">file</i></span> (default: unset).</p>
 </li>
 <li>
-<p><tt class="literal">stat period =</tt> <span class=
-"emphasis"><i class="emphasis">seconds</i></span></p>
-<p>This enables periodic statistics logging to <span class=
-"emphasis"><i class="emphasis">syslogd</i></span> (default:
-disabled). The logged line starts with <tt class=
-"literal">STAT:</tt> and is followed by a series of <span class=
-"emphasis"><i class="emphasis">key</i></span><tt class=
-"literal">=</tt><span class="emphasis"><i class=
-"emphasis">value</i></span> pairs:</p>
+<p><tt class="literal">stat period =</tt> <span class="emphasis"><i class="emphasis">seconds</i></span></p>
+<p>This enables periodic statistics logging to <span class="emphasis"><i class="emphasis">syslogd</i></span> (default: disabled). The logged line starts with <tt class="literal">STAT:</tt> and is followed by a series of <span class="emphasis"><i class="emphasis">key</i></span><tt class="literal">=</tt><span class="emphasis"><i class="emphasis">value</i></span> pairs:</p>
 <ul>
 <li>
-<p><tt class="literal">Q=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of queries since
-start-up</p>
+<p><tt class="literal">Q=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries since start-up</p>
 </li>
 <li>
-<p><tt class="literal">A=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of queries answered
-since start-up</p>
+<p><tt class="literal">A=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries answered since start-up</p>
 </li>
 <li>
-<p><tt class="literal">R=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of queries rejected
-since start-up</p>
+<p><tt class="literal">R=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries rejected since start-up</p>
 </li>
 <li>
-<p><tt class="literal">X=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of queries expired since
-start-up</p>
+<p><tt class="literal">X=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries expired since start-up</p>
 </li>
 <li>
-<p><tt class="literal">E=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of queries failed since
-start-up</p>
+<p><tt class="literal">E=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries failed since start-up</p>
 </li>
 <li>
-<p><tt class="literal">T=</tt><span class="emphasis"><i class=
-"emphasis">seconds</i></span> &#8208; number of seconds since
-start-up</p>
+<p><tt class="literal">T=</tt><span class="emphasis"><i class="emphasis">seconds</i></span> â&euro; number of seconds since start-up</p>
 </li>
 <li>
-<p><tt class="literal">q=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of queries in last
-period</p>
+<p><tt class="literal">q=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries in last period</p>
 </li>
 <li>
-<p><tt class="literal">a=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of queries answered in
-last period</p>
+<p><tt class="literal">a=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries answered in last period</p>
 </li>
 <li>
-<p><tt class="literal">r=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of queries rejected in
-last period</p>
+<p><tt class="literal">r=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries rejected in last period</p>
 </li>
 <li>
-<p><tt class="literal">x=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of queries expired in
-last period</p>
+<p><tt class="literal">x=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries expired in last period</p>
 </li>
 <li>
-<p><tt class="literal">e=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of queries failed in
-last period</p>
+<p><tt class="literal">e=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries failed in last period</p>
 </li>
 <li>
-<p><tt class="literal">t=</tt><span class="emphasis"><i class=
-"emphasis">seconds</i></span> &#8208; length of last period</p>
+<p><tt class="literal">t=</tt><span class="emphasis"><i class="emphasis">seconds</i></span> â&euro; length of last period</p>
 </li>
 <li>
-<p><tt class="literal">B=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; maximum number of queries in
-backlog since start-up</p>
+<p><tt class="literal">B=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; maximum number of queries in backlog since start-up</p>
 </li>
 <li>
-<p><tt class="literal">b=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; maximum number of queries in
-backlog in last period</p>
+<p><tt class="literal">b=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; maximum number of queries in backlog in last period</p>
 </li>
 </ul>
 <p>Modules may log additional information, e.g.:</p>
 <ul>
 <li>
-<p><tt class="literal">F=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of childs forked since
-start-up</p>
+<p><tt class="literal">F=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of childs forked since start-up</p>
 </li>
 <li>
-<p><tt class="literal">I=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of answers received
-since start-up</p>
+<p><tt class="literal">I=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of answers received since start-up</p>
 </li>
 <li>
-<p><tt class="literal">O=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of queries sent since
-start-up</p>
+<p><tt class="literal">O=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries sent since start-up</p>
 </li>
 <li>
-<p><tt class="literal">f=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of childs forked in last
-period</p>
+<p><tt class="literal">f=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of childs forked in last period</p>
 </li>
 <li>
-<p><tt class="literal">i=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of answers received in
-last period</p>
+<p><tt class="literal">i=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of answers received in last period</p>
 </li>
 <li>
-<p><tt class="literal">o=</tt><span class="emphasis"><i class=
-"emphasis">count</i></span> &#8208; number of queries sent in last
-period</p>
+<p><tt class="literal">o=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries sent in last period</p>
 </li>
 </ul>
 </li>
 <li>
-<p><tt class="literal">syslog</tt> ( ( <tt class="literal">ident
-=</tt> Ident) | ( <tt class="literal">level =</tt> Level ) | (
-<tt class="literal">facility =</tt> Facility))</p>
-<p>Selects syslog <span class="emphasis"><i class=
-"emphasis">ident</i></span>, <span class="emphasis"><i class=
-"emphasis">level</i></span> and <span class="emphasis"><i class=
-"emphasis">facility</i></span>. Defaults to:</p>
-<pre class="screen">syslog ident = <span class="emphasis"><i class=
-"emphasis">program-name</i></span>
+<p><tt class="literal">syslog</tt> ( ( <tt class="literal">ident =</tt> Ident) | ( <tt class="literal">level =</tt> Level ) | ( <tt class="literal">facility =</tt> Facility))</p>
+<p>Selects syslog <span class="emphasis"><i class="emphasis">ident</i></span>, <span class="emphasis"><i class="emphasis">level</i></span> and <span class="emphasis"><i class="emphasis">facility</i></span>. Defaults to:</p>
+<pre class="screen">syslog ident = <span class="emphasis"><i class="emphasis">program-name</i></span>
 syslog facility = UUCP
 syslog level = INFO</pre></li>
 <li>
-<p><tt class="literal">transmit password =</tt> ( <tt class=
-"literal">yes</tt> | <tt class="literal">no</tt> )</p>
-<p>Allow transmission of cleartext password in responses (default:
-<tt class="literal">no</tt>).</p>
+<p><tt class="literal">transmit password =</tt> ( <tt class="literal">yes</tt> | <tt class="literal">no</tt> )</p>
+<p>Allow transmission of cleartext password in responses (default: <tt class="literal">no</tt>).</p>
 </li>
 </ul>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN269" id="AEN269">4.1. Railroad
-Diagrams</a></h3>
+<h3 class="section"><a name="AEN269" id="AEN269">4.1. Railroad Diagrams</a></h3>
 <div class="mediaobject">
-<p><img src="railroad/mavisd/Config.svg"></p>
+<p><img alt="" src="railroad/mavisd/Config.svg"></p>
 <div class="caption">
 <p>Railroad diagram: TcprelayConfig</p>
 </div>
 </div>
 <div class="mediaobject">
-<p><img src="railroad/mavisd/CIDR.svg"></p>
+<p><img alt="" src="railroad/mavisd/CIDR.svg"></p>
 <div class="caption">
 <p>Railroad diagram: CIDR</p>
 </div>
 </div>
 <div class="mediaobject">
-<p><img src="railroad/mavisd/SyslogDecl.svg"></p>
+<p><img alt="" src="railroad/mavisd/SyslogDecl.svg"></p>
 <div class="caption">
 <p>Railroad diagram: SyslogDecl</p>
 </div>
@@ -399,8 +274,7 @@ Diagrams</a></h3>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN293" id="AEN293">5. Sample
-configuration</a></h2>
+<h2 class="section"><a name="AEN293" id="AEN293">5. Sample configuration</a></h2>
 <pre class="screen">module-path /some/where/lib/mavis
 
 module-add log
@@ -420,82 +294,40 @@ module-conf ext1 program /where/ever/script.pl
 bind address 127.0.0.1 port 9001</pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN297" id="AEN297">6. Copyrights and
-Acknowledgements</a></h2>
-<p>Please see the source for copyright and licensing information of
-individual files.</p>
+<h2 class="section"><a name="AEN297" id="AEN297">6. Copyrights and Acknowledgements</a></h2>
+<p>Please see the source for copyright and licensing information of individual files.</p>
 <ul>
 <li>
-<p><span class="bold"><b class="emphasis">The Blowfish
-algorithm:</b></span></p>
+<p><span class="bold"><b class="emphasis">The Blowfish algorithm:</b></span></p>
 <p>This software uses Bruce Schneier's Blowfish algorithm.</p>
 </li>
 <li>
-<p><span class="bold"><b class="emphasis">Portions of the parsing
-code are taken from Cisco's tac_plus developers kit which is
-distributed under the following license:</b></span></p>
+<p><span class="bold"><b class="emphasis">Portions of the parsing code are taken from Cisco's tac_plus developers kit which is distributed under the following license:</b></span></p>
 <p>Copyright (c) 1995-1998 by Cisco systems, Inc.</p>
-<p>Permission to use, copy, modify, and distribute this software
-for any purpose and without fee is hereby granted, provided that
-this copyright and permission notice appear on all copies of the
-software and supporting documentation, the name of Cisco Systems,
-Inc. not be used in advertising or publicity pertaining to
-distribution of the program without specific prior permission, and
-notice be given in supporting documentation that modification,
-copying and distribution is by permission of Cisco Systems,
-Inc.</p>
-<p>Cisco Systems, Inc. makes no representations about the
-suitability of this software for any purpose. THIS SOFTWARE IS
-PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
-INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
-MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.</p>
+<p>Permission to use, copy, modify, and distribute this software for any purpose and without fee is hereby granted, provided that this copyright and permission notice appear on all copies of the software and supporting documentation, the name of Cisco Systems, Inc. not be used in advertising or publicity pertaining to distribution of the program without specific prior permission, and notice be given in supporting documentation that modification, copying and distribution is by permission of Cisco Systems, Inc.</p>
+<p>Cisco Systems, Inc. makes no representations about the suitability of this software for any purpose. THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.</p>
 </li>
 <li>
-<p><span class="bold"><b class="emphasis">The code written by Marc
-Huber is distributed under the following license:</b></span></p>
-<p>Copyright (C) 1999-2022 Marc Huber (<code class=
-"email">&lt;<a href=
-"mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>). All
-rights reserved.</p>
-<p>Redistribution and use in source and binary forms, with or
-without modification, are permitted provided that the following
-conditions are met:</p>
+<p><span class="bold"><b class="emphasis">The code written by Marc Huber is distributed under the following license:</b></span></p>
+<p>Copyright (C) 1999-2022 Marc Huber (<code class="email">&lt;<a class="lk" href="mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>). All rights reserved.</p>
+<p>Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:</p>
 <ol type="1">
 <li>
-<p>Redistributions of source code must retain the above copyright
-notice, this list of conditions and the following disclaimer.</p>
+<p>Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.</p>
 </li>
 <li>
-<p>Redistributions in binary form must reproduce the above
-copyright notice, this list of conditions and the following
-disclaimer in the documentation and/or other materials provided
-with the distribution.</p>
+<p>Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.</p>
 </li>
 <li>
-<p>The end-user documentation included with the redistribution, if
-any, must include the following acknowledgment:</p>
+<p>The end-user documentation included with the redistribution, if any, must include the following acknowledgment:</p>
 <a name="AEN324" id="AEN324"></a>
 <blockquote class="BLOCKQUOTE">
-<p>This product includes software developed by Marc Huber
-(<code class="email">&lt;<a href=
-"mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>).</p>
+<p>This product includes software developed by Marc Huber (<code class="email">&lt;<a class="lk" href="mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>).</p>
 </blockquote>
-<p>Alternately, this acknowledgment may appear in the software
-itself, if and wherever such third-party acknowledgments normally
-appear.</p>
+<p>Alternately, this acknowledgment may appear in the software itself, if and wherever such third-party acknowledgments normally appear.</p>
 </li>
 </ol>
-<p>THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
-WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
-OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL ITS AUTHOR BE LIABLE FOR ANY DIRECT,
-INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-OF THE POSSIBILITY OF SUCH DAMAGE.</p>
+<p>THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL ITS AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
 </li>
 </ul>
 </div>
