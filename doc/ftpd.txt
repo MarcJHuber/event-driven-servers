@@ -143,7 +143,7 @@ ftpd [ -P ] [ -d level ]  [ -i child_id ] configuration-file [ id ]
    If the program was compiled with CURL support,
    configuration-file may be an URL.
 
-   Keep the -P option in mind ‐ it is imperative that the
+   Keep the -P option in mind - it is imperative that the
    configuration file supplied is syntactically correct, as the
    daemon won't start if there are any parsing errors at start-up.
 
@@ -556,11 +556,11 @@ log acl someacl = ident command transfer
    critical for system security and defaults to none. Recognized
    keywords:
 
-     * all ‐ accept all symbolic links
-     * none ‐ ignore all symbolic links
-     * root ‐ accept symbolic links owned by root
-     * same ‐ accept symbolic links owned by owner of target
-     * real ‐ accept symbolic links for non-anonymous users
+     * all - accept all symbolic links
+     * none - ignore all symbolic links
+     * root - accept symbolic links owned by root
+     * same - accept symbolic links owned by owner of target
+     * real - accept symbolic links for non-anonymous users
 
    Type of Argument SymlinkType
    Default Value unset
@@ -700,36 +700,36 @@ rewrite ^/tmp/test123         $0                     R
 
    Available conversions are:
 
-     * %A ‐ number of transfers
-     * %B ‐ build time
-     * %C ‐ current working directory as displayed to user
-     * %D ‐ time for last transfer
-     * %E ‐ maintainer
-     * %F ‐ number of files transfered
-     * %H ‐ virtual host if set, local hostname else
-     * %I ‐ identity ‐ user name for real users, email or empty
+     * %A - number of transfers
+     * %B - build time
+     * %C - current working directory as displayed to user
+     * %D - time for last transfer
+     * %E - maintainer
+     * %F - number of files transfered
+     * %H - virtual host if set, local hostname else
+     * %I - identity - user name for real users, email or empty
        else
-     * %L ‐ local hostname
-     * %P ‐ email for anonymous users, empty string else
-     * %R ‐ remote host name, [%r] if unavailable
-     * %T ‐ local time
-     * %U ‐ user name
-     * %V ‐ version number
-     * %a ‐ total number of bytes transfered
-     * %b ‐ bytes transferred during last transfer
-     * %c ‐ command or file name
-     * %d ‐ direction of transfer (In, Out, in failed, out failed,
+     * %L - local hostname
+     * %P - email for anonymous users, empty string else
+     * %R - remote host name, [%r] if unavailable
+     * %T - local time
+     * %U - user name
+     * %V - version number
+     * %a - total number of bytes transfered
+     * %b - bytes transferred during last transfer
+     * %c - command or file name
+     * %d - direction of transfer (In, Out, in failed, out failed,
        X: aborted)
-     * %e ‐ event (login, logout or reject)
-     * %f ‐ number of bytes for file transfers
-     * %i ‐ unique session id
-     * %l ‐ local ip address
-     * %m ‐ transfer mode (ascii or binary)
-     * %r ‐ remote ip address
-     * %s ‐ file size of last transferred file
-     * %t ‐ type of user (real, anonymous or unknown)
-     * %u ‐ user name from RFC1413 lookup
-     * %% ‐ literal percent sign
+     * %e - event (login, logout or reject)
+     * %f - number of bytes for file transfers
+     * %i - unique session id
+     * %l - local ip address
+     * %m - transfer mode (ascii or binary)
+     * %r - remote ip address
+     * %s - file size of last transferred file
+     * %t - type of user (real, anonymous or unknown)
+     * %u - user name from RFC1413 lookup
+     * %% - literal percent sign
      __________________________________________________________
 
 7. Sample configuration
@@ -958,34 +958,34 @@ id = ftpd {
    The FTP Daemon hopefully conforms to the following standards
    and drafts:
 
-     * RFC959 ‐ File Transfer Protocol
-     * RFC1123 ‐ Requirements for Internet hosts - application and
+     * RFC959 - File Transfer Protocol
+     * RFC1123 - Requirements for Internet hosts - application and
        support
-     * RFC1321 ‐ The MD5 Message-Digest Algorithm
-     * RFC1413 ‐ Identification Protocol
-     * RFC1639 ‐ FTP Operation Over Big Address Records (FOOBAR)
-     * RFC2044 ‐ UTF-8, a transformation format of Unicode and ISO
+     * RFC1321 - The MD5 Message-Digest Algorithm
+     * RFC1413 - Identification Protocol
+     * RFC1639 - FTP Operation Over Big Address Records (FOOBAR)
+     * RFC2044 - UTF-8, a transformation format of Unicode and ISO
        10646
-     * RFC2228 ‐ FTP Security Extensions
-     * RFC2389 ‐ Feature negotiation mechanism for the File
+     * RFC2228 - FTP Security Extensions
+     * RFC2389 - Feature negotiation mechanism for the File
        Transfer Protocol
-     * RFC2428 ‐ FTP Extensions for IPv6 and NATs
-     * RFC2577 ‐ FTP Security Considerations
-     * RFC2640 ‐ Internationalization of the File Transfer
+     * RFC2428 - FTP Extensions for IPv6 and NATs
+     * RFC2577 - FTP Security Considerations
+     * RFC2640 - Internationalization of the File Transfer
        Protocol
-     * RFC4217 ‐ Securing FTP with TLS
-     * draft-ietf-ftpext-mlst-15.txt ‐ Extensions to FTP
-     * draft-ftpext-data-connection-assurance-00.txt ‐ FTP Data
+     * RFC4217 - Securing FTP with TLS
+     * draft-ietf-ftpext-mlst-15.txt - Extensions to FTP
+     * draft-ftpext-data-connection-assurance-00.txt - FTP Data
        Connection Assurance
-     * draft-somers-ftp-mfxx-03.txt ‐ The "MFMT", "MFCT", and
+     * draft-somers-ftp-mfxx-03.txt - The "MFMT", "MFCT", and
        "MFF" Command Extensions for FTP
-     * draft-preston-ftpext-deflate-03.txt ‐ Deflate transmission
+     * draft-preston-ftpext-deflate-03.txt - Deflate transmission
        mode for FTP
-     * draft-hethmon-mcmurray-ftp-hosts-02.txt ‐ File Transfer
+     * draft-hethmon-mcmurray-ftp-hosts-02.txt - File Transfer
        Protocol HOST Command
-     * draft-ietf-ftpext2-hash-01 ‐ File Transfer Protocol HASH
+     * draft-ietf-ftpext2-hash-01 - File Transfer Protocol HASH
        Command for Cryptographic Hashes
-     * draft-bryan-ftp-range-01 ‐ File Transfer Protocol RANG
+     * draft-bryan-ftp-range-01 - File Transfer Protocol RANG
        Command for Byte Ranges
      __________________________________________________________
 

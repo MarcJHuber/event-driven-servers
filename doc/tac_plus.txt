@@ -191,7 +191,7 @@ tac_plus [ -P ] [ -d level ] [ -i child_id ] configuration-file [ id ]
    If the program was compiled with CURL support,
    configuration-file may be an URL.
 
-   Keep the -P option in mind ‐ it is imperative that the
+   Keep the -P option in mind - it is imperative that the
    configuration file supplied is syntactically correct, as the
    daemon won't start if there are any parsing errors at start-up.
 
@@ -3493,7 +3493,7 @@ tac_plus -P config-file
 debug = option ...
 
    For example, getting command authorization to work in a
-   predictable way can be tricky ‐ the exact attributes the NAS
+   predictable way can be tricky - the exact attributes the NAS
    sends to the daemon may depend on the IOS version, and may in
    general not match your expectations. If your regular
    expressions don't work, add
@@ -4709,7 +4709,7 @@ debug multilink
 
 12. References
 
-     * draft-grant-tacacs-02.txt ‐ The TACACS+ Protocol (Version
+     * draft-grant-tacacs-02.txt - The TACACS+ Protocol (Version
        1.78)
      * RFC8907: The Terminal Access Controller Access-Control
        System Plus (TACACS+) Protocol

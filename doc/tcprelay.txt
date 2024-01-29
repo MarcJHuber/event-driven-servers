@@ -63,7 +63,7 @@ tcprelay [ -P ] [ -d level ]  [ -i child_id ] configuration-file [ id ]
    If the program was compiled with CURL support,
    configuration-file may be an URL.
 
-   Keep the -P option in mind ‐ it is imperative that the
+   Keep the -P option in mind - it is imperative that the
    configuration file supplied is syntactically correct, as the
    daemon won't start if there are any parsing errors at start-up.
 

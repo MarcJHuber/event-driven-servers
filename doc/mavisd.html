@@ -158,10 +158,10 @@ permit 192.168.0.5/32</pre></li>
 <p>Magic cookie substitution applies. The available conversions are:</p>
 <ul>
 <li>
-<p><tt class="literal">%o</tt> â&euro; run-time OS type</p>
+<p><tt class="literal">%o</tt> - run-time OS type</p>
 </li>
 <li>
-<p><tt class="literal">%O</tt> â&euro; compile-time OS type</p>
+<p><tt class="literal">%O</tt> - compile-time OS type</p>
 </li>
 </ul>
 </li>
@@ -174,67 +174,67 @@ permit 192.168.0.5/32</pre></li>
 <p>This enables periodic statistics logging to <span class="emphasis"><i class="emphasis">syslogd</i></span> (default: disabled). The logged line starts with <tt class="literal">STAT:</tt> and is followed by a series of <span class="emphasis"><i class="emphasis">key</i></span><tt class="literal">=</tt><span class="emphasis"><i class="emphasis">value</i></span> pairs:</p>
 <ul>
 <li>
-<p><tt class="literal">Q=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries since start-up</p>
+<p><tt class="literal">Q=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of queries since start-up</p>
 </li>
 <li>
-<p><tt class="literal">A=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries answered since start-up</p>
+<p><tt class="literal">A=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of queries answered since start-up</p>
 </li>
 <li>
-<p><tt class="literal">R=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries rejected since start-up</p>
+<p><tt class="literal">R=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of queries rejected since start-up</p>
 </li>
 <li>
-<p><tt class="literal">X=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries expired since start-up</p>
+<p><tt class="literal">X=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of queries expired since start-up</p>
 </li>
 <li>
-<p><tt class="literal">E=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries failed since start-up</p>
+<p><tt class="literal">E=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of queries failed since start-up</p>
 </li>
 <li>
-<p><tt class="literal">T=</tt><span class="emphasis"><i class="emphasis">seconds</i></span> â&euro; number of seconds since start-up</p>
+<p><tt class="literal">T=</tt><span class="emphasis"><i class="emphasis">seconds</i></span> - number of seconds since start-up</p>
 </li>
 <li>
-<p><tt class="literal">q=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries in last period</p>
+<p><tt class="literal">q=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of queries in last period</p>
 </li>
 <li>
-<p><tt class="literal">a=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries answered in last period</p>
+<p><tt class="literal">a=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of queries answered in last period</p>
 </li>
 <li>
-<p><tt class="literal">r=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries rejected in last period</p>
+<p><tt class="literal">r=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of queries rejected in last period</p>
 </li>
 <li>
-<p><tt class="literal">x=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries expired in last period</p>
+<p><tt class="literal">x=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of queries expired in last period</p>
 </li>
 <li>
-<p><tt class="literal">e=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries failed in last period</p>
+<p><tt class="literal">e=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of queries failed in last period</p>
 </li>
 <li>
-<p><tt class="literal">t=</tt><span class="emphasis"><i class="emphasis">seconds</i></span> â&euro; length of last period</p>
+<p><tt class="literal">t=</tt><span class="emphasis"><i class="emphasis">seconds</i></span> - length of last period</p>
 </li>
 <li>
-<p><tt class="literal">B=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; maximum number of queries in backlog since start-up</p>
+<p><tt class="literal">B=</tt><span class="emphasis"><i class="emphasis">count</i></span> - maximum number of queries in backlog since start-up</p>
 </li>
 <li>
-<p><tt class="literal">b=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; maximum number of queries in backlog in last period</p>
+<p><tt class="literal">b=</tt><span class="emphasis"><i class="emphasis">count</i></span> - maximum number of queries in backlog in last period</p>
 </li>
 </ul>
 <p>Modules may log additional information, e.g.:</p>
 <ul>
 <li>
-<p><tt class="literal">F=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of childs forked since start-up</p>
+<p><tt class="literal">F=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of childs forked since start-up</p>
 </li>
 <li>
-<p><tt class="literal">I=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of answers received since start-up</p>
+<p><tt class="literal">I=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of answers received since start-up</p>
 </li>
 <li>
-<p><tt class="literal">O=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries sent since start-up</p>
+<p><tt class="literal">O=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of queries sent since start-up</p>
 </li>
 <li>
-<p><tt class="literal">f=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of childs forked in last period</p>
+<p><tt class="literal">f=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of childs forked in last period</p>
 </li>
 <li>
-<p><tt class="literal">i=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of answers received in last period</p>
+<p><tt class="literal">i=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of answers received in last period</p>
 </li>
 <li>
-<p><tt class="literal">o=</tt><span class="emphasis"><i class="emphasis">count</i></span> â&euro; number of queries sent in last period</p>
+<p><tt class="literal">o=</tt><span class="emphasis"><i class="emphasis">count</i></span> - number of queries sent in last period</p>
 </li>
 </ul>
 </li>

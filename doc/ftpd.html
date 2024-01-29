@@ -190,7 +190,7 @@ STAT, STOR, STOU, SYST, TYPE, USER, XCUP, XCWD, XMKD, XPWD, XRMD
 <p>The only mandatory argument is the path to the configuration file:</p>
 <pre class="screen">ftpd [ <span class="emphasis"><i class="emphasis">-P</i></span> ] [ <span class="emphasis"><i class="emphasis">-d level</i></span> ]  [ <span class="emphasis"><i class="emphasis">-i child_id</i></span> ] <span class="emphasis"><i class="emphasis">configuration-file</i></span> [ <span class="emphasis"><i class="emphasis">id</i></span> ]</pre>
 <p>If the program was compiled with CURL support, <span class="emphasis"><i class="emphasis">configuration-file</i></span> may be an URL.</p>
-<p>Keep the <tt class="literal">-P</tt> option in mind â&euro; it is imperative that the configuration file supplied is syntactically correct, as the daemon won't start if there are any parsing errors at start-up.</p>
+<p>Keep the <tt class="literal">-P</tt> option in mind - it is imperative that the configuration file supplied is syntactically correct, as the daemon won't start if there are any parsing errors at start-up.</p>
 <p>The <tt class="literal">-d</tt> switch enables debugging. You most likely don't want to use this. Read the source if you need to.</p>
 <p>The <tt class="literal">-i</tt> option is only honoured if the build-in <span class="bold"><b class="emphasis">spawnd</b></span> functionality is used. In that case, it selects the configuration ID for <span class="bold"><b class="emphasis">ftpd</b></span>, while the optional last argument <span class="emphasis"><i class="emphasis">id</i></span> sets the ID of the <span class="bold"><b class="emphasis">spawnd</b></span> configuration section.</p>
 </div>
@@ -985,19 +985,19 @@ binary-only acl binary = permit</pre></td>
 <p>Specify which symbolic links to trust. This option is quite critical for system security and defaults to <tt class="literal">none</tt>. Recognized keywords:</p>
 <ul>
 <li>
-<p><tt class="literal">all</tt> â&euro; accept all symbolic links</p>
+<p><tt class="literal">all</tt> - accept all symbolic links</p>
 </li>
 <li>
-<p><tt class="literal">none</tt> â&euro; ignore all symbolic links</p>
+<p><tt class="literal">none</tt> - ignore all symbolic links</p>
 </li>
 <li>
-<p><tt class="literal">root</tt> â&euro; accept symbolic links owned by root</p>
+<p><tt class="literal">root</tt> - accept symbolic links owned by root</p>
 </li>
 <li>
-<p><tt class="literal">same</tt> â&euro; accept symbolic links owned by owner of target</p>
+<p><tt class="literal">same</tt> - accept symbolic links owned by owner of target</p>
 </li>
 <li>
-<p><tt class="literal">real</tt> â&euro; accept symbolic links for non-anonymous users</p>
+<p><tt class="literal">real</tt> - accept symbolic links for non-anonymous users</p>
 </li>
 </ul>
 </td>
@@ -1203,88 +1203,88 @@ rewrite ^/tmp/test123         $0                     R</pre></div>
 <p>Available conversions are:</p>
 <ul>
 <li>
-<p><tt class="literal">%A</tt> â&euro; number of transfers</p>
+<p><tt class="literal">%A</tt> - number of transfers</p>
 </li>
 <li>
-<p><tt class="literal">%B</tt> â&euro; build time</p>
+<p><tt class="literal">%B</tt> - build time</p>
 </li>
 <li>
-<p><tt class="literal">%C</tt> â&euro; current working directory as displayed to user</p>
+<p><tt class="literal">%C</tt> - current working directory as displayed to user</p>
 </li>
 <li>
-<p><tt class="literal">%D</tt> â&euro; time for last transfer</p>
+<p><tt class="literal">%D</tt> - time for last transfer</p>
 </li>
 <li>
-<p><tt class="literal">%E</tt> â&euro; maintainer</p>
+<p><tt class="literal">%E</tt> - maintainer</p>
 </li>
 <li>
-<p><tt class="literal">%F</tt> â&euro; number of files transfered</p>
+<p><tt class="literal">%F</tt> - number of files transfered</p>
 </li>
 <li>
-<p><tt class="literal">%H</tt> â&euro; virtual host if set, local hostname else</p>
+<p><tt class="literal">%H</tt> - virtual host if set, local hostname else</p>
 </li>
 <li>
-<p><tt class="literal">%I</tt> â&euro; identity â&euro; user name for real users, email or empty else</p>
+<p><tt class="literal">%I</tt> - identity - user name for real users, email or empty else</p>
 </li>
 <li>
-<p><tt class="literal">%L</tt> â&euro; local hostname</p>
+<p><tt class="literal">%L</tt> - local hostname</p>
 </li>
 <li>
-<p><tt class="literal">%P</tt> â&euro; email for anonymous users, empty string else</p>
+<p><tt class="literal">%P</tt> - email for anonymous users, empty string else</p>
 </li>
 <li>
-<p><tt class="literal">%R</tt> â&euro; remote host name, <tt class="literal">[%r]</tt> if unavailable</p>
+<p><tt class="literal">%R</tt> - remote host name, <tt class="literal">[%r]</tt> if unavailable</p>
 </li>
 <li>
-<p><tt class="literal">%T</tt> â&euro; local time</p>
+<p><tt class="literal">%T</tt> - local time</p>
 </li>
 <li>
-<p><tt class="literal">%U</tt> â&euro; user name</p>
+<p><tt class="literal">%U</tt> - user name</p>
 </li>
 <li>
-<p><tt class="literal">%V</tt> â&euro; version number</p>
+<p><tt class="literal">%V</tt> - version number</p>
 </li>
 <li>
-<p><tt class="literal">%a</tt> â&euro; total number of bytes transfered</p>
+<p><tt class="literal">%a</tt> - total number of bytes transfered</p>
 </li>
 <li>
-<p><tt class="literal">%b</tt> â&euro; bytes transferred during last transfer</p>
+<p><tt class="literal">%b</tt> - bytes transferred during last transfer</p>
 </li>
 <li>
-<p><tt class="literal">%c</tt> â&euro; command or file name</p>
+<p><tt class="literal">%c</tt> - command or file name</p>
 </li>
 <li>
-<p><tt class="literal">%d</tt> â&euro; direction of transfer (<span class="bold"><b class="emphasis">I</b></span>n, <span class="bold"><b class="emphasis">O</b></span>ut, <span class="bold"><b class="emphasis">i</b></span>n failed, <span class="bold"><b class="emphasis">o</b></span>ut failed, <span class="bold"><b class="emphasis">X</b></span>: aborted)</p>
+<p><tt class="literal">%d</tt> - direction of transfer (<span class="bold"><b class="emphasis">I</b></span>n, <span class="bold"><b class="emphasis">O</b></span>ut, <span class="bold"><b class="emphasis">i</b></span>n failed, <span class="bold"><b class="emphasis">o</b></span>ut failed, <span class="bold"><b class="emphasis">X</b></span>: aborted)</p>
 </li>
 <li>
-<p><tt class="literal">%e</tt> â&euro; event (<tt class="literal">login</tt>, <tt class="literal">logout</tt> or <tt class="literal">reject</tt>)</p>
+<p><tt class="literal">%e</tt> - event (<tt class="literal">login</tt>, <tt class="literal">logout</tt> or <tt class="literal">reject</tt>)</p>
 </li>
 <li>
-<p><tt class="literal">%f</tt> â&euro; number of bytes for file transfers</p>
+<p><tt class="literal">%f</tt> - number of bytes for file transfers</p>
 </li>
 <li>
-<p><tt class="literal">%i</tt> â&euro; unique session id</p>
+<p><tt class="literal">%i</tt> - unique session id</p>
 </li>
 <li>
-<p><tt class="literal">%l</tt> â&euro; local ip address</p>
+<p><tt class="literal">%l</tt> - local ip address</p>
 </li>
 <li>
-<p><tt class="literal">%m</tt> â&euro; transfer mode (<span class="bold"><b class="emphasis">a</b></span>scii or <span class="bold"><b class="emphasis">b</b></span>inary)</p>
+<p><tt class="literal">%m</tt> - transfer mode (<span class="bold"><b class="emphasis">a</b></span>scii or <span class="bold"><b class="emphasis">b</b></span>inary)</p>
 </li>
 <li>
-<p><tt class="literal">%r</tt> â&euro; remote ip address</p>
+<p><tt class="literal">%r</tt> - remote ip address</p>
 </li>
 <li>
-<p><tt class="literal">%s</tt> â&euro; file size of last transferred file</p>
+<p><tt class="literal">%s</tt> - file size of last transferred file</p>
 </li>
 <li>
-<p><tt class="literal">%t</tt> â&euro; type of user (<span class="bold"><b class="emphasis">r</b></span>eal, <span class="bold"><b class="emphasis">a</b></span>nonymous or <span class="bold"><b class="emphasis">u</b></span>nknown)</p>
+<p><tt class="literal">%t</tt> - type of user (<span class="bold"><b class="emphasis">r</b></span>eal, <span class="bold"><b class="emphasis">a</b></span>nonymous or <span class="bold"><b class="emphasis">u</b></span>nknown)</p>
 </li>
 <li>
-<p><tt class="literal">%u</tt> â&euro; user name from RFC1413 lookup</p>
+<p><tt class="literal">%u</tt> - user name from RFC1413 lookup</p>
 </li>
 <li>
-<p><tt class="literal">%%</tt> â&euro; literal percent sign</p>
+<p><tt class="literal">%%</tt> - literal percent sign</p>
 </li>
 </ul>
 </div>
@@ -1603,61 +1603,61 @@ id = ftpd {
 <p>The FTP Daemon hopefully conforms to the following standards and drafts:</p>
 <ul>
 <li>
-<p>RFC959 â&euro; File Transfer Protocol</p>
+<p>RFC959 - File Transfer Protocol</p>
 </li>
 <li>
-<p>RFC1123 â&euro; Requirements for Internet hosts - application and support</p>
+<p>RFC1123 - Requirements for Internet hosts - application and support</p>
 </li>
 <li>
-<p>RFC1321 â&euro; The MD5 Message-Digest Algorithm</p>
+<p>RFC1321 - The MD5 Message-Digest Algorithm</p>
 </li>
 <li>
-<p>RFC1413 â&euro; Identification Protocol</p>
+<p>RFC1413 - Identification Protocol</p>
 </li>
 <li>
-<p>RFC1639 â&euro; FTP Operation Over Big Address Records (FOOBAR)</p>
+<p>RFC1639 - FTP Operation Over Big Address Records (FOOBAR)</p>
 </li>
 <li>
-<p>RFC2044 â&euro; UTF-8, a transformation format of Unicode and ISO 10646</p>
+<p>RFC2044 - UTF-8, a transformation format of Unicode and ISO 10646</p>
 </li>
 <li>
-<p>RFC2228 â&euro; FTP Security Extensions</p>
+<p>RFC2228 - FTP Security Extensions</p>
 </li>
 <li>
-<p>RFC2389 â&euro; Feature negotiation mechanism for the File Transfer Protocol</p>
+<p>RFC2389 - Feature negotiation mechanism for the File Transfer Protocol</p>
 </li>
 <li>
-<p>RFC2428 â&euro; FTP Extensions for IPv6 and NATs</p>
+<p>RFC2428 - FTP Extensions for IPv6 and NATs</p>
 </li>
 <li>
-<p>RFC2577 â&euro; FTP Security Considerations</p>
+<p>RFC2577 - FTP Security Considerations</p>
 </li>
 <li>
-<p>RFC2640 â&euro; Internationalization of the File Transfer Protocol</p>
+<p>RFC2640 - Internationalization of the File Transfer Protocol</p>
 </li>
 <li>
-<p>RFC4217 â&euro; Securing FTP with TLS</p>
+<p>RFC4217 - Securing FTP with TLS</p>
 </li>
 <li>
-<p>draft-ietf-ftpext-mlst-15.txt â&euro; Extensions to FTP</p>
+<p>draft-ietf-ftpext-mlst-15.txt - Extensions to FTP</p>
 </li>
 <li>
-<p>draft-ftpext-data-connection-assurance-00.txt â&euro; FTP Data Connection Assurance</p>
+<p>draft-ftpext-data-connection-assurance-00.txt - FTP Data Connection Assurance</p>
 </li>
 <li>
-<p>draft-somers-ftp-mfxx-03.txt â&euro; The "MFMT", "MFCT", and "MFF" Command Extensions for FTP</p>
+<p>draft-somers-ftp-mfxx-03.txt - The "MFMT", "MFCT", and "MFF" Command Extensions for FTP</p>
 </li>
 <li>
-<p>draft-preston-ftpext-deflate-03.txt â&euro; Deflate transmission mode for FTP</p>
+<p>draft-preston-ftpext-deflate-03.txt - Deflate transmission mode for FTP</p>
 </li>
 <li>
-<p>draft-hethmon-mcmurray-ftp-hosts-02.txt â&euro; File Transfer Protocol HOST Command</p>
+<p>draft-hethmon-mcmurray-ftp-hosts-02.txt - File Transfer Protocol HOST Command</p>
 </li>
 <li>
-<p>draft-ietf-ftpext2-hash-01 â&euro; File Transfer Protocol HASH Command for Cryptographic Hashes</p>
+<p>draft-ietf-ftpext2-hash-01 - File Transfer Protocol HASH Command for Cryptographic Hashes</p>
 </li>
 <li>
-<p>draft-bryan-ftp-range-01 â&euro; File Transfer Protocol RANG Command for Byte Ranges</p>
+<p>draft-bryan-ftp-range-01 - File Transfer Protocol RANG Command for Byte Ranges</p>
 </li>
 </ul>
 </div>

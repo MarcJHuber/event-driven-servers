@@ -216,7 +216,7 @@
 <p>The only mandatory argument is the path to the configuration file:</p>
 <pre class="screen">tac_plus [ <span class="emphasis"><i class="emphasis">-P</i></span> ] [ <span class="emphasis"><i class="emphasis">-d level</i></span> ] [ <span class="emphasis"><i class="emphasis">-i child_id</i></span> ] <span class="emphasis"><i class="emphasis">configuration-file</i></span> [ <span class="emphasis"><i class="emphasis">id</i></span> ]</pre>
 <p>If the program was compiled with CURL support, <span class="emphasis"><i class="emphasis">configuration-file</i></span> may be an URL.</p>
-<p>Keep the <tt class="literal">-P</tt> option in mind â&euro; it is imperative that the configuration file supplied is syntactically correct, as the daemon won't start if there are any parsing errors at start-up.</p>
+<p>Keep the <tt class="literal">-P</tt> option in mind - it is imperative that the configuration file supplied is syntactically correct, as the daemon won't start if there are any parsing errors at start-up.</p>
 <p>The <tt class="literal">-d</tt> switch enables debugging. You most likely don't want to use this. Read the source if you need to.</p>
 <p>The <tt class="literal">-i</tt> option is only honoured if the build-in <span class="bold"><b class="emphasis">spawnd</b></span> functionality is used. In that case, it selects the configuration ID for <span class="bold"><b class="emphasis">tac_plus</b></span>, while the optional last argument <span class="emphasis"><i class="emphasis">id</i></span> sets the ID of the <span class="bold"><b class="emphasis">spawnd</b></span> configuration section.</p>
 </div>
@@ -3218,7 +3218,7 @@ mavis module = external {
 <h3 class="section"><a name="AEN2689" id="AEN2689">6.2. Trace Options</a></h3>
 <p>Trace (or debugging) options may be specified in <span class="emphasis"><i class="emphasis">global</i></span>, <span class="emphasis"><i class="emphasis">host</i></span>, <span class="emphasis"><i class="emphasis">user</i></span> and <span class="emphasis"><i class="emphasis">group</i></span> context. The current debugging level is a combination (read: <tt class="literal">OR</tt>) of all those. Generic syntax is:</p>
 <pre class="screen">debug = <span class="emphasis"><i class="emphasis">option ...</i></span></pre>
-<p>For example, getting command authorization to work in a predictable way can be tricky â&euro; the exact attributes the NAS sends to the daemon may depend on the IOS version, and may in general not match your expectations. If your regular expressions don't work, add</p>
+<p>For example, getting command authorization to work in a predictable way can be tricky - the exact attributes the NAS sends to the daemon may depend on the IOS version, and may in general not match your expectations. If your regular expressions don't work, add</p>
 <pre class="screen">debug = REGEX</pre>
 <p>where appropriate, and the daemon may log some useful information to <tt class="literal">syslog</tt>.</p>
 <p>Multiple trace options may be specified. Example:</p>
@@ -4329,7 +4329,7 @@ debug multilink
 <h2 class="section"><a name="AEN3601" id="AEN3601">12. References</a></h2>
 <ul>
 <li>
-<p><a class="lk" href="https://tools.ietf.org/html/draft-grant-tacacs-02" target="_top">draft-grant-tacacs-02.txt â&euro; The TACACS+ Protocol (Version 1.78)</a></p>
+<p><a class="lk" href="https://tools.ietf.org/html/draft-grant-tacacs-02" target="_top">draft-grant-tacacs-02.txt - The TACACS+ Protocol (Version 1.78)</a></p>
 </li>
 <li>
 <p><a class="lk" href="https://tools.ietf.org/html/rfc8907" target="_top">RFC8907: The Terminal Access Controller Access-Control System Plus (TACACS+) Protocol</a></p>

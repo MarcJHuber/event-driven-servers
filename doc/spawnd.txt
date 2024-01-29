@@ -245,8 +245,8 @@ service ftp
             omitted else.
             Magic cookie substitution applies. The available
             conversions are
-               o %o ‐ run-time OS type
-               o %O ‐ compile-time OS type
+               o %o - run-time OS type
+               o %O - compile-time OS type
             The "OS type" string inserted is identical to the
             output of:
 uname -srm | tr ' [:upper:]' '\-[:lower:]'
