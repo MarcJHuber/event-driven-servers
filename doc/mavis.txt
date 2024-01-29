@@ -1,4 +1,4 @@
-MAVIS ‐ Modular Attribute-Value Interchange System
+MAVIS - Modular Attribute-Value Interchange System
 
 Marc Huber
 
