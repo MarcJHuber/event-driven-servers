@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN"
+   "http://www.w3.org/TR/1998/REC-html40-19980424/loose.dtd">
+<html>
+<head>
+<meta name="generator" content=
+"HTML Tidy for Linux/x86 (vers 7 December 2008), see www.w3.org">
+<META NAME=viewport CONTENT="width=device-width, initial-scale=1">
+<title>Mini-HowTo: Integrating TACACS+ with ActiveDirectory</title>
+<meta http-equiv="Content-Type" content=
+"text/html; charset=us-ascii">
+<link rel="stylesheet" type="text/css" href="style.css">
+<meta name="keywords" content=
+"tac_plus, active directory, ad, windows, domain">
+</head>
+<body>
+<h1>Mini-HowTo: Integrating TACACS+ with ActiveDirectory</h1>
+<P><B><I>If you're starting from scratch: Please consider using <a class="lk" href="tac_plus-ng.html">tac_plus-ng</a> and have a look at <a class="lk" href="howto-tac_plus-ng-ads.html">The tac_plus-ng AD Integration HowTo</a> first.
+<a class="lk" href="tac_plus-ng.html">tac_plus-ng</a> supports multi-group membership and direct evaluation of mmemberOf attributes.</I></B>
+</p>
+This page will give you a starting point. However, to use any of
+the advanced <a class="lk" href="tac_plus.html">tac_plus</a> features you'll
+really <i>have</i> to read the documentation.
+<p>Having said that, the steps to get you up and running are:</p>
+<ol type="1">
+<li>
+<p>Download the distribution. It's available from
+<a class="lk" href="https://github.com/MarcJHuber/event-driven-servers/">GitHub</a>:
+<pre class = "screen">git clone https://github.com/MarcJHuber/event-driven-servers.git</pre>
+</li>
+<li>
+<p>Compile the code:</p>
+<pre class="screen">
+cd event-driven-servers
+./configure
+make
+</pre></li>
+<li>
+<p>Install the distribution. You'll probably have to do so as the
+<tt>root</tt> user, so either</p>
+<pre class="screen">
+sudo make install
+</pre>
+or
+<pre class="screen">
+su
+make install
+exit
+</pre>
+will be required to make this work.</li>
+</ol>
+<p>At this point, <i>installation</i> is complete, but this was
+indeed just the generic (and easy) part of these instructions.
+What's still missing is the configuration file, plus a couple of
+assorted ActiveDirectory entries:</p>
+<ol type="1">
+<li>
+<p>ActiveDirectory</p>
+<ul>
+<li>
+<p>AD doesn't permit anonymous LDAP queries. You should add a
+dedicated account to your AD server, e.g. <tt>tacacs</tt> that
+isn't a member of any group and has a fixed (non-expiring, not
+changeable) password.</p>
+</li>
+<li>
+<p>Add TACACS+ specific user groups, e.g. <tt>tacacsadmin</tt> and <tt>tacacsguest</tt>, to
+your AD server, and add users to those groups. A user cannot be in multiple TACACS+ groups, so he/she shouldn't be
+member of more than one group starting with <tt>tacacs</tt>
+(but you can bypass this requirement by using the <tt>nas default restriction</tt> configuration directive, see the TACACS+ documentation for that one).</p>
+</li>
+</ul>
+</li>
+<li>
+<p>Copy the <A CLASS="lk" HREF="../tac_plus-ng/extra/tac_plus-ng.cfg-ads.cfg">sample configuration file</A> from the
+your local <tt>/usr/local/lib/mavis/extra/</tt> directory to <tt>/usr/local/etc/tac_plus.cfg</tt>.
+Again, you'll obviously need <tt>root</tt> privileges for that, but
+I'll silently ignore this requirement for now:</p>
+<pre class="screen">
+cp /usr/local/lib/mavis/extra/tac_plus.cfg-ads /usr/local/etc/tac_plus.cfg
+</pre></li>
+<li>
+<p>Edit <tt>/usr/local/etc/tac_plus.cfg</tt> with your favorite
+editor. As a minimum, you'll have to modify the <tt>setenv</tt>
+variables starting with <tt>LDAP_</tt> to match your local
+environment. Feel free to modify other stuff, too.</p>
+</li>
+<li>
+<p>The authentication backend requires a couple of Perl modules
+which may or may not be already installed on your system. Run</p>
+<pre class="screen">
+/usr/local/lib/mavis/mavis_tacplus_ads.pl &lt; /dev/null
+</pre>
+If there's some error message saying <tt>Can't locate Net/LDAP.pm
+in @INC</tt> you'll first have to install the <tt>Net::LDAP</tt>
+Perl module. If there's any other error message you should abort
+right here as this would be plainly out of the scope of this document.</li>
+<li>
+<p>Check whether there are any syntax errors in the configuration
+file:</p>
+<pre class="screen">
+/usr/local/sbin/tac_plus -P /usr/local/etc/tac_plus.cfg
+</pre>
+If there are any errors, well, fix them.</li>
+<li>
+<p>Check whether communication with the AD server is
+functional:</p>
+<pre class="screen">
+/usr/local/bin/mavistest -d -1 /usr/local/etc/tac_plus.cfg tac_plus TAC_PLUS someusername
+</pre>
+(replace <tt>someusername</tt> with one from any of the
+<tt>tacacs</tt> groups)</li>
+<li>
+<p>That's it. Almost. If you want the daemon to start at boot time,
+you should <i>probably</i></p>
+<pre class="screen">
+cp /usr/local/lib/mavis/extra/etc_init.d_tac_plus /etc/init.d/tac_plus
+</pre>
+and add the assorted links from a couple of <tt>init</tt>
+directories. Some other launch mechanisms are supported, too, just
+dig through <tt>/usr/local/lib/mavis/extra/</tt>, there are samples for
+<tt>launchd</tt> and <tt>systemd</tt>.
+<p>
+If you've performed that last step (the etc_init.d copying thing), then
+<pre class="screen">
+/etc/init.d/tac_plus start
+</pre>
+should start the daemon. Or just call
+<pre class="screen">
+/usr/local/sbin/tac_plus /usr/local/etc/tac_plus.cfg
+</pre>
+directly.</li>
+</ol>
+<p>Again, reading the documentation for <a CLASS="lk" href=
+"spawnd.html">spawnd</a>,
+<a CLASS="lk" href=
+"mavis.html">mavis</a> and
+<a CLASS="lk" href=
+"tac_plus.html">tac_plus</a>
+is highly recommended.</p>
+</body>
+</html>

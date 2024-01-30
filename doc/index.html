@@ -1,0 +1,64 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN" "http://www.w3.org/TR/1998/REC-html40-19980424/loose.dtd">
+<HTML>
+<HEAD><TITLE>Event-driven servers</TITLE>
+<META http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+<META NAME=viewport CONTENT="width=device-width, initial-scale=1">
+<link rel=stylesheet type="text/css" href="style.css">
+<meta name="keywords" content="download, event-driven, scalable, ftpd, tcprelay, spawnd, tac_plus, tac_plus-ng, tacacs, ldap, ftp, server, daemon, IPv6, server, tac_plus-ng, tls 1.3">
+</HEAD>
+<BODY>
+<H1>Event-driven servers</H1>
+This project features a couple of event-driven servers,
+a modular authentication system and other stuff that may or may
+not prove useful to you.
+The software should compile out of the box for recent versions
+of MacOS, Linux, FreeBSD, OpenBSD, NetBSD, DragonFly BSD, Solaris and,
+in a somewhat degraded mode, Windows (via Cygwin). Please note that not all of those compiles are recently tested.
+<H2>Documentation</H2>
+<UL>
+<LI><A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/spawnd.html">spawnd</A>
+<A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/spawnd.pdf">[pdf]</A>
+is a broker with load-balancing functionality that listens for incoming connections on IPv4, IPv6 or UNIX sockets and forwards them (using ancillary messages over UNIX domain sockets) to the spawned server processes. <A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/spawnd.html">spawnd</A> functionality is integrated into the daemons you'll find below, and it's an essential part of the latter.
+<P>
+<LI><A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/ftpd.html">ftpd</A>
+<A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/ftpd.pdf">[pdf]</A>
+is a highly configurable event-driven FTP daemon with TLS/SSL and
+IPv6 support, and much more.
+<P>
+<LI><A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/mavis.html">mavis</A>
+<A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/mavis.pdf">[pdf]</A>
+and <A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/mavisd.html">mavisd</A>
+<A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/mavisd.pdf">[pdf]</A>
+implement the modular authentication sub-system used by <A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/ftpd.html">ftpd</A>, <A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus-ng.html">tac_plus-ng</A> and <A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus.html">tac_plus</A> (the latter is now deprecated)
+<P>
+<LI><A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus.html">tac_plus</A>
+<A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus.pdf">[pdf]</A>
+is an event-driven TACACS+ daemon which utilizes the MAVIS backend for
+authentication and authorization (and may get its user data from various backends, including PAM, LDAP, RADIUS and <A CLASS="lk" HREF="howto-tac_plus-ads.html">ActiveDirectory</A> (for -NG: <A CLASS="lk" HREF="howto-tac_plus-ng-ads.html">click here</A>).
+Supported features include IPv6, single-connection and much more.<P>Don't use this daemon for new installations, it's deprecated in favour of tac_plus-ng.
+<P>
+<LI><A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus-ng.html">tac_plus-ng</A>
+<A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus-ng.pdf">[pdf]</A>
+is a rewritten variant of the former. And, to put it plainly, it's the future. Also, it comes with the <tt>tactrace.pl</tt> utility which greatly simplifies configuration checking.
+<P>Plus, it supports 
+<A CLASS="lk" HREF="https://github.com/MarcJHuber/event-driven-servers/wiki/TACACS_PLUS---SSH-Public-Key-Authentication">Non-standard SSH Public Key Authentication</A> and other experimental features (e.g. TLS).
+<P>
+<LI><A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/tcprelay.html">tcprelay</A>
+<A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/pdf/tcprelay.pdf">[pdf]</A>
+is an event-driven TCP connection forwarder for IPv4 and IPv6.
+</UL>
+<H2>Public GIT</H2>
+I've moved the project to <A CLASS="lk" HREF="https://github.com/MarcJHuber/event-driven-servers/">GitHub</A>.
+That GIT includes source plus documentation in PDF, HTML and plain text format.
+<P>
+<P>A couple of both pre-GIT and GIT snapshots can eventually be downloaded from the <A CLASS="lk" HREF="archive">archive</A>, as long as I consider it's worth keeping them. I occasionally clean this up. Those snapshots are unsupported, and you're typically better off using the most current version from GIT anyway. I just continue to create these source archives to keep automatic download scripts happy.
+<H2>Feedback</H2>
+If you've trouble using the software, please open an issue via <A CLASS="lk" HREF="https://github.com/MarcJHuber/event-driven-servers/issues">GitHub Issues</A>, but please take care that you're on the latest GIT version.
+<P>Sending a mail via the <A CLASS="lk" HREF="http://groups.google.com/group/event-driven-servers">Event-Driven Servers</A> Google group might be an option too, but the mailing system there seems to have reliability issues. That group is moderated, first-time posters will need my approval. Don't send your mail more than once (I have absolutely no trouble with approving re-sends, so just don't do it). Your mail will show up, most certainly, sooner or later.
+<P><span class="red">This is a non-commercial project. There is no private support. At all. Theres no paid-for support, either. I'm happy to support you in public, if I have spare time for that. Support requests or inquries sent to any of my private email addresses will be silently discarded by a mail filter. Use the public channels, please.</span>
+<P>
+Cheers,
+<P>
+<I>&nbsp;&nbsp;&nbsp;Marc</I>
+</BODY>
+</HTML>
