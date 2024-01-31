@@ -13,18 +13,15 @@
 "tac_plus, active directory, ad, windows, domain">
 </head>
 <body>
-<h1>Mini-HowTo: Integrating TACACS+ with ActiveDirectory</h1>
-<P><B><I>If you're starting from scratch: Please consider using <a class="lk" href="tac_plus-ng.html">tac_plus-ng</a> and have a look at <a class="lk" href="howto-tac_plus-ng-ads.html">The tac_plus-ng AD Integration HowTo</a> first.
-<a class="lk" href="tac_plus-ng.html">tac_plus-ng</a> supports multi-group membership and direct evaluation of mmemberOf attributes.</I></B>
-</p>
+<h1>Mini-HowTo: Integrating TACACS+ (NG) with ActiveDirectory</h1>
 This page will give you a starting point. However, to use any of
-the advanced <a class="lk" href="tac_plus.html">tac_plus</a> features you'll
+the advanced <a class="lk" href="tac_plus-ng.html">tac_plus</a> features you'll
 really <i>have</i> to read the documentation.
 <p>Having said that, the steps to get you up and running are:</p>
 <ol type="1">
 <li>
 <p>Download the distribution. It's available from
-<a class="lk" href="https://github.com/MarcJHuber/event-driven-servers/">GitHub</a>:
+	<a class="lk" href="https://github.com/MarcJHuber/event-driven-servers/">GitHub</a>:
 <pre class = "screen">git clone https://github.com/MarcJHuber/event-driven-servers.git</pre>
 </li>
 <li>
@@ -64,22 +61,21 @@ changeable) password.</p>
 </li>
 <li>
 <p>Add TACACS+ specific user groups, e.g. <tt>tacacsadmin</tt> and <tt>tacacsguest</tt>, to
-your AD server, and add users to those groups. A user cannot be in multiple TACACS+ groups, so he/she shouldn't be
-member of more than one group starting with <tt>tacacs</tt>
-(but you can bypass this requirement by using the <tt>nas default restriction</tt> configuration directive, see the TACACS+ documentation for that one).</p>
+your AD server, and add users to those groups. A user can be in multiple TACACS+ groups as profile assignment is policy-based.
+</p>
 </li>
 </ul>
 </li>
 <li>
-<p>Copy the <A CLASS="lk" HREF="../tac_plus-ng/extra/tac_plus-ng.cfg-ads.cfg">sample configuration file</A> from the
-your local <tt>/usr/local/lib/mavis/extra/</tt> directory to <tt>/usr/local/etc/tac_plus.cfg</tt>.
+<p>Copy the <A CLASS="lk" HREF="tac_plus-ng.cfg-ads">sample configuration file</A> from the
+your local <tt>/usr/local/lib/mavis/extra/</tt> directory to <tt>/usr/local/etc/tac_plus-ng.cfg</tt>.
 Again, you'll obviously need <tt>root</tt> privileges for that, but
 I'll silently ignore this requirement for now:</p>
 <pre class="screen">
-cp /usr/local/lib/mavis/extra/tac_plus.cfg-ads /usr/local/etc/tac_plus.cfg
+cp /usr/local/lib/mavis/extra/tac_plus-ng.cfg-ads /usr/local/etc/tac_plus-ng.cfg
 </pre></li>
 <li>
-<p>Edit <tt>/usr/local/etc/tac_plus.cfg</tt> with your favorite
+<p>Edit <tt>/usr/local/etc/tac_plus-ng.cfg</tt> with your favorite
 editor. As a minimum, you'll have to modify the <tt>setenv</tt>
 variables starting with <tt>LDAP_</tt> to match your local
 environment. Feel free to modify other stuff, too.</p>
@@ -98,14 +94,14 @@ right here as this would be plainly out of the scope of this document.</li>
 <p>Check whether there are any syntax errors in the configuration
 file:</p>
 <pre class="screen">
-/usr/local/sbin/tac_plus -P /usr/local/etc/tac_plus.cfg
+/usr/local/sbin/tac_plus-ng -P /usr/local/etc/tac_plus-ng.cfg
 </pre>
 If there are any errors, well, fix them.</li>
 <li>
 <p>Check whether communication with the AD server is
 functional:</p>
 <pre class="screen">
-/usr/local/bin/mavistest -d -1 /usr/local/etc/tac_plus.cfg tac_plus TAC_PLUS someusername
+/usr/local/bin/mavistest -d -1 /usr/local/etc/tac_plus-ng.cfg tac_plus-ng TAC_PLUS someusername
 </pre>
 (replace <tt>someusername</tt> with one from any of the
 <tt>tacacs</tt> groups)</li>
@@ -113,7 +109,7 @@ functional:</p>
 <p>That's it. Almost. If you want the daemon to start at boot time,
 you should <i>probably</i></p>
 <pre class="screen">
-cp /usr/local/lib/mavis/extra/etc_init.d_tac_plus /etc/init.d/tac_plus
+cp /usr/local/lib/mavis/extra/etc_init.d_tac_plus-ng /etc/init.d/tac_plus-ng
 </pre>
 and add the assorted links from a couple of <tt>init</tt>
 directories. Some other launch mechanisms are supported, too, just
@@ -122,11 +118,11 @@ dig through <tt>/usr/local/lib/mavis/extra/</tt>, there are samples for
 <p>
 If you've performed that last step (the etc_init.d copying thing), then
 <pre class="screen">
-/etc/init.d/tac_plus start
+/etc/init.d/tac_plus-ng start
 </pre>
 should start the daemon. Or just call
 <pre class="screen">
-/usr/local/sbin/tac_plus /usr/local/etc/tac_plus.cfg
+/usr/local/sbin/tac_plus-ng /usr/local/etc/tac_plus-ng.cfg
 </pre>
 directly.</li>
 </ol>
@@ -135,7 +131,7 @@ directly.</li>
 <a CLASS="lk" href=
 "mavis.html">mavis</a> and
 <a CLASS="lk" href=
-"tac_plus.html">tac_plus</a>
+"tac_plus-ng.html">tac_plus-ng</a>
 is highly recommended.</p>
 </body>
 </html>
