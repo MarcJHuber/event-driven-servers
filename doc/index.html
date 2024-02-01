@@ -16,35 +16,35 @@ of MacOS, Linux, FreeBSD, OpenBSD, NetBSD, DragonFly BSD, Solaris and,
 in a somewhat degraded mode, Windows (via Cygwin). Please note that not all of those compiles are recently tested.
 <H2>Documentation</H2>
 <UL>
-<LI><A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/spawnd.html">spawnd</A>
-<A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/spawnd.pdf">[pdf]</A>
-is a broker with load-balancing functionality that listens for incoming connections on IPv4, IPv6 or UNIX sockets and forwards them (using ancillary messages over UNIX domain sockets) to the spawned server processes. <A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/spawnd.html">spawnd</A> functionality is integrated into the daemons you'll find below, and it's an essential part of the latter.
+<LI><A CLASS="lk" HREF="spawnd.html">spawnd</A>
+<A CLASS="lk" HREF="spawnd.pdf">[pdf]</A>
+is a broker with load-balancing functionality that listens for incoming connections on IPv4, IPv6 or UNIX sockets and forwards them (using ancillary messages over UNIX domain sockets) to the spawned server processes. <A CLASS="lk" HREF="spawnd.html">spawnd</A> functionality is integrated into the daemons you'll find below, and it's an essential part of the latter.
 <P>
-<LI><A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/ftpd.html">ftpd</A>
-<A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/ftpd.pdf">[pdf]</A>
+<LI><A CLASS="lk" HREF="ftpd.html">ftpd</A>
+<A CLASS="lk" HREF="ftpd.pdf">[pdf]</A>
 is a highly configurable event-driven FTP daemon with TLS/SSL and
 IPv6 support, and much more.
 <P>
-<LI><A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/mavis.html">mavis</A>
-<A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/mavis.pdf">[pdf]</A>
-and <A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/mavisd.html">mavisd</A>
-<A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/mavisd.pdf">[pdf]</A>
-implement the modular authentication sub-system used by <A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/ftpd.html">ftpd</A>, <A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus-ng.html">tac_plus-ng</A> and <A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus.html">tac_plus</A> (the latter is now deprecated)
+<LI><A CLASS="lk" HREF="mavis.html">mavis</A>
+<A CLASS="lk" HREF="mavis.pdf">[pdf]</A>
+and <A CLASS="lk" HREF="mavisd.html">mavisd</A>
+<A CLASS="lk" HREF="mavisd.pdf">[pdf]</A>
+implement the modular authentication sub-system used by <A CLASS="lk" HREF="ftpd.html">ftpd</A>, <A CLASS="lk" HREF="tac_plus-ng.html">tac_plus-ng</A> and <A CLASS="lk" HREF="tac_plus.html">tac_plus</A> (the latter is now deprecated)
 <P>
-<LI><A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus.html">tac_plus</A>
-<A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus.pdf">[pdf]</A>
+<LI><A CLASS="lk" HREF="tac_plus.html">tac_plus</A>
+<A CLASS="lk" HREF="tac_plus.pdf">[pdf]</A>
 is an event-driven TACACS+ daemon which utilizes the MAVIS backend for
 authentication and authorization (and may get its user data from various backends, including PAM, LDAP, RADIUS and <A CLASS="lk" HREF="howto-tac_plus-ads.html">ActiveDirectory</A> (for -NG: <A CLASS="lk" HREF="howto-tac_plus-ng-ads.html">click here</A>).
 Supported features include IPv6, single-connection and much more.<P>Don't use this daemon for new installations, it's deprecated in favour of tac_plus-ng.
 <P>
-<LI><A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus-ng.html">tac_plus-ng</A>
-<A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus-ng.pdf">[pdf]</A>
+<LI><A CLASS="lk" HREF="tac_plus-ng.html">tac_plus-ng</A>
+<A CLASS="lk" HREF="tac_plus-ng.pdf">[pdf]</A>
 is a rewritten variant of the former. And, to put it plainly, it's the future. Also, it comes with the <tt>tactrace.pl</tt> utility which greatly simplifies configuration checking.
 <P>Plus, it supports 
-<A CLASS="lk" HREF="https://github.com/MarcJHuber/event-driven-servers/wiki/TACACS_PLUS---SSH-Public-Key-Authentication">Non-standard SSH Public Key Authentication</A> and other experimental features (e.g. TLS).
+<A CLASS="lk" HREF="Public-Key-Authentication">Non-standard SSH Public Key Authentication</A> and other experimental features (e.g. TLS).
 <P>
-<LI><A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/tcprelay.html">tcprelay</A>
-<A CLASS="lk" HREF="https://projects.pro-bono-publico.de/event-driven-servers/doc/pdf/tcprelay.pdf">[pdf]</A>
+<LI><A CLASS="lk" HREF="tcprelay.html">tcprelay</A>
+<A CLASS="lk" HREF="tcprelay.pdf">[pdf]</A>
 is an event-driven TCP connection forwarder for IPv4 and IPv6.
 </UL>
 <H2>Public GIT</H2>
