@@ -361,58 +361,48 @@ static void write_packet(struct context *ctx, tac_pak * p)
     io_set_o(ctx->io, ctx->sock);
 }
 
-static int authen_pak_looks_bogus(tac_pak_hdr * hdr)
+static int authen_pak_looks_bogus(struct context *ctx)
 {
+    tac_pak_hdr *hdr = &ctx->in->hdr;
     struct authen_start *start = tac_payload(hdr, struct authen_start *);
     struct authen_cont *cont = tac_payload(hdr, struct authen_cont *);
-    int datalength = ntohl(hdr->datalength);
+    u_int datalength = ntohl(hdr->datalength);
+    u_int len = (hdr->seq_no == 1)
+	? (TAC_AUTHEN_START_FIXED_FIELDS_SIZE + start->user_len + start->port_len + start->rem_addr_len + start->data_len)
+	: (TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + ntohs(cont->user_msg_len) + ntohs(cont->user_data_len));
 
-    if ((hdr->seq_no == 1 && (datalength != TAC_AUTHEN_START_FIXED_FIELDS_SIZE + start->user_len + start->port_len + start->rem_addr_len + start->data_len))
-	|| (hdr->seq_no > 2 && datalength != TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + ntohs(cont->user_msg_len) + ntohs(cont->user_data_len))) {
-	return -1;
-    }
-    return 0;
+    return (ctx->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
 }
 
-static int author_pak_looks_bogus(tac_pak_hdr * hdr)
+static int author_pak_looks_bogus(struct context *ctx)
 {
-    u_char *p;
-    int i;
-    u_int len;
+    tac_pak_hdr *hdr = &ctx->in->hdr;
     struct author *pak = tac_payload(hdr, struct author *);
+    u_char *p = (u_char *) pak + TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE;
     u_int datalength = ntohl(hdr->datalength);
+    u_int len = TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE + pak->user_len + pak->port_len + pak->rem_addr_len + pak->arg_cnt;
 
-    /* start of variable length data is here */
-    p = (u_char *) pak + TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE;
-
-    /* Length checks */
-    len = TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE + pak->user_len + pak->port_len + pak->rem_addr_len + pak->arg_cnt;
-
-    for (i = 0; i < (int) pak->arg_cnt; i++)
-	len += p[i];
-
-    if (i != (int) pak->arg_cnt || len != datalength)
-	return -1;
-    return 0;
-}
-
-static int accounting_pak_looks_bogus(tac_pak_hdr * hdr)
-{
-    struct acct *acct = tac_payload(hdr, struct acct *);
-    u_char *p = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
     int i;
-    u_int len;
-    u_int datalength = ntohl(hdr->datalength);
-
-    /* Do some sanity checking on the packet */
-    len = TAC_ACCT_REQ_FIXED_FIELDS_SIZE + acct->user_len + acct->port_len + acct->rem_addr_len + acct->arg_cnt;
-
-    for (i = 0; i < (int) acct->arg_cnt; i++)
+    for (i = 0; i < (int) pak->arg_cnt && len < datalength; i++)
 	len += p[i];
 
-    return (i != (int) acct->arg_cnt || len != datalength);
+    return (ctx->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
 }
 
+static int accounting_pak_looks_bogus(struct context *ctx)
+{
+    tac_pak_hdr *hdr = &ctx->in->hdr;
+    struct acct *pak = tac_payload(hdr, struct acct *);
+    u_char *p = (u_char *) pak + TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
+    u_int datalength = ntohl(hdr->datalength);
+    u_int len = TAC_ACCT_REQ_FIXED_FIELDS_SIZE + pak->user_len + pak->port_len + pak->rem_addr_len + pak->arg_cnt;
+
+    int i;
+    for (i = 0; i < (int) pak->arg_cnt && len < datalength; i++)
+	len += p[i];
+
+    return (ctx->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
+}
 
 static __inline__ tac_session *RB_lookup_session(rb_tree_t * rbt, int session_id)
 {
@@ -585,13 +575,13 @@ void tac_read(struct context *ctx, int cur)
 
 	switch (ctx->hdr.type) {
 	case TAC_PLUS_AUTHEN:
-	    bogus = authen_pak_looks_bogus(&ctx->in->hdr);
+	    bogus = authen_pak_looks_bogus(ctx);
 	    break;
 	case TAC_PLUS_AUTHOR:
-	    bogus = author_pak_looks_bogus(&ctx->in->hdr);
+	    bogus = author_pak_looks_bogus(ctx);
 	    break;
 	case TAC_PLUS_ACCT:
-	    bogus = accounting_pak_looks_bogus(&ctx->in->hdr);
+	    bogus = accounting_pak_looks_bogus(ctx);
 	    break;
 	default:
 	    // Unknown header type, there's no gain in checking secondary keys.

@@ -951,6 +951,7 @@ extern int die_when_idle;
 #define CLIENT_BUG_INVALID_START_DATA	0x01
 #define CLIENT_BUG_BAD_VERSION		0x02
 #define CLIENT_BUG_TLS_OBFUSCATED	0x04
+#define CLIENT_BUG_HEADER_LENGTH	0x08
 
 #endif				/* __HEADERS_H_ */
 /*
