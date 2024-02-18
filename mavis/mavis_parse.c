@@ -1029,7 +1029,8 @@ void cfg_read_config(char *url, void (*parsefunction)(struct sym *), char *id)
 	switch (sym.code) {
 	case S_id:
 	    sym_get(&sym);
-	    parse(&sym, S_equal);
+	    if (sym.code == S_equal)
+		sym_get(&sym);
 	    if (strcmp(sym.buf, id)) {
 		int bc = 1;
 		sym_get(&sym);
