@@ -386,7 +386,7 @@ static int author_pak_looks_bogus(struct context *ctx)
     for (i = 0; i < (int) pak->arg_cnt && len < datalength; i++)
 	len += p[i];
 
-    return (ctx->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
+    return (i != pak->arg_cnt) || (ctx->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
 }
 
 static int accounting_pak_looks_bogus(struct context *ctx)
@@ -401,7 +401,7 @@ static int accounting_pak_looks_bogus(struct context *ctx)
     for (i = 0; i < (int) pak->arg_cnt && len < datalength; i++)
 	len += p[i];
 
-    return (ctx->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
+    return (i != pak->arg_cnt) || (ctx->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
 }
 
 static __inline__ tac_session *RB_lookup_session(rb_tree_t * rbt, int session_id)
