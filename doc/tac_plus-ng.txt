@@ -1552,6 +1552,8 @@ aaa authentication enable default group tacacs+ enable
    seen with Palo Alto systems.
    2 4 Accept key-based packet obfuscation for TLS (this violates
    draft-ietf-opsawg-tacacs-tls13-03.txt).
+   3 8 Accept TACACS+ payloads lower than advertized in the
+   TACACS+ header.
 
    Example:
   device ... {
