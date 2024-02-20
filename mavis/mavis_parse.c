@@ -1191,20 +1191,22 @@ void report_cfg_error(int priority, int level, char *fmt, ...)
     }
 
     if ((common_data.debug & level) /*|| common_data.parse_only */ ) {
-	if (common_data.debugtty)
+	if (common_data.debugtty) {
 	    fprintf(stderr, "%ld: %s\n", (long int) common_data.pid, msg);
-	else
+	    fflush(stderr);
+	} else
 	    syslog(LOG_DEBUG, "%s%s", (priority & LOG_PRIMASK) == LOG_ERR ? "Error " : "", msg);
+	return;
     }
     priority &= LOG_PRIMASK;
 
     if (priority != LOG_DEBUG) {
-	if (common_data.parse_only)
+	if (common_data.parse_only) {
 	    fprintf(stderr, "%ld: %s\n", (long int) common_data.pid, msg);
-	else
+	    fflush(stderr);
+	} else
 	    syslog(priority, "%s%s", priority == LOG_ERR ? "Error " : "", msg);
     }
-
 }
 
 void parse_debug(struct sym *sym, u_int * d)
