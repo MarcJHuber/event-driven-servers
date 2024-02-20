@@ -599,15 +599,14 @@ static int globerror(const char *epath, int eerrno)
     return 0;
 }
 
-static void sym_from_file(char *url, struct sym *sym)
+static int sym_from_file(char *url, struct sym *sym)
 {
     char *buf;
     int buflen;
 
     if (cfg_open_and_read(url, &buf, &buflen)) {
 	report_cfg_error(LOG_ERR, ~0, "Couldn't open %s: %s", url, strerror(errno));
-	report_cfg_error(LOG_ERR, ~0, "Exiting.");
-	exit(EX_NOINPUT);
+	return -1;
     }
 
     sym->filename = strdup(url);
@@ -615,13 +614,15 @@ static void sym_from_file(char *url, struct sym *sym)
     sym->tin = sym->in = buf;
 
     sym_init(sym);
+    return 0;
 }
 
 static void sym_prepend_file(struct sym *sym, char *url)
 {
     struct sym nsym;
     memset(&nsym, 0, sizeof(struct sym));
-    sym_from_file(url, &nsym);
+    if (sym_from_file(url, &nsym))
+	return;
     nsym.next = calloc(1, sizeof(struct sym));
     memcpy(nsym.next, sym, sizeof(struct sym));
     memcpy(sym, &nsym, sizeof(struct sym));
@@ -738,13 +739,12 @@ void sym_get(struct sym *sym)
 	parse(sym, S_equal);
 	sb = alloca(strlen(sym->buf) + 1);
 	strcpy(sb, sym->buf);
+        sym_get(sym);
 	globerror_sym = sym;
 	switch (glob(sb, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOMAGIC | GLOB_BRACE, globerror, &globbuf)) {
 	case 0:
-	    for (i = (int) globbuf.gl_pathc - 1; i > -1; i--) {
-		sym_get(sym);
+	    for (i = (int) globbuf.gl_pathc - 1; i > -1; i--)
 		sym_prepend_file(sym, globbuf.gl_pathv[i]);
-	    }
 	    break;
 #ifdef GLOB_NOMATCH
 	case GLOB_NOMATCH:
