@@ -1759,6 +1759,21 @@ set priv-lvl = 15
        AV-pairs, see the "The Authorization Algorithm" section
        somewhere below.
 
+       Tip Numbered Attributes
+
+
+   A %%d added to an attribute will will result in a numbered
+   attribute, starting to count at 1 (%%n would start counting at
+   0). For example,
+set route#%%d = "192.168.0.0 255.255.255.0 10.0.0.1"
+set route#%%d = 192.168.1.0 255.255.255.0 10.0.0.1"
+set route#%%d = 192.168.2.0 255.255.255.0 10.0.0.1"
+
+   results in
+set route#1 = 192.168.0.0 255.255.255.0 10.0.0.1"
+set route#2 = 192.168.1.0 255.255.255.0 10.0.0.1"
+set route#3 = 192.168.2.0 255.255.255.0 10.0.0.1"
+
        Tip Variables
 
 
