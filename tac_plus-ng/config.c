@@ -3515,8 +3515,55 @@ static void attr_add_single(tac_session * session, char ***v, int *i, char *attr
 	*v = memlist_malloc(session->memlist, 0x100 * sizeof(char *));
 	*i = 0;
     }
-    if (*i < 256)
+    if (*i < 256) {
+	char *sep = attr;
+	while (*sep && *sep != '=' && *sep != '*')
+	    sep++;
+	// auto-numbered attribute support
+	if (*sep && (sep - attr > 2)) {
+	    char *pd = sep - 2;
+	    if (*pd == '%' && (*(pd + 1) == 'd' || *(pd + 1) == 'n')) {
+		int d = (*(pd + 1) == 'n') ? 0 : 1;
+		size_t len = pd - attr;
+		int j;
+		for (j = 0; j < *i; j++) {
+		    if (!strncmp(attr, (*v)[j], len) && isdigit((*v)[j][len])) {
+			int k = 0;
+			char *t = (*v)[j] + len;
+			while (isdigit(*t)) {
+			    k *= 10;
+			    k += *t++ - '0';
+			}
+			if (d <= k)
+			    d = k + 1;
+		    }
+		}
+
+		size_t dlen = 1;
+		int d_tmp = d / 10;
+		while (d_tmp) {
+		    dlen++;
+		    d_tmp /= 10;
+		}
+		size_t a_tmp_len = attr_len - 2 + dlen;
+		char *a_tmp = alloca(a_tmp_len);
+		char *t = a_tmp;
+		memcpy(t, attr, pd - attr);
+		t += pd - attr;
+		size_t dlen_tmp = dlen;
+		while (dlen_tmp) {
+		    dlen_tmp--;
+		    t[dlen_tmp] = (d % 10) + '0';
+		    d /= 10;
+		}
+		t += dlen;
+		memcpy(t, sep, attr + attr_len - sep);
+		attr = a_tmp;
+		attr_len = a_tmp_len;
+	    }
+	}
 	(*v)[(*i)++] = memlist_strndup(session->memlist, (u_char *) attr, attr_len);
+    }
 }
 
 static void attr_add_multi(tac_session * session, char ***v, int *i, char *attr, size_t attr_len)
