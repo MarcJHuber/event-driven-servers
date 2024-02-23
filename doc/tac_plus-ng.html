@@ -2074,12 +2074,12 @@ Example:
 <td align="left" valign="top">
 <p>A <tt class="literal">%%d</tt> added to an attribute will will result in a numbered attribute, starting to count at <tt class="literal">1</tt> (<tt class="literal">%%n</tt> would start counting at <tt class="literal">0</tt>). For example,</p>
 <pre class="screen">set route#%%d = "192.168.0.0 255.255.255.0 10.0.0.1"
-set route#%%d = 192.168.1.0 255.255.255.0 10.0.0.1"
-set route#%%d = 192.168.2.0 255.255.255.0 10.0.0.1"</pre>
+set route#%%d = "192.168.1.0 255.255.255.0 10.0.0.1"
+set route#%%d = "192.168.2.0 255.255.255.0 10.0.0.1"</pre>
 results in
-<pre class="screen">set route#1 = 192.168.0.0 255.255.255.0 10.0.0.1"
-set route#2 = 192.168.1.0 255.255.255.0 10.0.0.1"
-set route#3 = 192.168.2.0 255.255.255.0 10.0.0.1"</pre></td>
+<pre class="screen">set route#1 = "192.168.0.0 255.255.255.0 10.0.0.1"
+set route#2 = "192.168.1.0 255.255.255.0 10.0.0.1"
+set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"</pre></td>
 </tr>
 </table>
 </div>
