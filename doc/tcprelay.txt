@@ -42,7 +42,7 @@ Marc Huber
 
 2. Operation
 
-   This section gives a brief and basic overview how to run
+   This section gives a brief and basic overview on how to run
    tcprelay.
 
    In earlier versions, tcprelay wasn't a standalone program but

@@ -123,7 +123,8 @@ STAT, STOR, STOU, SYST, TYPE, USER, XCUP, XCWD, XMKD, XPWD, XRMD
 
 3. Operation
 
-   This section gives a brief and basic overview how to run ftpd.
+   This section gives a brief and basic overview on how to run
+   ftpd.
 
    In earlier versions, ftpd wasn't a standalone program but had
    to be invoked by spawnd. This has changed, as spawnd is now

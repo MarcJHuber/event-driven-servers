@@ -169,7 +169,7 @@ Marc Huber
 
 3. Operation
 
-   This section gives a brief and basic overview how to run
+   This section gives a brief and basic overview on how to run
    tac_plus.
 
    In earlier versions, tac_plus wasn't a standalone program but
