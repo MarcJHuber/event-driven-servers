@@ -493,8 +493,8 @@ static void read_px(struct context_px *ctx, int cur)
 	|| ((hdr->ver_cmd >> 4) != 2)
 	|| (memcmp(hdr->sig, "\x0D\x0A\x0D\x0A\x00\x0D\x0A\x51\x55\x49\x54\x0A", 12))
 	|| ((uint16_t) len < (hlen = ntohs(hdr->len)) + sizeof(struct proxy_hdr_v2))
-	|| (hdr->fam == 0x11 && hlen != 12)
-	|| (hdr->fam == 0x21 && hlen != 36)) {
+	|| (hdr->fam == 0x11 && hlen < 12)
+	|| (hdr->fam == 0x21 && hlen < 36)) {
 	if (ctx->sd.realm->haproxy_autodetect == TRISTATE_YES)
 	    try_raw(ctx, cur);
 	else
