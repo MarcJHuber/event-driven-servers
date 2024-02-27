@@ -130,6 +130,8 @@ chpass				S_chpass
 chroot				S_chroot
 ciphers				S_ciphers
 clear				S_clear
+cleanup				S_cleanup
+interval			S_interval
 client-only			S_clientonly
 cmd				S_cmd
 command				S_command

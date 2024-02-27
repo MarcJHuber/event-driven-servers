@@ -1704,6 +1704,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_proctitle:
 	case S_coredump:
 	case S_alias:
+	case S_cleanup:
 	    top_only(sym, r);
 	    parse_common(sym);
 	    break;

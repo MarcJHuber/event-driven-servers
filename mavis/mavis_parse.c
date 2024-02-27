@@ -145,6 +145,7 @@ void init_common_data(void)
     common_data.regex_pcre_flags = PCRE2_CASELESS | PCRE2_UTF;
 #endif
     common_data.regex_posix_flags = REG_ICASE;
+    common_data.cleanup_interval = 2; /* seconds, used to be 60 */
     logopen();
 }
 
@@ -1069,10 +1070,11 @@ void cfg_read_config(char *url, void (*parsefunction)(struct sym *), char *id)
 	case S_gcore:
 	case S_debug_cmd:
 	case S_setenv:
+	case S_cleanup:
 	    parse_common(&sym);
 	    break;
 	default:
-	    parse_error_expect(&sym, S_alias, S_id, S_debug, S_trace, S_syslog, S_proctitle, S_gcore, S_debug_cmd, S_unknown);
+	    parse_error_expect(&sym, S_alias, S_id, S_debug, S_trace, S_syslog, S_proctitle, S_gcore, S_debug_cmd, S_cleanup, S_unknown);
 
 	}
     }
@@ -1775,6 +1777,12 @@ void parse_common(struct sym *sym)
 	    sym_get(sym);
 	    break;
 	}
+    case S_cleanup:
+	sym_get(sym);
+	parse(sym, S_interval);
+	parse(sym, S_equal);
+	common_data.cleanup_interval = (time_t) parse_int(sym);
+	break;
     default:
 	parse_error_expect(sym, S_alias, S_debug, S_trace, S_syslog, S_proctitle, S_coredump, S_gcore, S_debug_cmd, S_setenv, S_unknown);
     }

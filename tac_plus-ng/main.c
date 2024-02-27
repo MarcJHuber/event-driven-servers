@@ -280,7 +280,7 @@ int main(int argc, char **argv, char **envp)
     if (ctx_spawnd)
 	common_data.scm_send_msg(ctx_spawnd->sock, (struct scm_data *) &sd, -1);
 
-    io_sched_add(common_data.io, new_context(common_data.io, NULL), (void *) periodics, 60, 0);
+    io_sched_add(common_data.io, new_context(common_data.io, NULL), (void *) periodics, common_data.cleanup_interval, 0);
 
     init_mcx(config.default_realm);
 
