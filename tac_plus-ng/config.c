@@ -3809,7 +3809,6 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 	case S_equal:
 	    m->type = S_equal;
 	    sym_get(sym);
-	    m->u.s.rhs_txt = strdup(sym->buf);
 	    if (m->u.s.token == S_group)
 		m->u.s.token = S_member;
 	    if (m->u.s.token == S_member) {
@@ -3830,7 +3829,6 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 		    if (!hp)
 			np = lookup_net(sym->buf, realm);
 		}
-		m->u.s.rhs_txt = strdup(sym->buf);
 		if (hp) {
 		    m->type = S_host;
 		    m->u.s.rhs = hp;
@@ -3849,6 +3847,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 		    m->u.s.rhs_txt = strdup(sym->buf);
 		} else
 		    parse_error(sym, "Expected a host or net name, but got '%s'.", sym->buf);
+		m->u.s.token = S_nas;
 		sym_get(sym);
 		return p ? p : m;
 	    }
