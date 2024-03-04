@@ -4291,7 +4291,7 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 			return tac_script_cond_eval_res(session, m, 0);
 		    }
 		    *e++ = 0;
-		    // perforv checks
+		    // perform checks
 		    res = tac_mavis_cond_compare(session, m, v, strlen(v));
 		    if (res)
 			return tac_script_cond_eval_res(session, m, res);
