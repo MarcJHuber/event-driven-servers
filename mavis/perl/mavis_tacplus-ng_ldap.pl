@@ -265,11 +265,13 @@ while ($in = <>) {
 			vec($rin, fileno($sock), 1) = 1;
 			vec($ein, fileno($sock), 1) = 1;
 			if (0 < select($rin, undef, $ein, 0)) {
+				printf STDERR "ldap connection detected dead (" . __LINE__ . ")\n";
 				$ldap->unbind;
 				$ldap->disconnect;
 				$ldap = undef;
 			}
 		} else {
+			printf STDERR "ldap connection dead (" . __LINE__ . ")\n";
 			$ldap->unbind;
 			$ldap->disconnect;
 			$ldap = undef;
@@ -317,6 +319,7 @@ retry_once:
 		$ldap->unbind;
 		$ldap->disconnect;
 		$ldap = undef;
+		printf STDERR "ldap retry, due to bind failure (" . __LINE__ . ")\n";
 		goto retry_once;
 	}
 	if ($mesg->code){
@@ -439,23 +442,6 @@ retry_once:
 					$V[AV_A_USER_RESPONSE] = "Password change is unsupported.";
 					goto fail;
 				}
-				if (defined $ldap) {
-					$ldap->unbind;
-					$ldap->disconnect;
-					$ldap = undef;
-				}
-				$ldap = Net::LDAP->new(\@LDAP_HOSTS, %tls_options);
-				unless ($ldap) {
-					$V[AV_A_USER_RESPONSE] = "No answer from LDAP backend.";
-					goto fatal;
-				}
-				if (defined $use_starttls) {
-					$mesg = $ldap->start_tls(%tls_options);
-					if ($mesg->code) {
-						$V[AV_A_USER_RESPONSE] = "TLS negotiation failed.";
-						goto fatal;
-					}
-				}
 				$mesg =  $ldap->bind($authdn, password => $V[AV_A_PASSWORD]);
 				if ($mesg->code) {
 					$V[AV_A_USER_RESPONSE] = $mesg->error . " (" . __LINE__ . ")";
@@ -487,11 +473,11 @@ retry_once:
 		} elsif ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_INFO){
 			$V[AV_A_RESULT] = AV_V_RESULT_OK;
 		}
+		$result = MAVIS_FINAL;
+		goto bye;
 	} else {
 		goto down;
 	}
-	$result = MAVIS_FINAL;
-	goto bye;
 
 fail:
 	$V[AV_A_RESULT] = AV_V_RESULT_FAIL;
@@ -508,11 +494,6 @@ fatal:
 	$V[AV_A_RESULT] = AV_V_RESULT_ERROR;
 
 bye:
-	if (defined($ldap)) {
-		$ldap->unbind;
-		$ldap->disconnect;
-		$ldap = undef;
-	}
 	my ($out) = "";
 	for (my $i = 0; $i <= $#V; $i++) {
 		if (defined $V[$i]) {
