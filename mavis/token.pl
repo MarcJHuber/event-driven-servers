@@ -485,6 +485,7 @@ device.address			S_deviceaddress
 device.name			S_devicename
 device.dnsname			S_devicedns
 device.port			S_deviceport
+device.tag			S_devicetag
 #
 client				S_client
 client.address			S_clientaddress

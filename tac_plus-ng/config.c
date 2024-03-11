@@ -130,8 +130,12 @@ static void parse_member(struct sym *, tac_groups **, memlist_t *, tac_realm *);
 static tac_group *lookup_group(char *, tac_realm *);	/* get id from tree */
 static tac_group *tac_group_new(struct sym *, char *, tac_realm *);	/* add name to tree, return id (globally unique) */
 static int tac_group_add(tac_group *, tac_groups *, memlist_t *);	/* add id to groups struct */
-static int tac_group_check(tac_group *, tac_groups *, tac_group *);	/* check for id in groups struct. The recursive function will temporaly set visited to 1 for loop avoidance */
+static int tac_group_check(tac_group *, tac_groups *, tac_group *);	/* check for id in groups struct */
 static int tac_group_regex_check(tac_session *, struct mavis_cond *, tac_groups *, tac_group *);
+
+static int tac_tag_add(tac_tag *, tac_tags *);
+static int tac_tag_check(tac_tag *, tac_tags *);
+static int tac_tag_regex_check(tac_session *, struct mavis_cond *, tac_tags *);
 
 int compare_user(const void *a, const void *b)
 {
@@ -188,6 +192,31 @@ struct tac_group {
     u_int line;
     u_int visited:1;
 };
+
+struct tac_tags {
+    u_int count;
+    u_int allocated;		/* will be incremented on demand */
+    tac_tag **tags;		/* array will be reallocated on demand */
+};
+
+struct tac_tag;
+typedef struct tac_tag tac_tag;
+
+struct tac_tag {
+    char *name;
+    size_t name_len;
+};
+
+static rb_tree_t *tags_by_name;
+
+static int compare_tags_by_name(const void *a, const void *b)
+{
+    if (((tac_tag *) a)->name_len < ((tac_tag *) b)->name_len)
+	return -1;
+    if (((tac_tag *) a)->name_len > ((tac_tag *) b)->name_len)
+	return +1;
+    return strcmp(((tac_tag *) a)->name, ((tac_tag *) b)->name);
+}
 
 static int compare_groups_by_name(const void *a, const void *b)
 {
@@ -3321,6 +3350,32 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    sym_get(sym);
 	    return;
 	}
+    case S_tag:
+    case S_devicetag:
+	{
+	    if (!tags_by_name)
+		tags_by_name = RB_tree_new(compare_tags_by_name, NULL);
+	    if (!host->tags)
+		host->tags = calloc(1, sizeof(tac_tags));
+	    tac_tag *tag = NULL;
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    do {
+		tac_tag t;
+		t.name = sym->buf;
+		t.name_len = strlen(sym->buf);
+		tag = RB_lookup(tags_by_name, &t);
+		if (!tag) {
+		    tag = calloc(1, sizeof(tac_tag));
+		    tag->name = strdup(sym->buf);
+		    tag->name_len = strlen(sym->buf);
+		    RB_insert(tags_by_name, tag);
+		}
+		tac_tag_add(tag, host->tags);
+		sym_get(sym);
+	    } while (parse_comma(sym));
+	    return;
+	}
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
     case S_tls:
 	sym_get(sym);
@@ -3786,6 +3841,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
     case S_deviceaddress:
     case S_devicename:
     case S_devicedns:
+    case S_devicetag:
     case S_nasname:
     case S_nacname:
     case S_deviceport:
@@ -4015,7 +4071,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 	parse_error_expect(sym, S_leftbra, S_exclmark, S_acl, S_time, S_arg,
 			   S_cmd, S_context, S_client, S_nac, S_device, S_nas, S_nasname,
 			   S_nacname, S_host, S_port, S_user, S_group, S_member, S_memberof,
-			   S_device, S_devicename, S_deviceaddress, S_devicedns, S_deviceport,
+			   S_device, S_devicename, S_deviceaddress, S_devicedns, S_devicetag, S_deviceport,
 			   S_client, S_clientname, S_clientdns, S_clientaddress,
 			   S_password, S_service, S_protocol, S_authen_action,
 			   S_authen_type, S_authen_service, S_authen_method, S_privlvl, S_vrf, S_dn, S_type, S_identity_source,
@@ -4141,6 +4197,15 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	if (session->user)
 	    res = tac_group_check(m->u.s.rhs, session->user->groups, NULL);
 	return tac_script_cond_eval_res(session, m, res);
+    case S_devicetag:
+	{
+	    tac_host *h = session->ctx->host;
+	    while (!res && h) {
+		res = tac_tag_check(m->u.s.rhs, h->tags);
+		h = h->parent;
+	    }
+	    return tac_script_cond_eval_res(session, m, res);
+	}
     case S_acl:
 	res = S_permit == eval_tac_acl(session, (struct tac_acl *) m->u.s.rhs);
 	return tac_script_cond_eval_res(session, m, res);
@@ -4293,6 +4358,15 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	    if (session->user)
 		res = tac_group_regex_check(session, m, session->user->groups, NULL);
 	    return tac_script_cond_eval_res(session, m, res);
+	case S_devicetag:
+	    {
+		tac_host *h = session->ctx->host;
+		while (!res && h) {
+		    res = tac_tag_regex_check(session, m, session->ctx->host->tags);
+		    h = h->parent;
+		}
+		return tac_script_cond_eval_res(session, m, res);
+	    }
 	case S_devicename:
 	case S_host:
 	    {
@@ -4303,7 +4377,6 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 		}
 		return tac_script_cond_eval_res(session, m, res);
 	    }
-	    return tac_script_cond_eval_res(session, m, res);
 	case S_realm:
 	    {
 		tac_realm *r = session->ctx->realm;
@@ -4670,6 +4743,42 @@ static int tac_group_regex_check(tac_session * session, struct mavis_cond *m, ta
     if (parent)
 	return tac_mavis_cond_compare(session, m, parent->name, parent->name_len)
 	    || tac_group_regex_check(session, m, parent->groups, parent->parent);
+    return 0;
+}
+
+/* add id to tags struct */
+static int tac_tag_add(tac_tag * add, tac_tags * g)
+{
+    if (g->count == g->allocated) {
+	g->allocated += 32;
+	g->tags = (tac_tag **) realloc(g->tags, g->allocated * sizeof(tac_tag));
+    }
+    g->tags[g->count] = add;
+    g->count++;
+    return 0;
+}
+
+static int tac_tag_check(tac_tag * tag, tac_tags * tags)
+{
+    if (tags) {
+	u_int i;
+	for (i = 0; i < tags->count; i++)
+	    if (tag == tags->tags[i])
+		return -1;
+    }
+    return 0;
+}
+
+static int tac_tag_regex_check(tac_session * session, struct mavis_cond *m, tac_tags * tags)
+{
+    if (tags) {
+	u_int i;
+	for (i = 0; i < tags->count; i++) {
+	    tac_tag *a = tags->tags[i];
+	    if (tac_mavis_cond_compare(session, m, a->name, a->name_len))
+		return -1;
+	}
+    }
     return 0;
 }
 

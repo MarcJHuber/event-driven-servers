@@ -186,6 +186,7 @@ struct tac_host {
     struct log_item *reject_banner;
     struct log_item *authfail_banner;
     struct pwdat **enable;
+    struct tac_tags *tags;
     int tcp_timeout;		/* tcp connection idle timeout */
     int session_timeout;	/* session idle timeout */
     int context_timeout;	/* shell context idle timeout */
@@ -228,6 +229,13 @@ struct tac_groups;
 struct tac_group;
 typedef struct tac_groups tac_groups;
 typedef struct tac_group tac_group;
+struct tac_tags;
+struct tac_tag;
+typedef struct tac_tags tac_tags;
+typedef struct tac_tag tac_tag;
+
+struct tac_tags;
+typedef struct tac_tags tac_tags;
 
 struct tac_profile {
     char *name;			/* profile name */
