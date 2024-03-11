@@ -3960,6 +3960,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 		return p ? p : m;
 	    }
 	    m->u.s.rhs = strdup(sym->buf);
+	    m->u.s.rhs_txt = m->u.s.rhs;
 	    sym_get(sym);
 	    return p ? p : m;
 	case S_tilde:
