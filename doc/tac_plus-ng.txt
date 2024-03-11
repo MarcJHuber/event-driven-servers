@@ -1811,6 +1811,7 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    parents
    device.address == != =~ !~ Device (host) address
    device.dnsname == != =~ !~ Device (host) DNS PTR record
+   device.tag == != =~ !~ Device (host) tag
    dn == != =~ !~ String or REGEX MAVIS dn attribute
    identity-source == != =~ !~ String or REGEX
    authenticating/authorizing MAVIS module
