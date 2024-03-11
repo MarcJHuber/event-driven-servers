@@ -210,6 +210,7 @@ typedef struct tac_net tac_net;
 struct tac_net {
     u_int line;			/* configuration file line number */
     char *name;			/* host name */
+    size_t name_len;
     enum token res;		/* permit or deny */
     tac_net *parent;
     radixtree_t *nettree;

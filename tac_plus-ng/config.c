@@ -111,6 +111,7 @@ typedef struct rewrite_expr tac_rewrite_expr;
 
 typedef struct {
     char *name;
+    size_t name_len;
     tac_rewrite_expr *expr;
 } tac_rewrite;
 
@@ -134,21 +135,37 @@ static int tac_group_regex_check(tac_session *, struct mavis_cond *, tac_groups 
 
 int compare_user(const void *a, const void *b)
 {
+    if (((tac_user *) a)->name_len < ((tac_user *) b)->name_len)
+	return -1;
+    if (((tac_user *) a)->name_len > ((tac_user *) b)->name_len)
+	return +1;
     return strcmp(((tac_user *) a)->name, ((tac_user *) b)->name);
 }
 
 static int compare_profile(const void *a, const void *b)
 {
+    if (((tac_profile *) a)->name_len < ((tac_profile *) b)->name_len)
+	return -1;
+    if (((tac_profile *) a)->name_len > ((tac_profile *) b)->name_len)
+	return +1;
     return strcmp(((tac_profile *) a)->name, ((tac_profile *) b)->name);
 }
 
 static int compare_rewrite(const void *a, const void *b)
 {
+    if (((tac_rewrite *) a)->name_len < ((tac_rewrite *) b)->name_len)
+	return -1;
+    if (((tac_rewrite *) a)->name_len > ((tac_rewrite *) b)->name_len)
+	return +1;
     return strcmp(((tac_rewrite *) a)->name, ((tac_rewrite *) b)->name);
 }
 
 static int compare_realm(const void *a, const void *b)
 {
+    if (((tac_realm *) a)->name_len < ((tac_realm *) b)->name_len)
+	return -1;
+    if (((tac_realm *) a)->name_len > ((tac_realm *) b)->name_len)
+	return +1;
     return strcmp(((tac_realm *) a)->name, ((tac_realm *) b)->name);
 }
 
@@ -174,21 +191,37 @@ struct tac_group {
 
 static int compare_groups_by_name(const void *a, const void *b)
 {
+    if (((tac_group *) a)->name_len < ((tac_group *) b)->name_len)
+	return -1;
+    if (((tac_group *) a)->name_len > ((tac_group *) b)->name_len)
+	return +1;
     return strcmp(((tac_group *) a)->name, ((tac_group *) b)->name);
 }
 
 static int compare_acl(const void *a, const void *b)
 {
+    if (((struct tac_acl *) a)->name_len < ((struct tac_acl *) b)->name_len)
+	return -1;
+    if (((struct tac_acl *) a)->name_len > ((struct tac_acl *) b)->name_len)
+	return +1;
     return strcmp(((struct tac_acl *) a)->name, ((struct tac_acl *) b)->name);
 }
 
 static int compare_host(const void *a, const void *b)
 {
+    if (((tac_host *) a)->name_len < ((tac_host *) b)->name_len)
+	return -1;
+    if (((tac_host *) a)->name_len > ((tac_host *) b)->name_len)
+	return +1;
     return strcmp(((tac_host *) a)->name, ((tac_host *) b)->name);
 }
 
 static int compare_net(const void *a, const void *b)
 {
+    if (((tac_net *) a)->name_len < ((tac_net *) b)->name_len)
+	return -1;
+    if (((tac_net *) a)->name_len > ((tac_net *) b)->name_len)
+	return +1;
     return strcmp(((tac_net *) a)->name, ((tac_net *) b)->name);
 }
 
@@ -571,6 +604,7 @@ tac_user *lookup_user(tac_session * session)
     tac_user user;
     tac_realm *r = session->ctx->realm;
     user.name = session->username;
+    user.name_len = strlen(session->username);
     session->user = NULL;
     if (!session->username_len)
 	return NULL;
@@ -595,6 +629,7 @@ static tac_profile *lookup_profile(char *name, tac_realm * r)
 {
     tac_profile profile;
     profile.name = name;
+    profile.name_len = strlen(name);
     while (r) {
 	if (r->profiletable) {
 	    tac_profile *res;
@@ -610,6 +645,7 @@ static tac_rewrite *lookup_rewrite(char *name, tac_realm * r)
 {
     tac_rewrite rewrite;
     rewrite.name = name;
+    rewrite.name_len = strlen(name);
     while (r) {
 	if (r->rewrite) {
 	    tac_rewrite *res;
@@ -625,6 +661,7 @@ tac_host *lookup_host(char *name, tac_realm * r)
 {
     tac_host host;
     host.name = name;
+    host.name_len = strlen(name);
     while (r) {
 	if (r->hosttable) {
 	    tac_host *res;
@@ -640,6 +677,7 @@ static tac_net *lookup_net(char *name, tac_realm * r)
 {
     tac_net net;
     net.name = name;
+    net.name_len = strlen(name);
     while (r) {
 	if (r->nettable) {
 	    tac_net *res;
@@ -2298,6 +2336,7 @@ static struct tac_acl *tac_acl_lookup(char *s, tac_realm * r)
 {
     struct tac_acl a;
     a.name = s;
+    a.name_len = strlen(s);
     while (r) {
 	if (r->acltable) {
 	    struct tac_acl *res;
@@ -2918,6 +2957,7 @@ static void parse_rewrite(struct sym *sym, tac_realm * r)
     if (!rewrite) {
 	rewrite = (tac_rewrite *) calloc(1, sizeof(tac_rewrite));
 	rewrite->name = strdup(sym->buf);
+	rewrite->name_len = strlen(sym->buf);
 	RB_insert(r->rewrite, rewrite);
     }
 
@@ -3374,6 +3414,7 @@ static void parse_net(struct sym *sym, tac_realm * r, tac_net * parent)
     sym_get(sym);
 
     net->name = strdup(sym->buf);
+    net->name_len = strlen(sym->buf);
     net->nettree = radix_new(NULL, NULL);
     if ((np = RB_lookup(r->nettable, (void *) net)))
 	parse_error(sym, "Net '%s' already defined at line %u", sym->buf, np->line);
@@ -4539,6 +4580,7 @@ static tac_group *lookup_group(char *name, tac_realm * r)
 {
     tac_group g, *res;
     g.name = name;
+    g.name_len = strlen(name);
 
     while (r) {
 	if (r->groups_by_name) {
@@ -4569,6 +4611,7 @@ static tac_group *tac_group_new(struct sym *sym, char *name, tac_realm * r)
     rb_node_t *rbn;
     tac_group g, *gp;
     g.name = name;
+    g.name_len = strlen(name);
     rbn = RB_search(r->groups_by_name, &g);
     if (rbn) {
 	gp = RB_payload(rbn, tac_group *);
