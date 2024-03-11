@@ -3224,7 +3224,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	parse(sym, S_parent_script);
 	parse(sym, S_equal);
 	host->skip_parent_script = parse_bistate(sym);
-	break;
+	return;
 #ifdef WITH_DNS
     case S_dns:
 	sym_get(sym);
@@ -3319,7 +3319,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 		host->user_messages = calloc(UM_MAX, sizeof(char *));
 	    host->user_messages[um] = strdup(sym->buf);
 	    sym_get(sym);
-	    break;
+	    return;
 	}
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
     case S_tls:
