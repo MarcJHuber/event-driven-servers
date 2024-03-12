@@ -318,7 +318,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 
 		if (r->caching_period) {
 		    if (!r->usertable)
-			r->usertable = RB_tree_new(compare_user, (void (*)(void *)) free_user);
+			r->usertable = RB_tree_new(compare_name, (void (*)(void *)) free_user);
 		    RB_insert(r->usertable, u);
 		} else
 		    session->user_is_session_specific = 1;

@@ -137,40 +137,17 @@ static int tac_tag_add(tac_tag *, tac_tags *);
 static int tac_tag_check(tac_tag *, tac_tags *);
 static int tac_tag_regex_check(tac_session *, struct mavis_cond *, tac_tags *);
 
-int compare_user(const void *a, const void *b)
-{
-    if (((tac_user *) a)->name_len < ((tac_user *) b)->name_len)
-	return -1;
-    if (((tac_user *) a)->name_len > ((tac_user *) b)->name_len)
-	return +1;
-    return strcmp(((tac_user *) a)->name, ((tac_user *) b)->name);
-}
+struct tac_name {
+    TAC_NAME_ATTRIBUTES;
+};
 
-static int compare_profile(const void *a, const void *b)
+int compare_name(const void *a, const void *b)
 {
-    if (((tac_profile *) a)->name_len < ((tac_profile *) b)->name_len)
+    if (((struct tac_name *) a)->name_len < ((struct tac_name *) b)->name_len)
 	return -1;
-    if (((tac_profile *) a)->name_len > ((tac_profile *) b)->name_len)
+    if (((struct tac_name *) a)->name_len > ((struct tac_name *) b)->name_len)
 	return +1;
-    return strcmp(((tac_profile *) a)->name, ((tac_profile *) b)->name);
-}
-
-static int compare_rewrite(const void *a, const void *b)
-{
-    if (((tac_rewrite *) a)->name_len < ((tac_rewrite *) b)->name_len)
-	return -1;
-    if (((tac_rewrite *) a)->name_len > ((tac_rewrite *) b)->name_len)
-	return +1;
-    return strcmp(((tac_rewrite *) a)->name, ((tac_rewrite *) b)->name);
-}
-
-static int compare_realm(const void *a, const void *b)
-{
-    if (((tac_realm *) a)->name_len < ((tac_realm *) b)->name_len)
-	return -1;
-    if (((tac_realm *) a)->name_len > ((tac_realm *) b)->name_len)
-	return +1;
-    return strcmp(((tac_realm *) a)->name, ((tac_realm *) b)->name);
+    return strcmp(((struct tac_name *) a)->name, ((struct tac_name *) b)->name);
 }
 
 static struct tac_acl *tac_acl_lookup(char *, tac_realm *);
@@ -208,51 +185,6 @@ struct tac_tag {
 };
 
 static rb_tree_t *tags_by_name;
-
-static int compare_tags_by_name(const void *a, const void *b)
-{
-    if (((tac_tag *) a)->name_len < ((tac_tag *) b)->name_len)
-	return -1;
-    if (((tac_tag *) a)->name_len > ((tac_tag *) b)->name_len)
-	return +1;
-    return strcmp(((tac_tag *) a)->name, ((tac_tag *) b)->name);
-}
-
-static int compare_groups_by_name(const void *a, const void *b)
-{
-    if (((tac_group *) a)->name_len < ((tac_group *) b)->name_len)
-	return -1;
-    if (((tac_group *) a)->name_len > ((tac_group *) b)->name_len)
-	return +1;
-    return strcmp(((tac_group *) a)->name, ((tac_group *) b)->name);
-}
-
-static int compare_acl(const void *a, const void *b)
-{
-    if (((struct tac_acl *) a)->name_len < ((struct tac_acl *) b)->name_len)
-	return -1;
-    if (((struct tac_acl *) a)->name_len > ((struct tac_acl *) b)->name_len)
-	return +1;
-    return strcmp(((struct tac_acl *) a)->name, ((struct tac_acl *) b)->name);
-}
-
-static int compare_host(const void *a, const void *b)
-{
-    if (((tac_host *) a)->name_len < ((tac_host *) b)->name_len)
-	return -1;
-    if (((tac_host *) a)->name_len > ((tac_host *) b)->name_len)
-	return +1;
-    return strcmp(((tac_host *) a)->name, ((tac_host *) b)->name);
-}
-
-static int compare_net(const void *a, const void *b)
-{
-    if (((tac_net *) a)->name_len < ((tac_net *) b)->name_len)
-	return -1;
-    if (((tac_net *) a)->name_len > ((tac_net *) b)->name_len)
-	return +1;
-    return strcmp(((tac_net *) a)->name, ((tac_net *) b)->name);
-}
 
 #ifdef WITH_SSL
 #ifndef OPENSSL_NO_PSK
@@ -772,15 +704,10 @@ static void parse_key(struct sym *sym, tac_host * host)
 }
 
 struct dns_forward_mapping {
+    TAC_NAME_ATTRIBUTES;
     struct dns_forward_mapping *next;
     struct in6_addr a;
-    char *name;
 };
-
-static int compare_dns_tree_a(const void *a, const void *b)
-{
-    return strcmp(((struct dns_forward_mapping *) a)->name, ((struct dns_forward_mapping *) b)->name);
-}
 
 static void free_dns_tree_a(void *payload)
 {
@@ -812,10 +739,11 @@ static void dns_add_a(rb_tree_t ** t, struct in6_addr *a, char *name)
 	    return;
 	}
     } else
-	*t = RB_tree_new(compare_dns_tree_a, free_dns_tree_a);
+	*t = RB_tree_new(compare_name, free_dns_tree_a);
 
     dn->a = *a;
     dn->name = strdup(name);
+    dn->name_len = strlen(name);
     RB_insert(*t, dn);
 }
 
@@ -1581,7 +1509,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		if ((rp = lookup_realm(sym->buf, config.default_realm)))
 		    parse_error(sym, "Realm '%s' already defined at line %u", sym->buf, rp->line);
 		if (!r->realms)
-		    r->realms = RB_tree_new(compare_realm, NULL);
+		    r->realms = RB_tree_new(compare_name, NULL);
 		name = strdup(sym->buf);
 		sym_get(sym);
 		if (sym->code == S_openbra) {
@@ -1952,7 +1880,7 @@ static void parse_profile(struct sym *sym, tac_realm * r, tac_profile * parent)
     tac_profile *n, *profile;
 
     if (!r->profiletable)
-	r->profiletable = RB_tree_new(compare_profile, NULL);
+	r->profiletable = RB_tree_new(compare_name, NULL);
 
     sym_get(sym);
 
@@ -2154,7 +2082,7 @@ static void parse_user(struct sym *sym, tac_realm * r)
     enum token type = sym->code;
 
     if (!r->usertable)
-	r->usertable = RB_tree_new(compare_user, (void (*)(void *)) free_user);
+	r->usertable = RB_tree_new(compare_name, (void (*)(void *)) free_user);
 
     sym_get(sym);
 
@@ -2979,7 +2907,7 @@ static void parse_rewrite(struct sym *sym, tac_realm * r)
     tac_rewrite *rewrite = alloca(sizeof(tac_rewrite));
 
     if (!r->rewrite)
-	r->rewrite = RB_tree_new(compare_rewrite, NULL);
+	r->rewrite = RB_tree_new(compare_name, NULL);
 
     rewrite->name = sym->buf;
     rewrite = RB_lookup(r->rewrite, rewrite);
@@ -3354,7 +3282,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
     case S_devicetag:
 	{
 	    if (!tags_by_name)
-		tags_by_name = RB_tree_new(compare_tags_by_name, NULL);
+		tags_by_name = RB_tree_new(compare_name, NULL);
 	    if (!host->tags)
 		host->tags = calloc(1, sizeof(tac_tags));
 	    tac_tag *tag = NULL;
@@ -3415,7 +3343,7 @@ static void parse_host(struct sym *sym, tac_realm * r, tac_host * parent)
     struct dns_forward_mapping *d;
 
     if (!r->hosttable) {
-	r->hosttable = RB_tree_new(compare_host, NULL);
+	r->hosttable = RB_tree_new(compare_name, NULL);
 	r->hosttree = radix_new(NULL, NULL);
     }
 
@@ -3462,7 +3390,7 @@ static void parse_net(struct sym *sym, tac_realm * r, tac_net * parent)
     struct dns_forward_mapping *d;
 
     if (!r->nettable)
-	r->nettable = RB_tree_new(compare_net, NULL);
+	r->nettable = RB_tree_new(compare_name, NULL);
 
     net->line = sym->line;
 
@@ -3579,7 +3507,7 @@ static void parse_tac_acl(struct sym *sym, tac_realm * realm)
     sym_get(sym);
 
     if (!realm->acltable)
-	realm->acltable = RB_tree_new(compare_acl, NULL);
+	realm->acltable = RB_tree_new(compare_name, NULL);
 
     if (sym->code == S_equal)
 	sym_get(sym);
@@ -4680,7 +4608,7 @@ mavis_ctx *lookup_mcx(tac_realm * r)
 static tac_group *tac_group_new(struct sym *sym, char *name, tac_realm * r)
 {
     if (!r->groups_by_name)
-	r->groups_by_name = RB_tree_new(compare_groups_by_name, NULL);
+	r->groups_by_name = RB_tree_new(compare_name, NULL);
 
     rb_node_t *rbn;
     tac_group g, *gp;

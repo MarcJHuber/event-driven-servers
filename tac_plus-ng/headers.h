@@ -161,7 +161,10 @@ enum user_message_enum { UM_PASSWORD = 0, UM_RESPONSE, UM_PASSWORD_OLD, UM_PASSW
     UM_USERNAME, UM_USER_ACCESS_VERIFICATION, UM_DENIED_BY_ACL, UM_PASSWORD_EXPIRED, UM_PASSWORD_EXPIRES, UM_MAX
 };
 
+#define TAC_NAME_ATTRIBUTES char *name; size_t name_len
+
 struct tac_host {
+    TAC_NAME_ATTRIBUTES;
     u_int line;			/* configuration file line number */
      TRISTATE(anon_enable);	/* permit anonymous enable */
      TRISTATE(lookup_revmap_nac);	/* lookup reverse mapping in DNS */
@@ -176,8 +179,6 @@ struct tac_host {
      BISTATE(visited);
      BISTATE(skip_parent_script);
     u_int bug_compatibility;
-    char *name;			/* host name */
-    size_t name_len;
     tac_host *parent;
     struct tac_key *key;
     struct log_item *motd;
@@ -209,9 +210,8 @@ struct tac_net;
 typedef struct tac_net tac_net;
 
 struct tac_net {
+    TAC_NAME_ATTRIBUTES;
     u_int line;			/* configuration file line number */
-    char *name;			/* host name */
-    size_t name_len;
     enum token res;		/* permit or deny */
     tac_net *parent;
     radixtree_t *nettree;
@@ -229,17 +229,14 @@ struct tac_groups;
 struct tac_group;
 typedef struct tac_groups tac_groups;
 typedef struct tac_group tac_group;
+
 struct tac_tags;
 struct tac_tag;
 typedef struct tac_tags tac_tags;
 typedef struct tac_tag tac_tag;
 
-struct tac_tags;
-typedef struct tac_tags tac_tags;
-
 struct tac_profile {
-    char *name;			/* profile name */
-    size_t name_len;
+    TAC_NAME_ATTRIBUTES;
     struct tac_profile *parent;
     struct pwdat **enable;
     struct mavis_action *action;
@@ -259,6 +256,7 @@ struct ssh_key_id;
 
 /* A user or group definition. */
 typedef struct {
+    TAC_NAME_ATTRIBUTES;
     char *msg;			/* message for this user */
     u_int line;			/* line number defined on */
     time_t valid_from;		/* validity period start */
@@ -278,8 +276,6 @@ typedef struct {
      BISTATE(fallback_only);
      BISTATE(rewritten_only);
     av_ctx *avc;
-    char *name;			/* username */
-    size_t name_len;
 } tac_user;
 
 struct config {
@@ -292,9 +288,8 @@ struct config {
 };
 
 struct tac_acl {
+    TAC_NAME_ATTRIBUTES;
     struct mavis_action *action;
-    char *name;
-    size_t name_len;
 };
 
 struct tac_rule {
@@ -306,9 +301,8 @@ struct tac_rule {
 struct sni_list;
 
 struct realm {
+    TAC_NAME_ATTRIBUTES;
     u_int line;			/* configuration file line number */
-    char *name;
-    size_t name_len;
     rb_tree_t *acctlog;
     rb_tree_t *accesslog;
     rb_tree_t *authorlog;
@@ -896,7 +890,7 @@ char *eval_log_format(tac_session *, struct context *, struct logfile *, struct 
 struct log_item *parse_log_format_inline(char *, char *, int);
 
 tac_user *new_user(char *, enum token, tac_realm *);
-int compare_user(const void *, const void *);
+int compare_name(const void *, const void *);
 void free_user(tac_user *);
 void cfg_init(void);
 enum token tac_keycode(char *);

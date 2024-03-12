@@ -181,8 +181,8 @@ static int tac_unlockfd(int lockfd)
 }
 
 struct logfile {
+    TAC_NAME_ATTRIBUTES;
     char *dest;			/* log file dest specification */
-    char *name;			/* log file specification */
     struct context_logfile *ctx;	/* current log context */
     void (*log_write)(struct logfile *, char *, size_t);
     void (*log_flush)(struct logfile *);
@@ -537,11 +537,6 @@ int logs_flushed(tac_realm * r)
     return -1;
 }
 
-static int compare_log(const void *a, const void *b)
-{
-    return strcmp(((struct logfile *) a)->name, ((struct logfile *) b)->name);
-}
-
 struct log_item *parse_log_format(struct sym *);
 
 struct log_item *parse_log_format_inline(char *format, char *file, int line)
@@ -575,6 +570,7 @@ void parse_log(struct sym *sym, tac_realm * r)
     if (sym->code == S_equal)
 	sym_get(sym);
     lf->name = strdup(sym->buf);
+    lf->name_len = strlen(sym->buf);
     sym_get(sym);
     if (r->logdestinations && RB_search(r->logdestinations, lf))
 	parse_error(sym, "log destination '%s' already defined", lf->name);
@@ -776,7 +772,7 @@ void parse_log(struct sym *sym, tac_realm * r)
     }
 
     if (!r->logdestinations)
-	r->logdestinations = RB_tree_new(compare_log, NULL);
+	r->logdestinations = RB_tree_new(compare_name, NULL);
     RB_insert(r->logdestinations, lf);
 }
 
@@ -785,8 +781,9 @@ void log_add(struct sym *sym, rb_tree_t ** rbtp, char *s, tac_realm * r)
     struct logfile *res = NULL;
     struct logfile *lf = alloca(sizeof(struct logfile));
     lf->name = s;
+    lf->name_len = strlen(s);
     if (!*rbtp)
-	*rbtp = RB_tree_new(compare_log, NULL);
+	*rbtp = RB_tree_new(compare_name, NULL);
     while (r) {
 	if (r->logdestinations) {
 	    if ((res = RB_lookup(r->logdestinations, lf))) {
