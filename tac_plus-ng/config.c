@@ -110,8 +110,7 @@ struct rewrite_expr {
 typedef struct rewrite_expr tac_rewrite_expr;
 
 typedef struct {
-    char *name;
-    size_t name_len;
+    TAC_NAME_ATTRIBUTES;
     tac_rewrite_expr *expr;
 } tac_rewrite;
 
@@ -162,8 +161,7 @@ struct tac_group;
 typedef struct tac_group tac_group;
 
 struct tac_group {
-    char *name;
-    size_t name_len;
+    TAC_NAME_ATTRIBUTES;
     tac_group *parent;
     tac_groups *groups;
     u_int line;
@@ -180,8 +178,7 @@ struct tac_tag;
 typedef struct tac_tag tac_tag;
 
 struct tac_tag {
-    char *name;
-    size_t name_len;
+    TAC_NAME_ATTRIBUTES;
 };
 
 static rb_tree_t *tags_by_name;
