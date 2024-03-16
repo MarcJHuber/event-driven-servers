@@ -3994,9 +3994,9 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 
     default:
 	parse_error_expect(sym, S_leftbra, S_exclmark, S_acl, S_time, S_arg,
-			   S_cmd, S_context, S_client, S_nac, S_device, S_nas, S_nasname,
+			   S_cmd, S_context, S_nac, S_device, S_nas, S_nasname,
 			   S_nacname, S_host, S_port, S_user, S_group, S_member, S_memberof,
-			   S_device, S_devicename, S_deviceaddress, S_devicedns, S_devicetag, S_deviceport,
+			   S_devicename, S_deviceaddress, S_devicedns, S_devicetag, S_deviceport,
 			   S_client, S_clientname, S_clientdns, S_clientaddress,
 			   S_password, S_service, S_protocol, S_authen_action,
 			   S_authen_type, S_authen_service, S_authen_method, S_privlvl, S_vrf, S_dn, S_type, S_identity_source,
