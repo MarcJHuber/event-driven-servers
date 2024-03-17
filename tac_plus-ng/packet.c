@@ -198,29 +198,41 @@ void send_author_reply(tac_session * session, u_char status, char *msg, char *da
     case TAC_PLUS_AUTHOR_STATUS_PASS_ADD:
 	session->result = codestring[S_permit];
 	session->result_len = codestring_len[S_permit];
-	session->hint = "added";
-	session->hint_len = 5;
+#define S "added"
+	session->hint = S;
+	session->hint_len = sizeof(S) - 1;
+#undef S
 	if (arg_cnt) {
-	    session->msgid = "AUTHZPASS-ADD";
-	    session->msgid_len = 13;
+#define S "AUTHZPASS-ADD"
+	    session->msgid = S;
+	    session->msgid_len = sizeof(S) - 1;
+#undef S
 	} else {
-	    session->msgid = "AUTHZPASS";
-	    session->msgid_len = 9;
+#define S "AUTHZPASS"
+	    session->msgid = S;
+	    session->msgid_len = sizeof(S) - 1;
+#undef S
 	}
 	break;
     case TAC_PLUS_AUTHOR_STATUS_PASS_REPL:
 	session->result = codestring[S_permit];
 	session->result_len = codestring_len[S_permit];
-	session->hint = "replaced";
-	session->hint_len = 8;
-	session->msgid = "AUTHZPASS-REPL";
-	session->msgid_len = 14;
+#define S "replaced"
+	session->hint = S;
+	session->hint_len = sizeof(S) - 1;
+#undef S
+#define S "AUTHZPASS-REPL"
+	session->msgid = S;
+	session->msgid_len = sizeof(S) - 1;
+#undef S
 	break;
     default:
 	session->result = codestring[S_deny];
 	session->result_len = codestring_len[S_deny];
-	session->msgid = "AUTHZFAIL";
-	session->msgid_len = 9;
+#define S "AUTHZFAIL"
+	session->msgid = S;
+	session->msgid_len = sizeof(S) - 1;
+#undef S
     }
 
     log_exec(session, session->ctx, S_authorization, io_now.tv_sec);

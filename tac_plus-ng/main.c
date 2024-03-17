@@ -317,10 +317,14 @@ void cleanup(struct context *ctx, int cur)
 #endif
 
     if (!ctx->msgid) {
-	ctx->msgid = "CONN-STOP";
-	ctx->msgid_len = 9;
-	ctx->acct_type = "stop";
-	ctx->acct_type_len = 4;
+#define S "CONN-STOP"
+	ctx->msgid = S;
+	ctx->msgid_len = sizeof(S) - 1;
+#undef S
+#define S "stop"
+	ctx->acct_type = S;
+	ctx->acct_type_len = sizeof(S) - 1;
+#undef S
     }
 
     log_exec(NULL, ctx, S_connection, io_now.tv_sec);
@@ -544,10 +548,14 @@ static void reject_conn(struct context *ctx, char *hint, char *tls)
 	       ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", prehint, hint,
 	       posthint);
 
-    ctx->msgid = "CONN-REJECT";
-    ctx->msgid_len = 11;
-    ctx->acct_type = "reject";
-    ctx->acct_type_len = 6;
+#define S "CONN-REJECT"
+    ctx->msgid = S;
+    ctx->msgid_len = sizeof(S) - 1;
+#undef S
+#define S "reject"
+    ctx->acct_type = S;
+    ctx->acct_type_len = sizeof(S) - 1;
+#undef S
     cleanup(ctx, ctx->sock);
 }
 
@@ -1191,10 +1199,14 @@ static void accept_control_final(struct context *ctx)
 	if (ctx_spawnd)
 	    common_data.scm_send_msg(ctx_spawnd->sock, &d, -1);
     }
-    ctx->msgid = "CONN-START";
-    ctx->msgid_len = 10;
-    ctx->acct_type = "start";
-    ctx->acct_type_len = 5;
+#define S "CONN-START"
+    ctx->msgid = S;
+    ctx->msgid_len = sizeof(S) - 1;
+#undef S
+#define S "start"
+    ctx->acct_type = S;
+    ctx->acct_type_len = sizeof(S) - 1;
+#undef S
     log_exec(NULL, ctx, S_connection, io_now.tv_sec);
     ctx->msgid = NULL;
     ctx->msgid_len = 0;

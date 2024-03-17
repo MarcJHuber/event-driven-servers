@@ -75,25 +75,41 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
     session->privlvl_len = snprintf(session->privlvl, sizeof(session->privlvl), "%u", session->priv_lvl);
 
     if (acct->flags & TAC_PLUS_ACCT_FLAG_STOP) {
-	session->acct_type = "stop";
-	session->acct_type_len = 4;
-	session->msgid = "ACCT-STOP";
-	session->msgid_len = 9;
+#define S "stop"
+	session->acct_type = S;
+	session->acct_type_len = sizeof(S) - 1;
+#undef S
+#define S "ACCT-STOP"
+	session->msgid = S;
+	session->msgid_len = sizeof(S) - 1;
+#undef S
     } else if (acct->flags & TAC_PLUS_ACCT_FLAG_START) {
-	session->acct_type = "start";
-	session->acct_type_len = 5;
-	session->msgid = "ACCT-START";
-	session->msgid_len = 10;
+#define S "start"
+	session->acct_type = S;
+	session->acct_type_len = sizeof(S) - 1;
+#undef S
+#define S "ACCT-START"
+	session->msgid = S;
+	session->msgid_len = sizeof(S) - 1;
+#undef S
     } else if (acct->flags & TAC_PLUS_ACCT_FLAG_WATCHDOG) {
-	session->acct_type = "update";
-	session->acct_type_len = 6;
-	session->msgid = "ACCT-UPDATE";
-	session->msgid_len = 11;
+#define S "update"
+	session->acct_type = S;
+	session->acct_type_len = sizeof(S) - 1;
+#undef S
+#define S "ACCT-UPDATE"
+	session->msgid = S;
+	session->msgid_len = sizeof(S) - 1;
+#undef S
     } else {
-	session->acct_type = "unknown";
-	session->acct_type_len = 7;
-	session->msgid = "ACCT-UNKNOWN";
-	session->msgid_len = 12;
+#define S "unknown"
+	session->acct_type = S;
+	session->acct_type_len = sizeof(S) - 1;
+#undef S
+#define S "ACCT-UNKNOWN"
+	session->msgid = S;
+	session->msgid_len = sizeof(S) - 1;
+#undef S
     }
 
     session->username = memlist_strndup(session->memlist, p, acct->user_len);
