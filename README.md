@@ -6,7 +6,7 @@ Issues can be reported via
 
   https://github.com/MarcJHuber/event-driven-servers/issues
 
-Discussions can be starte via
+Discussions can be started via
 
   https://github.com/MarcJHuber/event-driven-servers/discussions
 
