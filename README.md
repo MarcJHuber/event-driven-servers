@@ -6,9 +6,9 @@ Issues can be reported via
 
   https://github.com/MarcJHuber/event-driven-servers/issues
 
-or the mailing list at
+Discussions can be starte via
 
-   event-driven-servers@googlegroups.com
+  https://github.com/MarcJHuber/event-driven-servers/discussions
 
 Home site is https://www.pro-bono-publico.de/projects/
 
@@ -81,12 +81,8 @@ Support
 While I really appreciate that you're using the software I'd
 very much prefer *not* to receive private support enquiries.
 
-As already mentioned on the top of this page: Please direct support queries to the mailing list at
+As already mentioned on the top of this page: Please direct support queries to GitHub discussions or issues:
 
-  event-driven-servers@googlegroups.com
-
-or file an issue at
-
+  https://github.com/MarcJHuber/event-driven-servers/discussions
   https://github.com/MarcJHuber/event-driven-servers/issues
 
-The latter is currently more reliable, due to Google list issues.

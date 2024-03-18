@@ -948,11 +948,6 @@ id = ftpd {
      * TLS re-negotiation is currently untested and may or may not
        work.
      * UTF-8 support is likely to be incomplete or plain broken.
-     * There may still be some nasty bugs lurking in the code.
-       Please contact the author via the "Event-Driven Servers"
-       Google Group at <event-driven-servers@googlegroups.com> or
-       http://groups.google.com/group/event-driven-servers if you
-       think you've found one.
      __________________________________________________________
 
 10. References

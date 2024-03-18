@@ -58,8 +58,8 @@ void catchsegv(int sig __attribute__((unused)))
     logmsg("still seeing the crash. After all, this bug may be already fixed.");
     logmsg("If the issue persists even with the most recent version:");
     logmsg("Reconfigure with --debug, recompile and reinstall. Then send");
-    logmsg("a bug report to the mailing-list at");
-    logmsg("    event-driven-servers@googlegroups.com");
+    logmsg("a bug report via GitHub issues at");
+    logmsg("    https://github.com/MarcJHuber/event-driven-servers/issues");
     logmsg("and include the backtraces.");
     logmsg("Please do NOT mail bug reports to the private mail address of");
     logmsg("the author, unless you have a prior permit for that.");

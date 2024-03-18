@@ -3393,11 +3393,6 @@ l =15
 
 9. Bugs
 
-     * There may still be some nasty bugs lurking in the code.
-       Please contact the author via the "Event-Driven Servers"
-       Google Group at <event-driven-servers@googlegroups.com> or
-       http://groups.google.com/group/event-driven-servers if you
-       think you've found one.
      * This documentation isn't well structured.
      * The examples given are too IPv4-centric. However, the
        daemon handles IPv6 just fine.
