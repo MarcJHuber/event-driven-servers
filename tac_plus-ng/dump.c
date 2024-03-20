@@ -67,76 +67,176 @@ struct i2s {
 };
 
 static struct i2s map_authen_type[] = {
-    { 0, "AUTHEN/UNKNOWN", 0 },
-    { TAC_PLUS_AUTHEN_STATUS_PASS, "AUTHEN/PASS", 0 },
-    { TAC_PLUS_AUTHEN_STATUS_FAIL, "AUTHEN/FAIL", 0 },
-    { TAC_PLUS_AUTHEN_STATUS_GETDATA, "AUTHEN/GETDATA", 0 },
-    { TAC_PLUS_AUTHEN_STATUS_GETUSER, "AUTHEN/GETUSER", 0 },
-    { TAC_PLUS_AUTHEN_STATUS_GETPASS, "AUTHEN/GETPASS", 0 },
-    { TAC_PLUS_AUTHEN_STATUS_ERROR, "AUTHEN/ERROR", 0 },
-    { TAC_PLUS_AUTHEN_STATUS_FOLLOW, "AUTHEN/FOLLOW", 0 },
+#define S "AUTHEN/UNKNOWN"
+    { 0, S, sizeof(S) - 1 },
+#undef S
+#define S "AUTHEN/PASS"
+    { TAC_PLUS_AUTHEN_STATUS_PASS, S, sizeof(S) - 1 },
+#undef S
+#define S "AUTHEN/FAIL"
+    { TAC_PLUS_AUTHEN_STATUS_FAIL, S, sizeof(S) - 1 },
+#undef S
+#define S "AUTHEN/GETDATA"
+    { TAC_PLUS_AUTHEN_STATUS_GETDATA, S, sizeof(S) - 1 },
+#undef S
+#define S "AUTHEN/GETUSER"
+    { TAC_PLUS_AUTHEN_STATUS_GETUSER, S, sizeof(S) - 1 },
+#undef S
+#define S "AUTHEN/GETPASS"
+    { TAC_PLUS_AUTHEN_STATUS_GETPASS, S, sizeof(S) - 1 },
+#undef S
+#define S "AUTHEN/ERROR"
+    { TAC_PLUS_AUTHEN_STATUS_ERROR, S, sizeof(S) - 1 },
+#undef S
+#define S "AUTHEN/FOLLOW"
+    { TAC_PLUS_AUTHEN_STATUS_FOLLOW, S, sizeof(S) - 1 },
+#undef S
     { 0, NULL, 0 }
 };
 
 static struct i2s map_author_type[] = {
-    { 0, "AUTHOR/UNKNOWN", 0 },
-    { TAC_PLUS_AUTHOR_STATUS_PASS_ADD, "AUTHOR/PASS_ADD", 0 },
-    { TAC_PLUS_AUTHOR_STATUS_FAIL, "AUTHOR/FAIL", 0 },
-    { TAC_PLUS_AUTHOR_STATUS_PASS_REPL, "AUTHOR/PASS_REPL", 0 },
-    { TAC_PLUS_AUTHOR_STATUS_ERROR, "AUTHOR/ERROR", 0 },
+#define S "AUTHOR/UNKNOWN"
+    { 0, S, sizeof(S) - 1 },
+#undef S
+#define S "AUTHOR/PASS_ADD"
+    { TAC_PLUS_AUTHOR_STATUS_PASS_ADD, S, sizeof(S) - 1 },
+#undef S
+#define S "AUTHOR/FAIL"
+    { TAC_PLUS_AUTHOR_STATUS_FAIL, S, sizeof(S) - 1 },
+#undef S
+#define S "AUTHOR/PASS_REPL"
+    { TAC_PLUS_AUTHOR_STATUS_PASS_REPL, S, sizeof(S) - 1 },
+#undef S
+#define S "AUTHOR/ERROR"
+    { TAC_PLUS_AUTHOR_STATUS_ERROR, S, sizeof(S) - 1 },
+#undef S
     { 0, NULL, 0 }
 };
 
 static struct i2s map_action[] = {
-    { 0, "unknown", 0 },
-    { TAC_PLUS_AUTHEN_LOGIN, "login", 0 },
-    { TAC_PLUS_AUTHEN_CHPASS, "chpass", 0 },
-    { TAC_PLUS_AUTHEN_SENDPASS, "sendpass", 0 },
-    { TAC_PLUS_AUTHEN_SENDAUTH, "sendauth", 0 },
+#define S "unknown"
+    { 0, S, sizeof(S) - 1 },
+#undef S
+#define S "login"
+    { TAC_PLUS_AUTHEN_LOGIN, S, sizeof(S) - 1 },
+#undef S
+#define S "chpass"
+    { TAC_PLUS_AUTHEN_CHPASS, S, sizeof(S) - 1 },
+#undef S
+#define S "sendpass"
+    { TAC_PLUS_AUTHEN_SENDPASS, S, sizeof(S) - 1 },
+#undef S
+#define S "sendauth"
+    { TAC_PLUS_AUTHEN_SENDAUTH, S, sizeof(S) - 1 },
+#undef S
     { 0, NULL, 0 }
 };
 
 static struct i2s map_type[] = {
+#define S "unknown"
     { 0, "unknown", 0 },
-    { TAC_PLUS_AUTHEN_TYPE_ASCII, "ascii", 0 },
-    { TAC_PLUS_AUTHEN_TYPE_PAP, "pap", 0 },
-    { TAC_PLUS_AUTHEN_TYPE_CHAP, "chap", 0 },
-    { TAC_PLUS_AUTHEN_TYPE_ARAP, "arap", 0 },
-    { TAC_PLUS_AUTHEN_TYPE_MSCHAP, "mschap", 0 },
-    { TAC_PLUS_AUTHEN_TYPE_MSCHAPV2, "mschapv2", 0 },
-    { TAC_PLUS_AUTHEN_TYPE_SSHKEY, "sshkey", 0 },
-    { TAC_PLUS_AUTHEN_TYPE_SSHCERT, "sshcert", 0 },
-    { TAC_PLUS_AUTHEN_TYPE_EAP, "eap", 0 },
+#undef S
+#define S "ascii"
+    { TAC_PLUS_AUTHEN_TYPE_ASCII, S, sizeof(S) - 1 },
+#undef S
+#define S "pap"
+    { TAC_PLUS_AUTHEN_TYPE_PAP, S, sizeof(S) - 1 },
+#undef S
+#define S "chap"
+    { TAC_PLUS_AUTHEN_TYPE_CHAP, S, sizeof(S) - 1 },
+#undef S
+#define S "arap"
+    { TAC_PLUS_AUTHEN_TYPE_ARAP, S, sizeof(S) - 1 },
+#undef S
+#define S "mschap"
+    { TAC_PLUS_AUTHEN_TYPE_MSCHAP, S, sizeof(S) - 1 },
+#undef S
+#define S "mschapv2"
+    { TAC_PLUS_AUTHEN_TYPE_MSCHAPV2, S, sizeof(S) - 1 },
+#undef S
+#define S "sshkey"
+    { TAC_PLUS_AUTHEN_TYPE_SSHKEY, S, sizeof(S) - 1 },
+#undef S
+#define S "sshcert"
+    { TAC_PLUS_AUTHEN_TYPE_SSHCERT, S, sizeof(S) - 1 },
+#undef S
+#define S "eap"
+    { TAC_PLUS_AUTHEN_TYPE_EAP, S, sizeof(S) - 1 },
+#undef S
     { 0, NULL, 0 }
 };
 
 static struct i2s map_service[] = {
+#define S "unknown"
     { 0, "unknown", 0 },
-    { TAC_PLUS_AUTHEN_SVC_LOGIN, "login", 0 },
-    { TAC_PLUS_AUTHEN_SVC_ENABLE, "enable", 0 },
-    { TAC_PLUS_AUTHEN_SVC_PPP, "ppp", 0 },
-    { TAC_PLUS_AUTHEN_SVC_ARAP, "arap", 0 },
-    { TAC_PLUS_AUTHEN_SVC_PT, "pt", 0 },
-    { TAC_PLUS_AUTHEN_SVC_RCMD, "rcmd", 0 },
-    { TAC_PLUS_AUTHEN_SVC_X25, "x25", 0 },
-    { TAC_PLUS_AUTHEN_SVC_NASI, "nasi", 0 },
-    { TAC_PLUS_AUTHEN_SVC_FWPROXY, "fwproxy", 0 },
+#undef S
+#define S "login"
+    { TAC_PLUS_AUTHEN_SVC_LOGIN, S, sizeof(S) - 1 },
+#undef S
+#define S "enable"
+    { TAC_PLUS_AUTHEN_SVC_ENABLE, S, sizeof(S) - 1 },
+#undef S
+#define S "ppp"
+    { TAC_PLUS_AUTHEN_SVC_PPP, S, sizeof(S) - 1 },
+#undef S
+#define S "arap"
+    { TAC_PLUS_AUTHEN_SVC_ARAP, S, sizeof(S) - 1 },
+#undef S
+#define S "pt"
+    { TAC_PLUS_AUTHEN_SVC_PT, S, sizeof(S) - 1 },
+#undef S
+#define S "rcmd"
+    { TAC_PLUS_AUTHEN_SVC_RCMD, S, sizeof(S) - 1 },
+#undef S
+#define S "x25"
+    { TAC_PLUS_AUTHEN_SVC_X25, S, sizeof(S) - 1 },
+#undef S
+#define S "nasi"
+    { TAC_PLUS_AUTHEN_SVC_NASI, S, sizeof(S) - 1 },
+#undef S
+#define S "fwproxy"
+    { TAC_PLUS_AUTHEN_SVC_FWPROXY, S, sizeof(S) - 1 },
+#undef S
     { 0, NULL, 0 }
 };
 
 static struct i2s map_method[] = {
+#define S "unknown"
     { 0, "unknown", 0 },
-    { TAC_PLUS_AUTHEN_METH_NOT_SET, "not set", 0 },
-    { TAC_PLUS_AUTHEN_METH_NONE, "none", 0 },
-    { TAC_PLUS_AUTHEN_METH_KRB5, "krb5", 0 },
-    { TAC_PLUS_AUTHEN_METH_LINE, "line", 0 },
-    { TAC_PLUS_AUTHEN_METH_ENABLE, "enable", 0 },
-    { TAC_PLUS_AUTHEN_METH_LOCAL, "local", 0 },
-    { TAC_PLUS_AUTHEN_METH_TACACSPLUS, "tacacs+", 0 },
-    { TAC_PLUS_AUTHEN_METH_GUEST, "guest", 0 },
-    { TAC_PLUS_AUTHEN_METH_RADIUS, "radius", 0 },
-    { TAC_PLUS_AUTHEN_METH_KRB4, "krb4", 0 },
-    { TAC_PLUS_AUTHEN_METH_RCMD, "rcmd", 0 },
+#undef S
+#define S "not set"
+    { TAC_PLUS_AUTHEN_METH_NOT_SET, S, sizeof(S) - 1 },
+#undef S
+#define S "none"
+    { TAC_PLUS_AUTHEN_METH_NONE, S, sizeof(S) - 1 },
+#undef S
+#define S "krb5"
+    { TAC_PLUS_AUTHEN_METH_KRB5, S, sizeof(S) - 1 },
+#undef S
+#define S "line"
+    { TAC_PLUS_AUTHEN_METH_LINE, S, sizeof(S) - 1 },
+#undef S
+#define S "enable"
+    { TAC_PLUS_AUTHEN_METH_ENABLE, S, sizeof(S) - 1 },
+#undef S
+#define S "local"
+    { TAC_PLUS_AUTHEN_METH_LOCAL, S, sizeof(S) - 1 },
+#undef S
+#define S "tacacs+"
+    { TAC_PLUS_AUTHEN_METH_TACACSPLUS, S, sizeof(S) - 1 },
+#undef S
+#define S "guest"
+    { TAC_PLUS_AUTHEN_METH_GUEST, S, sizeof(S) - 1 },
+#undef S
+#define S "radius"
+    { TAC_PLUS_AUTHEN_METH_RADIUS, S, sizeof(S) - 1 },
+#undef S
+#define S "krb4"
+    { TAC_PLUS_AUTHEN_METH_KRB4, S, sizeof(S) - 1 },
+#undef S
+#define S "rcmd"
+    { TAC_PLUS_AUTHEN_METH_RCMD, S, sizeof(S) - 1 },
+#undef S
     { 0, NULL, 0 }
 };
 
@@ -150,9 +250,6 @@ static char *i2s(struct i2s *s, int i, size_t *len)
 
     if (!s->str)
 	s = r;
-
-    if (s->str && !s->str_len)
-	s->str_len = strlen(s->str);
 
     if (len)
 	*len = s->str_len;
