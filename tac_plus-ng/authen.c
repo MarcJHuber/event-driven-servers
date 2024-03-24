@@ -126,33 +126,88 @@ struct hint_struct {
 };
 
 static struct hint_struct hints[hint_max] = {
-    { "failed", "AUTHCFAIL", 0, 0 },
-    { "failed (denied)", "AUTHCFAIL-DENY", 0, 0 },
-    { "failed (password not set)", "AUTHCFAIL-NOPASS", 0, 0 },
-    { "failed (expired)", "AUTHCFAIL-EXPIRED", 0, 0 },
-    { "failed (no such user)", "AUTHCFAIL-NOUSER", 0, 0 },
-    { "succeeded", "AUTHCPASS", 0, 0 },
-    { "succeeded (permitted)", "AUTHCPASS-PERMIT", 0, 0 },
-    { "failed (no clear text password set)", "AUTHCFAIL-PASSWORD-NOT-TEXT", 0, 0 },
-    { "failed (backend error)", "AUTHCFAIL-BACKEND", 0, 0 },
-    { "denied by user profile", "AUTHCFAIL-USERPROFILE", 0, 0 },
-    { "failed (retry with identical password)", "AUTHCFAIL-DENY-RETRY", 0, 0 },
-    { "failed (This might be a bug, consider reporting it!)", "AUTHCFAIL-BUG", 0, 0 },
-    { "aborted by request", "AUTHCFAIL-ABORT", 0, 0 },
-    { "denied by ACL", "AUTHCFAIL-ACL", 0, 0 },
-    { "denied (invalid challenge length)", "AUTHCFAIL-BAD-CHALLENGE-LENGTH", 0, 0 },
-    { "denied (minimum password requirements not met)", "AUTHCFAIL-WEAKPASSWORD", 0, 0 },
+#define S1 "failed"
+#define S2 "AUTHCFAIL"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "failed (denied)"
+#define S2 "AUTHCFAIL-DENY"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "failed (password not set)"
+#define S2 "AUTHCFAIL-NOPASS"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "failed (expired)"
+#define S2 "AUTHCFAIL-EXPIRED"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "failed (no such user)"
+#define S2 "AUTHCFAIL-NOUSER"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "succeeded"
+#define S2 "AUTHCPASS"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "succeeded (permitted)"
+#define S2 "AUTHCPASS-PERMIT"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "failed (no clear text password set)"
+#define S2 "AUTHCFAIL-PASSWORD-NOT-TEXT"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "failed (backend error)"
+#define S2 "AUTHCFAIL-BACKEND"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "denied by user profile"
+#define S2 "AUTHCFAIL-USERPROFILE"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "failed (retry with identical password)"
+#define S2 "AUTHCFAIL-DENY-RETRY"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "failed (This might be a bug, consider reporting it!)"
+#define S2 "AUTHCFAIL-BUG"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "aborted by request"
+#define S2 "AUTHCFAIL-ABORT"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "denied by ACL"
+#define S2 "AUTHCFAIL-ACL"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "denied (invalid challenge length)"
+#define S2 "AUTHCFAIL-BAD-CHALLENGE-LENGTH"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
+#define S1 "denied (minimum password requirements not met)"
+#define S2 "AUTHCFAIL-WEAKPASSWORD"
+    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
 };
 
 static char *get_hint(tac_session * session, enum hint_enum h)
 {
-    if (!hints[0].plain_len) {
-	int i;
-	for (i = 0; i < hint_max; i++) {
-	    hints[i].plain_len = strlen(hints[i].plain);
-	    hints[i].msgid_len = strlen(hints[i].msgid);
-	}
-    }
     if (session->user_msg) {
 	size_t n = hints[h].plain_len + strlen(session->user_msg) + 20;
 	char *t, *hint;
@@ -338,8 +393,8 @@ static enum token lookup_and_set_user(tac_session * session)
 static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&& ((!session->user && (session->ctx->realm->mavis_login == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
-	    || (session->user && pw_ix == PW_MAVIS));
+	&&( (!session->user &&(session->ctx->realm->mavis_login == TRISTATE_YES) &&(session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
+	   ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -367,7 +422,7 @@ static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *
 
 static int query_mavis_info_login(tac_session * session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
+    int res = !session->flag_mavis_info && !session->user &&(session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_LOGIN);
@@ -386,8 +441,8 @@ int query_mavis_info(tac_session * session, void (*f)(tac_session *), enum pw_ix
 static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
-	((!session->user && (session->ctx->realm->mavis_pap == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
-	 || (session->user && pw_ix == PW_MAVIS));
+	( (!session->user &&(session->ctx->realm->mavis_pap == TRISTATE_YES) &&(session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
+	 ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_PAP);
@@ -396,7 +451,7 @@ static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *),
 
 static int query_mavis_info_pap(tac_session * session, void (*f)(tac_session *))
 {
-    int res = !session->user && (session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
+    int res = !session->user &&(session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_PAP);
@@ -658,8 +713,8 @@ static void do_chpass(tac_session * session)
 
 static void send_password_prompt(tac_session * session, enum pw_ix pw_ix, void (*f)(tac_session *))
 {
-    if ((session->ctx->realm->chalresp == TRISTATE_YES) && (!session->user || ((pw_ix == PW_MAVIS) && (TRISTATE_NO != session->user->chalresp)))) {
-	if (!session->flag_chalresp) {
+    if( (session->ctx->realm->chalresp == TRISTATE_YES) &&(!session->user ||( (pw_ix == PW_MAVIS) &&(TRISTATE_NO != session->user->chalresp)))) {
+	if(!session->flag_chalresp) {
 	    session->flag_chalresp = 1;
 	    mavis_lookup(session, f, AV_V_TACTYPE_CHAL, PW_LOGIN);
 	    return;
