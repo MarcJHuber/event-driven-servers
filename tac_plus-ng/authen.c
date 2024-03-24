@@ -204,6 +204,8 @@ static struct hint_struct hints[hint_max] = {
 #define S1 "denied (minimum password requirements not met)"
 #define S2 "AUTHCFAIL-WEAKPASSWORD"
     { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+#undef S1
+#undef S2
 };
 
 static char *get_hint(tac_session * session, enum hint_enum h)
