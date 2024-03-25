@@ -238,6 +238,7 @@ void complete_realm(tac_realm * r)
 	RS(default_host->max_rounds);
 	RS(default_host->authen_max_attempts);
 	RS(default_host->password_expiry_warning);
+	RS(backend_failure_period);
 #if defined(WITH_TLS) || defined(WITH_SSL)
 	RS(tls_verify_depth);
 #endif
@@ -504,10 +505,12 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
 	r->caching_period = -1;
 	r->dns_caching_period = -1;
 	r->warning_period = -1;
+	r->backend_failure_period = -1;
     } else {
 	r->caching_period = 120;
 	r->dns_caching_period = 1800;
 	r->warning_period = 14 * 86400;
+	r->backend_failure_period = 60;
 	config.default_realm = r;
 	r->complete = 1;
 	parse_inline(r, "acl __internal__username_acl__ { if (user =~ \"[]<>/()|=[*\\\"':$]+\") deny permit }\n", __FILE__, __LINE__);
@@ -1230,8 +1233,17 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		continue;
 	    case S_fallback:
 		sym_get(sym);
-		parse(sym, S_equal);
-		r->default_host->authfallback = parse_tristate(sym);
+		switch (sym->code) {
+		case S_equal:
+		    sym_get(sym);
+		    r->default_host->authfallback = parse_tristate(sym);
+		    break;
+		case S_period:
+		    r->backend_failure_period = parse_seconds(sym);
+		    break;
+		default:
+		    parse_error_expect(sym, S_equal, S_period, S_unknown);
+		}
 		continue;
 	    default:
 		parse_error_expect(sym, S_log, S_fallback, S_unknown);
