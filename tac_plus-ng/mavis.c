@@ -256,17 +256,23 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		}
 
 		u = new_user(session->username, S_mavis, r);
-		if (r->usertable) {
-		    rb_node_t *rbn = RB_search(r->usertable, u);
-		    if (rbn) {
-			tac_user *uf = RB_payload(rbn, tac_user *);
-			if (uf->fallback_only) {
-			    free_user(u);
-			    report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Not in emergency mode, ignoring user %s", uf->name);
-			    return;
-			} else
-			    RB_delete(r->usertable, rbn);
+		tac_realm *rf = r;
+		while (rf) {
+		    if (rf->usertable) {
+			rb_node_t *rbn = RB_search(rf->usertable, u);
+			if (rbn) {
+			    tac_user *uf = RB_payload(rbn, tac_user *);
+			    if (uf->fallback_only) {
+				free_user(u);
+				report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Not in emergency mode, ignoring user %s", uf->name);
+				return;
+			    } else {
+				RB_delete(rf->usertable, rbn);
+				break;
+			    }
+			}
 		    }
+		    rf = rf->parent;
 		}
 
 		u->dynamic = io_now.tv_sec + r->caching_period;
