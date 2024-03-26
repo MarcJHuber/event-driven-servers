@@ -365,17 +365,13 @@ static enum token lookup_and_set_user(tac_session * session)
     report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "looking for user %s realm %s", session->username, session->ctx->realm->name);
     if (!session->user_is_session_specific)
 	lookup_user(session);
+    if (session->user && session->user->fallback_only
+	&& ((session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period < io_now.tv_sec)
+	    || (session->ctx->host->authfallback != TRISTATE_YES)))
+	session->user = NULL;
+
     if (session->user && session->user->rewritten_only && !session->username_rewritten) {
 	report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Login for user %s is prohibited", session->user->name);
-	if (session->user_is_session_specific)
-	    free_user(session->user);
-	session->user = NULL;
-	res = S_deny;
-    } else if (session->user && session->user->fallback_only && ((session->ctx->host->authfallback != TRISTATE_YES)
-								 || !session->ctx->realm->last_backend_failure
-								 || (session->ctx->realm->last_backend_failure +
-								     session->ctx->realm->backend_failure_period < io_now.tv_sec))) {
-	report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Not in emergency mode, ignoring user %s", session->user->name);
 	if (session->user_is_session_specific)
 	    free_user(session->user);
 	session->user = NULL;

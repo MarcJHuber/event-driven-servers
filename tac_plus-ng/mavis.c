@@ -238,7 +238,8 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		report(session, LOG_DEBUG, ~0, "user found by MAVIS backend, av pairs:");
 		for (i = 0; show[i] > -1; i++)
 		    if (avc->arr[show[i]])
-			report_string(session, LOG_DEBUG, DEBUG_MAVIS_FLAG | DEBUG_TACTRACE_FLAG, av_char[show[i]].name, avc->arr[show[i]], strlen(avc->arr[show[i]]));
+			report_string(session, LOG_DEBUG, DEBUG_MAVIS_FLAG | DEBUG_TACTRACE_FLAG, av_char[show[i]].name, avc->arr[show[i]],
+				      strlen(avc->arr[show[i]]));
 	    }
 
 	    if (!u || u->dynamic) {
@@ -257,8 +258,15 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		u = new_user(session->username, S_mavis, r);
 		if (r->usertable) {
 		    rb_node_t *rbn = RB_search(r->usertable, u);
-		    if (rbn)
-			RB_delete(r->usertable, rbn);
+		    if (rbn) {
+			tac_user *uf = RB_payload(rbn, tac_user *);
+			if (uf->fallback_only) {
+			    free_user(u);
+			    report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Not in emergency mode, ignoring user %s", uf->name);
+			    return;
+			} else
+			    RB_delete(r->usertable, rbn);
+		    }
 		}
 
 		u->dynamic = io_now.tv_sec + r->caching_period;
@@ -386,6 +394,23 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
     } else if (result && !strcmp(result, AV_V_RESULT_ERROR)) {
 	session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_ERROR;
 	r->last_backend_failure = io_now.tv_sec;
+	while (r && session->mavisauth_res) {
+	    if (r->usertable) {
+		tac_user u;
+		u.name = session->username;
+		u.name_len = strlen(u.name);
+		rb_node_t *rbn = RB_search(r->usertable, &u);
+		if (rbn) {
+		    tac_user *uf = RB_payload(rbn, tac_user *);
+		    if (uf->fallback_only) {
+			report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Entering emergency mode");
+			session->mavisauth_res = 0;
+			av_set(avc, AV_A_USER_RESPONSE, NULL);
+		    }
+		}
+	    }
+	    r = r->parent;
+	}
     } else if (result && !strcmp(result, AV_V_RESULT_FAIL)) {
 	session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     }
