@@ -3492,16 +3492,14 @@ enum token eval_tac_acl(tac_session * session, struct tac_acl *acl)
 	char *hint = "";
 	enum token res = S_unknown;
 	struct mavis_action *action = acl->action;
-	while (action) {
-	    report(session, LOG_DEBUG, DEBUG_ACL_FLAG, "evaluating ACL %s", acl->name);
-	    switch ((res = tac_script_eval_r(session, action))) {
-	    case S_permit:
-	    case S_deny:
-		report(session, LOG_DEBUG, DEBUG_ACL_FLAG | DEBUG_REGEX_FLAG, "ACL %s: %smatch%s", acl->name, res == S_permit ? "" : "no ", hint);
-		return res;
-	    default:
-		action = action->n;
-	    }
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, "evaluating ACL %s", acl->name);
+	switch ((res = tac_script_eval_r(session, action))) {
+	case S_permit:
+	case S_deny:
+	    report(session, LOG_DEBUG, DEBUG_ACL_FLAG | DEBUG_REGEX_FLAG, "ACL %s: %smatch%s", acl->name, res == S_permit ? "" : "no ", hint);
+	    return res;
+	default:
+	    action = action->n;
 	}
 
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG | DEBUG_REGEX_FLAG, "ACL %s: %smatch%s", acl->name, res == S_permit ? "" : "no ", hint);
