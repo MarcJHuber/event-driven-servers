@@ -135,6 +135,7 @@ static int tac_group_regex_check(tac_session *, struct mavis_cond *, tac_groups 
 static int tac_tag_add(tac_tag *, tac_tags *);
 static int tac_tag_check(tac_tag *, tac_tags *);
 static int tac_tag_regex_check(tac_session *, struct mavis_cond *, tac_tags *);
+static tac_tag *tac_tag_parse(struct sym *);
 
 struct tac_name {
     TAC_NAME_ATTRIBUTES;
@@ -3295,23 +3296,11 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 		tags_by_name = RB_tree_new(compare_name, NULL);
 	    if (!host->tags)
 		host->tags = calloc(1, sizeof(tac_tags));
-	    tac_tag *tag = NULL;
 	    sym_get(sym);
 	    parse(sym, S_equal);
-	    do {
-		tac_tag t;
-		t.name = sym->buf;
-		t.name_len = strlen(sym->buf);
-		tag = RB_lookup(tags_by_name, &t);
-		if (!tag) {
-		    tag = calloc(1, sizeof(tac_tag));
-		    tag->name = strdup(sym->buf);
-		    tag->name_len = strlen(sym->buf);
-		    RB_insert(tags_by_name, tag);
-		}
-		tac_tag_add(tag, host->tags);
-		sym_get(sym);
-	    } while (parse_comma(sym));
+	    do
+		tac_tag_add(tac_tag_parse(sym), host->tags);
+	    while (parse_comma(sym));
 	    return;
 	}
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
@@ -3949,6 +3938,13 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 		m->u.s.rhs_txt = r->name;
 		m->type = S_realm;
 		sym_get(sym);
+		return p ? p : m;
+	    }
+	    if (m->u.s.token == S_devicetag) {
+		tac_tag *tag = tac_tag_parse(sym);
+		m->u.s.rhs = tag;
+		m->u.s.rhs_txt = tag->name;
+		m->type = S_devicetag;
 		return p ? p : m;
 	    }
 	    m->u.s.rhs = strdup(sym->buf);
@@ -4692,6 +4688,22 @@ static int tac_tag_add(tac_tag * add, tac_tags * g)
     g->tags[g->count] = add;
     g->count++;
     return 0;
+}
+
+static tac_tag *tac_tag_parse(struct sym *sym)
+{
+    tac_tag t;
+    t.name = sym->buf;
+    t.name_len = strlen(sym->buf);
+    tac_tag *tag = RB_lookup(tags_by_name, &t);
+    if (!tag) {
+	tag = calloc(1, sizeof(tac_tag));
+	tag->name = strdup(sym->buf);
+	tag->name_len = strlen(sym->buf);
+	RB_insert(tags_by_name, tag);
+    }
+    sym_get(sym);
+    return tag;
 }
 
 static int tac_tag_check(tac_tag * tag, tac_tags * tags)
