@@ -213,6 +213,7 @@ void complete_realm(tac_realm * r)
 	RS(enable_user_acl, NULL);
 	RS(password_acl, NULL);
 	RS(haproxy_autodetect, TRISTATE_DUNNO);
+	RS(default_host->authfallback, TRISTATE_DUNNO);
 #ifdef WITH_SSL
 	RS(tls_sni_required, TRISTATE_DUNNO);
 	RS(tls_autodetect, TRISTATE_DUNNO);
