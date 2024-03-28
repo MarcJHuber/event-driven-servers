@@ -4297,7 +4297,7 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	    {
 		tac_host *h = session->ctx->host;
 		while (!res && h) {
-		    res = tac_tag_regex_check(session, m, session->ctx->host->tags);
+		    res = tac_tag_regex_check(session, m, h->tags);
 		    h = h->parent;
 		}
 		return tac_script_cond_eval_res(session, m, res);
