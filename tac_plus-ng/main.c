@@ -60,7 +60,7 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-struct config config;		/* configuration data */
+struct config config = { 0 };		/* configuration data */
 
 static void die(int signum)
 {
@@ -459,8 +459,7 @@ static tac_realm *set_sd_realm(int, struct scm_data_accept_ext *);
 
 static void accept_control_singleprocess(int s, struct scm_data_accept *sd)
 {
-    struct scm_data_accept_ext sd_ext;
-    memset(&sd_ext, 0, sizeof(sd_ext));
+    struct scm_data_accept_ext sd_ext = { 0 };
     memcpy(&sd_ext, sd, sizeof(struct scm_data_accept));
     tac_realm *r = set_sd_realm(-1, &sd_ext);
     common_data.users_cur++;
@@ -1028,9 +1027,8 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
     fcntl(s, F_SETFD, FD_CLOEXEC);
     fcntl(s, F_SETFL, O_NONBLOCK);
 
-    sockaddr_union from;
+    sockaddr_union from = { 0 };
     socklen_t from_len = (socklen_t) sizeof(from);
-    memset(&from, 0, sizeof(from));
 
     if (getpeername(s, &from.sa, &from_len)) {
 	struct scm_data d;
@@ -1087,9 +1085,8 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	ctx->proxy_addr_ascii_len = strlen(peer);
     }
     {
-	sockaddr_union me;
+	sockaddr_union me = { 0 };
 	socklen_t me_len = (socklen_t) sizeof(me);
-	memset(&me, 0, sizeof(me));
 	if (!getsockname(ctx->sock, &me.sa, &me_len)) {
 	    char buf[256];
 	    su_convert(&me, AF_INET);
@@ -1168,9 +1165,8 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 
 static void accept_control_final(struct context *ctx)
 {
-    tac_session session;
+    tac_session session = { 0 };
     static int count = 0;
-    memset(&session, 0, sizeof(tac_session));
     session.ctx = ctx;
 
     if (ctx->proxy_addr_ascii) {
@@ -1215,8 +1211,7 @@ static void accept_control_final(struct context *ctx)
 static void accept_control(struct context *ctx, int cur)
 {
     int s, one = 1;
-    struct scm_data_accept_ext sd_ext;
-    memset(&sd_ext, 0, sizeof(sd_ext));
+    struct scm_data_accept_ext sd_ext = { 0 };
 
     if (common_data.scm_recv_msg(cur, &sd_ext.sd, sizeof(sd_ext.sd), &s)) {
 	cleanup_spawnd(ctx, cur);

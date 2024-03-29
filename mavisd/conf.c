@@ -141,13 +141,12 @@ int acl_check(sockaddr_union * su)
 
 static void parse_listen(struct sym *sym)
 {
-    struct socket_info si;
+    struct socket_info si = { 0 };
     char blowfish_key[73];
     ssize_t blowfish_key_len = 0;
     char *address = NULL, *port = NULL;
     int fn;
 
-    memset(&si, 0, sizeof(si));
     si.sock = -1;
 
     sym_get(sym);

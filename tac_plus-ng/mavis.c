@@ -243,9 +243,8 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    }
 
 	    if (!u || u->dynamic) {
-		struct sym sym;
+		struct sym sym = { 0 };
 
-		memset(&sym, 0, sizeof(sym));
 		sym.filename = session->username;
 		sym.line = 1;
 		sym.flag_prohibit_include = 1;

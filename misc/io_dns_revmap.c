@@ -174,13 +174,9 @@ struct io_dns_ctx *io_dns_init(struct io_context *io)
 {
     struct io_dns_ctx *idc = Xcalloc(1, sizeof(struct io_dns_ctx));
 #ifdef WITH_ARES
-    struct ares_options options;
+    struct ares_options options = { .flags = ARES_FLAG_STAYOPEN, .lookups = "b" };
     int res;
-    memset(&options, 0, sizeof(options));
-    options.flags = ARES_FLAG_STAYOPEN;
-    options.lookups = "b";
     idc->channel = calloc(1, sizeof(ares_channel));;
-    memset(&idc->channel, 0, sizeof(ares_channel));
     res = ares_init_options(&idc->channel, &options, ARES_OPT_LOOKUPS);
     if (res == ARES_SUCCESS) {
 	static struct ares_socket_functions a_socket_functions;
@@ -231,9 +227,7 @@ void io_dns_destroy(struct io_dns_ctx *idc)
 void io_dns_add_addr(struct io_dns_ctx *idc, struct in6_addr *a, void *app_cb, void *app_ctx)
 {
     if (idc) {
-	sockaddr_union su;
-
-	memset(&su, 0, sizeof(sockaddr_union));
+	sockaddr_union su = { 0 };
 
 #ifdef AF_INET
 	if (a->s6_addr32[0] == 0 && a->s6_addr32[1] == 0 && a->s6_addr32[2] == 0x0000FFFF) {

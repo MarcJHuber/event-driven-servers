@@ -98,11 +98,10 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-struct common_data common_data;
+struct common_data common_data = { 0 };
 
 void init_common_data(void)
 {
-    memset(&common_data, 0, sizeof common_data);
     common_data.syslog_facility = LOG_UUCP;
     common_data.syslog_level = LOG_INFO;
     common_data.syslog_dflt = 1;
@@ -620,8 +619,7 @@ static int sym_from_file(char *url, struct sym *sym)
 
 static void sym_prepend_file(struct sym *sym, char *url)
 {
-    struct sym nsym;
-    memset(&nsym, 0, sizeof(struct sym));
+    struct sym nsym = { 0 };
     if (sym_from_file(url, &nsym))
 	return;
     nsym.next = calloc(1, sizeof(struct sym));
@@ -731,11 +729,10 @@ void sym_get(struct sym *sym)
 	}
     }
     if (sym->code == S_include && !sym->flag_prohibit_include) {
-	glob_t globbuf;
+	glob_t globbuf = { 0 };
 	char *sb;
 	int i;
 
-	memset(&globbuf, 0, sizeof(globbuf));
 	sym_get(sym);
 	parse(sym, S_equal);
 	sb = alloca(strlen(sym->buf) + 1);
@@ -995,20 +992,17 @@ static void clear_alias(void);
 
 void cfg_read_config(char *url, void (*parsefunction)(struct sym *), char *id)
 {
-    struct sym sym;
+    struct sym sym = { 0 };
     int found, buflen;
     char *buf;
 
     clear_alias();
-    memset(&sym, 0, sizeof(sym));
     sym.filename = url;
     sym.line = 0;
 
     sym.env_valid = 1;
     if (setjmp(sym.env)) {
-	struct scm_data sd;
-	memset(&sd, 0, sizeof(sd));
-	sd.type = SCM_BAD_CFG;
+	struct scm_data sd = { .type = SCM_BAD_CFG };
 	common_data.scm_send_msg(0, &sd, -1);
 	report_cfg_error(LOG_ERR, ~0, "Detected fatal configuration error. Exiting.");
 	exit(EX_CONFIG);

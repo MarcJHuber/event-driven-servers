@@ -744,7 +744,7 @@ void cfg_init(void)
     int i;
     char *t;
     struct service_req *cmds = requests;
-    struct sym sym;
+    struct sym sym = { 0 };
 
     timespectable = init_timespec();
 
@@ -754,7 +754,6 @@ void cfg_init(void)
 	"acl = any { } "
 	"acl = connect { } " "acl = real { authenticated = real } " "acl = anon { authenticated = anon } " "acl = login { authenticated = yes }";
 
-    memset(&sym, 0, sizeof(sym));
     sym.in = sym.tin = t;
     sym.tlen = sym.len = strlen(t);
     sym_init(&sym);

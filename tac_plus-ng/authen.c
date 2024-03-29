@@ -1203,8 +1203,7 @@ static void mschap_desencrypt(u_char * clear, u_char * str __attribute__((unused
 
 #if OPENSSL_VERSION_NUMBER < 0x30000000
     {
-	struct DES_ks ks;
-	memset(&ks, 0, sizeof(ks));
+	struct DES_ks ks = { 0 };
 	DES_set_key((DES_cblock *) key, &ks);
 	DES_ecb_encrypt((DES_cblock *) clear, (DES_cblock *) cypher, &ks, DES_ENCRYPT);
     }

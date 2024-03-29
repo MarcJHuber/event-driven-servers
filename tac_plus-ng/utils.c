@@ -541,8 +541,7 @@ struct log_item *parse_log_format(struct sym *);
 
 struct log_item *parse_log_format_inline(char *format, char *file, int line)
 {
-    struct sym sym;
-    memset(&sym, 0, sizeof(sym));
+    struct sym sym = { 0 };
     sym.filename = file;
     sym.line = line;
     sym.in = sym.tin = format;
@@ -1712,11 +1711,10 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
     struct log_item *li;
 
     static int initialized = 0;
-    static char *((*efun[S_null]) (tac_session *, struct context *, struct logfile *, size_t *));
+    static char *((*efun[S_null]) (tac_session *, struct context *, struct logfile *, size_t *)) = { 0 };
 
     if (!initialized) {
 	initialized = 1;
-	memset(efun, 0, sizeof(efun));
 	efun[S_ACCOUNT_EXPIRES] = &eval_log_format_ACCOUNT_EXPIRES;
 	efun[S_AUTHFAIL_BANNER] = &eval_log_format_AUTHFAIL_BANNER;
 	efun[S_BACKEND_FAILED] = &eval_log_format_BACKEND_FAILED;

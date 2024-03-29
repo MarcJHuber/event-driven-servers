@@ -177,11 +177,9 @@ static void create_dirs(char *path)
 
 static int tac_lock(int lockfd, int locktype)
 {
-    struct flock flock;
+    struct flock flock = { .l_whence = SEEK_SET };
 
-    memset(&flock, 0, sizeof(flock));
     flock.l_type = locktype;
-    flock.l_whence = SEEK_SET;
     return fcntl(lockfd, F_SETLK, &flock);
 }
 

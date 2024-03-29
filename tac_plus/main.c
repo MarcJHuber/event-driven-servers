@@ -51,7 +51,7 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-struct config config;		/* configuration data */
+struct config config = { 0 };		/* configuration data */
 
 static void die(int signum)
 {
@@ -198,7 +198,7 @@ static void accept_control_raw(int, struct scm_data_accept *);
 static void accept_control_px(int, struct scm_data_accept *);
 static void setup_signals(void);
 
-static struct pwdat pwdat_unknown;
+static struct pwdat pwdat_unknown = { .type = S_unknown };
 
 int main(int argc, char **argv, char **envp)
 {
@@ -210,9 +210,6 @@ int main(int argc, char **argv, char **envp)
     scm_main(argc, argv, envp);
 
     cfg_init();
-
-    memset(&pwdat_unknown, 0, sizeof(struct pwdat));
-    pwdat_unknown.type = S_unknown;
 
     buffer_setsize(0x8000, 0x10);
 
@@ -512,9 +509,8 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
     tac_realm *r;
     char rs[sizeof(realm) + 20];
 
-    sockaddr_union from;
+    sockaddr_union from = { 0 };
     socklen_t from_len = (socklen_t) sizeof(from);
-    memset(&from, 0, sizeof(from));
 
     if (getpeername(s, &from.sa, &from_len)) {
 	struct scm_data d;
@@ -581,9 +577,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	int priv_lvl, enable_implied[TAC_PLUS_PRIV_LVL_MAX + 1];
 	struct context *ctx = new_context(common_data.io, r);
 	int hc = 1;
-	tac_session session;
-
-	memset(&session, 0, sizeof(tac_session));
+	tac_session session = { 0 };
 	session.ctx = ctx;
 
 	for (i = arr_max; i > arr_min; i--)

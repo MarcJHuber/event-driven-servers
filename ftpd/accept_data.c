@@ -58,14 +58,12 @@ void connect_data(struct context *ctx, int cur __attribute__((unused)))
 void accept_data(struct context *ctx, int cur __attribute__((unused)))
 {
     int s, failure;
-    sockaddr_union su;
+    sockaddr_union su = { 0 };
     socklen_t sulen = (socklen_t) sizeof(su);
 
     DebugIn(DEBUG_NET);
 
     io_sched_del(ctx->io, ctx, (void *) cleanup_data);
-
-    memset(&su, 0, sulen);
 
     do {
 	failure = 0;

@@ -38,11 +38,8 @@ struct pidfile *pid_write(char *path)
 
 	if (p->fd > -1) {
 	    char s[20];
-	    struct flock fl;
+	    struct flock fl = { .l_type = F_WRLCK, .l_whence = SEEK_SET };
 	    size_t l = snprintf(s, sizeof(s), "%lu", (u_long) getpid());
-	    memset(&fl, 0, sizeof(fl));
-	    fl.l_type = F_WRLCK;
-	    fl.l_whence = SEEK_SET;
 
 	    if (l < sizeof(s) && (ssize_t) l == write(p->fd, s, l)
 		&& !fchmod(p->fd, S_IROTH | S_IRGRP | S_IWUSR | S_IRUSR)

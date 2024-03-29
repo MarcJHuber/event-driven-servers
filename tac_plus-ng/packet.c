@@ -351,8 +351,7 @@ static void write_packet(struct context *ctx, tac_pak * p)
     tac_pak **pp;
 
     if ((common_data.debug | ctx->debug) & DEBUG_PACKET_FLAG) {
-	tac_session dummy_session;
-	memset(&dummy_session, 0, sizeof(dummy_session));
+	tac_session dummy_session = { 0 };
 	dummy_session.session_id = p->hdr.session_id;
 	dummy_session.ctx = ctx;
 	dummy_session.debug = ctx->debug;

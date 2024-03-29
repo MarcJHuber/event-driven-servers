@@ -75,14 +75,13 @@ static int pam_conv(int num_msg, PAM_CONV_ARG2_TYPE ** msg, struct pam_response 
 
 static int check_auth(mavis_ctx * mcx, char *user, char *pass)
 {
-    struct pam_conv pc;
+    struct pam_conv pc = { 0 };
     struct appdata ad;
     pam_handle_t *ph;
     int res;
 
     ad.user = user, ad.pass = pass;
 
-    memset(&pc, 0, sizeof(struct pam_conv));
     pc.conv = &pam_conv;
     pc.appdata_ptr = &ad;
 

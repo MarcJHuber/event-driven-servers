@@ -277,9 +277,7 @@ int main(int argc, char **argv)
 		    fcntl(0, F_SETFL, O_NONBLOCK);
 		    is_mt = TRISTATE_NO;
 		}
-		struct pollfd pfd;
-		memset(&pfd, 0, sizeof(pfd));
-		pfd.events = POLLIN;
+		struct pollfd pfd = { .events = POLLIN };
 		char *end = strstr(buf, "\n=\n");
 		while (end || (1 == poll(&pfd, 1, -1) && off < BUFSIZE)) {
 		    if (!end) {

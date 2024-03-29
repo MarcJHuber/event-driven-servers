@@ -28,7 +28,7 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-struct spawnd_data spawnd_data;	/* configuration data */
+struct spawnd_data spawnd_data = { 0 };	/* configuration data */
 
 static void periodics(struct spawnd_context *ctx, int cur __attribute__((unused)))
 {
@@ -353,7 +353,6 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 	;
     logopen();
 
-    memset(&spawnd_data, 0, sizeof(spawnd_data));
     get_exec_path(&spawnd_data.child_path, argv[0]);
     spawnd_data.overload = S_queue;
     common_data.progpath = Xstrdup(spawnd_data.child_path);

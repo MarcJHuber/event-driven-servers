@@ -102,7 +102,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
     sockaddr_union sin;
     socklen_t sinlen = (socklen_t) sizeof(sin);
     int iteration_cur = 0;
-    struct scm_data_accept sd;
+    struct scm_data_accept sd = { 0 };
     struct in6_addr addr;
 
     DebugIn(DEBUG_NET);
@@ -162,7 +162,6 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	while (common_data.servers_cur < common_data.servers_min)
 	    spawnd_add_child();
 
-    memset(&sd, 0, sizeof(sd));
     sd.type = SCM_ACCEPT;
 
     memcpy(sd.realm, ctx->tag, SCM_REALM_SIZE);

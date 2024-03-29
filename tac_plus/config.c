@@ -252,8 +252,7 @@ tac_realm *get_realm(char *name)
 
     if (!tac_acl_lookup("__internal__username_acl__")) {
 	char *acl = "acl script = __internal__username_acl__ { if (user =~ \"[]<>/()|=[*\\\"':$]+\") deny permit }\n";
-	struct sym sym;
-	memset(&sym, 0, sizeof(sym));
+	struct sym sym = { 0 };
 	sym.filename = "__internal__";
 	sym.line = 1;
 	sym.in = sym.tin = acl;
@@ -465,11 +464,10 @@ static struct dns_forward_mapping *dns_lookup_a(rb_tree_t * t, char *name)
 
 static void parse_etc_hosts(char *url)
 {
-    struct sym sym;
+    struct sym sym = { 0 };
     char *buf;
     int bufsize;
 
-    memset(&sym, 0, sizeof(sym));
     sym.filename = url;
     sym.line = 1;
 
@@ -836,14 +834,12 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		switch (sym->code) {
 		case S_file:
 		    {
-			glob_t globbuf;
+			glob_t globbuf = { 0 };
 			int i;
 
 			tac_sym_get(sym);
 			parse(sym, S_equal);
 			// dns preload file = /etc/hosts
-
-			memset(&globbuf, 0, sizeof(globbuf));
 
 			globerror_sym = sym;
 
@@ -1125,8 +1121,7 @@ static time_t parse_date(struct sym *sym, time_t offset)
     long long ll;
 
     if (3 == sscanf(sym->buf, "%d-%d-%d", &y, &m, &d)) {
-	struct tm tm;
-	memset(&tm, 0, sizeof(tm));
+	struct tm tm = { 0 };
 
 	tm.tm_year = y - 1900;
 	tm.tm_mon = m - 1;
@@ -1733,9 +1728,8 @@ static void parse_member(struct sym *sym, tac_user * user, tac_realm * r)
 		a = tac_acl_lookup(an);
 		if (!a) {
 		    char acl[1024];
-		    struct sym sym;
+		    struct sym sym = { 0 };
 		    snprintf(acl, sizeof(acl), "acl = %s { realm = %s }", an, tr->name);
-		    memset(&sym, 0, sizeof(sym));
 		    sym.filename = "__internal__";
 		    sym.line = 1;
 		    sym.in = sym.tin = acl;
@@ -2408,11 +2402,10 @@ static struct {
 
 static void parse_file(char *url, radixtree_t * ht)
 {
-    struct sym sym;
+    struct sym sym = { 0 };
     char *buf;
     int bufsize;
 
-    memset(&sym, 0, sizeof(sym));
     sym.filename = url;
     sym.line = 1;
 
@@ -2714,10 +2707,9 @@ static void parse_host(struct sym *sym, tac_realm * r)
 	    if (sym->code == S_eof)
 		parse_error(sym, "EOF unexpected");
 	    if (sym->code == S_file) {
-		glob_t globbuf;
+		glob_t globbuf = { 0 };
 		int i;
 
-		memset(&globbuf, 0, sizeof(globbuf));
 		tac_sym_get(sym);
 		parse(sym, S_equal);
 
@@ -3968,7 +3960,6 @@ void cfg_init(void)
     hosttable = RB_tree_new(compare_host, NULL);
     acltable = RB_tree_new(compare_acl, NULL);
     timespectable = init_timespec();
-    memset(&config, 0, sizeof(struct config));
     config.realms = RB_tree_new(compare_realm, NULL);
     config.mask = 0644;
     config.dns_caching_period = 8 * 3600 / 2;
@@ -4003,8 +3994,7 @@ void cfg_init(void)
 
     {
 	char *acl = "acl script = __internal__enable_user__ " "{ if (user =~ \"^\\\\$enab..?\\\\$$\") permit deny }";
-	struct sym sym;
-	memset(&sym, 0, sizeof(sym));
+	struct sym sym = { 0 };
 	sym.filename = "__internal__";
 	sym.line = 1;
 	sym.in = sym.tin = acl;
@@ -4015,8 +4005,7 @@ void cfg_init(void)
     }
 
     {
-	struct utsname utsname;
-	memset(&utsname, 0, sizeof(struct utsname));
+	struct utsname utsname = { 0 };
 	if (uname(&utsname) || !*(utsname.nodename))
 	    config.hostname = "amnesiac";
 	else

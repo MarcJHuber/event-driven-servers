@@ -46,8 +46,7 @@ void h_mff(struct context *ctx, char *arg)
 		*v++ = 0;
 
 		if (!strcasecmp(u, "Modify")) {
-		    struct tm tm;
-		    memset(&tm, 0, sizeof(tm));
+		    struct tm tm = { 0 };
 
 		    if (6 != sscanf(v, "%4d%2d%2d%2d%2d%2d", &tm.tm_year, &tm.tm_mon, &tm.tm_mday, &tm.tm_hour, &tm.tm_min, &tm.tm_sec))
 			goto syntax_error;

@@ -16,7 +16,7 @@ void h_mfmt(struct context *ctx, char *arg)
 {
     char *t;
     struct stat st;
-    struct tm tm;
+    struct tm tm = { 0 };
 
     DebugIn(DEBUG_COMMAND);
 
@@ -31,7 +31,6 @@ void h_mfmt(struct context *ctx, char *arg)
 	return;
     }
 
-    memset(&tm, 0, sizeof(tm));
     *arg++ = 0;
 
     if (*arg && 6 == sscanf(t, "%4d%2d%2d%2d%2d%2d", &tm.tm_year, &tm.tm_mon, &tm.tm_mday, &tm.tm_hour, &tm.tm_min, &tm.tm_sec)) {

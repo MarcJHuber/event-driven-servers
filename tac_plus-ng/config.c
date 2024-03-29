@@ -425,8 +425,7 @@ radixtree_t *lookup_hosttree(tac_realm * r)
 
 static void parse_inline(tac_realm * r, char *format, char *file, int line)
 {
-    struct sym sym;
-    memset(&sym, 0, sizeof(sym));
+    struct sym sym = { 0 };
     sym.filename = file;
     sym.line = line;
     sym.in = sym.tin = format;
@@ -768,11 +767,10 @@ static struct dns_forward_mapping *dns_lookup_a(tac_realm * r, char *name, int r
 
 static void parse_etc_hosts(char *url, tac_realm * r)
 {
-    struct sym sym;
+    struct sym sym = { 0 };
     char *buf;
     int bufsize;
 
-    memset(&sym, 0, sizeof(sym));
     sym.filename = url;
     sym.line = 1;
 
@@ -1298,14 +1296,12 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		switch (sym->code) {
 		case S_file:
 		    {
-			glob_t globbuf;
+			glob_t globbuf = { 0 };
 			int i;
 
 			sym_get(sym);
 			parse(sym, S_equal);
 			// dns preload file = /etc/hosts
-
-			memset(&globbuf, 0, sizeof(globbuf));
 
 			globerror_sym = sym;
 
@@ -1764,8 +1760,7 @@ static time_t parse_date(struct sym *sym, time_t offset)
     long long ll;
 
     if (3 == sscanf(sym->buf, "%d-%d-%d", &y, &m, &d)) {
-	struct tm tm;
-	memset(&tm, 0, sizeof(tm));
+	struct tm tm = { 0 };
 
 	tm.tm_year = y - 1900;
 	tm.tm_mon = m - 1;
@@ -1915,8 +1910,7 @@ static struct mavis_action *tac_script_parse_r(struct sym *, int, tac_realm *);
 
 static void parse_ruleset(struct sym *sym, tac_realm * realm)
 {
-    tac_profile profile;
-    memset(&profile, 0, sizeof(tac_profile));
+    tac_profile profile = { 0 };
     profile.realm = realm;
 
     struct tac_rule **r = &(realm->rules);
@@ -2878,11 +2872,10 @@ static void add_net(struct sym *sym, radixtree_t * ht, tac_net * net)
 
 static void parse_file(char *url, radixtree_t * ht, tac_host * host, tac_net * net)
 {
-    struct sym sym;
+    struct sym sym = { 0 };
     char *buf;
     int bufsize;
 
-    memset(&sym, 0, sizeof(sym));
     sym.filename = url;
     sym.line = 1;
 
@@ -3027,10 +3020,9 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
     case S_address:
 	sym_get(sym);
 	if (sym->code == S_file) {
-	    glob_t globbuf;
+	    glob_t globbuf = { 0 };
 	    int i;
 
-	    memset(&globbuf, 0, sizeof(globbuf));
 	    sym_get(sym);
 	    parse(sym, S_equal);
 
@@ -3422,9 +3414,8 @@ static void parse_net(struct sym *sym, tac_realm * r, tac_net * parent)
 	case S_address:
 	    sym_get(sym);
 	    if (sym->code == S_file) {
-		glob_t globbuf;
+		glob_t globbuf = { 0 };
 		int i;
-		memset(&globbuf, 0, sizeof(globbuf));
 		sym_get(sym);
 		parse(sym, S_equal);
 
@@ -3636,12 +3627,10 @@ void attr_add(tac_session * session, char ***v, int *i, char *attr, size_t attr_
 void cfg_init(void)
 {
     init_timespec();
-    memset(&config, 0, sizeof(struct config));
     config.mask = 0644;
 
     {
-	struct utsname utsname;
-	memset(&utsname, 0, sizeof(struct utsname));
+	struct utsname utsname = { 0 };
 	if (uname(&utsname) || !*(utsname.nodename))
 	    config.hostname = "amnesiac";
 	else

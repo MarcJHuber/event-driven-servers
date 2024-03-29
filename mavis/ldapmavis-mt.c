@@ -598,8 +598,7 @@ static void *run_thread(void *arg)
 			if (i > -1)
 			    expiry = i * 86400;
 		    } else if (!strcasecmp(attribute, "krbPasswordExpiration")) {
-			struct tm tm;
-			memset(&tm, 0, sizeof(tm));
+			struct tm tm = { 0 };
 			char z;
 			if (7 == sscanf(v[0]->bv_val, "%4d%2d%2d%2d%2d%2d%c", &tm.tm_year, &tm.tm_mon, &tm.tm_mday, &tm.tm_hour, &tm.tm_min, &tm.tm_sec, &z)
 			    && z == 'Z') {
@@ -1024,9 +1023,7 @@ int main(int argc, char **argv __attribute__((unused)))
 		    fcntl(0, F_SETFL, O_NONBLOCK);
 		    is_mt = TRISTATE_NO;
 		}
-		struct pollfd pfd;
-		memset(&pfd, 0, sizeof(pfd));
-		pfd.events = POLLIN;
+		struct pollfd pfd = { .events = POLLIN };
 		char *end = strstr(buf, "\n=\n");
 		while (end || (1 == poll(&pfd, 1, -1) && off < BUFSIZE)) {
 		    if (!end) {

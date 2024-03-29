@@ -81,14 +81,13 @@ static int pam_conv(int num_msg, PAM_CONV_ARG2_TYPE ** msg, struct pam_response 
 
 static int check_auth(char *user, char *pass, int chpass, const char **pamerr)
 {
-    struct pam_conv pc;
+    struct pam_conv pc = { 0 };
     struct appdata ad;
     pam_handle_t *ph;
     int res;
 
     ad.user = user, ad.pass = pass;
 
-    memset(&pc, 0, sizeof(struct pam_conv));
     pc.conv = &pam_conv;
     pc.appdata_ptr = &ad;
 
@@ -279,9 +278,7 @@ int main(int argc, char **argv)
 		    fcntl(0, F_SETFL, O_NONBLOCK);
 		    is_mt = TRISTATE_NO;
 		}
-		struct pollfd pfd;
-		memset(&pfd, 0, sizeof(pfd));
-		pfd.events = POLLIN;
+		struct pollfd pfd = { .events = POLLIN };
 		char *end = strstr(buf, "\n=\n");
 		while (end || (1 == poll(&pfd, 1, -1) && off < BUFSIZE)) {
 		    if (!end) {
