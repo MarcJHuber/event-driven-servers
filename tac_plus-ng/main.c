@@ -60,7 +60,7 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-struct config config = { 0 };		/* configuration data */
+struct config config = { 0 };	/* configuration data */
 
 static void die(int signum)
 {
@@ -561,6 +561,20 @@ static void reject_conn(struct context *ctx, char *hint, char *tls)
 void complete_host(tac_host *);
 
 #if defined(WITH_TLS) || defined(WITH_SSL)
+static void set_host_by_dn(struct context *ctx, char *t)
+{
+    while (t) {
+	tac_host *h = lookup_host(t, ctx->realm);
+	if (h) {
+	    ctx->host = h;
+	    return;
+	}
+	t = strchr(t, '.');
+	if (t)
+	    t++;
+    }
+}
+
 static void accept_control_tls(struct context *ctx, int cur)
 {
     const char *hint = "";
@@ -631,6 +645,9 @@ static void accept_control_tls(struct context *ctx, int cur)
 	goto bye;
     }
 #endif
+
+    tac_host *by_address = ctx->host;
+    ctx->host = NULL;
 
     if (
 #ifdef WITH_TLS
@@ -768,50 +785,25 @@ static void accept_control_tls(struct context *ctx, int cur)
 		}
 	    }
 	    GENERAL_NAMES_free(san);
-	    if (ctx->host) {
-		X509_free(cert);
-		ctx->host = h;
-		complete_host(ctx->host);
-		accept_control_final(ctx);
-		return;
-	    }
 	}
 	X509_free(cert);
 #endif
 
 	// check for dn match:
-	char *t = (char *) ctx->tls_peer_cert_subject;
-	while (t) {
-	    tac_host *h = lookup_host(t, ctx->realm);
-	    if (h) {
-		ctx->host = h;
-		complete_host(ctx->host);
-		accept_control_final(ctx);
-		return;
-	    }
-	    t = strchr(t, ',');
-	    if (t)
-		t++;
-	}
+	if (!ctx->host)
+	    set_host_by_dn(ctx, (char *) ctx->tls_peer_cert_subject);
 
-	if (ctx->tls_peer_cn) {	// check for cn match:
-	    t = ctx->tls_peer_cn;
-	    while (t) {
-		tac_host *h = lookup_host(t, ctx->realm);
-		if (h) {
-		    ctx->host = h;
-		    complete_host(ctx->host);
-		    accept_control_final(ctx);
-		    return;
-		}
-		t = strchr(t, '.');
-		if (t)
-		    t++;
-	    }
-	}
+	// check for cn match:
+	if (!ctx->host)
+	    set_host_by_dn(ctx, ctx->tls_peer_cn);
     }
-    // host not found by DN or CN, but in address tree.
+
+    // fall back to IP address
+    if (!ctx->host)
+	ctx->host = by_address;
+
     if (ctx->host) {
+	complete_host(ctx->host);
 	accept_control_final(ctx);
 	return;
     }
