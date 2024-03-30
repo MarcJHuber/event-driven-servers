@@ -282,29 +282,24 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key-id = %.*s }", AV_A_SSHKEYID) ||
 		    parse_user_profile_multi(avc, &sym, u, "%.*s", AV_A_TACPROFILE)
 		    ) {
-		    char *errbuf = NULL;
-		    time_t tt = (time_t) io_now.tv_sec;
 
 		    free_user(u);
 		    session->user = NULL;
-		    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_ERROR;
+		    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 
-#define errfmt \
-"\n" \
-"An error occured while parsing your user profile. Please ask your TACACS+\n" \
-"administrator to have a look at the TACACS+ logs and provide the following\n" \
-"information:\n" \
-"\n" \
-"        Host: %s\n" \
-"        User: %s\n" \
-"        Date: %s\n"
-
-#define errbuf_size 1024
-
-		    errbuf = memlist_malloc(session->memlist, errbuf_size);
-		    if (errbuf_size > snprintf(errbuf, errbuf_size, errfmt, config.hostname, session->username, ctime(&tt)))
-			session->user_msg = errbuf;
-		    report(session, LOG_ERR, ~0, "parsing dynamic profile failed for user %s", session->username);
+		    static struct log_item *li_mavis_parse_error = NULL;
+		    if (!li_mavis_parse_error)
+			li_mavis_parse_error = parse_log_format_inline("\"\
+\n\
+An error occured while parsing your user profile. Please ask your TACACS+\n\
+administrator to have a look at the TACACS+ logs, providing the following\n\
+information:\n\
+\n\
+        Device: ${device.address}\n\
+        User:   ${user}\n\
+        Date:   %Y-%m-%d %H:%M:%S %z\n\
+\"", __FILE__, __LINE__);
+		    session->user_msg = eval_log_format(session, session->ctx, NULL, li_mavis_parse_error, io_now.tv_sec, &session->user_msg_len);
 		    return;
 		}
 
