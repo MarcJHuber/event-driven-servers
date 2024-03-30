@@ -477,6 +477,16 @@ static tac_host *new_host(struct sym *sym, char *name, tac_host * parent, tac_re
 	host->user_messages[UM_USERNAME] = "Username: ";
 	host->user_messages[UM_USER_ACCESS_VERIFICATION] = "User Access Verification";
 	host->user_messages[UM_DENIED_BY_ACL] = "Denied by ACL";
+	host->user_messages[UM_MAVIS_PARSE_ERROR] = "\n\
+\n\
+An error occured while parsing your user profile. Please ask your TACACS+\n\
+administrator to have a look at the TACACS+ logs, providing the following\n\
+information:\n\
+\n\
+        Device: ${device.address}\n\
+        User:   ${user}\n\
+        Date:   %Y-%m-%d %H:%M:%S %z\n\
+\"";
     }
     return host;
 }

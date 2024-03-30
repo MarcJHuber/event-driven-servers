@@ -289,16 +289,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 
 		    static struct log_item *li_mavis_parse_error = NULL;
 		    if (!li_mavis_parse_error)
-			li_mavis_parse_error = parse_log_format_inline("\"\
-\n\
-An error occured while parsing your user profile. Please ask your TACACS+\n\
-administrator to have a look at the TACACS+ logs, providing the following\n\
-information:\n\
-\n\
-        Device: ${device.address}\n\
-        User:   ${user}\n\
-        Date:   %Y-%m-%d %H:%M:%S %z\n\
-\"", __FILE__, __LINE__);
+			li_mavis_parse_error = parse_log_format_inline(session->ctx->host->user_messages[UM_MAVIS_PARSE_ERROR], __FILE__, __LINE__);
 		    session->user_msg = eval_log_format(session, session->ctx, NULL, li_mavis_parse_error, io_now.tv_sec, &session->user_msg_len);
 		    return;
 		}
