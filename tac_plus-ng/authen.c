@@ -1269,7 +1269,7 @@ static void mschap_nthash(char *password, u_char * hash)
     if (utf8_to_utf16le(password, password_len, &enc, &enc_len)) {
 	// Not utf8, fallback to old behavior. I don't expect this to actually work.
 	enc_len = 2 * password_len;
-	enc = calloc(1, enc_len);
+	enc = alloca(enc_len);
 	char *e = enc;
 	while (*password) {
 	    *e++ = *password++;
@@ -1280,8 +1280,6 @@ static void mschap_nthash(char *password, u_char * hash)
     MD4Init(&context);
     MD4Update(&context, (u_char *) enc, enc_len);
     MD4Final(hash, &context);
-    if (enc)
-	free(enc);
 }
 
 static void mschap_ntchalresp(u_char * chal, char *password, u_char * resp)
