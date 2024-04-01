@@ -1228,10 +1228,9 @@ static void mschap_deshash(u_char * clear, u_char * cypher)
 static void mschap_lmhash(char *password, u_char * hash)
 {
     u_char upassword[15];
-    int i = 0;
-
     memset(upassword, 0, sizeof(upassword));
-    for (; password[i]; i++)
+
+    for (size_t i = 0; password[i] && i < sizeof(upassword); i++)
 	upassword[i] = (u_char) toupper((int) (password[i]));
 
     mschap_deshash(upassword, hash);
