@@ -909,21 +909,21 @@ static int loopcheck_profile(tac_profile * p)
     return res;
 }
 
-static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent, int empty)
+static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent, tac_realm * nrealm, int empty)
 {
-    tac_realm *nrealm;
     rb_node_t *rbn;
 
-    nrealm = new_realm(sym->buf, parent);
-    nrealm->line = sym->line;
-    nrealm->name = name;
-    nrealm->name_len = strlen(name);
+    if (!nrealm) {
+	nrealm = new_realm(sym->buf, parent);
+	nrealm->line = sym->line;
+	nrealm->name = name;
+	nrealm->name_len = strlen(name);
 
 #ifdef WITH_TLS
-    if (!(nrealm->tls_cfg = tls_config_new())) {
-	report(NULL, LOG_ERR, ~0, "realm %s: tls_config_new() failed", name);
-    }
+	if (!(nrealm->tls_cfg = tls_config_new()))
+	    report(NULL, LOG_ERR, ~0, "realm %s: tls_config_new() failed", name);
 #endif
+    }
 
     if (!empty)
 	parse_decls_real(sym, nrealm);
@@ -1523,7 +1523,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		tac_realm *newrealm, *rp;
 		char *name;
 		sym_get(sym);
-		if ((rp = lookup_realm(sym->buf, config.default_realm)))
+		if ((rp = lookup_realm(sym->buf, config.default_realm)) && rp->parent != r)
 		    parse_error(sym, "Realm '%s' already defined at line %u", sym->buf, rp->line);
 		if (!r->realms)
 		    r->realms = RB_tree_new(compare_name, NULL);
@@ -1531,11 +1531,14 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		sym_get(sym);
 		if (sym->code == S_openbra) {
 		    sym_get(sym);
-		    newrealm = parse_realm(sym, name, r, 0);
+		    newrealm = parse_realm(sym, name, r, rp, 0);
 		    parse(sym, S_closebra);
 		} else
-		    newrealm = parse_realm(sym, name, r, 1);
-		RB_insert(r->realms, newrealm);
+		    newrealm = parse_realm(sym, name, r, rp, 1);
+		if (rp)
+		    free(name);
+		else
+		    RB_insert(r->realms, newrealm);
 		continue;
 	    }
 	case S_trace:
@@ -1761,7 +1764,7 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 
 void parse_decls(struct sym *sym)
 {
-    config.default_realm = parse_realm(sym, "default", NULL, 0);
+    config.default_realm = parse_realm(sym, "default", NULL, NULL, 0);
 }
 
 static time_t parse_date(struct sym *sym, time_t offset)
@@ -3336,8 +3339,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	parse_error_expect(sym, S_host, S_device, S_parent, S_authentication, S_permit,
 			   S_bug, S_pap, S_address, S_key, S_motd, S_welcome, S_skip,
 			   S_reject, S_enable, S_anonenable, S_augmented_enable,
-			   S_singleconnection, S_debug, S_connection, S_context, S_script,
-			   S_target_realm,
+			   S_singleconnection, S_debug, S_connection, S_context, S_script, S_target_realm,
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 			   S_tls,
 #endif
