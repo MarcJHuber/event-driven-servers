@@ -868,6 +868,7 @@ void complete_host(tac_host * h)
 	HS(authfail_banner, NULL);
 	HS(motd, NULL);
 	HS(key, NULL);
+	HS(target_realm, NULL);
 #ifdef WITH_SSL
 #ifndef OPENSSL_NO_PSK
 	HS(tls_psk_id, NULL);
@@ -1054,6 +1055,13 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
     if (h)
 	complete_host(h);
+
+    if (h->target_realm && r != h->target_realm) {
+	r = h->target_realm;
+	rxt = lookup_hosttree(r);
+	if (rxt)
+	    h = radix_lookup(rxt, &addr, NULL);
+    }
 
     ctx = new_context(common_data.io, r);
     ctx->sock = s;

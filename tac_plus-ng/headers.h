@@ -180,6 +180,7 @@ struct tac_host {
      BISTATE(skip_parent_script);
     u_int bug_compatibility;
     tac_host *parent;
+    tac_realm *target_realm;
     struct tac_key *key;
     struct log_item *motd;
     struct log_item *welcome_banner;	/* prompt */

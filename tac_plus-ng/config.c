@@ -3173,6 +3173,12 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	parse(sym, S_equal);
 	host->session_timeout = parse_seconds(sym);
 	return;
+    case S_target_realm:
+	sym_get(sym);
+	parse(sym, S_equal);
+	host->target_realm = lookup_realm(sym->buf, r);
+	sym_get(sym);
+	return;
     case S_script:
 	{
 	    struct mavis_action **p = &host->action;
@@ -3329,7 +3335,9 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
     default:
 	parse_error_expect(sym, S_host, S_device, S_parent, S_authentication, S_permit,
 			   S_bug, S_pap, S_address, S_key, S_motd, S_welcome, S_skip,
-			   S_reject, S_enable, S_anonenable, S_augmented_enable, S_singleconnection, S_debug, S_connection, S_context, S_script,
+			   S_reject, S_enable, S_anonenable, S_augmented_enable,
+			   S_singleconnection, S_debug, S_connection, S_context, S_script,
+			   S_target_realm,
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 			   S_tls,
 #endif
