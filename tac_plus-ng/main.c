@@ -991,7 +991,7 @@ static tac_realm *set_sd_realm(int s __attribute__((unused)), struct scm_data_ac
 
     if (*sd->sd.realm)
 	r = lookup_realm(sd->sd.realm, r);
-    if (!sd->realm)
+    if (!r)
 	r = config.default_realm;
 
     // Still at the default realm? Try the VRF name:
