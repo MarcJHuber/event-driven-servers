@@ -560,7 +560,7 @@ device router.example.com {
    (e.g. logging, users (if there are no users defined in that
    realm scope), groups, profiles) to their sub-realms.
 
-   Realm selection is based on spawnd configuration:
+   Realm selection is intially based on spawnd configuration:
 spawnd = {
     listen { port = 49 }   # implied realm is "default"
     listen { port = 3939 } # implied realm is "default"
@@ -572,6 +572,9 @@ spawnd = {
    section, the daemon will try to use the VRF name as realm and
    fall back to the default realm if that "vrf realm" isn't
    defined.
+
+   A realm can be selected based on device address, too:
+device myDevices { address = 10.1.23.0/24 target-realm = realmOne }
 
    The syntax to use (and define) realms is
 realm realmName { ... }
