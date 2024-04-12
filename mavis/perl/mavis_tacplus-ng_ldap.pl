@@ -35,7 +35,7 @@ printf "0 TACPLUS\n4 $USER\n8 $PASS\n49 CHPW\n50 $NEWPASS\n=\n" | this_script.pl
 
 Environment variables:
 
-LDAP_HOST
+LDAP_HOSTS
 	Space-separated list of LDAP URLs or IP addresses or hostnames
 	Examples: "ldap01 ldap02", "ldaps://ads01:636 ldaps://ads02:636"
 

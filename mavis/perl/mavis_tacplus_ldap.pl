@@ -39,7 +39,7 @@ LDAP_SERVER_TYPE
 	One of: generic tacacs_schema microsoft
 	Default: tacacs_schema
 
-LDAP_HOST
+LDAP_HOSTS
 	Space-separated list of LDAP URLs or IP addresses or hostnames
 	Examples: "ldap01 ldap02", "ldaps://ads01:636 ldaps://ads02:636"
 
