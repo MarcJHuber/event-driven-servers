@@ -115,7 +115,7 @@ my $LDAP_SERVER_TYPE;
 my @LDAP_BIND;
 my $LDAP_FILTER;
 my $LDAP_FILTER_GROUP = "(&(objectclass=groupOfNames)(member=%s))";
-my @LDAP_HOSTS		= ('https://localhost');
+my $LDAP_HOSTS		= ['ldaps://localhost'];
 my $LDAP_BASE		= 'dc=example,dc=com';
 my $LDAP_BASE_GROUP	= undef;
 my $LDAP_CONNECT_TIMEOUT = 1;
@@ -129,7 +129,7 @@ my %tls_options;
 
 %tls_options = eval $ENV{'TLS_OPTIONS'} if exists $ENV{'TLS_OPTIONS'};
 
-@LDAP_HOSTS		= split /\s+/, $ENV{'LDAP_HOSTS'} if exists $ENV{'LDAP_HOSTS'};
+@$LDAP_HOSTS		= split /\s+/, $ENV{'LDAP_HOSTS'} if exists $ENV{'LDAP_HOSTS'};
 $LDAP_SCOPE		= $ENV{'LDAP_SCOPE'} if exists $ENV{'LDAP_SCOPE'};
 $LDAP_BASE		= $ENV{'LDAP_BASE'} if exists $ENV{'LDAP_BASE'};
 $LDAP_SCOPE_GROUP	= $LDAP_SCOPE;
@@ -284,7 +284,7 @@ while ($in = <>) {
 retry_once:
 
 	unless ($ldap) {
-		$ldap = Net::LDAP->new(\@LDAP_HOSTS, timeout=>$LDAP_CONNECT_TIMEOUT, %tls_options);
+		$ldap = Net::LDAP->new($LDAP_HOSTS, timeout=>$LDAP_CONNECT_TIMEOUT, %tls_options);
 		unless ($ldap) {
 			$V[AV_A_USER_RESPONSE] = "No answer from LDAP backend.";
 			goto fatal;
