@@ -3180,6 +3180,8 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	sym_get(sym);
 	parse(sym, S_equal);
 	host->target_realm = lookup_realm(sym->buf, r);
+	if (!host->target_realm)
+	    parse_error(sym, "Realm '%s' not found.", sym->buf);
 	sym_get(sym);
 	return;
     case S_script:
@@ -4077,7 +4079,7 @@ static int tac_mavis_cond_compare(tac_session * session, struct mavis_cond *m, c
 	res = !regexec((regex_t *) m->u.s.rhs, name, 0, NULL, 0);
     if (m->u.s.token == S_password && !(session->debug & DEBUG_USERINPUT_FLAG))
 	name = "<hidden>";
-    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "%s: '%s' <=> '%s' = %d", hint, m->u.s.rhs_txt, name, res);
+    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, " %s: '%s' <=> '%s' = %d", hint, m->u.s.rhs_txt, name, res);
     return res;
 }
 
