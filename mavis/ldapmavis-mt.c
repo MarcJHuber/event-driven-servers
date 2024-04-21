@@ -320,7 +320,6 @@ static int dnhash_add(struct dnhash **ha, char *dn, size_t match_start, size_t m
 
 static int dnhash_add_entry(struct dnhash **h, char *dn, int level)
 {
-    fprintf(stderr, "%s:%d: depth = %d (max: %d)\n", __func__, __LINE__, level, ldap_group_depth);	//FIXME
     if (ldap_group_depth > -1 && ldap_group_depth < level)
 	return 0;
 
@@ -381,7 +380,6 @@ static int dnhash_add_entry(struct dnhash **h, char *dn, int level)
 
 static int dnhash_add_entry_groupOfNames(struct dnhash **h, char *dn, int level)
 {
-    fprintf(stderr, "%s:%d: depth = %d (max: %d)\n", __func__, __LINE__, level, ldap_group_depth);	//FIXME
     if (ldap_group_depth > -1 && ldap_group_depth < level + 1)
 	return 0;
 
