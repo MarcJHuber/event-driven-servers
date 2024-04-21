@@ -44,6 +44,7 @@ static char *ldap_dn = NULL;
 static char *ldap_pw = NULL;
 static size_t ldap_filter_len = 0;
 static size_t ldap_filter_group_len = 0;
+static int ldap_group_depth = -2;
 static pcre2_code *ldap_memberof_regex = NULL;
 static pcre2_code *ad_result_regex = NULL;
 static pcre2_code *ad_dsid_regex = NULL;
@@ -67,7 +68,8 @@ Leaving the ones below as-is is likely safe:\n\
  LDAP_TIMEOUT                  5 [seconds]\n\
  LDAP_NETWORK_TIMEOUT          5 [seconds]\n\
  LDAP_TACMEMBER                tacMember\n\
- LDAP_TACMEMBER_MAP_OU         unset (set to map OUs to TACMEMBER)\n"
+ LDAP_TACMEMBER_MAP_OU         unset (set to map OUs to TACMEMBER)\n\
+ LDAP_NESTED_MEMBEROF_DEPTH    unset (set to limit group membership lookup depth)\n"
 #ifdef LDAP_OPT_X_TLS_PROTOCOL_TLS1_3
 	    " LDAP_TLS_PROTOCOL_MIN         TLS1_2 (TLS1_0, TLS1_1, TLS1_2, TLS1_3)\n"
 #else
@@ -316,8 +318,12 @@ static int dnhash_add(struct dnhash **ha, char *dn, size_t match_start, size_t m
     return 0;
 }
 
-static int dnhash_add_entry(struct dnhash **h, char *dn)
+static int dnhash_add_entry(struct dnhash **h, char *dn, int level)
 {
+    fprintf(stderr, "%s:%d: depth = %d (max: %d)\n", __func__, __LINE__, level, ldap_group_depth);	//FIXME
+    if (ldap_group_depth > -1 && ldap_group_depth < level)
+	return 0;
+
     pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(ldap_memberof_regex, NULL);
     int pcre_res = pcre2_match((pcre2_code *) ldap_memberof_regex, (PCRE2_SPTR8) dn, (PCRE2_SIZE) strlen(dn), 0, 0, match_data, NULL);
     if (pcre_res < 0 && pcre_res != PCRE2_ERROR_NOMATCH) {
@@ -361,7 +367,7 @@ static int dnhash_add_entry(struct dnhash **h, char *dn)
 		if (!strcasecmp(attribute, "memberOf")) {
 		    int i = 0;
 		    for (; v[i]; i++)
-			dnhash_add_entry(h, v[i]->bv_val);
+			dnhash_add_entry(h, v[i]->bv_val, level + 1);
 		}
 	    }
 	    ldap_value_free_len(v);
@@ -373,8 +379,12 @@ static int dnhash_add_entry(struct dnhash **h, char *dn)
     return 0;
 }
 
-static int dnhash_add_entry_groupOfNames(struct dnhash **h, char *dn)
+static int dnhash_add_entry_groupOfNames(struct dnhash **h, char *dn, int level)
 {
+    fprintf(stderr, "%s:%d: depth = %d (max: %d)\n", __func__, __LINE__, level, ldap_group_depth);	//FIXME
+    if (ldap_group_depth > -1 && ldap_group_depth < level + 1)
+	return 0;
+
     char *attrs[] = { "member", NULL };
     LDAPMessage *res = NULL;
     size_t filter_len = strlen(dn) + ldap_filter_group_len;
@@ -409,7 +419,7 @@ static int dnhash_add_entry_groupOfNames(struct dnhash **h, char *dn)
 
 		int rc = dnhash_add(h, gdn, match_start, match_len);
 		if (!rc)
-		    dnhash_add_entry_groupOfNames(h, gdn);
+		    dnhash_add_entry_groupOfNames(h, gdn, level + 1);
 	    }
 	    if (match_data)
 		pcre2_match_data_free(match_data);
@@ -549,7 +559,7 @@ static void *run_thread(void *arg)
 		if (!strcasecmp(attribute, "memberOf")) {
 		    int i = 0;
 		    for (i = 0; v[i]; i++)
-			memberOfAdded |= !dnhash_add_entry(hash, v[i]->bv_val);
+			memberOfAdded |= !dnhash_add_entry(hash, v[i]->bv_val, 1);
 		} else if (!strcasecmp(attribute, ldap_tacmember_attr)) {
 		    size_t b_len = 4;
 		    int i = 0;
@@ -613,7 +623,7 @@ static void *run_thread(void *arg)
 	}
 
 	if (!memberOfAdded)
-	    memberOfAdded |= !dnhash_add_entry_groupOfNames(hash, dn);
+	    memberOfAdded |= !dnhash_add_entry_groupOfNames(hash, dn, 1);
 
 	char *tacmember_ou = "";
 	if (ldap_tacmember_map_ou) {
@@ -908,7 +918,9 @@ int main(int argc, char **argv __attribute__((unused)))
     if (!ldap_tacmember_attr)
 	ldap_tacmember_attr = "tacMember";
 
-    ldap_tacmember_map_ou = getenv("LDAP_TACMEMBER_MAP_OU") ? 1 : 0;
+    tmp = getenv("LDAP_NESTED_GROUP_DEPTH");
+    if (tmp)
+	ldap_group_depth = atoi(tmp) + 1;
 
     tmp = getenv("LDAP_TLS_PROTOCOL_MIN");
     if (tmp) {
@@ -1023,7 +1035,7 @@ int main(int argc, char **argv __attribute__((unused)))
 		    fcntl(0, F_SETFL, O_NONBLOCK);
 		    is_mt = TRISTATE_NO;
 		}
-		struct pollfd pfd = { .events = POLLIN };
+		struct pollfd pfd = {.events = POLLIN };
 		char *end = strstr(buf, "\n=\n");
 		while (end || (1 == poll(&pfd, 1, -1) && off < BUFSIZE)) {
 		    if (!end) {

@@ -104,6 +104,10 @@ TLS_OPTIONS
 	See https://metacpan.org/pod/Net::LDAP for details.
 	Default: unset
 	Example: "sslversion => 'tlsv1_2'"
+
+LDAP_NESTED_GROUP_DEPTH
+	Limit nested group lookups to the given value. Unlimited if unset.
+	Example: 2
 =cut
 
 use lib '/usr/local/lib/mavis/';
@@ -124,6 +128,7 @@ my $LDAP_SCOPE_GROUP	= undef;
 my $LDAP_MEMBEROF_REGEX = "^cn=([^,]+),.*";
 my $LDAP_TACMEMBER	= "tacMember";
 my $LDAP_TACMEMBER_MAP_OU	= undef;
+my $LDAP_NESTED_GROUP_DEPTH	= undef;
 my $use_starttls;
 my %tls_options;
 
@@ -144,6 +149,7 @@ $use_starttls		= $ENV{'USE_STARTTLS'} if exists $ENV{'USE_STARTTLS'};
 $LDAP_MEMBEROF_REGEX	= $ENV{'LDAP_MEMBEROF_REGEX'} if exists $ENV{'LDAP_MEMBEROF_REGEX'};
 $LDAP_TACMEMBER		= $ENV{'LDAP_TACMEMBER'} if exists $ENV{'LDAP_TACMEMBER'};
 $LDAP_TACMEMBER_MAP_OU	= $ENV{'LDAP_TACMEMBER_MAP_OU'} if exists $ENV{'LDAP_TACMEMBER_MAP_OU'};
+$LDAP_NESTED_GROUP_DEPTH	= $ENV{'LDAP_NESTED_GROUP_DEPTH'} + 1 if exists $ENV{'LDAP_NESTED_GROUP_DEPTH'};
 
 use Net::LDAP qw(LDAP_INVALID_CREDENTIALS LDAP_CONSTRAINT_VIOLATION);
 use Net::LDAP::Constant qw(LDAP_EXTENSION_PASSWORD_MODIFY LDAP_CAP_ACTIVE_DIRECTORY);
@@ -165,7 +171,10 @@ my @V;
 
 sub expand_groupOfNames($) {
 	my %H;
-	sub expand_groupOfNames_sub($) {
+	sub expand_groupOfNames_sub($$) {
+		my $depth = $_[1];
+		return if defined($LDAP_NESTED_GROUP_DEPTH) && $LDAP_NESTED_GROUP_DEPTH <= $depth;
+
 		sub get_groupOfNames($) {
 			my $dn = $_[0];
 			my @res = ( );
@@ -179,22 +188,24 @@ sub expand_groupOfNames($) {
 			}
 			return @res;
 		}
-		sub expand_groupOfNames_sub($);
+		sub expand_groupOfNames_sub($$);
 
 		foreach my $g (get_groupOfNames($_[0])) {
 			unless (exists $H{$g}) {
 				$H{$g} = 1;
-				expand_groupOfNames_sub($g);
+				expand_groupOfNames_sub($g, $depth + 1);
 			}
 		}
 	}
-	expand_groupOfNames_sub($_[0]);
+	expand_groupOfNames_sub($_[0], 0);
 	my @res = sort keys %H;
 	return \@res;
 }
 
 sub expand_memberof($) {
-	sub expand_memberof_sub($$) {
+	sub expand_memberof_sub($$$) {
+		my $depth = $_[2];
+		return if defined($LDAP_NESTED_GROUP_DEPTH) && $LDAP_NESTED_GROUP_DEPTH <= $depth;
 		sub get_memberof($) {
 			my $mesg = $ldap->search(base => $_[0], scope=>'base', filter=>'(objectclass=*)', attrs=>['memberOf']);
 			if ($mesg->code){
@@ -205,20 +216,20 @@ sub expand_memberof($) {
 			return $entry->get_value('memberOf', asref => 1) if $entry;
 			return [ ];
 		}
-		sub expand_memberof_sub($$);
+		sub expand_memberof_sub($$$);
 
 		my ($a, $H) = @_;
 		foreach my $m (@$a) {
 			unless (exists $H->{$m}) {
 				$H->{$m} = 1;
 				my $g = get_memberof($m);
-				expand_memberof_sub($g, $H);
+				expand_memberof_sub($g, $H, $depth + 1);
 			}
 		}
 	}
 
 	my %H;
-	expand_memberof_sub($_[0], \%H);
+	expand_memberof_sub($_[0], \%H, 0);
 	my @res = sort keys %H;
 	return \@res;
 }

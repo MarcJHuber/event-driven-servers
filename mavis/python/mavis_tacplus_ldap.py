@@ -98,6 +98,9 @@ TLS_OPTIONS
 	Default: None
 	Example: "version=ssl.PROTOCOL_TLSv1_3"
 
+LDAP_NESTED_GROUP_DEPTH
+	Limit nested group lookups to the given value. Unlimited if unset.
+	Example: 2
 """
 
 import os, sys, re, ldap3, time
@@ -126,6 +129,7 @@ memberof_regex = re.compile('(?i)' + eval_env('LDAP_MEMBEROF_REGEX', '^cn=([^,]+
 eval_env('LDAP_TACMEMBER', 'tacMember')
 ou_regex = re.compile('(?i)^ou=(.+)$')
 eval_env('LDAP_TACMEMBER_MAP_OU', None)
+eval_env('LDAP_NESTED_GROUP_DEPTH', None)
 tls = None
 if eval_env('TLS_OPTIONS', None) is not None:
 	tls = eval("{ " + TLS_OPTIONS + "}")
@@ -142,32 +146,37 @@ conn = None
 # A helper function for resolving nested groupOfNames groups: ################
 def expand_groupOfNames(g):
 	H = { }
-	def expand_groupOfNames_sub(m):
+	def expand_groupOfNames_sub(m, depth):
+		if LDAP_NESTED_GROUP_DEPTH is not None and int(LDAP_NESTED_GROUP_DEPTH) <= depth:
+			return [ ]
 		if ((not m in H) and ((m is g) or memberof_regex.match(m))):
 			if not m is g:
 				H[m] = True
 			conn.search(search_base = LDAP_BASE_GROUP,
 				search_filter = LDAP_FILTER_GROUP.format(m),
 				search_scope=LDAP_SCOPE_GROUP, attributes = ['dn'])
+			depth += 1
 			for e in conn.entries:
-				expand_groupOfNames_sub(e.entry_dn)
-	expand_groupOfNames_sub(g)
+				expand_groupOfNames_sub(e.entry_dn, depth + 1)
+	expand_groupOfNames_sub(g, 0)
 	return H.keys()
 
 # A helper function for resolving nested memberOf groups: ####################
 def expand_memberof(g):
 	H = { }
-	def expand_memberof_sub(m):
+	def expand_memberof_sub(m, depth):
+		if LDAP_NESTED_GROUP_DEPTH is not None and int(LDAP_NESTED_GROUP_DEPTH) <= depth:
+			return [ ]
 		if not m in H and memberof_regex.match(m):
 			H[m] = True
 			conn.search(search_base = m, search_filter = '(objectclass=*)',
 				search_scope=ldap3.BASE, attributes = ['memberOf'])
 			for e in conn.entries:
 				for m in e.memberOf:
-					expand_memberof_sub(m)
+					expand_memberof_sub(m, depth + 1)
 	for m in g:
 		if memberof_regex.match(m):
-			expand_memberof_sub(m)
+			expand_memberof_sub(m, 0)
 			H[m] = True
 	return H.keys()
 
