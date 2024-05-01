@@ -88,7 +88,7 @@ my @ALLDIRS = qw(mavis spawnd mavisd ftpd tac_plus tac_plus-ng tcprelay );
 my $DIRS_DEFAULT = join(" ", @DIRS_DEFAULT);
 my $ALLDIRS = join(" ", @ALLDIRS);
 
-my @options = qw(pcre2 ssl tls zlib freeradius-client freeradius pam execinfo sctp curl ipc ares crypto ldap);
+my @options = qw(pcre2 ssl tls zlib freeradius-client freeradius pam execinfo sctp curl ipc ares crypto ldap radcli);
 my %COMMENT;
 
 my $sbin = "sbin";
@@ -634,9 +634,9 @@ check_for("TLS", "libtls", "tls.h", "tls", undef) if !exists $DEFS{"WITH_SSL"} |
 check_for("PCRE2", "libpcre2-8", "pcre2.h", "pcre2-8", "-DPCRE2_CODE_UNIT_WIDTH=8");
 $DEFS{"INC_PCRE"} = $DEFS{"INC_PCRE2"} if exists $DEFS{"INC_PCRE2"};
 $DEFS{"LIB_PCRE"} = $DEFS{"LIB_PCRE2"} if exists $DEFS{"LIB_PCRE2"};
-check_for("FREERADIUS_CLIENT", "freeradius", "freeradius-client.h", "freeradius-client", undef);
-check_for("FREERADIUS_CLIENT", "freeradius-client", "freeradius-client.h", "freeradius-client", undef);
-#check_for("RADCLI", "radcli", "radcli/radcli.h", "radcli", undef) if !exists $DEFS{"WITH_FREERADIUS_CLIENT"} || $DEFS{"WITH_FREERADIUS_CLIENT"} == 0;
+check_for("RADCLI", "radcli", "radcli/radcli.h", "radcli", undef) if !exists $DEFS{"WITH_FREERADIUS_CLIENT"} || $DEFS{"WITH_FREERADIUS_CLIENT"} == 0;
+check_for("FREERADIUS_CLIENT", "freeradius", "freeradius-client.h", "freeradius-client", undef) if !exists $DEFS{"WITH_RADCLI"} || $DEFS{"WITH_RADCLI"} == 0;
+check_for("FREERADIUS_CLIENT", "freeradius-client", "freeradius-client.h", "freeradius-client", undef) if !exists $DEFS{"WITH_RADCLI"} || $DEFS{"WITH_RADCLI"} == 0;
 check_for("ZLIB", "zlib", "zlib.h", "z", undef);
 check_for("EXECINFO", "execinfo", "execinfo.h", "execinfo", undef);
 if ($sysname eq "linux" && -f "/usr/include/execinfo.h") {
