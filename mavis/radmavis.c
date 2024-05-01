@@ -33,10 +33,17 @@ static void usage(void)
 	    "  group_attribute=<attr>   Use attribute <attr> to determine user groups\n"	//
 	    "  <option>=<value>         Set freeradius-client option <option> to <value>\n"	//
 	    "\n"		//
+#ifdef WITH_RADCLI
+	    "This program uses the radcli library from\n"	//
+	    "  https://github.com/radcli/radcli\n"	//
+	    "\n"		//
+	    "Please have a look there about radcli configuration syntax.\n"	//
+#else
 	    "This program uses the freeradius-client library from\n"	//
 	    "  https://github.com/FreeRADIUS/freeradius-client\n"	//
 	    "\n"		//
 	    "Please have a look there about freeradius-client configuration syntax.\n"	//
+#endif
 	    "The RADIUS settings section in etc/radiusclient.conf.in might e a good\n"	//
 	    "starting point.\n"	//
 	    "\n" "Sample usage:\n"	//
@@ -95,6 +102,10 @@ int main(int argc, char **argv)
 	set_rc(rh, "radius_timeout", "5");
 	set_rc(rh, "radius_deadtime", "10");
     }
+
+#ifdef WITH_RADCLI
+    rc_apply_config(rh);
+#endif
 
     a = argv;
     a++;
