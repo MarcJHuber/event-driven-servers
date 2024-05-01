@@ -206,7 +206,7 @@ int main(int argc, char **argv)
 	set_rc(rh, "radius_deadtime", "10");
     }
 
-#ifdef WITH_RADCLI
+#if defined(WITH_RADCLI) && (RADCLI_VERSION_NUMBER > 0x010209)
     rc_apply_config(rh);
 #endif
 
