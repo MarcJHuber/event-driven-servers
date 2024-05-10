@@ -170,13 +170,12 @@ my $ldap = undef;
 my @V;
 
 sub expand_groupOfNames($) {
-	my %H;
-	sub expand_groupOfNames_sub($$) {
-		my $depth = $_[1];
+	sub expand_groupOfNames_sub($$$) {
+		my $depth = $_[2];
 		return if defined($LDAP_NESTED_GROUP_DEPTH) && $LDAP_NESTED_GROUP_DEPTH <= $depth;
 
-		sub get_groupOfNames($) {
-			my $dn = $_[0];
+		sub get_groupOfNames($$) {
+			my ($dn, $H) = @_;
 			my @res = ( );
 			my $mesg = $ldap->search(base => $LDAP_BASE_GROUP, scope=>$LDAP_SCOPE_GROUP, filter=>sprintf($LDAP_FILTER_GROUP, $dn), attrs=>['memberOf']);
 			if ($mesg->code){
@@ -184,20 +183,22 @@ sub expand_groupOfNames($) {
 				goto fatal;
 			}
 			foreach my $entry ($mesg->entries) {
-				push @res, $entry->dn unless exists $H{$entry->dn};
+				push @res, $entry->dn unless exists $H->{$entry->dn};
 			}
 			return @res;
 		}
-		sub expand_groupOfNames_sub($$);
+		sub expand_groupOfNames_sub($$$);
 
-		foreach my $g (get_groupOfNames($_[0])) {
-			unless (exists $H{$g}) {
-				$H{$g} = 1;
-				expand_groupOfNames_sub($g, $depth + 1);
+		my $H = $_[1];
+		foreach my $g (get_groupOfNames($_[0], $H)) {
+			unless (exists $H->{$g}) {
+				$H->{$g} = 1;
+				expand_groupOfNames_sub($g, $H, $depth + 1);
 			}
 		}
 	}
-	expand_groupOfNames_sub($_[0], 0);
+	my %H;
+	expand_groupOfNames_sub($_[0], \%H, 0);
 	my @res = sort keys %H;
 	return \@res;
 }
