@@ -668,6 +668,7 @@ syslog default = deny
    ${device.address}, ${nas} [deprecated] Device IP address
    ${client}, ${nac} Client IP address
    ${user} user name
+   ${user.original} user name before any rewrite operations
    ${profile} profile assigned to user
    ${service} service type (e.g. shell)
    ${result} typically permit or deny
