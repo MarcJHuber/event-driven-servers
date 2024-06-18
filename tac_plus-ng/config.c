@@ -3784,6 +3784,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
     case S_port:
     case S_type:
     case S_user:
+    case S_user_original:
     case S_member:
     case S_group:
     case S_dn:
@@ -4013,7 +4014,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
     default:
 	parse_error_expect(sym, S_leftbra, S_exclmark, S_acl, S_time, S_arg,
 			   S_cmd, S_context, S_nac, S_device, S_nas, S_nasname,
-			   S_nacname, S_host, S_port, S_user, S_group, S_member, S_memberof,
+			   S_nacname, S_host, S_port, S_user, S_user_original, S_group, S_member, S_memberof,
 			   S_devicename, S_deviceaddress, S_devicedns, S_devicetag, S_deviceport,
 			   S_client, S_clientname, S_clientdns, S_clientaddress,
 			   S_password, S_service, S_protocol, S_authen_action,
@@ -4262,6 +4263,10 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	case S_user:
 	    v = session->username;
 	    v_len = session->username_len;
+	    break;
+	case S_user_original:
+	    v = session->username_orig;
+	    v_len = session->username_orig_len;
 	    break;
 	case S_password:
 	    v = session->password_new ? session->password_new : session->password;
@@ -4565,6 +4570,10 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, int section, tac
 #ifdef WITH_PCRE2
 void tac_rewrite_user(tac_session * session, tac_rewrite * rewrite)
 {
+    if (!session->username_orig) {
+	session->username_orig = session->username;
+	session->username_orig_len = session->username_len;
+    }
     if (!session->username_rewritten) {
 	tac_rewrite_expr *e = rewrite->expr;
 
@@ -4581,10 +4590,9 @@ void tac_rewrite_user(tac_session * session, tac_rewrite * rewrite)
 		pcre2_match_data_free(match_data);
 		report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", e->name, session->username, rc);
 		if (rc > 0) {
-		    char *oldusername = session->username;
 		    session->username = memlist_strndup(session->memlist, outbuf, outlen);
 		    session->username_len = outlen;
-		    session->username_rewritten = strcmp(oldusername, session->username) ? 1 : 0;
+		    session->username_rewritten = strcmp(session->username_orig, session->username) ? 1 : 0;
 		    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: setting username to '%s'", session->username);
 		}
 	    }

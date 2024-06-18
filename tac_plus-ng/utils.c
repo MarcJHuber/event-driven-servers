@@ -850,6 +850,7 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_proxy:
 	    case S_peer:
 	    case S_user:
+	    case S_user_original:
 	    case S_profile:
 	    case S_service:
 	    case S_result:
@@ -988,6 +989,16 @@ static char *eval_log_format_user(tac_session * session, struct context *ctx __a
     if (session) {
 	*len = session->username_len;
 	return session->username;
+    }
+    return NULL;
+}
+
+static char *eval_log_format_sessionusername(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					     __attribute__((unused)), size_t *len)
+{
+    if (session) {
+	*len = session->username_orig_len;
+	return session->username_orig;
     }
     return NULL;
 }
@@ -1612,7 +1623,7 @@ static char *eval_log_format_custom_3(tac_session * session, struct context *ctx
 }
 
 static char *eval_log_format_context(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				      __attribute__((unused)), size_t *len __attribute__((unused)))
+				     __attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (session)
 	return tac_script_get_exec_context(session);
@@ -1786,6 +1797,7 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_uid] = &eval_log_format_uid;
 	efun[S_umessage] = &eval_log_format_umessage;
 	efun[S_user] = &eval_log_format_user;
+	efun[S_user_original] = &eval_log_format_sessionusername;
 	efun[S_vrf] = &eval_log_format_vrf;
 	efun[S_identity_source] = &eval_log_format_identity_source;
 	efun[S_clientdns] = &eval_log_format_nacname;

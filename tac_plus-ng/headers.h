@@ -624,6 +624,8 @@ struct tac_session {
     struct in6_addr nac_address;	/* host byte order */
     char *username;
     size_t username_len;
+    char *username_orig;
+    size_t username_orig_len;
     char *password;
     char *password_new;
     char *password_bad;

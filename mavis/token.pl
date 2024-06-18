@@ -298,6 +298,7 @@ upload				S_upload
 use-mmap			S_usemmap
 use-sendfile			S_usesendfile
 user				S_user
+user.original			S_user_original
 userid				S_userid
 users				S_users
 valid				S_valid
