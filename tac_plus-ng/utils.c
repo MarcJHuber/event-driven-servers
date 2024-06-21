@@ -993,7 +993,7 @@ static char *eval_log_format_user(tac_session * session, struct context *ctx __a
     return NULL;
 }
 
-static char *eval_log_format_sessionusername(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
+static char *eval_log_format_user_original(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
 					     __attribute__((unused)), size_t *len)
 {
     if (session) {
@@ -1797,7 +1797,7 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_uid] = &eval_log_format_uid;
 	efun[S_umessage] = &eval_log_format_umessage;
 	efun[S_user] = &eval_log_format_user;
-	efun[S_user_original] = &eval_log_format_sessionusername;
+	efun[S_user_original] = &eval_log_format_user_original;
 	efun[S_vrf] = &eval_log_format_vrf;
 	efun[S_identity_source] = &eval_log_format_identity_source;
 	efun[S_clientdns] = &eval_log_format_nacname;
