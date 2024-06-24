@@ -822,9 +822,9 @@ static void do_enable_augmented(tac_session * session)
     if (session->authen_data->msg) {
 	u = strchr(session->authen_data->msg, ' ');
 	if (u) {
-	    *u++ = 0;
 	    session->username = session->authen_data->msg;
-	    session->username_len = session->authen_data->msg_len;
+	    session->username_len = u - session->authen_data->msg;
+	    *u++ = 0;
 	    session->password = u;
 	    session->authen_data->msg = NULL;
 	    if (password_requirements_failed(session, "enable login"))
