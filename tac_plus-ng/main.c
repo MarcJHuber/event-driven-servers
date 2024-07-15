@@ -575,6 +575,20 @@ static void set_host_by_dn(struct context *ctx, char *t)
     }
 }
 
+#ifndef OPENSSL_NO_PSK
+static void set_host_by_psk_identity(struct context *ctx, char *t)
+{
+    char *at = strchr(t, '@');
+    if (at) {
+	ctx->host = lookup_host(t, ctx->realm);
+	if (ctx->host)
+	    return;
+	t = at + 1;
+    }
+    set_host_by_dn(ctx, t);
+}
+#endif
+
 static void accept_control_tls(struct context *ctx, int cur)
 {
     const char *hint = "";
@@ -631,10 +645,14 @@ static void accept_control_tls(struct context *ctx, int cur)
 	hint = "SNI";
 	goto bye;
     }
+
+    tac_host *by_address = ctx->host;
+    ctx->host = NULL;
+
 #ifndef OPENSSL_NO_PSK
     if (ctx->tls_psk_identity) {
-	accept_control_final(ctx);
-	return;
+	set_host_by_psk_identity(ctx, ctx->tls_psk_identity);
+	goto done;
     }
 #endif
     X509 *cert = SSL_get_peer_certificate(ctx->tls);
@@ -645,9 +663,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 	goto bye;
     }
 #endif
-
-    tac_host *by_address = ctx->host;
-    ctx->host = NULL;
 
     if (
 #ifdef WITH_TLS
@@ -797,6 +812,8 @@ static void accept_control_tls(struct context *ctx, int cur)
 	if (!ctx->host)
 	    set_host_by_dn(ctx, ctx->tls_peer_cn);
     }
+
+  done:
 
     // fall back to IP address
     if (!ctx->host)
