@@ -308,6 +308,11 @@ retry_once:
 				goto fatal;
 			}
 		}
+		my $mesg = $ldap->bind(@LDAP_BIND);
+		if ($mesg->code){
+			$V[AV_A_USER_RESPONSE] = $mesg->error . " (" . __LINE__ . ")";
+			goto fatal;
+		}
 		unless (defined $LDAP_SERVER_TYPE) {
 			if ($ldap->is_AD() || $ldap->is_ADAM()) {
 				$LDAP_SERVER_TYPE = "microsoft";

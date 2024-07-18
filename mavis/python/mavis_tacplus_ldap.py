@@ -228,15 +228,14 @@ while True:
 		try:
 			conn = ldap3.Connection(server_pool, user=LDAP_USER, password=LDAP_PASSWD,
 				receive_timeout=LDAP_CONNECT_TIMEOUT, auto_bind=True)
-			# Check for MS AD LDAP (but only for non-anonymous binds):
-			if LDAP_USER is not None:
-				if conn.bind():
-					if '1.2.840.113556.1.4.800' in map(
-						lambda x: x[0], conn.server.info.supported_features):
-						LDAP_SERVER_TYPE = "microsoft"
-						if LDAP_FILTER == None:
-							LDAP_FILTER = '(&(objectclass=user)(sAMAccountName={}))'
-						LDAP_USER = conn.user
+			conn.bind()
+			# Check for MS AD LDAP
+			if '1.2.840.113556.1.4.800' in map(
+				lambda x: x[0], conn.server.info.supported_features):
+				LDAP_SERVER_TYPE = "microsoft"
+				if LDAP_FILTER == None:
+					LDAP_FILTER = '(&(objectclass=user)(sAMAccountName={}))'
+				LDAP_USER = conn.user
 
 			if conn.server.info.vendor_name != None:
 				if (LDAP_USER == None or LDAP_PASSWD == None) and '389 Project' in conn.server.info.vendor_name:

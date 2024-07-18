@@ -148,6 +148,8 @@ static int LDAP_eval_rootdse(LDAP * ldap, LDAPMessage * res)
     return capabilities;
 }
 
+static int LDAP_bind(LDAP *, const char *, const char *);
+
 static int LDAP_init(LDAP ** ldap, int *capabilities)
 {
     if (*ldap)
@@ -196,6 +198,10 @@ static int LDAP_init(LDAP ** ldap, int *capabilities)
     rc = ldap_set_option(*ldap, LDAP_OPT_NETWORK_TIMEOUT, &tv);
     if (rc != LDAP_SUCCESS)
 	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
+
+    rc = LDAP_bind(*ldap, ldap_dn, ldap_pw);
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s: %s\n", __LINE__, ldap_dn, ldap_err2string(rc));
 
     char *attrs[] = { "+", NULL };	// OpenLDAP
     LDAPMessage *res;
@@ -977,10 +983,6 @@ int main(int argc, char **argv __attribute__((unused)))
     if (!ldap_filter_group)
 	ldap_filter_group = "(&(objectclass=groupOfNames)(member=%s))";
     ldap_filter_group_len = strlen(ldap_filter_group);
-
-    result = LDAP_bind(ldap_main, ldap_dn, ldap_pw);
-    if (result)
-	fprintf(stderr, "%d: %s: %s\n", __LINE__, ldap_dn, ldap_err2string(result));
 
     while (1) {
 	struct mavis_ext_hdr_v1 hdr;
