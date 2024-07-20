@@ -541,7 +541,10 @@ static void *run_thread(void *arg)
     LDAPMessage *res = NULL;
     int rc = ldap_search_ext_s(ldap_main, base_dn, scope, filter, attrs, 0, NULL, NULL, NULL, 100, &res);
 
-    if (rc == LDAP_SUCCESS && ldap_count_entries(ldap_main, res) == 1) {
+    if (rc == LDAP_SUCCESS && ldap_count_entries(ldap_main, res) != 1) {
+	av_set(ac, AV_A_RESULT, AV_V_RESULT_FAIL);
+	result = MAVIS_FINAL;
+    } else if (rc == LDAP_SUCCESS) {
 	LDAPMessage *entry = ldap_first_entry(ldap_main, res);
 
 	char *dn = ldap_get_dn(ldap_main, entry);
@@ -841,6 +844,9 @@ static void *run_thread(void *arg)
 	if (ldap)
 	    ldap_unbind_ext_s(ldap, NULL, NULL);
 	ldap_memfree(dn);
+    } else {
+	av_set(ac, AV_A_RESULT, AV_V_RESULT_ERROR);
+	result = MAVIS_FINAL;
     }
     av_write(ac, result);
     return NULL;
