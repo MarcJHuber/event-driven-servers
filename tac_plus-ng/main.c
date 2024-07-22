@@ -1070,14 +1070,18 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
     if (rxt)
 	h = radix_lookup(rxt, &addr, NULL);
 
-    if (h)
+    if (h) {
 	complete_host(h);
 
-    if (h->target_realm && r != h->target_realm) {
-	r = h->target_realm;
-	rxt = lookup_hosttree(r);
-	if (rxt)
-	    h = radix_lookup(rxt, &addr, NULL);
+	if (h->target_realm && r != h->target_realm) {
+	    r = h->target_realm;
+	    rxt = lookup_hosttree(r);
+	    if (rxt) {
+		h = radix_lookup(rxt, &addr, NULL);
+		if (h)
+		    complete_host(h);
+	    }
+	}
     }
 
     ctx = new_context(common_data.io, r);
