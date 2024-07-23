@@ -48,6 +48,7 @@ static int ldap_group_depth = -2;
 static pcre2_code *ldap_memberof_regex = NULL;
 static pcre2_code *ad_result_regex = NULL;
 static pcre2_code *ad_dsid_regex = NULL;
+static int ldap_sizelimit = 100;
 
 
 static void usage(void)
@@ -59,6 +60,7 @@ Important environment variables and ther defaults:\n\
  LDAP_USER                     unset (LDAP bind user DN)\n\
  LDAP_PASSWD                   unset (LDAP bind user password)\n\
  LDAP_BASE                     unset (LDAP search base)\n\
+ LDAP_SIZELIMIT                100 (maximum number of LDAP search results)\n\
  LDAB_MEMBEROF_REGEX           ^cn=([^,]+),.* (please adjust this)\n\
 \n\
 Leaving the ones below as-is is likely safe:\n\
@@ -205,7 +207,7 @@ static int LDAP_init(LDAP ** ldap, int *capabilities)
 
     char *attrs[] = { "+", NULL };	// OpenLDAP
     LDAPMessage *res;
-    rc = ldap_search_ext_s(*ldap, "", LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, 100, &res);
+    rc = ldap_search_ext_s(*ldap, "", LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
     if (rc != LDAP_SUCCESS)
 	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
     if (ldap_count_entries(*ldap, res))
@@ -213,7 +215,7 @@ static int LDAP_init(LDAP ** ldap, int *capabilities)
     ldap_msgfree(res);
     if (!*capabilities) {
 	res = NULL;
-	rc = ldap_search_ext_s(*ldap, "", LDAP_SCOPE_BASE, "(objectClass=*)", NULL, 0, NULL, NULL, NULL, 100, &res);
+	rc = ldap_search_ext_s(*ldap, "", LDAP_SCOPE_BASE, "(objectClass=*)", NULL, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
 	if (rc != LDAP_SUCCESS)
 	    fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 	if (ldap_count_entries(*ldap, res))
@@ -359,7 +361,7 @@ static int dnhash_add_entry(struct dnhash **h, char *dn, int level)
 
     char *attrs[] = { "memberOf", NULL };
     LDAPMessage *res = NULL;
-    rc = ldap_search_ext_s(ldap_main, dn, LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, 100, &res);
+    rc = ldap_search_ext_s(ldap_main, dn, LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
 
     if (rc == LDAP_SUCCESS && ldap_count_entries(ldap_main, res) == 1) {
 	LDAPMessage *entry = ldap_first_entry(ldap_main, res);
@@ -394,7 +396,7 @@ static int dnhash_add_entry_groupOfNames(struct dnhash **h, char *dn, int level)
     size_t filter_len = strlen(dn) + ldap_filter_group_len;
     char *filter = alloca(filter_len);
     snprintf(filter, filter_len, ldap_filter_group, dn);
-    int rc = ldap_search_ext_s(ldap_main, base_dn_group, scope_group, filter, attrs, 0, NULL, NULL, NULL, 100, &res);
+    int rc = ldap_search_ext_s(ldap_main, base_dn_group, scope_group, filter, attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
 
     if (rc == LDAP_SUCCESS) {
 	LDAPMessage *entry;
@@ -539,7 +541,7 @@ static void *run_thread(void *arg)
     snprintf(filter, filter_len, ldap_filter, username);
 
     LDAPMessage *res = NULL;
-    int rc = ldap_search_ext_s(ldap_main, base_dn, scope, filter, attrs, 0, NULL, NULL, NULL, 100, &res);
+    int rc = ldap_search_ext_s(ldap_main, base_dn, scope, filter, attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
 
     if (rc == LDAP_SUCCESS && ldap_count_entries(ldap_main, res) != 1) {
 	av_set(ac, AV_A_RESULT, AV_V_RESULT_FAIL);
@@ -909,6 +911,10 @@ int main(int argc, char **argv __attribute__((unused)))
     tmp = getenv("LDAP_NETWORK_TIMEOUT");
     if (tmp)
 	ldap_network_timeout = atoi(tmp);
+
+    tmp = getenv("LDAP_SIZELIMIT");
+    if (tmp)
+	ldap_sizelimit = atoi(tmp);
 
     tmp = getenv("LDAP_MEMBEROF_REGEX");
     if (!tmp) {
