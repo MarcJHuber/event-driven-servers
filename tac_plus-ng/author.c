@@ -225,10 +225,10 @@ static void clear_attrval(char **attrs, int cnt, char *na)
 static char *lookup_attr(char **attrs, int cnt, char *na)
 {
     size_t len = strcspn(na, "=*");
-    if (len < strlen(na))
+    if (len == strlen(na))
 	return NULL;
-    for (; cnt > -1; cnt--, attrs++) {
-	if (*attrs && strlen(*attrs) > len && is_separator(*attrs[len]) && !strncmp(na, *attrs, len))
+    for (; cnt > 0; cnt--, attrs++) {
+	if (*attrs && strlen(*attrs) > len && is_separator((*attrs)[len]) && !strncmp(na, *attrs, len))
 	    return *attrs;
     }
     return NULL;
@@ -423,9 +423,11 @@ static void do_author(tac_session * session)
 	    char c;
 	    /* NAS AV pair is optional */
 
-	    if ((c = 'e', da = lookup_attrval(session->attrs_m, session->cnt_m, na)) ||
-		(c = 'f', da = lookup_attr(session->attrs_m, session->cnt_m, na)) || (c = 'g', da = lookup_attrval(session->attrs_o, session->cnt_o, na))
-		|| (c = 'h', da = lookup_attrval(session->attrs_o, session->cnt_o, na))) {
+	    if ((c = 'e', da = lookup_attrval(session->attrs_m, session->cnt_m, na)) ||	// exact match in mandatory list
+		(c = 'f', da = lookup_attr(session->attrs_m, session->cnt_m, na)) ||	// attribute match in mandatory list
+		(c = 'g', da = lookup_attrval(session->attrs_o, session->cnt_o, na)) ||	// exact match in optional list
+		(c = 'h', da = lookup_attr(session->attrs_o, session->cnt_o, na))	// attribute match in optional list
+		) {
 		report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "nas:%s svr:%s -> replace with %s (%c)", na, da, da, c);
 		*outp++ = da, out_cnt++, replaced++;
 		continue;
