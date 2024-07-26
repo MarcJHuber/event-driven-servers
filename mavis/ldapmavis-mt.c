@@ -312,7 +312,7 @@ static int dnhash_add(struct dnhash **ha, char *dn, size_t match_start, size_t m
 	len++;
     }
     struct dnhash *h = ha[hash];
-    while (h && h->len != len && strcmp(h->name, h->name))
+    while (h && (h->len != len || strcmp(h->name, dn)))
 	h = h->next;
     if (h)
 	return -1;
