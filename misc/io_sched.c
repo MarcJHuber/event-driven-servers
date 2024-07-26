@@ -1683,7 +1683,7 @@ static void io_reschedule(struct io_context *io)
 int io_sched_exec(struct io_context *io)
 {
     rb_node_t *rbn, *rbnext;
-    int poll_timeout;
+    int poll_timeout = -1;
     struct io_sched *ios;
 
     Debug((DEBUG_PROC, "io_sched_exec (%p)\n", io));
@@ -1691,14 +1691,13 @@ int io_sched_exec(struct io_context *io)
     io_reschedule(io);
 
     for (rbn = RB_first(io->events_by_time);
-	 rbn &&
-	 ((ios =
-	   RB_payload(rbn,
-		      struct io_sched *))->time_when.tv_sec < io_now.tv_sec
-	  || (ios->time_when.tv_sec == io_now.tv_sec && ios->time_when.tv_usec <= io_now.tv_usec)); rbn = rbnext) {
+	 rbn && (ios = RB_payload(rbn, struct io_sched *)) && (ios->time_when.tv_sec < io_now.tv_sec
+							       || (ios->time_when.tv_sec == io_now.tv_sec && ios->time_when.tv_usec <= io_now.tv_usec));
+	 rbn = rbnext) {
 	rbnext = RB_next(rbn);
 	Debug((DEBUG_PROC, " executing ...\n"));
-	((void (*)(void *, int)) (ios->event->proc)) (ios->data, -1);
+	if (ios->event->proc)
+	    ((void (*)(void *, int)) (ios->event->proc)) (ios->data, -1);
 	Debug((DEBUG_PROC, "... done.\n"));
     }
 
@@ -1707,11 +1706,11 @@ int io_sched_exec(struct io_context *io)
     rbn = RB_first(io->events_by_time);
     if (rbn) {
 	ios = RB_payload(rbn, struct io_sched *);
-	poll_timeout = 1 + (int) ((ios->time_when.tv_sec - io_now.tv_sec) * 1000) + (int) ((ios->time_when.tv_usec - io_now.tv_usec) / 1000);
+	if (ios)
+	    poll_timeout = 1 + (int) ((ios->time_when.tv_sec - io_now.tv_sec) * 1000) + (int) ((ios->time_when.tv_usec - io_now.tv_usec) / 1000);
 
 	Debug((DEBUG_PROC, "poll_timeout = %dms\n", poll_timeout));
-    } else
-	poll_timeout = -1;
+    }
 
     return poll_timeout;
 }
