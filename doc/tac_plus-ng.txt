@@ -1908,8 +1908,8 @@ user username { ...  }
 
    The following declarations are valid in user context only:
 
-     * password login = ( ( clear | crypt ) password | mavis |
-       permit | deny )
+     * password login [ fallback ] = ( ( clear | crypt ) password
+       | mavis | permit | deny )
        The login password authenticates shell log-ins to the
        server.
 password login = crypt aFtFBT4e5muQE
@@ -1921,13 +1921,17 @@ password login = clear Ci5c0
        This functionality may be useful if you want to
        authenticate at external systems, despite static user
        declarations in the configuration file.
-     * password pap = ( ( clear | crypt ) password | login|mavis |
-       permit | deny )
+       If you're using password login = mavis, thefallback
+       password will be used if there's a MAVIS backend error.
+     * password pap [ fallback ] = ( ( clear | crypt ) password |
+       login|mavis | permit | deny )
        The pap authenticates PAP log-ins to the server. Just like
        with login, the password doesn't need to be in clear text,
        but may be hashed, or may be looked up via the MAVIS
        back-end. You can even map pap to login globally by
        configuring password pap = login in realm context.
+       If you're using password pap = mavis, thefallback password
+       will be used if there's a MAVIS backend error.
      * password chap = ( clear password | permit | deny )
        For CHAP authentication, a cleartext password is required.
      * password ms-chap = ( clear password | permit | deny )
@@ -2926,7 +2930,7 @@ authserver=1.2.3.4:1812:mysecret"
 
    If a back-end script fails due to an external problem (e.g.
    LDAP server unavailability), your router may or may not fall
-   back to local authentication (if configured). Chances are, that
+   back to local authentication (if configured). Chances are that
    the fallback doesn't work. If you still want to be able to
    authenticate via TACACS+ in that case, you can do so with a
    non-MAVIS user which will only be valid in case of a back-end
