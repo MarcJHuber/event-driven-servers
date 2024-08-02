@@ -2297,6 +2297,19 @@ static void parse_password(struct sym *sym, tac_user * user)
 		parse_error_expect(sym, S_login, S_pap, S_chap, S_mschap, one ? S_unknown : S_closebra, S_unknown);
 	    }
 	    sym_get(sym);
+	    if (sym->code == S_fallback) {
+		switch (pw_ix) {
+		case PW_LOGIN:
+		    pw_ix = PW_LOGIN_FALLBACK;
+		    sym_get(sym);
+		    break;
+		case PW_PAP:
+		    pw_ix = PW_PAP_FALLBACK;
+		    sym_get(sym);
+		    break;
+		default:;
+		}
+	    }
 	    pp[pw_ix] = parse_pw(sym, user->memlist, cry);
 	    if (one)
 		break;

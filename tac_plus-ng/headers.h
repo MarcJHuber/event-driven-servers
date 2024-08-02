@@ -219,7 +219,7 @@ struct tac_net {
      BISTATE(visited);
 };
 
-enum pw_ix { PW_LOGIN = 0, PW_PAP, PW_CHAP, PW_MSCHAP, PW_MAVIS };
+enum pw_ix { PW_LOGIN = 0, PW_PAP, PW_CHAP, PW_MSCHAP, PW_LOGIN_FALLBACK, PW_PAP_FALLBACK, PW_MAVIS };
 
 enum hint_enum { hint_failed = 0, hint_denied, hint_nopass, hint_expired, hint_nosuchuser, hint_succeeded, hint_permitted, hint_no_cleartext,
     hint_backend_error, hint_denied_profile, hint_failed_password_retry, hint_bug, hint_abort, hint_denied_by_acl,
