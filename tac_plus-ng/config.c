@@ -182,7 +182,7 @@ struct tac_tag {
     TAC_NAME_ATTRIBUTES;
 };
 
-static rb_tree_t *tags_by_name;
+static rb_tree_t *tags_by_name = NULL;
 
 #ifdef WITH_SSL
 #ifndef OPENSSL_NO_PSK
@@ -4727,6 +4727,8 @@ static tac_tag *tac_tag_parse(struct sym *sym)
     tac_tag t;
     t.name = sym->buf;
     t.name_len = strlen(sym->buf);
+    if (!tags_by_name)
+	tags_by_name = RB_tree_new(compare_name, NULL);
     tac_tag *tag = RB_lookup(tags_by_name, &t);
     if (!tag) {
 	tag = calloc(1, sizeof(tac_tag));
