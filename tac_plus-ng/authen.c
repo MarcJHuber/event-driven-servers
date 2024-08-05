@@ -554,9 +554,9 @@ static void set_pwdat(tac_session * session, struct pwdat **pwdat, enum pw_ix *p
     if (session->user) {
 	if (!session->user->fallback_only && (session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period > io_now.tv_sec)
 	    && session->ctx->host->authfallback == TRISTATE_YES) {
-	    if (*pw_ix == PW_LOGIN && session->user->passwd[PW_LOGIN_FALLBACK])
+	    if (*pw_ix == PW_LOGIN)
 		*pw_ix = PW_LOGIN_FALLBACK;
-	    else if (*pw_ix == PW_PAP && session->user->passwd[PW_PAP_FALLBACK])
+	    else if (*pw_ix == PW_PAP)
 		*pw_ix = PW_PAP_FALLBACK;
 	}
 
