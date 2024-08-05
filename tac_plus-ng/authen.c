@@ -552,7 +552,7 @@ static int check_access(tac_session * session, struct pwdat *pwdat, char *passwd
 static void set_pwdat(tac_session * session, struct pwdat **pwdat, enum pw_ix *pw_ix)
 {
     if (session->user) {
-	if ((session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period > io_now.tv_sec)
+	if (!session->user->fallback_only && (session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period > io_now.tv_sec)
 	    && session->ctx->host->authfallback == TRISTATE_YES) {
 	    if (*pw_ix == PW_LOGIN && session->user->passwd[PW_LOGIN_FALLBACK])
 		*pw_ix = PW_LOGIN_FALLBACK;
