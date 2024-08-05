@@ -582,7 +582,6 @@ static char *set_welcome_banner(tac_session * session, struct log_item *fmt_dflt
 
     fmt = ((session->ctx->host->authfallback != TRISTATE_YES)
 	   || !session->ctx->host->welcome_banner_fallback
-	   || !session->ctx->realm->last_backend_failure
 	   || (session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period < io_now.tv_sec))
 	? session->ctx->host->welcome_banner : session->ctx->host->welcome_banner_fallback;
 
