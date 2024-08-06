@@ -722,7 +722,6 @@ struct tac_session {
     int cnt_m;
     int cnt_o;
     int cnt_a;
-    ssize_t in_length;
     enum token attr_dflt;
     time_t password_expiry;
 };
@@ -950,6 +949,8 @@ enum token validate_ssh_hash(tac_session *, char *, char **);
 enum token validate_ssh_key_id(tac_session *);
 
 tac_realm *lookup_sni(const char *, size_t, tac_realm *);
+
+void eval_args(tac_session *, u_char *, u_char *, size_t);
 
 extern struct config config;
 extern int die_when_idle;

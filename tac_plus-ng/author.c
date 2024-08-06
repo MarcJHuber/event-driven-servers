@@ -63,6 +63,43 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 static void do_author(tac_session *);
 static int bad_nas_args(tac_session *, struct author_data *);
 
+void eval_args(tac_session *session, u_char *p, u_char *argsizep, size_t argcnt)
+{
+    size_t i;
+    size_t len = 0, tlen = 0;
+    char *cmdline, *t;
+    t = cmdline = alloca(session->ctx->in->length);
+
+    for (i = 0; i < argcnt; i++) {
+	size_t l = *argsizep;
+	char *a = (char *) p;
+	if (l > 3 && (!strncmp(a, "cmd=", 4) || !strncmp(a, "cmd*", 4))) {
+	    len = l - 4;
+	    memcpy(t, a + 4, len);
+	    t += len;
+	    tlen += len;
+	} else if (l > 8 && !strncmp(a, "cmd-arg=", 8)) {
+	    *t++ = ' ';
+	    tlen++;
+	    len = l - 8;
+	    memcpy(t, a + 8, len);
+	    t += len;
+	    tlen += len;
+	} else if (l > 8 && !strncmp(a, "service=", 8)) {
+	    session->service_len = l - 8;
+	    session->service = memlist_strndup(session->memlist, (u_char *) (a + 8), l - 8);
+	} else if (l > 9 && !strncmp(a, "protocol=", 9)) {
+	    session->protocol_len = l - 9;
+	    session->protocol = memlist_strndup(session->memlist, (u_char *) (a + 9), l - 9);
+	}
+	p += *argsizep;
+	argsizep++;
+    }
+    *t = 0;
+    session->cmdline = memlist_strdup(session->memlist, cmdline);
+    session->cmdline_len = tlen;
+}
+
 void author(tac_session * session, tac_pak_hdr * hdr)
 {
     u_char *p, *argsizep;
@@ -70,8 +107,6 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     int i;
     struct author *pak = tac_payload(hdr, struct author *);
     struct author_data *data;
-    char *cmdline, *t;
-    size_t len = 0, tlen = 0;
 
     report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "Start authorization request");
 
@@ -109,8 +144,9 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     data = memlist_malloc(session->memlist, sizeof(struct author_data));
     data->in_cnt = pak->arg_cnt;
 
-    cmd_argp = memlist_malloc(session->memlist, pak->arg_cnt * sizeof(char *));
+    eval_args(session, p, argsizep, pak->arg_cnt);
 
+    cmd_argp = memlist_malloc(session->memlist, pak->arg_cnt * sizeof(char *));
     /* p points to the start of args. Step thru them making strings */
     for (i = 0; i < (int) pak->arg_cnt; i++) {
 	cmd_argp[i] = memlist_strndup(session->memlist, p, *argsizep);
@@ -119,39 +155,10 @@ void author(tac_session * session, tac_pak_hdr * hdr)
 
     data->in_args = cmd_argp;	/* input command arguments */
     session->author_data = data;
-    session->in_length = session->ctx->in->length;
-
-    t = cmdline = alloca(session->in_length);
-
-    for (i = 0; i < data->in_cnt; i++) {
-	size_t l = strlen(data->in_args[i]);
-	char *a = data->in_args[i];
-	if (l > 3 && (!strncmp(a, "cmd=", 4) || !strncmp(a, "cmd*", 4))) {
-	    len = l - 4;
-	    memcpy(t, a + 4, len);
-	    t += len;
-	    tlen += len;
-	} else if (l > 8 && !strncmp(a, "cmd-arg=", 8)) {
-	    *t++ = ' ';
-	    tlen++;
-	    len = l - 8;
-	    memcpy(t, a + 8, len);
-	    t += len;
-	    tlen += len;
-	} else if (l > 8 && !strncmp(a, "service=", 8)) {
-	    session->service_len = l - 8;
-	    session->service = memlist_strndup(session->memlist, (u_char *) (a + 8), l - 8);
-	} else if (l > 9 && !strncmp(a, "protocol=", 9)) {
-	    session->protocol_len = l - 9;
-	    session->protocol = memlist_strndup(session->memlist, (u_char *) (a + 9), l - 9);
-	}
-    }
-    *t = 0;
-    session->cmdline = memlist_strdup(session->memlist, cmdline);
-    session->cmdline_len = tlen;
 
     session->author_data->is_cmd = session->cmdline_len;
-    session->author_data->is_shell = !strcmp(session->service, "shell");
+    if (session->service)
+	session->author_data->is_shell = !strcmp(session->service, "shell");
 
     if (bad_nas_args(session, data)) {
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);

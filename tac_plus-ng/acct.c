@@ -133,21 +133,15 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
     session->arg_cnt = acct->arg_cnt;
     session->arg_len = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
 
+    eval_args(session, p, session->arg_len, session->arg_cnt);
+
     session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
     if (session->nac_address_valid)
 	get_revmap_nac(session);
 
-    if (acct->flags & TAC_PLUS_ACCT_FLAG_STOP) {
-	u_char *argsizep = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
-	int i;
-	for (i = 0; i < (int) acct->arg_cnt; i++) {
-	    if (!strcmp((char *) p, "service=shell")) {
-		tac_script_set_exec_context(session, NULL);
-		break;
-	    }
-	    p += *argsizep++;
-	}
-    }
+    if (acct->flags & TAC_PLUS_ACCT_FLAG_STOP && session->service && !strcmp(session->service, "shell"))
+	tac_script_set_exec_context(session, NULL);
+
 #ifdef WITH_DNS
     if ((session->ctx->host->dns_timeout > 0) && (session->revmap_pending || session->ctx->revmap_pending)) {
 	session->resumefn = do_acct;
