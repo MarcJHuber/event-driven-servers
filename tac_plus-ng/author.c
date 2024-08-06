@@ -127,7 +127,6 @@ void author(tac_session * session, tac_pak_hdr * hdr)
 	size_t l = strlen(data->in_args[i]);
 	char *a = data->in_args[i];
 	if (l > 3 && (!strncmp(a, "cmd=", 4) || !strncmp(a, "cmd*", 4))) {
-	    session->author_data->is_cmd = (l > 4);
 	    len = l - 4;
 	    memcpy(t, a + 4, len);
 	    t += len;
@@ -142,16 +141,17 @@ void author(tac_session * session, tac_pak_hdr * hdr)
 	} else if (l > 8 && !strncmp(a, "service=", 8)) {
 	    session->service_len = l - 8;
 	    session->service = memlist_strndup(session->memlist, (u_char *) (a + 8), l - 8);
-	    session->author_data->is_shell = !strcmp(session->service, "shell");
 	} else if (l > 9 && !strncmp(a, "protocol=", 9)) {
 	    session->protocol_len = l - 9;
 	    session->protocol = memlist_strndup(session->memlist, (u_char *) (a + 9), l - 9);
 	}
     }
-
     *t = 0;
     session->cmdline = memlist_strdup(session->memlist, cmdline);
     session->cmdline_len = tlen;
+
+    session->author_data->is_cmd = session->cmdline_len;
+    session->author_data->is_shell = !strcmp(session->service, "shell");
 
     if (bad_nas_args(session, data)) {
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
