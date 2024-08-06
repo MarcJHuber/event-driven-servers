@@ -141,7 +141,7 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
 	u_char *argsizep = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
 	int i;
 	for (i = 0; i < (int) acct->arg_cnt; i++) {
-	    if (!strcmp((char *) p, "service=exec")) {
+	    if (!strcmp((char *) p, "service=shell")) {
 		tac_script_set_exec_context(session, NULL);
 		break;
 	    }
