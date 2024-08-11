@@ -152,14 +152,25 @@ static int LDAP_eval_rootdse(LDAP * ldap, LDAPMessage * res)
 
 static int LDAP_bind(LDAP *, const char *, const char *);
 
+static pthread_mutex_t mutex_init;
+
 static int LDAP_init(LDAP ** ldap, int *capabilities)
 {
+    pthread_mutex_lock(&mutex_init);
+    static time_t last_run = 0;
+    time_t now = time(NULL);
+    if (last_run + 5 < now) {
+	last_run = now;
+	pthread_mutex_unlock(&mutex_init);
+	return LDAP_CONNECT_ERROR;
+    }
+
     if (*ldap)
-	return 0;
+	goto skip;
 
     int rc = ldap_initialize(ldap, ldap_url);
-    if (rc)
-	return rc;
+    if (rc != LDAP_SUCCESS)
+	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
     int i = LDAP_VERSION3;
     rc = ldap_set_option(*ldap, LDAP_OPT_PROTOCOL_VERSION, &i);
@@ -201,6 +212,7 @@ static int LDAP_init(LDAP ** ldap, int *capabilities)
     if (rc != LDAP_SUCCESS)
 	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
+  skip:
     rc = LDAP_bind(*ldap, ldap_dn, ldap_pw);
     if (rc != LDAP_SUCCESS)
 	fprintf(stderr, "%d: %s: %s\n", __LINE__, ldap_dn, ldap_err2string(rc));
@@ -227,6 +239,7 @@ static int LDAP_init(LDAP ** ldap, int *capabilities)
 
     if (rc != LDAP_SUCCESS)
 	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
+    pthread_mutex_unlock(&mutex_init);
     return rc;
 }
 
@@ -361,7 +374,11 @@ static int dnhash_add_entry(struct dnhash **h, char *dn, int level)
 
     char *attrs[] = { "memberOf", NULL };
     LDAPMessage *res = NULL;
-    rc = ldap_search_ext_s(ldap_main, dn, LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
+    for (int tries = 1; tries > 0; tries--) {
+	rc = ldap_search_ext_s(ldap_main, dn, LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
+	if (rc != LDAP_SUCCESS)
+	    LDAP_init(&ldap_main, &capabilities);
+    }
 
     if (rc == LDAP_SUCCESS && ldap_count_entries(ldap_main, res) == 1) {
 	LDAPMessage *entry = ldap_first_entry(ldap_main, res);
@@ -396,7 +413,12 @@ static int dnhash_add_entry_groupOfNames(struct dnhash **h, char *dn, int level)
     size_t filter_len = strlen(dn) + ldap_filter_group_len;
     char *filter = alloca(filter_len);
     snprintf(filter, filter_len, ldap_filter_group, dn);
-    int rc = ldap_search_ext_s(ldap_main, base_dn_group, scope_group, filter, attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
+    int rc;
+    for (int tries = 1; tries > 0; tries--) {
+	rc = ldap_search_ext_s(ldap_main, base_dn_group, scope_group, filter, attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
+	if (rc != LDAP_SUCCESS)
+	    LDAP_init(&ldap_main, &capabilities);
+    }
 
     if (rc == LDAP_SUCCESS) {
 	LDAPMessage *entry;
@@ -541,7 +563,12 @@ static void *run_thread(void *arg)
     snprintf(filter, filter_len, ldap_filter, username);
 
     LDAPMessage *res = NULL;
-    int rc = ldap_search_ext_s(ldap_main, base_dn, scope, filter, attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
+    int rc;
+    for (int tries = 1; tries > 0; tries--) {
+	rc = ldap_search_ext_s(ldap_main, base_dn, scope, filter, attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
+	if (rc != LDAP_SUCCESS)
+	    LDAP_init(&ldap_main, &capabilities);
+    }
 
     if (rc == LDAP_SUCCESS && ldap_count_entries(ldap_main, res) != 1) {
 	av_set(ac, AV_A_RESULT, AV_V_RESULT_FAIL);
@@ -981,6 +1008,7 @@ int main(int argc, char **argv __attribute__((unused)))
 	fprintf(stderr, "PCRE2 error: %s\n", buffer);
     }
 
+    pthread_mutex_init(&mutex_init, NULL);
     int result = LDAP_init(&ldap_main, &capabilities);
     if (result)
 	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(result));
