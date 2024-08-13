@@ -159,7 +159,7 @@ static int LDAP_init(LDAP ** ldap, int *capabilities)
     pthread_mutex_lock(&mutex_init);
     static time_t last_run = 0;
     time_t now = time(NULL);
-    if (last_run + 5 < now) {
+    if (last_run && last_run + 5 < now) {
 	last_run = now;
 	pthread_mutex_unlock(&mutex_init);
 	return LDAP_CONNECT_ERROR;
