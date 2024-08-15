@@ -4801,8 +4801,16 @@ static struct mavis_cond *tac_script_cond_add(tac_user * u, struct mavis_cond
 					      *a, struct mavis_cond
 					      *b)
 {
-    if (a->u.m.n && !(a->u.m.n & 7))
-	a = mempool_realloc(u ? u->pool : NULL, a, sizeof(struct mavis_cond) + a->u.m.n * sizeof(struct mavis_cond *));
+    if (a->u.m.n && !(a->u.m.n & 7)) {
+	size_t len = sizeof(struct mavis_cond) + a->u.m.n * sizeof(struct mavis_cond *);
+	if (u) {
+		struct mavis_cond *n = mempool_malloc(u->pool, len);
+		memcpy(n, a, len - 8);
+		mempool_free(u->pool, a);
+		a = n;
+	} else
+		a = realloc(a, len);
+    }
 
     a->u.m.e[a->u.m.n] = b;
     a->u.m.n++;

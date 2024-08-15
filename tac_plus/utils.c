@@ -61,29 +61,6 @@ void *mempool_malloc(rb_tree_t * pool, size_t size)
     tac_exit(EX_OSERR);
 }
 
-void *mempool_realloc(rb_tree_t * pool, void *p, size_t size)
-{
-    if (p) {
-	if (pool) {
-	    rb_node_t *rbn = RB_search(pool, p);
-	    if (rbn) {
-		RB_payload_unlink(rbn);
-		RB_delete(pool, rbn);
-	    }
-	}
-	p = realloc(p, size);
-	if (p) {
-	    if (pool)
-		RB_insert(pool, p);
-	    return p;
-	}
-    } else
-	return mempool_malloc(pool, size);
-
-    report(NULL, LOG_ERR, ~0, "realloc %d failure", (int) size);
-    tac_exit(EX_OSERR);
-}
-
 void mempool_free(rb_tree_t * pool, void *ptr)
 {
     void **m = ptr;

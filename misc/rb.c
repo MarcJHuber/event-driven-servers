@@ -394,7 +394,7 @@ void RB_delete(rb_tree_t * T, rb_node_t * z)
 	    y->parent->right = x;
     }
     if (y != z) {
-	if (T->free)
+	if (T->free && z->payload)
 	    T->free(z->payload);
 	z->payload = y->payload;
 	y->payload = NULL;
