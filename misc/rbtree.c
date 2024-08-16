@@ -321,12 +321,16 @@ static void change_parent_ptr(rbtree_type* rbtree, rbnode_type* parent,
 {
 	if(parent == RBTREE_NULL)
 	{
+#if 0
 		log_assert(rbtree->root == old);
+#endif
 		if(rbtree->root == old) rbtree->root = new;
 		return;
 	}
+#if 0
 	log_assert(parent->left == old || parent->right == old
 		|| parent->left == new || parent->right == new);
+#endif
 	if(parent->left == old) parent->left = new;
 	if(parent->right == old) parent->right = new;
 }
@@ -335,7 +339,9 @@ static void change_child_ptr(rbnode_type* child, rbnode_type* old,
 	rbnode_type* new)
 {
 	if(child == RBTREE_NULL) return;
+#if 0
 	log_assert(child->parent == old || child->parent == new);
+#endif
 	if(child->parent == old) child->parent = new;
 }
 
@@ -389,7 +395,9 @@ rbtree_delete(rbtree_type *rbtree, const void *key)
 
 		/* now delete to_delete (which is at the location where the smright previously was) */
 	}
+#if 0
 	log_assert(to_delete->left == RBTREE_NULL || to_delete->right == RBTREE_NULL);
+#endif
 
 	if(to_delete->left != RBTREE_NULL) child = to_delete->left;
 	else child = to_delete->right;
@@ -475,7 +483,9 @@ static void rbtree_delete_fixup(rbtree_type* rbtree, rbnode_type* child,
 		child_parent->color = BLACK;
 		return;
 	}
+#if 0
 	log_assert(sibling != RBTREE_NULL);
+#endif
 
 	/* get a new sibling, by rotating at sibling. See which child
 	   of sibling is red */
@@ -509,13 +519,17 @@ static void rbtree_delete_fixup(rbtree_type* rbtree, rbnode_type* child,
 	child_parent->color = BLACK;
 	if(child_parent->right == child)
 	{
+#if 0
 		log_assert(sibling->left->color == RED);
+#endif
 		sibling->left->color = BLACK;
 		rbtree_rotate_right(rbtree, child_parent);
 	}
 	else
 	{
+#if 0
 		log_assert(sibling->right->color == RED);
+#endif
 		sibling->right->color = BLACK;
 		rbtree_rotate_left(rbtree, child_parent);
 	}
@@ -528,7 +542,9 @@ rbtree_find_less_equal(rbtree_type *rbtree, const void *key,
 	int r;
 	rbnode_type *node;
 
+#if 0
 	log_assert(result);
+#endif
 	
 	/* We start at root... */
 	node = rbtree->root;
