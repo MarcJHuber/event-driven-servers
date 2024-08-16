@@ -44,10 +44,17 @@
  * Implementation of a redblack tree.
  */
 
+#if 0
 #include "config.h"
 #include "log.h"
 #include "fptr_wlist.h"
 #include "util/rbtree.h"
+#else
+#include <stdlib.h>
+#include <sys/types.h>
+#include <inttypes.h>
+#include "rbtree.h"
+#endif
 
 /** Node colour black */
 #define	BLACK	0
@@ -239,7 +246,9 @@ rbtree_insert (rbtree_type *rbtree, rbnode_type *data)
 	rbnode_type	*node = rbtree->root;
 	rbnode_type	*parent = RBTREE_NULL;
 
+#if 0
 	fptr_ok(fptr_whitelist_rbtree_cmp(rbtree->cmp));
+#endif
 	/* Lets find the new parent... */
 	while (node != RBTREE_NULL) {
 		/* Compare two keys, do we have a duplicate? */
@@ -525,7 +534,9 @@ rbtree_find_less_equal(rbtree_type *rbtree, const void *key,
 	node = rbtree->root;
 
 	*result = NULL;
+#if 0
 	fptr_ok(fptr_whitelist_rbtree_cmp(rbtree->cmp));
+#endif
 
 	/* While there are children... */
 	while (node != RBTREE_NULL) {
