@@ -87,7 +87,7 @@ static void rbtree_delete_fixup(rbtree_type* rbtree, rbnode_type* child,
  *
  */
 rbtree_type *
-rbtree_create (int (*cmpf)(const void *, const void *))
+rbtree_create (int (*cmpf)(const void *, const void *), void (*freef)(const void *))
 {
 	rbtree_type *rbtree;
 
@@ -98,18 +98,19 @@ rbtree_create (int (*cmpf)(const void *, const void *))
 	}
 
 	/* Initialize it */
-	rbtree_init(rbtree, cmpf);
+	rbtree_init(rbtree, cmpf, freef);
 
 	return rbtree;
 }
 
 void 
-rbtree_init(rbtree_type *rbtree, int (*cmpf)(const void *, const void *))
+rbtree_init(rbtree_type *rbtree, int (*cmpf)(const void *, const void *), void (*freef)(const void *))
 {
 	/* Initialize it */
 	rbtree->root = RBTREE_NULL;
 	rbtree->count = 0;
 	rbtree->cmp = cmpf;
+	rbtree->free = freef;
 }
 
 /*
@@ -346,11 +347,9 @@ static void change_child_ptr(rbnode_type* child, rbnode_type* old,
 }
 
 rbnode_type* 
-rbtree_delete(rbtree_type *rbtree, const void *key)
+rbtree_delete_node(rbtree_type *rbtree, rbnode_type *to_delete)
 {
-	rbnode_type *to_delete;
 	rbnode_type *child;
-	if((to_delete = rbtree_search(rbtree, key)) == 0) return 0;
 	rbtree->count--;
 
 	/* make sure we have at most one non-leaf child */
@@ -423,6 +422,13 @@ rbtree_delete(rbtree_type *rbtree, const void *key)
 	to_delete->right = RBTREE_NULL;
 	to_delete->color = BLACK;
 	return to_delete;
+}
+
+rbnode_type* 
+rbtree_delete(rbtree_type *rbtree, const void *key)
+{
+	rbnode_type *to_delete = rbtree_search(rbtree, key);
+	return to_delete ? rbtree_delete_node(rbtree, to_delete) : NULL;
 }
 
 static void rbtree_delete_fixup(rbtree_type* rbtree, rbnode_type* child,

@@ -90,6 +90,10 @@ struct rbtree_type {
 	 * Return 0 on two NULL ptrs. 
 	 */
 	int (*cmp) (const void *, const void *);
+	/** 
+	 * Key delete function.
+	 */
+	void (*free) (const void *);
 };
 
 /** 
@@ -97,14 +101,14 @@ struct rbtree_type {
  * @param cmpf: compare function (like strcmp) takes pointers to two keys.
  * @return: new tree, empty.
  */
-rbtree_type *rbtree_create(int (*cmpf)(const void *, const void *));
+rbtree_type *rbtree_create(int (*cmpf)(const void *, const void *), void (*freef)(const void *));
 
 /** 
  * Init a new tree (malloced by caller) with given key compare function. 
  * @param rbtree: uninitialised memory for new tree, returned empty.
  * @param cmpf: compare function (like strcmp) takes pointers to two keys.
  */
-void rbtree_init(rbtree_type *rbtree, int (*cmpf)(const void *, const void *));
+void rbtree_init(rbtree_type *rbtree, int (*cmpf)(const void *, const void *), void (*freef)(const void *));
 
 /** 
  * Insert data into the tree. 
@@ -122,6 +126,15 @@ rbnode_type *rbtree_insert(rbtree_type *rbtree, rbnode_type *data);
  * returns 0 if node not present 
  */
 rbnode_type *rbtree_delete(rbtree_type *rbtree, const void *key);
+
+/**
+ * Delete element from tree.
+ * @param rbtree: tree to delete from.
+ * @param data: node to delete
+ * @return: node that is now unlinked from the tree. User to delete it. 
+ * returns 0 if node not present 
+ */
+rbnode_type *rbtree_delete_node(rbtree_type *rbtree, rbnode_type *data);
 
 /**
  * Find key in tree. Returns NULL if not found.
