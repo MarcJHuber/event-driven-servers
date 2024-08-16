@@ -606,8 +606,7 @@ static int mavis_recv_in(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
 	mcx->last_result = result;
 	*ac = qp->ac;
 	av_set(*ac, AV_A_CURRENT_MODULE, mcx->identifier);
-	qp->ac = NULL;
-	RB_delete(mcx->outgoing, r);
+	RB_delete_but_keep_data(mcx->outgoing, r);
 	result = mavis_send(mcx->top, ac);
 	if (result == MAVIS_FINAL)
 	    result = MAVIS_FINAL_DEFERRED;

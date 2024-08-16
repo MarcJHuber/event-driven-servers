@@ -108,7 +108,7 @@ pammavis-mt$(EXEC_EXT): pammavis-mt.o
 spawnd_main.o: $(BASE)/misc/version.h
 
 LIBMAVISOBJS	+= libmavis.o log.o debug.o blowfish.o radix.o
-LIBMAVISOBJS	+= net.o scm.o groups.o rb.o crc32.o tokenize.o base64.o
+LIBMAVISOBJS	+= net.o scm.o groups.o rbtree.o crc32.o tokenize.o base64.o
 LIBMAVISOBJS	+= memops.o ostype.o io_sched.o mavis_parse.o token.o
 LIBMAVISOBJS	+= setproctitle.o mymd5.o mymd4.o io_child.o set_proctitle.o
 LIBMAVISOBJS	+= spawnd_accepted.o spawnd_conf.o spawnd_main.o

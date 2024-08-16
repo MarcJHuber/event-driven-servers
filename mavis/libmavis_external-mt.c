@@ -665,7 +665,6 @@ static int mavis_recv_in(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
 	mcx->last_result = res;
 	*ac = qp->ac;
 	av_set(*ac, AV_A_CURRENT_MODULE, mcx->identifier);
-	qp->ac = NULL;
 	RB_delete(mcx->by_app_ctx, ra);
 	RB_delete(mcx->by_serial, rs);
 	res = mavis_send(mcx->top, ac);

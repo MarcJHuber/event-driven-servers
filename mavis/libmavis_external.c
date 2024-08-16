@@ -539,8 +539,7 @@ static void read_from_child(struct context *ctx, int cur)
 			    RB_search_and_delete(ctx->mcx->backlog_app_ctx, qp);
 			    RB_search_and_delete(ctx->mcx->backlog_serial, qp);
 			    ctx->ac = qp->ac;
-			    qp->ac = NULL;
-			    RB_delete(ctx->mcx->backlog_fifo, rbn);
+			    RB_delete_but_keep_data(ctx->mcx->backlog_fifo, rbn);
 #ifdef DEBUG_RB
 			    fprintf(stderr, "EXT remove backlog_fifo %p\n", RB_payload(rbn, void *));
 #endif
@@ -868,7 +867,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 		*ac = q->ac;
 		q->ac = NULL;
 		res = q->result;
-		RB_delete(mcx->outgoing, r);
+		RB_delete_but_keep_data(mcx->outgoing, r);
 #ifdef DEBUG_RB
 		fprintf(stderr, "EXT delete outgoing %p\n", r);
 #endif
@@ -938,11 +937,10 @@ static int mavis_recv_in(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
 	mcx->last_result = res;
 	*ac = qp->ac;
 	av_set(*ac, AV_A_CURRENT_MODULE, mcx->identifier);
-	qp->ac = NULL;
 #ifdef DEBUG_RB
 	fprintf(stderr, "EXT delete outgoing %p\n", r);
 #endif
-	RB_delete(mcx->outgoing, r);
+	RB_delete_but_keep_data(mcx->outgoing, r);
 	res = mavis_send(mcx->top, ac);
 	if (res == MAVIS_FINAL)
 	    res = MAVIS_FINAL_DEFERRED;

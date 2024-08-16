@@ -1350,7 +1350,7 @@ static int c7decode(char *in)
 static struct pwdat *parse_pw(struct sym *, rb_tree_t *, int);
 static void parse_acl_cond(struct sym *, tac_user *, struct tac_acl **, int *);
 
-static struct upwdat *new_upwdat(struct rb_tree *pool, tac_realm * r)
+static struct upwdat *new_upwdat(rb_tree_t *pool, tac_realm * r)
 {
     struct upwdat *pp = mempool_malloc(pool, sizeof(struct upwdat));
     int i;

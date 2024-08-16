@@ -2076,8 +2076,7 @@ void *mempool_detach(rb_tree_t * pool, void *ptr)
     if (pool && ptr) {
 	rb_node_t *rbn = RB_search(pool, ptr);
 	if (rbn) {
-	    RB_payload_unlink(rbn);
-	    RB_delete(pool, rbn);
+	    RB_delete_but_keep_data(pool, rbn);
 	    return ptr;
 	}
     }
