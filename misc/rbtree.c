@@ -1,4 +1,9 @@
 /*
+ * This is is a modified version of rbtree.c. Original source code is at
+ * https://raw.githubusercontent.com/NLnetLabs/unbound/master/util/rbtree.c
+ */
+
+/*
  * rbtree.c -- generic red black tree
  *
  * Copyright (c) 2001-2007, NLnet Labs. All rights reserved.

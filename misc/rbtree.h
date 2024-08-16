@@ -1,4 +1,9 @@
 /*
+ * This is is a modified version of rbtree.h. Original source code is at
+ * https://raw.githubusercontent.com/NLnetLabs/unbound/master/util/rbtree.h
+ */
+
+/*
  * rbtree.h -- generic red-black tree
  *
  * Copyright (c) 2001-2007, NLnet Labs. All rights reserved.
