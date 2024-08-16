@@ -589,7 +589,7 @@ rbtree_first (rbtree_type *rbtree)
 	rbnode_type *node;
 
 	for (node = rbtree->root; node->left != RBTREE_NULL; node = node->left);
-	return node;
+	return (node == RBTREE_NULL) ? NULL : node;;
 }
 
 rbnode_type *
@@ -598,7 +598,7 @@ rbtree_last (rbtree_type *rbtree)
 	rbnode_type *node;
 
 	for (node = rbtree->root; node->right != RBTREE_NULL; node = node->right);
-	return node;
+	return (node == RBTREE_NULL) ? NULL : node;;
 }
 
 /*
@@ -621,7 +621,7 @@ rbtree_next (rbnode_type *node)
 		}
 		node = parent;
 	}
-	return node;
+	return (node == RBTREE_NULL) ? NULL : node;;
 }
 
 rbnode_type *
@@ -640,7 +640,7 @@ rbtree_previous(rbnode_type *node)
 		}
 		node = parent;
 	}
-	return node;
+	return (node == RBTREE_NULL) ? NULL : node;;
 }
 
 /** recursive descent traverse */
@@ -661,4 +661,11 @@ traverse_postorder(rbtree_type* tree, void (*func)(rbnode_type*, void*),
 	void* arg)
 {
 	traverse_post(func, arg, tree->root);
+}
+
+// legacy compatibility
+void rbtree_freefunc(rbnode_type *rbnode, void *data)
+{
+	rbtree_type *rbtree = (rbtree_type *) data;
+	rbtree->free(rbnode);
 }
