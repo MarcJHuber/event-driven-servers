@@ -243,39 +243,12 @@ static int LDAP_bind(LDAP * ldap, const char *ldap_dn, const char *ldap_password
     return ldap_sasl_bind_s(ldap, ldap_dn, LDAP_SASL_SIMPLE, ber, NULL, NULL, NULL);
 }
 
-static int LDAP_bind_user(LDAP ** ldap, const char *ldap_dn, const char *ldap_password)
+static int LDAP_bind_user(LDAP * ldap, const char *ldap_dn, const char *ldap_password)
 {
-    if (*ldap)
-	return 0;
-
-    int rc = ldap_initialize(ldap, ldap_url);
-    if (rc)
-	return rc;
-
-    int i = LDAP_VERSION3;
-    rc = ldap_set_option(*ldap, LDAP_OPT_PROTOCOL_VERSION, &i);
-    if (rc != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
-
-    i = LDAP_OPT_X_TLS_NEVER;
-    rc = ldap_set_option(*ldap, LDAP_OPT_X_TLS_REQUIRE_CERT, &i);
-    i = 0;
-    rc = ldap_set_option(*ldap, LDAP_OPT_X_TLS_NEWCTX, &i);
-    if (rc != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
-
-    rc = ldap_set_option(*ldap, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
-    if (rc != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
-
-    rc = ldap_set_option(*ldap, LDAP_OPT_RESTART, LDAP_OPT_ON);
-    if (rc != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
-
     struct berval ber;
     ber.bv_len = strlen(ldap_password);
     ber.bv_val = (char *) ldap_password;
-    return ldap_sasl_bind_s(*ldap, ldap_dn, LDAP_SASL_SIMPLE, &ber, NULL, NULL, NULL);
+    return ldap_sasl_bind_s(ldap, ldap_dn, LDAP_SASL_SIMPLE, &ber, NULL, NULL, NULL);
 }
 
 struct dnhash {
@@ -722,9 +695,6 @@ static void *run_thread(void *arg)
 
 	ldap_msgfree(res);
 
-	if (ldap)
-	    ldap_unbind_ext_s(ldap, NULL, NULL);
-	ldap = NULL;
 	if (is_auth) {
 	    char *cap = av_get(ac, AV_A_CALLER_CAP);
 	    int caller_cap_chpw = (cap && strstr(cap, ":chpw:"));
@@ -737,12 +707,15 @@ static void *run_thread(void *arg)
 		    av_set(ac, AV_A_RESULT, AV_V_RESULT_FAIL);
 		    av_write(ac, MAVIS_FINAL);
 		    ldap_memfree(dn);
+		    if (ldap)
+			ldap_unbind_ext_s(ldap, NULL, NULL);
 		    return NULL;
 		}
 	    }
-	    rc = LDAP_bind_user(&ldap, dn, av_get(ac, AV_A_PASSWORD));
+	    rc = LDAP_bind_user(ldap, dn, av_get(ac, AV_A_PASSWORD));
 	    if (rc == LDAP_SUCCESS) {
 		av_set(ac, AV_A_RESULT, AV_V_RESULT_OK);
+		result = MAVIS_FINAL;
 	    } else {
 		char *diag = NULL;
 		char *out = NULL;
@@ -755,6 +728,7 @@ static void *run_thread(void *arg)
 			av_set(ac, AV_A_USER_RESPONSE, "Password has expired.");
 			av_set(ac, AV_A_RESULT, AV_V_RESULT_OK);
 			av_set(ac, AV_A_PASSWORD_MUSTCHANGE, "1");
+			result = MAVIS_FINAL;
 		    }
 		} else {
 		    av_set(ac, AV_A_USER_RESPONSE, translate_ldap_error(err, diag, &out));
