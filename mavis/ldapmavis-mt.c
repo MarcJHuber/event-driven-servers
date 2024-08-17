@@ -203,20 +203,22 @@ static int LDAP_init(LDAP ** ldap, int *capabilities)
 	fprintf(stderr, "%d: %s: %s\n", __LINE__, ldap_dn, ldap_err2string(rc));
 
     if (!capabilities_set) {
-	capabilities_set = 1;
-
 	char *attrs[] = { "+", NULL };	// OpenLDAP
 	LDAPMessage *res;
 	rc = ldap_search_ext_s(*ldap, "", LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
-	if (rc != LDAP_SUCCESS)
+	if (rc == LDAP_SUCCESS)
+	    capabilities_set = 1;
+	else
 	    fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 	if (ldap_count_entries(*ldap, res))
 	    *capabilities = LDAP_eval_rootdse(*ldap, res);
 	ldap_msgfree(res);
-	if (!*capabilities) {
+	if (!capabilities_set) {
 	    res = NULL;
 	    rc = ldap_search_ext_s(*ldap, "", LDAP_SCOPE_BASE, "(objectClass=*)", NULL, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
-	    if (rc != LDAP_SUCCESS)
+	    if (rc == LDAP_SUCCESS)
+		capabilities_set = 1;
+	    else
 		fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 	    if (ldap_count_entries(*ldap, res))
 		*capabilities = LDAP_eval_rootdse(*ldap, res);
