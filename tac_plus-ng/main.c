@@ -352,7 +352,14 @@ void cleanup(struct context *ctx, int cur)
 	    io_dns_cancel(r->idc, ctx);
     }
 #endif
+    if (ctx->mavis_pending) {
+	mavis_ctx *mcx = lookup_mcx(ctx->realm);
+	if (mcx)
+	    mavis_cancel(mcx, ctx);
+    }
 
+    if (ctx->host && ctx->host->memlist)
+	memlist_destroy(ctx->host->memlist);
     mempool_destroy(ctx->pool);
 
     if (ctx_spawnd) {
@@ -860,6 +867,7 @@ void complete_host(tac_host * h)
 	HS(cleanup_when_idle, TRISTATE_DUNNO);
 	HS(authz_if_authc, TRISTATE_DUNNO);
 	HS(map_pap_to_login, TRISTATE_DUNNO);
+	HS(try_mavis, TRISTATE_DUNNO);
 	HS(password_expiry_warning, 0);
 #ifdef WITH_DNS
 	HS(lookup_revmap_nas, TRISTATE_DUNNO);
@@ -1023,6 +1031,8 @@ static tac_realm *set_sd_realm(int s __attribute__((unused)), struct scm_data_ac
     return r;
 }
 
+static void complete_host_mavis(struct context *);
+
 static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, sockaddr_union * nad_address)
 {
     char afrom[256];
@@ -1098,8 +1108,6 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
     ctx->peer_addr_ascii = mempool_strdup(ctx->pool, su_ntop(nad_address, afrom, sizeof(afrom)) ? afrom : "<unknown>");
     ctx->peer_addr_ascii_len = strlen(ctx->peer_addr_ascii);
-    if (h)
-	ctx->key = h->key;
     ctx->host = h;
     if (peer) {
 	ctx->proxy_addr_ascii = mempool_strdup(ctx->pool, peer);
@@ -1125,6 +1133,35 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
     if (sd_ext->vrf_len)
 	ctx->vrf = mempool_strndup(ctx->pool, (u_char *) sd_ext->vrf, sd_ext->vrf_len);
     ctx->vrf_len = sd_ext->vrf_len;
+    ctx->nas_address_ascii = ctx->peer_addr_ascii;
+    ctx->nas_address_ascii_len = strlen(ctx->peer_addr_ascii);
+    complete_host_mavis(ctx);
+}
+
+static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
+{
+    if(ctx->host->try_mavis != TRISTATE_YES)
+	return 0;
+    if (!ctx->mavis_tried) {
+	ctx->mavis_tried = 1;
+	mavis_ctx_lookup(ctx, f, AV_V_TACTYPE_HOST);
+	return -1;
+    }
+    return 0;
+}
+
+static void complete_host_mavis(struct context *ctx)
+{
+    if (query_mavis_host(ctx, complete_host_mavis))
+	return;
+
+    if (ctx->mavis_result == S_deny) {
+	cleanup(ctx, ctx->sock);
+	return;
+    }
+
+    if (ctx->host)
+	ctx->key = ctx->host->key;
 
     io_register(ctx->io, ctx->sock, ctx);
     io_set_cb_i(ctx->io, ctx->sock, (void *) accept_control_check_tls);
@@ -1198,8 +1235,6 @@ static void accept_control_final(struct context *ctx)
 	report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "connection request from %s (realm: %s%s%s)", ctx->peer_addr_ascii, ctx->realm->name,
 	       ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "");
 
-    ctx->nas_address_ascii = ctx->peer_addr_ascii;
-    ctx->nas_address_ascii_len = strlen(ctx->peer_addr_ascii);
     get_revmap_nas(&session);
 
     io_register(ctx->io, ctx->sock, ctx);

@@ -163,6 +163,9 @@ enum user_message_enum { UM_PASSWORD = 0, UM_RESPONSE, UM_PASSWORD_OLD, UM_PASSW
 
 #define TAC_NAME_ATTRIBUTES char *name; size_t name_len
 
+struct memlist;
+typedef struct memlist memlist_t;
+
 struct tac_host {
     TAC_NAME_ATTRIBUTES;
     u_int line;			/* configuration file line number */
@@ -175,12 +178,14 @@ struct tac_host {
      TRISTATE(augmented_enable);	/* one-step enable for $enab.* user */
      TRISTATE(map_pap_to_login);
      TRISTATE(authz_if_authc);
+     TRISTATE(try_mavis);
      BISTATE(complete);
      BISTATE(visited);
      BISTATE(skip_parent_script);
     u_int bug_compatibility;
     tac_host *parent;
     tac_realm *target_realm;
+    memlist_t *memlist;
     struct tac_key *key;
     struct log_item *motd;
     struct log_item *welcome_banner;	/* prompt */
@@ -250,8 +255,6 @@ struct tac_profile {
     u_int debug;		/* debug flags */
 };
 
-struct memlist;
-typedef struct memlist memlist_t;
 struct ssh_key;
 struct ssh_key_id;
 
@@ -611,6 +614,7 @@ struct author_data {
 
 struct authen_data;
 struct mavis_data;
+struct mavis_ctx_data;
 
 struct log_item;
 
@@ -745,6 +749,7 @@ struct context {
     rb_tree_t *sessions;
     rb_tree_t *shellctxcache;
     tac_realm *realm;
+    struct mavis_ctx_data *mavis_data;
     char *nas_dns_name;
     size_t nas_dns_name_len;
     char *nas_address_ascii;
@@ -808,6 +813,9 @@ struct context {
      BISTATE(revmap_pending);
      BISTATE(revmap_timedout);
      BISTATE(use_tls);
+     BISTATE(mavis_pending);
+     BISTATE(mavis_tried);
+    enum token mavis_result;
     u_int id;
     u_int bug_compatibility;
     u_int debug;
@@ -886,6 +894,7 @@ int cfg_get_enable(tac_session *, struct pwdat **);
 void parse_decls(struct sym *);
 void parse_user_final(tac_user *);
 int parse_user_profile_fmt(struct sym *, tac_user *, char *, ...);
+int parse_host_profile(struct sym *, tac_realm *, tac_host *);
 
 void parse_log(struct sym *, tac_realm *);
 char *eval_log_format(tac_session *, struct context *, struct logfile *, struct log_item *, time_t, size_t *);
@@ -910,6 +919,7 @@ void cleanup_session(tac_session *);
 struct log_item *parse_log_format(struct sym *);
 
 void mavis_lookup(tac_session *, void (*)(tac_session *), char *, enum pw_ix);
+void mavis_ctx_lookup(struct context *, void (*)(struct context *), char *);
 tac_user *lookup_user(tac_session *);
 mavis_ctx *lookup_mcx(tac_realm *);
 tac_realm *lookup_realm(char *, tac_realm *);

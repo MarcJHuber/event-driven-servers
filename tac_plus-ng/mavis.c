@@ -48,6 +48,11 @@ struct mavis_data {
     void (*mavisfn)(tac_session *);
 };
 
+struct mavis_ctx_data {
+    char *mavistype;
+    void (*mavisfn)(struct context *);
+};
+
 static void mavis_lookup_final(tac_session *, av_ctx *);
 
 static void mavis_switch(tac_session * session, av_ctx * avc, int result)
@@ -207,6 +212,22 @@ static int parse_user_profile_multi(av_ctx * avc, struct sym *sym, tac_user * u,
     return res;
 }
 
+static void dump_av_pairs(tac_session * session, av_ctx * avc, char *what)
+{
+    if (common_data.debug & (DEBUG_MAVIS_FLAG | DEBUG_TACTRACE_FLAG)) {
+	int show[] = { AV_A_USER, AV_A_DN, AV_A_TACMEMBER, AV_A_MEMBEROF, AV_A_USER_RESPONSE, AV_A_SERVERIP,
+	    AV_A_IPADDR, AV_A_REALM, AV_A_TACPROFILE, AV_A_SSHKEY, AV_A_SSHKEYHASH, AV_A_SSHKEYID, AV_A_PATH,
+	    AV_A_UID, AV_A_GID, AV_A_HOME, AV_A_ROOT, AV_A_SHELL, AV_A_GIDS, AV_A_PASSWORD_MUSTCHANGE, AV_A_ARGS,
+	    AV_A_RARGS, AV_A_VERDICT, AV_A_IDENTITY_SOURCE, AV_A_CUSTOM_0, AV_A_CUSTOM_1, AV_A_CUSTOM_2, AV_A_CUSTOM_3, -1
+	};
+	report(session, LOG_DEBUG, ~0, "%s found by MAVIS backend, av pairs:", what);
+	for (int i = 0; show[i] > -1; i++)
+	    if (avc->arr[show[i]])
+		report_string(session, LOG_DEBUG, DEBUG_MAVIS_FLAG | DEBUG_TACTRACE_FLAG, av_char[show[i]].name, avc->arr[show[i]],
+			      strlen(avc->arr[show[i]]));
+    }
+}
+
 static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 {
     char *t, *result = NULL;
@@ -228,19 +249,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    if (verdict && !session->ctx->realm->caching_period && !strcmp(verdict, AV_V_BOOL_TRUE))
 		session->authorized = 1;
 
-	    if (common_data.debug & (DEBUG_MAVIS_FLAG | DEBUG_TACTRACE_FLAG)) {
-		int i;
-		int show[] = { AV_A_USER, AV_A_DN, AV_A_TACMEMBER, AV_A_MEMBEROF, AV_A_USER_RESPONSE, AV_A_SERVERIP,
-		    AV_A_IPADDR, AV_A_REALM, AV_A_TACPROFILE, AV_A_SSHKEY, AV_A_SSHKEYHASH, AV_A_SSHKEYID, AV_A_PATH,
-		    AV_A_UID, AV_A_GID, AV_A_HOME, AV_A_ROOT, AV_A_SHELL, AV_A_GIDS, AV_A_PASSWORD_MUSTCHANGE, AV_A_ARGS,
-		    AV_A_RARGS, AV_A_VERDICT, AV_A_IDENTITY_SOURCE, AV_A_CUSTOM_0, AV_A_CUSTOM_1, AV_A_CUSTOM_2, AV_A_CUSTOM_3, -1
-		};
-		report(session, LOG_DEBUG, ~0, "user found by MAVIS backend, av pairs:");
-		for (i = 0; show[i] > -1; i++)
-		    if (avc->arr[show[i]])
-			report_string(session, LOG_DEBUG, DEBUG_MAVIS_FLAG | DEBUG_TACTRACE_FLAG, av_char[show[i]].name, avc->arr[show[i]],
-				      strlen(avc->arr[show[i]]));
-	    }
+	    dump_av_pairs(session, avc, "user");
 
 	    if (!u || u->dynamic) {
 		struct sym sym = { 0 };
@@ -407,4 +416,108 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
     }
     if (result)
 	report(session, LOG_INFO, ~0, "result for user %s is %s", session->username, result);
+}
+
+static void mavis_ctx_lookup_final(struct context *, av_ctx *);
+
+static void mavis_ctx_switch(struct context *ctx, av_ctx * avc, int result)
+{
+    switch (result) {
+    case MAVIS_FINAL:
+	ctx->mavis_pending = 0;
+	mavis_ctx_lookup_final(ctx, avc);
+	ctx->mavis_data->mavisfn(ctx);
+	break;
+    case MAVIS_TIMEOUT:
+	// report(session, LOG_INFO, ~0, "auth_mavis: giving up (%s)", session->username);
+	io_sched_pop(ctx->io, ctx);
+	ctx->mavis_pending = 0;
+	av_free(avc);
+	ctx->mavis_data->mavisfn(ctx);
+	break;
+    case MAVIS_DEFERRED:
+	ctx->mavis_pending = 1;
+    case MAVIS_IGNORE:
+	break;
+    default:
+	ctx->mavis_pending = 0;
+	av_free(avc);
+	ctx->mavis_data->mavisfn(ctx);
+    }
+}
+
+static void mavis_ctx_callback(struct context *ctx)
+{
+    av_ctx *avc = NULL;
+    int rc = mavis_recv(lookup_mcx(ctx->realm), &avc, ctx);
+    mavis_ctx_switch(ctx, avc, rc);
+}
+
+void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), char *type)
+{
+    mavis_ctx *mcx = lookup_mcx(ctx->realm);
+    if (!mcx) {
+	f(ctx);
+	return;
+    }
+    if (ctx->mavis_pending)
+	return;
+
+    tac_session session = {.ctx = ctx };
+    report(&session, LOG_INFO, ~0, "looking for host %s in MAVIS backend", ctx->nas_address_ascii);
+
+    if (!ctx->mavis_data)
+	ctx->mavis_data = mempool_malloc(ctx->pool, sizeof(struct mavis_data));
+
+    ctx->mavis_data->mavisfn = f;
+    ctx->mavis_data->mavistype = type;
+
+    av_ctx *avc = av_new((void *) mavis_ctx_callback, (void *) ctx);
+    av_set(avc, AV_A_TYPE, AV_V_TYPE_TACPLUS);
+    av_set(avc, AV_A_USER, ctx->nas_address_ascii);
+    av_set(avc, AV_A_TACTYPE, type);	// "HOSTW
+    av_set(avc, AV_A_REALM, ctx->realm->name);
+
+    int result = mavis_send(mcx, &avc);
+    switch (result) {
+    case MAVIS_DEFERRED:
+	ctx->mavis_pending = 1;
+    case MAVIS_IGNORE:
+	break;
+    default:
+	mavis_ctx_switch(ctx, avc, result);
+    }
+}
+
+static void mavis_ctx_lookup_final(struct context *ctx, av_ctx * avc)
+{
+    char *t, *result = NULL;
+    tac_session session = {.ctx = ctx };
+    ctx->mavis_result = S_deny;
+    if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&
+	(t = av_get(avc, AV_A_TACTYPE)) && !strcmp(t, AV_V_TACTYPE_HOST) &&
+	(t = av_get(avc, AV_A_USER)) && !strcmp(t, ctx->nas_address_ascii) && (result = av_get(avc, AV_A_RESULT)) && !strcmp(result, AV_V_RESULT_OK)) {
+
+	char *profile = av_get(avc, AV_A_TACPROFILE);
+	if (profile) {
+	    struct memlist *memlist = memlist_create();
+	    tac_host *h = memlist_malloc(memlist, sizeof(tac_host));
+	    h->memlist = memlist;
+
+	    struct sym sym = { 0 };
+	    sym.filename = ctx->nas_address_ascii;
+	    sym.line = 1;
+	    sym.flag_prohibit_include = 1;
+	    sym.in = sym.tin = profile;
+	    sym.len = sym.tlen = strlen(profile);
+	    parse_host_profile(&sym, ctx->realm, h);
+	    h->parent = ctx->host;
+	    complete_host(h);
+	    ctx->host = h;
+	}
+	ctx->mavis_result = S_permit;
+	dump_av_pairs(&session, avc, "host");
+    }
+    if (result)
+	report(&session, LOG_INFO, ~0, "result for host %s is %s", ctx->nas_address_ascii, result);
 }

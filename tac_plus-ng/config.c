@@ -132,7 +132,7 @@ static int tac_group_add(tac_group *, tac_groups *, memlist_t *);	/* add id to g
 static int tac_group_check(tac_group *, tac_groups *, tac_group *);	/* check for id in groups struct */
 static int tac_group_regex_check(tac_session *, struct mavis_cond *, tac_groups *, tac_group *);
 
-static int tac_tag_add(tac_tag *, tac_tags *);
+static int tac_tag_add(tac_host *, tac_tag *, tac_tags *);
 static int tac_tag_check(tac_tag *, tac_tags *);
 static int tac_tag_regex_check(tac_session *, struct mavis_cond *, tac_tags *);
 static tac_tag *tac_tag_parse(struct sym *);
@@ -705,7 +705,7 @@ static void parse_key(struct sym *sym, tac_host * host)
     parse(sym, S_equal);
     keylen = strlen(sym->buf);
 
-    *tk = calloc(1, sizeof(struct tac_key) + keylen);
+    *tk = memlist_malloc(host->memlist, sizeof(struct tac_key) + keylen);
     (*tk)->warn = warn;
     (*tk)->len = keylen;
     (*tk)->line = sym->line;
@@ -946,7 +946,7 @@ static void parse_tls_psk_key(struct sym *sym, tac_host * host)
     if (l & 1)
 	parse_error(sym, "Illegal hex sequence (odd number of characters)");
     l >>= 1;
-    host->tls_psk_key = calloc(1, l);
+    host->tls_psk_key = memlist_malloc(host->memlist, l);
     host->tls_psk_key_len = l;
     for (i = 0; i < l; i++) {
 	k[0] = toupper(*t++);
@@ -2136,6 +2136,19 @@ static void parse_user(struct sym *sym, tac_realm * r)
     //report(NULL, LOG_INFO, ~0, "user %s added to realm %s", user->name, r->name);
 }
 
+int parse_host_profile(struct sym *sym, tac_realm * r, tac_host * host)
+{
+    sym->env_valid = 1;
+    if (setjmp(sym->env))
+	return -1;
+    sym_init(sym);
+    parse(sym, S_openbra);
+    while (sym->code != S_closebra)
+	parse_host_attr(sym, r, host);
+    sym_get(sym);
+    return 0;
+}
+
 int parse_user_profile(struct sym *sym, tac_user * user)
 {
     sym->env_valid = 1;
@@ -2995,7 +3008,50 @@ static void fixup_banner(struct log_item **li, char *file, int line)
 
 static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 {
+    if (host->memlist)
+	switch (sym->code) {
+	case S_parent:
+	case S_authentication:
+	case S_permit:
+	case S_bug:
+	case S_pap:
+	case S_key:
+	case S_anonenable:
+	case S_augmented_enable:
+	case S_singleconnection:
+	case S_debug:
+	case S_connection:
+	case S_password:
+	case S_context:
+	case S_session:
+	case S_target_realm:
+	case S_maxrounds:
+	case S_skip:
+	case S_dns:
+	case S_tag:
+	case S_devicetag:
+#if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
+	case S_tls:
+#endif
+	    break;
+	default:
+	    parse_error_expect(sym,
+			       S_parent, S_authentication, S_permit, S_bug, S_pap, S_key, S_anonenable, S_augmented_enable,
+			       S_singleconnection, S_debug, S_connection, S_password, S_context, S_session, S_target_realm,
+			       S_maxrounds, S_skip, S_dns, S_tag, S_devicetag,
+#if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
+			       S_tls,
+#endif
+			       S_unknown);
+	}
+
     switch (sym->code) {
+    case S_mavis:
+	sym_get(sym);
+	parse(sym, S_backend);
+	parse(sym, S_equal);
+	host->try_mavis = parse_tristate(sym);
+	return;
     case S_host:
     case S_device:
 	parse_host(sym, r, host);
@@ -3321,11 +3377,11 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    if (!tags_by_name)
 		tags_by_name = RB_tree_new(compare_name, NULL);
 	    if (!host->tags)
-		host->tags = calloc(1, sizeof(tac_tags));
+		host->tags = memlist_malloc(host->memlist, sizeof(tac_tags));
 	    sym_get(sym);
 	    parse(sym, S_equal);
 	    do
-		tac_tag_add(tac_tag_parse(sym), host->tags);
+		tac_tag_add(host, tac_tag_parse(sym), host->tags);
 	    while (parse_comma(sym));
 	    return;
 	}
@@ -3337,7 +3393,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	case S_id:
 	    sym_get(sym);
 	    parse(sym, S_equal);
-	    host->tls_psk_id = strdup(sym->buf);
+	    host->tls_psk_id = memlist_strdup(host->memlist, sym->buf);
 	    break;
 	case S_key:
 	    sym_get(sym);
@@ -3358,7 +3414,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 			   S_tls,
 #endif
-			   S_unknown);
+			   S_mavis, S_unknown);
     }
 }
 
@@ -4711,11 +4767,11 @@ static int tac_group_regex_check(tac_session * session, struct mavis_cond *m, ta
 }
 
 /* add id to tags struct */
-static int tac_tag_add(tac_tag * add, tac_tags * g)
+static int tac_tag_add(tac_host * host, tac_tag * add, tac_tags * g)
 {
     if (g->count == g->allocated) {
 	g->allocated += 32;
-	g->tags = (tac_tag **) realloc(g->tags, g->allocated * sizeof(tac_tag));
+	g->tags = (tac_tag **) memlist_realloc(host->memlist, g->tags, g->allocated * sizeof(tac_tag));
     }
     g->tags[g->count] = add;
     g->count++;

@@ -15,6 +15,7 @@ BACKENDS =	ftp_passwd ldap_authonly tacplus_ads tacplus_ldap
 BACKENDS +=	tacplus_ldap_authonly tacplus_opie tacplus_passwd
 BACKENDS +=	tacplus_radius tacplus_sms tacplus_shadow
 BACKENDS +=	tacplus-ng_ldap
+BACKENDS +=	tacplus-ng-demo-host
 
 BI = $(patsubst %,$(M)/mavis_%.$(SUF), $(BACKENDS))
 
