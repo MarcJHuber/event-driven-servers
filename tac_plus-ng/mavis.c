@@ -43,13 +43,13 @@
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
 struct mavis_data {
-    char *mavistype;
+    const char *mavistype;
     enum pw_ix pw_ix;
     void (*mavisfn)(tac_session *);
 };
 
 struct mavis_ctx_data {
-    char *mavistype;
+    const char *mavistype;
     void (*mavisfn)(struct context *);
 };
 
@@ -108,7 +108,7 @@ static void mavis_callback(tac_session * session)
     mavis_switch(session, avc, rc);
 }
 
-void mavis_lookup(tac_session * session, void (*f)(tac_session *), char *type, enum pw_ix pw_ix)
+void mavis_lookup(tac_session * session, void (*f)(tac_session *), const char *const type, enum pw_ix pw_ix)
 {
     int result;
     av_ctx *avc;
@@ -150,7 +150,7 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), char *type, e
     av_set(avc, AV_A_TYPE, AV_V_TYPE_TACPLUS);
     av_set(avc, AV_A_USER, session->username);
     av_setf(avc, AV_A_TIMESTAMP, "%d", session->session_id);
-    av_set(avc, AV_A_TACTYPE, type);
+    av_set(avc, AV_A_TACTYPE, (char *) type);
     av_set(avc, AV_A_SERVERIP, session->ctx->nas_address_ascii);
     if (session->passwd_changeable)
 	av_set(avc, AV_A_CALLER_CAP, ":chpw:");
@@ -167,15 +167,15 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), char *type, e
     if (!session->ctx->realm->caching_period && !strcmp(type, AV_V_TACTYPE_INFO) && session->author_data) {
 	char *args, *p;
 	struct author_data *data = session->author_data;
-	int i, len = 0, cnt = data->in_cnt - 1;
+	int len = 0, cnt = data->in_cnt - 1;
 	size_t *arglen = alloca(data->in_cnt * sizeof(size_t));
-	for (i = 0; i < data->in_cnt; i++) {
+	for (int i = 0; i < data->in_cnt; i++) {
 	    arglen[i] = strlen(data->in_args[i]);
 	    len += arglen[i] + 1;
 	}
 	args = alloca(len);
 	p = args;
-	for (i = 0; i <= cnt; i++) {
+	for (int i = 0; i <= cnt; i++) {
 	    memcpy(p, data->in_args[i], arglen[i]);
 	    p += arglen[i];
 	    *p++ = (i == cnt) ? 0 : '\n';
@@ -235,9 +235,11 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 
     session->mavisauth_res = 0;
 
-    if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&
-	(t = av_get(avc, AV_A_USER)) && !strcmp(t, session->username) &&
-	(t = av_get(avc, AV_A_TIMESTAMP)) && (atoi(t) == session->session_id) && (result = av_get(avc, AV_A_RESULT)) && !strcmp(result, AV_V_RESULT_OK)) {
+    if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&	//
+	(t = av_get(avc, AV_A_TACTYPE)) && !strcmp(t, session->mavis_data->mavistype) &&	//
+	(t = av_get(avc, AV_A_USER)) && !strcmp(t, session->username) &&	//
+	(t = av_get(avc, AV_A_TIMESTAMP)) && (atoi(t) == session->session_id) &&	//#
+	(result = av_get(avc, AV_A_RESULT)) && !strcmp(result, AV_V_RESULT_OK)) {
 
 	tac_user *u = lookup_user(session);
 
@@ -371,11 +373,10 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		char *pass = session->password_new ? session->password_new : session->password;
 #if 1
 		char *crypt, salt[13];
-		int i;
 		salt[0] = '$';
 		salt[1] = '1';
 		salt[2] = '$';
-		for (i = 3; i < 11; i++)
+		for (int i = 3; i < 11; i++)
 		    salt[i] = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"[random() % 64];
 		salt[11] = '$';
 		salt[12] = 0;
@@ -453,7 +454,7 @@ static void mavis_ctx_callback(struct context *ctx)
     mavis_ctx_switch(ctx, avc, rc);
 }
 
-void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), char *type)
+void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const char *const type)
 {
     mavis_ctx *mcx = lookup_mcx(ctx->realm);
     if (!mcx) {
@@ -475,7 +476,7 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), char *ty
     av_ctx *avc = av_new((void *) mavis_ctx_callback, (void *) ctx);
     av_set(avc, AV_A_TYPE, AV_V_TYPE_TACPLUS);
     av_set(avc, AV_A_USER, ctx->nas_address_ascii);
-    av_set(avc, AV_A_TACTYPE, type);	// "HOSTW
+    av_set(avc, AV_A_TACTYPE, (char *) type);	// "HOST"
     av_set(avc, AV_A_REALM, ctx->realm->name);
 
     int result = mavis_send(mcx, &avc);
@@ -494,9 +495,10 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx * avc)
     char *t, *result = NULL;
     tac_session session = {.ctx = ctx };
     ctx->mavis_result = S_deny;
-    if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&
-	(t = av_get(avc, AV_A_TACTYPE)) && !strcmp(t, AV_V_TACTYPE_HOST) &&
-	(t = av_get(avc, AV_A_USER)) && !strcmp(t, ctx->nas_address_ascii) && (result = av_get(avc, AV_A_RESULT)) && !strcmp(result, AV_V_RESULT_OK)) {
+    if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&	//
+	(t = av_get(avc, AV_A_TACTYPE)) && !strcmp(t, ctx->mavis_data->mavistype) &&	//
+	(t = av_get(avc, AV_A_USER)) && !strcmp(t, ctx->nas_address_ascii) &&	//
+	(result = av_get(avc, AV_A_RESULT)) && !strcmp(result, AV_V_RESULT_OK)) {
 
 	char *profile = av_get(avc, AV_A_TACPROFILE);
 	if (profile) {

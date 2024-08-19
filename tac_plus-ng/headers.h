@@ -918,8 +918,8 @@ void tac_write(struct context *, int);
 void cleanup_session(tac_session *);
 struct log_item *parse_log_format(struct sym *);
 
-void mavis_lookup(tac_session *, void (*)(tac_session *), char *, enum pw_ix);
-void mavis_ctx_lookup(struct context *, void (*)(struct context *), char *);
+void mavis_lookup(tac_session *, void (*)(tac_session *), const char * const, enum pw_ix);
+void mavis_ctx_lookup(struct context *, void (*)(struct context *), const char * const);
 tac_user *lookup_user(tac_session *);
 mavis_ctx *lookup_mcx(tac_realm *);
 tac_realm *lookup_realm(char *, tac_realm *);
