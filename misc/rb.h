@@ -8,6 +8,7 @@
 
 #ifndef __RB_H__
 #define __RB_H__
+#include <stdlib.h>
 #include <sys/types.h>
 #include "misc/sysconf.h"
 #include "misc/rbtree.h"
