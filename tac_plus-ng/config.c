@@ -1923,9 +1923,6 @@ static struct mavis_action *tac_script_parse_r(struct sym *, int, tac_realm *);
 
 static void parse_ruleset(struct sym *sym, tac_realm * realm)
 {
-    tac_profile profile = { 0 };
-    profile.realm = realm;
-
     struct tac_rule **r = &(realm->rules);
     while (*r)
 	r = &(*r)->next;
