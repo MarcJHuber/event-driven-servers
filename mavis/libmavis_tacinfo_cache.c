@@ -205,7 +205,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
     if (!t || strcmp(t, AV_V_TYPE_TACPLUS))
 	return MAVIS_DOWN;
     t = av_get(*ac, AV_A_TACTYPE);
-    if (!t || strcmp(t, AV_V_TACTYPE_INFO))
+    if (!t || (strcmp(t, AV_V_TACTYPE_INFO) && strcmp(t, AV_V_TACTYPE_HOST)))
 	return MAVIS_DOWN;
 
     get_hash(*ac, mcx->hashfile + mcx->hashfile_offset + 3);
@@ -281,7 +281,7 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
     if (!t || strcmp(t, AV_V_TYPE_TACPLUS))
 	return MAVIS_DOWN;
     t = av_get(*ac, AV_A_TACTYPE);
-    if (!t || (strcmp(t, AV_V_TACTYPE_AUTH) && strcmp(t, AV_V_TACTYPE_INFO)))
+    if (!t || (strcmp(t, AV_V_TACTYPE_AUTH) && strcmp(t, AV_V_TACTYPE_INFO) && strcmp(t, AV_V_TACTYPE_HOST)))
 	return MAVIS_DOWN;
 
     get_hash(*ac, mcx->hashfile + mcx->hashfile_offset + 3);
