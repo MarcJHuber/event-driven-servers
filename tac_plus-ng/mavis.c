@@ -500,6 +500,8 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx * avc)
 	(t = av_get(avc, AV_A_USER)) && !strcmp(t, ctx->nas_address_ascii) &&	//
 	(result = av_get(avc, AV_A_RESULT)) && !strcmp(result, AV_V_RESULT_OK)) {
 
+	ctx->mavis_result = S_permit;
+
 	char *profile = av_get(avc, AV_A_TACPROFILE);
 	if (profile) {
 	    struct memlist *memlist = memlist_create();
@@ -512,16 +514,18 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx * avc)
 	    sym.flag_prohibit_include = 1;
 	    sym.in = sym.tin = profile;
 	    sym.len = sym.tlen = strlen(profile);
-	    parse_host_profile(&sym, ctx->realm, h);
-	    h->parent = ctx->host;
-	    if (!h->name) {
-		h->name = ctx->host->name;
-		h->name_len = ctx->host->name_len;
+	    if (parse_host_profile(&sym, ctx->realm, h))
+		ctx->mavis_result = S_deny;
+	    else {
+		h->parent = ctx->host;
+		if (!h->name) {
+		    h->name = ctx->host->name;
+		    h->name_len = ctx->host->name_len;
+		}
+		complete_host(h);
+		ctx->host = h;
 	    }
-	    complete_host(h);
-	    ctx->host = h;
 	}
-	ctx->mavis_result = S_permit;
 	dump_av_pairs(&session, avc, "host");
     }
     if (result)
