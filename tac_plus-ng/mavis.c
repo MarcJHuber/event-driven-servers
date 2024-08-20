@@ -514,6 +514,8 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx * avc)
 	    sym.len = sym.tlen = strlen(profile);
 	    parse_host_profile(&sym, ctx->realm, h);
 	    h->parent = ctx->host;
+	    if (!h->name)
+		h->name = ctx->host->name;
 	    complete_host(h);
 	    ctx->host = h;
 	}
