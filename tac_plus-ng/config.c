@@ -3027,6 +3027,12 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	case S_dns:
 	case S_tag:
 	case S_devicetag:
+	case S_name:
+	    // dynamic hosts support the "name = <device name>" attribute.
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    host->name = memlist_strdup(host->memlist, sym->buf);
+	    return;
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 	case S_tls:
 #endif
@@ -3035,7 +3041,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    parse_error_expect(sym,
 			       S_parent, S_authentication, S_permit, S_bug, S_pap, S_key, S_anonenable, S_augmented_enable,
 			       S_singleconnection, S_debug, S_connection, S_password, S_context, S_session, S_target_realm,
-			       S_maxrounds, S_skip, S_dns, S_tag, S_devicetag,
+			       S_maxrounds, S_skip, S_dns, S_tag, S_devicetag, S_name,
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 			       S_tls,
 #endif
