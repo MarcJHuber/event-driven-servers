@@ -3032,18 +3032,41 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	case S_target_realm:
 	case S_maxrounds:
 	case S_skip:
+#ifdef WITH_DNS
 	case S_dns:
+#endif
 	case S_tag:
 	case S_devicetag:
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 	case S_tls:
 #endif
+/* Currently unsupported keywords.
+    case S_mavis:
+    case S_host:
+    case S_device:
+    case S_address:
+    case S_motd:
+    case S_welcome:
+    case S_reject:
+    case S_failed:
+    case S_enable:
+    case S_script:
+#ifdef WITH_DNS
+    case S_dns:
+#endif
+    case S_message:
+#if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
+#endif
+*/
 	    break;
 	default:
 	    parse_error_expect(sym,
 			       S_parent, S_authentication, S_permit, S_bug, S_pap, S_key, S_anonenable, S_augmented_enable,
 			       S_singleconnection, S_debug, S_connection, S_password, S_context, S_session, S_target_realm,
-			       S_maxrounds, S_skip, S_dns, S_tag, S_devicetag, S_name,
+			       S_maxrounds, S_skip, S_tag, S_devicetag, S_name,
+#ifdef WITH_DNS
+			       S_dns,
+#endif
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 			       S_tls,
 #endif
