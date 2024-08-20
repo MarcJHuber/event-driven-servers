@@ -3012,6 +3012,8 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    sym_get(sym);
 	    parse(sym, S_equal);
 	    host->name = memlist_strdup(host->memlist, sym->buf);
+	    sym_get(sym);
+	    host->name_len = strlen(host->name);
 	    return;
 	case S_parent:
 	case S_authentication:
