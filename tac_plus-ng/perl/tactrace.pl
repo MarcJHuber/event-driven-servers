@@ -174,6 +174,11 @@ my $pkt = Net::TacacsPlus::Packet->new(
 	'minor_version' => ($authentype eq "pap" && $mode eq "authc") ? 1 : 0
 );
 
+$SIG{CHLD} = sub {
+	printf STDERR "\nThe server process prematurely closed the connection.\n";
+	exit -1;
+};
+
 my $raw = $pkt->raw();
 syswrite($conn0, $raw, length($raw)) or die;
 sysread($conn0, my $buf, my $len = 1);
