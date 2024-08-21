@@ -1156,7 +1156,7 @@ static void complete_host_mavis(struct context *ctx)
 	return;
 
     if (ctx->mavis_result == S_deny) {
-	cleanup(ctx, ctx->sock);
+	reject_conn(ctx, ctx->hint, "by MAVIS backend");
 	return;
     }
 
