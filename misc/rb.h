@@ -39,7 +39,7 @@ inline __attribute__((always_inline)) rbnode_type *RB_search(rbtree_type *rbtree
 
 inline __attribute__((always_inline)) rbnode_type *RB_first(rbtree_type *rbtree) 
 {
-	return rbtree_first(rbtree);
+	return rbtree ? rbtree_first(rbtree) : NULL;
 }
 
 inline __attribute__((always_inline)) rbnode_type *RB_next(rbnode_type *rbnode) 
