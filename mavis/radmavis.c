@@ -44,7 +44,7 @@ static void usage(void)
 	    "\n"		//
 	    "Please have a look there about freeradius-client configuration syntax.\n"	//
 #endif
-	    "The RADIUS settings section in etc/radiusclient.conf.in might e a good\n"	//
+	    "The RADIUS settings section in etc/radiusclient.conf.in might be a good\n"	//
 	    "starting point.\n"	//
 	    "\n" "Sample usage:\n"	//
 	    "  radmavis authserver=localhost:1812:mysecret dictionary=/path/to/dictionary\n"	//
