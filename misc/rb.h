@@ -16,12 +16,12 @@
 #define rb_node_t rbnode_type
 #define rb_tree_t rbtree_type
 
-inline __attribute__((always_inline)) rbtree_type *RB_tree_new(int (*cmpf)(const void *, const void *), void(*freef)(void *)) 
+static inline __attribute__((always_inline)) rbtree_type *RB_tree_new(int (*cmpf)(const void *, const void *), void(*freef)(void *)) 
 {
 	return rbtree_create(cmpf, (const void *) freef);
 }
 
-inline __attribute__((always_inline)) rbnode_type *RB_insert(rbtree_type *rbtree, void *data) 
+static inline __attribute__((always_inline)) rbnode_type *RB_insert(rbtree_type *rbtree, void *data) 
 {
 	rbnode_type *rbnode = calloc(1, sizeof(rbnode_type));
 	rbnode->key = data;
@@ -32,34 +32,34 @@ inline __attribute__((always_inline)) rbnode_type *RB_insert(rbtree_type *rbtree
 	return NULL;
 }
 
-inline __attribute__((always_inline)) rbnode_type *RB_search(rbtree_type *rbtree, void *key) 
+static inline __attribute__((always_inline)) rbnode_type *RB_search(rbtree_type *rbtree, void *key) 
 {
 	return rbtree_search(rbtree, key);
 }
 
-inline __attribute__((always_inline)) rbnode_type *RB_first(rbtree_type *rbtree) 
+static inline __attribute__((always_inline)) rbnode_type *RB_first(rbtree_type *rbtree) 
 {
 	return rbtree ? rbtree_first(rbtree) : NULL;
 }
 
-inline __attribute__((always_inline)) rbnode_type *RB_next(rbnode_type *rbnode) 
+static inline __attribute__((always_inline)) rbnode_type *RB_next(rbnode_type *rbnode) 
 {
 	return rbtree_next(rbnode);
 }
 
-inline __attribute__((always_inline)) int RB_empty(rbtree_type *rbtree) 
+static inline __attribute__((always_inline)) int RB_empty(rbtree_type *rbtree) 
 {
 	return rbtree ? (rbtree->count == 0) : -1;
 }
 
-inline __attribute__((always_inline)) int RB_count(rbtree_type *rbtree) 
+static inline __attribute__((always_inline)) int RB_count(rbtree_type *rbtree) 
 {
 	return rbtree ? rbtree->count : 0;
 }
 
 void rbtree_freefunc(rbnode_type *rbnode, void *data);
 
-inline __attribute__((always_inline)) void RB_delete(rbtree_type *rbtree, rbnode_type *rbnode) 
+static inline __attribute__((always_inline)) void RB_delete(rbtree_type *rbtree, rbnode_type *rbnode) 
 {
 	rbtree_delete_node(rbtree, rbnode);
 	if (rbtree->free)
@@ -67,7 +67,7 @@ inline __attribute__((always_inline)) void RB_delete(rbtree_type *rbtree, rbnode
 	free(rbnode);
 }
 
-inline __attribute__((always_inline)) const void *RB_delete_but_keep_data(rbtree_type *rbtree, rbnode_type *rbnode) 
+static inline __attribute__((always_inline)) const void *RB_delete_but_keep_data(rbtree_type *rbtree, rbnode_type *rbnode) 
 {
 	rbtree_delete_node(rbtree, rbnode);
 	const void *ptr = rbnode->key;
@@ -75,7 +75,7 @@ inline __attribute__((always_inline)) const void *RB_delete_but_keep_data(rbtree
 	return ptr;
 }
 
-inline __attribute__((always_inline)) void RB_tree_delete(rbtree_type *rbtree) 
+static inline __attribute__((always_inline)) void RB_tree_delete(rbtree_type *rbtree) 
 {
 	if (rbtree) {
 		traverse_postorder(rbtree, rbtree_freefunc, rbtree);
@@ -83,7 +83,7 @@ inline __attribute__((always_inline)) void RB_tree_delete(rbtree_type *rbtree)
 	}
 }
 
-inline __attribute__((always_inline)) void RB_search_and_delete(rbtree_type *rbtree, void *data) 
+static inline __attribute__((always_inline)) void RB_search_and_delete(rbtree_type *rbtree, void *data) 
 {
 	rbnode_type *rbnode = rbtree_delete(rbtree, data);
 	if (rbnode) {
@@ -93,17 +93,16 @@ inline __attribute__((always_inline)) void RB_search_and_delete(rbtree_type *rbt
 	}
 }
 
-inline __attribute__((always_inline)) void *RB_lookup(rbtree_type *rbtree, void *data) 
+static inline __attribute__((always_inline)) void *RB_lookup(rbtree_type *rbtree, void *data) 
 {
 	rbnode_type *rbnode = rbtree_search(rbtree, data);
 	return rbnode ? (void *) rbnode->key : NULL;
 }
 
-inline __attribute__((always_inline)) void *RB_payload_get(rbnode_type *rbnode) 
+static inline __attribute__((always_inline)) void *RB_payload_get(rbnode_type *rbnode) 
 {
 	return (void *) rbnode->key;
 }
 #define RB_payload(A,B) ((B)RB_payload_get(A))
-
 
 #endif				/* __RB_H__ */
