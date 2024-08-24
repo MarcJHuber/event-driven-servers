@@ -431,7 +431,7 @@ $LIBARCH = "/$gcc_multiarch" if $gcc_multiarch ne "" && -d "/usr/lib/$gcc_multia
 my (@rest) = sort keys %A;
 if ($#rest > -1) {
 	wprint("The following options were not recognized:
-\t" . join("\t\n", @rest) . "
+\t" . join("\n\t", @rest) . "
 
 Please correct the command line options, then call ./configure again. \"./configure --help\" will give you a list of all available options.
 ");
