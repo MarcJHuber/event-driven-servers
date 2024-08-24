@@ -75,26 +75,35 @@ static int idi_cmp_app_ctx(const void *v1, const void *v2)
 }
 
 #ifdef WITH_ARES
+#if ARES_VERSION < 0x011c00
 static void io_ares_set(struct io_dns_ctx *);
+#endif
 
 static void io_ares_read(struct io_dns_ctx *idc, int sock)
 {
     ares_process_fd(idc->channel, sock, ARES_SOCKET_BAD);
+#if ARES_VERSION < 0x011c00
     io_ares_set(idc);
+#endif
 }
 
 static void io_ares_write(struct io_dns_ctx *idc, int sock)
 {
     ares_process_fd(idc->channel, ARES_SOCKET_BAD, sock);
+#if ARES_VERSION < 0x011c00
     io_ares_set(idc);
+#endif
 }
 
 static void io_ares_readwrite(struct io_dns_ctx *idc, int sock)
 {
     ares_process_fd(idc->channel, sock, sock);
+#if ARES_VERSION < 0x011c00
     io_ares_set(idc);
+#endif
 }
 
+#if ARES_VERSION < 0x011c00
 static void io_ares_set(struct io_dns_ctx *idc)
 {
     ares_socket_t socks[ARES_GETSOCK_MAXNUM];
@@ -116,6 +125,15 @@ static void io_ares_set(struct io_dns_ctx *idc)
 	}
     }
 }
+#else
+static void io_ares_state_cb(void *data, ares_socket_t socket_fd, int readable, int writable)
+{
+    if (writable)
+	io_set_o(((struct io_dns_ctx *) data)->io, socket_fd);
+    if (readable)
+	io_set_i(((struct io_dns_ctx *) data)->io, socket_fd);
+}
+#endif
 #endif
 
 #ifdef WITH_ARES
@@ -174,10 +192,18 @@ struct io_dns_ctx *io_dns_init(struct io_context *io)
 {
     struct io_dns_ctx *idc = Xcalloc(1, sizeof(struct io_dns_ctx));
 #ifdef WITH_ARES
-    struct ares_options options = { .flags = ARES_FLAG_STAYOPEN, .lookups = "b" };
+    struct ares_options options = {.flags = ARES_FLAG_STAYOPEN,.lookups = "b"
+#if ARES_VERSION >= 0x011c00
+	    ,.sock_state_cb = io_ares_state_cb,.sock_state_cb_data = idc
+#endif
+    };
     int res;
     idc->channel = calloc(1, sizeof(ares_channel));;
-    res = ares_init_options(&idc->channel, &options, ARES_OPT_LOOKUPS);
+    res = ares_init_options(&idc->channel, &options, ARES_OPT_LOOKUPS
+#if ARES_VERSION >= 0x011c00
+			    | ARES_OPT_SOCK_STATE_CB
+#endif
+	);
     if (res == ARES_SUCCESS) {
 	static struct ares_socket_functions a_socket_functions;
 	a_socket_functions.asocket = asocket;
@@ -189,7 +215,9 @@ struct io_dns_ctx *io_dns_init(struct io_context *io)
 	idc->io = io;
 	idc->by_addr = RB_tree_new(idi_cmp_addr, NULL);
 	idc->by_app_ctx = RB_tree_new(idi_cmp_app_ctx, NULL);
+#if ARES_VERSION < 0x011c00
 	io_ares_set(idc);
+#endif
     } else {
 	free(idc->channel);
 	free(idc);
@@ -249,7 +277,11 @@ void io_dns_add_addr(struct io_dns_ctx *idc, struct in6_addr *a, void *app_cb, v
 }
 
 #ifdef WITH_ARES
+#if ARES_VERSION < 0x011c00
 static void a_callback(void *arg, int status, int timeouts, unsigned char *abuf, int alen);
+#else
+static void a_callback(void *arg, ares_status_t status, size_t timeouts, const ares_dns_record_t * dnsrec);
+#endif
 
 void io_dns_add(struct io_dns_ctx *idc, sockaddr_union * su, void *app_cb, void *app_ctx)
 {
@@ -284,13 +316,18 @@ void io_dns_add(struct io_dns_ctx *idc, sockaddr_union * su, void *app_cb, void 
     idi->app_ctx = app_ctx;
     RB_insert(idc->by_addr, idi);
     RB_insert(idc->by_app_ctx, idi);
+#if ARES_VERSION < 0x011c00
     ares_query(idc->channel, query, C_IN, T_PTR, a_callback, idi);
     io_ares_set(idc);
+#else
+    ares_query_dnsrec(idc->channel, query, ARES_CLASS_IN, ARES_REC_TYPE_PTR, a_callback, idi, NULL);;
+#endif
 }
 #endif
 
 #ifdef WITH_ARES
 #include <ctype.h>
+#if ARES_VERSION < 0x011c00
 static void a_callback(void *arg, int status, int timeouts __attribute__((unused)), unsigned char *abuf, int alen)
 {
     struct io_dns_item *idi = (struct io_dns_item *) arg;
@@ -323,6 +360,26 @@ static void a_callback(void *arg, int status, int timeouts __attribute__((unused
     RB_search_and_delete(idi->idc->by_addr, idi);
     free(idi);
 }
+#else
+static void a_callback(void *arg, ares_status_t status, size_t timeouts __attribute__((unused)), const ares_dns_record_t * dnsrec)
+{
+    struct io_dns_item *idi = (struct io_dns_item *) arg;
+
+    if (!idi->canceled) {
+	const char *res = NULL;
+	int ttl = -1;
+	if (status == ARES_SUCCESS && ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER) > 0) {
+	    ares_dns_rr_t *rr = ares_dns_record_rr_get((ares_dns_record_t *) dnsrec, ARES_SECTION_ANSWER, 0);
+	    res = ares_dns_rr_get_str(rr, ARES_RR_PTR_DNAME);
+	    ttl = ares_dns_rr_get_ttl(rr);
+	    ((void (*)(void *, char *, int)) idi->app_cb) (idi->app_ctx, (char *) res, ttl);
+	}
+    }
+    RB_search_and_delete(idi->idc->by_app_ctx, idi);
+    RB_search_and_delete(idi->idc->by_addr, idi);
+    free(idi);
+}
+#endif
 #endif
 
 #ifdef WITH_ARES
