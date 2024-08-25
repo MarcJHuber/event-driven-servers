@@ -25,12 +25,12 @@ rbtree_type *RB_tree_new(int (*cmpf)(const void *, const void *), void (*freef)(
 static inline __attribute__((always_inline))
 rbnode_type *RB_insert(rbtree_type * rbtree, void *data)
 {
-    rbnode_type *rbnode = calloc(1, sizeof(rbnode_type));
+    rbnode_type *rbnode = rbnode_alloc();
     rbnode->key = data;
     rbnode_type *rbnode_out = rbtree_insert(rbtree, rbnode);
     if (rbnode_out)
 	return rbnode_out;
-    free(rbnode);
+    rbnode_free(rbnode);
     return NULL;
 }
 
@@ -72,7 +72,7 @@ void RB_delete(rbtree_type * rbtree, rbnode_type * rbnode)
     rbtree_delete_node(rbtree, rbnode);
     if (rbtree->free)
 	rbtree->free((void *) rbnode->key);
-    free(rbnode);
+    rbnode_free(rbnode);
 }
 
 static inline __attribute__((always_inline))
@@ -80,7 +80,7 @@ const void *RB_delete_but_keep_data(rbtree_type * rbtree, rbnode_type * rbnode)
 {
     rbtree_delete_node(rbtree, rbnode);
     const void *ptr = rbnode->key;
-    free(rbnode);
+    rbnode_free(rbnode);
     return ptr;
 }
 
@@ -100,7 +100,7 @@ void RB_search_and_delete(rbtree_type * rbtree, void *data)
     if (rbnode) {
 	if (rbtree->free)
 	    rbtree->free((void *) rbnode->key);
-	free(rbnode);
+	rbnode_free(rbnode);
     }
 }
 

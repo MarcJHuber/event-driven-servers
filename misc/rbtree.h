@@ -207,4 +207,10 @@ rbnode_type *rbtree_previous(rbnode_type *rbtree);
 void traverse_postorder(rbtree_type* tree, void (*func)(rbnode_type*, void*),
 	void* arg);
 
+/**
+ * get/release rbnode from (possibly pre-allocated) internal pool
+ */
+rbnode_type *rbnode_alloc(void);
+void rbnode_free(rbnode_type *);
+
 #endif /* UTIL_RBTREE_H_ */

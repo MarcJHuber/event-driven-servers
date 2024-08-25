@@ -667,5 +667,32 @@ traverse_postorder(rbtree_type* tree, void (*func)(rbnode_type*, void*),
 void rbtree_freefunc(rbnode_type *rbnode, void *data)
 {
 	rbtree_type *rbtree = (rbtree_type *) data;
-	rbtree->free(rbnode);
+	rbtree->free(rbnode->key);
+}
+
+static rbnode_type *nextfree = NULL;
+rbnode_type *rbnode_alloc(void)
+{
+	if (!nextfree || !nextfree->right) {
+		#define N 511
+		rbnode_type *arr = calloc(N + 1, sizeof(rbnode_type));
+		for (int i = 0; i < N; i++)
+			arr[i].right = &arr[i + 1];
+		if (nextfree)
+			nextfree->right = &arr[0];
+		else
+			nextfree = &arr[0];
+	}
+	rbnode_type *res = nextfree;
+	nextfree = nextfree->right;
+	return res;
+}
+
+void rbnode_free(rbnode_type *rbnode)
+{
+        rbnode->parent = NULL;
+        rbnode->left = NULL;
+        rbnode->right = nextfree;;
+        rbnode->key = NULL;
+	nextfree = rbnode;
 }
