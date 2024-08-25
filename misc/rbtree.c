@@ -667,7 +667,9 @@ traverse_postorder(rbtree_type* tree, void (*func)(rbnode_type*, void*),
 void rbtree_freefunc(rbnode_type *rbnode, void *data)
 {
 	rbtree_type *rbtree = (rbtree_type *) data;
-	rbtree->free(rbnode->key);
+	if (rbtree->free)
+	    rbtree->free(rbnode->key);
+	rbnode_free(rbnode);
 }
 
 static rbnode_type *nextfree = NULL;
