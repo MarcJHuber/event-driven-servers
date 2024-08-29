@@ -361,6 +361,7 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
     spawnd_data.keepidle = -1;
     spawnd_data.scm_bufsize = 0;	// leave at system default
     spawnd_data.abandon = 0;
+    spawnd_data.tracking_size = 1024;
 
     if (!getsockopt(0, SOL_SOCKET, SO_TYPE, &socktype, &socktypelen))
 	switch (socktype) {
@@ -542,8 +543,6 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
     io_sched_add(common_data.io, ctx, (void *) periodics, (time_t) 10, (suseconds_t) 0);
 
     spawnd_data.server_arr = Xcalloc(common_data.servers_max, sizeof(struct spawnd_context *));
-
-    spawnd_data.tracking_size = 1024;
 
     spawnd_setup_signals();
     setup_sig_segv(common_data.coredumpdir, common_data.gcorepath, common_data.debug_cmd);
