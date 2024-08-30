@@ -130,3 +130,4 @@ int spawnd_acl_check(sockaddr_union *);
 void spawnd_cleanup_internal(struct spawnd_context *, int);
 void spawnd_cleanup_tracking(void);
 struct spawnd_context *spawnd_new_context(struct io_context *);
+void spawnd_adjust_tracking(int, int);

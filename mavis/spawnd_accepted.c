@@ -55,12 +55,13 @@ static struct track *alloc_track(void)
 
 static int tracking_lookup(struct in6_addr *addr)
 {
-    struct track t, *tp;
-    if (!trackdb)
-	return -1;
-    t.addr = *addr;
-    tp = RB_lookup(trackdb, &t);
-    return tp ? tp->i : -1;
+    if (trackdb) {
+	struct track t, *tp;
+	t.addr = *addr;
+	if ((tp = RB_lookup(trackdb, &t)))
+	    return tp->i;
+    }
+    return -1;
 }
 
 void spawnd_cleanup_tracking(void)
@@ -77,9 +78,30 @@ void spawnd_cleanup_tracking(void)
     }
 }
 
+void spawnd_adjust_tracking(int old, int new)
+{
+    if (trackdb) {
+	rb_node_t *r;
+	r = RB_first(trackdb);
+	while (r) {
+	    rb_node_t *rn = RB_next(r);
+	    if (new < 0)
+		RB_delete(trackdb, r);
+	    else {
+		struct track *t = RB_payload(r, struct track *);
+		if (t->i == old)
+		    t->i = new;
+	    }
+	    r = rn;
+	}
+    }
+}
+
 static void tracking_register(struct in6_addr *addr, int i)
 {
     struct track t, *tp;
+    if (spawnd_data.tracking_period < 1)
+	return;
     if (!trackdb)
 	trackdb = RB_tree_new(compare_track, free_track);
     memcpy(&t.addr, addr, sizeof(struct in6_addr));
@@ -175,14 +197,10 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	common_data.scm_send_msg(-1, (struct scm_data *) &sd, s);
     else {
 	do {
-	    min = common_data.users_max, min_i = -1;
-
-	    if (spawnd_data.tracking_period) {
-		i = tracking_lookup(&addr);
-		if (i > -1 && spawnd_data.server_arr[i]
-		    && spawnd_data.server_arr[i]->use < common_data.users_max)
-		    min_i = i;
-	    }
+	    min = common_data.users_max;
+	    min_i = tracking_lookup(&addr);
+	    if (min_i > -1 && spawnd_data.server_arr[min_i]->use >= common_data.users_max)
+		min_i = -1;
 
 	    if (min_i < 0)
 		for (i = 0; i < common_data.servers_min && i < common_data.servers_cur; i++)
@@ -224,7 +242,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 		    logmsg("Giving up. Spawned server processes are probably broken." "(%s:%d)", __FILE__, __LINE__);
 		    exit(EX_TEMPFAIL);
 		}
-	    } else if (spawnd_data.tracking_period)
+	    } else if (spawnd_data.tracking_period > 0)
 		tracking_register(&addr, min_i);
 	}
 	while (res);

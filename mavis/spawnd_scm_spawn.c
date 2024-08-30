@@ -31,11 +31,15 @@ void spawnd_cleanup_internal(struct spawnd_context *ctx, int fd __attribute__((u
 	spawnd_data.listeners_max--;
     else {
 	int i;
-	common_data.users_cur -= ctx->use;
 	for (i = 0; i < common_data.servers_cur && ctx != spawnd_data.server_arr[i]; i++);
-	if (i < --common_data.servers_cur)
+	if (i < common_data.servers_cur) {
+	    common_data.users_cur -= ctx->use;
+	    spawnd_adjust_tracking(i, -1);
+	    common_data.servers_cur--;
 	    spawnd_data.server_arr[i] = spawnd_data.server_arr[common_data.servers_cur];
-        spawnd_data.server_arr[common_data.servers_cur] = NULL;
+	    spawnd_adjust_tracking(common_data.servers_cur, i);
+	    spawnd_data.server_arr[common_data.servers_cur] = NULL;
+	}
 	set_proctitle(ACCEPT);
     }
 
