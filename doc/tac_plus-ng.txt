@@ -126,8 +126,8 @@ Marc Huber
    importantly, the spawnd configuration options and documentation
    remain valid.
 
-   tac_plus may use auxiliary MAVIS back-end modules for
-   authentication and authorization.
+   tac_plus-ng may use auxiliary MAVIS back-end modules for
+   authentication of users and authorization of users and hosts.
      __________________________________________________________
 
 3.1. Command line syntax

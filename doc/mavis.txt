@@ -753,10 +753,11 @@ session  required       pam_opendirectory.so
 
 5.2.12. The tacinfo_cache module
 
-   This module implements on-disk caching of authentication
-   attributes for later authorization. It may be useful to reduce
-   load from the backend, or just to share RADIUS authorization
-   data between tac_plus worker processes.
+   This module implements on-disk caching of authorization
+   attributes for later authorization, both for users and hosts.
+   It may be useful to reduce load from the backend, or just to
+   share RADIUS authorization data between tac_plus worker
+   processes.
      __________________________________________________________
 
 5.2.12.1. Configuration directives
