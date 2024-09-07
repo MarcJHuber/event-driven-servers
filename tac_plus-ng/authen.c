@@ -1662,7 +1662,7 @@ static void set_revmap_nac(tac_session * session, char *hostname, int ttl)
 
     add_revmap(session->ctx->realm, &session->nac_address, hostname, ttl, 1);
 
-    if (!session->ctx->revmap_pending && session->resumefn)
+    if (!session->revmap_pending && session->resumefn)
 	resume_session(session, -1);
 }
 #endif
