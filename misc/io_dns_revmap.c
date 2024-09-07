@@ -364,14 +364,16 @@ static void a_callback(void *arg, int status, int timeouts __attribute__((unused
 static void a_callback(void *arg, ares_status_t status, size_t timeouts __attribute__((unused)), const ares_dns_record_t * dnsrec)
 {
     struct io_dns_item *idi = (struct io_dns_item *) arg;
+    int ttl = -1;
+    const char *res = NULL;
 
     if (!idi->canceled) {
 	if (status == ARES_SUCCESS && ares_dns_record_rr_cnt(dnsrec, ARES_SECTION_ANSWER) > 0) {
 	    ares_dns_rr_t *rr = ares_dns_record_rr_get((ares_dns_record_t *) dnsrec, ARES_SECTION_ANSWER, 0);
-	    const char *res = ares_dns_rr_get_str(rr, ARES_RR_PTR_DNAME);
-	    int ttl = ares_dns_rr_get_ttl(rr);
-	    ((void (*)(void *, char *, int)) idi->app_cb) (idi->app_ctx, (char *) res, ttl);
+	    res = ares_dns_rr_get_str(rr, ARES_RR_PTR_DNAME);
+	    ttl = ares_dns_rr_get_ttl(rr);
 	}
+	((void (*)(void *, char *, int)) idi->app_cb) (idi->app_ctx, (char *) res, ttl);
     }
     RB_search_and_delete(idi->idc->by_app_ctx, idi);
     RB_search_and_delete(idi->idc->by_addr, idi);
