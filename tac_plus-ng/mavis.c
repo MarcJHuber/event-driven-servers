@@ -46,11 +46,13 @@ struct mavis_data {
     const char *mavistype;
     enum pw_ix pw_ix;
     void (*mavisfn)(tac_session *);
+    struct timeval start;
 };
 
 struct mavis_ctx_data {
     const char *mavistype;
     void (*mavisfn)(struct context *);
+    struct timeval start;
 };
 
 static void mavis_lookup_final(tac_session *, av_ctx *);
@@ -145,6 +147,7 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), const char *c
     session->mavis_data->mavisfn = f;
     session->mavis_data->mavistype = type;
     session->mavis_data->pw_ix = pw_ix;
+    session->mavis_data->start = io_now;
 
     avc = av_new((void *) mavis_callback, (void *) session);
     av_set(avc, AV_A_TYPE, AV_V_TYPE_TACPLUS);
@@ -210,6 +213,11 @@ static int parse_user_profile_multi(av_ctx * avc, struct sym *sym, tac_user * u,
 	    a++;
 	}
     return res;
+}
+
+static __inline__ long long timediff(struct timeval *start)
+{
+    return (io_now.tv_sec - start->tv_sec) * 1000 + (io_now.tv_usec - start->tv_usec) / 1000;
 }
 
 static void dump_av_pairs(tac_session * session, av_ctx * avc, char *what)
@@ -334,7 +342,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    session->user_is_session_specific = 1;
 
 		if (strcmp(result, AV_V_RESULT_OK)) {
-		    report(session, LOG_INFO, ~0, "result for user %s is %s", session->username, result);
+		    report(session, LOG_INFO, ~0, "result for user %s is %s [%lld ms]", session->username, result, timediff(&session->mavis_data->start));
 		    return;
 		}
 	    }
@@ -416,7 +424,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     }
     if (result)
-	report(session, LOG_INFO, ~0, "result for user %s is %s", session->username, result);
+	report(session, LOG_INFO, ~0, "result for user %s is %s [%lld ms]", session->username, result, timediff(&session->mavis_data->start));
 }
 
 static void mavis_ctx_lookup_final(struct context *, av_ctx *);
@@ -472,6 +480,7 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 
     ctx->mavis_data->mavisfn = f;
     ctx->mavis_data->mavistype = type;
+    ctx->mavis_data->start = io_now;
 
     av_ctx *avc = av_new((void *) mavis_ctx_callback, (void *) ctx);
     av_set(avc, AV_A_TYPE, AV_V_TYPE_TACPLUS);
@@ -529,5 +538,5 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx * avc)
 	dump_av_pairs(&session, avc, "host");
     }
     if (result)
-	report(&session, LOG_INFO, ~0, "result for host %s is %s", ctx->nas_address_ascii, result);
+	report(&session, LOG_INFO, ~0, "result for host %s is %s [%lld ms]", ctx->nas_address_ascii, result, timediff(&ctx->mavis_data->start));
 }
