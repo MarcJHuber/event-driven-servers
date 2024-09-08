@@ -728,6 +728,7 @@ struct tac_session {
     int cnt_a;
     enum token attr_dflt;
     time_t password_expiry;
+    u_long mavis_latency;
 };
 
 struct user_profile_cache {
@@ -819,6 +820,7 @@ struct context {
     u_int id;
     u_int bug_compatibility;
     u_int debug;
+    u_long mavis_latency;
 };
 
 struct logfile;

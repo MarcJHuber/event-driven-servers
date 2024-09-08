@@ -342,7 +342,8 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    session->user_is_session_specific = 1;
 
 		if (strcmp(result, AV_V_RESULT_OK)) {
-		    report(session, LOG_INFO, ~0, "result for user %s is %s [%lld ms]", session->username, result, timediff(&session->mavis_data->start));
+		    session->mavis_latency = timediff(&session->mavis_data->start);
+		    report(session, LOG_INFO, ~0, "result for user %s is %s [%lu ms]", session->username, result, session->mavis_latency);
 		    return;
 		}
 	    }
@@ -423,8 +424,10 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
     } else if (result && !strcmp(result, AV_V_RESULT_FAIL)) {
 	session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     }
-    if (result)
-	report(session, LOG_INFO, ~0, "result for user %s is %s [%lld ms]", session->username, result, timediff(&session->mavis_data->start));
+    if (result) {
+	session->mavis_latency = timediff(&session->mavis_data->start);
+	report(session, LOG_INFO, ~0, "result for user %s is %s [%lu ms]", session->username, result, session->mavis_latency);
+    }
 }
 
 static void mavis_ctx_lookup_final(struct context *, av_ctx *);
@@ -537,6 +540,8 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx * avc)
 	}
 	dump_av_pairs(&session, avc, "host");
     }
-    if (result)
-	report(&session, LOG_INFO, ~0, "result for host %s is %s [%lld ms]", ctx->nas_address_ascii, result, timediff(&ctx->mavis_data->start));
+    if (result) {
+	ctx->mavis_latency = timediff(&ctx->mavis_data->start);
+	report(&session, LOG_INFO, ~0, "result for host %s is %s [%lu ms]", ctx->nas_address_ascii, result, ctx->mavis_latency);
+    }
 }

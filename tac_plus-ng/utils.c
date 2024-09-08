@@ -882,6 +882,7 @@ struct log_item *parse_log_format(struct sym *sym)
 	    case S_tls_conn_sni:
 	    case S_nacname:
 	    case S_nasname:
+	    case S_mavis_latency:
 	    case S_PASSWORD:
 	    case S_RESPONSE:
 	    case S_PASSWORD_OLD:
@@ -971,7 +972,7 @@ static char *eval_log_format_user(tac_session * session, struct context *ctx __a
 }
 
 static char *eval_log_format_user_original(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
-					     __attribute__((unused)), size_t *len)
+					   __attribute__((unused)), size_t *len)
 {
     if (session) {
 	*len = session->username_orig_len;
@@ -1607,6 +1608,22 @@ static char *eval_log_format_context(tac_session * session, struct context *ctx 
     return NULL;
 }
 
+static char *eval_log_format_mavis_latency(tac_session * session, struct context *ctx, struct logfile *lf
+					   __attribute__((unused)), size_t *len __attribute__((unused)))
+{
+    if (session) {
+	char buf[128];
+	snprintf(buf, sizeof(buf), "%lu", session->mavis_latency);
+	return memlist_strdup(session->memlist, buf);
+    }
+    if (ctx) {
+	char buf[128];
+	snprintf(buf, sizeof(buf), "%lu", ctx->mavis_latency);
+	return mempool_strdup(ctx->pool, buf);
+    }
+    return NULL;
+}
+
 #if defined(WITH_TLS) || defined(WITH_SSL)
 static char *eval_log_format_tls_conn_version(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
 					      __attribute__((unused)), size_t *len)
@@ -1781,6 +1798,7 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_nacname] = &eval_log_format_nacname;
 	efun[S_devicedns] = &eval_log_format_nasname;
 	efun[S_nasname] = &eval_log_format_nasname;
+	efun[S_mavis_latency] = &eval_log_format_mavis_latency;
 	efun[S_custom_0] = &eval_log_format_custom_0;
 	efun[S_custom_1] = &eval_log_format_custom_1;
 	efun[S_custom_2] = &eval_log_format_custom_2;

@@ -510,3 +510,5 @@ parent-script			S_parent_script
 #
 target-realm			S_target_realm
 #
+mavis.latency			S_mavis_latency
+#
