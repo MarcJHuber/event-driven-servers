@@ -91,14 +91,14 @@ void report(tac_session * session, int priority, int level, char *fmt, ...)
 	    strftime(now, sizeof(now), "%H:%M:%S", tm);
 	    pid = pid ? pid : getpid();
 	    fprintf(stderr, "%ld: %s.%.3lu %x/%.8x: %s %s\n", (long int) pid,
-		    now, (u_long) io_now.tv_usec / 1000, (session && session->ctx) ? session->ctx->id : 0, session ? session->session_id : 0, nas_addr, msg);
+		    now, (u_long) io_now.tv_usec / 1000, (session && session->ctx) ? session->ctx->id : 0, session ? ntohl(session->session_id) : 0, nas_addr, msg);
 	    fflush(stderr);
 	    return;
 	}
 	if (common_data.syslog_dflt) {
 	    syslog(LOG_DEBUG, "%x/%.8x: %s %s%s",
 		   (session && session->ctx) ? session->ctx->id : 0,
-		   session ? session->session_id : 0, nas_addr, (priority & LOG_PRIMASK) == LOG_ERR ? "Error: " : "", msg);
+		   session ? ntohl(session->session_id) : 0, nas_addr, (priority & LOG_PRIMASK) == LOG_ERR ? "Error: " : "", msg);
 	    return;
 	}
     }

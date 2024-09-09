@@ -345,6 +345,7 @@ local				S_local
 single-connection		S_singleconnection
 may-close			S_mayclose
 session				S_session
+session.id			S_session_id
 gcore				S_gcore
 overload			S_overload
 close				S_close

@@ -717,6 +717,7 @@ syslog default = deny
    ${server.name}, ${hostname} [deprecated] Server host name
    ${server.address} Server address
    ${server.port} Server TCP port
+   ${session.id} Session id
    ${tls.conn.version} TLS Connection Version (requires LibTLS or
    OpenSSL)
    ${tls.conn.cipher} TLS Connection Cipher (requires LibTLS or
@@ -724,7 +725,7 @@ syslog default = deny
    ${tls.peer.cert.issuer} TLS Peer Certificate Issuer (requires
    LibTLS or OpenSSL)
    ${tls.peer.cert.subject} TLS Peer Certificate Subject (requires
-   LibTLS)
+   LibTLS or OpenSSL)
    ${tls.conn.cipher.strength} TLS Connection Cipher Strength
    (requires LibTLS or OpenSSL)
    ${tls.peer.cn} TLS peer certificate Common Name (requires
