@@ -1911,6 +1911,9 @@ user username { ...  }
 
    The following declarations are valid in user context only:
 
+     * alias = alternateUserName
+       Implement an alternate user name. This may be used multiple
+       times.
      * password login [ fallback ] = ( ( clear | crypt ) password
        | mavis | permit | deny )
        The login password authenticates shell log-ins to the
