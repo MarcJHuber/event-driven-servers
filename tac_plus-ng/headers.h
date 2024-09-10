@@ -257,8 +257,10 @@ struct tac_profile {
 
 struct ssh_key;
 struct ssh_key_id;
+struct tac_alias;
+typedef struct tac_alias tac_alias;
 
-/* A user or group definition. */
+/* A user definition. */
 typedef struct {
     TAC_NAME_ATTRIBUTES;
     char *msg;			/* message for this user */
@@ -273,6 +275,7 @@ typedef struct {
     tac_groups *groups;
     memlist_t *memlist;
     tac_realm *realm;
+    tac_alias *alias;
     u_int debug;		/* debug flags */
      TRISTATE(chalresp);
      TRISTATE(hushlogin);
@@ -281,6 +284,13 @@ typedef struct {
      BISTATE(rewritten_only);
     av_ctx *avc;
 } tac_user;
+
+struct tac_alias {
+    TAC_NAME_ATTRIBUTES;
+    u_int line;
+    tac_user *user;
+    tac_alias *next;
+};
 
 struct config {
     mode_t mask;		/* file mask */
@@ -312,6 +322,7 @@ struct realm {
     rb_tree_t *authorlog;
     rb_tree_t *connlog;
     rb_tree_t *usertable;
+    rb_tree_t *aliastable;
     rb_tree_t *profiletable;
     rb_tree_t *acltable;
     rb_tree_t *logdestinations;
@@ -920,8 +931,8 @@ void tac_write(struct context *, int);
 void cleanup_session(tac_session *);
 struct log_item *parse_log_format(struct sym *);
 
-void mavis_lookup(tac_session *, void (*)(tac_session *), const char * const, enum pw_ix);
-void mavis_ctx_lookup(struct context *, void (*)(struct context *), const char * const);
+void mavis_lookup(tac_session *, void (*)(tac_session *), const char *const, enum pw_ix);
+void mavis_ctx_lookup(struct context *, void (*)(struct context *), const char *const);
 tac_user *lookup_user(tac_session *);
 mavis_ctx *lookup_mcx(tac_realm *);
 tac_realm *lookup_realm(char *, tac_realm *);

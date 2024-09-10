@@ -573,20 +573,20 @@ void expire_dynamic_users(tac_realm * r)
 
 tac_user *lookup_user(tac_session * session)
 {
-    tac_user user;
-    tac_realm *r = session->ctx->realm;
-    user.name = session->username;
-    user.name_len = strlen(session->username);
     session->user = NULL;
     if (!session->username_len)
 	return NULL;
+    tac_user user = { .name = session->username, .name_len = session->username_len };
+    tac_realm *r = session->ctx->realm;
     while (r && !session->user) {
 	if (r->usertable) {
-	    rb_node_t *rbn = RB_search(r->usertable, &user);
-	    if (rbn) {
-		tac_user *res = RB_payload(rbn, tac_user *);
+	    tac_user *res = RB_lookup(r->usertable, &user);
+	    if (!res && r->aliastable) {
+		res = RB_lookup(r->aliastable, &user);
+	    }
+	    if (res) {
 		if (res->dynamic && (res->dynamic < io_now.tv_sec)) {
-		    RB_delete(r->usertable, rbn);
+		    RB_search_and_delete(r->usertable, res);
 		    session->user = NULL;
 		} else
 		    session->user = res;
@@ -1792,6 +1792,11 @@ static time_t parse_date(struct sym *sym, time_t offset)
 
 void free_user(tac_user * user)
 {
+    while (user->alias) {
+	tac_alias *next = user->alias->next;
+	RB_search_and_delete(user->realm->aliastable, user->alias);
+	user->alias = next;
+    }
     if (user->avc)
 	av_free(user->avc);
     memlist_destroy(user->memlist);
@@ -2842,6 +2847,31 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	    sym_get(sym);
 	    user->fallback_only = 1;
 	    continue;
+	case S_alias:
+	    if (user->dynamic)
+		parse_error(sym, "Aliases aren't available for dynamic users.");
+	    else {
+		tac_alias *a;
+		sym_get(sym);
+		parse(sym, S_equal);
+		if (r->aliastable) {
+		    tac_alias ta = { .name = sym->buf, .name_len = strlen(sym->buf) };
+		    a = RB_lookup(r->aliastable, &ta);
+		    if (a)
+			parse_error(sym, "Alias '%s' already assigned to user '%s'.", sym->buf, a->name);
+		} else
+		    r->aliastable = RB_tree_new(compare_name, NULL);
+		a = memlist_malloc(user->memlist, sizeof(tac_alias));
+		a->name = memlist_strdup(user->memlist, sym->buf);
+		a->name_len = strlen(sym->buf);
+		a->user = user;
+		a->line = sym->line;
+		a->next = user->alias;
+		user->alias = a;
+		RB_insert(r->aliastable, a);
+		sym_get(sym);
+		continue;
+	    }
 #ifdef WITH_PCRE2
 	case S_rewritten_only:
 	    sym_get(sym);
@@ -2878,7 +2908,7 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 #ifdef WITH_CRYPTO
 			       S_ssh_key,
 #endif
-			       S_unknown);
+			       S_alias, S_unknown);
 	}
     }
     sym_get(sym);
