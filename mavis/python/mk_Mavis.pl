@@ -67,7 +67,7 @@ class Mavis:
 			self.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "User not set.")
 			return False
 
-		if re.match('\\(|\\)|,|\\||&|=|\\*', self.av_pairs[AV_A_USER]):
+		if re.match(r'\\(|\\)|,|\\||&|=|\\*', self.av_pairs[AV_A_USER]):
 			self.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "Username not valid.")
 			return False
 
