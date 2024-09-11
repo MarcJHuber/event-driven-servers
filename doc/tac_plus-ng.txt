@@ -1818,7 +1818,8 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    parents
    device.address == != =~ !~ Device (host) address
    device.dnsname == != =~ !~ Device (host) DNS PTR record
-   device.tag == != =~ !~ Device (host) tag
+   device.tag == != =~ !~ Device (host) tag. Comparing this to
+   user tags will work.
    dn == != =~ !~ String or REGEX MAVIS dn attribute
    identity-source == != =~ !~ String or REGEX
    authenticating/authorizing MAVIS module
@@ -1859,6 +1860,8 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    tls.psk.identity == != =~ !~ String or REGEX TLS specific data
    type == != =~ !~ String or REGEX authen, author, acct
    user == != =~ !~ String or REGEX session user
+   user.tag == != =~ !~ User tag. Comparing this to devices tags
+   will work.
 
    Railroad diagrams for conditions:
 
