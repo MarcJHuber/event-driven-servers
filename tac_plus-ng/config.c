@@ -131,9 +131,10 @@ static tac_group *tac_group_new(struct sym *, char *, tac_realm *);	/* add name 
 static int tac_group_add(tac_group *, tac_groups *, memlist_t *);	/* add id to groups struct */
 static int tac_group_check(tac_group *, tac_groups *, tac_group *);	/* check for id in groups struct */
 static int tac_group_regex_check(tac_session *, struct mavis_cond *, tac_groups *, tac_group *);
+static int tac_tag_list_check(tac_session *, tac_host *, tac_user *);
 
-static int tac_tag_add(tac_host *, tac_tag *, tac_tags *);
-static int tac_tag_check(tac_tag *, tac_tags *);
+static int tac_tag_add(memlist_t *, tac_tag *, tac_tags *);
+static int tac_tag_check(tac_session *, tac_tag *, tac_tags *);
 static int tac_tag_regex_check(tac_session *, struct mavis_cond *, tac_tags *);
 static tac_tag *tac_tag_parse(struct sym *);
 
@@ -576,7 +577,7 @@ tac_user *lookup_user(tac_session * session)
     session->user = NULL;
     if (!session->username_len)
 	return NULL;
-    tac_user user = { .name = session->username, .name_len = session->username_len };
+    tac_user user = {.name = session->username,.name_len = session->username_len };
     tac_realm *r = session->ctx->realm;
     while (r && !session->user) {
 	if (r->usertable) {
@@ -2855,7 +2856,7 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 		sym_get(sym);
 		parse(sym, S_equal);
 		if (r->aliastable) {
-		    tac_alias ta = { .name = sym->buf, .name_len = strlen(sym->buf) };
+		    tac_alias ta = {.name = sym->buf,.name_len = strlen(sym->buf) };
 		    a = RB_lookup(r->aliastable, &ta);
 		    if (a)
 			parse_error(sym, "Alias '%s' already assigned to user '%s'.", sym->buf, a->name);
@@ -2870,6 +2871,20 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 		user->alias = a;
 		RB_insert(r->aliastable, a);
 		sym_get(sym);
+		continue;
+	    }
+	case S_tag:
+	case S_usertag:
+	    {
+		if (!tags_by_name)
+		    tags_by_name = RB_tree_new(compare_name, NULL);
+		if (!user->tags)
+		    user->tags = memlist_malloc(user->memlist, sizeof(tac_tags));
+		sym_get(sym);
+		parse(sym, S_equal);
+		do
+		    tac_tag_add(user->memlist, tac_tag_parse(sym), user->tags);
+		while (parse_comma(sym));
 		continue;
 	    }
 #ifdef WITH_PCRE2
@@ -2908,7 +2923,7 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 #ifdef WITH_CRYPTO
 			       S_ssh_key,
 #endif
-			       S_alias, S_unknown);
+			       S_alias, S_usertag, S_tag, S_unknown);
 	}
     }
     sym_get(sym);
@@ -3439,7 +3454,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    sym_get(sym);
 	    parse(sym, S_equal);
 	    do
-		tac_tag_add(host, tac_tag_parse(sym), host->tags);
+		tac_tag_add(host->memlist, tac_tag_parse(sym), host->tags);
 	    while (parse_comma(sym));
 	    return;
 	}
@@ -3912,6 +3927,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
     case S_type:
     case S_user:
     case S_user_original:
+    case S_usertag:
     case S_member:
     case S_group:
     case S_dn:
@@ -4079,11 +4095,18 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 		sym_get(sym);
 		return p ? p : m;
 	    }
-	    if (m->u.s.token == S_devicetag) {
-		tac_tag *tag = tac_tag_parse(sym);
-		m->u.s.rhs = tag;
-		m->u.s.rhs_txt = tag->name;
-		m->type = S_devicetag;
+	    if (m->u.s.token == S_devicetag || m->u.s.token == S_usertag) {
+		m->type = m->u.s.token;
+		if (sym->code == S_devicetag || sym->code == S_usertag) {
+		    m->u.s.rhs_token = sym->code;
+		    m->u.s.rhs_txt = codestring[sym->code];
+		    sym_get(sym);
+		} else {
+		    tac_tag *tag = tac_tag_parse(sym);
+		    m->u.s.rhs = tag;
+		    m->u.s.rhs_txt = tag->name;
+		    m->u.s.rhs_token = S_string;
+		}
 		return p ? p : m;
 	    }
 	    m->u.s.rhs = strdup(sym->buf);
@@ -4146,7 +4169,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, tac_realm * r
 			   S_client, S_clientname, S_clientdns, S_clientaddress,
 			   S_password, S_service, S_protocol, S_authen_action,
 			   S_authen_type, S_authen_service, S_authen_method, S_privlvl, S_vrf, S_dn, S_type, S_identity_source,
-			   S_server_name, S_server_address, S_server_port,
+			   S_server_name, S_server_address, S_server_port, S_usertag,
 #if defined(WITH_TLS) || defined(WITH_SSL)
 			   S_tls_conn_version, S_tls_conn_cipher,
 			   S_tls_peer_cert_issuer, S_tls_peer_cert_subject, S_tls_conn_cipher_strength, S_tls_peer_cn, S_tls_psk_identity,
@@ -4271,12 +4294,28 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
     case S_devicetag:
 	{
 	    tac_host *h = session->ctx->host;
-	    while (!res && h) {
-		res = tac_tag_check(m->u.s.rhs, h->tags);
-		h = h->parent;
+	    if (m->u.s.rhs_token == S_string) {
+		while (!res && h) {
+		    res = tac_tag_check(session, m->u.s.rhs, h->tags);
+		    h = h->parent;
+		}
+	    } else if (m->u.s.rhs_token == S_devicetag)
+		res = -1;
+	    else if (m->u.s.rhs_token == S_usertag && session && session->user) {
+		res = tac_tag_list_check(session, h, session->user);
 	    }
 	    return tac_script_cond_eval_res(session, m, res);
 	}
+    case S_usertag:
+	if (session && session->user) {
+	    if (m->u.s.rhs_token == S_string)
+		res = tac_tag_check(session, m->u.s.rhs, session->user->tags);
+	    else if (m->u.s.rhs_token == S_usertag)
+		res = -1;
+	    else if (m->u.s.rhs_token == S_devicetag)
+		res = tac_tag_list_check(session, session->ctx->host, session->user);
+	}
+	return tac_script_cond_eval_res(session, m, res);
     case S_acl:
 	res = S_permit == eval_tac_acl(session, (struct tac_acl *) m->u.s.rhs);
 	return tac_script_cond_eval_res(session, m, res);
@@ -4825,11 +4864,11 @@ static int tac_group_regex_check(tac_session * session, struct mavis_cond *m, ta
 }
 
 /* add id to tags struct */
-static int tac_tag_add(tac_host * host, tac_tag * add, tac_tags * g)
+static int tac_tag_add(memlist_t * memlist, tac_tag * add, tac_tags * g)
 {
     if (g->count == g->allocated) {
 	g->allocated += 32;
-	g->tags = (tac_tag **) memlist_realloc(host->memlist, g->tags, g->allocated * sizeof(tac_tag));
+	g->tags = (tac_tag **) memlist_realloc(memlist, g->tags, g->allocated * sizeof(tac_tag));
     }
     g->tags[g->count] = add;
     g->count++;
@@ -4854,14 +4893,24 @@ static tac_tag *tac_tag_parse(struct sym *sym)
     return tag;
 }
 
-static int tac_tag_check(tac_tag * tag, tac_tags * tags)
+static int tac_tag_check(tac_session * session, tac_tag * tag, tac_tags * tags)
 {
-    if (tags) {
-	u_int i;
-	for (i = 0; i < tags->count; i++)
-	    if (tag == tags->tags[i])
+    if (tags)
+	for (u_int i = 0; i < tags->count; i++)
+	    if (tag == tags->tags[i]) {
+		report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " tag %s matched", tag->name);
 		return -1;
-    }
+	    }
+    return 0;
+}
+
+static int tac_tag_list_check(tac_session * session, tac_host * h, tac_user * u)
+{
+    for (; h; h = h->parent)
+	if (h->tags && u->tags)
+	    for (u_int i = 0; i < u->tags->count; i++)
+		if (tac_tag_check(session, u->tags->tags[i], h->tags))
+		    return -1;
     return 0;
 }
 
@@ -4871,8 +4920,10 @@ static int tac_tag_regex_check(tac_session * session, struct mavis_cond *m, tac_
 	u_int i;
 	for (i = 0; i < tags->count; i++) {
 	    tac_tag *a = tags->tags[i];
-	    if (tac_mavis_cond_compare(session, m, a->name, a->name_len))
+	    if (tac_mavis_cond_compare(session, m, a->name, a->name_len)) {
+		report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " tag %s matched", a->name);
 		return -1;
+	    }
 	}
     }
     return 0;

@@ -455,6 +455,7 @@ struct mavis_cond_single {
     enum token token;
     void *lhs;
     char *lhs_txt;
+    enum token rhs_token;
     void *rhs;
     char *rhs_txt;
 };

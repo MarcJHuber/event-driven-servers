@@ -166,6 +166,11 @@ enum user_message_enum { UM_PASSWORD = 0, UM_RESPONSE, UM_PASSWORD_OLD, UM_PASSW
 struct memlist;
 typedef struct memlist memlist_t;
 
+struct tac_tags;
+struct tac_tag;
+typedef struct tac_tags tac_tags;
+typedef struct tac_tag tac_tag;
+
 struct tac_host {
     TAC_NAME_ATTRIBUTES;
     u_int line;			/* configuration file line number */
@@ -193,7 +198,7 @@ struct tac_host {
     struct log_item *reject_banner;
     struct log_item *authfail_banner;
     struct pwdat **enable;
-    struct tac_tags *tags;
+    tac_tags *tags;
     int tcp_timeout;		/* tcp connection idle timeout */
     int session_timeout;	/* session idle timeout */
     int context_timeout;	/* shell context idle timeout */
@@ -236,11 +241,6 @@ struct tac_group;
 typedef struct tac_groups tac_groups;
 typedef struct tac_group tac_group;
 
-struct tac_tags;
-struct tac_tag;
-typedef struct tac_tags tac_tags;
-typedef struct tac_tag tac_tag;
-
 struct tac_profile {
     TAC_NAME_ATTRIBUTES;
     struct tac_profile *parent;
@@ -273,6 +273,7 @@ typedef struct {
     struct ssh_key *ssh_key;
     struct ssh_key_id *ssh_key_id;
     tac_groups *groups;
+    tac_tags *tags;
     memlist_t *memlist;
     tac_realm *realm;
     tac_alias *alias;

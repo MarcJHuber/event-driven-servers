@@ -299,6 +299,7 @@ use-mmap			S_usemmap
 use-sendfile			S_usesendfile
 user				S_user
 user.original			S_user_original
+user.tag			S_usertag
 userid				S_userid
 users				S_users
 valid				S_valid
