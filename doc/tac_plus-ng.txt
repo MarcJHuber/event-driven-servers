@@ -1807,8 +1807,9 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    mschap, mschapv2, sshkey, sshcer
    client == != =~ !~ Net object name or IP address or string. Net
    incl. parents
-   client.name == != Client remote address
-   client.address == != =~ !~ Client remote address
+   client.name == != Net object name Client remote address
+   client.address == != =~ !~ String or REGEX Client remote
+   address
    client.dnsname == != =~ !~ Client DNS PTR record
    cmd == != =~ !~ String or REGEX shell command line
    context == != =~ !~ String or REGEX current exec context
@@ -1818,8 +1819,8 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    parents
    device.address == != =~ !~ Device (host) address
    device.dnsname == != =~ !~ Device (host) DNS PTR record
-   device.tag == != =~ !~ Device (host) tag. Comparing this to
-   user tags will work.
+   device.tag == != =~ !~ tagName
+   device.tag == != user.tag
    dn == != =~ !~ String or REGEX MAVIS dn attribute
    identity-source == != =~ !~ String or REGEX
    authenticating/authorizing MAVIS module
@@ -1860,8 +1861,8 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    tls.psk.identity == != =~ !~ String or REGEX TLS specific data
    type == != =~ !~ String or REGEX authen, author, acct
    user == != =~ !~ String or REGEX session user
-   user.tag == != =~ !~ User tag. Comparing this to devices tags
-   will work.
+   user.tag == != =~ !~ tagName
+   user.tag == != device.tag
 
    Railroad diagrams for conditions:
 
