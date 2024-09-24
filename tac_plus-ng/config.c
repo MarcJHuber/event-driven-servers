@@ -435,16 +435,8 @@ static void parse_inline(tac_realm * r, char *format, char *file, int line)
     parse_tac_acl(&sym, r);
 }
 
-static tac_host *new_host(struct sym *sym, char *name, tac_host * parent, tac_realm * r, int top)
+void init_host(tac_host * host, tac_host * parent, tac_realm * r, int top)
 {
-    tac_host *host = calloc(1, sizeof(tac_host));
-    if (sym) {
-	host->line = sym->line;
-	host->name = strdup(sym->buf);
-	sym_get(sym);
-    } else
-	host->name = name;
-    host->name_len = strlen(host->name);
     host->parent = parent;
     host->realm = r;
     // short-hand syntax may help not to forget some variables
@@ -489,6 +481,19 @@ information:\n\
         Date:   %Y-%m-%d %H:%M:%S %z\n\
 \"";
     }
+}
+
+static tac_host *new_host(struct sym *sym, char *name, tac_host * parent, tac_realm * r, int top)
+{
+    tac_host *host = calloc(1, sizeof(tac_host));
+    if (sym) {
+	host->line = sym->line;
+	host->name = strdup(sym->buf);
+	sym_get(sym);
+    } else
+	host->name = name;
+    host->name_len = strlen(host->name);
+    init_host(host, parent, r, top);
     return host;
 }
 

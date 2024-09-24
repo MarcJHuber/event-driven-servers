@@ -519,6 +519,7 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx * avc)
 	    struct memlist *memlist = memlist_create();
 	    tac_host *h = memlist_malloc(memlist, sizeof(tac_host));
 	    h->memlist = memlist;
+	    init_host(h, ctx->host, ctx->realm, 0);
 
 	    struct sym sym = { 0 };
 	    sym.filename = ctx->nas_address_ascii;
@@ -529,7 +530,6 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx * avc)
 	    if (parse_host_profile(&sym, ctx->realm, h))
 		ctx->mavis_result = S_deny;
 	    else {
-		h->parent = ctx->host;
 		if (!h->name) {
 		    h->name = ctx->host->name;
 		    h->name_len = ctx->host->name_len;
