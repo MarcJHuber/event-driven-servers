@@ -1350,7 +1350,7 @@ static int c7decode(char *in)
 static struct pwdat *parse_pw(struct sym *, rb_tree_t *, int);
 static void parse_acl_cond(struct sym *, tac_user *, struct tac_acl **, int *);
 
-static struct upwdat *new_upwdat(rb_tree_t *pool, tac_realm * r)
+static struct upwdat *new_upwdat(rb_tree_t * pool, tac_realm * r)
 {
     struct upwdat *pp = mempool_malloc(pool, sizeof(struct upwdat));
     int i;
@@ -5021,9 +5021,9 @@ static void tac_script_cond_optimize(tac_user * u, struct mavis_cond **m)
 static struct mavis_cond *tac_script_cond_parse(tac_user * u, struct sym *sym)
 {
     struct sym *cond_sym = NULL;
-    if (sym_normalize_cond_start(sym, &cond_sym)) {
+    if (sym_normalize_cond_start(sym, NULL, &cond_sym)) {
 	struct mavis_cond *m = tac_script_cond_parse_r(u, cond_sym);
-	sym_normalize_cond_end(&cond_sym);
+	sym_normalize_cond_end(&cond_sym, NULL);
 	tac_script_cond_optimize(u, &m);
 	return m;
     }
@@ -5211,17 +5211,17 @@ static struct mavis_action *tac_script_parse_r(tac_user * u, struct sym *sym, in
     case S_return:
     case S_permit:
     case S_deny:
-	m = mavis_action_new(sym);
+	m = mavis_action_new(sym, NULL);
 	break;
     case S_context:
     case S_message:
-	m = mavis_action_new(sym);
+	m = mavis_action_new(sym, NULL);
 	parse(sym, S_equal);
 	m->b.v = mempool_strdup(pool, sym->buf);
 	tac_sym_get(sym);
 	break;
     case S_if:
-	m = mavis_action_new(sym);
+	m = mavis_action_new(sym, NULL);
 	m->a.c = tac_script_cond_parse(u, sym);
 	m->b.a = tac_script_parse_r(u, sym, 0);
 	if (sym->code == S_else) {

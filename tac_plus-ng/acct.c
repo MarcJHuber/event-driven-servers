@@ -112,7 +112,7 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
 #undef S
     }
 
-    session->username = memlist_strndup(session->memlist, p, acct->user_len);
+    session->username = mem_strndup(session->mem, p, acct->user_len);
     session->username_len = acct->user_len;
 
     // script-based user rewriting, current
@@ -123,10 +123,10 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
     }
 
     p += acct->user_len;
-    session->nas_port = memlist_strndup(session->memlist, p, acct->port_len);
+    session->nas_port = mem_strndup(session->mem, p, acct->port_len);
     session->nas_port_len = acct->port_len;
     p += acct->port_len;
-    session->nac_address_ascii = memlist_strndup(session->memlist, p, acct->rem_addr_len);
+    session->nac_address_ascii = mem_strndup(session->mem, p, acct->rem_addr_len);
     session->nac_address_ascii_len = acct->rem_addr_len;
     p += acct->rem_addr_len;
     session->argp = p;

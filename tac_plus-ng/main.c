@@ -98,11 +98,11 @@ static u_int context_id = 0;
 
 struct context *new_context(struct io_context *io, tac_realm * r)
 {
-    struct context *c = calloc(1, sizeof(struct context));
+    mem_t *mem = mem_create(M_POOL);
+    struct context *c = mem_alloc(mem, sizeof(struct context));
     c->io = io;
-    c->pool = mempool_create();
+    c->mem = mem;
     c->hint = "";
-    RB_insert(c->pool, c);
     if (r) {
 	c->sessions = RB_tree_new(compare_session, NULL);
 	c->id = context_id++;
@@ -358,9 +358,7 @@ void cleanup(struct context *ctx, int cur)
 	    mavis_cancel(mcx, ctx);
     }
 
-    if (ctx->host && ctx->host->memlist)
-	memlist_destroy(ctx->host->memlist);
-    mempool_destroy(ctx->pool);
+    mem_destroy(ctx->mem);
 
     if (ctx_spawnd) {
 	struct scm_data sd;
@@ -685,7 +683,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	ctx->tls_conn_version = tls_conn_version(ctx->tls);
 	ctx->tls_conn_cipher = tls_conn_cipher(ctx->tls);
 	snprintf(buf, sizeof(buf), "%d", tls_conn_cipher_strength(ctx->tls));
-	ctx->tls_conn_cipher_strength = mempool_strdup(ctx->pool, buf);
+	ctx->tls_conn_cipher_strength = mem_strdup(ctx->mem, buf);
 	ctx->tls_peer_cert_subject = tls_peer_cert_subject(ctx->tls);
 	notafter = tls_peer_cert_notafter(ctx->tls);
 	notbefore = tls_peer_cert_notbefore(ctx->tls);
@@ -694,7 +692,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	ctx->tls_conn_version = SSL_get_version(ctx->tls);
 	ctx->tls_conn_cipher = SSL_get_cipher(ctx->tls);
 	snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
-	ctx->tls_conn_cipher_strength = mempool_strdup(ctx->pool, buf);
+	ctx->tls_conn_cipher_strength = mem_strdup(ctx->mem, buf);
 
 	{
 	    char buf[512];
@@ -705,12 +703,12 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    if ((x = X509_get_subject_name(cert))) {
 		char *t = X509_NAME_oneline(x, buf, sizeof(buf));
 		if (t)
-		    ctx->tls_peer_cert_subject = mempool_strdup(ctx->pool, t);
+		    ctx->tls_peer_cert_subject = mem_strdup(ctx->mem, t);
 	    }
 	    if ((x = X509_get_issuer_name(cert))) {
 		char *t = X509_NAME_oneline(x, buf, sizeof(buf));
 		if (t)
-		    ctx->tls_peer_cert_issuer = mempool_strdup(ctx->pool, t);
+		    ctx->tls_peer_cert_issuer = mem_strdup(ctx->mem, t);
 	    }
 
 	    if (notafter_asn1 && notbefore_asn1) {
@@ -768,7 +766,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 		    while (*e && !isspace(*e))
 			e++;
 		    *e = 0;
-		    ctx->tls_peer_cn = mempool_strdup(ctx->pool, cn);
+		    ctx->tls_peer_cn = mem_strdup(ctx->mem, cn);
 		    ctx->tls_peer_cn_len = strlen(cn);
 		    break;
 		}
@@ -1106,11 +1104,11 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	    ctx->hint = "host unknown";
     }
 
-    ctx->peer_addr_ascii = mempool_strdup(ctx->pool, su_ntop(nad_address, afrom, sizeof(afrom)) ? afrom : "<unknown>");
+    ctx->peer_addr_ascii = mem_strdup(ctx->mem, su_ntop(nad_address, afrom, sizeof(afrom)) ? afrom : "<unknown>");
     ctx->peer_addr_ascii_len = strlen(ctx->peer_addr_ascii);
     ctx->host = h;
     if (peer) {
-	ctx->proxy_addr_ascii = mempool_strdup(ctx->pool, peer);
+	ctx->proxy_addr_ascii = mem_strdup(ctx->mem, peer);
 	ctx->proxy_addr_ascii_len = strlen(peer);
     }
     {
@@ -1120,10 +1118,10 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	    char buf[256];
 	    su_convert(&me, AF_INET);
 	    snprintf(buf, 10, "%u", su_get_port(&me));
-	    ctx->server_port_ascii = mempool_strdup(ctx->pool, buf);
+	    ctx->server_port_ascii = mem_strdup(ctx->mem, buf);
 	    ctx->server_port_ascii_len = strlen(buf);
 	    if (su_ntop(&me, buf, 256)) {
-		ctx->server_addr_ascii = mempool_strdup(ctx->pool, buf);
+		ctx->server_addr_ascii = mem_strdup(ctx->mem, buf);
 		ctx->server_addr_ascii_len = strlen(buf);
 	    }
 	}
@@ -1131,7 +1129,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
     ctx->nas_address = addr;
     if (sd_ext->vrf_len)
-	ctx->vrf = mempool_strndup(ctx->pool, (u_char *) sd_ext->vrf, sd_ext->vrf_len);
+	ctx->vrf = mem_strndup(ctx->mem, (u_char *) sd_ext->vrf, sd_ext->vrf_len);
     ctx->vrf_len = sd_ext->vrf_len;
     ctx->nas_address_ascii = ctx->peer_addr_ascii;
     ctx->nas_address_ascii_len = strlen(ctx->peer_addr_ascii);

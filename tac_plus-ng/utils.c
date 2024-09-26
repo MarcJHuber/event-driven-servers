@@ -42,83 +42,6 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-void *mempool_malloc(rb_tree_t * pool, size_t size)
-{
-    void *p = calloc(1, size ? size : 1);
-
-    if (p) {
-	if (pool)
-	    RB_insert(pool, p);
-	return p;
-    }
-    report(NULL, LOG_ERR, ~0, "malloc %d failure", (int) size);
-    tac_exit(EX_OSERR);
-}
-
-void mempool_free(rb_tree_t * pool, void *ptr)
-{
-    void **m = ptr;
-
-    if (*m) {
-	if (pool) {
-	    rb_node_t *rbn = RB_search(pool, *m);
-	    if (rbn) {
-		RB_delete(pool, rbn);
-		*m = NULL;
-	    } else
-		report(NULL, LOG_DEBUG, ~0, "potential double-free attempt on %p", *m);
-	} else
-	    free(*m);
-    }
-}
-
-static int pool_cmp(const void *a, const void *b)
-{
-    return (a < b) ? -1 : ((a == b) ? 0 : +1);
-}
-
-void mempool_destroy(rb_tree_t * pool)
-{
-    if (pool)
-	RB_tree_delete(pool);
-}
-
-rb_tree_t *mempool_create(void)
-{
-    return RB_tree_new(pool_cmp, free);
-}
-
-char *mempool_strdup(rb_tree_t * pool, char *p)
-{
-    char *n = strdup(p);
-
-    if (n) {
-	if (pool)
-	    RB_insert(pool, n);
-	return n;
-    }
-    report(NULL, LOG_ERR, ~0, "strdup allocation failure");
-    tac_exit(EX_OSERR);
-}
-
-char *mempool_strndup(rb_tree_t * pool, u_char * p, int len)
-{
-    char *string;
-    int new_len = len;
-
-    /* 
-     * Add space for a null terminator if needed. Also, no telling
-     * what various mallocs will do when asked for a length of zero.
-     */
-    if (!len || p[len - 1])
-	new_len++;
-
-    string = mempool_malloc(pool, new_len);
-
-    memcpy(string, p, len);
-    return string;
-}
-
 int tac_exit(int status)
 {
     report(NULL, LOG_DEBUG, ~0, "exit status=%d", status);
@@ -514,7 +437,7 @@ int logs_flushed(tac_realm * r)
     return -1;
 }
 
-struct log_item *parse_log_format(struct sym *);
+struct log_item *parse_log_format(struct sym *, mem_t *);
 
 struct log_item *parse_log_format_inline(char *format, char *file, int line)
 {
@@ -524,7 +447,7 @@ struct log_item *parse_log_format_inline(char *format, char *file, int line)
     sym.in = sym.tin = format;
     sym.len = sym.tlen = strlen(sym.in);
     sym_init(&sym);
-    return parse_log_format(&sym);
+    return parse_log_format(&sym, NULL);
 }
 
 void parse_log(struct sym *sym, tac_realm * r)
@@ -562,25 +485,25 @@ void parse_log(struct sym *sym, tac_realm * r)
 		sym_get(sym);
 		parse(sym, S_format);
 		parse(sym, S_equal);
-		lf->access = parse_log_format(sym);
+		lf->access = parse_log_format(sym, NULL);
 		continue;
 	    case S_authorization:
 		sym_get(sym);
 		parse(sym, S_format);
 		parse(sym, S_equal);
-		lf->author = parse_log_format(sym);
+		lf->author = parse_log_format(sym, NULL);
 		continue;
 	    case S_accounting:
 		sym_get(sym);
 		parse(sym, S_format);
 		parse(sym, S_equal);
-		lf->acct = parse_log_format(sym);
+		lf->acct = parse_log_format(sym, NULL);
 		continue;
 	    case S_connection:
 		sym_get(sym);
 		parse(sym, S_format);
 		parse(sym, S_equal);
-		lf->conn = parse_log_format(sym);
+		lf->conn = parse_log_format(sym, NULL);
 		continue;
 	    case S_destination:
 		sym_get(sym);
@@ -773,14 +696,14 @@ void log_add(struct sym *sym, rb_tree_t ** rbtp, char *s, tac_realm * r)
     parse_error(sym, "log destination '%s' not found", lf->name);
 }
 
-struct log_item *parse_log_format(struct sym *sym)
+struct log_item *parse_log_format(struct sym *sym, mem_t * mem)
 {
     struct log_item *start = NULL;
     struct log_item **li = &start;
     char *n;
-    char *in = strdup(sym->buf);
+    char *in = mem_strdup(mem, sym->buf);
     while (*in) {
-	*li = calloc(1, sizeof(struct log_item));
+	*li = mem_alloc(mem, sizeof(struct log_item));
 	if (!start)
 	    start = *li;
 	if ((n = strstr(in, "${"))) {
@@ -790,7 +713,7 @@ struct log_item *parse_log_format(struct sym *sym)
 		(*li)->token = S_string;
 		(*li)->text = in;
 		li = &(*li)->next;
-		*li = calloc(1, sizeof(struct log_item));
+		*li = mem_alloc(mem, sizeof(struct log_item));
 	    }
 	    n += 2;
 	    in = n;
@@ -910,14 +833,14 @@ struct log_item *parse_log_format(struct sym *sym)
 		break;
 	    case S_config_file:
 		(*li)->token = S_string;
-		(*li)->text = strdup(sym->filename);
+		(*li)->text = mem_strdup(mem, sym->filename);
 		break;
 	    case S_config_line:
 		{
 		    char buf[20];
 		    snprintf(buf, sizeof(buf), "%d", sym->line);
 		    (*li)->token = S_string;
-		    (*li)->text = strdup(buf);
+		    (*li)->text = mem_strdup(mem, buf);
 		}
 		break;
 	    default:
@@ -1615,23 +1538,23 @@ static char *eval_log_format_mavis_latency(tac_session * session, struct context
     if (session) {
 	char buf[128];
 	snprintf(buf, sizeof(buf), "%lu", session->mavis_latency);
-	return memlist_strdup(session->memlist, buf);
+	return mem_strdup(session->mem, buf);
     }
     if (ctx) {
 	char buf[128];
 	snprintf(buf, sizeof(buf), "%lu", ctx->mavis_latency);
-	return mempool_strdup(ctx->pool, buf);
+	return mem_strdup(ctx->mem, buf);
     }
     return NULL;
 }
 
 static char *eval_log_format_session_id(tac_session * session, struct context *ctx __attribute__((unused)), struct logfile *lf
-					   __attribute__((unused)), size_t *len __attribute__((unused)))
+					__attribute__((unused)), size_t *len __attribute__((unused)))
 {
     if (session) {
 	char buf[128];
 	snprintf(buf, sizeof(buf), "%.8x", ntohl(session->session_id));
-	return memlist_strdup(session->memlist, buf);
+	return mem_strdup(session->mem, buf);
     }
     return NULL;
 }
@@ -1927,8 +1850,8 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
     if (outlen)
 	*outlen = total_len;
     if (session)
-	return memlist_strdup(session->memlist, buf);
-    return mempool_strdup(ctx->pool, buf);
+	return mem_strdup(session->mem, buf);
+    return mem_strdup(ctx->mem, buf);
 }
 
 void log_exec(tac_session * session, struct context *ctx, enum token token, time_t sec)
@@ -1987,140 +1910,4 @@ void log_exec(tac_session * session, struct context *ctx, enum token token, time
 	}
 	r = r->parent;
     }
-}
-
-struct memlist;
-typedef struct memlist memlist_t;
-
-struct memlist {
-    u_int count;
-    memlist_t *next;
-#define MEMLIST_ARR_SIZE 128
-    void *arr[MEMLIST_ARR_SIZE];
-};
-
-struct memlist *memlist_create(void)
-{
-    return calloc(1, sizeof(memlist_t));
-}
-
-void **memlist_add(memlist_t * list, void *p)
-{
-    void **res = NULL;
-    if (p && list) {
-	while (list->count == MEMLIST_ARR_SIZE && list->next)
-	    list = list->next;
-	if (list->count == MEMLIST_ARR_SIZE) {
-	    list->next = memlist_create();
-	    list = list->next;
-	}
-	list->arr[list->count] = p;
-	res = &list->arr[list->count];
-	list->count++;
-    }
-    return res;
-}
-
-void *memlist_malloc(memlist_t * list, size_t size)
-{
-    void *p = calloc(1, size ? size : 1);
-
-    if (p) {
-	memlist_add(list, p);
-	return p;
-    }
-    report(NULL, LOG_ERR, ~0, "malloc %d failure", (int) size);
-    tac_exit(EX_OSERR);
-}
-
-void *memlist_realloc(memlist_t * list, void *p, size_t size)
-{
-    if (p) {
-	u_int i = 0;
-	while (list && i < list->count) {
-	    if (list->arr[i] == p)
-		break;
-	    i++;
-	    if (i == MEMLIST_ARR_SIZE) {
-		i = 0;
-		list = list->next;
-	    }
-	}
-	p = realloc(p, size);
-	if (list && i < list->count)
-	    list->arr[i] = p;
-	else {
-	    report(NULL, LOG_ERR, ~0, "realloc %d failure", (int) size);
-	    tac_exit(EX_OSERR);
-	}
-	return p;
-    }
-    return memlist_malloc(list, size);
-}
-
-void memlist_destroy(memlist_t * list)
-{
-    while (list) {
-	u_int i;
-	memlist_t *next = NULL;
-	for (i = 0; i < list->count; i++)
-	    free(list->arr[i]);
-	next = list->next;
-	free(list);
-	list = next;
-    }
-}
-
-char *memlist_strdup(memlist_t * list, char *s)
-{
-    char *p = strdup(s);
-
-    if (p) {
-	memlist_add(list, p);
-	return p;
-    }
-    report(NULL, LOG_ERR, ~0, "strdup failure");
-    tac_exit(EX_OSERR);
-}
-
-char *memlist_strndup(memlist_t * list, u_char * s, int len)
-{
-    char *p = strndup((char *) s, len);
-
-    if (p) {
-	memlist_add(list, p);
-	return p;
-    }
-    report(NULL, LOG_ERR, ~0, "strndup failure");
-    tac_exit(EX_OSERR);
-}
-
-char *memlist_attach(memlist_t * list, void *p)
-{
-    if (p)
-	memlist_add(list, p);
-    return p;
-}
-
-void *mempool_detach(rb_tree_t * pool, void *ptr)
-{
-    if (pool && ptr) {
-	rb_node_t *rbn = RB_search(pool, ptr);
-	if (rbn) {
-	    RB_delete_but_keep_data(pool, rbn);
-	    return ptr;
-	}
-    }
-    return NULL;
-}
-
-char *memlist_copy(memlist_t * list, void *s, size_t len)
-{
-    char *p = NULL;
-    if (s) {
-	p = memlist_malloc(list, len + 1);
-	memcpy(p, s, len);
-	p[len] = 0;
-    }
-    return p;
 }

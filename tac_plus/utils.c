@@ -48,49 +48,9 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-void *mempool_malloc(rb_tree_t * pool, size_t size)
-{
-    void *p = calloc(1, size ? size : 1);
-
-    if (p) {
-	if (pool)
-	    RB_insert(pool, p);
-	return p;
-    }
-    report(NULL, LOG_ERR, ~0, "malloc %d failure", (int) size);
-    tac_exit(EX_OSERR);
-}
-
-void mempool_free(rb_tree_t * pool, void *ptr)
-{
-    void **m = ptr;
-
-    if (*m) {
-	if (pool) {
-	    rb_node_t *rbn = RB_search(pool, *m);
-	    if (rbn) {
-		RB_delete(pool, rbn);
-		*m = NULL;
-	    } else
-		report(NULL, LOG_DEBUG, ~0, "potential double-free attempt on %p", *m);
-	} else
-	    free(*m);
-    }
-}
-
 static int pool_cmp(const void *a, const void *b)
 {
     return (a < b) ? -1 : ((a == b) ? 0 : +1);
-}
-
-void mempool_destroy(rb_tree_t * pool)
-{
-    RB_tree_delete(pool);
-}
-
-rb_tree_t *mempool_create(void)
-{
-    return RB_tree_new(pool_cmp, free);
 }
 
 #ifdef WITH_PCRE2
@@ -103,37 +63,6 @@ rb_tree_t *tac_pcrepool_create(void)
 rb_tree_t *tac_regpool_create(void)
 {
     return RB_tree_new(pool_cmp, (void (*)(void *)) regfree);
-}
-
-char *mempool_strdup(rb_tree_t * pool, char *p)
-{
-    char *n = strdup(p);
-
-    if (n) {
-	if (pool)
-	    RB_insert(pool, n);
-	return n;
-    }
-    report(NULL, LOG_ERR, ~0, "strdup allocation failure");
-    tac_exit(EX_OSERR);
-}
-
-char *mempool_strndup(rb_tree_t * pool, u_char * p, int len)
-{
-    char *string;
-    int new_len = len;
-
-    /* 
-     * Add space for a null terminator if needed. Also, no telling
-     * what various mallocs will do when asked for a length of zero.
-     */
-    if (!len || p[len - 1])
-	new_len++;
-
-    string = mempool_malloc(pool, new_len);
-
-    memcpy(string, p, len);
-    return string;
 }
 
 int tac_exit(int status)
@@ -154,7 +83,7 @@ static void create_dirs(char *path)
 
 static int tac_lock(int lockfd, int locktype)
 {
-    struct flock flock = { .l_whence = SEEK_SET };
+    struct flock flock = {.l_whence = SEEK_SET };
 
     flock.l_type = locktype;
     return fcntl(lockfd, F_SETLK, &flock);

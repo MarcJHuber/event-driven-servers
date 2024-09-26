@@ -94,6 +94,7 @@
 #include "misc/io_sched.h"
 #include "misc/sig_segv.h"
 #include "misc/setproctitle.h"
+#include "misc/memops.h"
 #include "mavis/set_proctitle.h"
 #include "mavis/mavis.h"
 #include "misc/net.h"
@@ -687,14 +688,6 @@ void send_acct_reply(tac_session *, u_char, char *, char *);
 void send_author_reply(tac_session *, u_char, char *, char *, int, char **);
 
 /* utils.c */
-void *mempool_malloc(rb_tree_t *, size_t);
-void *mempool_realloc(rb_tree_t *, void *, size_t);
-void mempool_free(rb_tree_t *, void *);
-char *mempool_strdup(rb_tree_t *, char *);
-char *mempool_strndup(rb_tree_t *, u_char *, int);
-void mempool_destroy(rb_tree_t *);
-rb_tree_t *mempool_create(void);
-
 rb_tree_t *tac_regpool_create(void);
 rb_tree_t *tac_pcrepool_create(void);
 int tac_exit(int) __attribute__((noreturn));

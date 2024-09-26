@@ -94,6 +94,7 @@
 #include "misc/io_sched.h"
 #include "misc/sig_segv.h"
 #include "misc/setproctitle.h"
+#include "misc/memops.h"
 #include "mavis/set_proctitle.h"
 #include "mavis/mavis.h"
 #include "misc/net.h"
@@ -170,6 +171,8 @@ struct tac_tags;
 struct tac_tag;
 typedef struct tac_tags tac_tags;
 typedef struct tac_tag tac_tag;
+struct mem;
+typedef struct mem mem_t;
 
 struct tac_host {
     TAC_NAME_ATTRIBUTES;
@@ -190,7 +193,7 @@ struct tac_host {
     u_int bug_compatibility;
     tac_host *parent;
     tac_realm *target_realm;
-    memlist_t *memlist;
+    mem_t *mem;
     struct tac_key *key;
     struct log_item *motd;
     struct log_item *welcome_banner;	/* prompt */
@@ -243,6 +246,7 @@ typedef struct tac_group tac_group;
 
 struct tac_profile {
     TAC_NAME_ATTRIBUTES;
+    mem_t *mem;
     struct tac_profile *parent;
     struct pwdat **enable;
     struct mavis_action *action;
@@ -274,7 +278,7 @@ typedef struct {
     struct ssh_key_id *ssh_key_id;
     tac_groups *groups;
     tac_tags *tags;
-    memlist_t *memlist;
+    mem_t *mem;
     tac_realm *realm;
     tac_alias *alias;
     u_int debug;		/* debug flags */
@@ -635,7 +639,7 @@ typedef struct tac_profile tac_profile;
 
 struct tac_session {
     struct context *ctx;
-    memlist_t *memlist;
+    mem_t *mem;
     tac_user *user;
     struct in6_addr nac_address;	/* host byte order */
     char *username;
@@ -758,7 +762,7 @@ struct context {
     tac_pak *in;
     tac_pak *out;
     tac_pak *delayed;
-    rb_tree_t *pool;		/* memory pool */
+    mem_t *mem;			/* memory pool */
     rb_tree_t *sessions;
     rb_tree_t *shellctxcache;
     tac_realm *realm;
@@ -865,26 +869,6 @@ void send_authen_error(tac_session *, char *, ...)
 void send_acct_reply(tac_session *, u_char, char *, char *);
 void send_author_reply(tac_session *, u_char, char *, char *, int, char **);
 
-	/* utils.c */
-void *mempool_malloc(rb_tree_t *, size_t);
-void *mempool_realloc(rb_tree_t *, void *, size_t);
-void mempool_free(rb_tree_t *, void *);
-char *mempool_strdup(rb_tree_t *, char *);
-char *mempool_strndup(rb_tree_t *, u_char *, int);
-void mempool_destroy(rb_tree_t *);
-rb_tree_t *mempool_create(void);
-
-struct memlist *memlist_create(void);
-void *memlist_malloc(memlist_t *, size_t);
-void *memlist_realloc(memlist_t *, void *, size_t);
-void memlist_destroy(memlist_t *);
-char *memlist_strdup(memlist_t *, char *);
-char *memlist_strndup(memlist_t *, u_char *, int);
-void **memlist_add(memlist_t *, void *);
-char *memlist_attach(memlist_t *, void *);
-void *mempool_detach(rb_tree_t *, void *);
-char *memlist_copy(memlist_t *, void *, size_t);
-
 int tac_exit(int) __attribute__((noreturn));
 
 void log_exec(tac_session *, struct context *, enum token, time_t);
@@ -930,7 +914,7 @@ void tac_read(struct context *, int);
 void tac_write(struct context *, int);
 
 void cleanup_session(tac_session *);
-struct log_item *parse_log_format(struct sym *);
+struct log_item *parse_log_format(struct sym *, mem_t *);
 
 void mavis_lookup(tac_session *, void (*)(tac_session *), const char *const, enum pw_ix);
 void mavis_ctx_lookup(struct context *, void (*)(struct context *), const char *const);
@@ -975,6 +959,8 @@ enum token validate_ssh_key_id(tac_session *);
 tac_realm *lookup_sni(const char *, size_t, tac_realm *);
 
 void eval_args(tac_session *, u_char *, u_char *, size_t);
+
+void init_host(tac_host *, tac_host *, tac_realm *, int);
 
 extern struct config config;
 extern int die_when_idle;

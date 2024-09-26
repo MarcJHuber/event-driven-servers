@@ -144,7 +144,7 @@ void init_common_data(void)
     common_data.regex_pcre_flags = PCRE2_CASELESS | PCRE2_UTF;
 #endif
     common_data.regex_posix_flags = REG_ICASE;
-    common_data.cleanup_interval = 2; /* seconds, used to be 60 */
+    common_data.cleanup_interval = 2;	/* seconds, used to be 60 */
     logopen();
 }
 
@@ -737,7 +737,7 @@ void sym_get(struct sym *sym)
 	parse(sym, S_equal);
 	sb = alloca(strlen(sym->buf) + 1);
 	strcpy(sb, sym->buf);
-        sym_get(sym);
+	sym_get(sym);
 	globerror_sym = sym;
 	switch (glob(sb, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOMAGIC | GLOB_BRACE, globerror, &globbuf)) {
 	case 0:
@@ -1002,7 +1002,7 @@ void cfg_read_config(char *url, void (*parsefunction)(struct sym *), char *id)
 
     sym.env_valid = 1;
     if (setjmp(sym.env)) {
-	struct scm_data sd = { .type = SCM_BAD_CFG };
+	struct scm_data sd = {.type = SCM_BAD_CFG };
 	common_data.scm_send_msg(0, &sd, -1);
 	report_cfg_error(LOG_ERR, ~0, "Detected fatal configuration error. Exiting.");
 	exit(EX_CONFIG);
@@ -1830,25 +1830,25 @@ void common_usage(void)
     exit(EX_USAGE);
 }
 
-struct mavis_cond *mavis_cond_add(struct mavis_cond *a, struct mavis_cond *b)
+struct mavis_cond *mavis_cond_add(struct mavis_cond *a, mem_t * mem, struct mavis_cond *b)
 {
     if (a->u.m.n && !(a->u.m.n & 7))
-	a = realloc(a, sizeof(struct mavis_cond) + a->u.m.n * sizeof(struct mavis_cond *));
+	a = mem_realloc(mem, a, sizeof(struct mavis_cond) + a->u.m.n * sizeof(struct mavis_cond *));
 
     a->u.m.e[a->u.m.n] = b;
     a->u.m.n++;
     return a;
 }
 
-struct mavis_cond *mavis_cond_new(struct sym *sym, enum token type)
+struct mavis_cond *mavis_cond_new(struct sym *sym, mem_t * mem, enum token type)
 {
-    struct mavis_cond *m = calloc(1, sizeof(struct mavis_cond));
+    struct mavis_cond *m = mem_alloc(mem, sizeof(struct mavis_cond));
     m->type = type;
     m->line = sym->line;
     return m;
 }
 
-int sym_normalize_cond_start(struct sym *sym, struct sym **mysym)
+int sym_normalize_cond_start(struct sym *sym, mem_t * mem, struct sym **mysym)
 {
     if (sym->code == S_leftbra) {
 #define SYM_COND_BUFSIZE 40960
@@ -1945,8 +1945,8 @@ int sym_normalize_cond_start(struct sym *sym, struct sym **mysym)
 	while (*b)
 	    b++;
 
-	*mysym = calloc(1, sizeof(struct sym));
-	(*mysym)->filename = strdup(sym->filename);
+	*mysym = mem_alloc(mem, sizeof(struct sym));
+	(*mysym)->filename = mem_strdup(mem, sym->filename);
 	(*mysym)->line = sym->line;
 	(*mysym)->tlen = (*mysym)->len = (int) (b - buf);
 	(*mysym)->tin = (*mysym)->in = buf;
@@ -1956,21 +1956,20 @@ int sym_normalize_cond_start(struct sym *sym, struct sym **mysym)
     return 0;
 }
 
-void sym_normalize_cond_end(struct sym **mysym)
+void sym_normalize_cond_end(struct sym **mysym, mem_t * mem)
 {
     if (*mysym) {
 	if ((*mysym)->filename)
-	    free((*mysym)->filename);
+	    mem_free(mem, &((*mysym)->filename));
 	if ((*mysym)->in)
-	    free((*mysym)->in);
-	free(*mysym);
-	*mysym = NULL;
+	    mem_free(mem, &((*mysym)->in));
+	mem_free(mem, *mysym);
     }
 }
 
-static struct mavis_cond *mavis_cond_parse_attr_lhs(struct sym *sym, enum token token)
+static struct mavis_cond *mavis_cond_parse_attr_lhs(struct sym *sym, mem_t * mem, enum token token)
 {
-    struct mavis_cond *m = mavis_cond_new(sym, token);
+    struct mavis_cond *m = mavis_cond_new(sym, mem, token);
     m->u.s.lhs = (void *) (long) av_attr_token_to_i(sym);
     if ((long) m->u.s.lhs < 0)
 	parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
@@ -1979,25 +1978,25 @@ static struct mavis_cond *mavis_cond_parse_attr_lhs(struct sym *sym, enum token 
     return m;
 }
 
-static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
+static struct mavis_cond *mavis_cond_parse_r(struct sym *sym, mem_t * mem)
 {
     struct mavis_cond *m, *p = NULL;
 
     switch (sym->code) {
     case S_leftbra:
 	sym_get(sym);
-	m = mavis_cond_add(mavis_cond_new(sym, S_or), mavis_cond_parse_r(sym));
+	m = mavis_cond_add(mavis_cond_new(sym, mem, S_or), mem, mavis_cond_parse_r(sym, mem));
 	if (sym->code == S_and)
 	    m->type = S_and;
 	while (sym->code == S_and || sym->code == S_or) {
 	    sym_get(sym);
-	    m = mavis_cond_add(m, mavis_cond_parse_r(sym));
+	    m = mavis_cond_add(m, mem, mavis_cond_parse_r(sym, mem));
 	}
 	parse(sym, S_rightbra);
 	return m;
     case S_exclmark:
 	sym_get(sym);
-	m = mavis_cond_add(mavis_cond_new(sym, S_exclmark), mavis_cond_parse_r(sym));
+	m = mavis_cond_add(mavis_cond_new(sym, mem, S_exclmark), mem, mavis_cond_parse_r(sym, mem));
 	return m;
     case S_undef:
     case S_defined:{
@@ -2008,7 +2007,7 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
 		bracket++;
 		sym_get(sym);
 	    }
-	    m = mavis_cond_parse_attr_lhs(sym, sc);
+	    m = mavis_cond_parse_attr_lhs(sym, mem, sc);
 	    while (bracket) {
 		parse(sym, S_rightbra);
 		bracket--;
@@ -2018,10 +2017,10 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
     case S_eof:
 	parse_error(sym, "EOF unexpected");
     default:
-	m = mavis_cond_parse_attr_lhs(sym, S_equal);
+	m = mavis_cond_parse_attr_lhs(sym, mem, S_equal);
 	switch (sym->code) {
 	case S_exclmark:
-	    p = mavis_cond_add(mavis_cond_new(sym, S_exclmark), m);
+	    p = mavis_cond_add(mavis_cond_new(sym, mem, S_exclmark), mem, m);
 	case S_equal:
 	    break;
 	default:
@@ -2096,7 +2095,7 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym)
     }
 }
 
-void mavis_cond_optimize(struct mavis_cond **m)
+void mavis_cond_optimize(struct mavis_cond **m, mem_t * mem)
 {
     struct mavis_cond *p;
     int i;
@@ -2109,19 +2108,19 @@ void mavis_cond_optimize(struct mavis_cond **m)
     if (*m)
 	for (i = 0; i < (*m)->u.m.n; i++)
 	    if ((*m)->type == S_or || (*m)->type == S_and || (*m)->type == S_exclmark)
-		mavis_cond_optimize(&(*m)->u.m.e[i]);
+		mavis_cond_optimize(&(*m)->u.m.e[i], mem);
 }
 
-struct mavis_cond *mavis_cond_parse(struct sym *sym)
+struct mavis_cond *mavis_cond_parse(struct sym *sym, mem_t * mem)
 {
     struct sym *cond_sym = NULL;
-    if (sym_normalize_cond_start(sym, &cond_sym)) {
-	struct mavis_cond *m = mavis_cond_parse_r(cond_sym);
-	sym_normalize_cond_end(&cond_sym);
-	mavis_cond_optimize(&m);
+    if (sym_normalize_cond_start(sym, mem, &cond_sym)) {
+	struct mavis_cond *m = mavis_cond_parse_r(cond_sym, mem);
+	sym_normalize_cond_end(&cond_sym, mem);
+	mavis_cond_optimize(&m, mem);
 	return m;
     }
-    return mavis_cond_parse_r(sym);
+    return mavis_cond_parse_r(sym, mem);
 }
 
 #ifdef WITH_PCRE2
@@ -2386,17 +2385,17 @@ static enum token mavis_script_eval_r(mavis_ctx * mcx, av_ctx * ac, struct mavis
     return m->n ? mavis_script_eval_r(mcx, ac, m->n) : S_unknown;
 }
 
-struct mavis_action *mavis_action_new(struct sym *sym)
+struct mavis_action *mavis_action_new(struct sym *sym, mem_t * mem)
 {
     struct mavis_action *m = NULL;
-    m = calloc(1, sizeof(struct mavis_action));
+    m = mem_alloc(mem, sizeof(struct mavis_action));
     m->code = sym->code;
     m->line = sym->line;
     sym_get(sym);
     return m;
 }
 
-static struct mavis_action *mavis_script_parse_r(mavis_ctx * mcx, struct sym *sym, int section)
+static struct mavis_action *mavis_script_parse_r(mavis_ctx * mcx, mem_t * mem, struct sym *sym, int section)
 {
     struct mavis_action *m = NULL;
 
@@ -2407,19 +2406,19 @@ static struct mavis_action *mavis_script_parse_r(mavis_ctx * mcx, struct sym *sy
 	return NULL;
     case S_openbra:
 	sym_get(sym);
-	m = mavis_script_parse_r(mcx, sym, 1);
+	m = mavis_script_parse_r(mcx, mem, sym, 1);
 	parse(sym, S_closebra);
 	break;
     case S_return:
     case S_continue:
     case S_skip:
-	m = mavis_action_new(sym);
+	m = mavis_action_new(sym, mem);
 	break;
     case S_set:
     case S_unset:
     case S_toupper:
     case S_tolower:
-	m = mavis_action_new(sym);
+	m = mavis_action_new(sym, mem);
 	m->a.a = av_attr_token_to_i(sym);
 	if (m->a.a < 0)
 	    parse_error(sym, "'%s' is not a recognized attribute", sym->buf);
@@ -2431,30 +2430,30 @@ static struct mavis_action *mavis_script_parse_r(mavis_ctx * mcx, struct sym *sy
 	}
 	break;
     case S_eval:
-	m = mavis_action_new(sym);
-	m->a.c = mavis_cond_parse(sym);
+	m = mavis_action_new(sym, mem);
+	m->a.c = mavis_cond_parse(sym, mem);
 	break;
     case S_if:
-	m = mavis_action_new(sym);
-	m->a.c = mavis_cond_parse(sym);
+	m = mavis_action_new(sym, mem);
+	m->a.c = mavis_cond_parse(sym, mem);
 #ifdef MAVIS_COND_DUMP
 	mavis_cond_dump(m->a.c);
 #endif
-	m->b.a = mavis_script_parse_r(mcx, sym, 0);
+	m->b.a = mavis_script_parse_r(mcx, mem, sym, 0);
 	if (sym->code == S_else) {
 	    sym_get(sym);
-	    m->c.a = mavis_script_parse_r(mcx, sym, 0);
+	    m->c.a = mavis_script_parse_r(mcx, mem, sym, 0);
 	}
 	break;
     default:
 	parse_error_expect(sym, S_if, S_unset, S_set, S_skip, S_toupper, S_tolower, S_return, S_continue, S_openbra, S_unknown);
     }
     if (section && sym->code != S_closebra && sym->code != S_eof)
-	m->n = mavis_script_parse_r(mcx, sym, section);
+	m->n = mavis_script_parse_r(mcx, mem, sym, section);
     return m;
 }
 
-void mavis_script_parse(mavis_ctx * mcx, struct sym *sym)
+void mavis_script_parse(mavis_ctx * mcx, mem_t * mem, struct sym *sym)
 {
     struct mavis_action **m = NULL;
 
@@ -2482,7 +2481,7 @@ void mavis_script_parse(mavis_ctx * mcx, struct sym *sym)
     if (sym->code == S_equal)
 	sym_get(sym);
     parse(sym, S_openbra);
-    *m = mavis_script_parse_r(mcx, sym, 1);
+    *m = mavis_script_parse_r(mcx, mem, sym, 1);
 
     parse(sym, S_closebra);
 }

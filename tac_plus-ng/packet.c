@@ -94,7 +94,7 @@ static void md5_xor(tac_pak_hdr * hdr, char *key, int keylen)
 
 static tac_pak *new_pak(tac_session * session, u_char type, int len)
 {
-    tac_pak *pak = mempool_malloc(session->ctx->pool, sizeof(tac_pak) + len);
+    tac_pak *pak = mem_alloc(session->ctx->mem, sizeof(tac_pak) + len);
     pak->length = TAC_PLUS_HDR_SIZE + len;
     pak->hdr.type = type;
     pak->hdr.flags = TAC_PLUS_UNENCRYPTED_FLAG;
@@ -468,7 +468,7 @@ void tac_read(struct context *ctx, int cur)
 	return;
     }
     if (!ctx->in)
-	ctx->in = mempool_malloc(ctx->pool, sizeof(tac_pak) + data_len);
+	ctx->in = mem_alloc(ctx->mem, sizeof(tac_pak) + data_len);
     memcpy(&ctx->in->hdr, &ctx->hdr, TAC_PLUS_HDR_SIZE);
     ctx->in->offset = TAC_PLUS_HDR_SIZE;
     ctx->in->length = TAC_PLUS_HDR_SIZE + data_len;
@@ -514,7 +514,7 @@ void tac_read(struct context *ctx, int cur)
     } else {
 	if (ctx->hdr.seq_no == 1) {
 	    session = new_session(ctx, &ctx->hdr);
-	    memlist_attach(session->memlist, mempool_detach(ctx->pool, ctx->in));
+	    memlist_attach(session->mem->u.list, mempool_detach(ctx->mem->u.pool, ctx->in));
 	    detached++;
 	} else {
 	    report(NULL, LOG_ERR, ~0,
@@ -641,7 +641,7 @@ void tac_read(struct context *ctx, int cur)
     if (detached)
 	ctx->in = NULL;
     else
-	mempool_free(ctx->pool, &ctx->in);
+	mem_free(ctx->mem, &ctx->in);
     ctx->hdroff = 0;
 }
 
@@ -697,7 +697,7 @@ void tac_write(struct context *ctx, int cur)
 	ctx->out->offset += len;
 	if (ctx->out->offset == ctx->out->length) {
 	    tac_pak *n = ctx->out->next;
-	    mempool_free(ctx->pool, &ctx->out);
+	    mem_free(ctx->mem, &ctx->out);
 	    ctx->out = n;
 	}
     }
@@ -735,10 +735,10 @@ static struct type_s types[] = {
 
 static tac_session *new_session(struct context *ctx, tac_pak_hdr * hdr)
 {
-    tac_session *session = mempool_malloc(ctx->pool, sizeof(tac_session));
+    tac_session *session = mem_alloc(ctx->mem, sizeof(tac_session));
     session->ctx = ctx;
     session->debug = ctx->debug;
-    session->memlist = memlist_create();
+    session->mem = mem_create(M_LIST);
     session->version = hdr->version;
     session->session_id = hdr->session_id;
     session->seq_no = 1;
@@ -790,8 +790,8 @@ void cleanup_session(tac_session * session)
 
     if (session->mavis_pending && mcx)
 	mavis_cancel(mcx, session);
-    memlist_destroy(session->memlist);
-    mempool_free(ctx->pool, &session);
+    mem_destroy(session->mem);
+    mem_free(ctx->mem, &session);
     if ((ctx->cleanup_when_idle == TRISTATE_YES)
 	&& (!ctx->single_connection_flag || (die_when_idle && !RB_first(ctx->sessions) && !RB_first(ctx->shellctxcache)))) {
 	if (ctx->out || ctx->delayed)	// pending output

@@ -70,7 +70,7 @@ static void mavis_switch(tac_session * session, av_ctx * avc, int result)
 	    char *comment = av_get(avc, AV_A_USER_RESPONSE);
 	    if (comment) {
 		size_t len = strlen(comment);
-		session->user_msg = memlist_malloc(session->memlist, len + 2);
+		session->user_msg = mem_alloc(session->mem, len + 2);
 		memcpy(session->user_msg, comment, len);
 		if (len && session->user_msg[len - 1] != '\n')
 		    session->user_msg[len++] = '\n';
@@ -142,7 +142,7 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), const char *c
     report(session, LOG_INFO, ~0, "looking for user %s in MAVIS backend", session->username);
 
     if (!session->mavis_data)
-	session->mavis_data = memlist_malloc(session->memlist, sizeof(struct mavis_data));
+	session->mavis_data = mem_alloc(session->mem, sizeof(struct mavis_data));
 
     session->mavis_data->mavisfn = f;
     session->mavis_data->mavistype = type;
@@ -369,8 +369,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    char *chal = av_get(avc, AV_A_CHALLENGE);
 	    if (chal) {
 		u->chalresp = TRISTATE_YES;
-		// memlist_free(session->memlist, &session->challenge);
-		session->challenge = memlist_strdup(session->memlist, chal);
+		session->challenge = mem_strdup(session->mem, chal);
 	    } else
 		u->chalresp = TRISTATE_NO;
 	    return;
@@ -380,7 +379,6 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_PASS;
 	    if ((TRISTATE_YES != u->chalresp) && session->password && !u->passwd_oneshot) {
 		char *pass = session->password_new ? session->password_new : session->password;
-#if 1
 		char *crypt, salt[13];
 		salt[0] = '$';
 		salt[1] = '1';
@@ -390,14 +388,9 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		salt[11] = '$';
 		salt[12] = 0;
 		crypt = md5crypt(pass, salt);
-		u->passwd[PW_MAVIS] = memlist_malloc(u->memlist, sizeof(struct pwdat) + strlen(crypt));
+		u->passwd[PW_MAVIS] = mem_alloc(u->mem, sizeof(struct pwdat) + strlen(crypt));
 		strcpy(u->passwd[PW_MAVIS]->value, crypt);
 		u->passwd[PW_MAVIS]->type = S_crypt;
-#else
-		u->passwd[PW_MAVIS] = memlist_malloc(u->memlist, sizeof(struct pwdat) + strlen(pass));
-		strcpy(u->passwd[PW_MAVIS]->value, pass);
-		u->passwd[PW_MAVIS]->type = S_clear;
-#endif
 		u->passwd[session->mavis_data->pw_ix] = u->passwd[PW_MAVIS];
 	    }
 	}
@@ -479,7 +472,7 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
     report(&session, LOG_INFO, ~0, "looking for host %s in MAVIS backend", ctx->nas_address_ascii);
 
     if (!ctx->mavis_data)
-	ctx->mavis_data = mempool_malloc(ctx->pool, sizeof(struct mavis_data));
+	ctx->mavis_data = mem_alloc(ctx->mem, sizeof(struct mavis_data));
 
     ctx->mavis_data->mavisfn = f;
     ctx->mavis_data->mavistype = type;
@@ -516,9 +509,8 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx * avc)
 
 	char *profile = av_get(avc, AV_A_TACPROFILE);
 	if (profile) {
-	    struct memlist *memlist = memlist_create();
-	    tac_host *h = memlist_malloc(memlist, sizeof(tac_host));
-	    h->memlist = memlist;
+	    tac_host *h = mem_alloc(ctx->mem, sizeof(tac_host));
+	    h->mem = ctx->mem;
 	    init_host(h, ctx->host, ctx->realm, 0);
 
 	    struct sym sym = { 0 };

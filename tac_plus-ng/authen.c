@@ -213,7 +213,7 @@ static char *get_hint(tac_session * session, enum hint_enum h)
     if (session->user_msg) {
 	size_t n = hints[h].plain_len + strlen(session->user_msg) + 20;
 	char *t, *hint;
-	hint = memlist_malloc(session->memlist, n);
+	hint = mem_alloc(session->mem, n);
 	strcpy(hint, hints[h].plain);
 	strcat(hint, " [");
 	strcat(hint, session->user_msg);
@@ -408,7 +408,7 @@ static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *
 	    size_t b_len = m_len + 200;
 	    char *b = alloca(b_len);
 	    if (strftime(b, b_len, m, tm))
-		m = memlist_strdup(session->memlist, b);
+		m = mem_strdup(session->mem, b);
 	}
 	if (m) {
 	    session->user_msg = m;
@@ -622,7 +622,7 @@ static void do_chpass(tac_session * session)
     struct pwdat *pwdat = NULL;
 
     if (!session->username[0] && session->authen_data->msg) {
-	// memlist_free(session->pool, &session->username);
+	mem_free(session->mem, &session->username);
 	session->username = session->authen_data->msg;
 	session->username_len = session->authen_data->msg_len;
 	session->authen_data->msg = NULL;
@@ -938,7 +938,7 @@ static void do_ascii_login(tac_session * session)
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 
     if (!session->username[0] && session->authen_data->msg) {
-	// memlist_free(session->pool, &session->username);
+	mem_free(session->mem, &session->username);
 	session->username = session->authen_data->msg;
 	session->username_len = session->authen_data->msg_len;
 	session->authen_data->msg = NULL;
@@ -975,7 +975,7 @@ static void do_ascii_login(tac_session * session)
 
 	if ((session->ctx->realm->chpass == TRISTATE_YES) && (!session->user || ((session->user->chalresp != TRISTATE_YES) && !session->user->passwd_oneshot))
 	    && (!session->password[0] && (pw_ix == PW_MAVIS || (session->ctx->realm->mavis_userdb == TRISTATE_YES)))) {
-	    // memlist_free(session->memlist, &session->password);
+	    mem_free(session->mem, &session->password);
 	    session->password = NULL;
 	    session->authen_data->authfn = do_chpass;
 	    session->flag_mavis_auth = 0;
@@ -1004,7 +1004,7 @@ static void do_ascii_login(tac_session * session)
 	session->password_bad_again = 0;
     }
 
-    //memlist_free(session->memlist, &session->challenge);
+    mem_free(session->mem, &session->challenge);
 
     report_auth(session, "shell login", hint, res);
 
@@ -1135,7 +1135,7 @@ static void do_enable_getuser(tac_session * session)
     }
 
     if (!session->username[0]) {
-	// memlist_free(session->memlist, &session->username);
+	mem_free(session->mem, &session->username);
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETUSER,
 			  eval_log_format(session, session->ctx, NULL, li_username, io_now.tv_sec, NULL), 0, NULL, 0, 0);
 	return;
@@ -1172,7 +1172,7 @@ static void do_enable_getuser(tac_session * session)
 	return;
 
     res = check_access(session, pwdat, session->password, &hint, &resp);
-    // memlist_free(session->memlist, &session->challenge);
+    mem_free(session->mem, &session->challenge);
 
     report_auth(session, "enforced enable login", hint, res);
 
@@ -1464,8 +1464,7 @@ static void do_pap(tac_session * session)
 	return;
     }
 
-    //if (session->password) memlist_free(session->mempool, &session->password);
-    session->password = NULL;
+    mem_free(session->mem, &session->password);
 
     if (session->version != TAC_PLUS_VER_ONE && session->seq_no == 1) {
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS,
@@ -1547,8 +1546,7 @@ static void do_sshkeyhash(tac_session * session)
 	    hint = hint_denied;
 
 	if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
-	    // memlist_free(session->pool, &session->password);
-	    session->password = NULL;
+	    mem_free(session->mem, &session->password);
 	    if (res != TAC_PLUS_AUTHEN_STATUS_PASS && session->ctx->host->reject_banner)
 		resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
 	    if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
@@ -1602,8 +1600,7 @@ static void do_sshcerthash(tac_session * session)
 	    hint = hint_denied;
 
 	if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
-	    // memlist_free(session->pool, &session->password);
-	    session->password = NULL;
+	    mem_free(session->mem, &session->password);
 	    if (res != TAC_PLUS_AUTHEN_STATUS_PASS && session->ctx->host->reject_banner)
 		resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
 	    if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
@@ -1655,7 +1652,7 @@ static void set_revmap_nac(tac_session * session, char *hostname, int ttl)
 {
     report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "NAC revmap(%s) = %s", session->nac_address_ascii, hostname ? hostname : "(not found)");
     if (hostname)
-	session->nac_dns_name = memlist_strdup(session->memlist, hostname);
+	session->nac_dns_name = mem_strdup(session->mem, hostname);
 
     session->revmap_pending = 0;
     session->revmap_timedout = 0;
@@ -1677,7 +1674,7 @@ void get_revmap_nac(tac_session * session)
 		if (r->dns_tree_ptr[i]) {
 		    struct revmap *rev = radix_lookup(r->dns_tree_ptr[i], &session->nac_address, NULL);
 		    if (rev && rev->name && rev->ttl >= io_now.tv_sec) {
-			session->nac_dns_name = memlist_strdup(session->memlist, rev->name);
+			session->nac_dns_name = mem_strdup(session->mem, rev->name);
 			session->nac_dns_name_len = strlen(session->nac_dns_name);
 			report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAC revmap(%s) = %s [TTL: %lld]", session->nac_address_ascii, rev->name,
 			       (long long) (rev->ttl - io_now.tv_sec));
@@ -1713,7 +1710,7 @@ static void set_revmap_nas(struct context *ctx, char *hostname, int ttl)
     report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAS revmap(%s) = %s [TTL: %d]", ctx->nas_address_ascii, hostname ? hostname : "(not found)", ttl);
 
     if (hostname)
-	ctx->nas_dns_name = mempool_strdup(ctx->pool, hostname);
+	ctx->nas_dns_name = mem_strdup(ctx->mem, hostname);
 
     ctx->revmap_pending = 0;
     ctx->revmap_timedout = 0;
@@ -1742,7 +1739,7 @@ void get_revmap_nas(tac_session * session)
 		if (r->dns_tree_ptr[i]) {
 		    struct revmap *rev = radix_lookup(r->dns_tree_ptr[i], &ctx->nas_address, NULL);
 		    if (rev && rev->name && rev->ttl >= io_now.tv_sec) {
-			ctx->nas_dns_name = mempool_strdup(ctx->pool, rev->name);
+			ctx->nas_dns_name = mem_strdup(ctx->mem, rev->name);
 			ctx->nas_dns_name_len = strlen(ctx->nas_dns_name);
 			report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAS revmap(%s) = %s [TTL: %lld]", ctx->nas_address_ascii, rev->name,
 			       (long long) (rev->ttl - io_now.tv_sec));
@@ -1818,7 +1815,7 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
     }
 
     if (!session->authen_data)
-	session->authen_data = memlist_malloc(session->memlist, sizeof(struct authen_data));
+	session->authen_data = mem_alloc(session->mem, sizeof(struct authen_data));
 
     if (hdr->seq_no == 1) {
 	get_pkt_data(session, start, NULL);
@@ -1894,20 +1891,20 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 
 	if (session->authen_data->authfn) {
 	    u_char *p = (u_char *) start + TAC_AUTHEN_START_FIXED_FIELDS_SIZE;
-	    session->username = memlist_strndup(session->memlist, p, start->user_len);
+	    session->username = mem_strndup(session->mem, p, start->user_len);
 	    session->username_len = start->user_len;
 
 	    p += start->user_len;
-	    session->nas_port = memlist_strndup(session->memlist, p, start->port_len);
+	    session->nas_port = mem_strndup(session->mem, p, start->port_len);
 	    session->nas_port_len = start->port_len;
 	    p += start->port_len;
-	    session->nac_address_ascii = memlist_strndup(session->memlist, p, start->rem_addr_len);
+	    session->nac_address_ascii = mem_strndup(session->mem, p, start->rem_addr_len);
 	    session->nac_address_ascii_len = start->rem_addr_len;
 	    session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
 	    if (session->nac_address_valid)
 		get_revmap_nac(session);
 	    p += start->rem_addr_len;
-	    session->authen_data->data = (u_char *) memlist_copy(session->memlist, p, start->data_len);
+	    session->authen_data->data = (u_char *) mem_copy(session->mem, p, start->data_len);
 	    session->authen_data->data_len = start->data_len;
 
 	    session->priv_lvl = start->priv_lvl;
@@ -1930,10 +1927,6 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	return;
     } else {			/* hdr->seq_no != 1 */
 	username_required = 0;
-	// memlist_free(session->mempool, &session->authen_data);
-	// memlist_free(session->mempool, &session->authen_msg);
-	// session->authen_data->msg = NULL;
-	// session->authen_data->data = NULL;
 	session->authen_data->msg_len = ntohs(cont->user_msg_len);
 	session->authen_data->data_len = ntohs(cont->user_data_len);
 #ifdef WITH_CRYPTO
@@ -1944,10 +1937,10 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	} else
 #endif
 	{
-	    session->authen_data->msg = memlist_copy(session->memlist, (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE, session->authen_data->msg_len);
+	    session->authen_data->msg = mem_copy(session->mem, (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE, session->authen_data->msg_len);
 	    session->authen_data->data =
-		(u_char *) memlist_copy(session->memlist, (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + session->authen_data->msg_len,
-					session->authen_data->data_len);
+		(u_char *) mem_copy(session->mem, (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + session->authen_data->msg_len,
+				    session->authen_data->data_len);
 	}
     }
 

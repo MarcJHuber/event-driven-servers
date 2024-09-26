@@ -33,6 +33,7 @@
 #include "misc/io_child.h"
 #include "misc/pid_write.h"
 #include "misc/rb.h"
+#include "misc/memops.h"
 
 /* Response codes for MAVIS modules */
 
@@ -412,7 +413,7 @@ void init_common_data(void);
 void parse_common(struct sym *);
 void common_usage(void);
 
-void mavis_script_parse(mavis_ctx *, struct sym *);
+void mavis_script_parse(mavis_ctx *, mem_t *, struct sym *);
 enum token mavis_script_eval(mavis_ctx *, av_ctx *, struct mavis_action *);
 void mavis_script_drop(struct mavis_action **);
 
@@ -443,8 +444,8 @@ rb_tree_t *init_timespec(void);
 
 char *escape_string(char *, size_t, char *, size_t *);
 
-int sym_normalize_cond_start(struct sym *, struct sym **);
-void sym_normalize_cond_end(struct sym **);
+int sym_normalize_cond_start(struct sym *, mem_t *, struct sym **);
+void sym_normalize_cond_end(struct sym **, mem_t *);
 
 struct mavis_cond_multi {
     int n;
@@ -469,11 +470,11 @@ struct mavis_cond {
     } u;
 };
 
-struct mavis_cond *mavis_cond_new(struct sym *, enum token);
-struct mavis_cond *mavis_cond_add(struct mavis_cond *a, struct mavis_cond *);
-struct mavis_action *mavis_action_new(struct sym *sym);
+struct mavis_cond *mavis_cond_new(struct sym *, mem_t *, enum token);
+struct mavis_cond *mavis_cond_add(struct mavis_cond *a, mem_t *, struct mavis_cond *);
+struct mavis_action *mavis_action_new(struct sym *sym, mem_t *);
 
-void mavis_cond_optimize(struct mavis_cond **);
+void mavis_cond_optimize(struct mavis_cond **, mem_t *);
 
 int cfg_open_and_read(char *, char **, int *);
 int cfg_close(char *, char *, int);

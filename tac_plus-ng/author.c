@@ -63,7 +63,7 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 static void do_author(tac_session *);
 static int bad_nas_args(tac_session *, struct author_data *);
 
-void eval_args(tac_session *session, u_char *p, u_char *argsizep, size_t argcnt)
+void eval_args(tac_session * session, u_char * p, u_char * argsizep, size_t argcnt)
 {
     size_t i;
     size_t len = 0, tlen = 0;
@@ -87,16 +87,16 @@ void eval_args(tac_session *session, u_char *p, u_char *argsizep, size_t argcnt)
 	    tlen += len;
 	} else if (l > 8 && !strncmp(a, "service=", 8)) {
 	    session->service_len = l - 8;
-	    session->service = memlist_strndup(session->memlist, (u_char *) (a + 8), l - 8);
+	    session->service = mem_strndup(session->mem, (u_char *) (a + 8), l - 8);
 	} else if (l > 9 && !strncmp(a, "protocol=", 9)) {
 	    session->protocol_len = l - 9;
-	    session->protocol = memlist_strndup(session->memlist, (u_char *) (a + 9), l - 9);
+	    session->protocol = mem_strndup(session->mem, (u_char *) (a + 9), l - 9);
 	}
 	p += *argsizep;
 	argsizep++;
     }
     *t = 0;
-    session->cmdline = memlist_strdup(session->memlist, cmdline);
+    session->cmdline = mem_strdup(session->mem, cmdline);
     session->cmdline_len = tlen;
 }
 
@@ -121,12 +121,12 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     session->pak_authen_type = pak->authen_type;
     session->pak_authen_method = pak->authen_method;
     session->username_len = (size_t) pak->user_len;
-    session->username = memlist_strndup(session->memlist, p, session->username_len);
+    session->username = mem_strndup(session->mem, p, session->username_len);
     p += pak->user_len;
-    session->nas_port = memlist_strndup(session->memlist, p, (size_t) pak->port_len);
+    session->nas_port = mem_strndup(session->mem, p, (size_t) pak->port_len);
     session->nas_port_len = pak->port_len;
     p += pak->port_len;
-    session->nac_address_ascii = memlist_strndup(session->memlist, p, (size_t) pak->rem_addr_len);
+    session->nac_address_ascii = mem_strndup(session->mem, p, (size_t) pak->rem_addr_len);
     session->nac_address_ascii_len = (size_t) pak->rem_addr_len;
     p += pak->rem_addr_len;
 
@@ -141,15 +141,15 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     if (session->nac_address_valid)
 	get_revmap_nac(session);
 
-    data = memlist_malloc(session->memlist, sizeof(struct author_data));
+    data = mem_alloc(session->mem, sizeof(struct author_data));
     data->in_cnt = pak->arg_cnt;
 
     eval_args(session, p, argsizep, pak->arg_cnt);
 
-    cmd_argp = memlist_malloc(session->memlist, pak->arg_cnt * sizeof(char *));
+    cmd_argp = mem_alloc(session->mem, pak->arg_cnt * sizeof(char *));
     /* p points to the start of args. Step thru them making strings */
     for (i = 0; i < (int) pak->arg_cnt; i++) {
-	cmd_argp[i] = memlist_strndup(session->memlist, p, *argsizep);
+	cmd_argp[i] = mem_strndup(session->mem, p, *argsizep);
 	p += *argsizep++;
     }
 
@@ -201,7 +201,7 @@ static int bad_nas_args(tac_session * session, struct author_data *data)
 		char buf[MAX_INPUT_LINE_LEN];
 		snprintf(buf, sizeof(buf), "Illegal arg from NAS: %s", data->in_args[i]);
 		data->status = TAC_PLUS_AUTHOR_STATUS_ERROR;
-		data->admin_msg = memlist_strdup(session->memlist, buf);
+		data->admin_msg = mem_strdup(session->mem, buf);
 		report(session, LOG_ERR, ~0, "%s: %s", session->ctx->nas_address_ascii, buf);
 		return -1;
 	    }
@@ -387,7 +387,7 @@ static void do_author(tac_session * session)
     }
 
     /* Allocate space for in + out args */
-    out_args = memlist_malloc(session->memlist, sizeof(char *) * (data->in_cnt + session->cnt_m + session->cnt_a));
+    out_args = mem_alloc(session->mem, sizeof(char *) * (data->in_cnt + session->cnt_m + session->cnt_a));
 
     outp = out_args;
 

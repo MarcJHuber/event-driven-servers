@@ -237,7 +237,7 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
     while (1) {
 	switch (sym->code) {
 	case S_script:
-	    mavis_script_parse(mcx, sym);
+	    mavis_script_parse(mcx, NULL, sym);
 	    continue;
 	case S_local:
 	    sym_get(sym);
