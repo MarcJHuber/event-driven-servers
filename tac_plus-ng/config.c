@@ -2432,6 +2432,8 @@ static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm
 	    parse_enable(sym, mem, profile->enable);
 	    continue;
 	case S_profile:
+	    if (profile->mem)
+		parse_error(sym, "User profiles may not contain sub profiles", sym->buf);
 	    parse_profile(sym, r, profile);
 	    continue;
 	case S_parent:
