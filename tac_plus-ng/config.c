@@ -3084,6 +3084,13 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	case S_target_realm:
 	case S_maxrounds:
 	case S_skip:
+	case S_welcome:
+	case S_reject:
+	case S_failed:
+	case S_enable:
+	case S_motd:
+	case S_script:
+	case S_message:
 #ifdef WITH_DNS
 	case S_dns:
 #endif
@@ -3092,30 +3099,12 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 	case S_tls:
 #endif
-/* Currently unsupported keywords.
-    case S_mavis:
-    case S_host:
-    case S_device:
-    case S_address:
-    case S_motd:
-    case S_welcome:
-    case S_reject:
-    case S_failed:
-    case S_enable:
-    case S_script:
-#ifdef WITH_DNS
-    case S_dns:
-#endif
-    case S_message:
-#if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
-#endif
-*/
 	    break;
 	default:
 	    parse_error_expect(sym,
 			       S_parent, S_authentication, S_permit, S_bug, S_pap, S_key, S_anonenable, S_augmented_enable,
 			       S_singleconnection, S_debug, S_connection, S_password, S_context, S_session, S_target_realm,
-			       S_maxrounds, S_skip, S_tag, S_devicetag, S_name,
+			       S_maxrounds, S_skip, S_tag, S_devicetag, S_name, S_welcome, S_reject, S_failed, S_enable, S_motd, S_script, S_message,
 #ifdef WITH_DNS
 			       S_dns,
 #endif
@@ -3446,8 +3435,8 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    sym_get(sym);
 	    parse(sym, S_equal);
 	    if (!host->user_messages)
-		host->user_messages = calloc(UM_MAX, sizeof(char *));
-	    host->user_messages[um] = strdup(sym->buf);
+		host->user_messages = mem_alloc(mem, UM_MAX * sizeof(char *));
+	    host->user_messages[um] = mem_strdup(mem, sym->buf);
 	    sym_get(sym);
 	    return;
 	}
