@@ -288,6 +288,7 @@ typedef struct {
      BISTATE(fallback_only);
      BISTATE(rewritten_only);
     av_ctx *avc;
+    struct tac_profile *profile;
 } tac_user;
 
 struct tac_alias {

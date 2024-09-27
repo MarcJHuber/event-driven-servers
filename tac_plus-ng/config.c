@@ -2055,6 +2055,11 @@ enum token eval_ruleset_r(tac_session * session, tac_realm * realm, int parent_f
     if (!realm)
 	return res;
 
+    if (session->user && session->user->profile) {
+	session->profile = session->user->profile;
+	return S_permit;
+    }
+
     if (parent_first == TRISTATE_YES && realm->skip_parent_script != BISTATE_YES)
 	res = eval_ruleset_r(session, realm->parent, parent_first);
 
@@ -2921,6 +2926,12 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	    parse(sym, S_equal);
 	    parse_sshkeyid(sym, user);
 	    continue;
+	case S_profile:
+	    sym_get(sym);
+	    if (!user->profile)
+		    user->profile = new_profile(user->mem, user->name, r);
+	    parse_profile_attr(sym, user->profile, user->realm);
+	    continue;
 	default:
 	    parse_error_expect(sym, S_member, S_valid, S_debug, S_message, S_password, S_enable, S_fallback_only, S_hushlogin, S_ssh_key_id,
 #ifdef WITH_PCRE2
@@ -2929,7 +2940,7 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 #ifdef WITH_CRYPTO
 			       S_ssh_key,
 #endif
-			       S_alias, S_usertag, S_tag, S_unknown);
+			       S_alias, S_usertag, S_tag, S_profile, S_unknown);
 	}
     }
     sym_get(sym);
