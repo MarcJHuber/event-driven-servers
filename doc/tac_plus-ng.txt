@@ -1820,7 +1820,7 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    device.address == != =~ !~ Device (host) address
    device.dnsname == != =~ !~ Device (host) DNS PTR record
    device.tag == != =~ !~ tagName
-   device.tag == != user.tag
+   device.tag == != user.tag False if no match, true else.
    dn == != =~ !~ String or REGEX MAVIS dn attribute
    identity-source == != =~ !~ String or REGEX
    authenticating/authorizing MAVIS module
@@ -1862,7 +1862,7 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    type == != =~ !~ String or REGEX authen, author, acct
    user == != =~ !~ String or REGEX session user
    user.tag == != =~ !~ tagName
-   user.tag == != device.tag
+   user.tag == != device.tag False if no match, true else.
 
    Railroad diagrams for conditions:
 
@@ -2030,6 +2030,21 @@ group groupname {  ...  }
    users via the policy rule-set. Syntax is
 
    profile profileName { profileAttr }
+
+   Also, an unnnamed profile may be configured in user context.
+   This overrides rule evaluation and will be assigned
+   unconditionally, e.g.:
+user ... {
+...
+  profile {
+    script {
+      if (service == shell)
+        set priv-lvl = 15
+      permit
+    }
+  }
+...
+}
 
    Profiles are collections of services available to a user. A
    couple of configuration attributes are service specific and

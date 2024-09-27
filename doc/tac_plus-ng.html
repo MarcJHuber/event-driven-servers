@@ -2247,7 +2247,7 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"</pre></td>
 <td><tt class="literal">device.tag</tt></td>
 <td><tt class="literal">== !=</tt></td>
 <td><tt class="literal">user.tag</tt></td>
-<td>&nbsp;</td>
+<td>False if no match, true else.</td>
 </tr>
 <tr>
 <td><tt class="literal">dn</tt></td>
@@ -2421,7 +2421,7 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"</pre></td>
 <td><tt class="literal">user.tag</tt></td>
 <td><tt class="literal">== !=</tt></td>
 <td><tt class="literal">device.tag</tt></td>
-<td>&nbsp;</td>
+<td>False if no match, true else.</td>
 </tr>
 </tbody>
 </table>
@@ -2438,7 +2438,7 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"</pre></td>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2312" id="AEN2312">4.2.3.11. Rewriting User Names</a></h5>
+<h5 class="section"><a name="AEN2310" id="AEN2310">4.2.3.11. Rewriting User Names</a></h5>
 <p>A script may refer to a rewrite profile defined at realm level to rewrite user names. For example, the following will map both <tt class="literal">admin</tt> and <tt class="literal">root</tt> to <tt class="literal">jane.doe</tt>, and convert all other usernames to lower-case:</p>
 <pre class="screen">rewrite rewriteRule {
     rewrite /^admin$/ jane.doe
@@ -2464,7 +2464,7 @@ device ... {
     }</pre></div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2322" id="AEN2322">4.2.3.12. Users</a></h5>
+<h5 class="section"><a name="AEN2320" id="AEN2320">4.2.3.12. Users</a></h5>
 <p>The basic form of a user declarations is</p>
 <pre class="screen">user <span class="emphasis"><i class="emphasis">username</i></span> { <span class="emphasis"><i class="emphasis">... </i></span> }</pre>
 <p>A user or group declaration may contain key-value pairs and service declarations.</p>
@@ -2534,7 +2534,7 @@ user marc {
 </ul>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN2463" id="AEN2463">4.2.3.12.1. Railroad Diagrams</a></h6>
+<h6 class="section"><a name="AEN2461" id="AEN2461">4.2.3.12.1. Railroad Diagrams</a></h6>
 <div class="mediaobject">
 <p><img alt="" src="railroad/tac_plus-ng/UserDecl.svg"></p>
 <div class="caption">
@@ -2551,7 +2551,7 @@ user marc {
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2479" id="AEN2479">4.2.3.13. Groups</a></h5>
+<h5 class="section"><a name="AEN2477" id="AEN2477">4.2.3.13. Groups</a></h5>
 <p>A user can be a member of multiple groups. A user that is a member of a group that comes with a parent group is a member of the latter, too. Group are defined using</p>
 <pre class="screen">group <span class="emphasis"><i class="emphasis">groupname</i></span> { <span class="emphasis"><i class="emphasis"> ... </i></span> }</pre>
 <p>The following key-value pairs are valid for groups:</p>
@@ -2571,7 +2571,7 @@ user marc {
 </ul>
 <div class="section">
 <hr>
-<h6 class="section"><a name="AEN2504" id="AEN2504">4.2.3.13.1. Railroad Diagrams</a></h6>
+<h6 class="section"><a name="AEN2502" id="AEN2502">4.2.3.13.1. Railroad Diagrams</a></h6>
 <div class="mediaobject">
 <p><img alt="" src="railroad/tac_plus-ng/GroupDecl.svg"></p>
 <div class="caption">
@@ -2588,9 +2588,22 @@ user marc {
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN2520" id="AEN2520">4.2.3.14. Profiles</a></h5>
+<h5 class="section"><a name="AEN2518" id="AEN2518">4.2.3.14. Profiles</a></h5>
 <p>Profiles are collections of services that can be assigned to users via the policy rule-set. Syntax is</p>
 <p><tt class="literal">profile</tt> <span class="emphasis"><i class="emphasis">profileName</i></span> <tt class="literal">{</tt> <span class="emphasis"><i class="emphasis">profileAttr</i></span> <tt class="literal">}</tt></p>
+<p>Also, an unnnamed profile may be configured in user context. This overrides rule evaluation and will be assigned unconditionally, e.g.:</p>
+<pre class="screen">user ... {
+...
+  profile {
+    script {
+      if (service == shell)
+        set priv-lvl = 15
+      permit
+    }
+  }
+...
+}
+</pre>
 <p>Profiles are collections of services available to a user. A couple of configuration attributes are service specific and only valid in certain contexts:</p>
 <p><span class="bold"><b class="emphasis">SHELL (EXEC) Service</b></span></p>
 <p>Shell startup should have an appropriate script definition</p>
