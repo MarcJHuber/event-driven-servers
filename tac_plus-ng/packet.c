@@ -514,7 +514,7 @@ void tac_read(struct context *ctx, int cur)
     } else {
 	if (ctx->hdr.seq_no == 1) {
 	    session = new_session(ctx, &ctx->hdr);
-	    memlist_attach(session->mem->u.list, mempool_detach(ctx->mem->u.pool, ctx->in));
+	    mem_attach(session->mem, mem_detach(ctx->mem, ctx->in));
 	    detached++;
 	} else {
 	    report(NULL, LOG_ERR, ~0,
