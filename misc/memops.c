@@ -159,24 +159,21 @@ static void *memlist_realloc(memlist_t *, void *, size_t);
 static void memlist_destroy(memlist_t *);
 static char *memlist_strdup(memlist_t *, char *);
 static char *memlist_strndup(memlist_t *, u_char *, int);
-static void **memlist_add(memlist_t *, void *);
+static void memlist_add(memlist_t *, void *);
 
 static memlist_t *memlist_create(void)
 {
     return calloc(1, sizeof(memlist_t));
 }
 
-static void **memlist_add(memlist_t * list, void *p)
+static void memlist_add(memlist_t * list, void *p)
 {
-    void **res = NULL;
     if (list && p) {
 	if (!((list->arr_count) % 128))
 	    list->arr = realloc(list->arr, (list->arr_count + 128) * sizeof(memlist_t));
 	list->arr[list->arr_count] = p;
-	res = &list->arr[list->arr_count];
 	list->arr_count++;
     }
-    return res;
 }
 
 static void *memlist_malloc(memlist_t * list, size_t size)
@@ -215,8 +212,7 @@ static void memlist_destroy(memlist_t * list)
 static char *memlist_strdup(memlist_t * list, char *s)
 {
     char *p = strdup(s);
-
-    if (p)
+    if (list)
 	memlist_add(list, p);
     return p;
 }
@@ -224,8 +220,7 @@ static char *memlist_strdup(memlist_t * list, char *s)
 static char *memlist_strndup(memlist_t * list, u_char * s, int len)
 {
     char *p = strndup((char *) s, len);
-
-    if (p)
+    if (list)
 	memlist_add(list, p);
     return p;
 }
@@ -243,7 +238,6 @@ static void memlist_free(memlist_t * list, void *ptr)
 		    list->arr[i] = list->arr[list->arr_count];
 		return;
 	    }
-
 }
 
 static void __inline__ *memlist_attach(memlist_t * list, void *p)
@@ -378,13 +372,7 @@ void *mem_copy(mem_t * m, void *p, size_t len)
     void *b = malloc(len + 1);
     memcpy(b, p, len);
     ((char *) b)[len] = 0;
-    if (m) {
-	if (m->type == M_LIST)
-	    b = memlist_attach(m->u.list, b);
-	else if (m->type == M_POOL)
-	    b = mempool_attach(m->u.pool, b);
-    }
-    return b;
+    return mem_attach(m, b);
 }
 
 void mem_add_free(mem_t * m, void *freefun, void *p)
