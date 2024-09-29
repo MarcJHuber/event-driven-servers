@@ -249,7 +249,7 @@ static void memlist_free(memlist_t * list, void *ptr)
 static void __inline__ *memlist_attach(memlist_t * list, void *p)
 {
     if (list && p)
-	return memlist_add(list, p);
+	memlist_add(list, p);
     return p;
 }
 
