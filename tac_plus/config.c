@@ -1148,11 +1148,7 @@ void free_user(tac_user * user)
     radix_drop(&user->nac_range, NULL);
     RB_tree_delete(user->svcs);
     RB_tree_delete(user->svc_prohibit);
-#ifdef WITH_PCRE2
-    mempool_destroy(user->pool_pcre);
-#endif
-    mempool_destroy(user->pool_regex);
-    mempool_destroy(user->pool);
+    mem_destroy(user->mem);
 }
 
 struct groups_s;
@@ -1167,24 +1163,18 @@ static struct pwdat *passwd_permit = NULL;
 
 tac_user *new_user(char *name, enum token type, tac_realm * r)
 {
-    rb_tree_t *pool = NULL;
+    mem_t *mem = NULL;
     tac_user *user;
 
     report(NULL, LOG_DEBUG, DEBUG_CONFIG_FLAG, "creating user %s in realm %s", name, r->name);
 
     if (type == S_user)
-	pool = mempool_create();
-    user = mempool_malloc(pool, sizeof(tac_user) + strlen(name));
+	mem = mem_create(M_LIST);
+    user = mem_alloc(mem, sizeof(tac_user) + strlen(name));
     strcpy(user->name, name);
     user->svc_dflt = S_unknown;
-    user->pool = pool;
+    user->mem = mem;
     user->realm = r;
-    if (type == S_user) {
-#ifdef WITH_PCRE2
-	user->pool_pcre = tac_pcrepool_create();
-#endif
-	user->pool_regex = tac_regpool_create();
-    }
     user->svcs = RB_tree_new(compare_svc, (void (*)(void *)) free_svc);
     user->chalresp = TRISTATE_DUNNO;
     user->hushlogin = TRISTATE_DUNNO;
@@ -1347,12 +1337,12 @@ static int c7decode(char *in)
     return 0;
 }
 
-static struct pwdat *parse_pw(struct sym *, rb_tree_t *, int);
+static struct pwdat *parse_pw(struct sym *, mem_t *, int);
 static void parse_acl_cond(struct sym *, tac_user *, struct tac_acl **, int *);
 
-static struct upwdat *new_upwdat(rb_tree_t * pool, tac_realm * r)
+static struct upwdat *new_upwdat(mem_t * mem, tac_realm * r)
 {
-    struct upwdat *pp = mempool_malloc(pool, sizeof(struct upwdat));
+    struct upwdat *pp = mem_alloc(mem, sizeof(struct upwdat));
     int i;
     for (i = 0; i <= PW_MAVIS; i++)
 	pp->passwd[i] = passwd_deny_dflt;
@@ -1390,8 +1380,8 @@ static void parse_pw_acl(struct sym *sym, tac_user * user, enum pw_ix pw_ix, int
 	pa = &(*pa)->next;
     }
     if (!(*pa)) {
-	*pa = mempool_malloc(user->pool, sizeof(struct tac_acllist));
-	(*pa)->u.passwdp = new_upwdat(user->pool, user->realm);
+	*pa = mem_alloc(user->mem, sizeof(struct tac_acllist));
+	(*pa)->u.passwdp = new_upwdat(user->mem, user->realm);
 	(*pa)->acl = a;
 	(*pa)->negate = negate;
     }
@@ -1399,11 +1389,11 @@ static void parse_pw_acl(struct sym *sym, tac_user * user, enum pw_ix pw_ix, int
 	parse_error_order(sym, "password");
     else {
 	pp = (*pa)->u.passwdp->passwd;
-	pp[pw_ix] = parse_pw(sym, user->pool, cry);
+	pp[pw_ix] = parse_pw(sym, user->mem, cry);
     }
 }
 
-static struct pwdat *parse_pw(struct sym *sym, rb_tree_t * pool, int cry)
+static struct pwdat *parse_pw(struct sym *sym, mem_t * mem, int cry)
 {
     struct pwdat *pp = NULL;
     enum token sc;
@@ -1443,7 +1433,7 @@ static struct pwdat *parse_pw(struct sym *sym, rb_tree_t * pool, int cry)
     if (c7 && c7decode(sym->buf))
 	parse_error(sym, "type 7 password is malformed");
 
-    pp = mempool_malloc(pool, sizeof(struct pwdat) + strlen(sym->buf));
+    pp = mem_alloc(mem, sizeof(struct pwdat) + strlen(sym->buf));
     pp->type = sc;
     strcpy(pp->value, sym->buf);
     if (sc == S_follow) {
@@ -1482,8 +1472,8 @@ static struct pwdat **lookup_pwdat_by_acl(struct sym *sym, tac_user * user, stru
 	pa = &(*pa)->next;
     }
     if (!(*pa)) {
-	*pa = mempool_malloc(user->pool, sizeof(struct tac_acllist));
-	(*pa)->u.passwdp = new_upwdat(user->pool, user->realm);
+	*pa = mem_alloc(user->mem, sizeof(struct tac_acllist));
+	(*pa)->u.passwdp = new_upwdat(user->mem, user->realm);
 	(*pa)->acl = a;
 	(*pa)->negate = negate;
     }
@@ -1552,7 +1542,7 @@ static void parse_password(struct sym *sym, tac_user * user)
 				   S_unknown);
 	    }
 	    tac_sym_get(sym);
-	    pp[pw_ix] = parse_pw(sym, user->pool, cry);
+	    pp[pw_ix] = parse_pw(sym, user->mem, cry);
 	}
 	return;
     }
@@ -1608,7 +1598,7 @@ static void add_member(struct sym *sym, radixtree_t * rt, tac_user * user, char 
 {
     int i = 2;
     char *p;
-    struct groups_s *ams = mempool_malloc(user->pool, sizeof(struct groups_s));
+    struct groups_s *ams = mem_alloc(user->mem, sizeof(struct groups_s));
 
     p = grp;
     for (; *p == '/'; p++);
@@ -1618,7 +1608,7 @@ static void add_member(struct sym *sym, radixtree_t * rt, tac_user * user, char 
 	    i++;
     }
 
-    ams->g = mempool_malloc(user->pool, i * sizeof(tac_user *));
+    ams->g = mem_alloc(user->mem, i * sizeof(tac_user *));
 
     p = grp;
     for (; *p == '/'; p++);
@@ -1642,8 +1632,8 @@ static void add_member(struct sym *sym, radixtree_t * rt, tac_user * user, char 
     if (ams->i)
 	radix_add_members(sym, rt, range, ams, r);
     else {
-	mempool_free(user->pool, ams->g);
-	mempool_free(user->pool, ams);
+	mem_free(user->mem, ams->g);
+	mem_free(user->mem, ams);
     }
 }
 
@@ -1673,7 +1663,7 @@ static void parse_member(struct sym *sym, tac_user * user, tac_realm * r)
 	    aclgrp = &(*aclgrp)->next;
 	}
 	if (!(*aclgrp)) {
-	    *aclgrp = mempool_malloc(user->pool, sizeof(struct tac_acllist));
+	    *aclgrp = mem_alloc(user->mem, sizeof(struct tac_acllist));
 	    (*aclgrp)->u.rt = radix_new(NULL, (int (*)(void *, void *)) cmp_groups);
 	    (*aclgrp)->acl = acfg;
 	    (*aclgrp)->negate = negate;
@@ -1696,7 +1686,7 @@ static void parse_member(struct sym *sym, tac_user * user, tac_realm * r)
 	    int rlen;
 	    *range++ = 0;
 	    rlen = strlen(range);
-	    hl = mempool_malloc(user->pool, sizeof(struct stringlist) + rlen);
+	    hl = mem_alloc(user->mem, sizeof(struct stringlist) + rlen);
 	    strncpy(hl->s, range, rlen);
 	} else if (!strchr(sym->buf, '/') && (g = lookup_user(user->realm->group_realm->grouptable, sym->buf)))
 	    hl = g->nas_limit_dflt;
@@ -1705,7 +1695,7 @@ static void parse_member(struct sym *sym, tac_user * user, tac_realm * r)
 	    int rlen;
 	    range = inet_any();
 	    rlen = strlen(range);
-	    hl = mempool_malloc(user->pool, sizeof(struct stringlist) + rlen);
+	    hl = mem_alloc(user->mem, sizeof(struct stringlist) + rlen);
 	    memcpy(hl->s, range, rlen);
 	}
 
@@ -1744,7 +1734,7 @@ static void parse_member(struct sym *sym, tac_user * user, tac_realm * r)
 		    aclgrp = &(*aclgrp)->next;
 		}
 		if (!(*aclgrp)) {
-		    *aclgrp = mempool_malloc(user->pool, sizeof(struct tac_acllist));
+		    *aclgrp = mem_alloc(user->mem, sizeof(struct tac_acllist));
 		    (*aclgrp)->u.rt = radix_new(NULL, (int (*)(void *, void *)) cmp_groups);
 		    (*aclgrp)->acl = a;
 		    (*aclgrp)->negate = negate;
@@ -1763,7 +1753,7 @@ static void parse_member(struct sym *sym, tac_user * user, tac_realm * r)
     while (parse_comma(sym));
 }
 
-static void parse_enable(struct sym *sym, rb_tree_t * pool, struct pwdat **enable, char *enable_implied)
+static void parse_enable(struct sym *sym, mem_t * mem, struct pwdat **enable, char *enable_implied)
 {
     int level = TAC_PLUS_PRIV_LVL_MAX, i;
 
@@ -1776,7 +1766,7 @@ static void parse_enable(struct sym *sym, rb_tree_t * pool, struct pwdat **enabl
 	tac_sym_get(sym);
     }
 
-    enable[level] = parse_pw(sym, pool, 1);
+    enable[level] = parse_pw(sym, mem, 1);
     enable_implied[level] = 0;
     for (i = level - 1; i >= TAC_PLUS_PRIV_LVL_MIN; i--) {
 	if (enable_implied[i] > level || !enable[i]) {
@@ -1874,19 +1864,19 @@ struct upwdat *eval_passwd_acl(tac_session * session)
 	if (a)
 	    return a->u.passwdp;
 
-	session->user->passwd_acllist = mempool_malloc(session->user->pool, sizeof(struct tac_acllist));
-	session->user->passwd_acllist->u.passwdp = new_upwdat(session->user->pool, session->user->realm);
+	session->user->passwd_acllist = mem_alloc(session->user->mem, sizeof(struct tac_acllist));
+	session->user->passwd_acllist->u.passwdp = new_upwdat(session->user->mem, session->user->realm);
 	return session->user->passwd_acllist->u.passwdp;
     }
     // shouldn't happen
-    return new_upwdat(session->pool, session->ctx->aaa_realm);
+    return new_upwdat(session->mem, session->ctx->aaa_realm);
 }
 
 static void parse_user_acl(struct sym *sym, tac_user * user, struct tac_acllist **tal)
 {
     while (*tal)
 	tal = &(*tal)->next;
-    *tal = mempool_malloc(user->pool, sizeof(struct tac_acllist));
+    *tal = mem_alloc(user->mem, sizeof(struct tac_acllist));
     (*tal)->u.token = S_permit;
     tac_sym_get(sym);
     parse(sym, S_equal);
@@ -2130,8 +2120,8 @@ void parse_user_final(tac_user * user)
     while (*pa && (*pa)->acl)
 	pa = &(*pa)->next;
     if (!*pa) {
-	*pa = mempool_malloc(user->pool, sizeof(struct tac_acllist));
-	(*pa)->u.passwdp = new_upwdat(user->pool, user->realm);
+	*pa = mem_alloc(user->mem, sizeof(struct tac_acllist));
+	(*pa)->u.passwdp = new_upwdat(user->mem, user->realm);
     }
 }
 
@@ -2161,7 +2151,7 @@ static void parse_user_attr(struct sym *sym, tac_user * user, enum token user_or
 	    if (!user->svc_prohibit)
 		user->svc_prohibit = RB_tree_new((int (*)(const void *, const void *))
 						 strcmp, NULL);
-	    RB_insert(user->svc_prohibit, mempool_strdup(user->pool, sym->buf));
+	    RB_insert(user->svc_prohibit, mem_strdup(user->mem, sym->buf));
 	    tac_sym_get(sym);
 	    continue;
 	case S_service:
@@ -2200,7 +2190,7 @@ static void parse_user_attr(struct sym *sym, tac_user * user, enum token user_or
 		    parse(sym, S_equal);
 		    while (*r)
 			r = &(*r)->next;
-		    *r = mempool_malloc(user->pool, sizeof(struct acl_element));
+		    *r = mem_alloc(user->mem, sizeof(struct acl_element));
 		    switch (sym->code) {
 		    case S_not:
 		    case S_deny:
@@ -2210,7 +2200,7 @@ static void parse_user_attr(struct sym *sym, tac_user * user, enum token user_or
 		    default:;
 		    }
 		    (*r)->line = sym->line;
-		    (*r)->string = mempool_strdup(user->pool, sym->buf);
+		    (*r)->string = mem_strdup(user->mem, sym->buf);
 		    dummy = &(*r)->blob.r;
 		    (*r)->type = parse_regex(sym, user, dummy);
 		    sym->flag_parse_pcre = 0;
@@ -2287,7 +2277,7 @@ static void parse_user_attr(struct sym *sym, tac_user * user, enum token user_or
 	case S_message:
 	    tac_sym_get(sym);
 	    parse(sym, S_equal);
-	    user->msg = mempool_strdup(user->pool, sym->buf);
+	    user->msg = mem_strdup(user->mem, sym->buf);
 	    tac_sym_get(sym);
 	    continue;
 	case S_login:
@@ -2322,7 +2312,7 @@ static void parse_user_attr(struct sym *sym, tac_user * user, enum token user_or
 	    parse_password(sym, user);
 	    continue;
 	case S_enable:
-	    parse_enable(sym, user->pool, user->enable, user->enable_implied);
+	    parse_enable(sym, user->mem, user->enable, user->enable_implied);
 	    continue;
 	case S_tag:
 	    parse_tag(sym, user);
@@ -2352,7 +2342,7 @@ static void parse_user_attr(struct sym *sym, tac_user * user, enum token user_or
 		h.name = sym->buf;
 
 		if (RB_lookup(hosttable, (void *) &h) || !v6_ptoh(&a, &cm, sym->buf)) {
-		    struct stringlist *s = mempool_malloc(user->pool,
+		    struct stringlist *s = mem_alloc(user->mem,
 							  sizeof(struct stringlist)
 							  + strlen(sym->buf));
 		    strcpy(s->s, sym->buf);
@@ -2988,7 +2978,7 @@ static void parse_tag(struct sym *sym, tac_user * user)
 
     while (*acltag)
 	acltag = &(*acltag)->next;
-    *acltag = mempool_malloc(user->pool, sizeof(struct tac_acllist));
+    *acltag = mem_alloc(user->mem, sizeof(struct tac_acllist));
 
     if (sym->code == S_acl) {
 	struct tac_acl *a = NULL;
@@ -2999,7 +2989,7 @@ static void parse_tag(struct sym *sym, tac_user * user)
 	(*acltag)->acl = a;
     }
     parse(sym, S_equal);
-    (*acltag)->u.tag = mempool_strdup(user->pool, sym->buf);
+    (*acltag)->u.tag = mem_strdup(user->mem, sym->buf);
     tac_sym_get(sym);
 }
 
@@ -3017,7 +3007,7 @@ static void parse_cmd(struct sym *sym, tac_user * user, struct node_svc *shell)
     lower(cmd->name);
     cmd = RB_lookup(shell->sub, cmd);
     if (!cmd) {
-	cmd = mempool_malloc(user->pool, len);
+	cmd = mem_alloc(user->mem, len);
 	cmd->line = line;
 	strcpy(cmd->name, sym->buf);
 	RB_insert(shell->sub, cmd);
@@ -3050,7 +3040,7 @@ static struct node_svc *add_svc(struct sym *sym, tac_user * user, rb_tree_t * rb
 	if (*p)
 	    return *p;
     }
-    *p = mempool_malloc(user->pool, len);
+    *p = mem_alloc(user->mem, len);
     strcpy((*p)->name, name);
     (*p)->type = type;
     (*p)->acl = acl;
@@ -3107,7 +3097,7 @@ enum token eval_tac_acl(tac_session * session, char *cmd, struct tac_acl *acl)
 	    } else
 		hint = " (cached)";
 	} else {
-	    *tc = mempool_malloc(session->pool, sizeof(struct tac_acl_cache));
+	    *tc = mem_alloc(session->mem, sizeof(struct tac_acl_cache));
 	    (*tc)->acl = acl;
 	    (*tc)->result = S_unknown;
 
@@ -3117,7 +3107,7 @@ enum token eval_tac_acl(tac_session * session, char *cmd, struct tac_acl *acl)
 		    switch ((res = tac_script_eval_r(session, cmd, action, NULL))) {
 		    case S_permit:
 		    case S_deny:
-			*tc = mempool_malloc(session->pool, sizeof(struct tac_acl_cache));
+			*tc = mem_alloc(session->mem, sizeof(struct tac_acl_cache));
 			(*tc)->acl = acl;
 			(*tc)->result = res;
 			return res;
@@ -3705,8 +3695,7 @@ static enum tac_acl_type parse_regex(struct sym *sym, tac_user * user, void **rp
 	PCRE2_SIZE erroffset;
 	*rptr = pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
 	if (*rptr) {
-	    if (user->pool_pcre)
-		RB_insert(user->pool_pcre, *rptr);
+	    mem_add_free(user->mem, pcre2_code_free, *rptr);
 	} else {
 	    PCRE2_UCHAR buffer[256];
 	    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
@@ -3718,15 +3707,15 @@ static enum tac_acl_type parse_regex(struct sym *sym, tac_user * user, void **rp
 	parse_error(sym, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
 #endif
     }
-    *rptr = mempool_malloc(user->pool, sizeof(regex_t));
+    *rptr = mem_alloc(user->mem, sizeof(regex_t));
     errcode = regcomp((regex_t *) * rptr, sym->buf, REG_EXTENDED | REG_NOSUB | REG_NEWLINE | common_data.regex_posix_flags);
     if (errcode) {
 	char e[160];
 	regerror(errcode, (regex_t *) * rptr, e, sizeof(e));
 	parse_error(sym, "In regular expression '%s': %s", sym->buf, e);
-	mempool_free(user->pool, (regex_t *) * rptr);
-    } else if (user->pool_regex)
-	RB_insert(user->pool_regex, *rptr);
+	mem_free(user->mem, (regex_t *) * rptr);
+    } else
+	mem_add_free(user->mem, regfree, *rptr);
     tac_sym_get(sym);
     return T_regex_posix;
 }
@@ -3777,7 +3766,7 @@ static void parse_cmd_matches(struct sym *sym, tac_user * user, struct node_cmd 
 	case S_permit:
 	case S_deny:
 	    perm = parse_permission(sym);
-	    (*np) = mempool_malloc(user->pool, sizeof(struct node_perm) + strlen(sym->buf));
+	    (*np) = mem_alloc(user->mem, sizeof(struct node_perm) + strlen(sym->buf));
 	    (*np)->line = line;
 	    (*np)->type = perm;
 	    strcpy((*np)->name, sym->buf);
@@ -3803,7 +3792,7 @@ static void parse_cmd_matches(struct sym *sym, tac_user * user, struct node_cmd 
 		tac_sym_get(sym);
 		parse(sym, S_equal);
 		if (m)
-		    *m = mempool_strdup(user->pool, sym->buf);
+		    *m = mem_strdup(user->mem, sym->buf);
 		tac_sym_get(sym);
 		continue;
 	    }
@@ -3826,14 +3815,14 @@ static void attr_add(tac_user * user, char ***v, int *i, char *attr, char *sep, 
     size_t q2_len = strlen(q2);
 
     if (!(*i & 0xf)) {
-	char **v_new = mempool_malloc(user->pool, (*i + 16) * sizeof(char *));
+	char **v_new = mem_alloc(user->mem, (*i + 16) * sizeof(char *));
 	if (*i)
 	    memcpy(v_new, *v, *i * sizeof(char *));
-	mempool_free(user->pool, v);
+	mem_free(user->mem, v);
 	*v = v_new;
     }
     len = attr_len + sep_len + q1_len + value_len + q2_len + 1;
-    s = mempool_malloc(user->pool, len);
+    s = mem_alloc(user->mem, len);
     (*v)[(*i)++] = s;
     memcpy(s, attr, attr_len);
     s += attr_len;
@@ -3906,7 +3895,7 @@ static void parse_attrs(struct sym *sym, tac_user * user, struct node_svc *svc)
 		tac_sym_get(sym);
 		parse(sym, S_equal);
 		if (m)
-		    *m = mempool_strdup(user->pool, sym->buf);
+		    *m = mem_strdup(user->mem, sym->buf);
 		tac_sym_get(sym);
 		continue;
 	    }
@@ -4453,12 +4442,12 @@ static void lookup_svc(tac_session * session, tac_user * u,
     }
 
     if (protocol && *protocol) {
-	protp = mempool_malloc(session->pool, sizeof(struct node_svc) + strlen(protocol));
+	protp = mem_alloc(session->mem, sizeof(struct node_svc) + strlen(protocol));
 	protp->type = keycode(protocol);
 	strcpy(protp->name, protocol);
     }
     if (cmd && *cmd) {
-	cmdp = mempool_malloc(session->pool, sizeof(struct node_cmd) + strlen(cmd));
+	cmdp = mem_alloc(session->mem, sizeof(struct node_cmd) + strlen(cmd));
 	strcpy(cmdp->name, cmd);
     }
 
@@ -4804,11 +4793,11 @@ static struct mavis_cond *tac_script_cond_add(tac_user * u, struct mavis_cond
     if (a->u.m.n && !(a->u.m.n & 7)) {
 	size_t len = sizeof(struct mavis_cond) + a->u.m.n * sizeof(struct mavis_cond *);
 	if (u) {
-	    struct mavis_cond *n = mempool_malloc(u->pool, len);
+	    struct mavis_cond *n = mem_alloc(u->mem, len);
 	    if (a) {
 		if (a->u.m.n)
 		    memcpy(n, a, len - 8);
-		mempool_free(u->pool, a);
+		mem_free(u->mem, a);
 	    }
 	    a = n;
 	} else
@@ -4822,7 +4811,7 @@ static struct mavis_cond *tac_script_cond_add(tac_user * u, struct mavis_cond
 
 static struct mavis_cond *tac_script_cond_new(tac_user * u, enum token type)
 {
-    struct mavis_cond *m = mempool_malloc(u ? u->pool : NULL, sizeof(struct mavis_cond));
+    struct mavis_cond *m = mem_alloc(u ? u->mem : NULL, sizeof(struct mavis_cond));
     m->type = type;
     return m;
 }
@@ -4830,7 +4819,7 @@ static struct mavis_cond *tac_script_cond_new(tac_user * u, enum token type)
 static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 {
     struct mavis_cond *m, *p = NULL;
-    rb_tree_t *pool = u ? u->pool : NULL;
+    mem_t *mem = u ? u->mem : NULL;
 
     switch (sym->code) {
     case S_leftbra:
@@ -4933,7 +4922,7 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 		    m->type = S_host;
 		    m->u.s.rhs = hp;
 		} else {
-		    struct in6_cidr *c = mempool_malloc(pool, sizeof(struct in6_cidr));
+		    struct in6_cidr *c = mem_alloc(mem, sizeof(struct in6_cidr));
 		    m->u.s.rhs = c;
 		    if (v6_ptoh(&c->addr, &c->mask, sym->buf))
 			parse_error(sym, "Expected a hostname or an IP " "address/network in CIDR notation, " "but got '%s'.", sym->buf);
@@ -4955,7 +4944,7 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 
 	tac_sym_get(sym);
 	if (m->type == S_equal) {
-	    m->u.s.rhs = mempool_strdup(pool, sym->buf);
+	    m->u.s.rhs = mem_strdup(mem, sym->buf);
 
 	    tac_sym_get(sym);
 	    return p ? p : m;
@@ -4967,9 +4956,9 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 		m->type = S_slash;
 		m->u.s.rhs =
 		    pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
-		if (u && u->pool_pcre) {
-		    RB_insert(u->pool_pcre, m->u.s.rhs);
-		    m->u.s.rhs_txt = mempool_strdup(u->pool, sym->buf);
+		if (u) {
+		    mem_add_free(u->mem, pcre2_code_free, m->u.s.rhs);
+		    m->u.s.rhs_txt = mem_strdup(u->mem, sym->buf);
 		}
 
 		if (!m->u.s.rhs) {
@@ -4984,14 +4973,14 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 		parse_error(sym, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
 #endif
 	    }
-	    m->u.s.rhs = mempool_malloc(pool, sizeof(regex_t));
+	    m->u.s.rhs = mem_alloc(mem, sizeof(regex_t));
 	    errcode = regcomp((regex_t *) m->u.s.rhs, sym->buf, REG_EXTENDED | REG_NOSUB | REG_NEWLINE | common_data.regex_posix_flags);
 	    if (errcode) {
 		char e[160];
 		regerror(errcode, (regex_t *) m->u.s.rhs, e, sizeof(e));
 		parse_error(sym, "In regular expression '%s': %s", sym->buf, e);
-	    } else if (u && u->pool_regex)
-		RB_insert(u->pool_regex, m->u.s.rhs);
+	    } else if (u)
+		mem_add_free(u->mem, regfree, m->u.s.rhs);
 	    tac_sym_get(sym);
 	    return p ? p : m;
 	}
@@ -5005,12 +4994,12 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 static void tac_script_cond_optimize(tac_user * u, struct mavis_cond **m)
 {
     struct mavis_cond *p;
-    rb_tree_t *pool = u ? u->pool : NULL;
+    mem_t *mem = u ? u->mem : NULL;
     int i;
     while (*m && ((*m)->type == S_or || (*m)->type == S_and) && (*m)->u.m.n == 1) {
 	p = *m;
 	*m = (*m)->u.m.e[0];
-	mempool_free(pool, &p);
+	mem_free(mem, &p);
     }
     if (*m)
 	for (i = 0; i < (*m)->u.m.n; i++)
@@ -5196,7 +5185,7 @@ static enum token tac_script_eval_r(tac_session * session, char *cmd, struct mav
 static struct mavis_action *tac_script_parse_r(tac_user * u, struct sym *sym, int section)
 {
     struct mavis_action *m = NULL;
-    rb_tree_t *pool = u ? u->pool : NULL;
+    mem_t *mem = u ? u->mem : NULL;
 
     switch (sym->code) {
     case S_eof:
@@ -5217,7 +5206,7 @@ static struct mavis_action *tac_script_parse_r(tac_user * u, struct sym *sym, in
     case S_message:
 	m = mavis_action_new(sym, NULL);
 	parse(sym, S_equal);
-	m->b.v = mempool_strdup(pool, sym->buf);
+	m->b.v = mem_strdup(mem, sym->buf);
 	tac_sym_get(sym);
 	break;
     case S_if:
@@ -5293,7 +5282,7 @@ void tac_rewrite_user(tac_session * session)
 	    pcre2_match_data_free(match_data);
 	    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", e->name, session->username, rc);
 	    if (rc > 0) {
-		session->username = mempool_strndup(session->pool, outbuf, outlen);
+		session->username = mem_strndup(session->mem, outbuf, outlen);
 		session->username_rewritten = 1;
 		report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: setting username to '%s'", session->username);
 	    }

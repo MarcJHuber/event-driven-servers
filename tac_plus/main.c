@@ -90,8 +90,8 @@ struct context *new_context(struct io_context *io, tac_realm * r)
 {
     struct context *c = calloc(1, sizeof(struct context));
     c->io = io;
-    c->pool = mempool_create();
-    RB_insert(c->pool, c);
+    c->mem = mem_create(M_POOL);
+    mem_attach(c->mem, c);
     if (r) {
 	c->sessions = RB_tree_new(compare_session, NULL);
 	c->id = context_id++;
@@ -327,7 +327,7 @@ void cleanup(struct context *ctx, int cur)
     }
 #endif
 
-    mempool_destroy(ctx->pool);
+    mem_destroy(ctx->mem);
 
     common_data.users_cur--;
     set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
@@ -730,7 +730,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	/* make note of host objects */
 	hc = arr_max - arr_min + 1;
 
-	ctx->hostchain = mempool_malloc(ctx->pool, hc * sizeof(tac_host *));
+	ctx->hostchain = mem_alloc(ctx->mem, hc * sizeof(tac_host *));
 
 	for (hc = 0, i = arr_max; i > arr_min; i--, hc++)
 	    ctx->hostchain[hc] = arr[i];
@@ -761,7 +761,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 		ctx->enable[priv_lvl] = &pwdat_unknown;
 
 	ctx->nas_address = addr;
-	ctx->nas_address_ascii = mempool_strdup(ctx->pool, afrom);
+	ctx->nas_address_ascii = mem_strdup(ctx->mem, afrom);
 
 	io_register(ctx->io, ctx->sock, ctx);
 	io_set_cb_i(ctx->io, ctx->sock, (void *) tac_read);

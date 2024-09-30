@@ -90,15 +90,15 @@ void author(tac_session * session, tac_pak_hdr * hdr)
 
     session->authen_type = pak->authen_type;
     session->authen_method = pak->authen_method;
-    session->username = mempool_strndup(session->pool, p, (int) pak->user_len);
+    session->username = mem_strndup(session->mem, p, (int) pak->user_len);
     session->tag = strchr(session->username, session->ctx->aaa_realm->separator);
     if (session->tag)
 	*session->tag++ = 0;
     tac_rewrite_user(session);
     p += pak->user_len;
-    session->nas_port = mempool_strndup(session->pool, p, (int) pak->port_len);
+    session->nas_port = mem_strndup(session->mem, p, (int) pak->port_len);
     p += pak->port_len;
-    session->nac_address_ascii = mempool_strndup(session->pool, p, (int) pak->rem_addr_len);
+    session->nac_address_ascii = mem_strndup(session->mem, p, (int) pak->rem_addr_len);
     p += pak->rem_addr_len;
 
     session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
@@ -130,14 +130,14 @@ void author(tac_session * session, tac_pak_hdr * hdr)
     }
 
     session->priv_lvl = pak->priv_lvl;
-    data = mempool_malloc(session->pool, sizeof(struct author_data));
+    data = mem_alloc(session->mem, sizeof(struct author_data));
     data->in_cnt = pak->arg_cnt;
 
-    cmd_argp = mempool_malloc(session->pool, pak->arg_cnt * sizeof(char *));
+    cmd_argp = mem_alloc(session->mem, pak->arg_cnt * sizeof(char *));
 
     /* p points to the start of args. Step thru them making strings */
     for (i = 0; i < (int) pak->arg_cnt; i++) {
-	cmd_argp[i] = mempool_strndup(session->pool, p, *argsizep);
+	cmd_argp[i] = mem_strndup(session->mem, p, *argsizep);
 	p += *argsizep++;
     }
 
@@ -279,7 +279,7 @@ static void authorize_cmd(tac_session * session, char *cmd)
 	    len += (int) strlen(data->in_args[i] + 7);
 
     if (len) {
-	args = mempool_malloc(session->pool, len);
+	args = mem_alloc(session->mem, len);
 	*args = 0;
 	for (i = 0; i < data->in_cnt; i++)
 	    if (!strcmp_a(data->in_args[i], "cmd-arg=")) {
@@ -321,7 +321,7 @@ static void authorize_cmd(tac_session * session, char *cmd)
 		p++, l++;
 	}
 	p = format;
-	q = data->server_msg = mempool_malloc(session->pool, l);
+	q = data->server_msg = mem_alloc(session->mem, l);
 	while (*p) {
 	    if (p[0] == '%' && p[1] == 'a') {
 		strcpy(q, args);
@@ -349,7 +349,7 @@ static int bad_nas_args(tac_session * session, struct author_data *data)
 	    char buf[MAX_INPUT_LINE_LEN];
 	    snprintf(buf, sizeof(buf), "Illegal arg from NAS: %s", data->in_args[i]);
 	    data->status = TAC_PLUS_AUTHOR_STATUS_ERROR;
-	    data->admin_msg = mempool_strdup(session->pool, buf);
+	    data->admin_msg = mem_strdup(session->mem, buf);
 	    report(session, LOG_ERR, ~0, "%s: %s", session->ctx->nas_address_ascii, buf);
 	    return -1;
 	}
@@ -403,7 +403,7 @@ static void authorize_svc(tac_session * session, enum token svc, char *svcname, 
     }
 
     /* Allocate space for in + out args */
-    out_args = mempool_malloc(session->pool, sizeof(char *) * (data->in_cnt + RB_count(tree_m_av) + RB_count(tree_a_av)));
+    out_args = mem_alloc(session->mem, sizeof(char *) * (data->in_cnt + RB_count(tree_m_av) + RB_count(tree_a_av)));
 
     outp = out_args;
 

@@ -222,9 +222,7 @@ typedef struct {
     struct pwdat *enable[TAC_PLUS_PRIV_LVL_MAX + 1];	/* enable passwords */
     rb_tree_t *svcs;		/* services */
     rb_tree_t *svc_prohibit;	/* prohibited services */
-    rb_tree_t *pool;		/* memory pool */
-    rb_tree_t *pool_regex;	/* pool for regular expressions */
-    rb_tree_t *pool_pcre;	/* pool for pcre regular expressions */
+    mem_t *mem;		/* memory pool */
     tac_realm *realm;
     tac_realm *mavis_realm;	/* for local users only */
     u_int debug;		/* debug flags */
@@ -554,7 +552,7 @@ typedef struct tac_session tac_session;
 
 struct tac_session {
     struct context *ctx;
-    rb_tree_t *pool;
+    mem_t *mem;
     tac_user *user;
     struct in6_addr nac_address;	/* host byte order */
     char *username;
@@ -613,7 +611,7 @@ struct context {
     tac_pak *in;
     tac_pak *out;
     tac_pak *delayed;
-    rb_tree_t *pool;		/* memory pool */
+    mem_t *mem;		/* memory pool */
     rb_tree_t *sessions;
     rb_tree_t *shellctxcache;
     tac_realm *aaa_realm;
@@ -688,8 +686,6 @@ void send_acct_reply(tac_session *, u_char, char *, char *);
 void send_author_reply(tac_session *, u_char, char *, char *, int, char **);
 
 /* utils.c */
-rb_tree_t *tac_regpool_create(void);
-rb_tree_t *tac_pcrepool_create(void);
 int tac_exit(int) __attribute__((noreturn));
 
 void log_start(rb_tree_t *, char *, char *);

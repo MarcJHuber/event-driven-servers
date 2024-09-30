@@ -62,7 +62,7 @@ static void mavis_switch(tac_session * session, av_ctx * avc, int result)
 	    char *comment = av_get(avc, AV_A_USER_RESPONSE);
 	    if (comment) {
 		size_t len = strlen(comment);
-		session->user_msg = mempool_malloc(session->pool, len + 2);
+		session->user_msg = mem_alloc(session->mem, len + 2);
 		memcpy(session->user_msg, comment, len);
 		if (len && session->user_msg[len - 1] != '\n')
 		    session->user_msg[len] = '\n';
@@ -142,7 +142,7 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), char *type, e
     }
 
     if (!session->mavis_data)
-	session->mavis_data = mempool_malloc(session->pool, sizeof(struct mavis_data));
+	session->mavis_data = mem_alloc(session->mem, sizeof(struct mavis_data));
 
     session->mavis_data->mavisfn = f;
     session->mavis_data->mavistype = type;
@@ -249,7 +249,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 
 #define errbuf_size 1024
 
-		    errbuf = mempool_malloc(session->pool, errbuf_size);
+		    errbuf = mem_alloc(session->mem, errbuf_size);
 		    if (errbuf_size > snprintf(errbuf, errbuf_size, errfmt, config.hostname, session->username, ctime(&tt)))
 			session->user_msg = errbuf;
 		    report(session, LOG_ERR, ~0, "parsing dynamic profile failed for user %s", session->username);
@@ -305,8 +305,8 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    char *chal = av_get(avc, AV_A_CHALLENGE);
 	    if (chal) {
 		u->chalresp = TRISTATE_YES;
-		mempool_free(session->pool, &session->challenge);
-		session->challenge = mempool_strdup(session->pool, chal);
+		mem_free(session->mem, &session->challenge);
+		session->challenge = mem_strdup(session->mem, chal);
 	    } else
 		u->chalresp = TRISTATE_NO;
 	    return;
@@ -316,7 +316,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_PASS;
 	    if ((TRISTATE_YES != u->chalresp) && session->password && !u->passwd_oneshot) {
 		char *pass = session->password_new ? session->password_new : session->password;
-		pp[PW_MAVIS] = mempool_malloc(u->pool, sizeof(struct pwdat) + strlen(pass));
+		pp[PW_MAVIS] = mem_alloc(u->mem, sizeof(struct pwdat) + strlen(pass));
 		strcpy(pp[PW_MAVIS]->value, pass);
 		pp[PW_MAVIS]->type = S_clear;
 		pp[session->mavis_data->pw_ix] = pp[PW_MAVIS];

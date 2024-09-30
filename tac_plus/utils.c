@@ -48,23 +48,6 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-static int pool_cmp(const void *a, const void *b)
-{
-    return (a < b) ? -1 : ((a == b) ? 0 : +1);
-}
-
-#ifdef WITH_PCRE2
-rb_tree_t *tac_pcrepool_create(void)
-{
-    return RB_tree_new(pool_cmp, (void (*)(void *)) pcre2_code_free);
-}
-#endif
-
-rb_tree_t *tac_regpool_create(void)
-{
-    return RB_tree_new(pool_cmp, (void (*)(void *)) regfree);
-}
-
 int tac_exit(int status)
 {
     report(NULL, LOG_DEBUG, ~0, "exit status=%d", status);

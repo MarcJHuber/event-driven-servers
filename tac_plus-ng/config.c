@@ -2931,7 +2931,7 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	case S_profile:
 	    sym_get(sym);
 	    if (!user->profile)
-		    user->profile = new_profile(user->mem, user->name, r);
+		user->profile = new_profile(user->mem, user->name, r);
 	    parse_profile_attr(sym, user->profile, user->realm);
 	    continue;
 	default:

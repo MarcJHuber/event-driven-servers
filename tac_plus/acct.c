@@ -86,7 +86,7 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
 
 	log_start(rbt, session->ctx->nas_address_ascii, msgid);
 
-	session->username = mempool_strndup(session->pool, p, acct->user_len);
+	session->username = mem_strndup(session->mem, p, acct->user_len);
 	session->tag = strchr(session->username, session->ctx->aaa_realm->separator);
 	if (session->tag)
 	    *session->tag++ = 0;
