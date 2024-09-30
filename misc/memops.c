@@ -54,7 +54,7 @@ static void __inline__ *mempool_attach(rb_tree_t * pool, void *p)
     return p;
 }
 
-static void *mempool_detach(rb_tree_t * pool, void *ptr)
+static __inline__ void *mempool_detach(rb_tree_t * pool, void *ptr)
 {
     if (pool && ptr) {
 	rb_node_t *rbn = RB_search(pool, ptr);
@@ -66,7 +66,7 @@ static void *mempool_detach(rb_tree_t * pool, void *ptr)
     return NULL;
 }
 
-static void mempool_free(rb_tree_t * pool, void *ptr)
+static __inline__ void mempool_free(rb_tree_t * pool, void *ptr)
 {
     void **m = ptr;
 
@@ -117,9 +117,9 @@ static memlist_t *memlist_create(void);
 static void *memlist_realloc(memlist_t *, void *, size_t);
 static void memlist_destroy(memlist_t *);
 static void memlist_add(memlist_t *, void *);
-static void __inline__ *memlist_attach(memlist_t *, void *);
+static void *memlist_attach(memlist_t *, void *);
 
-static memlist_t *memlist_create(void)
+static __inline__ memlist_t *memlist_create(void)
 {
     return calloc(1, sizeof(memlist_t));
 }
@@ -134,7 +134,7 @@ static __inline__ void memlist_add(memlist_t * list, void *p)
     }
 }
 
-static void *memlist_realloc(memlist_t * list, void *p, size_t size)
+static __inline__ void *memlist_realloc(memlist_t * list, void *p, size_t size)
 {
     if (list && p) {
 	u_int i = 0;
@@ -149,7 +149,7 @@ static void *memlist_realloc(memlist_t * list, void *p, size_t size)
     return p;
 }
 
-static void memlist_destroy(memlist_t * list)
+static __inline__ void memlist_destroy(memlist_t * list)
 {
     for (u_int i = 0; i < list->arr_count; i++)
 	if (list->arr[i])
@@ -158,7 +158,7 @@ static void memlist_destroy(memlist_t * list)
     free(list);
 }
 
-static void memlist_free(memlist_t * list, void *ptr)
+static __inline__ void memlist_free(memlist_t * list, void *ptr)
 {
     void **m = ptr;
     if (list && *m)
@@ -180,7 +180,7 @@ static void __inline__ *memlist_attach(memlist_t * list, void *p)
     return p;
 }
 
-static void *memlist_detach(memlist_t * list, void *ptr)
+static __inline__ void *memlist_detach(memlist_t * list, void *ptr)
 {
     if (list && ptr)
 	for (u_int i = 0; i < list->arr_count; i++)
@@ -233,7 +233,7 @@ void *mem_alloc(mem_t * m, size_t size)
 	else if (m->type == M_POOL)
 	    mempool_attach(m->u.pool, p);
     }
-    return calloc(1, size);
+    return p;
 }
 
 void *mem_destroy(mem_t * m)
@@ -303,7 +303,8 @@ void *mem_copy(mem_t * m, void *p, size_t len)
     void *b = malloc(len + 1);
     memcpy(b, p, len);
     ((char *) b)[len] = 0;
-    return mem_attach(m, b);
+    mem_attach(m, b);
+    return b;
 }
 
 void mem_add_free(mem_t * m, void *freefun, void *p)
