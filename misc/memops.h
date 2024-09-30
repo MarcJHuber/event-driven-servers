@@ -48,11 +48,4 @@ void *mem_attach(mem_t *, void *);
 void *mem_detach(mem_t * m, void *p);
 void mem_add_free(mem_t * m, void *, void *);
 
-/* legacy API */
-void *mempool_malloc(rb_tree_t *, size_t);
-void mempool_free(rb_tree_t *, void *);
-char *mempool_strdup(rb_tree_t *, char *);
-char *mempool_strndup(rb_tree_t *, u_char *, int);
-void mempool_destroy(rb_tree_t *);
-rb_tree_t *mempool_create(void);
 #endif				/* __MEMOPS_H__ */
