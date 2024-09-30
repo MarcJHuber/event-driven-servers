@@ -1808,13 +1808,13 @@ void free_user(tac_user * user)
     mem_destroy(user->mem);
 }
 
-static struct pwdat *passwd_deny = NULL;
-static struct pwdat *passwd_mavis = NULL;
-static struct pwdat *passwd_login = NULL;
-static struct pwdat *passwd_deny_dflt = NULL;
-static struct pwdat *passwd_mavis_dflt = NULL;
-static struct pwdat *passwd_login_dflt = NULL;
-static struct pwdat *passwd_permit = NULL;
+static struct pwdat passwd_deny = { .type = S_deny };
+static struct pwdat passwd_mavis = { .type = S_mavis };
+static struct pwdat passwd_login = { .type = S_login };
+static struct pwdat passwd_deny_dflt = { .type = S_deny };
+static struct pwdat passwd_mavis_dflt = { .type = S_mavis };
+static struct pwdat passwd_login_dflt = { .type = S_login };
+static struct pwdat passwd_permit = { .type = S_permit };
 
 tac_user *new_user(char *name, enum token type, tac_realm * r)
 {
@@ -1833,16 +1833,16 @@ tac_user *new_user(char *name, enum token type, tac_realm * r)
     user->realm = r;
 
     for (i = 0; i <= PW_MAVIS; i++)
-	user->passwd[i] = passwd_deny_dflt;
+	user->passwd[i] = &passwd_deny_dflt;
     if (r->mavis_login == TRISTATE_YES)
-	user->passwd[PW_LOGIN] = passwd_mavis_dflt;
+	user->passwd[PW_LOGIN] = &passwd_mavis_dflt;
     if (r->mavis_pap == TRISTATE_YES)
-	user->passwd[PW_PAP] = passwd_mavis_dflt;
+	user->passwd[PW_PAP] = &passwd_mavis_dflt;
     if (r->default_host->map_pap_to_login == TRISTATE_YES) {
 	if (r->mavis_login == TRISTATE_YES)
-	    user->passwd[PW_PAP] = passwd_mavis_dflt;
+	    user->passwd[PW_PAP] = &passwd_mavis_dflt;
 	else
-	    user->passwd[PW_PAP] = passwd_login_dflt;
+	    user->passwd[PW_PAP] = &passwd_login_dflt;
     }
 
     return user;
@@ -2245,16 +2245,16 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t * mem, int cry)
     switch (sym->code) {
     case S_mavis:
 	sym_get(sym);
-	return passwd_mavis;
+	return &passwd_mavis;
     case S_permit:
 	sym_get(sym);
-	return passwd_permit;
+	return &passwd_permit;
     case S_login:
 	sym_get(sym);
-	return passwd_login;
+	return &passwd_login;
     case S_deny:
 	sym_get(sym);
-	return passwd_deny;
+	return &passwd_deny;
     case S_crypt:
 	if (cry)
 	    break;
@@ -3810,21 +3810,6 @@ void cfg_init(void)
 	    config.hostname = strdup(utsname.nodename);
 	config.hostname_len = strlen(config.hostname);
     }
-
-    passwd_deny = calloc(1, sizeof(struct pwdat));
-    passwd_deny->type = S_deny;
-    passwd_mavis = calloc(1, sizeof(struct pwdat));
-    passwd_mavis->type = S_mavis;
-    passwd_login = calloc(1, sizeof(struct pwdat));
-    passwd_login->type = S_login;
-    passwd_deny_dflt = calloc(1, sizeof(struct pwdat));
-    passwd_deny_dflt->type = S_deny;
-    passwd_mavis_dflt = calloc(1, sizeof(struct pwdat));
-    passwd_mavis_dflt->type = S_mavis;
-    passwd_login_dflt = calloc(1, sizeof(struct pwdat));
-    passwd_login_dflt->type = S_login;
-    passwd_permit = calloc(1, sizeof(struct pwdat));
-    passwd_permit->type = S_permit;
 }
 
 int cfg_get_enable(tac_session * session, struct pwdat **p)
