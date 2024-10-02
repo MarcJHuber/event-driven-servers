@@ -234,7 +234,11 @@ void io_dns_cancel(struct io_dns_ctx *idc, void *app_ctx)
     i.app_ctx = app_ctx;
     if ((r = RB_search(idc->by_app_ctx, &i))) {
 #ifdef WITH_ARES
-	RB_payload(r, struct io_dns_item *)->canceled = 1;
+	struct io_dns_item *idi = RB_payload(r, struct io_dns_item *);
+	idi->canceled = -1;
+
+	// remove app_ctx here as the caller may reuse the memory
+	RB_search_and_delete(idc->by_app_ctx, idi);
 #endif
     }
 }
