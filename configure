@@ -624,6 +624,8 @@ sub check_for($$$$$) {
 	}
 }
 
+delete $DEFS{"WITH_TLS"} if exists $DEFS{"WITH_SSL"} && exists $DEFS{"WITH_TLS"} &&  $DEFS{"WITH_SSL"} == 1 && $DEFS{"WITH_TLS"} == 1;
+
 check_for("ARES", "libcares", "ares.h", "cares", "-DWITH_DNS");
 $DEFS{"LIB_DNS"} = $DEFS{"LIB_ARES"} if exists $DEFS{"LIB_ARES"};
 $DEFS{"WITH_DNS"} = 1 if exists $DEFS{"LIB_DNS"};
