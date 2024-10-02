@@ -47,7 +47,7 @@ static void mempool_free(rb_tree_t *, void *);
 static void mempool_destroy(rb_tree_t *);
 
 static rb_tree_t *mempool_create(void);
-static void __inline__ *mempool_attach(rb_tree_t * pool, void *p)
+static __inline__ void *mempool_attach(rb_tree_t * pool, void *p)
 {
     if (pool && p)
 	RB_insert(pool, p);
@@ -173,7 +173,7 @@ static __inline__ void memlist_free(memlist_t * list, void *ptr)
 	    }
 }
 
-static void __inline__ *memlist_attach(memlist_t * list, void *p)
+static __inline__ void *memlist_attach(memlist_t * list, void *p)
 {
     if (list && p)
 	memlist_add(list, p);
