@@ -344,7 +344,7 @@ int io_poll(struct io_context *io, int poll_timeout)
 
 struct io_context *io_destroy(struct io_context *io, void (*freeproc)(void *))
 {
-    if (io) {
+    if(io) {
 	RB_tree_delete(io->events_by_data);
 	RB_tree_delete(io->events_by_time);
 
@@ -854,6 +854,7 @@ static void epoll_io_register(struct io_context *io, int fd)
 	int i;
 	int omax = io->nfds_max;
 	io_resize(io, fd);
+	io->nfds_max = fd + 128;
 	io->Epoll.changelist = Xrealloc(io->Epoll.changelist, io->nfds_max * sizeof(int));
 	io->Epoll.changemap = Xrealloc(io->Epoll.changemap, io->nfds_max * sizeof(int));
 	io->Epoll.diskfile = Xrealloc(io->Epoll.diskfile, io->nfds_max * sizeof(int));
