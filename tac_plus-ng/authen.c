@@ -1693,7 +1693,7 @@ void get_revmap_nac(tac_session * session)
 	if (r) {
 	    session->revmap_pending = 1;
 	    report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "Querying NAC revmap (%s)", session->nac_address_ascii);
-	    io_dns_add_addr(config.default_realm->idc, &session->nac_address, (void *) set_revmap_nac, session);
+	    io_dns_add_addr(r->idc, &session->nac_address, (void *) set_revmap_nac, session);
 	}
     }
 #endif
@@ -1754,10 +1754,10 @@ void get_revmap_nas(tac_session * session)
 	    r = ctx->realm;
 	    while (r && !r->idc)
 		r = r->parent;
-	    if (r->idc) {
+	    if (r) {
 		ctx->revmap_pending = 1;
 		report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "Querying NAS revmap (%s)", ctx->nas_address_ascii);
-		io_dns_add_addr(config.default_realm->idc, &ctx->nas_address, (void *) set_revmap_nas, ctx);
+		io_dns_add_addr(r->idc, &ctx->nas_address, (void *) set_revmap_nas, ctx);
 	    }
 	}
 #endif

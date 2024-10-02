@@ -348,7 +348,7 @@ void cleanup(struct context *ctx, int cur)
 	tac_realm *r = ctx->realm;
 	while (r && !r->idc)
 	    r = r->parent;
-	if (r && r->idc)
+	if (r)
 	    io_dns_cancel(r->idc, ctx);
     }
 #endif
@@ -617,6 +617,9 @@ static void accept_control_tls(struct context *ctx, int cur)
     }
 #endif
 
+    tac_host *by_address = ctx->host;
+    ctx->host = NULL;
+
 #ifdef WITH_SSL
     int r = 0;
     switch (SSL_accept(ctx->tls)) {
@@ -650,10 +653,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 	hint = "SNI";
 	goto bye;
     }
-
-    tac_host *by_address = ctx->host;
-    ctx->host = NULL;
-
 #ifndef OPENSSL_NO_PSK
     if (ctx->tls_psk_identity) {
 	set_host_by_psk_identity(ctx, ctx->tls_psk_identity);
