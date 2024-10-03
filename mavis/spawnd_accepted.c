@@ -232,7 +232,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	    res = common_data.scm_send_msg(spawnd_data.server_arr[min_i]->fn, (struct scm_data *) &sd, s);
 
 	    if (res) {
-		logerr("scm_send_msg (%s:%d)", __FILE__, __LINE__);
+		logerr("scm_send_msg (%s:%d), pid: %d", __FILE__, __LINE__, (int) spawnd_data.server_arr[min_i]->pid);
 		spawnd_cleanup_internal(spawnd_data.server_arr[min_i], spawnd_data.server_arr[min_i]->fn);
 		if (iteration_cur++ == common_data.servers_max) {
 		    /*
