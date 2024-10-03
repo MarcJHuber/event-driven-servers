@@ -255,6 +255,7 @@ struct tac_profile {
      BISTATE(complete);
      BISTATE(visited);
      BISTATE(skip_parent_script);
+     BISTATE(dynamie);
     u_int line;			/* configuration file line number */
     u_int debug;		/* debug flags */
 };

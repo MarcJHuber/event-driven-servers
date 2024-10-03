@@ -1808,13 +1808,13 @@ void free_user(tac_user * user)
     mem_destroy(user->mem);
 }
 
-static struct pwdat passwd_deny = { .type = S_deny };
-static struct pwdat passwd_mavis = { .type = S_mavis };
-static struct pwdat passwd_login = { .type = S_login };
-static struct pwdat passwd_deny_dflt = { .type = S_deny };
-static struct pwdat passwd_mavis_dflt = { .type = S_mavis };
-static struct pwdat passwd_login_dflt = { .type = S_login };
-static struct pwdat passwd_permit = { .type = S_permit };
+static struct pwdat passwd_deny = {.type = S_deny };
+static struct pwdat passwd_mavis = {.type = S_mavis };
+static struct pwdat passwd_login = {.type = S_login };
+static struct pwdat passwd_deny_dflt = {.type = S_deny };
+static struct pwdat passwd_mavis_dflt = {.type = S_mavis };
+static struct pwdat passwd_login_dflt = {.type = S_login };
+static struct pwdat passwd_permit = {.type = S_permit };
 
 tac_user *new_user(char *name, enum token type, tac_realm * r)
 {
@@ -2930,9 +2930,28 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 	    continue;
 	case S_profile:
 	    sym_get(sym);
-	    if (!user->profile)
-		user->profile = new_profile(user->mem, user->name, r);
-	    parse_profile_attr(sym, user->profile, user->realm);
+	    switch (sym->code) {
+	    case S_openbra:
+		if (!user->profile) {
+		    user->profile = new_profile(user->mem, user->name, r);
+		    user->profile->dynamie = 1;
+		}
+		if (!user->profile->dynamie)
+		    parse_error(sym, "Profile is already set to '%s'", user->profile->name);
+		parse_profile_attr(sym, user->profile, user->realm);
+		break;
+	    case S_equal:
+		if (user->profile)
+		    parse_error(sym, "Profile is already set to '%s'", user->profile->name);
+		sym_get(sym);
+		user->profile = lookup_profile(sym->buf, r);
+		if (!user->profile)
+		    parse_error(sym, "Profile '%s' not found.", sym->buf);
+		sym_get(sym);
+		continue;
+	    default:
+		parse_error_expect(sym, S_openbra, S_equal, S_unknown);
+	    }
 	    continue;
 	default:
 	    parse_error_expect(sym, S_member, S_valid, S_debug, S_message, S_password, S_enable, S_fallback_only, S_hushlogin, S_ssh_key_id,
