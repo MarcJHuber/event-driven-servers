@@ -2046,6 +2046,13 @@ user ... {
 ...
 }
 
+   Assigning an existing profile to an user will also work:
+user ... {
+...
+  profile = profileName{
+...
+}
+
    Profiles are collections of services available to a user. A
    couple of configuration attributes are service specific and
    only valid in certain contexts:
