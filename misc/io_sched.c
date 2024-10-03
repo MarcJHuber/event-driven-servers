@@ -1939,14 +1939,14 @@ static void io_resize(struct io_context *io, int fd)
     int i, omax = io->nfds_max;
 
     if (io->nfds_limit == io->nfds_max) {
-	logmsg("BUG: Can handle at most %d file descriptors", io->nfds_limit);
+	logmsg("ABORT: Can't handle file descriptor %d at %s:%d", fd, __func__, __LINE__);
 	abort();
     }
 
     io->nfds_max = MINIMUM(io->nfds_limit, MAXIMUM(fd + 1, io->nfds_max + ARRAYINC));
 
     if (io->nfds_max <= fd) {
-	logmsg("BUG: Can handle at file descriptor %d", fd);
+	logmsg("ABORT: Can't handle file descriptor %d at %s:%d", fd, __func__, __LINE__);
 	abort();
     }
 
