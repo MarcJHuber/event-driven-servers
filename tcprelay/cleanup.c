@@ -25,8 +25,6 @@ void cleanup_one(struct context *ctx, int cur)
 
 static void cleanup_context(struct context *ctx, int cur)
 {
-    struct scm_data sd;
-
     if (cur < 0 || !ctx)
 	return;
 
@@ -42,7 +40,7 @@ static void cleanup_context(struct context *ctx, int cur)
     if (ctx->is_client)
 	common_data.users_cur--;
 
-    sd.type = SCM_DONE;
+    struct scm_data sd = {.type = SCM_DONE };
     if (ctx->is_client && common_data.scm_send_msg(0, &sd, -1))
 	die_when_idle = -1;
 

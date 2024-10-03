@@ -344,7 +344,7 @@ int io_poll(struct io_context *io, int poll_timeout)
 
 struct io_context *io_destroy(struct io_context *io, void (*freeproc)(void *))
 {
-    if(io) {
+    if (io) {
 	RB_tree_delete(io->events_by_data);
 	RB_tree_delete(io->events_by_time);
 
@@ -2191,4 +2191,9 @@ void io_clone(struct io_context *io, int to, int from)
 	io->handler[to].want_write = 0;
 	mech_io_set_o(io, to);
     }
+}
+
+int io_get_nfds_limit(struct io_context *io)
+{
+    return io ? io->nfds_limit : 0;
 }

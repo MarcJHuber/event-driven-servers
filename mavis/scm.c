@@ -134,8 +134,7 @@ int fakescm_recv_msg(int sock
 
 void scm_fatal(void)
 {
-    struct scm_data sd;
-    sd.type = SCM_BAD_CFG;
+    struct scm_data sd = {.type = SCM_BAD_CFG };
     common_data.scm_send_msg(0, &sd, -1);
     exit(EX_CONFIG);
 

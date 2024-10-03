@@ -64,8 +64,7 @@ void accept_control_raw(int s, struct scm_data_accept *sd)
     io_set_cb_h(ctx->io, s, (void *) cleanup_control);
 
     if (id_max && id == id_max && !common_data.singleprocess) {
-	struct scm_data d;
-	d.type = SCM_DYING;
+	struct scm_data d = {.type = SCM_DYING };
 	common_data.scm_send_msg(0, &d, -1);
 	die_when_idle = -1;
 	logmsg("Retire limit reached. Told parent about this.");

@@ -142,8 +142,6 @@ static void expire_dns(tac_realm * r)
 
 static void periodics(struct context *ctx, int cur __attribute__((unused)))
 {
-    struct scm_data sd;
-
     io_sched_renew_proc(ctx->io, ctx, (void *) periodics);
     process_signals();
     io_child_reap();
@@ -151,12 +149,12 @@ static void periodics(struct context *ctx, int cur __attribute__((unused)))
     if (!die_when_idle) {
 	if (config.suicide && (config.suicide < io_now.tv_sec)) {
 	    report(NULL, LOG_INFO, ~0, "Retire timeout is up. Told parent about this.");
-	    sd.type = SCM_DYING;
+	    struct scm_data sd = { sd.type = SCM_DYING };
 	    if (ctx_spawnd)
 		common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
 	    die_when_idle = -1;
 	} else {
-	    sd.type = SCM_KEEPALIVE;
+	    struct scm_data sd = {.type = SCM_KEEPALIVE };
 	    if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1))
 		die_when_idle = -1;
 	}
@@ -217,10 +215,6 @@ static void setup_signals(void);
 
 int main(int argc, char **argv, char **envp)
 {
-    int nfds_max;
-    struct rlimit rlim;
-    struct scm_data_max sd;
-
     scm_main(argc, argv, envp);
 
     cfg_init();
@@ -269,16 +263,10 @@ int main(int argc, char **argv, char **envp)
 	io_set_i(common_data.io, ctx_spawnd->sock);
     }
 
-    if (getrlimit(RLIMIT_NOFILE, &rlim)) {
-	report(NULL, LOG_ERR, ~0, "rlimit: %s", strerror(errno));
-	exit(EX_SOFTWARE);
-    }
-
-    nfds_max = (int) rlim.rlim_cur;
-    sd.type = SCM_MAX;
-    sd.max = nfds_max / 4;
-    if (ctx_spawnd)
+    if (ctx_spawnd) {
+	struct scm_data_max sd = {.type = SCM_MAX,.max = io_get_nfds_limit(common_data.io) / 4 };
 	common_data.scm_send_msg(ctx_spawnd->sock, (struct scm_data *) &sd, -1);
+    }
 
     io_sched_add(common_data.io, new_context(common_data.io, NULL), (void *) periodics, common_data.cleanup_interval, 0);
 
@@ -361,8 +349,7 @@ void cleanup(struct context *ctx, int cur)
     mem_destroy(ctx->mem);
 
     if (ctx_spawnd) {
-	struct scm_data sd;
-	sd.type = SCM_DONE;
+	struct scm_data sd = {.type = SCM_DONE };
 	if (common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1) < 0)
 	    die_when_idle = 1;
     }
@@ -415,12 +402,10 @@ struct context_px {
 
 static void cleanup_px(struct context_px *ctx, int cur)
 {
-    struct scm_data sd;
-
     while (io_sched_pop(ctx->io, ctx));
     io_close(ctx->io, ctx->sock);
 
-    sd.type = SCM_DONE;
+    struct scm_data sd = {.type = SCM_DONE };
     if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1) < 0)
 	die_when_idle = 1;
     free(ctx);
@@ -1048,14 +1033,14 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
     socklen_t from_len = (socklen_t) sizeof(from);
 
     if (getpeername(s, &from.sa, &from_len)) {
-	struct scm_data d;
+	// error path
 	report(NULL, LOG_DEBUG, DEBUG_PACKET_FLAG, "getpeername: %s", strerror(errno));
-	close(s);
+	io_close(common_data.io, s);
 
 	common_data.users_cur--;
 	set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 
-	d.type = SCM_DONE;
+	struct scm_data d = {.type = SCM_DONE };;
 	if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &d, -1) < 0)
 	    die_when_idle = 1;
 	if (ctx_spawnd && die_when_idle)
@@ -1137,7 +1122,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if (ctx->host->try_mavis != TRISTATE_YES)
+    if(ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1242,11 +1227,11 @@ static void accept_control_final(struct context *ctx)
     io_set_i(ctx->io, ctx->sock);
     io_sched_add(ctx->io, ctx, (void *) periodics_ctx, 60, 0);
     if (config.retire && (++count == config.retire) && !common_data.singleprocess) {
-	struct scm_data d;
 	report(&session, LOG_INFO, ~0, "Retire limit reached. Told parent about this.");
-	d.type = SCM_DYING;
-	if (ctx_spawnd)
+	if (ctx_spawnd) {
+	    struct scm_data d = {.type = SCM_DYING };
 	    common_data.scm_send_msg(ctx_spawnd->sock, &d, -1);
+	}
     }
 #define S "CONN-START"
     ctx->msgid = S;

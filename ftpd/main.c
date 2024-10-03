@@ -25,15 +25,13 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 
 static void periodics(struct context *ctx, int cur __attribute__((unused)))
 {
-    struct scm_data sd;
-
     DebugIn(DEBUG_PROC);
 
     io_sched_renew_proc(ctx->io, ctx, (void *) periodics);
     process_signals();
     io_child_reap();
 
-    sd.type = SCM_KEEPALIVE;
+    struct scm_data sd = {.type = SCM_KEEPALIVE };
     if (!die_when_idle && common_data.scm_send_msg(0, &sd, -1))
 	die_when_idle = -1;
 
@@ -49,9 +47,6 @@ static void periodics(struct context *ctx, int cur __attribute__((unused)))
 
 int main(int argc, char **argv, char **envp)
 {
-    struct rlimit rlim;
-    struct scm_data_max sd;
-
     scm_main(argc, argv, envp);
 
     cfg_init();
@@ -134,14 +129,7 @@ int main(int argc, char **argv, char **envp)
 
     setup_invalid_callbacks(io);
 
-    if (getrlimit(RLIMIT_NOFILE, &rlim)) {
-	logerr("getrlimit");
-	exit(EX_SOFTWARE);
-    }
-
-    nfds_max = (int) rlim.rlim_cur;
-    sd.type = SCM_MAX;
-    sd.max = (int) (rlim.rlim_cur - 10) / 4;
+    struct scm_data_max sd = {.type = SCM_MAX,.max = (io_get_nfds_limit(common_data.io) - 10) / 4 };
     common_data.scm_send_msg(0, (struct scm_data *) &sd, -1);
 
     io_sched_add(io, new_context(io), (void *) periodics, 60, 0);

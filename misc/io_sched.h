@@ -71,6 +71,7 @@ int io_is_invalid_h(io_context_t *, int);
 int io_is_invalid_e(io_context_t *, int);
 int io_close(io_context_t *, int);
 void io_clone(io_context_t *, int, int);
+int io_get_nfds_limit(struct io_context *);
 
 #ifdef WITH_SSL
 ssize_t io_SSL_read(SSL *, void *, size_t, io_context_t *, int, void *);

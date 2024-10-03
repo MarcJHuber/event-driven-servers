@@ -51,7 +51,7 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-struct config config = { 0 };		/* configuration data */
+struct config config = { 0 };	/* configuration data */
 
 static void die(int signum)
 {
@@ -133,14 +133,11 @@ radixtree_t *dns_tree_ptr_static = NULL;
 
 static void periodics(struct context *ctx, int cur __attribute__((unused)))
 {
-    struct scm_data sd;
-
     io_sched_renew_proc(ctx->io, ctx, (void *) periodics);
     process_signals();
     io_child_reap();
 
-    sd.type = SCM_DYING;
-
+    struct scm_data sd = {.type = SCM_DYING };
     if (!die_when_idle && config.suicide && (config.suicide < io_now.tv_sec)) {
 	report(NULL, LOG_INFO, ~0, "Retire timeout is up. Told parent about this.");
 	common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
@@ -198,13 +195,10 @@ static void accept_control_raw(int, struct scm_data_accept *);
 static void accept_control_px(int, struct scm_data_accept *);
 static void setup_signals(void);
 
-static struct pwdat pwdat_unknown = { .type = S_unknown };
+static struct pwdat pwdat_unknown = {.type = S_unknown };
 
 int main(int argc, char **argv, char **envp)
 {
-    int nfds_max;
-    struct rlimit rlim;
-    struct scm_data_max sd;
     rb_node_t *rbn;
 
     scm_main(argc, argv, envp);
@@ -270,16 +264,10 @@ int main(int argc, char **argv, char **envp)
 	io_set_i(common_data.io, ctx_spawnd->sock);
     }
 
-    if (getrlimit(RLIMIT_NOFILE, &rlim)) {
-	report(NULL, LOG_ERR, ~0, "rlimit: %s", strerror(errno));
-	exit(EX_SOFTWARE);
-    }
-
-    nfds_max = (int) rlim.rlim_cur;
-    sd.type = SCM_MAX;
-    sd.max = nfds_max / 4;
-    if (ctx_spawnd)
+    if (ctx_spawnd) {
+	struct scm_data_max sd = {.type = SCM_MAX,.max = io_get_nfds_limit(common_data.io) / 4 };
 	common_data.scm_send_msg(ctx_spawnd->sock, (struct scm_data *) &sd, -1);
+    }
 
     io_sched_add(common_data.io, new_context(common_data.io, NULL), (void *) periodics, common_data.cleanup_interval, 0);
 
@@ -333,8 +321,7 @@ void cleanup(struct context *ctx, int cur)
     set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 
     if (ctx_spawnd) {
-	struct scm_data sd;
-	sd.type = SCM_DONE;
+	struct scm_data sd = {.type = SCM_DONE };
 	common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
     }
     set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
@@ -383,12 +370,10 @@ struct context_px {
 
 static void cleanup_px(struct context_px *ctx, int cur __attribute__((unused)))
 {
-    struct scm_data sd;
-
     while (io_sched_pop(ctx->io, ctx));
     io_close(ctx->io, ctx->sock);
 
-    sd.type = SCM_DONE;
+    struct scm_data sd = {.type = SCM_DONE };
     if (ctx_spawnd)
 	common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
     free(ctx);
@@ -513,14 +498,13 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
     socklen_t from_len = (socklen_t) sizeof(from);
 
     if (getpeername(s, &from.sa, &from_len)) {
-	struct scm_data d;
 	report(NULL, LOG_DEBUG, DEBUG_PACKET_FLAG, "getpeername: %s", strerror(errno));
-	close(s);
+	io_close(common_data.io, s);
 
 	common_data.users_cur--;
 	set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 
-	d.type = SCM_DONE;
+	struct scm_data d = {.type = SCM_DONE };
 	common_data.scm_send_msg(ctx_spawnd->sock, &d, -1);
 	return;
     }

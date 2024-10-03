@@ -79,8 +79,7 @@ static void periodics(struct spawnd_context *ctx, int cur __attribute__((unused)
 	for (i = 0; i < common_data.servers_cur && servers_count > common_data.servers_min; i++)
 	    if (!spawnd_data.server_arr[i]->use) {
 		if (!spawnd_data.server_arr[i]->dying) {
-		    struct scm_data sd;
-		    sd.type = SCM_MAY_DIE;
+		    struct scm_data sd = {.type = SCM_MAY_DIE };
 		    spawnd_data.server_arr[i]->dying = 1;
 		    Debug((DEBUG_PROC, "server %d may die\n", i));
 		    common_data.scm_send_msg(spawnd_data.server_arr[i]->fn, &sd, -1);

@@ -256,8 +256,7 @@ static void cleanup_context(struct context *ctx, int cur __attribute__((unused))
     }
 
     if (ctx->is_client) {
-	struct scm_data sd;
-	sd.type = SCM_DONE;
+	struct scm_data sd = {.type = SCM_DONE };
 	if (common_data.scm_send_msg(0, &sd, -1))
 	    die_when_idle = -1;
 

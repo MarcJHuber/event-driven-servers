@@ -15,11 +15,8 @@ static sigset_t master_set;
 
 static void catchhup(int i __attribute__((unused)))
 {
-    int j;
-    struct scm_data sd;
-    sd.type = SCM_MAY_DIE;
-
-    for (j = 0; j < common_data.servers_cur; j++)
+    struct scm_data sd = {.type = SCM_MAY_DIE };
+    for (int j = 0; j < common_data.servers_cur; j++)
 	common_data.scm_send_msg(spawnd_data.server_arr[j]->fn, &sd, -1);
 
     logmsg("SIGHUP: restarting");
@@ -30,11 +27,8 @@ static void catchhup(int i __attribute__((unused)))
 
 static void catchterm(int i __attribute__((unused)))
 {
-    int j;
-    struct scm_data sd;
-    sd.type = SCM_MAY_DIE;
-
-    for (j = 0; j < common_data.servers_cur; j++)
+    struct scm_data sd = {.type = SCM_MAY_DIE };
+    for (int j = 0; j < common_data.servers_cur; j++)
 	common_data.scm_send_msg(spawnd_data.server_arr[j]->fn, &sd, -1);
 
     logmsg("SIGTERM: exiting");
