@@ -854,7 +854,6 @@ static void epoll_io_register(struct io_context *io, int fd)
 	int i;
 	int omax = io->nfds_max;
 	io_resize(io, fd);
-	io->nfds_max = fd + 128;
 	io->Epoll.changelist = Xrealloc(io->Epoll.changelist, io->nfds_max * sizeof(int));
 	io->Epoll.changemap = Xrealloc(io->Epoll.changemap, io->nfds_max * sizeof(int));
 	io->Epoll.diskfile = Xrealloc(io->Epoll.diskfile, io->nfds_max * sizeof(int));
