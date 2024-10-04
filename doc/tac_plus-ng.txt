@@ -397,7 +397,33 @@ ob 38.11)\n\n"
         member = guest
     }
 
-   Finally, implement a rule-set to assign profiles to users:
+   You can optionally assign a profile to a user by either
+   referencing or embedding it. This skips ruleset evaluation.
+    user demo1 {
+        password login = clear demo
+        profile = engineering
+    }
+
+    user demo2 {
+        password login = clear demo
+        profile {
+            script {
+                if (service == shell) {
+                    if (cmd == "") {
+                        set priv-lvl = 1
+                        permit
+                    }
+                }
+                permit
+            }
+        }
+    }
+
+   Finally, implement a rule-set to assign profiles to users. As
+   mentioned a couple of lines above, the ruleset will not be
+   evaluated for users with a profile pre-assigned, so if all your
+   users have a profile pre-assigned you may as well skip that
+   part:
     ruleset {
         rule from-localhost {
             enabled = yes
