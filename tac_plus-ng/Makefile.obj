@@ -41,7 +41,10 @@ $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/:
 $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/$(PROG).cfg: sample/$(PROG).cfg
 	$(INSTALL) -m 0755 $< $@
 
-install:  $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT) $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/ $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/$(PROG).cfg install_extra
+$(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/$(PROG)-simple.cfg: sample/$(PROG)-simple.cfg
+	$(INSTALL) -m 0755 $< $@
+
+install:  $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT) $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/ $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/$(PROG).cfg $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/$(PROG)-simple.cfg install_extra
 
 install_extra:
 	@$(MAKE) -C $(BASE)/$(PROG)/extra INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
