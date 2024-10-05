@@ -46,7 +46,7 @@ void spawnd_setup_signals()
     struct sigaction sa;
 
     signal(SIGPIPE, SIG_IGN);
-    signal(SIGCHLD, SIG_IGN);
+//    signal(SIGCHLD, SIG_IGN);
     if (spawnd_data.inetd)
 	signal(SIGHUP, catchterm);
     else
