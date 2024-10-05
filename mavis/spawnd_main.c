@@ -62,6 +62,11 @@ static void periodics(struct spawnd_context *ctx, int cur __attribute__((unused)
 	    spawnd_cleanup_internal(spawnd_data.server_arr[0], spawnd_data.server_arr[0]->fn);
     }
 
+    if (io_now.tv_sec & 7) {
+	DebugOut(DEBUG_PROC);
+	return;
+    }
+
     spawnd_cleanup_tracking();
 
     spawnd_process_signals();
@@ -539,7 +544,7 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
     }
 
     ctx = spawnd_new_context(common_data.io);
-    io_sched_add(common_data.io, ctx, (void *) periodics, (time_t) 10, (suseconds_t) 0);
+    io_sched_add(common_data.io, ctx, (void *) periodics, (time_t) 1, (suseconds_t) 0);
 
     spawnd_data.server_arr = Xcalloc(common_data.servers_max, sizeof(struct spawnd_context *));
 
