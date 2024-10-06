@@ -50,34 +50,34 @@
 <dd>
 <dl>
 <dt>4.3.1. <a class="lk" href="#AEN2857">LDAP Backends</a></dt>
-<dt>4.3.2. <a class="lk" href="#AEN3070">PAM back-end</a></dt>
-<dt>4.3.3. <a class="lk" href="#AEN3075">System Password Backends</a></dt>
-<dt>4.3.4. <a class="lk" href="#AEN3082">Shadow Backend</a></dt>
-<dt>4.3.5. <a class="lk" href="#AEN3105">RADIUS Backends</a></dt>
-<dt>4.3.6. <a class="lk" href="#AEN3139">Experimental Backends</a></dt>
-<dt>4.3.7. <a class="lk" href="#AEN3143">Error Handling</a></dt>
+<dt>4.3.2. <a class="lk" href="#AEN3051">PAM back-end</a></dt>
+<dt>4.3.3. <a class="lk" href="#AEN3056">System Password Backends</a></dt>
+<dt>4.3.4. <a class="lk" href="#AEN3063">Shadow Backend</a></dt>
+<dt>4.3.5. <a class="lk" href="#AEN3086">RADIUS Backends</a></dt>
+<dt>4.3.6. <a class="lk" href="#AEN3120">Experimental Backends</a></dt>
+<dt>4.3.7. <a class="lk" href="#AEN3124">Error Handling</a></dt>
 </dl>
 </dd>
 </dl>
 </dd>
-<dt>5. <a class="lk" href="#AEN3151">Debugging</a></dt>
+<dt>5. <a class="lk" href="#AEN3132">Debugging</a></dt>
 <dd>
 <dl>
-<dt>5.1. <a class="lk" href="#AEN3154">Debugging Configuration Files</a></dt>
-<dt>5.2. <a class="lk" href="#AEN3162">Trace Options</a></dt>
+<dt>5.1. <a class="lk" href="#AEN3135">Debugging Configuration Files</a></dt>
+<dt>5.2. <a class="lk" href="#AEN3143">Trace Options</a></dt>
 </dl>
 </dd>
-<dt>6. <a class="lk" href="#AEN3320">Frequently Asked Questions</a></dt>
-<dt>7. <a class="lk" href="#AEN3397">Multi-tenant setups</a></dt>
+<dt>6. <a class="lk" href="#AEN3301">Frequently Asked Questions</a></dt>
+<dt>7. <a class="lk" href="#AEN3378">Multi-tenant setups</a></dt>
 <dd>
 <dl>
-<dt>7.1. <a class="lk" href="#AEN3428">AD, Realms and Tenants</a></dt>
+<dt>7.1. <a class="lk" href="#AEN3409">AD, Realms and Tenants</a></dt>
 </dl>
 </dd>
-<dt>8. <a class="lk" href="#AEN3433">AAA rule tracing</a></dt>
-<dt>9. <a class="lk" href="#AEN3449">Bugs</a></dt>
-<dt>10. <a class="lk" href="#AEN3459">References</a></dt>
-<dt>11. <a class="lk" href="#AEN3469">Copyrights and Acknowledgements</a></dt>
+<dt>8. <a class="lk" href="#AEN3414">AAA rule tracing</a></dt>
+<dt>9. <a class="lk" href="#AEN3430">Bugs</a></dt>
+<dt>10. <a class="lk" href="#AEN3440">References</a></dt>
+<dt>11. <a class="lk" href="#AEN3450">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -257,13 +257,13 @@
 <p>You can specify a retire limit to have the server auto-terminate and restart its worker processes:</p>
 <pre class="screen">    retire limit = 1000</pre>
 <p>Then, there's the <span class="emphasis"><i class="emphasis">MAVIS</i></span> part:</p>
-<pre class="screen">    mavis module = groups {
+<pre class="screen">    mavis module groups {
         resolve gids = yes
         resolve gids attribute = TACMEMBER
         groups filter = /^(guest|staff|ubuntu)$/
     }
 
-    mavis module = external {
+    mavis module external {
         exec = /usr/local/sbin/pammavis "pammavis" "-s" "sshd"
     }
 
@@ -360,11 +360,9 @@
         group south # of both
     }
 
-    group engineering {
-    }
+    group engineering
 
-    group guest {
-    }</pre>
+    group guest</pre>
 <p>... and add users:</p>
 <pre class="screen">    user demo {
         password login = clear demo
@@ -1084,7 +1082,7 @@ device router.example.com {
 <hr>
 <h5 class="section"><a name="AEN882" id="AEN882">4.2.3.2. User Messages</a></h5>
 <p>User messages, e.g. the <tt class="literal">Username</tt> prompt, can be customized, both at device and realm level:</p>
-<pre class="screen">message USERNAME = "utilisateur"</pre>
+<pre class="screen">message USERNAME = "Utilisateur: "</pre>
 <p>Supported messages and their defaults:</p>
 <div class="informaltable"><a name="AEN888" id="AEN888"></a>
 <table border="1" class="CALSTABLE">
@@ -1363,7 +1361,7 @@ enable user acl = custom_enable_acl</pre></li>
 <p>For non-local users, if the <tt class="literal">chpass</tt> attribute is set and the user provides an empty password at login, the user is given the option to change his password. This requires appropriate support in the MAVIS back-end modules.</p>
 </li>
 <li>
-<p><tt class="literal">mavis module =</tt> <span class="emphasis"><i class="emphasis">module</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
+<p><tt class="literal">mavis module</tt> <span class="emphasis"><i class="emphasis">module</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
 <p>Load MAVIS module <span class="emphasis"><i class="emphasis">module</i></span>. See the MAVIS documentation for configuration guidance.</p>
 </li>
 <li>
@@ -3016,7 +3014,7 @@ int async 1
 <div class="section">
 <hr>
 <h4 class="section"><a name="AEN2857" id="AEN2857">4.3.1. LDAP Backends</a></h4>
-<p><tt class="literal">mavis_tacplus_ldap.pl</tt> is an authentication/authorization back-end for the <span class="emphasis"><i class="emphasis">external</i></span> module. It interfaces to various kinds of LDAP servers, e.g. OpenLDAP, Fedora DS and Active Directory. Its behaviour is controlled by a list of environmental variables:</p>
+<p><tt class="literal">mavis_tacplus-ng_ldap.pl</tt> is an authentication/authorization back-end for the <span class="emphasis"><i class="emphasis">external</i></span> module. It interfaces to various kinds of LDAP servers, e.g. OpenLDAP, Fedora DS and Active Directory. Its behaviour is controlled by a list of environmental variables:</p>
 <div class="informaltable"><a name="AEN2862" id="AEN2862"></a>
 <table border="1" frame="border" class="CALSTABLE">
 <col width="30%" title="col1">
@@ -3029,13 +3027,6 @@ int async 1
 </thead>
 <tbody>
 <tr>
-<td><tt class="literal">LDAP_SERVER_TYPE</tt></td>
-<td>
-<p>One of: <tt class="literal">generic</tt>, <tt class="literal">tacacs_schema</tt>, <tt class="literal">microsoft</tt>.</p>
-<p>Default: <tt class="literal">tacacs_schema</tt></p>
-</td>
-</tr>
-<tr>
 <td><tt class="literal">LDAP_HOSTS</tt></td>
 <td>
 <p>Space-separated list of LDAP URLs or IP addresses or device names</p>
@@ -3046,15 +3037,36 @@ int async 1
 <tr>
 <td><tt class="literal">LDAP_SCOPE</tt></td>
 <td>
-<p>LDAP search scope (<tt class="literal">base</tt>, <tt class="literal">one</tt>, <tt class="literal">sub</tt>)</p>
+<p>LDAP search scope for users (<tt class="literal">base</tt>, <tt class="literal">one</tt>, <tt class="literal">sub</tt>)</p>
+<p>Default: <tt class="literal">sub</tt></p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">LDAP_SCOPE_GROUP</tt></td>
+<td>
+<p>LDAP search scope for groups (<tt class="literal">base</tt>, <tt class="literal">one</tt>, <tt class="literal">sub</tt>)</p>
 <p>Default: <tt class="literal">sub</tt></p>
 </td>
 </tr>
 <tr>
 <td><tt class="literal">LDAP_BASE</tt></td>
 <td>
-<p>Base DN of your LDAP server</p>
+<p>Base user search DN of your LDAP server</p>
 <p>Example: <tt class="literal">dc=example,dc=com</tt></p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">LDAP_BASE_GROUP</tt></td>
+<td>
+<p>Base group search DN of your LDAP server</p>
+<p>Example: <tt class="literal">dc=example,dc=com</tt></p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">LDAP_CONNECT_TIMEOUT</tt></td>
+<td>
+<p>Timeout for initital connect to remote LDAP server.</p>
+<p>Default: 1 (second).</p>
 </td>
 </tr>
 <tr>
@@ -3064,11 +3076,7 @@ int async 1
 <ul>
 <li>
 <p>for <tt class="literal">LDAP_SERVER_TYPE=generic</tt>:</p>
-<p><tt class="literal">"(uid=%s)"</tt></p>
-</li>
-<li>
-<p>for <tt class="literal">LDAP_SERVER_TYPE=tacacs_schema</tt>:</p>
-<p><tt class="literal">"(&amp;(uid=%s)(objectClass=tacacsAccount))"</tt></p>
+<p><tt class="literal">"(&amp;(objectclass=posixaccount)(uid=%s))"</tt></p>
 </li>
 <li>
 <p>for <tt class="literal">LDAP_SERVER_TYPE=microsoft</tt>:</p>
@@ -3078,23 +3086,10 @@ int async 1
 </td>
 </tr>
 <tr>
-<td><tt class="literal">LDAP_FILTER_CHPW</tt></td>
+<td><tt class="literal">LDAP_FILTER_GROUP</tt></td>
 <td>
-<p>LDAP search filter for password changes. Defaults:</p>
-<ul>
-<li>
-<p>for <tt class="literal">LDAP_SERVER_TYPE=generic</tt>:</p>
-<p><tt class="literal">"(uid=%s)"</tt></p>
-</li>
-<li>
-<p>for <tt class="literal">LDAP_SERVER_TYPE=tacacs_schema</tt>:</p>
-<p><tt class="literal">"(&amp;(uid=%s)(objectClass=tacacsAccount)(!(tacacsFlag=staticpasswd)))"</tt></p>
-</li>
-<li>
-<p>for <tt class="literal">LDAP_SERVER_TYPE=microsoft</tt>:</p>
-<p><tt class="literal">"(&amp;(objectclass=user)(sAMAccountName=%s))"</tt></p>
-</li>
-</ul>
+<p>LDAP search filter for groups. Default:</p>
+<p><tt class="literal">"(&amp;(objectclass=groupOfNames)(member=%s))"</tt></p>
 </td>
 </tr>
 <tr>
@@ -3112,21 +3107,28 @@ int async 1
 </td>
 </tr>
 <tr>
-<td><tt class="literal">AD_GROUP_PREFIX</tt></td>
+<td><tt class="literal">LDAP_MEMBEROF_REGEX</tt></td>
 <td>
-<p>An AD group starting with this prefix will be used as the user's TACACS+ group membership. The value of <tt class="literal">AD_GROUP_PREFIX</tt> will be stripped from the group name.</p>
-<p>Example: With <tt class="literal">AD_GROUP_PREFIX</tt> set to <tt class="literal">tacacs</tt> (which is actually the default), an AD group membership of <tt class="literal">TacacsNOC</tt> will assign the user to the <tt class="literal">NOC</tt> TACACS+ group. Note that TACACS+ group names are case-sensitive.</p>
+<p>Regular expression to derive group names from memberOf,</p>
+<p>Default: <tt class="literal">"^cn=([^,]+),.*"</tt></p>
 </td>
 </tr>
 <tr>
-<td><tt class="literal">REQUIRE_AD_GROUP_PREFIX</tt></td>
+<td><tt class="literal">LDAP_TACMEMBER</tt></td>
 <td>
-<p>If set, user needs to be in one of the <tt class="literal">AD_GROUP_PREFIX</tt> groups.</p>
+<p>LDAP attribute to use for group membership (fallback only).</p>
+<p>Default: <tt class="literal">"tacMember"</tt></p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">LDAP_TACMEMBER_MAP_OU</tt></td>
+<td>
+<p>Map organizational units from user DN to group membership.</p>
 <p>Default: unset</p>
 </td>
 </tr>
 <tr>
-<td><tt class="literal">USE_TLS</tt></td>
+<td><tt class="literal">USE_STARTTLS</tt></td>
 <td>
 <p>If set, the server is required to support <tt class="literal">start_tls</tt>.</p>
 <p>Default: unset</p>
@@ -3136,46 +3138,32 @@ int async 1
 </td>
 </tr>
 <tr>
+<td><tt class="literal">FLAG_AUTHORIZE_ONLY</tt></td>
+<td>
+<p>Don't attempt to authenticate users.</p>
+<p>Default: unset</p>
+</td>
+</tr>
+<tr>
 <td><tt class="literal">TLS_OPTIONS</tt></td>
 <td>
-<p>This sets options for use with Net::LDAP start_tls and LDAPS, in Perl syntax. Details can be found in the Net::LDAP documentation.</p>
+<p>Extra options for use with LDAPS or start_tls, in Perl hash syntax. See <a class="lk" href="https://metacpan.org/pod/Net::LDAP" target="_top">the Net::LDLAP documentation</a> for details.</p>
 <p>Default: unset</p>
-<p>Example:</p>
-<pre class="screen">setenv TLS_OPTIONS = "sslversion =&gt; 'tlsv1_3'"</pre></td>
+<p>Example: <tt class="literal">"sslversion =&gt; 'tlsv1_3'"</tt></p>
+</td>
 </tr>
 <tr>
-<td><tt class="literal">FLAG_CHPW</tt></td>
+<td><tt class="literal">FLAG_AUTHORIZE_ONLY</tt></td>
 <td>
-<p>Permit password changes via this back-end.</p>
+<p>Don't attempt to authenticate users.</p>
 <p>Default: unset</p>
 </td>
 </tr>
 <tr>
-<td><tt class="literal">FLAG_PWPOLICY</tt></td>
+<td><tt class="literal">LDAP_NESTED_GROUP_DEPTH</tt></td>
 <td>
-<p>Try to enforce a simplicistic password policy.</p>
-<p>Default: unset</p>
-</td>
-</tr>
-<tr>
-<td><tt class="literal">FLAG_CACHE_CONNECTION</tt></td>
-<td>
-<p>Keep connection to LDAP server open.</p>
-<p>Default: unset</p>
-</td>
-</tr>
-<tr>
-<td><tt class="literal">FLAG_FALLTHROUGH</tt></td>
-<td>
-<p>If searching for the user in LDAP fails, try the next MAVIS module (if any).</p>
-<p>Default: unset</p>
-</td>
-</tr>
-<tr>
-<td><tt class="literal">FLAG_USE_MEMBEROF</tt></td>
-<td>
-<p>Use the <tt class="literal">memberOf</tt> attribute for determining group membership. Setting <tt class="literal">LDAP_SERVER_TYPE</tt> to <tt class="literal">microsoft</tt> implies this. May be used if you're running <span class="emphasis"><i class="emphasis">OpenLDAP</i></span> with <span class="bold"><b class="emphasis">memberof</b></span> overlay enabled.</p>
-<p>Default: unset</p>
+<p>Limit nested group lookups to the given value. Unlimited if unset.</p>
+<p>Example: <tt class="literal">1</tt></p>
 </td>
 </tr>
 </tbody>
@@ -3183,7 +3171,7 @@ int async 1
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN3032" id="AEN3032">4.3.1.1. LDAP Custom Schema Backend</a></h5>
+<h5 class="section"><a name="AEN3013" id="AEN3013">4.3.1.1. LDAP Custom Schema Backend</a></h5>
 <p>For <tt class="literal">LDAP_SERVER_TYPE</tt> set to <tt class="literal">tacacs_schema</tt>, the program expects the LDAP server to support the experimental <tt class="literal">ldap.schema</tt>, included for OpenLDAP and Fedora-DS. The schema files are located in the <tt class="literal">mavis/perl</tt> directory.</p>
 <p>The new schema allows for a <span class="emphasis"><i class="emphasis">auxiliary</i></span> object class</p>
 <pre class="screen">objectClass: tacacsAccount</pre>
@@ -3216,7 +3204,7 @@ tacacsProfile: { valid until = 2010-01-30 chap = clear ahzoi5Ue }</b></span>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN3055" id="AEN3055">4.3.1.2. Active Directory Backend</a></h5>
+<h5 class="section"><a name="AEN3036" id="AEN3036">4.3.1.2. Active Directory Backend</a></h5>
 <p>If <tt class="literal">LDAP_SERVER_TYPE</tt> is set to <tt class="literal">microsoft</tt>, the script back-ends to AD servers. Sample configuration (you'll find that one in the <tt class="literal">extra</tt> directory, too):</p>
 <pre class="screen">#!/usr/local/sbin/tac_plus-ng
 id = spawnd {
@@ -3232,22 +3220,20 @@ id = tac_plus-ng {
         # access log = /var/log/tac_plus-ng/access/%Y%m%d.log
         # accounting log = /var/log/tac_plus-ng/acct/%Y%m%d.log
 
-        mavis module = groups {
+        mavis module groups {
                 groups filter = /^(admins|guest|readonly)$/ # these are defined below
                 memberof filter = /^CN=tacacs_/ # use this as a prefix
         }
 
 
-        mavis module = external {
-                setenv LDAP_SERVER_TYPE = "microsoft"
+        mavis module external {
                 setenv LDAP_HOSTS = "172.16.0.10:389"
                 setenv LDAP_BASE = "dc=example,dc=local"
                 setenv LDAP_USER = "tacacs@example.local"
                 setenv LDAP_PASSWD = "password"
                 setenv TACACS_GROUP_PREFIX = "tacacs_"
-                setenv UNLIMIT_AD_GROUP_MEMBERSHIP = 1
                 #setenv REQUIRE_TACACS_GROUP_PREFIX = 1
-                exec = /usr/local/lib/mavis/mavis_tacplus_ldap.pl
+                exec = /usr/local/lib/mavis/mavis_tacplus-ng_ldap.pl
         }
 
         login backend = mavis
@@ -3310,23 +3296,23 @@ id = tac_plus-ng {
 }</pre></div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN3062" id="AEN3062">4.3.1.3. Generic LDAP Backend</a></h5>
+<h5 class="section"><a name="AEN3043" id="AEN3043">4.3.1.3. Generic LDAP Backend</a></h5>
 <p>If <tt class="literal">LDAP_SERVER_TYPE</tt> is set to <tt class="literal">generic</tt>, the script won't require any modification to your LDAP server, but only authenticates users (with <tt class="literal">login = mavis</tt>, <tt class="literal">pap = mavis</tt> or <tt class="literal">password = mavis</tt> declaration) defined in the configuration file. No authorization is done by this back-end.</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN3070" id="AEN3070">4.3.2. PAM back-end</a></h4>
+<h4 class="section"><a name="AEN3051" id="AEN3051">4.3.2. PAM back-end</a></h4>
 <p>Example configuration for using <span class="emphasis"><i class="emphasis">Pluggable Authentication Modules</i></span>:</p>
 <pre class="screen">id = spawnd { listen = { port = 49 } }
 
 id = tac_plus {
-  mavis module = groups {
+  mavis module groups {
     resolve gids = yes
     resolve gids attribute = TACMEMBER
     groups filter = /^(guest|staff)$/
   }
-  mavis module = external {
+  mavis module external {
     exec = /usr/local/sbin/pammavis "pammavis" "-s" "sshd"
   }
   user backend = mavis
@@ -3355,13 +3341,13 @@ id = tac_plus {
 }</pre></div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN3075" id="AEN3075">4.3.3. System Password Backends</a></h4>
+<h4 class="section"><a name="AEN3056" id="AEN3056">4.3.3. System Password Backends</a></h4>
 <p><tt class="literal">mavis_tacplus_passwd.pl</tt> authenticates against your local password database. Alas, to use this functionality, the script may have to run as root, as it needs access to the encrypted passwords. Primary and auxiliary UNIX group memberships will be mapped to TACACS+ groups.</p>
 <p><tt class="literal">mavis_tacplus_opie.pl</tt> is based on <tt class="literal">mavis_tacplus_passwd.pl</tt>, but uses OPIE one-time passwords for authentication.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN3082" id="AEN3082">4.3.4. Shadow Backend</a></h4>
+<h4 class="section"><a name="AEN3063" id="AEN3063">4.3.4. Shadow Backend</a></h4>
 <p><tt class="literal">mavis_tacplus_shadow.pl</tt> may be used to keep user passwords out of the <span class="bold"><b class="emphasis">tac_plus</b></span>configuration file, enabling users to change their passwords via the password change dialog. Passwords are stored in an auxiliary, <tt class="literal">/etc/shadow</tt>-like ASCII file, one user per line:</p>
 <pre class="screen"><span class="emphasis"><i class="emphasis">username</i></span>:<span class="emphasis"><i class="emphasis">encryptedPassword</i></span>:<span class="emphasis"><i class="emphasis">lastChange</i></span>:<span class="emphasis"><i class="emphasis">minAge</i></span>:<span class="emphasis"><i class="emphasis">maxAge</i></span>:<span class="emphasis"><i class="emphasis">reserved</i></span></pre>
 <p><tt class="literal">lastChange</tt> is the number of days since 1970-01-01 when the password was last changed, and <tt class="literal">minAge</tt> and <tt class="literal">maxAge</tt> determine whether the password may/may not/needs to be changed. Setting <tt class="literal">lastChange</tt> to <tt class="literal">0</tt> enforces a password change upon first login.</p>
@@ -3375,7 +3361,7 @@ test:$1$pQtQsMuj$GKpIr5r2GNaZNfDfnCBtw.:15218:1:30:
 ...
   id = tac_plus {
     ...
-    mavis module = external {
+    mavis module external {
       setenv SHADOWFILE = /path/to/shadow
       # setenv FLAG_PWPOLICY=y
       # setenv ci=/usr/bin/ci
@@ -3398,7 +3384,7 @@ test:$1$pQtQsMuj$GKpIr5r2GNaZNfDfnCBtw.:15218:1:30:
 ...</pre></div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN3105" id="AEN3105">4.3.5. RADIUS Backends</a></h4>
+<h4 class="section"><a name="AEN3086" id="AEN3086">4.3.5. RADIUS Backends</a></h4>
 <p><tt class="literal">mavis_tacplus_radius.pl</tt> authenticates against a RADIUS server. No authorization is done, unless the <tt class="literal">RADIUS_GROUP_ATTR</tt> environment variable is set (see below). This module may, for example, be useful if you have static user account definitions in the configuration file, but authentication passwords should be verified by RADIUS. Use the <tt class="literal">login = mavis</tt> or <tt class="literal">password = mavis</tt> statement in the user profile for this to work.</p>
 <p>If the <tt class="literal">Authen::Radius</tt> Perl module is installed, the value of the RADIUS attribute specified by <tt class="literal">RADIUS_GROUP_ATTR</tt> will be used to create a <tt class="literal">TAC_MEMBER</tt> definition which uses the attribute value as group membership. E.g., an attribute value of <tt class="literal">Administrator</tt> would result in a</p>
 <pre class="screen">  member = Administrator</pre>
@@ -3421,14 +3407,14 @@ test:$1$pQtQsMuj$GKpIr5r2GNaZNfDfnCBtw.:15218:1:30:
 <p>Alternatively to <tt class="literal">mavis_tacplus_radius.pl</tt> the <tt class="literal">pamradius</tt> program may called by the <tt class="literal">external</tt> module. Results should be roughly equivalent.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN3136" id="AEN3136">4.3.5.1. Sample Configuration</a></h5>
+<h5 class="section"><a name="AEN3117" id="AEN3117">4.3.5.1. Sample Configuration</a></h5>
 <pre class="screen">## Use tacinfo_cache to cache authorization data to disk:
-mavis module = tacinfo_cache {
+mavis module tacinfo_cache {
     directory = /tmp/tacinfo
 }
 
 ## You can use either the Perl module ...
-#mavis module = external {
+#mavis module external {
 #   exec = /usr/local/lib/mavis_tacplus_radius.pl
 #   setenv RADIUS_HOST = 1.2.3.4:1812 # could add more devices here, comma-separated
 #   setenv RADIUS_SECRET = "mysecret"
@@ -3436,18 +3422,18 @@ mavis module = tacinfo_cache {
 #   setenv RADIUS_PASSWORD_ATTR = Password # defaults to: User-Password
 # }
 ## ... or the freeradius-client based code:
-mavis module = external {
+mavis module external {
     exec = /usr/local/sbin/radmavis "radmavis" "group_attribute=Class" "authserver=1.2.3.4:1812:mysecret"
 }</pre></div>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN3139" id="AEN3139">4.3.6. Experimental Backends</a></h4>
+<h4 class="section"><a name="AEN3120" id="AEN3120">4.3.6. Experimental Backends</a></h4>
 <p><tt class="literal">mavis_tacplus_sms.pl</tt> is a sample (skeleton) script to send One-Time Passwords via a SMS back-end.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN3143" id="AEN3143">4.3.7. Error Handling</a></h4>
+<h4 class="section"><a name="AEN3124" id="AEN3124">4.3.7. Error Handling</a></h4>
 <p>If a back-end script fails due to an external problem (e.g. LDAP server unavailability), your router may or may not fall back to local authentication (if configured). Chances are that the fallback doesn't work. If you still want to be able to authenticate via TACACS+ in that case, you can do so with a non-MAVIS user which will only be valid in case of a back-end error:</p>
 <pre class="screen">    ...
     # set the time interval you want the user to be valid if the back-end fails:
@@ -3477,17 +3463,17 @@ mavis module = external {
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3151" id="AEN3151">5. Debugging</a></h2>
+<h2 class="section"><a name="AEN3132" id="AEN3132">5. Debugging</a></h2>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN3154" id="AEN3154">5.1. Debugging Configuration Files</a></h3>
+<h3 class="section"><a name="AEN3135" id="AEN3135">5.1. Debugging Configuration Files</a></h3>
 <p>When creating configuration files, it is convenient to check their syntax using the <tt class="literal">-P</tt> flag to <tt class="literal">tac_plus</tt>; e.g:</p>
 <pre class="screen">tac_plus -P <span class="emphasis"><i class="emphasis">config-file</i></span> </pre>
 <p>will syntax check the configuration file and print any error messages on the terminal.</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN3162" id="AEN3162">5.2. Trace Options</a></h3>
+<h3 class="section"><a name="AEN3143" id="AEN3143">5.2. Trace Options</a></h3>
 <p>Trace (or debugging) options may be specified in <span class="emphasis"><i class="emphasis">global</i></span>, <span class="emphasis"><i class="emphasis">device</i></span>, <span class="emphasis"><i class="emphasis">user</i></span> and <span class="emphasis"><i class="emphasis">group</i></span> context. The current debugging level is a combination (read: <tt class="literal">OR</tt>) of all those. Generic syntax is:</p>
 <pre class="screen">debug = <span class="emphasis"><i class="emphasis">option ...</i></span></pre>
 <p>For example, getting command authorization to work in a predictable way can be tricky - the exact attributes the NAS sends to the daemon may depend on the IOS version, and may in general not match your expectations. If your regular expressions don't work, add</p>
@@ -3498,7 +3484,7 @@ mavis module = external {
 <p>Trace options may be removed by prefixing them with<tt class="literal">-</tt>. Example:</p>
 <pre class="screen">debug = ALL -PARSE</pre>
 <p>The debugging options available are summarized in the following table:</p>
-<div class="informaltable"><a name="AEN3182" id="AEN3182"></a>
+<div class="informaltable"><a name="AEN3163" id="AEN3163"></a>
 <table border="1" frame="border" class="CALSTABLE">
 <col width="5%" title="col1">
 <col width="15%" title="col2">
@@ -3677,7 +3663,7 @@ mavis module = external {
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3320" id="AEN3320">6. Frequently Asked Questions</a></h2>
+<h2 class="section"><a name="AEN3301" id="AEN3301">6. Frequently Asked Questions</a></h2>
 <ul>
 <li>
 <p><span class="bold"><b class="emphasis">Is there a Graphical User Interface of any kind?</b></span></p>
@@ -3772,7 +3758,7 @@ Router#</pre></li>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3397" id="AEN3397">7. Multi-tenant setups</a></h2>
+<h2 class="section"><a name="AEN3378" id="AEN3378">7. Multi-tenant setups</a></h2>
 <p>While using a dedictated tac_plus-ng installation per tenant is certainly possible it lacks some elegance. There are other ways:</p>
 <p>A single daemon can tell tenants apart by</p>
 <ul>
@@ -3826,10 +3812,10 @@ Router#</pre></li>
 <p>and the daemon will use the VRF name your clients did connect from as realm name.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN3428" id="AEN3428">7.1. AD, Realms and Tenants</a></h3>
+<h3 class="section"><a name="AEN3409" id="AEN3409">7.1. AD, Realms and Tenants</a></h3>
 <p>The suggested setup for giving customers limited access to NADs is:</p>
 <pre class="screen">id = tac_plus-ng {
-    mavis module = external { your AD configuration goes here }
+    mavis module external { your AD configuration goes here }
 
     profile ... { ... }
    
@@ -3863,7 +3849,7 @@ Router#</pre></li>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3433" id="AEN3433">8. AAA rule tracing</a></h2>
+<h2 class="section"><a name="AEN3414" id="AEN3414">8. AAA rule tracing</a></h2>
 <p>The distribution includes the <tt class="literal">tactrace.pl</tt> Perl script. It's usually not installed automatically, due to some Perl dependencies that need to be met. It requires a couple of CPAN Perl modules, and a custom one. Your OS distribution might provide re-built packages for <tt class="literal">Net::IP</tt> and/or <tt class="literal">Net::TacacsPlus::Packet</tt>, so check for this first. For unavailable packages, you can do a manual install using cpan. Example for Ubuntu:</p>
 <pre class="screen">sudu apt install libnet-ip-perl
 sudo cpan install Net::TacacsPlus::Packet</pre>
@@ -3955,7 +3941,7 @@ supported as the password would show up as clear text in the process listing.</p
 127.0.0.1 ---&lt;end packet&gt;---</pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3449" id="AEN3449">9. Bugs</a></h2>
+<h2 class="section"><a name="AEN3430" id="AEN3430">9. Bugs</a></h2>
 <ul>
 <li>
 <p>This documentation isn't well structured.</p>
@@ -3970,7 +3956,7 @@ supported as the password would show up as clear text in the process listing.</p
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3459" id="AEN3459">10. References</a></h2>
+<h2 class="section"><a name="AEN3440" id="AEN3440">10. References</a></h2>
 <ul>
 <li>
 <p><a class="lk" href="https://tools.ietf.org/html/draft-grant-tacacs-02" target="_top">draft-grant-tacacs-02.txt - The TACACS+ Protocol (Version 1.78)</a></p>
@@ -3982,7 +3968,7 @@ supported as the password would show up as clear text in the process listing.</p
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3469" id="AEN3469">11. Copyrights and Acknowledgements</a></h2>
+<h2 class="section"><a name="AEN3450" id="AEN3450">11. Copyrights and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of individual files.</p>
 <ul>
 <li>
@@ -4021,7 +4007,7 @@ supported as the password would show up as clear text in the process listing.</p
 </li>
 <li>
 <p>The end-user documentation included with the redistribution, if any, must include the following acknowledgment:</p>
-<a name="AEN3512" id="AEN3512"></a>
+<a name="AEN3493" id="AEN3493"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber (<code class="email">&lt;<a class="lk" href="mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>).</p>
 </blockquote>

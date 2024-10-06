@@ -268,13 +268,13 @@ id = tac_plus-ng {
     retire limit = 1000
 
    Then, there's the MAVIS part:
-    mavis module = groups {
+    mavis module groups {
         resolve gids = yes
         resolve gids attribute = TACMEMBER
         groups filter = /^(guest|staff|ubuntu)$/
     }
 
-    mavis module = external {
+    mavis module external {
         exec = /usr/local/sbin/pammavis "pammavis" "-s" "sshd"
     }
 
@@ -380,11 +380,9 @@ ob 38.11)\n\n"
         group south # of both
     }
 
-    group engineering {
-    }
+    group engineering
 
-    group guest {
-    }
+    group guest
 
    ... and add users:
     user demo {
@@ -898,7 +896,7 @@ umask = 0640
 
    User messages, e.g. the Username prompt, can be customized,
    both at device and realm level:
-message USERNAME = "utilisateur"
+message USERNAME = "Utilisateur: "
 
    Supported messages and their defaults:
 
@@ -1132,7 +1130,7 @@ login backend = mavis chalresp noecho
        user provides an empty password at login, the user is given
        the option to change his password. This requires
        appropriate support in the MAVIS back-end modules.
-     * mavis module = module { ... }
+     * mavis module module { ... }
        Load MAVIS module module. See the MAVIS documentation for
        configuration guidance.
      * mavis path = path
@@ -2533,18 +2531,13 @@ int async 1
 
 4.3.1. LDAP Backends
 
-   mavis_tacplus_ldap.pl is an authentication/authorization
+   mavis_tacplus-ng_ldap.pl is an authentication/authorization
    back-end for the external module. It interfaces to various
    kinds of LDAP servers, e.g. OpenLDAP, Fedora DS and Active
    Directory. Its behaviour is controlled by a list of
    environmental variables:
 
           Variable         Description
-   LDAP_SERVER_TYPE
-
-   One of: generic, tacacs_schema, microsoft.
-
-   Default: tacacs_schema
    LDAP_HOSTS
 
    Space-separated list of LDAP URLs or IP addresses or device
@@ -2555,37 +2548,43 @@ int async 1
    "ldap01 ldap02", "ldaps://ads01:636 ldaps://ads02:636"
    LDAP_SCOPE
 
-   LDAP search scope (base, one, sub)
+   LDAP search scope for users (base, one, sub)
+
+   Default: sub
+   LDAP_SCOPE_GROUP
+
+   LDAP search scope for groups (base, one, sub)
 
    Default: sub
    LDAP_BASE
 
-   Base DN of your LDAP server
+   Base user search DN of your LDAP server
 
    Example: dc=example,dc=com
+   LDAP_BASE_GROUP
+
+   Base group search DN of your LDAP server
+
+   Example: dc=example,dc=com
+   LDAP_CONNECT_TIMEOUT
+
+   Timeout for initital connect to remote LDAP server.
+
+   Default: 1 (second).
    LDAP_FILTER
 
    LDAP search filter. Defaults:
 
      * for LDAP_SERVER_TYPE=generic:
-       "(uid=%s)"
-     * for LDAP_SERVER_TYPE=tacacs_schema:
-       "(&(uid=%s)(objectClass=tacacsAccount))"
+       "(&(objectclass=posixaccount)(uid=%s))"
      * for LDAP_SERVER_TYPE=microsoft:
        "(&(objectclass=user)(sAMAccountName=%s))"
 
-   LDAP_FILTER_CHPW
+   LDAP_FILTER_GROUP
 
-   LDAP search filter for password changes. Defaults:
+   LDAP search filter for groups. Default:
 
-     * for LDAP_SERVER_TYPE=generic:
-       "(uid=%s)"
-     * for LDAP_SERVER_TYPE=tacacs_schema:
-       "(&(uid=%s)(objectClass=tacacsAccount)(!(tacacsFlag=staticp
-       asswd)))"
-     * for LDAP_SERVER_TYPE=microsoft:
-       "(&(objectclass=user)(sAMAccountName=%s))"
-
+   "(&(objectclass=groupOfNames)(member=%s))"
    LDAP_USER
 
    User to use for LDAP bind if server doesn't permit anonymous
@@ -2597,67 +2596,52 @@ int async 1
    Password for LDAP_USER
 
    Default: unset
-   AD_GROUP_PREFIX
+   LDAP_MEMBEROF_REGEX
 
-   An AD group starting with this prefix will be used as the
-   user's TACACS+ group membership. The value of AD_GROUP_PREFIX
-   will be stripped from the group name.
+   Regular expression to derive group names from memberOf,
 
-   Example: With AD_GROUP_PREFIX set to tacacs (which is actually
-   the default), an AD group membership of TacacsNOC will assign
-   the user to the NOC TACACS+ group. Note that TACACS+ group
-   names are case-sensitive.
-   REQUIRE_AD_GROUP_PREFIX
+   Default: "^cn=([^,]+),.*"
+   LDAP_TACMEMBER
 
-   If set, user needs to be in one of the AD_GROUP_PREFIX groups.
+   LDAP attribute to use for group membership (fallback only).
+
+   Default: "tacMember"
+   LDAP_TACMEMBER_MAP_OU
+
+   Map organizational units from user DN to group membership.
 
    Default: unset
-   USE_TLS
+   USE_STARTTLS
 
    If set, the server is required to support start_tls.
 
    Default: unset
 
    Do not set this flag for LDAPS connections.
+   FLAG_AUTHORIZE_ONLY
+
+   Don't attempt to authenticate users.
+
+   Default: unset
    TLS_OPTIONS
 
-   This sets options for use with Net::LDAP start_tls and LDAPS,
-   in Perl syntax. Details can be found in the Net::LDAP
-   documentation.
+   Extra options for use with LDAPS or start_tls, in Perl hash
+   syntax. See the Net::LDLAP documentation for details.
 
    Default: unset
 
-   Example:
-setenv TLS_OPTIONS = "sslversion => 'tlsv1_3'"
+   Example: "sslversion => 'tlsv1_3'"
+   FLAG_AUTHORIZE_ONLY
 
-   FLAG_CHPW
-
-   Permit password changes via this back-end.
+   Don't attempt to authenticate users.
 
    Default: unset
-   FLAG_PWPOLICY
+   LDAP_NESTED_GROUP_DEPTH
 
-   Try to enforce a simplicistic password policy.
+   Limit nested group lookups to the given value. Unlimited if
+   unset.
 
-   Default: unset
-   FLAG_CACHE_CONNECTION
-
-   Keep connection to LDAP server open.
-
-   Default: unset
-   FLAG_FALLTHROUGH
-
-   If searching for the user in LDAP fails, try the next MAVIS
-   module (if any).
-
-   Default: unset
-   FLAG_USE_MEMBEROF
-
-   Use the memberOf attribute for determining group membership.
-   Setting LDAP_SERVER_TYPE to microsoft implies this. May be used
-   if you're running OpenLDAP with memberof overlay enabled.
-
-   Default: unset
+   Example: 1
      __________________________________________________________
 
 4.3.1.1. LDAP Custom Schema Backend
@@ -2726,23 +2710,21 @@ id = tac_plus-ng {
         # access log = /var/log/tac_plus-ng/access/%Y%m%d.log
         # accounting log = /var/log/tac_plus-ng/acct/%Y%m%d.log
 
-        mavis module = groups {
+        mavis module groups {
                 groups filter = /^(admins|guest|readonly)$/ # these are
 defined below
                 memberof filter = /^CN=tacacs_/ # use this as a prefix
         }
 
 
-        mavis module = external {
-                setenv LDAP_SERVER_TYPE = "microsoft"
+        mavis module external {
                 setenv LDAP_HOSTS = "172.16.0.10:389"
                 setenv LDAP_BASE = "dc=example,dc=local"
                 setenv LDAP_USER = "tacacs@example.local"
                 setenv LDAP_PASSWD = "password"
                 setenv TACACS_GROUP_PREFIX = "tacacs_"
-                setenv UNLIMIT_AD_GROUP_MEMBERSHIP = 1
                 #setenv REQUIRE_TACACS_GROUP_PREFIX = 1
-                exec = /usr/local/lib/mavis/mavis_tacplus_ldap.pl
+                exec = /usr/local/lib/mavis/mavis_tacplus-ng_ldap.pl
         }
 
         login backend = mavis
@@ -2824,12 +2806,12 @@ ermit }
 id = spawnd { listen = { port = 49 } }
 
 id = tac_plus {
-  mavis module = groups {
+  mavis module groups {
     resolve gids = yes
     resolve gids attribute = TACMEMBER
     groups filter = /^(guest|staff)$/
   }
-  mavis module = external {
+  mavis module external {
     exec = /usr/local/sbin/pammavis "pammavis" "-s" "sshd"
   }
   user backend = mavis
@@ -2893,7 +2875,7 @@ test:$1$pQtQsMuj$GKpIr5r2GNaZNfDfnCBtw.:15218:1:30:
 ...
   id = tac_plus {
     ...
-    mavis module = external {
+    mavis module external {
       setenv SHADOWFILE = /path/to/shadow
       # setenv FLAG_PWPOLICY=y
       # setenv ci=/usr/bin/ci
@@ -2958,12 +2940,12 @@ test:$1$pQtQsMuj$GKpIr5r2GNaZNfDfnCBtw.:15218:1:30:
 4.3.5.1. Sample Configuration
 
 ## Use tacinfo_cache to cache authorization data to disk:
-mavis module = tacinfo_cache {
+mavis module tacinfo_cache {
     directory = /tmp/tacinfo
 }
 
 ## You can use either the Perl module ...
-#mavis module = external {
+#mavis module external {
 #   exec = /usr/local/lib/mavis_tacplus_radius.pl
 #   setenv RADIUS_HOST = 1.2.3.4:1812 # could add more devices here, com
 ma-separated
@@ -2972,7 +2954,7 @@ ma-separated
 #   setenv RADIUS_PASSWORD_ATTR = Password # defaults to: User-Password
 # }
 ## ... or the freeradius-client based code:
-mavis module = external {
+mavis module external {
     exec = /usr/local/sbin/radmavis "radmavis" "group_attribute=Class" "
 authserver=1.2.3.4:1812:mysecret"
 }
@@ -3307,7 +3289,7 @@ id = spawnd { ... listen { port = 49000 } ... }
    The suggested setup for giving customers limited access to NADs
    is:
 id = tac_plus-ng {
-    mavis module = external { your AD configuration goes here }
+    mavis module external { your AD configuration goes here }
 
     profile ... { ... }
 
