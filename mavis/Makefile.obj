@@ -59,6 +59,10 @@ ifeq ($(WITH_LDAP),1)
 	endif
 endif
 
+ifeq ($(WITH_EXECINFO),1)
+	CFLAGS += -DHAVE_EXECINFO_H
+endif
+
 MAVIS_LIBNAMES += remote system groups anonftp asciiftp limit
 MAVIS_LIBNAMES += cache auth log external userdb tee null tacinfo_cache
 ifeq ($(WITH_PTHREAD),1)
