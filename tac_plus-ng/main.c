@@ -201,6 +201,7 @@ static void users_inc(void)
 	}
     }
     common_data.users_cur++;
+    set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 }
 
 static void users_dec(void)
@@ -1358,7 +1359,6 @@ static void accept_control(struct context *ctx, int cur)
 	users_inc();
 	setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (char *) &one, (socklen_t) sizeof(one));
 	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (char *) &one, (socklen_t) sizeof(one));
-	set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 	set_sd_realm(cur, &sd_ext);
 	if (sd_ext.sd.haproxy || (sd_ext.realm->haproxy_autodetect == TRISTATE_YES))
 	    accept_control_px(s, &sd_ext);
