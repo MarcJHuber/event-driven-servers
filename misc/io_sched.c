@@ -897,7 +897,7 @@ static int epoll_io_poll(struct io_context *io, int poll_timeout, int *cax)
     }
     io->Epoll.nchanges = 0;
 
-    res = epoll_wait(io->Epoll.fd, io->Epoll.eventlist, io->Epoll.nevents_max, io->Epoll.ndiskfile ? 0 : poll_timeout);
+    res = epoll_wait(io->Epoll.fd, io->Epoll.eventlist, io->Epoll.nevents_max, /* io->Epoll.ndiskfile ? 0 : */ poll_timeout);
 
     gettimeofday(&io_now, NULL);
 
