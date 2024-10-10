@@ -1428,6 +1428,13 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 		parse_error_expect(sym, S_limit, S_timeout, S_unknown);
 	    }
 	    continue;
+	case S_last_recently_used:
+	    top_only(sym, r);
+	    sym_get(sym);
+	    parse(sym, S_limit);
+	    parse(sym, S_equal);
+	    config.ctx_lru_threshold = parse_int(sym);
+	    continue;
 	case S_user:
 	    parse_user(sym, r);
 	    continue;

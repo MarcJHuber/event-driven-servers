@@ -304,6 +304,7 @@ struct config {
     char *hostname;
     size_t hostname_len;
     int retire;			/* die after <retire> invocations */
+    int ctx_lru_threshold;	/* purge lru context if number reached */
     time_t suicide;		/* when to commit suicide */
     tac_realm *default_realm;	/* actually the one called "default" */
 };
@@ -839,6 +840,8 @@ struct context {
     u_int bug_compatibility;
     u_int debug;
     u_long mavis_latency;
+    struct context *lru_prev;
+    struct context *lru_next;
 };
 
 struct logfile;
@@ -963,6 +966,8 @@ tac_realm *lookup_sni(const char *, size_t, tac_realm *);
 void eval_args(tac_session *, u_char *, u_char *, size_t);
 
 void init_host(tac_host *, tac_host *, tac_realm *, int);
+
+void context_lru_append(struct context *);
 
 extern struct config config;
 extern int die_when_idle;

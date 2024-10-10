@@ -433,6 +433,7 @@ void tac_read(struct context *ctx, int cur)
     int detached = 0;
 
     ctx->last_io = io_now.tv_sec;
+    context_lru_append(ctx);
 
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE) {
 #ifdef WITH_TLS
@@ -673,6 +674,7 @@ static void ssl_shutdown_sock(struct context *ctx, int cur)
 void tac_write(struct context *ctx, int cur)
 {
     ctx->last_io = io_now.tv_sec;
+    context_lru_append(ctx);
     while (ctx->out) {
 	ssize_t len;
 #ifdef WITH_TLS

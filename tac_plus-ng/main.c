@@ -96,11 +96,124 @@ static int compare_session(const void *a, const void *b)
 
 static u_int context_id = 0;
 
+static struct context *ctx_lru_first = NULL;
+static struct context *ctx_lru_last = NULL;
+
+static void context_lru_remove(struct context *ctx)
+{
+    if (ctx->lru_prev)
+	ctx->lru_prev->lru_next = ctx->lru_next;
+
+    if (ctx->lru_next)
+	ctx->lru_next->lru_prev = ctx->lru_prev;
+
+    if (ctx == ctx_lru_first)
+	ctx_lru_first = ctx->lru_next;
+
+    if (ctx == ctx_lru_last)
+	ctx_lru_last = ctx->lru_prev;
+
+    ctx->lru_prev = ctx->lru_next = NULL;
+}
+
+void context_lru_append(struct context *ctx)
+{
+    if (ctx == ctx_lru_first || ctx->lru_prev)
+	context_lru_remove(ctx);
+    ctx->lru_prev = ctx_lru_last;
+    if (ctx_lru_last)
+	ctx_lru_last->lru_next = ctx;
+    if (!ctx_lru_first)
+	ctx_lru_first = ctx;
+    ctx_lru_last = ctx;
+    ctx->lru_next = NULL;
+}
+
+struct scm_data_accept_ext {
+    struct scm_data_accept sd;
+    tac_realm *realm;
+    size_t vrf_len;
+    char vrf[IFNAMSIZ + 1];
+};
+
+struct context_px {
+    int sock;			/* socket for this connection */
+    int type;
+    io_context_t *io;
+    struct scm_data_accept_ext sd;
+    time_t last_io;
+    struct context_px *lru_prev;
+    struct context_px *lru_next;
+};
+
+static void cleanup_px(struct context_px *, int );
+
+static struct context_px *ctx_px_lru_first = NULL;
+static struct context_px *ctx_px_lru_last = NULL;
+
+static void context_px_lru_remove(struct context_px *ctx)
+{
+    if (ctx->lru_prev)
+	ctx->lru_prev->lru_next = ctx->lru_next;
+
+    if (ctx->lru_next)
+	ctx->lru_next->lru_prev = ctx->lru_prev;
+
+    if (ctx == ctx_px_lru_first)
+	ctx_px_lru_first = ctx->lru_next;
+
+    if (ctx == ctx_px_lru_last)
+	ctx_px_lru_last = ctx->lru_prev;
+
+    ctx->lru_prev = ctx->lru_next = NULL;
+}
+
+void context_px_lru_append(struct context_px *ctx)
+{
+    if (ctx == ctx_px_lru_first || ctx->lru_prev)
+	context_px_lru_remove(ctx);
+    ctx->lru_prev = ctx_px_lru_last;
+    if (ctx_px_lru_last)
+	ctx_px_lru_last->lru_next = ctx;
+    if (!ctx_px_lru_first)
+	ctx_px_lru_first = ctx;
+    ctx_px_lru_last = ctx;
+    ctx->lru_next = NULL;
+}
+
+static void users_inc(void)
+{
+    if ((ctx_lru_first || ctx_px_lru_first) && config.ctx_lru_threshold && (common_data.users_cur == config.ctx_lru_threshold)) {
+	time_t last = 0, last_px = 0;
+	if (ctx_lru_first)
+		last = ctx_lru_first->last_io;
+	if (ctx_px_lru_first)
+		last_px = ctx_px_lru_first->last_io;
+
+	if ((last && (last < last_px)) || !ctx_px_lru_first) {
+		struct context *ctx = ctx_lru_first;
+		context_lru_remove(ctx);
+		io_sched_add(common_data.io, ctx, (void *) cleanup, 0, 0);
+	} else {
+		struct context_px *ctx = ctx_px_lru_first;
+		context_px_lru_remove(ctx);
+		io_sched_add(common_data.io, ctx, (void *) cleanup_px, 0, 0);
+	}
+    }
+    common_data.users_cur++;
+}
+
+static void users_dec(void)
+{
+    common_data.users_cur--;
+}
+
 struct context *new_context(struct io_context *io, tac_realm * r)
 {
     mem_t *mem = mem_create(M_POOL);
     struct context *c = mem_alloc(mem, sizeof(struct context));
     c->io = io;
+    c->sock = -1;
     c->mem = mem;
     c->hint = "";
     if (r) {
@@ -194,13 +307,6 @@ static void periodics_ctx(struct context *ctx, int cur __attribute__((unused)))
 	io_sched_renew_proc(ctx->io, ctx, (void *) periodics_ctx);
 }
 
-struct scm_data_accept_ext {
-    struct scm_data_accept sd;
-    tac_realm *realm;
-    size_t vrf_len;
-    char vrf[IFNAMSIZ + 1];
-};
-
 static void accept_control(struct context *, int __attribute__((unused)));
 static void accept_control_final(struct context *);
 static void accept_control_common(int, struct scm_data_accept_ext *, sockaddr_union *);
@@ -280,10 +386,6 @@ void cleanup(struct context *ctx, int cur)
 {
     rb_node_t *t, *u;
 
-    if (ctx == ctx_spawnd) {
-	cleanup_spawnd(ctx, cur);
-	return;
-    }
 #ifdef WITH_TLS
     if (ctx->tls) {
 	int res = io_TLS_shutdown(ctx->tls, ctx->io, cur, cleanup);
@@ -317,8 +419,10 @@ void cleanup(struct context *ctx, int cur)
 
     log_exec(NULL, ctx, S_connection, io_now.tv_sec);
 
-    while (io_sched_pop(ctx->io, ctx));
+    io_sched_drop(ctx->io, ctx);
     io_close(ctx->io, ctx->sock);
+    ctx->sock = -1;
+    users_dec();
 
     for (t = RB_first(ctx->sessions); t; t = u) {
 	u = RB_next(t);
@@ -346,6 +450,7 @@ void cleanup(struct context *ctx, int cur)
 	    mavis_cancel(mcx, ctx);
     }
 
+    context_lru_remove(ctx);
     mem_destroy(ctx->mem);
 
     if (ctx_spawnd) {
@@ -353,7 +458,6 @@ void cleanup(struct context *ctx, int cur)
 	if (common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1) < 0)
 	    die_when_idle = 1;
     }
-    common_data.users_cur--;
     if (common_data.debug & DEBUG_TACTRACE_FLAG)
 	die_when_idle = 1;
 
@@ -393,23 +497,18 @@ union proxy_addr {
 
 //
 
-struct context_px {
-    int sock;			/* socket for this connection */
-    int type;
-    io_context_t *io;
-    struct scm_data_accept_ext sd;
-};
-
 static void cleanup_px(struct context_px *ctx, int cur)
 {
-    while (io_sched_pop(ctx->io, ctx));
+    io_sched_drop(ctx->io, ctx);
     io_close(ctx->io, ctx->sock);
+    ctx->sock = -1;
+    users_dec();
 
     struct scm_data sd = {.type = SCM_DONE };
     if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1) < 0)
 	die_when_idle = 1;
     free(ctx);
-    common_data.users_cur--;
+
     if (ctx_spawnd && die_when_idle)
 	cleanup_spawnd(ctx_spawnd, cur);
     set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
@@ -417,7 +516,7 @@ static void cleanup_px(struct context_px *ctx, int cur)
 
 static void try_raw(struct context_px *ctx, int cur __attribute__((unused)))
 {
-    while (io_sched_pop(ctx->io, ctx));
+    io_sched_drop(ctx->io, ctx);
     io_unregister(ctx->io, ctx->sock);
     accept_control_raw(ctx->sock, &ctx->sd);
     free(ctx);
@@ -429,7 +528,7 @@ static void catchhup(int i __attribute__((unused)))
     signal(SIGTERM, SIG_IGN);
 
     if (ctx_spawnd)
-	cleanup(ctx_spawnd, 0);
+	cleanup_spawnd(ctx_spawnd, ctx_spawnd->sock);
     die_when_idle = -1;
     report(NULL, LOG_INFO, ~0, "SIGHUP: No longer accepting new connections.");
 }
@@ -452,7 +551,7 @@ static void accept_control_singleprocess(int s, struct scm_data_accept *sd)
     struct scm_data_accept_ext sd_ext = { 0 };
     memcpy(&sd_ext, sd, sizeof(struct scm_data_accept));
     tac_realm *r = set_sd_realm(-1, &sd_ext);
-    common_data.users_cur++;
+    users_inc();
     if (sd->haproxy || r->haproxy_autodetect == TRISTATE_YES)
 	accept_control_px(s, &sd_ext);
     else
@@ -482,6 +581,7 @@ static void read_px(struct context_px *ctx, int cur)
     union proxy_addr *addr = (union proxy_addr *) &tmp[sizeof(struct proxy_hdr_v2)];
     memset(&tmp, 0, sizeof(tmp));
     len = recv(cur, &tmp, sizeof(tmp), MSG_PEEK);
+    ctx->last_io = io_now.tv_sec;
     if ((len < (ssize_t) sizeof(struct proxy_hdr_v2))
 	|| ((hdr->ver_cmd >> 4) != 2)
 	|| (memcmp(hdr->sig, "\x0D\x0A\x0D\x0A\x00\x0D\x0A\x51\x55\x49\x54\x0A", 12))
@@ -513,7 +613,7 @@ static void read_px(struct context_px *ctx, int cur)
 	return;
     }
 
-    while (io_sched_pop(ctx->io, ctx));
+    io_sched_drop(ctx->io, ctx);
     io_unregister(ctx->io, ctx->sock);
     accept_control_common(ctx->sock, &ctx->sd, &from);
     free(ctx);
@@ -584,6 +684,8 @@ static void accept_control_tls(struct context *ctx, int cur)
     const char *hint = "";
     io_clr_i(ctx->io, cur);
     io_clr_o(ctx->io, cur);
+
+    ctx->last_io = io_now.tv_sec;
 
 #ifdef WITH_TLS
     switch (tls_handshake(ctx->tls)) {
@@ -1036,11 +1138,12 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	// error path
 	report(NULL, LOG_DEBUG, DEBUG_PACKET_FLAG, "getpeername: %s", strerror(errno));
 	io_close(common_data.io, s);
+	ctx->sock = -1;
+	users_dec();
 
-	common_data.users_cur--;
 	set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 
-	struct scm_data d = {.type = SCM_DONE };;
+	struct scm_data d = {.type = SCM_DONE };
 	if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &d, -1) < 0)
 	    die_when_idle = 1;
 	if (ctx_spawnd && die_when_idle)
@@ -1078,6 +1181,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
     ctx = new_context(common_data.io, r);
     ctx->sock = s;
+    context_lru_append(ctx);
     ctx->use_tls = sd_ext->sd.use_tls ? BISTATE_YES : BISTATE_NO;
 
     if (ctx->use_tls == BISTATE_NO) {
@@ -1260,9 +1364,9 @@ static void accept_control(struct context *ctx, int cur)
 	cleanup_spawnd(ctx, cur);
 	return;
     case SCM_ACCEPT:
+	users_inc();
 	setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (char *) &one, (socklen_t) sizeof(one));
 	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (char *) &one, (socklen_t) sizeof(one));
-	common_data.users_cur++;
 	set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 	set_sd_realm(cur, &sd_ext);
 	if (sd_ext.sd.haproxy || (sd_ext.realm->haproxy_autodetect == TRISTATE_YES))
