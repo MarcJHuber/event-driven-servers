@@ -514,6 +514,13 @@ ob 38.11)\n\n"
        The particular daemon instance will terminate after s
        seconds. spawnd will spawn a new instance if necessary.
        Default: unset
+     * last-recently-used limit = n
+       A LRU limit can be set to prioritize new connections. If
+       adding a connection exceeds a total of n connections then
+       the least recently used connection will be closed. Set this
+       somewhat lower than the users max parameter in the spawnd
+       section to have any impact.
+       Default: unset
 
    Note Time units
 
