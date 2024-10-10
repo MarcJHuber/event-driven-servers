@@ -146,7 +146,7 @@ struct context_px {
     struct context_px *lru_next;
 };
 
-static void cleanup_px(struct context_px *, int );
+static void cleanup_px(struct context_px *, int);
 
 static struct context_px *ctx_px_lru_first = NULL;
 static struct context_px *ctx_px_lru_last = NULL;
@@ -186,18 +186,18 @@ static void users_inc(void)
     if ((ctx_lru_first || ctx_px_lru_first) && config.ctx_lru_threshold && (common_data.users_cur == config.ctx_lru_threshold)) {
 	time_t last = 0, last_px = 0;
 	if (ctx_lru_first)
-		last = ctx_lru_first->last_io;
+	    last = ctx_lru_first->last_io;
 	if (ctx_px_lru_first)
-		last_px = ctx_px_lru_first->last_io;
+	    last_px = ctx_px_lru_first->last_io;
 
 	if ((last && (last < last_px)) || !ctx_px_lru_first) {
-		struct context *ctx = ctx_lru_first;
-		context_lru_remove(ctx);
-		io_sched_add(common_data.io, ctx, (void *) cleanup, 0, 0);
+	    struct context *ctx = ctx_lru_first;
+	    context_lru_remove(ctx);
+	    io_sched_add(common_data.io, ctx, (void *) cleanup, 0, 0);
 	} else {
-		struct context_px *ctx = ctx_px_lru_first;
-		context_px_lru_remove(ctx);
-		io_sched_add(common_data.io, ctx, (void *) cleanup_px, 0, 0);
+	    struct context_px *ctx = ctx_px_lru_first;
+	    context_px_lru_remove(ctx);
+	    io_sched_add(common_data.io, ctx, (void *) cleanup_px, 0, 0);
 	}
     }
     common_data.users_cur++;
@@ -206,6 +206,10 @@ static void users_inc(void)
 static void users_dec(void)
 {
     common_data.users_cur--;
+    struct scm_data d = {.type = SCM_DONE };
+    if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &d, -1) < 0)
+	die_when_idle = 1;
+    set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 }
 
 struct context *new_context(struct io_context *io, tac_realm * r)
@@ -422,7 +426,6 @@ void cleanup(struct context *ctx, int cur)
     io_sched_drop(ctx->io, ctx);
     io_close(ctx->io, ctx->sock);
     ctx->sock = -1;
-    users_dec();
 
     for (t = RB_first(ctx->sessions); t; t = u) {
 	u = RB_next(t);
@@ -450,20 +453,15 @@ void cleanup(struct context *ctx, int cur)
 	    mavis_cancel(mcx, ctx);
     }
 
+    users_dec();
     context_lru_remove(ctx);
     mem_destroy(ctx->mem);
 
-    if (ctx_spawnd) {
-	struct scm_data sd = {.type = SCM_DONE };
-	if (common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1) < 0)
-	    die_when_idle = 1;
-    }
     if (common_data.debug & DEBUG_TACTRACE_FLAG)
 	die_when_idle = 1;
 
     if (ctx_spawnd && die_when_idle)
 	cleanup_spawnd(ctx_spawnd, 0);
-    set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 }
 
 // Proxy structs from Willy Tarreau/HAProxy Technologies
@@ -502,16 +500,13 @@ static void cleanup_px(struct context_px *ctx, int cur)
     io_sched_drop(ctx->io, ctx);
     io_close(ctx->io, ctx->sock);
     ctx->sock = -1;
-    users_dec();
 
-    struct scm_data sd = {.type = SCM_DONE };
-    if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1) < 0)
-	die_when_idle = 1;
+    users_dec();
+    context_px_lru_remove(ctx);
     free(ctx);
 
     if (ctx_spawnd && die_when_idle)
 	cleanup_spawnd(ctx_spawnd, cur);
-    set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 }
 
 static void try_raw(struct context_px *ctx, int cur __attribute__((unused)))
@@ -1139,13 +1134,9 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	report(NULL, LOG_DEBUG, DEBUG_PACKET_FLAG, "getpeername: %s", strerror(errno));
 	io_close(common_data.io, s);
 	ctx->sock = -1;
+
 	users_dec();
 
-	set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
-
-	struct scm_data d = {.type = SCM_DONE };
-	if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &d, -1) < 0)
-	    die_when_idle = 1;
 	if (ctx_spawnd && die_when_idle)
 	    cleanup_spawnd(ctx_spawnd, -1);
 	return;
