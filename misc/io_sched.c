@@ -1579,6 +1579,33 @@ void *io_sched_pop(struct io_context *io, void *data)
     return result;
 }
 
+void io_sched_drop(struct io_context *io, void *data)
+{
+    rb_node_t *rbn;
+    struct io_sched is;
+
+    DebugIn(DEBUG_PROC);
+
+    is.data = data;
+    rbn = RB_search(io->events_by_data, &is);
+    if (rbn) {
+	struct io_sched *isc = RB_payload(rbn, struct io_sched *);
+	struct io_event *i = isc->event;
+
+	isc->event = i->next;
+	free(i);
+	RB_search_and_delete(io->events_by_time, isc);
+	while (isc->event) {
+	    i = isc->event;
+	    isc->event = i->next;
+	    free(i);
+	}
+	RB_delete(io->events_by_data, rbn);
+	free(isc);
+    }
+    DebugOut(DEBUG_PROC);
+}
+
 int io_sched_del(struct io_context *io, void *data, void *proc)
 {
     int result = 0;

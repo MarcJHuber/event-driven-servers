@@ -45,6 +45,7 @@ io_context_t *io_init();
 io_context_t *io_destroy(io_context_t *, void (*)(void *));
 struct timeval *io_sched_peek_time(io_context_t * io, void *data);
 void *io_sched_pop(io_context_t *, void *);
+void io_sched_drop(io_context_t *, void *);
 void *io_sched_peek(io_context_t *, void *data);
 void *io_get_cb_i(io_context_t *, int);
 void *io_get_cb_e(io_context_t *, int);
