@@ -28,12 +28,11 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 
 int mavis_method_add(mavis_ctx ** mcx, struct io_context *ioctx, char *path, char *id)
 {
-    void *handle;
     void *(*mn)(void *, struct io_context *, char *);
 
     Debug((DEBUG_MAVIS, "+ %s(%s)\n", __func__, path));
 
-    handle = dlopen(path, RTLD_LAZY | RTLD_GLOBAL);
+    void *handle = dlopen(path, RTLD_LAZY | RTLD_GLOBAL);
 
     if (!handle) {
 	Debug((DEBUG_MAVIS, "- %s(%s): dlopen failed.\n", __func__, path));
@@ -58,8 +57,6 @@ int mavis_method_add(mavis_ctx ** mcx, struct io_context *ioctx, char *path, cha
 
 int mavis_init(mavis_ctx * mcx, char *version)
 {
-    int result = MAVIS_INIT_OK;
-
     DebugIn(DEBUG_MAVIS);
 
     mavis_check_version(version);
@@ -70,7 +67,7 @@ int mavis_init(mavis_ctx * mcx, char *version)
 	exit(EX_USAGE);
     }
 
-    result = mcx->init(mcx);
+    int result = mcx->init(mcx);
     Debug((DEBUG_MAVIS, "- %s = %d\n", __func__, result));
     return result;
 }
@@ -124,14 +121,16 @@ char *av_addserial(av_ctx * ac)
 {
     if (!ac->arr[AV_A_SERIAL]) {
 	u_char u[16];
-	char b[30];
-	size_t i, len = (int) sizeof(b);
+
 	myMD5_CTX m;
 	myMD5Init(&m);
-	for (i = 0; i < AV_A_ARRAYSIZE; i++)
+	for (size_t i = 0; i < AV_A_ARRAYSIZE; i++)
 	    if (ac->arr[i])
 		myMD5Update(&m, (u_char *) ac->arr[i], strlen(ac->arr[i]));
 	myMD5Final(u, &m);
+
+	char b[30];
+	size_t len = (int) sizeof(b);
 	base64enc((char *) u, (size_t) 16, b, &len);
 	av_set(ac, AV_A_SERIAL, b);
     }
@@ -162,11 +161,9 @@ int mavis_send(mavis_ctx * mcx, av_ctx ** ac)
 
 int mavis_cancel(mavis_ctx * mcx, void *app_ctx)
 {
-    int result = MAVIS_IGNORE;
-
     DebugIn(DEBUG_MAVIS);
 
-    result = mcx->cancel(mcx, app_ctx);
+    int result = mcx->cancel(mcx, app_ctx);
 
     Debug((DEBUG_MAVIS, "- %s (%d)\n", __func__, result));
     return result;
@@ -174,9 +171,8 @@ int mavis_cancel(mavis_ctx * mcx, void *app_ctx)
 
 int mavis_recv(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
 {
-    int result;
     DebugIn(DEBUG_MAVIS);
-    result = mcx->recv(mcx, ac, app_ctx);
+    int result = mcx->recv(mcx, ac, app_ctx);
     if (result == MAVIS_FINAL_DEFERRED)
 	result = MAVIS_FINAL;
     DebugOut(DEBUG_MAVIS);
@@ -194,12 +190,10 @@ void av_clear(av_ctx * ac)
 
 void av_move(av_ctx * ac_out, av_ctx * ac_in)
 {
-    int i;
-
     DebugIn(DEBUG_AV);
     av_clear(ac_out);
 
-    for (i = 0; i < AV_A_ARRAYSIZE; i++) {
+    for (int i = 0; i < AV_A_ARRAYSIZE; i++) {
 	ac_out->arr[i] = ac_in->arr[i];
 	ac_in->arr[i] = NULL;
     }
@@ -302,11 +296,10 @@ int av_attribute_to_i(char *s)
 int av_attr_token_to_i(struct sym *sym)
 {
     char *b = sym->buf;
-    if (sym->code) {
+    if (sym->code)
 	for (int i = 0; i < AV_A_ARRAYSIZE; i++)
 	    if (av_char[i].token && (av_char[i].token == sym->code))
 		return i;
-    }
     if (*b == '$')
 	b++;
     return av_attribute_to_i(b);
@@ -327,7 +320,6 @@ size_t av_array_to_char_len(av_ctx * ac)
 
 int av_array_to_char(av_ctx * ac, char *buffer, size_t buflen, fd_set * set)
 {
-    int j, k;
     char *u;
     char *t = buffer;
 
@@ -335,10 +327,10 @@ int av_array_to_char(av_ctx * ac, char *buffer, size_t buflen, fd_set * set)
 
     for (int i = 0; i < AV_A_ARRAYSIZE; i++)
 	if ((!set || FD_ISSET(i, set)) && (u = av_get(ac, i))) {
-	    j = snprintf(t, (size_t) (buffer + buflen - t), "%d %s\n", i, u);
+	    int j = snprintf(t, (size_t) (buffer + buflen - t), "%d %s\n", i, u);
 	    if (j >= buffer + buflen - t)
 		return -1;
-	    for (k = 0; k < j - 1; k++)
+	    for (int k = 0; k < j - 1; k++)
 		if (t[k] == '\n')
 		    t[k] = '\r';
 	    t += j;
@@ -396,8 +388,7 @@ void av_setcb(av_ctx * a, void *cb, void *ctx)
 void av_free(av_ctx * ac)
 {
     if (ac) {
-	int i;
-	for (i = 0; i < AV_A_ARRAYSIZE; i++)
+	for (int i = 0; i < AV_A_ARRAYSIZE; i++)
 	    Xfree(&ac->arr[i]);
 	free(ac);
     }
@@ -406,8 +397,7 @@ void av_free(av_ctx * ac)
 void av_free_private(av_ctx * ac)
 {
     if (ac) {
-	int i;
-	for (i = 0; i < AV_A_ARRAYSIZE; i++)
+	for (int i = 0; i < AV_A_ARRAYSIZE; i++)
 	    switch (i) {
 	    case AV_A_PATH:
 	    case AV_A_UID:

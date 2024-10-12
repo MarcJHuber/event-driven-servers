@@ -102,11 +102,10 @@ static int find_entry(av_ctx * ac, struct cache *cache)
 static void garbage_collection(mavis_ctx * mcx)
 {
     rb_node_t *t, *u;
-    int i;
 
     DebugIn(DEBUG_PROC);
 
-    for (i = 0; i < AVPC_TABLE_SIZE; i++)
+    for (int i = 0; i < AVPC_TABLE_SIZE; i++)
 	for (t = RB_first(mcx->cache[i].items); t; t = u)
 	    if (u = RB_next(t), RB_payload(t, struct item *)->expire < io_now.tv_sec) {
 		RB_delete(mcx->cache[i].items, t);
@@ -118,11 +117,10 @@ static void garbage_collection(mavis_ctx * mcx)
 
 static int cache_lookup(mavis_ctx * mcx, av_ctx * ac)
 {
-    int i;
     char *s = av_get(ac, AV_A_TYPE);
 
     if (!strcasecmp(s, AV_V_TYPE_LOGSTATS)) {
-	for (i = 0; i < AVPC_TABLE_SIZE; i++) {
+	for (int i = 0; i < AVPC_TABLE_SIZE; i++) {
 	    if (mcx->cache[i].counter_query)
 		logmsg("STAT %s: %s: Q=%llu C=%llu T=%lld"
 		       " q=%llu c=%llu t=%lld #=%u",
@@ -139,7 +137,7 @@ static int cache_lookup(mavis_ctx * mcx, av_ctx * ac)
 	return 0;
     }
 
-    for (i = 0; i < AVPC_TABLE_SIZE; i++)
+    for (int i = 0; i < AVPC_TABLE_SIZE; i++)
 	if (!strcasecmp(mcx->cache[i].type, s)) {
 	    mcx->cache[i].counter_query++, mcx->cache[i].counter_p_query++;
 	    if (mcx->cache[i].items && find_entry(ac, &mcx->cache[i])) {
@@ -153,14 +151,11 @@ static int cache_lookup(mavis_ctx * mcx, av_ctx * ac)
 
 static void cache_set(mavis_ctx * mcx, av_ctx * ac)
 {
-    int i;
-    char *s;
-
     Debug((DEBUG_PROC, " cache_set\n"));
 
-    s = av_get(ac, AV_A_TYPE);
+    char *s = av_get(ac, AV_A_TYPE);
 
-    for (i = 0; i < AVPC_TABLE_SIZE; i++)
+    for (int i = 0; i < AVPC_TABLE_SIZE; i++)
 	if (!strcasecmp(mcx->cache[i].type, s)) {
 	    Debug((DEBUG_PROC, "  cache @ %.8lx\n", (u_long) mcx->cache + i));
 	    if (mcx->cache[i].items && 0 < mcx->cache[i].maxage) {
@@ -243,9 +238,7 @@ static int mavis_init_in(mavis_ctx * mcx)
 #define HAVE_mavis_drop_in
 static void mavis_drop_in(mavis_ctx * mcx)
 {
-    int k;
-
-    for (k = 0; k < AVPC_TABLE_SIZE; k++)
+    for (int k = 0; k < AVPC_TABLE_SIZE; k++)
 	RB_tree_delete(mcx->cache[k].items);
 }
 
@@ -253,9 +246,8 @@ static void mavis_drop_in(mavis_ctx * mcx)
 static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 {
     if (!mcx->initialized) {
-	int i;
 	mcx->lastdump = mcx->lastpurge = mcx->startup_time = io_now.tv_sec;
-	for (i = 0; i < AVPC_TABLE_SIZE; i++)
+	for (int i = 0; i < AVPC_TABLE_SIZE; i++)
 	    mcx->cache[i].items = RB_tree_new(cmp_item, free_item);
 	mavis_init_in(mcx);
 	mcx->initialized = 1;
@@ -281,8 +273,7 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 		for (i = 0; i < AVPC_TABLE_SIZE; i++)
 		    mcx->cache[i].maxage = (long unsigned) j;
 	    } else {
-		int i;
-		for (i = 0; i < AVPC_TABLE_SIZE; i++) {
+		for (int i = 0; i < AVPC_TABLE_SIZE; i++) {
 		    if (!strcasecmp(mcx->cache[i].type, sym->buf)) {
 			sym_get(sym);
 			parse(sym, S_equal);

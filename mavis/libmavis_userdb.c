@@ -41,9 +41,6 @@ user = name { ... }
 #define HAVE_mavis_parse_in
 static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 {
-    struct user *u;
-    char *t;
-
     while (1) {
 	switch (sym->code) {
 	case S_script:
@@ -52,7 +49,7 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 	case S_user:
 	    sym_get(sym);
 	    parse(sym, S_equal);
-	    u = calloc(1, sizeof(struct user));
+	    struct user *u = calloc(1, sizeof(struct user));
 	    u->name = sym->buf;
 	    if (RB_lookup(mcx->usertable, (void *) u)) {
 		parse_error(sym, "user '%s' already defined.", sym->buf);
@@ -91,7 +88,7 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 		    sym_get(sym);
 		    parse(sym, S_equal);
 		    av_set(u->ac, AV_A_GIDS, sym->buf);
-		    t = strchr(sym->buf, ',');
+		    char *t = strchr(sym->buf, ',');
 		    if (t)
 			*t = 0;
 		    av_set(u->ac, AV_A_GID, sym->buf);

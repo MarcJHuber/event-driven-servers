@@ -48,10 +48,9 @@ struct appdata {
  */
 static int pam_conv(int num_msg, PAM_CONV_ARG2_TYPE ** msg, struct pam_response **response, void *appdata_ptr)
 {
-    int count;
     struct pam_response *reply = calloc(num_msg, sizeof(struct pam_response));
 
-    for (count = 0; count < num_msg; count++)
+    for (int count = 0; count < num_msg; count++)
 	switch (msg[count]->msg_style) {
 	case PAM_PROMPT_ECHO_ON:
 	    reply[count].resp = strdup(((struct appdata *) appdata_ptr)->user);

@@ -185,8 +185,6 @@ static void write_to_child(struct context *, int);
 #define HAVE_mavis_init_in
 static int mavis_init_in(mavis_ctx * mcx)
 {
-    int i;
-
     DebugIn(DEBUG_MAVIS);
 
     mcx->lastdump = mcx->startup_time = time(NULL);
@@ -205,7 +203,7 @@ static int mavis_init_in(mavis_ctx * mcx)
 	mcx->io_context_local = mcx->io = io_init();
     mcx->cx = Xcalloc(mcx->child_max, sizeof(struct context *));
     mcx->cx_stat = Xcalloc(mcx->child_max, sizeof(struct context_stat));
-    for (i = 0; i < mcx->child_min; i++)
+    for (int i = 0; i < mcx->child_min; i++)
 	fork_child(mcx, i);
 
     mcx->backlog_serial = RB_tree_new(compare_serial, NULL);
@@ -323,14 +321,12 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 #define HAVE_mavis_drop_in
 static void mavis_drop_in(mavis_ctx * mcx)
 {
-    int i;
-
     free(mcx->path);
 
-    for (i = 0; mcx->argv[i]; i++)
+    for (int i = 0; mcx->argv[i]; i++)
 	Xfree(&mcx->argv[i]);
 
-    for (i = 0; i < mcx->child_max; i++)
+    for (int i = 0; i < mcx->child_max; i++)
 	if (mcx->cx[i]) {
 	    if (mcx->cx[i]->fd_in > -1)
 		io_close(mcx->io, mcx->cx[i]->fd_in);
@@ -355,7 +351,7 @@ static void mavis_drop_in(mavis_ctx * mcx)
     RB_tree_delete(mcx->outgoing);
 
     if (mcx->env) {
-	for (i = 0; i < mcx->envcount; i++)
+	for (int i = 0; i < mcx->envcount; i++)
 	    free(mcx->env[i]);
 	free(mcx->env);
     }

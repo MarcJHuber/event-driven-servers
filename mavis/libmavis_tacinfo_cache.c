@@ -220,7 +220,6 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
     if (fn > -1) {
 	char *c;
 	struct stat st;
-	int i;
 	av_ctx *a = av_new(NULL, NULL);
 	fstat(fn, &st);
 	c = alloca(st.st_size + 1);
@@ -229,7 +228,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	}
 	close(fn);
 	av_char_to_array(a, c, NULL);
-	for (i = 0; keep[i] > -1; i++)
+	for (int i = 0; keep[i] > -1; i++)
 	    av_set(*ac, keep[i], av_get(a, keep[i]));
 	av_free(a);
 	av_set(*ac, AV_A_RESULT, AV_V_RESULT_OK);

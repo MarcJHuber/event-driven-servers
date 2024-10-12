@@ -278,7 +278,6 @@ static void sym_getchar(struct sym *sym)
 	*(sym->ch) = CHAREOF;
 	sym->chlen = 1;
     } else {
-	int i;
 	sym->chlen = 1;
 	sym->start = sym->tin;
 	if (sym->tlen > 1 && ((*sym->tin & 0xE0) == 0xC0) && (*(sym->tin + 1) & 0xC0) == 0x80)
@@ -288,7 +287,7 @@ static void sym_getchar(struct sym *sym)
 	else if (sym->tlen > 3 && (*sym->tin & 0xF8) == 0xF0 && (*(sym->tin + 1) & 0xC0) == 0x80
 		 && (*(sym->tin + 2) & 0xC0) == 0x80 && (*(sym->tin + 3) & 0xC0) == 0x80)
 	    sym->chlen = 4;
-	for (i = 0; i < sym->chlen; i++) {
+	for (int i = 0; i < sym->chlen; i++) {
 	    sym->ch[i] = *sym->tin;
 	    sym->tin++;
 	    sym->tlen--;
@@ -440,7 +439,6 @@ void getsym(struct sym *sym)
 	    sym_getchar(sym);
 	    /* implement C style quoting */
 	    while (*sym->ch != quote) {
-		int i;
 		if (*sym->ch == (char) EOF)
 		    parse_error(sym, "EOF unexpected");
 		if (*sym->ch == '\n')
@@ -509,7 +507,7 @@ void getsym(struct sym *sym)
 		    buf_add(sym, sc);
 		    continue;
 		}
-		for (i = 0; i < sym->chlen; i++)
+		for (int i = 0; i < sym->chlen; i++)
 		    buf_add(sym, sym->ch[i]);
 		sym_getchar(sym);
 	    }
@@ -572,12 +570,9 @@ void getsym(struct sym *sym)
 		    sym->code = keycode(sym->buf);
 		    return;
 		default:
-		    {
-			int i;
-			for (i = 0; i < sym->chlen; i++)
+			for (int i = 0; i < sym->chlen; i++)
 			    buf_add(sym, sym->ch[i]);
 			sym_getchar(sym);
-		    }
 		}
 	}
 }
@@ -730,18 +725,16 @@ void sym_get(struct sym *sym)
     }
     if (sym->code == S_include && !sym->flag_prohibit_include) {
 	glob_t globbuf = { 0 };
-	char *sb;
-	int i;
 
 	sym_get(sym);
 	parse(sym, S_equal);
-	sb = alloca(strlen(sym->buf) + 1);
+	char *sb = alloca(strlen(sym->buf) + 1);
 	strcpy(sb, sym->buf);
 	sym_get(sym);
 	globerror_sym = sym;
 	switch (glob(sb, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOMAGIC | GLOB_BRACE, globerror, &globbuf)) {
 	case 0:
-	    for (i = (int) globbuf.gl_pathc - 1; i > -1; i--)
+	    for (int i = (int) globbuf.gl_pathc - 1; i > -1; i--)
 		sym_prepend_file(sym, globbuf.gl_pathv[i]);
 	    break;
 #ifdef GLOB_NOMATCH
@@ -2098,7 +2091,6 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym, mem_t * mem)
 void mavis_cond_optimize(struct mavis_cond **m, mem_t * mem)
 {
     struct mavis_cond *p;
-    int i;
     while (*m && ((*m)->type == S_or || (*m)->type == S_and)
 	   && (*m)->u.m.n == 1) {
 	p = *m;
@@ -2106,7 +2098,7 @@ void mavis_cond_optimize(struct mavis_cond **m, mem_t * mem)
 	free(p);
     }
     if (*m)
-	for (i = 0; i < (*m)->u.m.n; i++)
+	for (int i = 0; i < (*m)->u.m.n; i++)
 	    if ((*m)->type == S_or || (*m)->type == S_and || (*m)->type == S_exclmark)
 		mavis_cond_optimize(&(*m)->u.m.e[i], mem);
 }
@@ -2153,7 +2145,7 @@ static int mavis_cond_eval_res(mavis_ctx * mcx, struct mavis_cond *m, int res)
 
 static int mavis_cond_eval(mavis_ctx * mcx, av_ctx * ac, struct mavis_cond *m)
 {
-    int i, res = 0;
+    int res = 0;
     char *v, *rhs;
     if (!m)
 	return 0;
@@ -2163,11 +2155,11 @@ static int mavis_cond_eval(mavis_ctx * mcx, av_ctx * ac, struct mavis_cond *m)
 	return mavis_cond_eval_res(mcx, m, res);
     case S_and:
 	res = -1;
-	for (i = 0; res && i < m->u.m.n; i++)
+	for (int i = 0; res && i < m->u.m.n; i++)
 	    res = mavis_cond_eval(mcx, ac, m->u.m.e[i]);
 	return mavis_cond_eval_res(mcx, m, res);
     case S_or:
-	for (i = 0; !res && i < m->u.m.n; i++)
+	for (int i = 0; !res && i < m->u.m.n; i++)
 	    res = mavis_cond_eval(mcx, ac, m->u.m.e[i]);
 	return mavis_cond_eval_res(mcx, m, res);
     case S_defined:
@@ -2219,12 +2211,11 @@ static int mavis_cond_eval(mavis_ctx * mcx, av_ctx * ac, struct mavis_cond *m)
 
 static void mavis_cond_drop(struct mavis_cond **m)
 {
-    int i;
     switch ((*m)->type) {
     case S_and:
     case S_or:
     case S_exclmark:
-	for (i = 0; i <= (*m)->u.m.n; i++)
+	for (int i = 0; i <= (*m)->u.m.n; i++)
 	    mavis_cond_drop(&(*m)->u.m.e[i]);
     case S_equal:
 	free((*m)->u.s.rhs);
@@ -2250,7 +2241,6 @@ static void mavis_cond_drop(struct mavis_cond **m)
 void mavis_script_drop(struct mavis_action **m)
 {
     if (*m) {
-
 	switch ((*m)->code) {
 	case S_if:
 	    mavis_script_drop(&(*m)->b.a);
@@ -2614,13 +2604,12 @@ static __inline__ int check_cron(struct mavis_tm *tm, struct tm *loc)
 int eval_timespec(struct mavis_timespec *ts, char **s)
 {
     if (ts->valid_until < (time_t) io_now.tv_sec) {
-	struct mavis_tm *tm;
 	time_t dummy = (time_t) io_now.tv_sec;
 	struct tm *loc = localtime(&dummy);
 
 	ts->matched = 0;
 	ts->string = NULL;
-	for (tm = ts->tm; tm; tm = tm->next)
+	for (struct mavis_tm *tm = ts->tm; tm; tm = tm->next)
 	    if (check_cron(tm, loc)) {
 		ts->matched = ~0;
 		ts->string = tm->string;

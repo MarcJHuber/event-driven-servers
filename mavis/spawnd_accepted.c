@@ -39,12 +39,12 @@ static struct track *alloc_track(void)
 {
     struct track *t;
     if (!tracks && (spawnd_data.tracking_size > 0)) {
-	int i, left = spawnd_data.tracking_size;
+	int left = spawnd_data.tracking_size;
 	if (left > 1024)
 	    left = 1024;
 	tracks = calloc(left, sizeof(struct track));
 	left--;
-	for (i = 0; i < left; i++)
+	for (int i = 0; i < left; i++)
 	    tracks[i].nextfree = &tracks[i + 1];
     }
     t = tracks;
@@ -203,12 +203,12 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 		min_i = -1;
 
 	    if (min_i < 0)
-		for (i = 0; i < common_data.servers_min && i < common_data.servers_cur; i++)
+		for (int i = 0; i < common_data.servers_min && i < common_data.servers_cur; i++)
 		    if (spawnd_data.server_arr[i]->use < common_data.users_min && spawnd_data.server_arr[i]->use < min)
 			min_i = i, min = spawnd_data.server_arr[i]->use;
 
 	    if (min_i < 0)
-		for (i = common_data.servers_min; i < common_data.servers_cur; i++)
+		for (int i = common_data.servers_min; i < common_data.servers_cur; i++)
 		    if (spawnd_data.server_arr[i]->use < common_data.users_min && spawnd_data.server_arr[i]->use < min)
 			min_i = i, min = spawnd_data.server_arr[i]->use;
 
@@ -218,7 +218,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	    }
 
 	    if (min_i < 0)
-		for (i = 0; i < common_data.servers_cur; i++)
+		for (int i = 0; i < common_data.servers_cur; i++)
 		    if (spawnd_data.server_arr[i]->use < common_data.users_max && spawnd_data.server_arr[i]->use < min)
 			min_i = i, min = spawnd_data.server_arr[i]->use;
 

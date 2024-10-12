@@ -108,8 +108,7 @@ static int LDAP_eval_rootdse(LDAP * ldap, LDAPMessage * res)
 	    if (!(capabilities & CAP_AD) && !strcasecmp(attribute, "supportedCapabilities")) {
 		struct berval **v = ldap_get_values_len(ldap, entry, attribute);
 		if (v) {
-		    int i;
-		    for (i = 0; v[i]; i++) {
+		    for (int i = 0; v[i]; i++) {
 			if (!strcmp(v[i]->bv_val, LDAP_CAP_ACTIVE_DIRECTORY_OID)
 			    || !strcmp(v[i]->bv_val, LDAP_CAP_ACTIVE_DIRECTORY_ADAM_OID)) {
 			    capabilities |= CAP_AD;
@@ -122,8 +121,7 @@ static int LDAP_eval_rootdse(LDAP * ldap, LDAPMessage * res)
 	    } else if (!(capabilities & CAP_PWMODIFY) && !strcasecmp(attribute, "supportedExtension")) {
 		struct berval **v = ldap_get_values_len(ldap, entry, attribute);
 		if (v) {
-		    int i;
-		    for (i = 0; v[i]; i++) {
+		    for (int i = 0; v[i]; i++) {
 			if (!strcmp(v[i]->bv_val, LDAP_EXTENSION_PASSWORD_MODIFY)) {
 			    capabilities |= CAP_PWMODIFY;
 			} else if (!strcmp(v[i]->bv_val, LDAP_SERVER_START_TLS_OID)) {
@@ -135,8 +133,7 @@ static int LDAP_eval_rootdse(LDAP * ldap, LDAPMessage * res)
 	    } else if (!(capabilities & CAP_AD) && !strcasecmp(attribute, "vendorName")) {
 		struct berval **v = ldap_get_values_len(ldap, entry, attribute);
 		if (v) {
-		    int i;
-		    for (i = 0; v[i]; i++) {
+		    for (int i = 0; v[i]; i++) {
 			if (strstr(v[i]->bv_val, "389 Project")) {
 			    capabilities |= CAP_389DS;
 			    break;
@@ -274,11 +271,10 @@ static void dnhash_drop(struct dnhash **h)
 
 static int dnhash_add(struct dnhash **ha, char *dn, size_t match_start, size_t match_len)
 {
-    char *s;
     u_char hash = 0;
     size_t len = 0;
 
-    for (s = dn; *s; s++) {
+    for (char *s = dn; *s; s++) {
 	hash ^= (u_char) * s;
 	len++;
     }
@@ -340,8 +336,7 @@ static int dnhash_add_entry(LDAP * ldap, struct dnhash **h, char *dn, int level)
 	LDAPMessage *entry = ldap_first_entry(ldap, res);
 
 	BerElement *be = NULL;
-	char *attribute;
-	for (attribute = ldap_first_attribute(ldap, entry, &be); attribute; attribute = ldap_next_attribute(ldap, entry, be)) {
+	for (char *attribute = ldap_first_attribute(ldap, entry, &be); attribute; attribute = ldap_next_attribute(ldap, entry, be)) {
 	    struct berval **v = ldap_get_values_len(ldap, entry, attribute);
 	    if (v) {
 		if (!strcasecmp(attribute, "memberOf")) {
@@ -539,10 +534,9 @@ static void *run_thread(void *arg)
 	int is_auth = !strcmp(tactype, AV_V_TACTYPE_AUTH) || !strcmp(tactype, AV_V_TACTYPE_CHPW);
 
 	BerElement *be = NULL;
-	char *attribute;
 	struct dnhash **hash = dnhash_new();
 
-	for (attribute = ldap_first_attribute(ldap, entry, &be); attribute; attribute = ldap_next_attribute(ldap, entry, be)) {
+	for (char *attribute = ldap_first_attribute(ldap, entry, &be); attribute; attribute = ldap_next_attribute(ldap, entry, be)) {
 	    struct berval **v = ldap_get_values_len(ldap, entry, attribute);
 	    if (v) {
 		if (!strcasecmp(attribute, "memberOf")) {

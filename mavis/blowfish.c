@@ -225,10 +225,9 @@ static unsigned int S_box3[] = {
 
 static void Blowfish_enc(struct blowfish_ctx *ctx, u_int * xL_out, u_int * xR_out, u_int xL, u_int xR)
 {
-    int i;
     u_int xLtmp;
 
-    for (i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++) {
 	xL ^= ctx->P_array[i];
 	xR ^= ((ctx->S_box0[xL >> 24] + ctx->S_box1[0xff & (xL >> 16)])
 	       ^ ctx->S_box2[0xff & (xL >> 8)]) + ctx->S_box3[0xff & xL];
@@ -246,10 +245,9 @@ static void Blowfish_enc(struct blowfish_ctx *ctx, u_int * xL_out, u_int * xR_ou
 
 static void Blowfish_dec(struct blowfish_ctx *ctx, u_int * xL_out, u_int * xR_out, u_int xL, u_int xR)
 {
-    int i;
     u_int xLtmp;
 
-    for (i = 17; i > 1; i--) {
+    for (int i = 17; i > 1; i--) {
 	xL ^= ctx->P_array[i];
 	xR ^= ((ctx->S_box0[xL >> 24] + ctx->S_box1[0xff & (xL >> 16)])
 	       ^ ctx->S_box2[0xff & (xL >> 8)]) + ctx->S_box3[0xff & xL];
@@ -267,7 +265,6 @@ static void Blowfish_dec(struct blowfish_ctx *ctx, u_int * xL_out, u_int * xR_ou
 
 struct blowfish_ctx *blowfish_init(char *key, size_t keylen)
 {
-    u_int i, j;
     u_int xL, xR;
     a_char *quadkey = (a_char *) alloca(18 * sizeof(u_int));
     struct blowfish_ctx *ctx;
@@ -280,36 +277,35 @@ struct blowfish_ctx *blowfish_init(char *key, size_t keylen)
     memcpy(ctx->S_box2, S_box2, (size_t) 256);
     memcpy(ctx->S_box3, S_box3, (size_t) 256);
 
-    for (i = 0, j = 0; i < 72; i++) {
+    for (u_int i = 0, j = 0; i < 72; i++) {
 	if (j == keylen)
 	    j = 0;
 
 	quadkey->s[i] = key[j++];
     }
 
-    for (i = 0; i < 18; i++)
+    for (u_int i = 0; i < 18; i++)
 	ctx->P_array[i] ^= ntohl(quadkey->n[i]);
 
     xL = 0, xR = 0;
 
-    for (i = 0; i < 18; i += 2) {
+    for (u_int i = 0; i < 18; i += 2) {
 	Blowfish_enc(ctx, &xL, &xR, xL, xR);
 	ctx->P_array[i] = xL, ctx->P_array[i + 1] = xR;
     }
-
-    for (i = 0; i < 256; i += 2) {
+    for (u_int i = 0; i < 256; i += 2) {
 	Blowfish_enc(ctx, &xL, &xR, xL, xR);
 	ctx->S_box0[i] = xL, ctx->S_box0[i + 1] = xR;
     }
-    for (i = 0; i < 256; i += 2) {
+    for (u_int i = 0; i < 256; i += 2) {
 	Blowfish_enc(ctx, &xL, &xR, xL, xR);
 	ctx->S_box1[i] = xL, ctx->S_box1[i + 1] = xR;
     }
-    for (i = 0; i < 256; i += 2) {
+    for (u_int i = 0; i < 256; i += 2) {
 	Blowfish_enc(ctx, &xL, &xR, xL, xR);
 	ctx->S_box2[i] = xL, ctx->S_box2[i + 1] = xR;
     }
-    for (i = 0; i < 256; i += 2) {
+    for (u_int i = 0; i < 256; i += 2) {
 	Blowfish_enc(ctx, &xL, &xR, xL, xR);
 	ctx->S_box3[i] = xL, ctx->S_box3[i + 1] = xR;
     }
@@ -319,22 +315,20 @@ struct blowfish_ctx *blowfish_init(char *key, size_t keylen)
 
 size_t blowfish_enc(struct blowfish_ctx *ctx, a_char * data, size_t dlen)
 {
-    u_int i;
-
     if (dlen & 0x7)
 	dlen += 8;
     dlen >>= 2;
 
 #if __BYTE_ORDER != __BIG_ENDIAN
-    for (i = 0; i < dlen; i++)
+    for (u_int i = 0; i < dlen; i++)
 	data->n[i] = ntohl(data->n[i]);
 #endif
 
-    for (i = 0; i < dlen; i += 2)
+    for (u_int i = 0; i < dlen; i += 2)
 	Blowfish_enc(ctx, &data->n[i], &data->n[i + 1], data->n[i], data->n[i + 1]);
 
 #if __BYTE_ORDER != __BIG_ENDIAN
-    for (i = 0; i < dlen; i++)
+    for (u_int i = 0; i < dlen; i++)
 	data->n[i] = htonl(data->n[i]);
 #endif
 
@@ -343,22 +337,20 @@ size_t blowfish_enc(struct blowfish_ctx *ctx, a_char * data, size_t dlen)
 
 size_t blowfish_dec(struct blowfish_ctx *ctx, a_char * data, size_t dlen)
 {
-    u_int i;
-
     if (dlen & 0x7)
 	dlen += 8;
     dlen >>= 2;
 
 #if __BYTE_ORDER != __BIG_ENDIAN
-    for (i = 0; i < dlen; i++)
+    for (u_int i = 0; i < dlen; i++)
 	data->n[i] = ntohl(data->n[i]);
 #endif
 
-    for (i = 0; i < dlen; i += 2)
+    for (u_int i = 0; i < dlen; i += 2)
 	Blowfish_dec(ctx, &data->n[i], &data->n[i + 1], data->n[i], data->n[i + 1]);
 
 #if __BYTE_ORDER != __BIG_ENDIAN
-    for (i = 0; i < dlen; i++)
+    for (u_int i = 0; i < dlen; i++)
 	data->n[i] = htonl(data->n[i]);
 #endif
 

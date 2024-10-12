@@ -43,17 +43,18 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 static int mavis_recv_out(void *pcx __attribute__((unused)), av_ctx ** ac)
 {
     char *avresult = av_get(*ac, AV_A_RESULT);
-    char *avcomment = av_get(*ac, AV_A_COMMENT);
-    char *avtype = av_get(*ac, AV_A_TYPE);
-    char *avuser = av_get(*ac, AV_A_USER);
-    char *avipaddr = av_get(*ac, AV_A_IPADDR);
 
     if (!avresult)
 	avresult = AV_V_RESULT_NOTFOUND;
 
+    char *avtype = av_get(*ac, AV_A_TYPE);
     if (avtype) {
+    char *avuser = av_get(*ac, AV_A_USER);
+    char *avipaddr = av_get(*ac, AV_A_IPADDR);
+
 	if (avuser && avipaddr && (!strcmp(avtype, AV_V_TYPE_FTP)
 				   || !strcmp(avtype, AV_V_TYPE_TACPLUS))) {
+    char *avcomment = av_get(*ac, AV_A_COMMENT);
 	    if (avcomment)
 		logmsg("%s %s: %s [%s] (%s)", avtype, avresult, avuser, avipaddr, avcomment);
 	    else

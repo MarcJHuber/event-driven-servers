@@ -71,15 +71,13 @@ static struct cache *cache_new(int (*compar)(const void *, const void *), void (
 static void cache_add_addr(struct cache *cache, char *user, char *addr)
 {
     struct item item, *newitem = NULL;
-    rb_node_t *t;
-
     if (!user)
 	return;
 
     if (v6_ptoh(&item.addr, NULL, addr))
 	return;
 
-    t = RB_search(cache->items, &item);
+    rb_node_t *t = RB_search(cache->items, &item);
 
     if (!t || strcmp(RB_payload(t, struct item *)->user, user)) {
 	if (t)
@@ -101,11 +99,10 @@ static void cache_add_addr(struct cache *cache, char *user, char *addr)
 
 static struct item *cache_find_addr(struct cache *cache, char *addr)
 {
-    struct item item;
-    rb_node_t *t = NULL;
-
     DebugIn(DEBUG_PROC);
 
+    rb_node_t *t = NULL;
+    struct item item;
     if (!v6_ptoh(&item.addr, NULL, addr))
 	t = RB_search(cache->items, &item);
     DebugOut(DEBUG_PROC);
@@ -114,10 +111,8 @@ static struct item *cache_find_addr(struct cache *cache, char *addr)
 
 static void garbage_collection_one(struct cache *cache)
 {
-    rb_node_t *t, *u;
-
     if (cache && cache->items)
-	for (t = RB_first(cache->items); t; t = u)
+	for (rb_node_t *u, *t = RB_first(cache->items); t; t = u)
 	    if (u = RB_next(t), RB_payload(t, struct item *)->expire < io_now.tv_sec)
 		 RB_delete(cache->items, t);
 }
@@ -204,8 +199,7 @@ static int mavis_init_in(mavis_ctx * mcx)
 #define HAVE_mavis_send_in
 static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 {
-    char *t, *addr;
-    t = av_get(*ac, AV_A_TYPE);
+    char *t = av_get(*ac, AV_A_TYPE);
     if (!t)
 	return MAVIS_FINAL;
     if (io_now.tv_sec > mcx->lastpurge + mcx->purge_outdated) {
@@ -213,7 +207,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	mcx->lastpurge = io_now.tv_sec;
     }
 
-    addr = av_get(*ac, AV_A_IPADDR);
+    char *addr = av_get(*ac, AV_A_IPADDR);
     if (addr) {
 	struct item *item;
 	item = cache_find_addr(mcx->cache_blacklist, addr);

@@ -426,9 +426,8 @@ static void find_ssluser(av_ctx * ac, int fn, char *user)
 		char *subj = strchr(linestart, ':');
 		if (subj) {
 		    char *s = linestart;
-		    char *t;
 		    *subj++ = 0;
-		    for (t = strtok(s, ","); t; t = strtok(NULL, ","))
+		    for (char *t = strtok(s, ","); t; t = strtok(NULL, ","))
 			if (!strcmp(user, t)) {
 			    char *a = av_get(ac, AV_A_DBCERTSUBJ);
 			    if (a)

@@ -36,7 +36,6 @@ void debug(u_long level, char *format, ...)
 	int olderrno;
 	size_t len = 1024, nlen;
 	char *tmpbuf = alloca(len);
-	char *t;
 	char spaces[] = "                                        " "                                        " "                                        ";
 
 	olderrno = errno;
@@ -54,7 +53,7 @@ void debug(u_long level, char *format, ...)
 	if (tmpbuf[0] == '-' && indent > 0)
 	    indent--;
 
-	for (t = tmpbuf; t[0] && t[1]; t++)
+	for (char *t = tmpbuf; t[0] && t[1]; t++)
 	    if (iscntrl((int) *t))
 		*t = '^';
 

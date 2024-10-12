@@ -296,9 +296,7 @@ static void child_died(struct context *ctx, int cur __attribute__((unused)))
 	fork_ctx(ctx->mcx);
 
 	if (!RB_empty(ctx->mcx->by_serial)) {
-	    rb_node_t *rbn;
-
-	    for (rbn = RB_first(ctx->mcx->by_serial); rbn;) {
+	    for (rb_node_t *rbn = RB_first(ctx->mcx->by_serial); rbn;) {
 		struct query *q = RB_payload(rbn, struct query *);
 		rb_node_t *next = RB_next(rbn);
 		if (q->canceled) {
