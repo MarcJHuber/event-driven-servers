@@ -649,6 +649,20 @@ static void reject_conn(struct context *ctx, const char *hint, char *tls)
 void complete_host(tac_host *);
 
 #if defined(WITH_TLS) || defined(WITH_SSL)
+static int query_mavis_host(struct context *, void (*)(struct context *));
+
+static void complete_host_mavis_tls(struct context *ctx)
+{
+    if (query_mavis_host(ctx, complete_host_mavis_tls))
+	return;
+
+    if (ctx->mavis_result == S_deny) {
+	reject_conn(ctx, ctx->hint, "by MAVIS backend");
+	return;
+    }
+    accept_control_final(ctx);
+}
+
 static void set_host_by_dn(struct context *ctx, char *t)
 {
     while (t) {
@@ -904,15 +918,20 @@ static void accept_control_tls(struct context *ctx, int cur)
 	if (!ctx->host)
 	    set_host_by_dn(ctx, ctx->tls_peer_cn);
     }
-
+#ifndef OPENSSL_NO_PSK
   done:
-
+#endif
     // fall back to IP address
     if (!ctx->host)
 	ctx->host = by_address;
 
     if (ctx->host) {
 	complete_host(ctx->host);
+	if (ctx->host && (ctx->host != by_address) && (ctx->host->try_mavis == TRISTATE_YES) && ctx->tls_peer_cert_subject) {
+	    ctx->mavis_tried = 0;
+	    complete_host_mavis_tls(ctx);
+	    return;
+	}
 	accept_control_final(ctx);
 	return;
     }
@@ -1218,7 +1237,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
