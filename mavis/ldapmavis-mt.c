@@ -185,10 +185,7 @@ static int LDAP_init(LDAP ** ldap, int *capabilities)
     if (rc != LDAP_SUCCESS)
 	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 
-    struct timeval tv;
-    tv.tv_usec = 0;
-
-    tv.tv_sec = ldap_timeout;
+    struct timeval tv = {.tv_sec = ldap_timeout };
     rc = ldap_set_option(*ldap, LDAP_OPT_TIMEOUT, &tv);
     if (rc != LDAP_SUCCESS)
 	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
@@ -247,9 +244,7 @@ static int LDAP_bind(LDAP * ldap, const char *ldap_dn, const char *ldap_password
 
 static int LDAP_bind_user(LDAP * ldap, const char *ldap_dn, const char *ldap_password)
 {
-    struct berval ber;
-    ber.bv_len = strlen(ldap_password);
-    ber.bv_val = (char *) ldap_password;
+    struct berval ber = {.bv_len = strlen(ldap_password), ber.bv_val = (char *) ldap_password };
     return ldap_sasl_bind_s(ldap, ldap_dn, LDAP_SASL_SIMPLE, &ber, NULL, NULL, NULL);
 }
 
@@ -268,8 +263,7 @@ static struct dnhash **dnhash_new(void)
 
 static void dnhash_drop(struct dnhash **h)
 {
-    int i;
-    for (i = 0; i < 256; i++)
+    for (int i = 0; i < 256; i++)
 	while (h[i]) {
 	    struct dnhash *next = h[i]->next;
 	    free(h[i]);

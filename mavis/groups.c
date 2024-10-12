@@ -24,7 +24,6 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 
 char *groups_list2ascii(size_t size, gid_t * list, char *buf, size_t buflen)
 {
-    u_int i;
     char *t = buf;
 
     DebugIn(DEBUG_PROC);
@@ -32,7 +31,7 @@ char *groups_list2ascii(size_t size, gid_t * list, char *buf, size_t buflen)
     if (size > NGROUPS_MAX)
 	size = NGROUPS_MAX;
 
-    for (i = 0; i < size; i++) {
+    for (u_int i = 0; i < size; i++) {
 	int len;
 	if (i)
 	    *t++ = ',';
@@ -81,7 +80,6 @@ char *groups_getlist(char *name, gid_t gid, char *buf, size_t buflen)
 #ifdef HAVE_GETGROUPLIST
     GETGROUPLIST_ARG2_TYPE g[NGROUPS];
     int n = NGROUPS;
-    int i;
     size_t l = 0;
     char *b = buf;
 
@@ -89,7 +87,7 @@ char *groups_getlist(char *name, gid_t gid, char *buf, size_t buflen)
 
     getgrouplist(name, (GETGROUPLIST_ARG2_TYPE) gid, g, &n);
 
-    for (i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++) {
 	int j;
 	if (buflen < l + 20)
 	    return buf;

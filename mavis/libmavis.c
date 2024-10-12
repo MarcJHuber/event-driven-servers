@@ -42,7 +42,7 @@ int mavis_method_add(mavis_ctx ** mcx, struct io_context *ioctx, char *path, cha
 
     if (!(mn = (void *(*)(void *, struct io_context *, char *))
 	  dlsym(handle, DLSYM_PREFIX "Mavis_new"))) {
-	Debug((DEBUG_MAVIS, "- %s(%s): dlsym (%s) failed: %s\n", __func__, path, DLSYM_PREFIX "Mavis_new", dlerror()));
+	Debug( (DEBUG_MAVIS, "- %s(%s): dlsym (%s) failed: %s\n", __func__, path, DLSYM_PREFIX "Mavis_new", dlerror()));
 	return -1;
     }
 
@@ -186,12 +186,9 @@ int mavis_recv(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
 void av_clear(av_ctx * ac)
 {
     DebugIn(DEBUG_AV);
-    if (ac) {
-	int i;
-
-	for (i = 0; i < AV_A_ARRAYSIZE; i++)
+    if (ac)
+	for (int i = 0; i < AV_A_ARRAYSIZE; i++)
 	    Xfree(&ac->arr[i]);
-    }
     DebugOut(DEBUG_AV);
 }
 
@@ -212,12 +209,10 @@ void av_move(av_ctx * ac_out, av_ctx * ac_in)
 
 void av_copy(av_ctx * ac_out, av_ctx * ac_in)
 {
-    int i;
-
     DebugIn(DEBUG_AV);
     av_clear(ac_out);
 
-    for (i = 0; i < AV_A_ARRAYSIZE; i++) {
+    for (int i = 0; i < AV_A_ARRAYSIZE; i++) {
 	Xfree(&ac_out->arr[i]);
 	if (ac_in->arr[i])
 	    ac_out->arr[i] = strdup(ac_in->arr[i]);
@@ -228,11 +223,9 @@ void av_copy(av_ctx * ac_out, av_ctx * ac_in)
 
 void av_merge(av_ctx * ac_out, av_ctx * ac_in)
 {
-    int i;
-
     DebugIn(DEBUG_AV);
 
-    for (i = 0; i < AV_A_ARRAYSIZE; i++)
+    for (int i = 0; i < AV_A_ARRAYSIZE; i++)
 	if (!ac_out->arr[i] && ac_in->arr[i])
 	    ac_out->arr[i] = strdup(ac_in->arr[i]);
 
@@ -291,10 +284,8 @@ char *av_get(av_ctx * ac, int av_attribute)
 
 void av_dump(av_ctx * ac)
 {
-    int i;
-
     fprintf(stderr, "attribute-value-pairs:\n");
-    for (i = 0; i < AV_A_ARRAYSIZE; i++)
+    for (int i = 0; i < AV_A_ARRAYSIZE; i++)
 	if (ac->arr[i])
 	    fprintf(stderr, "%-20s%s\n", av_char[i].name, ac->arr[i]);
     fprintf(stderr, "\n");
@@ -302,9 +293,7 @@ void av_dump(av_ctx * ac)
 
 int av_attribute_to_i(char *s)
 {
-    int i;
-
-    for (i = 0; i < AV_A_ARRAYSIZE; i++)
+    for (int i = 0; i < AV_A_ARRAYSIZE; i++)
 	if (!strcasecmp(av_char[i].name, s) || (av_char[i].token && !strcmp(codestring[av_char[i].token], s)))
 	    return i;
     return -1;
@@ -314,8 +303,7 @@ int av_attr_token_to_i(struct sym *sym)
 {
     char *b = sym->buf;
     if (sym->code) {
-	int i;
-	for (i = 0; i < AV_A_ARRAYSIZE; i++)
+	for (int i = 0; i < AV_A_ARRAYSIZE; i++)
 	    if (av_char[i].token && (av_char[i].token == sym->code))
 		return i;
     }
@@ -327,9 +315,7 @@ int av_attr_token_to_i(struct sym *sym)
 size_t av_array_to_char_len(av_ctx * ac)
 {
     size_t j = 1;		// terminating \0
-    int i;
-
-    for (i = 0; i < AV_A_ARRAYSIZE; i++) {
+    for (int i = 0; i < AV_A_ARRAYSIZE; i++) {
 	char *u = av_get(ac, i);
 	if (u) {
 	    j += 3 + ((j > 9) ? 1 : 0);
@@ -341,13 +327,13 @@ size_t av_array_to_char_len(av_ctx * ac)
 
 int av_array_to_char(av_ctx * ac, char *buffer, size_t buflen, fd_set * set)
 {
-    int i, j, k;
+    int j, k;
     char *u;
     char *t = buffer;
 
     buffer[0] = 0;
 
-    for (i = 0; i < AV_A_ARRAYSIZE; i++)
+    for (int i = 0; i < AV_A_ARRAYSIZE; i++)
 	if ((!set || FD_ISSET(i, set)) && (u = av_get(ac, i))) {
 	    j = snprintf(t, (size_t) (buffer + buflen - t), "%d %s\n", i, u);
 	    if (j >= buffer + buflen - t)
@@ -461,10 +447,8 @@ int mavis_check_version(char *version)
 
 void mavis_detach(void)
 {
-    int devnull;
-
     setsid();
-    devnull = open("/dev/null", O_RDWR);
+    int devnull = open("/dev/null", O_RDWR);
     dup2(devnull, 1);
     close(devnull);
     fcntl(0, F_SETFD, fcntl(0, F_GETFD, 0) | FD_CLOEXEC);

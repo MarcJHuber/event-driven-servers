@@ -27,13 +27,7 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 
 int scm_send_msg(int sock, struct scm_data *sd, int fd)
 {
-    struct iovec vector;
-    struct msghdr msg;
-    struct cmsghdr *cmsg;
-    char buf[CMSG_SPACE(sizeof(int))] __attribute__((aligned(8)));
-    int res;
-
-    vector.iov_base = sd;
+    struct iovec vector = {.iov_base = sd };
     switch (sd->type) {
     case SCM_MAX:
 	vector.iov_len = sizeof(struct scm_data_max);
@@ -45,31 +39,24 @@ int scm_send_msg(int sock, struct scm_data *sd, int fd)
 	vector.iov_len = sizeof(struct scm_data);
     }
 
-    msg.msg_name = NULL;
-    msg.msg_namelen = 0;
-    msg.msg_iov = &vector;
-    msg.msg_iovlen = 1;
-    msg.msg_flags = 0;
+    struct msghdr msg = {.msg_iov = &vector,.msg_iovlen = 1 };
 
+    char buf[CMSG_SPACE(sizeof(int))] __attribute__((aligned(8)));
     if (fd > -1) {
 	msg.msg_control = (caddr_t) buf;
 	msg.msg_controllen = sizeof(buf);
-	cmsg = CMSG_FIRSTHDR(&msg);
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
 	cmsg->cmsg_level = SOL_SOCKET;
 	cmsg->cmsg_type = SCM_RIGHTS;
 	cmsg->cmsg_len = CMSG_LEN(sizeof(int));
 	memcpy(CMSG_DATA(cmsg), &fd, sizeof(int));
 	msg.msg_controllen = cmsg->cmsg_len;
-    } else {
-	msg.msg_control = NULL;
-	msg.msg_controllen = 0;
     }
-
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
 #endif				/* MSG_NOSIGNAL */
 
-    res = sendmsg(sock, &msg, MSG_NOSIGNAL);
+    int res = sendmsg(sock, &msg, MSG_NOSIGNAL);
     if (res < 0)
 	logmsg("scm_send_msg: sendmsg: %s", strerror(errno));
     return (res != (ssize_t) vector.iov_len);
@@ -77,27 +64,16 @@ int scm_send_msg(int sock, struct scm_data *sd, int fd)
 
 int scm_recv_msg(int sock, struct scm_data_accept *sd, size_t sd_len, int *fd)
 {
-    struct iovec vector;
-    struct msghdr msg;
-    struct cmsghdr *cmsg;
-    char buf[CMSG_SPACE(sizeof(int))] __attribute__((aligned(8)));
-    int res;
-
     if (fd)
 	*fd = -1;
 
-    vector.iov_base = sd;
-    vector.iov_len = sd_len;
-    msg.msg_name = NULL;
-    msg.msg_namelen = 0;
-    msg.msg_iov = &vector;
-    msg.msg_iovlen = 1;
-    msg.msg_controllen = CMSG_SPACE(sizeof(int));
-    cmsg = (struct cmsghdr *) buf;
+    struct iovec vector = {.iov_base = sd,.iov_len = sd_len };
+    char buf[CMSG_SPACE(sizeof(int))] __attribute__((aligned(8)));
+    struct cmsghdr *cmsg = (struct cmsghdr *) buf;
     cmsg->cmsg_len = CMSG_LEN(sizeof(int));
-    msg.msg_control = (caddr_t) cmsg;
+    struct msghdr msg = {.msg_iov = &vector,.msg_iovlen = 1,.msg_controllen = CMSG_SPACE(sizeof(int)),.msg_control = (caddr_t) cmsg };
 
-    res = recvmsg(sock, &msg, 0);
+    int res = recvmsg(sock, &msg, 0);
     if (0 < res) {
 	if (sd->type == SCM_ACCEPT) {
 	    struct cmsghdr *chdr = CMSG_FIRSTHDR(&msg);
