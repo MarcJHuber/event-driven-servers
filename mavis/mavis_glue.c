@@ -45,7 +45,6 @@ static int Mavis_init(mavis_ctx * mcx)
 
 static void *Mavis_drop(mavis_ctx * mcx)
 {
-    void *handle = NULL;
     DebugIn(DEBUG_MAVIS);
 
 #ifdef HAVE_mavis_drop_in
@@ -63,7 +62,7 @@ static void *Mavis_drop(mavis_ctx * mcx)
     mavis_script_drop(&mcx->script_in);
     mavis_script_drop(&mcx->script_out);
 
-    handle = mcx->handle;
+    void *handle = handle = mcx->handle;
 
     if (mcx->identifier)
 	free(mcx->identifier);
@@ -78,9 +77,9 @@ static void *Mavis_drop(mavis_ctx * mcx)
 
 static int Mavis_parse(mavis_ctx * mcx, struct sym *sym, char *id)
 {
-    int result = MAVIS_CONF_ERR;
     DebugIn(DEBUG_MAVIS);
 
+    int result = MAVIS_CONF_ERR;
 #ifdef HAVE_mavis_parse_in
     if (!strcmp(id, mcx->identifier))
 	result = mavis_parse_in(mcx, sym);
@@ -124,10 +123,10 @@ static int fixup_result(mavis_ctx * mcx, av_ctx ** ac, int result)
 
 static int Mavis_send(mavis_ctx * mcx, av_ctx ** ac)
 {
+    DebugIn(DEBUG_MAVIS);
     int result = MAVIS_DOWN;
     char *current_module = av_get(*ac, AV_A_CURRENT_MODULE);
     enum token script_verdict = S_unknown;
-    DebugIn(DEBUG_MAVIS);
 
     if (!current_module) {
 	if (mcx->script_in) {
@@ -188,9 +187,9 @@ static int Mavis_send(mavis_ctx * mcx, av_ctx ** ac)
 
 static int Mavis_cancel(mavis_ctx * mcx, void *app_ctx)
 {
-    int result = MAVIS_DOWN;
-
     DebugIn(DEBUG_MAVIS);
+
+    int result = MAVIS_DOWN;
 
 #ifdef HAVE_mavis_cancel_in
     result = mavis_cancel_in(mcx, app_ctx);
@@ -208,9 +207,9 @@ static int Mavis_cancel(mavis_ctx * mcx, void *app_ctx)
 
 static int Mavis_recv(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
 {
-    int result = MAVIS_DOWN;
     DebugIn(DEBUG_MAVIS);
 
+    int result = MAVIS_DOWN;
 #ifdef HAVE_mavis_recv_in
     result = mavis_recv_in(mcx, ac, app_ctx);
     result = fixup_result(mcx, ac, result);

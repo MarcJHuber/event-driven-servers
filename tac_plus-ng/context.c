@@ -52,9 +52,7 @@ struct shellctx {
 
 static int shellctx_cmp(const void *a, const void *b)
 {
-    int i;
-
-    i = strcmp(((struct shellctx *) a)->username, ((struct shellctx *) b)->username);
+    int i = strcmp(((struct shellctx *) a)->username, ((struct shellctx *) b)->username);
     if (i)
 	return i;
     i = strcmp(((struct shellctx *) a)->portname, ((struct shellctx *) b)->portname);
@@ -73,11 +71,9 @@ static void shellctx_free(void *payload)
 
 static rb_node_t *tac_script_lookup_exec_context(tac_session * session)
 {
-    struct shellctx sc;
     if (!session->ctx->shellctxcache)
 	return NULL;
-    sc.username = session->username;
-    sc.portname = session->nas_port;
+    struct shellctx sc = { .username = session->username, .portname = session->nas_port };
     memcpy(&sc.nas_address, &session->ctx->nas_address, sizeof(struct in6_addr));
     return RB_search(session->ctx->shellctxcache, &sc);
 }

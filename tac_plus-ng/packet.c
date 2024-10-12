@@ -68,10 +68,10 @@ static void md5_xor(tac_pak_hdr * hdr, char *key, int keylen)
 {
     if (key && *key) {
 	u_char *data = tac_payload(hdr, u_char *);
-	int i, j, data_len = ntohl(hdr->datalength), h = 0;
+	int data_len = ntohl(hdr->datalength), h = 0;
 	u_char hash[MD5_LEN][2];
 
-	for (i = 0; i < data_len; i += 16) {
+	for (int i = 0; i < data_len; i += 16) {
 	    int min = minimum(data_len - i, 16);
 	    myMD5_CTX mdcontext;
 
@@ -84,7 +84,7 @@ static void md5_xor(tac_pak_hdr * hdr, char *key, int keylen)
 		myMD5Update(&mdcontext, (u_char *) hash[h ^ 1], MD5_LEN);
 	    myMD5Final(hash[h], &mdcontext);
 
-	    for (j = 0; j < min; j++)
+	    for (int j = 0; j < min; j++)
 		data[i + j] ^= hash[h][j];
 	    h ^= 1;
 	}
@@ -136,7 +136,7 @@ void send_author_reply(tac_session * session, u_char status, char *msg, char *da
 {
     tac_pak *pak;
     struct author_reply *reply;
-    int i, len;
+    int len;
     u_char *p;
     int msg_len = msg ? (int) strlen(msg) : 0;
     int data_len = data ? (int) strlen(data) : 0;
@@ -154,7 +154,7 @@ void send_author_reply(tac_session * session, u_char status, char *msg, char *da
 
     len = TAC_AUTHOR_REPLY_FIXED_FIELDS_SIZE + msg_len + data_len;
 
-    for (i = 0; i < arg_cnt; i++) {
+    for (int i = 0; i < arg_cnt; i++) {
 	arglen[i] = (int) strlen(args[i]);
 	len += arglen[i] + 1;
     }
@@ -173,7 +173,7 @@ void send_author_reply(tac_session * session, u_char status, char *msg, char *da
     session->arg_out_len = (u_char *) p;
 
     /* place arg sizes into packet  */
-    for (i = 0; i < arg_cnt; i++)
+    for (int i = 0; i < arg_cnt; i++)
 	*p++ = arglen[i];
 
     if (user_msg_len) {
@@ -189,7 +189,7 @@ void send_author_reply(tac_session * session, u_char status, char *msg, char *da
     session->argp_out = p;
 
     /* copy arg bodies into packet */
-    for (i = 0; i < arg_cnt; i++) {
+    for (int i = 0; i < arg_cnt; i++) {
 	memcpy(p, args[i], arglen[i]);
 	p += arglen[i];
     }

@@ -324,9 +324,7 @@ static void dump_header(tac_session * session, tac_pak_hdr * hdr, int bogus)
 
 static void dump_args(tac_session * session, u_char arg_cnt, char *p, unsigned char *sizep)
 {
-    int i;
-
-    for (i = 0; i < arg_cnt; i++) {
+    for (int i = 0; i < arg_cnt; i++) {
 	char a[20];
 	snprintf(a, sizeof(a), "arg[%d]", i);
 	report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, a, p, *sizep);

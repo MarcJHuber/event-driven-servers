@@ -65,12 +65,11 @@ static int bad_nas_args(tac_session *, struct author_data *);
 
 void eval_args(tac_session * session, u_char * p, u_char * argsizep, size_t argcnt)
 {
-    size_t i;
     size_t len = 0, tlen = 0;
     char *cmdline, *t;
     t = cmdline = alloca(session->ctx->in->length);
 
-    for (i = 0; i < argcnt; i++) {
+    for (size_t i = 0; i < argcnt; i++) {
 	size_t l = *argsizep;
 	char *a = (char *) p;
 	if (l > 3 && (!strncmp(a, "cmd=", 4) || !strncmp(a, "cmd*", 4))) {
@@ -104,7 +103,6 @@ void author(tac_session * session, tac_pak_hdr * hdr)
 {
     u_char *p, *argsizep;
     char **cmd_argp;
-    int i;
     struct author *pak = tac_payload(hdr, struct author *);
     struct author_data *data;
 
@@ -148,7 +146,7 @@ void author(tac_session * session, tac_pak_hdr * hdr)
 
     cmd_argp = mem_alloc(session->mem, pak->arg_cnt * sizeof(char *));
     /* p points to the start of args. Step thru them making strings */
-    for (i = 0; i < (int) pak->arg_cnt; i++) {
+    for (int i = 0; i < (int) pak->arg_cnt; i++) {
 	cmd_argp[i] = mem_strndup(session->mem, p, *argsizep);
 	p += *argsizep++;
     }
@@ -192,9 +190,8 @@ static int strcmp_a(char *a, char *b)
 
 static int bad_nas_args(tac_session * session, struct author_data *data)
 {
-    int i;
     /* Check the nas args for well-formedness */
-    for (i = 0; i < data->in_cnt; i++) {
+    for (int i = 0; i < data->in_cnt; i++) {
 	if (*(data->in_args[i])) {
 	    size_t k = strcspn(data->in_args[i], "=*");
 	    if (!k || !data->in_args[i][k]) {
@@ -271,7 +268,7 @@ static enum token author_eval_profile(tac_session * session, tac_profile * p, in
 
 static void do_author(tac_session * session)
 {
-    int i, replaced = 0, added = 0, out_cnt = 0;
+    int replaced = 0, added = 0, out_cnt = 0;
     char **out_args, **outp;
     enum token res = S_unknown;
     struct author_data *data = session->author_data;
@@ -391,7 +388,7 @@ static void do_author(tac_session * session)
 
     outp = out_args;
 
-    for (i = 0; i < data->in_cnt; i++) {
+    for (int i = 0; i < data->in_cnt; i++) {
 	char *da;		/* daemon arg */
 	char *na;		/* nas arg */
 
@@ -460,10 +457,10 @@ static void do_author(tac_session * session)
      * mandatory attribute)
      */
 
-    for (i = 0; i < out_cnt; i++)
+    for (int i = 0; i < out_cnt; i++)
 	clear_attrval(session->attrs_m, session->cnt_m, out_args[i]);
 
-    for (i = 0; i < session->cnt_m; i++) {
+    for (int i = 0; i < session->cnt_m; i++) {
 	if (session->attrs_m[i]) {
 	    /* Attr is required by daemon but not present. Add it */
 	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "nas:absent srv:%s -> add %s (k)", session->attrs_m[i], session->attrs_m[i]);
@@ -478,10 +475,10 @@ static void do_author(tac_session * session)
      * unrequested optional attribute)
      */
 
-    for (i = 0; i < out_cnt; i++)
+    for (int i = 0; i < out_cnt; i++)
 	clear_attrval(session->attrs_a, session->cnt_a, out_args[i]);
 
-    for (i = 0; i < session->cnt_a; i++)
+    for (int i = 0; i < session->cnt_a; i++)
 	if (session->attrs_a[i]) {
 	    /* Attr is required by daemon but not present. Add it */
 	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "nas:absent srv:%s -> add %s (l)", session->attrs_a[i], session->attrs_a[i]);

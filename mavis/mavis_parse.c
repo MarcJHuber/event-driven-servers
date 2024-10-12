@@ -170,16 +170,15 @@ void parse_error(struct sym *sym, char *fmt, ...)
 
 void parse_error_expect(struct sym *sym, ...)
 {
-    enum token token;
     size_t len = 20;
     char *s, *p;
     va_list ap;
     u_char a[S_null + 1];
-    size_t token_count = 0, i = 0, j = 0, dec = 1;
+    size_t token_count = 0, j = 0, dec = 1;
     memset(a, 0, sizeof(a));
 
     va_start(ap, sym);
-    for (token = va_arg(ap, enum token); token != S_unknown; token = va_arg(ap, enum token)) {
+    for (enum token token = va_arg(ap, enum token); token != S_unknown; token = va_arg(ap, enum token)) {
 	a[token] = 1;
 	token_count++;
 	len += 4 + codestring_len[token];
@@ -190,7 +189,7 @@ void parse_error_expect(struct sym *sym, ...)
 
     if (token_count > 1)
 	token_count--, dec = 0;
-    for (i = 0; i < token_count; i++) {
+    for (size_t i = 0; i < token_count; i++) {
 	while (!a[j])
 	    j++;
 	if (i) {
@@ -724,7 +723,6 @@ void sym_get(struct sym *sym)
 	}
     }
     if (sym->code == S_include && !sym->flag_prohibit_include) {
-	glob_t globbuf = { 0 };
 
 	sym_get(sym);
 	parse(sym, S_equal);
@@ -732,6 +730,7 @@ void sym_get(struct sym *sym)
 	strcpy(sb, sym->buf);
 	sym_get(sym);
 	globerror_sym = sym;
+	glob_t globbuf = { 0 };
 	switch (glob(sb, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOMAGIC | GLOB_BRACE, globerror, &globbuf)) {
 	case 0:
 	    for (int i = (int) globbuf.gl_pathc - 1; i > -1; i--)
