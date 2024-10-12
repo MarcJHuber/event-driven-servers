@@ -615,10 +615,12 @@ static void read_px(struct context_px *ctx, int cur)
     free(ctx);
 }
 
-static void reject_conn(struct context *ctx, char *hint, char *tls)
+static void reject_conn(struct context *ctx, const char *hint, char *tls)
 {
+    if (!hint)
+	hint = "";
     char *prehint = "", *posthint = "";
-    if (hint && *hint)
+    if (*hint)
 	prehint = " (", posthint = ")";
 
     if (ctx->proxy_addr_ascii) {
@@ -693,7 +695,8 @@ static void accept_control_tls(struct context *ctx, int cur)
 	return;
     default:
 	hint = tls_error(ctx->tls);
-	goto bye;
+	reject_conn(ctx, hint, "TLS ");
+	return;
     case 0:
 	io_unregister(ctx->io, ctx->sock);
 	break;
@@ -717,24 +720,26 @@ static void accept_control_tls(struct context *ctx, int cur)
 	}
 	if (!r) {
 	    hint = ERR_error_string(ERR_get_error(), NULL);
-	    goto bye;
+	    reject_conn(ctx, hint, "TLS ");
+	    return;
 	}
 	return;
     case 0:
 	hint = ERR_error_string(ERR_get_error(), NULL);
-	goto bye;
+	reject_conn(ctx, hint, "TLS ");
+	return;
     case 1:
 	io_unregister(ctx->io, ctx->sock);
 	break;
     }
 
     if (ctx->alpn_passed != BISTATE_YES) {
-	hint = "ALPN";
-	goto bye;
+	reject_conn(ctx, "ALPN", "TLS ");
+	return;
     }
     if (ctx->sni_passed != BISTATE_YES) {
-	hint = "SNI";
-	goto bye;
+	reject_conn(ctx, "SNI", "TLS ");
+	return;
     }
 #ifndef OPENSSL_NO_PSK
     if (ctx->tls_psk_identity) {
@@ -746,8 +751,8 @@ static void accept_control_tls(struct context *ctx, int cur)
 #endif
 #ifdef WITH_TLS
     if (ctx->realm->alpn && !tls_conn_alpn_selected(ctx->tls)) {
-	hint = "ALPN";
-	goto bye;
+	reject_conn(ctx, "ALPN", "TLS ");
+	return;
     }
 #endif
 
@@ -911,12 +916,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	accept_control_final(ctx);
 	return;
     }
-
-  bye:
-    if (!hint)
-	hint = "";
-
-    reject_conn(ctx, (char *) hint, "TLS ");
+    reject_conn(ctx, hint, "TLS ");
 }
 #endif
 
@@ -1218,7 +1218,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
