@@ -2541,8 +2541,8 @@ int async 1
    mavis_tacplus-ng_ldap.pl is an authentication/authorization
    back-end for the external module. It interfaces to various
    kinds of LDAP servers, e.g. OpenLDAP, Fedora DS and Active
-   Directory. Its behaviour is controlled by a list of
-   environmental variables:
+   Directory. The server type is detected automatically. Its
+   behaviour is controlled by a list of environmental variables:
 
           Variable         Description
    LDAP_HOSTS
@@ -2651,159 +2651,13 @@ int async 1
    Example: 1
      __________________________________________________________
 
-4.3.1.1. LDAP Custom Schema Backend
+4.3.1.1. Multi-threaded LDAP Backend
 
-   For LDAP_SERVER_TYPE set to tacacs_schema, the program expects
-   the LDAP server to support the experimental ldap.schema,
-   included for OpenLDAP and Fedora-DS. The schema files are
-   located in the mavis/perl directory.
-
-   The new schema allows for a auxiliary object class
-objectClass: tacacsAccount
-
-   which introduces a couple of new attributes. A sample user
-   entry could then look similar to the following LDIF snippet:
-dn: uid=marc,ou=people,dc=example,dc=com
-uid: marc
-cn: Marc Huber
-objectClass: posixAccount
-objectClass: inetOrgPerson
-objectClass: shadowAccount
-objectClass: tacacsAccount
-shadowMax: 10000
-uidNumber: 1000
-gecos: Marc Huber
-givenName: Marc
-sn: Huber
-gidNumber: 500
-shadowLastChange: 14012
-loginShell: /bin/bash
-homeDirectory: /Users/marc
-mail: marc@example.com
-userPassword:: abcdefghijklmnopqrstuvwxyz=
-tacacsClient: 192.168.0.0/24
-tacacsClient: management
-tacacsMember: readonly,readwrite
-tacacsProfile: { valid until = 2010-01-30 chap = clear ahzoi5Ue }
-
-   As tacacsProfile may (and most probably will) contain sensitive
-   data, you should consider setting up LDAP ACLs to restrict
-   access.
-
-   You should be pretty familiar with OpenLDAP (or, for that
-   matter, Fedora-DS) if you're willing to go this route. For
-   current versions of OpenLDAP: Use ldapadd to add
-   tacacs_schema.ldif to the cn=config tree. For older versions,
-   add tacacs.schema to the list of included schema and
-   objectClass definitions in slapd.conf.
-     __________________________________________________________
-
-4.3.1.2. Active Directory Backend
-
-   If LDAP_SERVER_TYPE is set to microsoft, the script back-ends
-   to AD servers. Sample configuration (you'll find that one in
-   the extra directory, too):
-#!/usr/local/sbin/tac_plus-ng
-id = spawnd {
-        listen = { port = 49 }
-        spawn = {
-                instances min = 1
-                instances max = 10
-        }
-        background = yes
-}
-
-id = tac_plus-ng {
-        # access log = /var/log/tac_plus-ng/access/%Y%m%d.log
-        # accounting log = /var/log/tac_plus-ng/acct/%Y%m%d.log
-
-        mavis module groups {
-                groups filter = /^(admins|guest|readonly)$/ # these are
-defined below
-                memberof filter = /^CN=tacacs_/ # use this as a prefix
-        }
-
-
-        mavis module external {
-                setenv LDAP_HOSTS = "172.16.0.10:389"
-                setenv LDAP_BASE = "dc=example,dc=local"
-                setenv LDAP_USER = "tacacs@example.local"
-                setenv LDAP_PASSWD = "password"
-                setenv TACACS_GROUP_PREFIX = "tacacs_"
-                #setenv REQUIRE_TACACS_GROUP_PREFIX = 1
-                exec = /usr/local/lib/mavis/mavis_tacplus-ng_ldap.pl
-        }
-
-        login backend = mavis
-        user backend = mavis
-        pap backend = mavis
-
-        device world {
-                address = ::/0
-                welcome banner = "Welcome\n"
-                enable 15 = clear secret
-                key = demo
-        }
-
-        profile admins {
-                script {
-                        if (service == shell) {
-                                if (cmd == "")
-                                        set priv-lvl = 15
-                                permit
-                        }
-                }
-        }
-
-        profile guest {
-                enable = deny
-                script {
-                        if (service == shell) {
-                                if (cmd == "")
-                                        set priv-lvl = 1
-                                permit
-                        }
-                }
-        }
-
-        group admins
-        group guest
-
-        user demo {
-                password login = clear demo
-                member = admins
-        }
-
-        user = readonly {
-                password login = clear readonly
-                member = guest
-        }
-        ruleset {
-                rule {
-                        script {
-                                if (memberof =~ /^CN=tacacs_admins,/) {
-profile = admins permit }
-                                if (memberof =~ /^CN=tacacs_readonly,/)
-{ profile = readonly permit }
-                        }
-                }
-                rule {
-                        script {
-                                if (member == guest) { profile = guest p
-ermit }
-                        }
-                }
-        }
-}
-     __________________________________________________________
-
-4.3.1.3. Generic LDAP Backend
-
-   If LDAP_SERVER_TYPE is set to generic, the script won't require
-   any modification to your LDAP server, but only authenticates
-   users (with login = mavis, pap = mavis or password = mavis
-   declaration) defined in the configuration file. No
-   authorization is done by this back-end.
+   ldapmavis-mt (mt stands for multi-threaded) basically evaluates
+   the same envrionment variables as mavis_tacplus-ng_ldap.pl. It
+   needs to be be invoked via the external-mt module and is suited
+   for long-lasting authentication session, e.g. due to
+   multi-factor authentication.
      __________________________________________________________
 
 4.3.2. PAM back-end
