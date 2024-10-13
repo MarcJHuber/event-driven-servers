@@ -677,15 +677,13 @@ void parse_log(struct sym *sym, tac_realm * r)
 
 void log_add(struct sym *sym, rb_tree_t ** rbtp, char *s, tac_realm * r)
 {
-    struct logfile *res = NULL;
-    struct logfile *lf = alloca(sizeof(struct logfile));
-    lf->name = s;
-    lf->name_len = strlen(s);
     if (!*rbtp)
 	*rbtp = RB_tree_new(compare_name, NULL);
+    struct logfile lf = { .name = s, .name_len = strlen(s) };
     while (r) {
 	if (r->logdestinations) {
-	    if ((res = RB_lookup(r->logdestinations, lf))) {
+	    struct logfile *res = NULL;
+	    if ((res = RB_lookup(r->logdestinations, &lf))) {
 		RB_insert(*rbtp, res);
 		return;
 	    }
@@ -693,7 +691,7 @@ void log_add(struct sym *sym, rb_tree_t ** rbtp, char *s, tac_realm * r)
 	r = r->parent;
     }
 
-    parse_error(sym, "log destination '%s' not found", lf->name);
+    parse_error(sym, "log destination '%s' not found", s);
 }
 
 struct log_item *parse_log_format(struct sym *sym, mem_t * mem)
