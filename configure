@@ -351,7 +351,7 @@ if (exists $A{"--installroot"}) {
 	delete $A{"--installroot"};
 }
 
-if (exists $A{"--minimum"}) {
+if (exists $A{"--minimum"} || exists $A{"--minimal"}) {
 	$DEFS{"WITH_CURL"} = 0;
 	$DEFS{"WITH_TLS"} = 0;
 	$DEFS{"WITH_SSL"} = 0;
@@ -360,6 +360,7 @@ if (exists $A{"--minimum"}) {
 	$DEFS{"WITH_SCTP"} = 0;
 	$DEFS{"WITH_ZLIB"} = 0;
 	delete $A{"--minimum"};
+	delete $A{"--minimal"};
 }
 
 foreach $a (@options) {
