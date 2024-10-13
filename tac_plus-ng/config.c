@@ -4006,7 +4006,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t * mem, 
 		    m->u.s.rhs = np;
 		    m->u.s.rhs_txt = np->name;
 		} else if (m->u.s.token == S_device || m->u.s.token == S_deviceaddress) {
-		    struct in6_cidr *c = calloc(1, sizeof(struct in6_cidr));
+		    struct in6_cidr *c = mem_alloc(mem, sizeof(struct in6_cidr));
 		    m->u.s.rhs = c;
 		    if (v6_ptoh(&c->addr, &c->mask, sym->buf))
 			parse_error(sym, "Expected a %san IP address/network in CIDR notation, but got '%s'.",
@@ -4028,7 +4028,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t * mem, 
 		    m->type = S_net;
 		    m->u.s.rhs = np;
 		} else if (m->u.s.token == S_client || m->u.s.token == S_clientaddress) {
-		    struct in6_cidr *c = calloc(1, sizeof(struct in6_cidr));
+		    struct in6_cidr *c = mem_alloc(mem, sizeof(struct in6_cidr));
 		    m->u.s.rhs = c;
 		    if (!v6_ptoh(&c->addr, &c->mask, sym->buf)) {
 			m->type = S_address;
@@ -4138,7 +4138,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t * mem, 
 		    parse_error(sym, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
 #endif
 		}
-		m->u.s.rhs = calloc(1, sizeof(regex_t));
+		m->u.s.rhs = mem_alloc(mem, sizeof(regex_t));
 		errcode = regcomp((regex_t *) m->u.s.rhs, sym->buf, REG_EXTENDED | REG_NOSUB | REG_NEWLINE | common_data.regex_posix_flags);
 		mem_add_free(mem, regfree, m->u.s.rhs);
 		if (errcode) {
