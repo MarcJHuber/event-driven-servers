@@ -387,13 +387,13 @@ int main(int argc, char **argv, char **envp)
     io_main(common_data.io);
 }
 
-void cleanup(struct context *ctx, int cur)
+void cleanup(struct context *ctx, int cur __attribute__((unused)))
 {
     rb_node_t *t, *u;
 
 #ifdef WITH_TLS
     if (ctx->tls) {
-	int res = io_TLS_shutdown(ctx->tls, ctx->io, cur, cleanup);
+	int res = io_TLS_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
 	if (res < 0 && errno == EAGAIN)
 	    return;
 	tls_free(ctx->tls);
@@ -403,7 +403,7 @@ void cleanup(struct context *ctx, int cur)
 
 #ifdef WITH_SSL
     if (ctx->tls) {
-	int res = io_SSL_shutdown(ctx->tls, ctx->io, cur, cleanup);
+	int res = io_SSL_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
 	if (res < 0 && errno == EAGAIN)
 	    return;
 	SSL_free(ctx->tls);
