@@ -183,6 +183,8 @@ static void get_hash(av_ctx * ac, char *buf)
 	myMD5Update(&m, (u_char *) t, strlen(t));
     if ((t = av_get(ac, AV_A_CERTSUBJ)))
 	myMD5Update(&m, (u_char *) t, strlen(t));
+    if ((t = av_get(ac, AV_A_CERTSAN)))
+	myMD5Update(&m, (u_char *) t, strlen(t));
 
     myMD5Final(u, &m);
     tohex(u, 16, buf);
