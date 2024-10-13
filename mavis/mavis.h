@@ -291,7 +291,7 @@ int av_attr_token_to_i(struct sym *);
 
 char *av_addserial(av_ctx *);
 
-#define MAX_INPUT_LINE_LEN 4096
+#define MAX_INPUT_LINE_LEN 16384
 
 struct token_chain;
 
