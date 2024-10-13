@@ -15,6 +15,7 @@ BEGIN {
 		AV_A_ARGS
 		AV_A_ARRAYSIZE
 		AV_A_CALLER_CAP
+		AV_A_CERTSAN
 		AV_A_CERTSUBJ
 		AV_A_CHALLENGE
 		AV_A_CLASS
@@ -103,6 +104,7 @@ use constant AV_A_ANON_INCOMING => 29;
 use constant AV_A_ARGS => 26;
 use constant AV_A_ARRAYSIZE => 56;
 use constant AV_A_CALLER_CAP => 42;
+use constant AV_A_CERTSAN => 43;
 use constant AV_A_CERTSUBJ => 44;
 use constant AV_A_CHALLENGE => 51;
 use constant AV_A_CLASS => 34;

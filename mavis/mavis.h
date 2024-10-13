@@ -156,10 +156,10 @@ extern struct av_char av_char[];
     AV_CHAR({"CUSTOM_3", S_custom_3},)
 #define AV_A_CALLER_CAP		42
     AV_CHAR({"CALLER_CAP", S_unknown},) // caller capabilitie (":chpw:", possibly others)
-#define AV_A_SPARE43			43
-    AV_CHAR({"SPARE43", S_unknown},)
+#define AV_A_CERTSAN		43
+    AV_CHAR({"TLS_PEER_SAN", S_tls_peer_cert_san},)
 #define AV_A_CERTSUBJ			44
-    AV_CHAR({"CERTSUBJ", S_unknown},)
+    AV_CHAR({"CERTSUBJ", S_tls_peer_cert_subject},)
 #define AV_A_DBCERTSUBJ			45
     AV_CHAR({"DBCERTSUBJ", S_unknown},)
 #define AV_A_TACCLIENT			46
