@@ -744,9 +744,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 	break;
     }
 
-    tac_host *by_address = ctx->host;
-    ctx->host = NULL;
-
     if (ctx->alpn_passed != BISTATE_YES) {
 	reject_conn(ctx, "ALPN", "TLS ", __LINE__);
 	return;
@@ -769,6 +766,9 @@ static void accept_control_tls(struct context *ctx, int cur)
 	return;
     }
 #endif
+
+    tac_host *by_address = ctx->host;
+    ctx->host = NULL;
 
     if (
 #ifdef WITH_TLS
