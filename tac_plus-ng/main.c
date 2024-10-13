@@ -708,7 +708,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	io_set_o(ctx->io, cur);
 	return;
     default:
-	hint = ctx->hint ? ctx->hint : tls_error(ctx->tls);
+	hint = (ctx->hint && *ctx->hint) ? ctx->hint : tls_error(ctx->tls);
 	reject_conn(ctx, hint, "TLS ", __LINE__);
 	return;
     case 0:
@@ -730,7 +730,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    r++;
 	}
 	if (!r) {
-	    hint = ctx->hint ? ctx->hint : ERR_error_string(ERR_get_error(), NULL);
+	    hint = (ctx->hint && *ctx->hint) ? ctx->hint : ERR_error_string(ERR_get_error(), NULL);
 	    reject_conn(ctx, hint, "TLS ", __LINE__);
 	    return;
 	}
