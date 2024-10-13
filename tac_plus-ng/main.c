@@ -886,13 +886,13 @@ static void accept_control_tls(struct context *ctx, int cur)
 	if (cert && (san = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL))) {
 	    int skipped_max = 1024;
 	    int i, san_count = sk_GENERAL_NAME_num(san);
-	    ctx->san = mem_alloc(ctx->mem, san_count);
+	    ctx->tls_peer_cert_san = mem_alloc(ctx->mem, san_count);
 	    tac_host *h = NULL;
 	    for (i = 0; i < san_count; i++) {
 		GENERAL_NAME *val = sk_GENERAL_NAME_value(san, i);
 		if (val->type == GEN_DNS) {
 		    char *t = (char *) ASN1_STRING_get0_data(val->d.dNSName);
-		    ctx->san[ctx->san_count++] = mem_strdup(ctx->mem, t);
+		    ctx->tls_peer_cert_san[ctx->tls_peer_cert_san_count++] = mem_strdup(ctx->mem, t);
 		    int skipped;
 		    for (skipped = 0; skipped < skipped_max && t; skipped++) {
 			h = lookup_host(t, ctx->realm);
