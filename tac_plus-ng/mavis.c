@@ -215,6 +215,14 @@ static int parse_user_profile_multi(av_ctx * avc, struct sym *sym, tac_user * u,
     return res;
 }
 
+static inline int parse_user_profile_single(av_ctx * avc, struct sym *sym, tac_user * u, char *format, int attribute)
+{
+    char *a = av_get(avc, attribute);
+    if (a)
+        return parse_user_profile_fmt(sym, u, format, strlen(a), a);
+    return 0;
+}
+
 static __inline__ long long timediff(struct timeval *start)
 {
     return (io_now.tv_sec - start->tv_sec) * 1000 + (io_now.tv_usec - start->tv_usec) / 1000;
@@ -299,7 +307,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key = %.*s }", AV_A_SSHKEY) ||
 		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key-hash = %.*s }", AV_A_SSHKEYHASH) ||
 		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key-id = %.*s }", AV_A_SSHKEYID) ||
-		    parse_user_profile_multi(avc, &sym, u, "%.*s", AV_A_TACPROFILE)
+		    parse_user_profile_single(avc, &sym, u, "%.*s", AV_A_TACPROFILE)
 		    ) {
 
 		    free_user(u);
