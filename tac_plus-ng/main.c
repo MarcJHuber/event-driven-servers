@@ -708,7 +708,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	io_set_o(ctx->io, cur);
 	return;
     default:
-	hint = tls_error(ctx->tls);
+	hint = ctx->hint ? ctx->hint : tls_error(ctx->tls);
 	reject_conn(ctx, hint, "TLS ", __LINE__);
 	return;
     case 0:
@@ -1039,17 +1039,22 @@ void complete_host(tac_host * h)
 }
 
 #ifdef WITH_SSL
-static int app_verify_cb(X509_STORE_CTX * ctx, void *app_ctx __attribute__((unused)))
+static int app_verify_cb(X509_STORE_CTX * ctx, void *app_ctx)
 {
     X509 *cert = X509_STORE_CTX_get0_cert(ctx);
-    return (cert && (X509_check_purpose(cert, X509_PURPOSE_SSL_CLIENT, 0) == 1) && (X509_verify_cert(ctx) == 1)) ? 1 : 0;
+    int res = (cert && (X509_check_purpose(cert, X509_PURPOSE_SSL_CLIENT, 0) == 1) && (X509_verify_cert(ctx) == 1)) ? 1 : 0;
+    if (!res)
+	((struct context *) app_ctx)->hint = "Certificate verification";
+    return res;
 }
 
 static int alpn_cb(SSL * s __attribute__((unused)), const unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg)
 {
     struct context *ctx = (struct context *) arg;
-    if (SSL_select_next_proto((unsigned char **) out, outlen, ctx->realm->alpn_vec, ctx->realm->alpn_vec_len, in, inlen) != OPENSSL_NPN_NEGOTIATED)
+    if (SSL_select_next_proto((unsigned char **) out, outlen, ctx->realm->alpn_vec, ctx->realm->alpn_vec_len, in, inlen) != OPENSSL_NPN_NEGOTIATED) {
+	ctx->hint = "ALPN verification";
 	return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
 
     ctx->alpn_passed = BISTATE_YES;
 
@@ -1080,6 +1085,7 @@ static int sni_cb(SSL * s, int *al __attribute__((unused)), void *arg)
     return SSL_TLSEXT_ERR_OK;
 
   fatal:
+    ctx->hint = "SNI verification";
     *al = SSL_AD_UNRECOGNIZED_NAME;
     return SSL_TLSEXT_ERR_ALERT_FATAL;
 }
