@@ -2153,7 +2153,8 @@ int parse_user_profile(struct sym *sym, tac_user * user)
     if (setjmp(sym->env))
 	return -1;
     sym_init(sym);
-    parse_user_attr(sym, user);
+    while (sym->code == S_openbra)
+	parse_user_attr(sym, user);
     return 0;
 }
 
@@ -3123,6 +3124,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 			       S_parent, S_authentication, S_permit, S_bug, S_pap, S_key, S_anonenable, S_augmented_enable,
 			       S_singleconnection, S_debug, S_connection, S_password, S_context, S_session, S_target_realm,
 			       S_maxrounds, S_skip, S_tag, S_devicetag, S_name, S_welcome, S_reject, S_failed, S_enable, S_motd, S_script, S_message,
+			       S_mavis,
 #ifdef WITH_DNS
 			       S_dns,
 #endif
