@@ -3108,6 +3108,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	case S_motd:
 	case S_script:
 	case S_message:
+	case S_mavis:
 #ifdef WITH_DNS
 	case S_dns:
 #endif
