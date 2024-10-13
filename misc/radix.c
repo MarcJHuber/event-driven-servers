@@ -47,17 +47,15 @@ static struct radixnode *nextfree = NULL;
 
 static struct radixnode *radixnode_alloc(void)
 {
-    struct radixnode *n;
     if (!nextfree) {
 	struct radixnode_array *a = Xcalloc(1, sizeof(struct radixnode_array));
-	int i;
 	a->next = radix_nodes;
 	radix_nodes = a;
-	for (i = 0; i < RADIX_ARRSIZE - 1; i++)
+	for (int i = 0; i < RADIX_ARRSIZE - 1; i++)
 	    a->array[i].l = &a->array[i + 1];
 	nextfree = &a->array[0];
     }
-    n = nextfree;
+    struct radixnode *n = nextfree;
     nextfree = nextfree->l;
     memset(n, 0, sizeof(struct radixnode));
     return n;

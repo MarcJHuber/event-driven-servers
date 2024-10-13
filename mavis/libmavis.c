@@ -28,9 +28,9 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 
 int mavis_method_add(mavis_ctx ** mcx, struct io_context *ioctx, char *path, char *id)
 {
-    void *(*mn)(void *, struct io_context *, char *);
-
     Debug((DEBUG_MAVIS, "+ %s(%s)\n", __func__, path));
+
+    void *(*mn)(void *, struct io_context *, char *);
 
     void *handle = dlopen(path, RTLD_LAZY | RTLD_GLOBAL);
 
@@ -74,9 +74,9 @@ int mavis_init(mavis_ctx * mcx, char *version)
 
 int mavis_drop(mavis_ctx * mcx)
 {
-    void *handle = NULL;
-
     DebugIn(DEBUG_MAVIS);
+
+    void *handle = NULL;
 
     if (mcx)
 	handle = mcx->drop(mcx);
@@ -89,12 +89,13 @@ int mavis_drop(mavis_ctx * mcx)
 
 int mavis_parse(mavis_ctx * mcx, struct sym *sym, char *id)
 {
-    int result = MAVIS_CONF_ERR;
-
     DebugIn(DEBUG_MAVIS);
+
+    int result = MAVIS_CONF_ERR;
 
     if (mcx)
 	result = mcx->parse(mcx, sym, id);
+
     DebugOut(DEBUG_MAVIS);
     return result;
 }
@@ -139,9 +140,9 @@ char *av_addserial(av_ctx * ac)
 
 int mavis_send(mavis_ctx * mcx, av_ctx ** ac)
 {
-    int result = MAVIS_IGNORE;
-
     DebugIn(DEBUG_MAVIS);
+
+    int result = MAVIS_IGNORE;
 
     if (mcx) {
 	if (!mavis_sanitycheck(mcx, *ac)) {
@@ -447,9 +448,9 @@ void mavis_detach(void)
 
 char *escape_string(char *in, size_t inlen, char *out, size_t *outlen)
 {
-    char *v = out, *t;
+    char *v = out;
     size_t outlen_max = *outlen - 4, len = 0;
-    for (t = in; inlen && len < outlen_max; t++, inlen--) {
+    for (char *t = in; inlen && len < outlen_max; t++, inlen--) {
 	int c = *t;
 	if (iscntrl(c)) {
 	    *v++ = '\\';

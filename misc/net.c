@@ -457,7 +457,7 @@ int su_addrinfo(char *address, char *port, int protocol, int family, int count, 
     sockaddr_union su;
     uint16_t p = 0;
 #ifdef AF_INET6
-    struct addrinfo *res, hints;
+    struct addrinfo *res;
 #else				/* AF_INET6 */
 #ifdef AF_INET
     struct hostent *he;
@@ -477,10 +477,7 @@ int su_addrinfo(char *address, char *port, int protocol, int family, int count, 
 	return 0;
     }
 #ifdef AF_INET6
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_flags = AI_PASSIVE;
-    hints.ai_protocol = protocol;
-    hints.ai_family = family;
+    struct addrinfo hints = { .ai_flags = AI_PASSIVE, .ai_protocol = protocol, .ai_family = family };
 
     if (!getaddrinfo(address, NULL, &hints, &res)) {
 	int i;
@@ -536,8 +533,7 @@ int su_nameinfo(sockaddr_union * su, char *host, size_t hostlen, char *serv, siz
 	if (serv) {
 	    *serv = 0;
 	    if (!(flags & NI_NUMERICSERV)) {
-		struct servent *se;
-		se = getservbyport(su_get_port(su), (flags & NI_DGRAM) ? "udp" : "tcp");
+		struct servent *se = getservbyport(su_get_port(su), (flags & NI_DGRAM) ? "udp" : "tcp");
 		if (se && (size_t) servlen <= (size_t) snprintf(serv, servlen, "%s", se->s_name))
 		    return -1;
 	    }
@@ -547,8 +543,7 @@ int su_nameinfo(sockaddr_union * su, char *host, size_t hostlen, char *serv, siz
 	if (host) {
 	    char *a = NULL;
 	    if (!(flags & NI_NUMERICHOST)) {
-		struct hostent *he;
-		he = gethostbyaddr((char *) &(su->sin.sin_addr), sizeof(su->sin.sin_addr), AF_INET);
+		struct hostent *he = gethostbyaddr((char *) &(su->sin.sin_addr), sizeof(su->sin.sin_addr), AF_INET);
 		if (he)
 		    a = (char *) he->h_name;
 	    }
@@ -604,22 +599,19 @@ int v6_common_cidr(struct in6_addr *a, struct in6_addr *b, int min)
 
 void v6_network(struct in6_addr *n, struct in6_addr *a, int m)
 {
-    int i;
-    for (i = 0; i < 4; i++, m -= 32)
+    for (int i = 0; i < 4; i++, m -= 32)
 	n->s6_addr32[i] = a->s6_addr32[i] & cidr2mask[(m < 1) ? 0 : ((m > 32) ? 32 : m)];
 }
 
 void v6_broadcast(struct in6_addr *b, struct in6_addr *a, int m)
 {
-    int i;
-    for (i = 0; i < 4; i++, m -= 32)
+    for (int i = 0; i < 4; i++, m -= 32)
 	b->s6_addr32[i] = a->s6_addr32[i] | ~cidr2mask[(m < 1) ? 0 : ((m > 32) ? 32 : m)];
 }
 
 int v6_cmp(struct in6_addr *a, struct in6_addr *b)
 {
-    int i;
-    for (i = 0; i < 4; i++) {
+    for (int i = 0; i < 4; i++) {
 	if (a->s6_addr32[i] < b->s6_addr32[i])
 	    return -1;
 	if (a->s6_addr32[i] > b->s6_addr32[i])
@@ -630,9 +622,7 @@ int v6_cmp(struct in6_addr *a, struct in6_addr *b)
 
 int v6_contains(struct in6_addr *n, int m, struct in6_addr *a)
 {
-    int i;
-
-    for (i = 0; i < 4; i++, m -= 32)
+    for (int i = 0; i < 4; i++, m -= 32)
 	if (n->s6_addr32[i] != (a->s6_addr32[i] & cidr2mask[(m < 1) ? 0 : ((m > 32) ? 32 : m)]))
 	    return 0;
     return -1;

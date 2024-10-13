@@ -107,11 +107,10 @@ static void io_ares_readwrite(struct io_dns_ctx *idc, int sock)
 static void io_ares_set(struct io_dns_ctx *idc)
 {
     ares_socket_t socks[ARES_GETSOCK_MAXNUM];
-    int i, bits;
-    for (i = 0; i < ARES_GETSOCK_MAXNUM; i++)
+    for (int i = 0; i < ARES_GETSOCK_MAXNUM; i++)
 	socks[i] = ARES_SOCKET_BAD;
-    bits = ares_getsock(idc->channel, socks, ARES_GETSOCK_MAXNUM);
-    for (i = 0; i < ARES_GETSOCK_MAXNUM; i++) {
+    int bits = ares_getsock(idc->channel, socks, ARES_GETSOCK_MAXNUM);
+    for (int i = 0; i < ARES_GETSOCK_MAXNUM; i++) {
 	int s = socks[i];
 	if (s != ARES_SOCKET_BAD) {
 	    if (ARES_GETSOCK_WRITABLE(bits, i))
@@ -292,7 +291,6 @@ void io_dns_add(struct io_dns_ctx *idc, sockaddr_union * su, void *app_cb, void 
     char hex[] = "0123456789abcdef";
     char query[100];
     char *t = query;
-    int i;
     struct io_dns_item *idi = Xcalloc(1, sizeof(struct io_dns_item));
 
     switch (su->sa.sa_family) {
@@ -305,7 +303,7 @@ void io_dns_add(struct io_dns_ctx *idc, sockaddr_union * su, void *app_cb, void 
 #endif				/* AF_INET */
 #ifdef AF_INET6
     case AF_INET6:
-	for (i = 15; i > -1; i--) {
+	for (int i = 15; i > -1; i--) {
 	    *t++ = hex[((char *) su->sin6.sin6_addr.s6_addr32)[i >> 2] & 0xf];
 	    *t++ = '.';
 	    *t++ = hex[((char *) su->sin6.sin6_addr.s6_addr32)[i >> 2] >> 4];
