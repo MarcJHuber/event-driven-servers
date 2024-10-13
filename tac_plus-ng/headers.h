@@ -805,6 +805,8 @@ struct context {
     size_t tls_psk_identity_len;
     char *tls_sni;;
     size_t tls_sni_len;
+    char **san;
+    size_t san_count;
 #endif
     char *server_addr_ascii;
     size_t server_addr_ascii_len;
