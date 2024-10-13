@@ -615,7 +615,7 @@ static void read_px(struct context_px *ctx, int cur)
     free(ctx);
 }
 
-static void reject_conn(struct context *ctx, const char *hint, char *tls)
+static void reject_conn(struct context *ctx, const char *hint, char *tls, int line)
 {
     if (!hint)
 	hint = "";
@@ -625,15 +625,15 @@ static void reject_conn(struct context *ctx, const char *hint, char *tls)
 
     if (ctx->proxy_addr_ascii) {
 	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
-	    report(NULL, LOG_INFO, ~0, "proxied %sconnection request from %s for %s to %s port %s (realm: %s%s%s) rejected%s%s%s",
+	    report(NULL, LOG_INFO, ~0, "proxied %sconnection request from %s for %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%d]",
 		   tls, ctx->proxy_addr_ascii, ctx->peer_addr_ascii,
 		   ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", prehint, hint,
-		   posthint);
+		   posthint, line);
     } else
-	report(NULL, LOG_INFO, ~0, "%sconnection request from %s to %s port %s (realm: %s%s%s) rejected%s%s%s",
+	report(NULL, LOG_INFO, ~0, "%sconnection request from %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%d]",
 	       tls, ctx->peer_addr_ascii,
 	       ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", prehint, hint,
-	       posthint);
+	       posthint, line);
 
 #define S "CONN-REJECT"
     ctx->msgid = S;
@@ -657,7 +657,7 @@ static void complete_host_mavis_tls(struct context *ctx)
 	return;
 
     if (ctx->mavis_result == S_deny) {
-	reject_conn(ctx, ctx->hint, "by MAVIS backend");
+	reject_conn(ctx, ctx->hint, "by MAVIS backend", __LINE__);
 	return;
     }
     accept_control_final(ctx);
@@ -709,16 +709,13 @@ static void accept_control_tls(struct context *ctx, int cur)
 	return;
     default:
 	hint = tls_error(ctx->tls);
-	reject_conn(ctx, hint, "TLS ");
+	reject_conn(ctx, hint, "TLS ", __LINE__);
 	return;
     case 0:
 	io_unregister(ctx->io, ctx->sock);
 	break;
     }
 #endif
-
-    tac_host *by_address = ctx->host;
-    ctx->host = NULL;
 
 #ifdef WITH_SSL
     int r = 0;
@@ -734,25 +731,28 @@ static void accept_control_tls(struct context *ctx, int cur)
 	}
 	if (!r) {
 	    hint = ERR_error_string(ERR_get_error(), NULL);
-	    reject_conn(ctx, hint, "TLS ");
+	    reject_conn(ctx, hint, "TLS ", __LINE__);
 	    return;
 	}
 	return;
     case 0:
 	hint = ERR_error_string(ERR_get_error(), NULL);
-	reject_conn(ctx, hint, "TLS ");
+	reject_conn(ctx, hint, "TLS ", __LINE__);
 	return;
     case 1:
 	io_unregister(ctx->io, ctx->sock);
 	break;
     }
 
+    tac_host *by_address = ctx->host;
+    ctx->host = NULL;
+
     if (ctx->alpn_passed != BISTATE_YES) {
-	reject_conn(ctx, "ALPN", "TLS ");
+	reject_conn(ctx, "ALPN", "TLS ", __LINE__);
 	return;
     }
     if (ctx->sni_passed != BISTATE_YES) {
-	reject_conn(ctx, "SNI", "TLS ");
+	reject_conn(ctx, "SNI", "TLS ", __LINE__);
 	return;
     }
 #ifndef OPENSSL_NO_PSK
@@ -765,7 +765,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 #endif
 #ifdef WITH_TLS
     if (ctx->realm->alpn && !tls_conn_alpn_selected(ctx->tls)) {
-	reject_conn(ctx, "ALPN", "TLS ");
+	reject_conn(ctx, "ALPN", "TLS ", __LINE__);
 	return;
     }
 #endif
@@ -937,7 +937,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	accept_control_final(ctx);
 	return;
     }
-    reject_conn(ctx, hint, "TLS ");
+    reject_conn(ctx, hint, "TLS ", __LINE__);
 }
 #endif
 
@@ -1255,7 +1255,7 @@ static void complete_host_mavis(struct context *ctx)
 	return;
 
     if (ctx->mavis_result == S_deny) {
-	reject_conn(ctx, ctx->hint, "by MAVIS backend");
+	reject_conn(ctx, ctx->hint, "by MAVIS backend", __LINE__);
 	return;
     }
 
@@ -1315,7 +1315,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
     }
 #endif
     if (!ctx->host || !ctx->host->key)
-	reject_conn(ctx, ctx->hint, "");
+	reject_conn(ctx, ctx->hint, "", __LINE__);
     else
 	accept_control_final(ctx);
 }
