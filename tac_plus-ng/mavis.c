@@ -487,8 +487,25 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 #if defined(WITH_TLS) || defined(WITH_SSL)
     if (ctx->tls_peer_cert_subject)
 	av_set(avc, AV_A_CERTSUBJ, (char *) ctx->tls_peer_cert_subject);
+    if (ctx->tls_peer_cert_san_count) {
+	size_t *la = alloca(ctx->tls_peer_cert_san_count * sizeof(size_t));
+	size_t len = ctx->tls_peer_cert_san_count;
+	for (size_t i = 0; i < ctx->tls_peer_cert_san_count; i++) {
+	    la[i] = strlen(ctx->tls_peer_cert_san[i]);
+	    len += la[i];
+	}
+	char *t = alloca(len);
+	char *u = t;
+	for (size_t i = 0; i < ctx->tls_peer_cert_san_count; i++) {
+	    if (i)
+		*u++ = ',';
+	    memcpy(u, ctx->tls_peer_cert_san[i], la[i]);
+	    u += la[i];
+	}
+	*u = 0;
+	av_set(avc, AV_A_CERTSAN, t);
+    }
 #endif
-
 
     int result = mavis_send(mcx, &avc);
     switch (result) {
