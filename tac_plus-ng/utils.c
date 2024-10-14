@@ -360,7 +360,6 @@ static int is_print(char *text, size_t len, size_t *wlen)
      * UTF-8 multi-byte characters. An alternative would be to
      * use iswprint(3), but I didn't get that to work correctly.
      */
-    size_t i;
     *wlen = 0;
     if (len > 0 && ((*text & 0x80) == 0x00)) {
 	*wlen = 1;
@@ -375,7 +374,7 @@ static int is_print(char *text, size_t len, size_t *wlen)
     else
 	return 0;
 
-    for (i = 1; i < *wlen; i++) {
+    for (size_t i = 1; i < *wlen; i++) {
 	text++;
 	if ((*text & 0xC0) != 0x80)
 	    return 0;
@@ -419,17 +418,14 @@ static void log_flush_sync(struct logfile *lf)
 int logs_flushed(tac_realm * r)
 {
     if (r->logdestinations) {
-	rb_node_t *rbn;
-	for (rbn = RB_first(r->logdestinations); rbn; rbn = RB_next(rbn)) {
+	for (rb_node_t *rbn = RB_first(r->logdestinations); rbn; rbn = RB_next(rbn)) {
 	    struct logfile *lf = RB_payload(rbn, struct logfile *);
-
 	    if (!lf->flag_pipe && !lf->flag_sync && lf->ctx && buffer_getlen(lf->ctx->buf))
 		return 0;
 	}
     }
     if (r->realms) {
-	rb_node_t *rbn;
-	for (rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn)) {
+	for (rb_node_t *rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn)) {
 	    if (!logs_flushed(RB_payload(rbn, tac_realm *)))
 		return 0;
 	}
@@ -1641,11 +1637,6 @@ static char *eval_log_format_tls_conn_sni(tac_session * session __attribute__((u
 
 char *eval_log_format(tac_session * session, struct context *ctx, struct logfile *lf, struct log_item *start, time_t sec, size_t *outlen)
 {
-    char buf[8000];
-    char *b = buf;
-    size_t total_len = 0;
-    struct log_item *li;
-
     static int initialized = 0;
     static char *((*efun[S_null]) (tac_session *, struct context *, struct logfile *, size_t *)) = { 0 };
 
@@ -1747,7 +1738,11 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 #endif
     }
 
-    for (li = start; li; li = li->next) {
+    char buf[8000];
+    char *b = buf;
+    size_t total_len = 0;
+
+    for (struct log_item *li = start; li; li = li->next) {
 	size_t len = 0;
 	char *s = NULL;
 	if (li->text) {
