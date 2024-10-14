@@ -754,9 +754,8 @@ static struct dns_forward_mapping *dns_lookup_a(tac_realm * r, char *name, int r
 {
     while (r) {
 	if (r->dns_tree_a) {
-	    struct dns_forward_mapping dn, *res;
-	    dn.name = name;
-	    res = (struct dns_forward_mapping *) RB_lookup(r->dns_tree_a, &dn);
+	    struct dns_forward_mapping dn = { .name = name };
+	    struct dns_forward_mapping *res = (struct dns_forward_mapping *) RB_lookup(r->dns_tree_a, &dn);
 	    if (res)
 		return res;
 	}
@@ -770,12 +769,11 @@ static struct dns_forward_mapping *dns_lookup_a(tac_realm * r, char *name, int r
 static void parse_etc_hosts(char *url, tac_realm * r)
 {
     struct sym sym = { .filename = url, .line = 1, .env_valid = 1 };
-    char *buf;
-    int bufsize;
-
     if (setjmp(sym.env))
 	tac_exit(EX_CONFIG);
 
+    char *buf;
+    int bufsize;
     if (cfg_open_and_read(url, &buf, &bufsize)) {
 	report_cfg_error(LOG_ERR, ~0, "Couldn't open %s: %s", url, strerror(errno));
 	return;
@@ -898,8 +896,6 @@ static int loopcheck_profile(tac_profile * p)
 
 static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent, tac_realm * nrealm, int empty)
 {
-    rb_node_t *rbn;
-
     if (!nrealm) {
 	nrealm = new_realm(sym->buf, parent);
 	nrealm->line = sym->line;
@@ -915,7 +911,7 @@ static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent, t
     if (!empty)
 	parse_decls_real(sym, nrealm);
 
-    for (rbn = RB_first(nrealm->profiletable); rbn; rbn = RB_next(rbn))
+    for (rb_node_t *rbn = RB_first(nrealm->profiletable); rbn; rbn = RB_next(rbn))
 	complete_profile(RB_payload(rbn, tac_profile *));
 
     return nrealm;
@@ -1007,8 +1003,7 @@ void parse_host_pap_password(struct sym *sym, tac_host * host)
 static time_t to_seconds(struct sym *sym)
 {
     time_t n = 0;
-    char *b = sym->buf;
-    for (; *b; b++)
+    for (char *b = sym->buf; *b; b++)
 	switch (tolower((int) *b)) {
 	case 's':
 	    break;
@@ -1899,11 +1894,10 @@ static void parse_profile(struct sym *sym, tac_realm * r, tac_profile * parent)
 	r->profiletable = RB_tree_new(compare_name, NULL);
 
     sym_get(sym);
-
     if (sym->code == S_equal)
 	sym_get(sym);
-    profile = new_profile(NULL, sym->buf, r);
 
+    profile = new_profile(NULL, sym->buf, r);
     n = (tac_profile *) RB_lookup(r->profiletable, (void *) profile);
     if (n)
 	parse_error(sym, "Profile '%s' already defined at line %u", profile->name, n->line);
@@ -2004,13 +1998,13 @@ static enum token lookup_user_profile(tac_session * session)
 
 static void cache_user_profile(tac_session * session, enum token res)
 {
-    int j = 0;
     uint32_t crc32 = INITCRC32;
     if (session->nac_address_ascii)
 	crc32 = crc32_update(crc32, (u_char *) session->nac_address_ascii, session->nac_address_ascii_len);
     if (session->nas_port)
 	crc32 = crc32_update(crc32, (u_char *) session->nas_port, session->nas_port_len);
 
+    int j = 0;
     for (int i = 0; i < USER_PROFILE_CACHE_SIZE; i++) {
 	if (session->ctx->user_profile_cache[i].user == session->user && session->ctx->user_profile_cache[i].crc32 == crc32) {
 	    j = i;
@@ -2094,7 +2088,6 @@ enum token eval_ruleset(tac_session * session, tac_realm * realm)
 
 static void parse_user(struct sym *sym, tac_realm * r)
 {
-    tac_user *n, *user;
     enum token type = sym->code;
 
     if (!r->usertable)
@@ -2121,10 +2114,10 @@ static void parse_user(struct sym *sym, tac_realm * r)
 
     if (sym->code == S_equal)
 	sym_get(sym);
-    user = new_user(sym->buf, type, r);
+    tac_user *user = new_user(sym->buf, type, r);
     user->line = sym->line;
 
-    n = (tac_user *) RB_lookup(r->usertable, (void *) user);
+    tac_user *n = (tac_user *) RB_lookup(r->usertable, (void *) user);
     if (n)
 	parse_error(sym, "User '%s' already defined at line %u", user->name, n->line);
 
@@ -2185,7 +2178,6 @@ static char hexbyte(char *s)
 
 static int c7decode(mem_t * mem, char *in)
 {
-    int seed;
     char *out = in;
     size_t len = strlen(in);
     static char *c7 = NULL;
@@ -2208,7 +2200,7 @@ static int c7decode(mem_t * mem, char *in)
 	return -1;
 
     len -= 2;
-    seed = 10 * (in[0] - '0') + in[1] - '0';
+    int seed = 10 * (in[0] - '0') + in[1] - '0';
     in += 2;
 
     while (len) {
@@ -2223,8 +2215,6 @@ static int c7decode(mem_t * mem, char *in)
 
 static struct pwdat *parse_pw(struct sym *sym, mem_t * mem, int cry)
 {
-    struct pwdat *pp = NULL;
-    enum token sc;
     int c7 = 0;
     parse(sym, S_equal);
 
@@ -2254,13 +2244,13 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t * mem, int cry)
 	parse_error_expect(sym, S_clear, S_permit, S_deny, S_login, cry ? S_crypt : S_unknown, S_unknown);
     }
 
-    sc = sym->code;
+    enum token sc = sym->code;
     sym_get(sym);
 
     if (c7 && c7decode(mem, sym->buf))
 	parse_error(sym, "type 7 password is malformed");
 
-    pp = mem_alloc(mem, sizeof(struct pwdat) + strlen(sym->buf));
+    struct pwdat *pp = mem_alloc(mem, sizeof(struct pwdat) + strlen(sym->buf));
     pp->type = sc;
     strcpy(pp->value, sym->buf);
     sym_get(sym);
@@ -2269,8 +2259,6 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t * mem, int cry)
 
 static void parse_password(struct sym *sym, tac_user * user)
 {
-    struct pwdat **pp;
-    enum pw_ix pw_ix = 0;
     int one = 0;
 
     sym_get(sym);
@@ -2288,6 +2276,8 @@ static void parse_password(struct sym *sym, tac_user * user)
 	if (!one)
 	    sym_get(sym);
 
+	enum pw_ix pw_ix = 0;
+	struct pwdat **pp;
 	pp = user->passwd;
 
 	while (sym->code != S_closebra) {
@@ -2334,13 +2324,11 @@ static void parse_password(struct sym *sym, tac_user * user)
 
 static struct tac_acl *tac_acl_lookup(char *s, tac_realm * r)
 {
-    struct tac_acl a;
-    a.name = s;
-    a.name_len = strlen(s);
+    struct tac_acl a = { .name = s, .name_len = strlen(s) };
     while (r) {
 	if (r->acltable) {
-	    struct tac_acl *res;
-	    if ((res = RB_lookup(r->acltable, &a)))
+	    struct tac_acl *res = RB_lookup(r->acltable, &a);
+	    if (res)
 		return res;
 	}
 	r = r->parent;
@@ -2956,11 +2944,11 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
 static void add_host(struct sym *sym, radixtree_t * ht, tac_host * host)
 {
     struct in6_addr a;
-    tac_host *h;
     int cm;
     if (v6_ptoh(&a, &cm, sym->buf))
 	parse_error(sym, "Expected an IP address or network in CIDR notation, but got '%s'.", sym->buf);
 
+    tac_host *h;
     if (ht && (h = radix_add(ht, &a, cm, host)))
 	parse_error(sym, "Address '%s' already assigned to host '%s'.", sym->buf, h->name);
 }
@@ -2977,16 +2965,13 @@ static void add_net(struct sym *sym, radixtree_t * ht, tac_net * net)
 
 static void parse_file(char *url, radixtree_t * ht, tac_host * host, tac_net * net)
 {
-    struct sym sym = { 0 };
-    char *buf;
-    int bufsize;
+    struct sym sym = { .filename = url, .line = 1 };
 
-    sym.filename = url;
-    sym.line = 1;
-
-    sym.env_valid = 1;
     if (setjmp(sym.env))
 	tac_exit(EX_CONFIG);
+
+    char *buf;
+    int bufsize;
 
     if (cfg_open_and_read(url, &buf, &bufsize)) {
 	report_cfg_error(LOG_ERR, ~0, "Couldn't open %s: %s", url, strerror(errno));
@@ -3815,7 +3800,7 @@ void cfg_init(void)
 
 int cfg_get_enable(tac_session * session, struct pwdat **p)
 {
-    int level, m = 0;
+    int m = 0;
     struct pwdat **d[3];
 
     if (!session->profile && (S_permit != eval_ruleset(session, session->ctx->realm)))
@@ -3828,7 +3813,7 @@ int cfg_get_enable(tac_session * session, struct pwdat **p)
     if (session->ctx->host->enable)
 	d[m++] = session->ctx->host->enable;
 
-    for (level = session->priv_lvl; level < TAC_PLUS_PRIV_LVL_MAX + 1; level++) {
+    for (int level = session->priv_lvl; level < TAC_PLUS_PRIV_LVL_MAX + 1; level++) {
 	for (int i = 0; i < m; i++)
 	    if (d[i][level]) {
 		*p = d[i][level];
@@ -4231,7 +4216,7 @@ static int tac_mavis_cond_compare(tac_session * session, struct mavis_cond *m, c
 
 static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 {
-    int i, res = 0;
+    int res = 0;
     char *v = NULL;
     size_t v_len = 0;
     if (!m)
@@ -4242,11 +4227,11 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 	return tac_script_cond_eval_res(session, m, res);
     case S_and:
 	res = -1;
-	for (i = 0; res && i < m->u.m.n; i++)
+	for (int i = 0; res && i < m->u.m.n; i++)
 	    res = tac_script_cond_eval(session, m->u.m.e[i]);
 	return tac_script_cond_eval_res(session, m, res);
     case S_or:
-	for (i = 0; !res && i < m->u.m.n; i++)
+	for (int i = 0; !res && i < m->u.m.n; i++)
 	    res = tac_script_cond_eval(session, m->u.m.e[i]);
 	return tac_script_cond_eval_res(session, m, res);
     case S_address:
@@ -4820,8 +4805,7 @@ static int tac_group_add(tac_group * add, tac_groups * g, mem_t * mem)
 static int tac_group_check(tac_group * g, tac_groups * gids, tac_group * parent)
 {
     if (gids) {
-	u_int i;
-	for (i = 0; i < gids->count; i++) {
+	for (u_int i = 0; i < gids->count; i++) {
 	    tac_group *a = gids->groups[i];
 	    if ((g == a)
 		|| tac_group_check(g, a->groups, a->parent)
