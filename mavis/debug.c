@@ -36,7 +36,7 @@ void debug(u_long level, char *format, ...)
 	int olderrno;
 	size_t len = 1024, nlen;
 	char *tmpbuf = alloca(len);
-	char spaces[] = "                                        " "                                        " "                                        ";
+	char spaces[] = "                                                                                                                        ";
 
 	olderrno = errno;
 
