@@ -212,12 +212,12 @@ static char *get_hint(tac_session * session, enum hint_enum h)
 {
     if (session->user_msg) {
 	size_t n = hints[h].plain_len + strlen(session->user_msg) + 20;
-	char *t, *hint;
-	hint = mem_alloc(session->mem, n);
+	char *hint = mem_alloc(session->mem, n);
 	strcpy(hint, hints[h].plain);
 	strcat(hint, " [");
 	strcat(hint, session->user_msg);
-	if ((t = strchr(hint, '\n')))
+	char *t = strchr(hint, '\n');
+	if (t)
 	    strcpy(t, "]");
 	else
 	    strcat(hint, "]");
@@ -229,9 +229,7 @@ static char *get_hint(tac_session * session, enum hint_enum h)
 static void report_auth(tac_session * session, char *what, enum hint_enum hint, int res)
 {
     char *realm = alloca(session->ctx->realm->name_len + 40);
-    char *hint_augmented;
     tac_realm *r = session->ctx->realm;
-    time_t sec = io_now.tv_sec;
 
     if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
 	session->result = codestring[S_permit];
@@ -249,7 +247,7 @@ static void report_auth(tac_session * session, char *what, enum hint_enum hint, 
 	strcat(realm, ")");
     }
 
-    hint_augmented = get_hint(session, hint);
+    char *hint_augmented = get_hint(session, hint);
 
     report(session, LOG_INFO, ~0,
 	   "%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
@@ -268,7 +266,7 @@ static void report_auth(tac_session * session, char *what, enum hint_enum hint, 
     session->hint = hint_augmented;
     session->hint_len = strlen(hint_augmented);
 
-    log_exec(session, session->ctx, S_authentication, sec);
+    log_exec(session, session->ctx, S_authentication, io_now.tv_sec);
 }
 
 static int password_requirements_failed(tac_session * session, char *what)
@@ -459,7 +457,6 @@ static int query_mavis_info_pap(tac_session * session, void (*f)(tac_session *))
 static void do_chap(tac_session * session)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
-    enum hint_enum hint = hint_nosuchuser;
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "chap login", hint_denied_by_acl, res);
@@ -470,6 +467,7 @@ static void do_chap(tac_session * session)
     if (query_mavis_info(session, do_chap, PW_CHAP))
 	return;
 
+    enum hint_enum hint = hint_nosuchuser;
     if (session->user) {
 	res = user_invalid(session->user, &hint);
 	if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
@@ -575,12 +573,10 @@ static void set_pwdat(tac_session * session, struct pwdat **pwdat, enum pw_ix *p
 
 static char *set_welcome_banner(tac_session * session, struct log_item *fmt_dflt)
 {
-    struct log_item *fmt;
-
     if (session->welcome_banner)
 	return session->msg;
 
-    fmt = ((session->ctx->host->authfallback != TRISTATE_YES)
+    struct log_item *fmt = ((session->ctx->host->authfallback != TRISTATE_YES)
 	   || !session->ctx->host->welcome_banner_fallback
 	   || (session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period < io_now.tv_sec))
 	? session->ctx->host->welcome_banner : session->ctx->host->welcome_banner_fallback;
@@ -615,11 +611,7 @@ static char *set_motd_banner(tac_session * session)
 
 static void do_chpass(tac_session * session)
 {
-    enum pw_ix pw_ix = PW_LOGIN;
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
-    char *resp = NULL;
-    struct pwdat *pwdat = NULL;
 
     if (!session->username[0] && session->authen_data->msg) {
 	mem_free(session->mem, &session->username);
@@ -681,6 +673,7 @@ static void do_chpass(tac_session * session)
 	return;
     }
 
+    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "password change", hint_denied_by_acl, res);
 	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
@@ -690,6 +683,8 @@ static void do_chpass(tac_session * session)
     if (query_mavis_info_login(session, do_chpass))
 	return;
 
+    enum pw_ix pw_ix = PW_LOGIN;
+    struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
     if (!session->flag_mavis_auth
@@ -699,6 +694,7 @@ static void do_chpass(tac_session * session)
 	return;
     }
 
+    char *resp = NULL;
     res = check_access(session, pwdat, session->password_new, &hint, &resp);
 
     if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
@@ -754,12 +750,9 @@ static void send_password_prompt(tac_session * session, enum pw_ix pw_ix, void (
 /* enable with login password */
 static void do_enable_login(tac_session * session)
 {
-    enum pw_ix pw_ix = PW_LOGIN;
-    struct pwdat *pwdat = NULL;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL);
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
-    char buf[40];
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "enable login", hint_denied_by_acl, res);
@@ -770,8 +763,11 @@ static void do_enable_login(tac_session * session)
     if (query_mavis_info_login(session, do_enable_login))
 	return;
 
+    char buf[40];
     snprintf(buf, sizeof(buf), "enable %d", session->priv_lvl);
 
+    enum pw_ix pw_ix = PW_LOGIN;
+    struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
     if (session->authen_data->msg) {
@@ -804,8 +800,6 @@ static void do_enable_getuser(tac_session *);
 
 static void do_enable_augmented(tac_session * session)
 {
-    enum pw_ix pw_ix = PW_LOGIN;
-    struct pwdat *pwdat = NULL;
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
     char *u;
@@ -844,6 +838,8 @@ static void do_enable_augmented(tac_session * session)
 	}
     }
 
+    enum pw_ix pw_ix = PW_LOGIN;
+    struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
     if (session->username[0]) {
@@ -931,8 +927,6 @@ static void do_enable(tac_session * session)
 
 static void do_ascii_login(tac_session * session)
 {
-    enum pw_ix pw_ix = PW_LOGIN;
-    struct pwdat *pwdat = NULL;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL, *m;
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
@@ -958,6 +952,9 @@ static void do_ascii_login(tac_session * session)
     }
     if (query_mavis_info_login(session, do_ascii_login))
 	return;
+
+    enum pw_ix pw_ix = PW_LOGIN;
+    struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
     if (!pwdat || (pwdat->type != S_permit)) {
@@ -1122,8 +1119,6 @@ static void do_eap(tac_session * session)
 
 static void do_enable_getuser(tac_session * session)
 {
-    enum pw_ix pw_ix = PW_LOGIN;
-    struct pwdat *pwdat = NULL;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = eval_log_format(session, session->ctx, NULL, li_enable_password_incorrect, io_now.tv_sec, NULL);
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
@@ -1148,6 +1143,9 @@ static void do_enable_getuser(tac_session * session)
     }
     if (query_mavis_info_login(session, do_enable_getuser))
 	return;
+
+    enum pw_ix pw_ix = PW_LOGIN;
+    struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
     if (session->authen_data->msg) {
@@ -1419,8 +1417,6 @@ static void do_mschapv2(tac_session * session)
 
 static void do_login(tac_session * session)
 {
-    enum pw_ix pw_ix = PW_LOGIN;
-    struct pwdat *pwdat = NULL;
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
@@ -1439,6 +1435,9 @@ static void do_login(tac_session * session)
     }
     if (query_mavis_info_login(session, do_login))
 	return;
+
+    enum pw_ix pw_ix = PW_LOGIN;
+    struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
     if (query_mavis_auth_login(session, do_login, pw_ix))
@@ -1453,8 +1452,6 @@ static void do_login(tac_session * session)
 
 static void do_pap(tac_session * session)
 {
-    enum pw_ix pw_ix = PW_PAP;
-    struct pwdat *pwdat = NULL;
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
@@ -1489,6 +1486,9 @@ static void do_pap(tac_session * session)
     }
     if (query_mavis_info_pap(session, do_pap))
 	return;
+
+    enum pw_ix pw_ix = PW_PAP;
+    struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
     if (query_mavis_auth_pap(session, do_pap, pw_ix))

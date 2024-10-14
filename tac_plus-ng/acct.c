@@ -66,7 +66,6 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
 {
     struct acct *acct = tac_payload(hdr, struct acct *);
     u_char *p = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE + acct->arg_cnt;
-    enum token res = S_unknown;
     tac_host *h = session->ctx->host;
 
     report(session, LOG_DEBUG, DEBUG_ACCT_FLAG, "Start accounting request");
@@ -116,6 +115,7 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
     session->username_len = acct->user_len;
 
     // script-based user rewriting, current
+    enum token res = S_unknown;
     while (h && res != S_permit && res != S_deny) {
 	if (h->action)
 	    res = tac_script_eval_r(session, h->action);

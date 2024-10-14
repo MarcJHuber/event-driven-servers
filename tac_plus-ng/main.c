@@ -544,8 +544,7 @@ static tac_realm *set_sd_realm(int, struct scm_data_accept_ext *);
 
 static void accept_control_singleprocess(int s, struct scm_data_accept *sd)
 {
-    struct scm_data_accept_ext sd_ext = { 0 };
-    memcpy(&sd_ext, sd, sizeof(struct scm_data_accept));
+    struct scm_data_accept_ext sd_ext = { .sd = *sd };
     tac_realm *r = set_sd_realm(-1, &sd_ext);
     users_inc();
     if (sd->haproxy || r->haproxy_autodetect == TRISTATE_YES)
@@ -569,15 +568,13 @@ static struct context_px *new_context_px(struct io_context *io, struct scm_data_
 
 static void read_px(struct context_px *ctx, int cur)
 {
-    ssize_t len;
-    uint16_t hlen;
-    sockaddr_union from;
     char tmp[240];
     struct proxy_hdr_v2 *hdr = (struct proxy_hdr_v2 *) tmp;
     union proxy_addr *addr = (union proxy_addr *) &tmp[sizeof(struct proxy_hdr_v2)];
     memset(&tmp, 0, sizeof(tmp));
-    len = recv(cur, &tmp, sizeof(tmp), MSG_PEEK);
+    ssize_t len = recv(cur, &tmp, sizeof(tmp), MSG_PEEK);
     ctx->last_io = io_now.tv_sec;
+    uint16_t hlen;
     if ((len < (ssize_t) sizeof(struct proxy_hdr_v2))
 	|| ((hdr->ver_cmd >> 4) != 2)
 	|| (memcmp(hdr->sig, "\x0D\x0A\x0D\x0A\x00\x0D\x0A\x51\x55\x49\x54\x0A", 12))
@@ -592,6 +589,7 @@ static void read_px(struct context_px *ctx, int cur)
     }
     UNUSED_RESULT(read(cur, &tmp, sizeof(struct proxy_hdr_v2) + hlen));
 
+    sockaddr_union from = { 0 };
     switch (hdr->fam) {
     case 0x11:
 	from.sin.sin_family = AF_INET;
@@ -844,12 +842,11 @@ static void accept_control_tls(struct context *ctx, int cur)
 		   (long long) (notafter - io_now.tv_sec) / 86400);
 
 	if (ctx->tls_peer_cert_subject) {
-	    size_t i;
 	    char *cn = alloca(ctx->tls_peer_cert_subject_len + 1);
 
 	    // normalize subject
 	    cn[ctx->tls_peer_cert_subject_len] = 0;
-	    for (i = 0; i < ctx->tls_peer_cert_subject_len; i++)
+	    for (size_t i = 0; i < ctx->tls_peer_cert_subject_len; i++)
 		cn[i] = tolower(ctx->tls_peer_cert_subject[i]);
 
 	    // set cn
@@ -885,16 +882,15 @@ static void accept_control_tls(struct context *ctx, int cur)
 	STACK_OF(GENERAL_NAME) * san;
 	if (cert && (san = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL))) {
 	    int skipped_max = 1024;
-	    int i, san_count = sk_GENERAL_NAME_num(san);
+	    int san_count = sk_GENERAL_NAME_num(san);
 	    ctx->tls_peer_cert_san = mem_alloc(ctx->mem, san_count);
 	    tac_host *h = NULL;
-	    for (i = 0; i < san_count; i++) {
+	    for (int i = 0; i < san_count; i++) {
 		GENERAL_NAME *val = sk_GENERAL_NAME_value(san, i);
 		if (val->type == GEN_DNS) {
 		    char *t = (char *) ASN1_STRING_get0_data(val->d.dNSName);
 		    ctx->tls_peer_cert_san[ctx->tls_peer_cert_san_count++] = mem_strdup(ctx->mem, t);
-		    int skipped;
-		    for (skipped = 0; skipped < skipped_max && t; skipped++) {
+		    for (int skipped = 0; skipped < skipped_max && t; skipped++) {
 			h = lookup_host(t, ctx->realm);
 			if (h && skipped_max > skipped) {
 			    skipped_max = skipped;
@@ -956,7 +952,6 @@ static void accept_control_px(int s, struct scm_data_accept_ext *sd)
 void complete_host(tac_host * h)
 {
     if (!h->complete && h->parent) {
-	enum user_message_enum um;
 	tac_host *hp = h->parent;
 	complete_host(hp);
 
@@ -1019,8 +1014,7 @@ void complete_host(tac_host * h)
 
 	if (h->enable) {
 	    if (hp->enable) {
-		int level;
-		for (level = TAC_PLUS_PRIV_LVL_MIN; level < TAC_PLUS_PRIV_LVL_MAX + 1; level++)
+		for (int level = TAC_PLUS_PRIV_LVL_MIN; level < TAC_PLUS_PRIV_LVL_MAX + 1; level++)
 		    if (!h->enable[level])
 			h->enable[level] = hp->enable[level];
 	    }
@@ -1028,7 +1022,7 @@ void complete_host(tac_host * h)
 	    h->enable = hp->enable;
 
 	if (h->user_messages) {
-	    for (um = 0; um < UM_MAX; um++)
+	    for (enum user_message_enum um = 0; um < UM_MAX; um++)
 		if (!h->user_messages[um])
 		    h->user_messages[um] = hp->user_messages[um];
 	} else
@@ -1328,9 +1322,8 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 
 static void accept_control_final(struct context *ctx)
 {
-    tac_session session = { 0 };
     static int count = 0;
-    session.ctx = ctx;
+    tac_session session = { .ctx = ctx };
 
     if (ctx->proxy_addr_ascii) {
 	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))

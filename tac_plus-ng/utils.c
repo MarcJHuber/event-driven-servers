@@ -441,9 +441,7 @@ struct log_item *parse_log_format(struct sym *, mem_t *);
 
 struct log_item *parse_log_format_inline(char *format, char *file, int line)
 {
-    struct sym sym = { 0 };
-    sym.filename = file;
-    sym.line = line;
+    struct sym sym = { .filename = file, .line = line };
     sym.in = sym.tin = format;
     sym.len = sym.tlen = strlen(sym.in);
     sym_init(&sym);

@@ -112,8 +112,6 @@ static void mavis_callback(tac_session * session)
 
 void mavis_lookup(tac_session * session, void (*f)(tac_session *), const char *const type, enum pw_ix pw_ix)
 {
-    int result;
-    av_ctx *avc;
     tac_realm *r = session->ctx->realm;
     mavis_ctx *mcx = lookup_mcx(r);
 
@@ -149,7 +147,7 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), const char *c
     session->mavis_data->pw_ix = pw_ix;
     session->mavis_data->start = io_now;
 
-    avc = av_new((void *) mavis_callback, (void *) session);
+    av_ctx *avc = av_new((void *) mavis_callback, (void *) session);
     av_set(avc, AV_A_TYPE, AV_V_TYPE_TACPLUS);
     av_set(avc, AV_A_USER, session->username);
     av_setf(avc, AV_A_TIMESTAMP, "%d", session->session_id);
@@ -168,7 +166,6 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), const char *c
 	av_set(avc, AV_A_PASSWORD_NEW, session->password_new);
 
     if (!session->ctx->realm->caching_period && !strcmp(type, AV_V_TACTYPE_INFO) && session->author_data) {
-	char *args, *p;
 	struct author_data *data = session->author_data;
 	int len = 0, cnt = data->in_cnt - 1;
 	size_t *arglen = alloca(data->in_cnt * sizeof(size_t));
@@ -176,8 +173,8 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), const char *c
 	    arglen[i] = strlen(data->in_args[i]);
 	    len += arglen[i] + 1;
 	}
-	args = alloca(len);
-	p = args;
+	char *args = alloca(len);
+	char *p = args;
 	for (int i = 0; i <= cnt; i++) {
 	    memcpy(p, data->in_args[i], arglen[i]);
 	    p += arglen[i];
@@ -186,7 +183,7 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), const char *c
 	av_set(avc, AV_A_ARGS, args);
     }
 
-    result = mavis_send(mcx, &avc);
+    int result = mavis_send(mcx, &avc);
 
     switch (result) {
     case MAVIS_DEFERRED:
