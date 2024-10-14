@@ -4668,7 +4668,7 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t * mem, int
     case S_context:
 	m = mavis_action_new(sym, mem);
 	parse(sym, S_equal);
-	m->b.v = strdup(sym->buf);
+	m->b.v = mem_strdup(mem, sym->buf);
 	sym_get(sym);
 	break;
     case S_message:
