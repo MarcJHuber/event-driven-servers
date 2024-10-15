@@ -76,7 +76,7 @@ while ($in = <>) {
 		$V[AV_A_TACPROFILE] = <<EOT
 {
 	key = demo
-	tag = cust001,cust-ro
+	tag = cust001,cust-ro # the "profile" rules from the user definition might use this
 	welcome banner = "Hi! :-)"
 }
 EOT
@@ -89,10 +89,13 @@ EOT
 # XXX Add your user lookup code here.
 	$V[AV_A_TACPROFILE] = <<EOT
 {
-	tag = cust001,ro
-
 	# This demo uses a profile defined in user context. Other possibilities
 	# include refering to an existing profile or using a rule set.
+	#
+	# Do NOT put comments here in real live, it's just wasting CPU.
+
+	tag = cust001,ro # this will be evaluated in the profile, see below
+
 	profile {
 		script {
 			if (device.tag != user.tag)
