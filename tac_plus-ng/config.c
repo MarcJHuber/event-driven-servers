@@ -381,7 +381,7 @@ tac_realm *lookup_realm(char *name, tac_realm * r)
 
     if (r->realms) {
 	tac_realm *res;
-	for (rb_node_t *rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
+	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    if ((res = lookup_realm(name, RB_payload(rbn, tac_realm *))))
 		return res;
     }
@@ -539,7 +539,7 @@ void init_mcx(tac_realm * r)
     if (r->mcx)
 	mavis_init(r->mcx, MAVIS_API_VERSION);
     if (r->realms)
-	for (rb_node_t *rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
+	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    init_mcx(RB_payload(rbn, tac_realm *));
 }
 
@@ -548,7 +548,7 @@ void drop_mcx(tac_realm * r)
     if (r->mcx)
 	mavis_drop(r->mcx);
     if (r->realms)
-	for (rb_node_t *rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
+	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    drop_mcx(RB_payload(rbn, tac_realm *));
 }
 
@@ -556,7 +556,7 @@ void expire_dynamic_users(tac_realm * r)
 {
     if (r->usertable) {
 	rb_node_t *rbnext;
-	for (rb_node_t *rbn = RB_first(r->usertable); rbn; rbn = rbnext) {
+	for (rb_node_t * rbn = RB_first(r->usertable); rbn; rbn = rbnext) {
 	    time_t v = RB_payload(rbn, tac_user *)->dynamic;
 	    rbnext = RB_next(rbn);
 
@@ -565,7 +565,7 @@ void expire_dynamic_users(tac_realm * r)
 	}
     }
     if (r->realms)
-	for (rb_node_t *rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
+	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    expire_dynamic_users(RB_payload(rbn, tac_realm *));
 }
 
@@ -613,7 +613,7 @@ static tac_profile *lookup_profile(char *name, tac_realm * r)
 
 static tac_rewrite *lookup_rewrite(char *name, tac_realm * r)
 {
-    tac_rewrite rewrite = { .name = name, .name_len = strlen(name) };
+    tac_rewrite rewrite = {.name = name,.name_len = strlen(name) };
     while (r) {
 	if (r->rewrite) {
 	    tac_rewrite *res;
@@ -627,7 +627,7 @@ static tac_rewrite *lookup_rewrite(char *name, tac_realm * r)
 
 tac_host *lookup_host(char *name, tac_realm * r)
 {
-    tac_host host = { .name = name, .name_len = strlen(name) };
+    tac_host host = {.name = name,.name_len = strlen(name) };
     while (r) {
 	if (r->hosttable) {
 	    tac_host *res;
@@ -641,7 +641,7 @@ tac_host *lookup_host(char *name, tac_realm * r)
 
 static tac_net *lookup_net(char *name, tac_realm * r)
 {
-    tac_net net = { .name = name, .name_len = strlen(name) };
+    tac_net net = {.name = name,.name_len = strlen(name) };
     while (r) {
 	if (r->nettable) {
 	    tac_net *res;
@@ -754,7 +754,7 @@ static struct dns_forward_mapping *dns_lookup_a(tac_realm * r, char *name, int r
 {
     while (r) {
 	if (r->dns_tree_a) {
-	    struct dns_forward_mapping dn = { .name = name };
+	    struct dns_forward_mapping dn = {.name = name };
 	    struct dns_forward_mapping *res = (struct dns_forward_mapping *) RB_lookup(r->dns_tree_a, &dn);
 	    if (res)
 		return res;
@@ -768,7 +768,7 @@ static struct dns_forward_mapping *dns_lookup_a(tac_realm * r, char *name, int r
 
 static void parse_etc_hosts(char *url, tac_realm * r)
 {
-    struct sym sym = { .filename = url, .line = 1, .env_valid = 1 };
+    struct sym sym = {.filename = url,.line = 1,.env_valid = 1 };
     if (setjmp(sym.env))
 	tac_exit(EX_CONFIG);
 
@@ -911,7 +911,7 @@ static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent, t
     if (!empty)
 	parse_decls_real(sym, nrealm);
 
-    for (rb_node_t *rbn = RB_first(nrealm->profiletable); rbn; rbn = RB_next(rbn))
+    for (rb_node_t * rbn = RB_first(nrealm->profiletable); rbn; rbn = RB_next(rbn))
 	complete_profile(RB_payload(rbn, tac_profile *));
 
     return nrealm;
@@ -2324,7 +2324,7 @@ static void parse_password(struct sym *sym, tac_user * user)
 
 static struct tac_acl *tac_acl_lookup(char *s, tac_realm * r)
 {
-    struct tac_acl a = { .name = s, .name_len = strlen(s) };
+    struct tac_acl a = {.name = s,.name_len = strlen(s) };
     while (r) {
 	if (r->acltable) {
 	    struct tac_acl *res = RB_lookup(r->acltable, &a);
@@ -2965,7 +2965,7 @@ static void add_net(struct sym *sym, radixtree_t * ht, tac_net * net)
 
 static void parse_file(char *url, radixtree_t * ht, tac_host * host, tac_net * net)
 {
-    struct sym sym = { .filename = url, .line = 1 };
+    struct sym sym = {.filename = url,.line = 1 };
 
     if (setjmp(sym.env))
 	tac_exit(EX_CONFIG);
@@ -3108,8 +3108,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
 	    parse_error_expect(sym,
 			       S_parent, S_authentication, S_permit, S_bug, S_pap, S_key, S_anonenable, S_augmented_enable,
 			       S_singleconnection, S_debug, S_connection, S_password, S_context, S_session, S_target_realm,
-			       S_maxrounds, S_skip, S_tag, S_devicetag, S_name, S_welcome, S_reject, S_failed, S_enable, S_motd, S_script, S_message,
-			       S_mavis,
+			       S_maxrounds, S_skip, S_tag, S_devicetag, S_name, S_welcome, S_reject, S_failed, S_enable, S_motd, S_script, S_message, S_mavis,
 #ifdef WITH_DNS
 			       S_dns,
 #endif
@@ -3790,12 +3789,12 @@ void cfg_init(void)
     init_timespec();
     config.mask = 0644;
 
-	struct utsname utsname = { 0 };
-	if (uname(&utsname) || !*(utsname.nodename))
-	    config.hostname = "amnesiac";
-	else
-	    config.hostname = strdup(utsname.nodename);
-	config.hostname_len = strlen(config.hostname);
+    struct utsname utsname = { 0 };
+    if (uname(&utsname) || !*(utsname.nodename))
+	config.hostname = "amnesiac";
+    else
+	config.hostname = strdup(utsname.nodename);
+    config.hostname_len = strlen(config.hostname);
 }
 
 int cfg_get_enable(tac_session * session, struct pwdat **p)
@@ -4747,7 +4746,7 @@ void tac_rewrite_user(tac_session * session, tac_rewrite * rewrite)
 
 static tac_group *lookup_group(char *name, tac_realm * r)
 {
-    tac_group g = { .name = name, .name_len = strlen(name) };
+    tac_group g = {.name = name,.name_len = strlen(name) };
 
     while (r) {
 	if (r->groups_by_name) {
@@ -4776,7 +4775,7 @@ static tac_group *tac_group_new(struct sym *sym, char *name, tac_realm * r)
     if (!r->groups_by_name)
 	r->groups_by_name = RB_tree_new(compare_name, NULL);
 
-    tac_group *gp, g = { .name = name, .name_len = strlen(name) };
+    tac_group *gp, g = {.name = name,.name_len = strlen(name) };
     rb_node_t *rbn = RB_search(r->groups_by_name, &g);
     if (rbn) {
 	gp = RB_payload(rbn, tac_group *);
@@ -4849,7 +4848,7 @@ static int tac_tag_add(mem_t * mem, tac_tag * add, tac_tags * g)
 
 static tac_tag *tac_tag_parse(struct sym *sym)
 {
-    tac_tag t = { .name = sym->buf, .name_len = strlen(sym->buf) };
+    tac_tag t = {.name = sym->buf,.name_len = strlen(sym->buf) };
     if (!tags_by_name)
 	tags_by_name = RB_tree_new(compare_name, NULL);
     tac_tag *tag = RB_lookup(tags_by_name, &t);
