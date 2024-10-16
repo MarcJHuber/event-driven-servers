@@ -216,7 +216,7 @@ static inline int parse_user_profile_single(av_ctx * avc, struct sym *sym, tac_u
 {
     char *a = av_get(avc, attribute);
     if (a)
-        return parse_user_profile_fmt(sym, u, format, strlen(a), a);
+	return parse_user_profile_fmt(sym, u, format, strlen(a), a);
     return 0;
 }
 
@@ -231,7 +231,8 @@ static void dump_av_pairs(tac_session * session, av_ctx * avc, char *what)
 	int show[] = { AV_A_USER, AV_A_DN, AV_A_TACMEMBER, AV_A_MEMBEROF, AV_A_USER_RESPONSE, AV_A_SERVERIP,
 	    AV_A_IPADDR, AV_A_REALM, AV_A_TACPROFILE, AV_A_SSHKEY, AV_A_SSHKEYHASH, AV_A_SSHKEYID, AV_A_PATH,
 	    AV_A_UID, AV_A_GID, AV_A_HOME, AV_A_ROOT, AV_A_SHELL, AV_A_GIDS, AV_A_PASSWORD_MUSTCHANGE, AV_A_ARGS,
-	    AV_A_RARGS, AV_A_VERDICT, AV_A_IDENTITY_SOURCE, AV_A_CUSTOM_0, AV_A_CUSTOM_1, AV_A_CUSTOM_2, AV_A_CUSTOM_3, -1
+	    AV_A_RARGS, AV_A_VERDICT, AV_A_IDENTITY_SOURCE, AV_A_CUSTOM_0, AV_A_CUSTOM_1, AV_A_CUSTOM_2, AV_A_CUSTOM_3,
+	    AV_A_COMMENT, AV_A_USER_RESPONSE, -1
 	};
 	report(session, LOG_DEBUG, ~0, "%s found by MAVIS backend, av pairs:", what);
 	for (int i = 0; show[i] > -1; i++)
@@ -248,6 +249,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 
     session->mavisauth_res = 0;
 
+    dump_av_pairs(session, avc, "user");
     if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&	//
 	(t = av_get(avc, AV_A_TACTYPE)) && !strcmp(t, session->mavis_data->mavistype) &&	//
 	(t = av_get(avc, AV_A_USER)) && !strcmp(t, session->username) &&	//
@@ -263,8 +265,6 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 	    char *verdict = av_get(avc, AV_A_VERDICT);
 	    if (verdict && !session->ctx->realm->caching_period && !strcmp(verdict, AV_V_BOOL_TRUE))
 		session->authorized = 1;
-
-	    dump_av_pairs(session, avc, "user");
 
 	    if (!u || u->dynamic) {
 		struct sym sym = { 0 };
@@ -527,6 +527,7 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx * avc)
 {
     char *t, *result = NULL;
     tac_session session = {.ctx = ctx };
+    dump_av_pairs(&session, avc, "host");
     ctx->mavis_result = S_deny;
     if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&	//
 	(t = av_get(avc, AV_A_TACTYPE)) && !strcmp(t, ctx->mavis_data->mavistype) &&	//
@@ -558,7 +559,6 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx * avc)
 		ctx->host = h;
 	    }
 	}
-	dump_av_pairs(&session, avc, "host");
     }
     if (result) {
 	ctx->mavis_latency = timediff(&ctx->mavis_data->start);
