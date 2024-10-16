@@ -290,7 +290,7 @@ void send_authen_reply(tac_session * session, int status, char *msg, int msg_len
     p += msg_len;
     memcpy(p, data, data_len);
 
-    if (session->password_bad && !session->password_bad_again)
+    if (status != TAC_PLUS_AUTHEN_STATUS_PASS)
 	session->authfail_delay++;
 
     if (session->authfail_delay)
