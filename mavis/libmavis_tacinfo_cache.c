@@ -1,7 +1,7 @@
 /*
  * libmavis_tacinfo_cache.c
  * Caches MAVIS-TACACS+ authentication results to disk for later authorizations.
- * (C)2002-2021 by Marc Huber <Marc.Huber@web.de>
+ * (C)2002-2024 by Marc Huber <Marc.Huber@web.de>
  * All rights reserved.
  * 
  * $Id$
@@ -36,7 +36,7 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 		char *hashfile;		\
 		char *hashfile_tmp;	\
 		off_t hashfile_offset;	\
-		int cached;		\
+		int skip_recv_out;		\
 		uid_t uid;		\
 		gid_t gid;		\
 		uid_t euid;		\
@@ -49,7 +49,7 @@ static int mavis_init_in(mavis_ctx * mcx)
 {
     DebugIn(DEBUG_MAVIS);
 
-    mcx->cached = 0;
+    mcx->skip_recv_out = 0;
     mcx->euid = geteuid();
     mcx->egid = getegid();
 
@@ -70,9 +70,6 @@ static int mavis_init_in(mavis_ctx * mcx)
 	if (stat(mcx->hashdir, &st))
 	    mkdir(mcx->hashdir, 0700);
 
-	UNUSED_RESULT(seteuid(mcx->euid));
-	UNUSED_RESULT(setegid(mcx->egid));
-
 	if (stat(mcx->hashdir, &st) && (!mkdir(mcx->hashdir, 0700) && errno != EEXIST))
 	    UNUSED_RESULT(chown(mcx->hashdir, mcx->uid, mcx->gid));
 
@@ -86,8 +83,6 @@ static int mavis_init_in(mavis_ctx * mcx)
 	mcx->hashfile_tmp[dirlen + 35] = '-';
 	tohex((u_char *) & pid, sizeof(pid), mcx->hashfile_tmp + dirlen + 36);
 	memcpy(mcx->hashfile_tmp + dirlen, mcx->hashfile_tmp + dirlen + 36, 8);
-	UNUSED_RESULT(setegid(mcx->gid));
-	UNUSED_RESULT(seteuid(mcx->uid));
 	fn = open(mcx->hashfile_tmp, O_CREAT | O_WRONLY, 0600);
 	if (fn > -1) {
 	    close(fn);
@@ -100,8 +95,9 @@ static int mavis_init_in(mavis_ctx * mcx)
 	    mcx->hashfile_tmp = NULL;
 
 	}
-	UNUSED_RESULT(setegid(mcx->gid));
-	UNUSED_RESULT(seteuid(mcx->uid));
+
+	UNUSED_RESULT(setegid(mcx->egid));
+	UNUSED_RESULT(seteuid(mcx->euid));
 	mcx->hashfile_tmp[dirlen + 2] = '/';
 	mcx->hashfile = calloc(1, dirlen + 39 + 10 /* safety margin, see above */ );
 	memcpy(mcx->hashfile, mcx->hashfile_tmp, 36);
@@ -217,7 +213,6 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
     mcx->hashfile[mcx->hashfile_offset + 1] = mcx->hashfile[mcx->hashfile_offset + 4];
     UNUSED_RESULT(setegid(mcx->gid));
     UNUSED_RESULT(seteuid(mcx->uid));
-
     fn = open(mcx->hashfile, O_RDONLY);
     UNUSED_RESULT(seteuid(mcx->euid));
     UNUSED_RESULT(setegid(mcx->egid));
@@ -236,7 +231,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	    av_set(*ac, keep[i], av_get(a, keep[i]));
 	av_free(a);
 	av_set(*ac, AV_A_RESULT, AV_V_RESULT_OK);
-	mcx->cached = 1;
+	mcx->skip_recv_out = 1;
 	DebugOut(DEBUG_MAVIS);
 	return MAVIS_FINAL;
     }
@@ -264,11 +259,8 @@ static int write_av(av_ctx * ac, int fn, int attr)
 #define HAVE_mavis_recv_out
 static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 {
-    int fn, res = 0;
-    char *t;
-
-    if (mcx->cached) {
-	mcx->cached = 0;
+    if (mcx->skip_recv_out) {
+	mcx->skip_recv_out = 0;
 	return MAVIS_DOWN;
     }
 
@@ -277,7 +269,7 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 
     DebugIn(DEBUG_MAVIS);
 
-    t = av_get(*ac, AV_A_RESULT);
+    char *t = av_get(*ac, AV_A_RESULT);
     if (!t || strcmp(t, AV_V_RESULT_OK))
 	return MAVIS_DOWN;
     t = av_get(*ac, AV_A_TYPE);
@@ -301,10 +293,11 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
     mkdir(mcx->hashfile_tmp, 0700);
     mcx->hashfile_tmp[mcx->hashfile_offset + 3] = '/';
 
-    fn = open(mcx->hashfile_tmp, O_CREAT | O_WRONLY, 0600);
+    int fn = open(mcx->hashfile_tmp, O_CREAT | O_WRONLY, 0600);
+
+    int res = 0;
     if (fn > -1) {
-	int i;
-	for (i = 0; keep[i] > -1; i++)
+	for (int i = 0; keep[i] > -1; i++)
 	    res |= write_av(*ac, fn, keep[i]);
 	res |= (-1 == close(fn));
 	if (res)
