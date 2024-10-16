@@ -1408,9 +1408,11 @@ int parse_mavismodule(mavis_ctx ** mcx, struct io_context *ioctx, struct sym *sy
     }
 
     m = *mcx;
-    while (m->down)
-	m = m->down;
-    m->identity_source_name = identity_source_name ? identity_source_name : strdup(m->identifier);
+    if (m) {
+	while (m->down)
+	    m = m->down;
+	m->identity_source_name = identity_source_name ? identity_source_name : strdup(m->identifier);
+    }
 
     if (res) {
 	report_cfg_error(LOG_ERR, ~0, "%s:%u: FATAL: module '%s' not found.", sym->filename, sym->line, sym->buf);
