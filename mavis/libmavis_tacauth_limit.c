@@ -232,7 +232,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	} else {
 	    uint32_t i;
 	    if (sizeof(i) == read(fn, &i, sizeof(i)) && ntohl(i) >= mcx->blacklist_count) {
-		av_setf(*ac, AV_A_COMMENT, "Authentication failure (banned for %ld further seconds)",
+		av_setf(*ac, AV_A_COMMENT, "Authentication failure (banned for another %ld seconds)",
 			(long) (st.st_mtime + mcx->blacklist_period - io_now.tv_sec));
 		av_set(*ac, AV_A_RESULT, AV_V_RESULT_FAIL);
 		mcx->skip_recv_out = 1;
