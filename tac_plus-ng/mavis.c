@@ -234,7 +234,7 @@ static void dump_av_pairs(tac_session * session, av_ctx * avc, char *what)
 	    AV_A_RARGS, AV_A_VERDICT, AV_A_IDENTITY_SOURCE, AV_A_CUSTOM_0, AV_A_CUSTOM_1, AV_A_CUSTOM_2, AV_A_CUSTOM_3,
 	    AV_A_COMMENT, AV_A_USER_RESPONSE, -1
 	};
-	report(session, LOG_DEBUG, ~0, "%s found by MAVIS backend, av pairs:", what);
+	report(session, LOG_DEBUG, ~0, "%s av pairs:", what);
 	for (int i = 0; show[i] > -1; i++)
 	    if (avc->arr[show[i]])
 		report_string(session, LOG_DEBUG, DEBUG_MAVIS_FLAG | DEBUG_TACTRACE_FLAG, av_char[show[i]].name, avc->arr[show[i]],
