@@ -49,12 +49,12 @@ static int mavis_recv_out(void *pcx __attribute__((unused)), av_ctx ** ac)
 
     char *avtype = av_get(*ac, AV_A_TYPE);
     if (avtype) {
-    char *avuser = av_get(*ac, AV_A_USER);
-    char *avipaddr = av_get(*ac, AV_A_IPADDR);
+	char *avuser = av_get(*ac, AV_A_USER);
+	char *avipaddr = av_get(*ac, AV_A_IPADDR);
 
 	if (avuser && avipaddr && (!strcmp(avtype, AV_V_TYPE_FTP)
 				   || !strcmp(avtype, AV_V_TYPE_TACPLUS))) {
-    char *avcomment = av_get(*ac, AV_A_COMMENT);
+	    char *avcomment = av_get(*ac, AV_A_COMMENT);
 	    if (avcomment)
 		logmsg("%s %s: %s [%s] (%s)", avtype, avresult, avuser, avipaddr, avcomment);
 	    else
