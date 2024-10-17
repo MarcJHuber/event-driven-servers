@@ -36,7 +36,7 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 		char *hashfile;		\
 		char *hashfile_tmp;	\
 		off_t hashfile_offset;	\
-		int skip_recv_out;		\
+		int skip_recv_out;	\
 		uid_t uid;		\
 		gid_t gid;		\
 		uid_t euid;		\
@@ -107,17 +107,6 @@ static int mavis_init_in(mavis_ctx * mcx)
     DebugOut(DEBUG_MAVIS);
     return MAVIS_INIT_OK;
 }
-
-/*
-id = tac_plus {
-    mavis path = ../../mavis/obj.%O
-    mavis module = tac_info_cache {
-        userid = 100
-        groupid = 100
-        directory = /where/ever
-    }
-    mavis module = auth {
-*/
 
 #define HAVE_mavis_parse_in
 static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
@@ -196,12 +185,11 @@ static int keep[] = { AV_A_TACPROFILE, AV_A_TACCLIENT, AV_A_TACMEMBER, AV_A_UID,
 static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 {
     int fn;
-    char *t;
 
     DebugIn(DEBUG_MAVIS);
     if (!mcx->hashfile)
 	return MAVIS_DOWN;
-    t = av_get(*ac, AV_A_TYPE);
+    char *t = av_get(*ac, AV_A_TYPE);
     if (!t || strcmp(t, AV_V_TYPE_TACPLUS))
 	return MAVIS_DOWN;
     t = av_get(*ac, AV_A_TACTYPE);
@@ -217,11 +205,10 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
     UNUSED_RESULT(seteuid(mcx->euid));
     UNUSED_RESULT(setegid(mcx->egid));
     if (fn > -1) {
-	char *c;
-	struct stat st;
+	struct stat st = { 0 };
 	av_ctx *a = av_new(NULL, NULL);
 	fstat(fn, &st);
-	c = alloca(st.st_size + 1);
+	char *c = alloca(st.st_size + 1);
 	c[st.st_size] = 0;
 	if (read(fn, c, st.st_size)) {
 	}
@@ -269,14 +256,14 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 
     DebugIn(DEBUG_MAVIS);
 
-    char *t = av_get(*ac, AV_A_RESULT);
-    if (!t || strcmp(t, AV_V_RESULT_OK))
-	return MAVIS_DOWN;
-    t = av_get(*ac, AV_A_TYPE);
+    char *t = av_get(*ac, AV_A_TYPE);
     if (!t || strcmp(t, AV_V_TYPE_TACPLUS))
 	return MAVIS_DOWN;
     t = av_get(*ac, AV_A_TACTYPE);
     if (!t || (strcmp(t, AV_V_TACTYPE_AUTH) && strcmp(t, AV_V_TACTYPE_INFO) && strcmp(t, AV_V_TACTYPE_HOST)))
+	return MAVIS_DOWN;
+    t = av_get(*ac, AV_A_RESULT);
+    if (!t || strcmp(t, AV_V_RESULT_OK))
 	return MAVIS_DOWN;
 
     get_hash(*ac, mcx->hashfile + mcx->hashfile_offset + 3);
@@ -294,7 +281,6 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
     mcx->hashfile_tmp[mcx->hashfile_offset + 3] = '/';
 
     int fn = open(mcx->hashfile_tmp, O_CREAT | O_WRONLY, 0600);
-
     int res = 0;
     if (fn > -1) {
 	for (int i = 0; keep[i] > -1; i++)

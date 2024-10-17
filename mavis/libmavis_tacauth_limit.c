@@ -36,7 +36,7 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 		char *hashfile;		\
 		char *hashfile_tmp;	\
 		off_t hashfile_offset;	\
-		int skip_recv_out;		\
+		int skip_recv_out;	\
 		uid_t uid;		\
 		gid_t gid;		\
 		uid_t euid;		\
@@ -109,17 +109,6 @@ static int mavis_init_in(mavis_ctx * mcx)
     DebugOut(DEBUG_MAVIS);
     return MAVIS_INIT_OK;
 }
-
-/*
-id = tac_plus {
-    mavis path = ../../mavis/obj.%O
-    mavis module = tac_info_cache {
-        userid = 100
-        groupid = 100
-        directory = /where/ever
-    }
-    mavis module = auth {
-*/
 
 #define HAVE_mavis_parse_in
 static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
@@ -206,12 +195,11 @@ static void get_hash(av_ctx * ac, char *buf)
 static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 {
     int fn;
-    char *t;
 
     DebugIn(DEBUG_MAVIS);
     if (!mcx->hashfile)
 	return MAVIS_DOWN;
-    t = av_get(*ac, AV_A_TYPE);
+    char *t = av_get(*ac, AV_A_TYPE);
     if (!t || strcmp(t, AV_V_TYPE_TACPLUS))
 	return MAVIS_DOWN;
     t = av_get(*ac, AV_A_TACTYPE);
@@ -251,7 +239,6 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 #define HAVE_mavis_recv_out
 static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 {
-
     if (mcx->skip_recv_out) {
 	mcx->skip_recv_out = 0;
 	return MAVIS_DOWN;
