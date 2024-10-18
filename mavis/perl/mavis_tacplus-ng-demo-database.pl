@@ -8,13 +8,11 @@
 # Skeleton code for implementing a database backend.
 # Suitable for tac_plus-ng only.
 #
-
+# Sample configuration (tac_plus-ng/sample/tac_plus-ng-demo-database.cfg):
 =pod
-# Sample configurtion
-# tac_plus-ng-demo-database.cfg
+#!/usr/bin/env -S /usr/local/bin/tactrace.pl --user demo --conf
 #
-# Try this with
-#      tactrace.pl --con ./tac_plus-ng-demo-database.cfg --user demo
+# Sample config file for tac_plus-ng database backend
 
 id = spawnd {
 	background = no
@@ -23,12 +21,11 @@ id = spawnd {
 
 id = tac_plus-ng {
 	mavis module = external {
-		exec = /path/to/mavis_tacplus-ng-demo-database.pl
+		exec = ../../mavis/perl/mavis_tacplus-ng-demo-database.pl
 	}
 	user backend = mavis
 	login backend = mavis
-	pap backend = mavis
-	pap password = mavis
+	pap password = login
 	host world {
 		address = 0.0.0.0/0
 		mavis backend = yes
