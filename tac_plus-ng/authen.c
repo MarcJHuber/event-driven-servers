@@ -274,11 +274,10 @@ static int password_requirements_failed(tac_session * session, char *what)
     tac_realm *r = session->ctx->realm;
 
     if (r->password_acl) {
-	enum token token;
 	u_int debug = session->debug;
 	if (!(session->debug & DEBUG_USERINPUT_FLAG))
 	    session->debug = 0;
-	token = eval_tac_acl(session, r->password_acl);
+	enum token token = eval_tac_acl(session, r->password_acl);
 	session->debug = debug;
 	if (token != S_permit) {
 	    report(session, LOG_ERR, ~0, "password doesn't meet minimum requirements");

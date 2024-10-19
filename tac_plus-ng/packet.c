@@ -264,8 +264,6 @@ static void delay_packet(struct context *, tac_pak *, int);
 
 void send_authen_reply(tac_session * session, int status, char *msg, int msg_len, u_char * data, int data_len, u_char flags)
 {
-    int len;
-
     if (data && !data_len)
 	data_len = (int) strlen((char *) data);
     if (msg && !msg_len)
@@ -274,8 +272,7 @@ void send_authen_reply(tac_session * session, int status, char *msg, int msg_len
     msg_len = minimum(msg_len, 0xffff);
     data_len = minimum(data_len, 0xffff);
 
-    len = TAC_AUTHEN_REPLY_FIXED_FIELDS_SIZE + msg_len + data_len;
-
+    int len = TAC_AUTHEN_REPLY_FIXED_FIELDS_SIZE + msg_len + data_len;
     tac_pak *pak = new_pak(session, TAC_PLUS_AUTHEN, len);
 
     struct authen_reply *reply = tac_payload(&pak->hdr, struct authen_reply *);
@@ -285,7 +282,6 @@ void send_authen_reply(tac_session * session, int status, char *msg, int msg_len
     reply->flags = flags;
 
     u_char *p = (u_char *) reply + TAC_AUTHEN_REPLY_FIXED_FIELDS_SIZE;
-
     memcpy(p, msg, msg_len);
     p += msg_len;
     memcpy(p, data, data_len);
@@ -413,10 +409,6 @@ static __inline__ tac_session *RB_lookup_session(rb_tree_t * rbt, int session_id
 void tac_read(struct context *ctx, int cur)
 {
     ssize_t len;
-    tac_session *session;
-    char msg[80];
-    u_int data_len;
-    int more_keys = 0;
     int min_len = 1;
     int detached = 0;
 
@@ -449,7 +441,7 @@ void tac_read(struct context *ctx, int cur)
 	cleanup(ctx, cur);
 	return;
     }
-    data_len = ntohl(ctx->hdr.datalength);
+    u_int data_len = ntohl(ctx->hdr.datalength);
 
     if (data_len & ~0xffffUL) {
 	report(NULL, LOG_ERR, ~0, "%s: Illegal data size: %u", ctx->nas_address_ascii, data_len);
@@ -480,7 +472,7 @@ void tac_read(struct context *ctx, int cur)
     if (ctx->in->offset != ctx->in->length)
 	return;
 
-    session = RB_lookup_session(ctx->sessions, ctx->hdr.session_id);
+    tac_session *session = RB_lookup_session(ctx->sessions, ctx->hdr.session_id);
 
     if (session) {
 	if (session->seq_no / 2 == ctx->host->max_rounds) {
@@ -558,8 +550,10 @@ void tac_read(struct context *ctx, int cur)
 	ctx->single_connection_flag = 1;
     }
 
-    snprintf(msg, sizeof msg, "Illegal packet (version=0x%.2x type=0x%.2x)", ctx->in->hdr.version, ctx->in->hdr.type);
+    char msg[80];
+    snprintf(msg, sizeof(msg), "Illegal packet (version=0x%.2x type=0x%.2x)", ctx->in->hdr.version, ctx->in->hdr.type);
 
+    int more_keys = 0;
     do {
 	int bogus = 0;
 

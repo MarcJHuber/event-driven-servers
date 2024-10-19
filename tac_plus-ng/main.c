@@ -290,14 +290,12 @@ static void periodics(struct context *ctx, int cur __attribute__((unused)))
 
 static void periodics_ctx(struct context *ctx, int cur __attribute__((unused)))
 {
-    rb_node_t *rbn, *rbnext;
-
     if (!ctx->out && !ctx->delayed && (ctx->host->tcp_timeout || ctx->dying) && (ctx->last_io + ctx->host->tcp_timeout < io_now.tv_sec)) {
 	cleanup(ctx, ctx->sock);
 	return;
     }
 
-    for (rbn = RB_first(ctx->sessions); rbn; rbn = rbnext) {
+    for (rb_node_t *rbnext, *rbn = RB_first(ctx->sessions); rbn; rbn = rbnext) {
 	tac_session *s = RB_payload(rbn, tac_session *);
 	rbnext = RB_next(rbn);
 	if (s->session_timeout < io_now.tv_sec)
@@ -389,8 +387,6 @@ int main(int argc, char **argv, char **envp)
 
 void cleanup(struct context *ctx, int cur __attribute__((unused)))
 {
-    rb_node_t *t, *u;
-
 #ifdef WITH_TLS
     if (ctx->tls) {
 	int res = io_TLS_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
@@ -428,7 +424,7 @@ void cleanup(struct context *ctx, int cur __attribute__((unused)))
     io_close(ctx->io, ctx->sock);
     ctx->sock = -1;
 
-    for (t = RB_first(ctx->sessions); t; t = u) {
+    for (rb_node_t *u, *t = RB_first(ctx->sessions); t; t = u) {
 	u = RB_next(t);
 	cleanup_session(RB_payload(t, tac_session *));
     }
@@ -1136,15 +1132,6 @@ static void complete_host_mavis(struct context *);
 
 static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, sockaddr_union * nad_address)
 {
-    char afrom[256];
-    char pfrom[256];
-    tac_host *h = NULL;
-    struct in6_addr addr;
-    tac_realm *r;
-    radixtree_t *rxt;
-    struct context *ctx = NULL;
-    char *peer = NULL;
-
     fcntl(s, F_SETFD, FD_CLOEXEC);
     fcntl(s, F_SETFL, O_NONBLOCK);
 
@@ -1155,7 +1142,6 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	// error path
 	report(NULL, LOG_DEBUG, DEBUG_PACKET_FLAG, "getpeername: %s", strerror(errno));
 	io_close(common_data.io, s);
-	ctx->sock = -1;
 
 	users_dec();
 
@@ -1164,17 +1150,21 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	return;
     }
 
+    char *peer = NULL;
+    char pfrom[256];
     if (nad_address)
 	peer = su_ntop(&from, pfrom, sizeof(pfrom)) ? pfrom : "<unknown>";
     else
 	nad_address = &from;
 
     su_convert(nad_address, AF_INET);
+    struct in6_addr addr;
     su_ptoh(nad_address, &addr);
 
-    r = set_sd_realm(s, sd_ext);
+    tac_realm *r = set_sd_realm(s, sd_ext);
 
-    rxt = lookup_hosttree(r);
+    tac_host *h = NULL;
+    radixtree_t *rxt = lookup_hosttree(r);
     if (rxt)
 	h = radix_lookup(rxt, &addr, NULL);
 
@@ -1192,7 +1182,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	}
     }
 
-    ctx = new_context(common_data.io, r);
+    struct context *ctx = new_context(common_data.io, r);
     ctx->sock = s;
     context_lru_append(ctx);
     ctx->use_tls = sd_ext->sd.use_tls ? BISTATE_YES : BISTATE_NO;
@@ -1205,6 +1195,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	    ctx->hint = "host unknown";
     }
 
+    char afrom[256];
     ctx->peer_addr_ascii = mem_strdup(ctx->mem, su_ntop(nad_address, afrom, sizeof(afrom)) ? afrom : "<unknown>");
     ctx->peer_addr_ascii_len = strlen(ctx->peer_addr_ascii);
     ctx->host = h;
@@ -1364,7 +1355,7 @@ static void accept_control_final(struct context *ctx)
 
 static void accept_control(struct context *ctx, int cur)
 {
-    int s, one = 1;
+    int s;
     struct scm_data_accept_ext sd_ext = { 0 };
 
     if (common_data.scm_recv_msg(cur, &sd_ext.sd, sizeof(sd_ext.sd), &s)) {
@@ -1377,6 +1368,7 @@ static void accept_control(struct context *ctx, int cur)
 	return;
     case SCM_ACCEPT:
 	users_inc();
+	int one = 1;
 	setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (char *) &one, (socklen_t) sizeof(one));
 	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (char *) &one, (socklen_t) sizeof(one));
 	set_sd_realm(cur, &sd_ext);

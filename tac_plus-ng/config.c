@@ -597,9 +597,7 @@ tac_user *lookup_user(tac_session * session)
 
 static tac_profile *lookup_profile(char *name, tac_realm * r)
 {
-    tac_profile profile;
-    profile.name = name;
-    profile.name_len = strlen(name);
+    tac_profile profile = {.name = name,.name_len = strlen(name) };
     while (r) {
 	if (r->profiletable) {
 	    tac_profile *res;
@@ -1509,13 +1507,12 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	case S_realm:
 	    {
 		tac_realm *newrealm, *rp;
-		char *name;
 		sym_get(sym);
 		if ((rp = lookup_realm(sym->buf, config.default_realm)) && rp->parent != r)
 		    parse_error(sym, "Realm '%s' already defined at line %u", sym->buf, rp->line);
 		if (!r->realms)
 		    r->realms = RB_tree_new(compare_name, NULL);
-		name = strdup(sym->buf);
+		char *name = strdup(sym->buf);
 		sym_get(sym);
 		if (sym->code == S_openbra) {
 		    sym_get(sym);
@@ -1758,7 +1755,6 @@ void parse_decls(struct sym *sym)
 static time_t parse_date(struct sym *sym, time_t offset)
 {
     int m, d, y;
-    long long ll;
 
     if (3 == sscanf(sym->buf, "%d-%d-%d", &y, &m, &d)) {
 	struct tm tm = { 0 };
@@ -1769,6 +1765,7 @@ static time_t parse_date(struct sym *sym, time_t offset)
 	sym_get(sym);
 	return mktime(&tm) + offset;
     }
+    long long ll;
     if (1 == sscanf(sym->buf, "%lld", &ll)) {
 	sym_get(sym);
 	return (time_t) ll;
@@ -1844,14 +1841,12 @@ tac_profile *new_profile(mem_t * mem, char *name, tac_realm * r)
 
 static void parse_group(struct sym *sym, tac_realm * r, tac_group * parent)
 {
-    tac_group *g, *ng = 0;
-
     sym_get(sym);
 
     if (sym->code == S_equal)
 	sym_get(sym);
 
-    g = tac_group_new(sym, sym->buf, r);
+    tac_group *g = tac_group_new(sym, sym->buf, r);
     g->line = sym->line;
 
     sym_get(sym);
@@ -1868,7 +1863,7 @@ static void parse_group(struct sym *sym, tac_realm * r, tac_group * parent)
 	    case S_parent:
 		sym_get(sym);
 		parse(sym, S_equal);
-		ng = lookup_group(sym->buf, r);
+		tac_group *ng = lookup_group(sym->buf, r);
 		if (!ng)
 		    parse_error(sym, "Group '%s' not found.", sym->buf);
 		g->parent = ng->parent;
@@ -1888,8 +1883,6 @@ static void parse_group(struct sym *sym, tac_realm * r, tac_group * parent)
 
 static void parse_profile(struct sym *sym, tac_realm * r, tac_profile * parent)
 {
-    tac_profile *n, *profile;
-
     if (!r->profiletable)
 	r->profiletable = RB_tree_new(compare_name, NULL);
 
@@ -1897,8 +1890,8 @@ static void parse_profile(struct sym *sym, tac_realm * r, tac_profile * parent)
     if (sym->code == S_equal)
 	sym_get(sym);
 
-    profile = new_profile(NULL, sym->buf, r);
-    n = (tac_profile *) RB_lookup(r->profiletable, (void *) profile);
+    tac_profile *profile = new_profile(NULL, sym->buf, r);
+    tac_profile *n = (tac_profile *) RB_lookup(r->profiletable, (void *) profile);
     if (n)
 	parse_error(sym, "Profile '%s' already defined at line %u", profile->name, n->line);
 
@@ -2411,22 +2404,20 @@ static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm
 	    parse_profile(sym, r, profile);
 	    continue;
 	case S_parent:
-	    {
-		sym_get(sym);
-		parse(sym, S_equal);
-		tac_realm *rp = r;
-		profile->parent = NULL;
-		while (rp && !profile->parent) {
-		    profile->parent = lookup_profile(sym->buf, r);
-		    rp = rp->parent;
-		}
-		if (!profile->parent)
-		    parse_error(sym, "Host '%s' not found.", sym->buf);
-		if (loopcheck_profile(profile))
-		    parse_error(sym, "'%s': circular reference rejected", sym->buf);
-		sym_get(sym);
-		continue;
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    tac_realm *rp = r;
+	    profile->parent = NULL;
+	    while (rp && !profile->parent) {
+		profile->parent = lookup_profile(sym->buf, r);
+		rp = rp->parent;
 	    }
+	    if (!profile->parent)
+		parse_error(sym, "Host '%s' not found.", sym->buf);
+	    if (loopcheck_profile(profile))
+		parse_error(sym, "'%s': circular reference rejected", sym->buf);
+	    sym_get(sym);
+	    continue;
 	case S_skip:
 	    sym_get(sym);
 	    parse(sym, S_parent_script);
@@ -2503,8 +2494,7 @@ static void parse_sshkeyhash(struct sym *sym, tac_user * user)
 	ssh_key = &((*ssh_key)->next);
 
     do {
-	size_t len;
-	len = strlen(sym->buf);
+	size_t len = strlen(sym->buf);
 	*ssh_key = mem_alloc(user->mem, sizeof(struct ssh_key) + len);
 	memcpy((*ssh_key)->hash, sym->buf, len + 1);
 	sym_get(sym);

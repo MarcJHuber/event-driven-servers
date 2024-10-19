@@ -267,11 +267,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		session->authorized = 1;
 
 	    if (!u || u->dynamic) {
-		struct sym sym = { 0 };
-
-		sym.filename = session->username;
-		sym.line = 1;
-		sym.flag_prohibit_include = 1;
+		struct sym sym = { .filename = session->username, .line = 1, .flag_prohibit_include = 1 };
 
 		if (!r->caching_period && session->user) {
 		    free_user(session->user);
