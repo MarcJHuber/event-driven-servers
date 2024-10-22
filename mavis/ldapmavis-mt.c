@@ -207,17 +207,15 @@ static int LDAP_init(LDAP ** ldap, int *capabilities)
 	if (ldap_count_entries(*ldap, res))
 	    *capabilities = LDAP_eval_rootdse(*ldap, res);
 	ldap_msgfree(res);
-	if (!capabilities_set) {
-	    res = NULL;
-	    rc = ldap_search_ext_s(*ldap, "", LDAP_SCOPE_BASE, "(objectClass=*)", NULL, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
-	    if (rc == LDAP_SUCCESS)
-		capabilities_set = 1;
-	    else
-		fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
-	    if (ldap_count_entries(*ldap, res))
-		*capabilities = LDAP_eval_rootdse(*ldap, res);
-	    ldap_msgfree(res);
-	}
+	res = NULL;
+	rc = ldap_search_ext_s(*ldap, "", LDAP_SCOPE_BASE, "(objectClass=*)", NULL, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
+	if (rc == LDAP_SUCCESS)
+	    capabilities_set = 1;
+	else
+	    fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
+	if (ldap_count_entries(*ldap, res))
+	    *capabilities = LDAP_eval_rootdse(*ldap, res);
+	ldap_msgfree(res);
     }
     if (*capabilities & CAP_STARTTLS)
 	ldap_start_tls_s(*ldap, NULL, NULL);
@@ -295,9 +293,6 @@ static int dnhash_add(struct dnhash **ha, char *dn, size_t match_start, size_t m
 
 static int dnhash_add_entry(LDAP * ldap, struct dnhash **h, char *dn, int level)
 {
-    if (ldap_group_depth > -1 && ldap_group_depth < level)
-	return 0;
-
     pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(ldap_memberof_regex, NULL);
     int pcre_res = pcre2_match((pcre2_code *) ldap_memberof_regex, (PCRE2_SPTR8) dn, (PCRE2_SIZE) strlen(dn), 0, 0, match_data, NULL);
     if (pcre_res < 0 && pcre_res != PCRE2_ERROR_NOMATCH) {
@@ -325,6 +320,9 @@ static int dnhash_add_entry(LDAP * ldap, struct dnhash **h, char *dn, int level)
 	pcre2_match_data_free(match_data);
     if (rc)
 	return -1;
+
+    if (ldap_group_depth > -1 && ldap_group_depth + 1 < level)
+	return 0;
 
     char *attrs[] = { "memberOf", NULL };
     LDAPMessage *res = NULL;
