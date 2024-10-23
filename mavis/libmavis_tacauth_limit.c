@@ -41,6 +41,7 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 		gid_t gid;		\
 		uid_t euid;		\
 		gid_t egid;		\
+		uint64_t hashbits;	\
 		u_int blacklist_count;	\
 		time_t blacklist_period;
 
@@ -116,6 +117,8 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
     DebugIn(DEBUG_MAVIS);
     mcx->blacklist_period = (time_t) 15 *60;
     mcx->blacklist_count = (u_int) 5;
+    mcx->hashbits = (1 << AV_A_USER) | (1 << AV_A_IPADDR) | (1 << AV_A_REALM);
+
     while (1) {
 	switch (sym->code) {
 	case S_script:
@@ -150,6 +153,18 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 		parse_error_expect(sym, S_time, S_count, S_unknown);
 	    }
 	    continue;
+	case S_hash:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    mcx->hashbits = 0;
+	    do {
+		int i = av_attr_token_to_i(sym);
+		if (i < 0)
+		    parse_error(sym, "%s is not a recognized MAVIS attribute", sym->buf);
+		sym_get(sym);
+		mcx->hashbits |= (1 << i);
+	    } while (parse_comma(sym));
+	    continue;
 	case S_eof:
 	case S_closebra:
 	    DebugOut(DEBUG_MAVIS);
@@ -158,7 +173,7 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 	    mavis_module_parse_action(mcx, sym);
 	    continue;
 	default:
-	    parse_error_expect(sym, S_script, S_userid, S_groupid, S_directory, S_action, S_closebra, S_unknown);
+	    parse_error_expect(sym, S_script, S_userid, S_groupid, S_directory, S_hash, S_action, S_closebra, S_unknown);
 	}
     }
     DebugOut(DEBUG_MAVIS);
@@ -172,20 +187,19 @@ static void mavis_drop_in(mavis_ctx * mcx)
     Xfree(&mcx->hashfile_tmp);
 }
 
-static void get_hash(av_ctx * ac, char *buf)
+static void get_hash(mavis_ctx * mcx, av_ctx * ac, char *buf)
 {
     u_char u[16];
-    char *t;
     myMD5_CTX m;
     DebugIn(DEBUG_MAVIS);
     myMD5Init(&m);
-    if ((t = av_get(ac, AV_A_USER)))
-	myMD5Update(&m, (u_char *) t, strlen(t));
-    if ((t = av_get(ac, AV_A_IPADDR)))
-	myMD5Update(&m, (u_char *) t, strlen(t));
-    if ((t = av_get(ac, AV_A_REALM)))
-	myMD5Update(&m, (u_char *) t, strlen(t));
-
+    uint64_t hashbits = mcx->hashbits;
+    for (int i = 0; i < AV_A_ARRAYSIZE; i++) {
+	char *t;
+	if ((hashbits & 1) && (t = av_get(ac, i)))
+	    myMD5Update(&m, (u_char *) t, strlen(t));
+	hashbits >>= 1;
+    }
     myMD5Final(u, &m);
     tohex(u, 16, buf);
     DebugOut(DEBUG_MAVIS);
@@ -206,7 +220,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
     if (!t || strcmp(t, AV_V_TACTYPE_AUTH))
 	return MAVIS_DOWN;
 
-    get_hash(*ac, mcx->hashfile + mcx->hashfile_offset + 3);
+    get_hash(mcx, *ac, mcx->hashfile + mcx->hashfile_offset + 3);
     mcx->hashfile[mcx->hashfile_offset] = mcx->hashfile[mcx->hashfile_offset + 3];
     mcx->hashfile[mcx->hashfile_offset + 1] = mcx->hashfile[mcx->hashfile_offset + 4];
     UNUSED_RESULT(setegid(mcx->gid));
@@ -256,7 +270,7 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
     if (!t || strcmp(t, AV_V_TACTYPE_AUTH))
 	return MAVIS_DOWN;
 
-    get_hash(*ac, mcx->hashfile + mcx->hashfile_offset + 3);
+    get_hash(mcx, *ac, mcx->hashfile + mcx->hashfile_offset + 3);
     mcx->hashfile[mcx->hashfile_offset] = mcx->hashfile[mcx->hashfile_offset + 3];
     mcx->hashfile[mcx->hashfile_offset + 1] = mcx->hashfile[mcx->hashfile_offset + 4];
 

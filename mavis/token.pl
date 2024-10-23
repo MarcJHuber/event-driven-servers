@@ -517,3 +517,5 @@ mavis.latency			S_mavis_latency
 #
 last-recently-used		S_last_recently_used
 #
+hash				S_hash
+#
