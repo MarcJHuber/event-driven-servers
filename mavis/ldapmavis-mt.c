@@ -321,7 +321,7 @@ static int dnhash_add_entry(LDAP * ldap, struct dnhash **h, char *dn, int level)
     if (rc)
 	return -1;
 
-    if (ldap_group_depth > -1 && ldap_group_depth + 1 < level)
+    if (level < 1 && ldap_group_depth > -2)
 	return 0;
 
     char *attrs[] = { "memberOf", NULL };
@@ -340,7 +340,7 @@ static int dnhash_add_entry(LDAP * ldap, struct dnhash **h, char *dn, int level)
 		if (!strcasecmp(attribute, "memberOf")) {
 		    int i = 0;
 		    for (; v[i]; i++)
-			dnhash_add_entry(ldap, h, v[i]->bv_val, level + 1);
+			dnhash_add_entry(ldap, h, v[i]->bv_val, level - 1);
 		}
 	    }
 	    ldap_value_free_len(v);
@@ -354,7 +354,7 @@ static int dnhash_add_entry(LDAP * ldap, struct dnhash **h, char *dn, int level)
 
 static int dnhash_add_entry_groupOfNames(LDAP * ldap, struct dnhash **h, char *dn, int level)
 {
-    if (ldap_group_depth > -1 && ldap_group_depth < level + 1)
+    if (level < 1 && ldap_group_depth > -2)
 	return 0;
 
     char *attrs[] = { "member", NULL };
@@ -393,7 +393,7 @@ static int dnhash_add_entry_groupOfNames(LDAP * ldap, struct dnhash **h, char *d
 
 		int rc = dnhash_add(h, gdn, match_start, match_len);
 		if (!rc)
-		    dnhash_add_entry_groupOfNames(ldap, h, gdn, level + 1);
+		    dnhash_add_entry_groupOfNames(ldap, h, gdn, level - 1);
 	    }
 	    if (match_data)
 		pcre2_match_data_free(match_data);
@@ -540,7 +540,7 @@ static void *run_thread(void *arg)
 		if (!strcasecmp(attribute, "memberOf")) {
 		    int i = 0;
 		    for (i = 0; v[i]; i++)
-			memberOfAdded |= !dnhash_add_entry(ldap, hash, v[i]->bv_val, 1);
+			memberOfAdded |= !dnhash_add_entry(ldap, hash, v[i]->bv_val, ldap_group_depth);
 		} else if (!strcasecmp(attribute, ldap_tacmember_attr)) {
 		    size_t b_len = 4;
 		    int i = 0;
@@ -604,7 +604,7 @@ static void *run_thread(void *arg)
 	}
 
 	if (!memberOfAdded)
-	    memberOfAdded |= !dnhash_add_entry_groupOfNames(ldap, hash, dn, 1);
+	    memberOfAdded |= !dnhash_add_entry_groupOfNames(ldap, hash, dn, ldap_group_depth);
 
 	char *tacmember_ou = "";
 	if (ldap_tacmember_map_ou) {
@@ -911,7 +911,7 @@ int main(int argc, char **argv __attribute__((unused)))
 
     tmp = getenv("LDAP_NESTED_GROUP_DEPTH");
     if (tmp)
-	ldap_group_depth = atoi(tmp) + 1;
+	ldap_group_depth = atoi(tmp);
 
     tmp = getenv("LDAP_TLS_PROTOCOL_MIN");
     if (tmp) {
