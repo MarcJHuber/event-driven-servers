@@ -770,6 +770,9 @@ session  required       pam_opendirectory.so
        Subsequent requests from the same combination of client IP
        and user will be rejected. Defaults: blacklist period =
        900, blacklist count = 5.
+     * hash = MAVIS_Attributes
+       Specifies the MAVIS attributes use for calculating the
+       backlist file names. Default: hash = USER,IPADDR,REALM
      * directory = Directory
        Specifies the directory to use for caching blacklist data.
        Please consider that the daemon will not clean up the
