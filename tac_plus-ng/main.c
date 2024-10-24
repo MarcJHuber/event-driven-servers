@@ -267,7 +267,7 @@ static void periodics(struct context *ctx, int cur __attribute__((unused)))
     if (!die_when_idle) {
 	if (config.suicide && (config.suicide < io_now.tv_sec)) {
 	    report(NULL, LOG_INFO, ~0, "Retire timeout is up. Told parent about this.");
-	    struct scm_data sd = { sd.type = SCM_DYING };
+	    struct scm_data sd = { .type = SCM_DYING };
 	    if (ctx_spawnd)
 		common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
 	    die_when_idle = -1;
