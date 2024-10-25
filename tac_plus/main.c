@@ -764,8 +764,6 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	    common_data.scm_send_msg(ctx_spawnd->sock, &d, -1);
 	}
     } else {
-	struct scm_data d;
-
 	close(s);
 	common_data.users_cur--;
 	set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
@@ -775,7 +773,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	else
 	    report(NULL, LOG_INFO, ~0, "connection request from %s %srejected%s", f, rs, hint);
 
-	d.type = SCM_DONE;
+	struct scm_data d = { .type = SCM_DONE };
 	common_data.scm_send_msg(ctx_spawnd->sock, &d, -1);
     }
 }
