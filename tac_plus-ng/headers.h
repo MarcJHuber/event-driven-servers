@@ -631,13 +631,23 @@ struct author_data {
     int is_cmd;
 };
 
-struct authen_data;
+struct tac_session;
+typedef struct tac_session tac_session;
+
+struct authen_data {
+    u_char *data;
+    size_t data_len;
+    char *msg;
+    size_t msg_len;
+    int iterations;
+    void (*authfn)(tac_session *);
+};
+
 struct mavis_data;
 struct mavis_ctx_data;
 
 struct log_item;
 
-typedef struct tac_session tac_session;
 typedef struct tac_profile tac_profile;
 
 struct tac_session {

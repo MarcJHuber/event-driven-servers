@@ -288,6 +288,8 @@ void send_authen_reply(tac_session * session, int status, char *msg, int msg_len
 
     if (status == TAC_PLUS_AUTHEN_STATUS_FAIL)
 	session->authfail_delay++;
+    else
+	session->authfail_delay = session->authen_data->iterations;
 
     if (session->authfail_delay)
 	delay_packet(session->ctx, pak, session->authfail_delay);
