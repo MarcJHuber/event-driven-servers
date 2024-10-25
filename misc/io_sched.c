@@ -282,21 +282,33 @@ static void io_invalid_h(void *v __attribute__((unused)), int cur)
 
 int io_is_invalid_i(struct io_context *io, int cur)
 {
+    if (cur < 0)
+	return -1;
+
     return (io->handler[cur].i_app == io->io_invalid_i);
 }
 
 int io_is_invalid_o(struct io_context *io, int cur)
 {
+    if (cur < 0)
+	return -1;
+
     return (io->handler[cur].o_app == io->io_invalid_o);
 }
 
 int io_is_invalid_e(struct io_context *io, int cur)
 {
+    if (cur < 0)
+	return -1;
+
     return (io->handler[cur].e == io->io_invalid_e);
 }
 
 int io_is_invalid_h(struct io_context *io, int cur)
 {
+    if (cur < 0)
+	return -1;
+
     return (io->handler[cur].h == io->io_invalid_h);
 }
 
@@ -367,6 +379,9 @@ struct io_context *io_destroy(struct io_context *io, void (*freeproc)(void *))
 
 void io_register(struct io_context *io, int fd, void *data)
 {
+    if (fd < 0)
+	return;
+
     mech_io_register(io, fd);
 
     io->handler[fd].data = data;
@@ -388,6 +403,9 @@ void io_register(struct io_context *io, int fd, void *data)
 
 void *io_unregister(struct io_context *io, int fd)
 {
+    if (fd < 0)
+	return NULL;
+
     void *res = io->handler[fd].data;
 
     mech_io_unregister(io, fd);
@@ -407,6 +425,9 @@ void *io_unregister(struct io_context *io, int fd)
 
 int io_close(struct io_context *io, int fd)
 {
+    if (fd < 0)
+	return -1;
+
     io_unregister(io, fd);
     if (mech_io_close)
 	mech_io_close(io, fd);
@@ -415,6 +436,9 @@ int io_close(struct io_context *io, int fd)
 
 void io_set_i(struct io_context *io, int fd)
 {
+    if (fd < 0)
+	return;
+
     if (!io->handler[fd].want_read_app) {
 	io->handler[fd].want_read_app = 1;
 	mech_io_set_i(io, fd);
@@ -423,6 +447,9 @@ void io_set_i(struct io_context *io, int fd)
 
 void io_set_o(struct io_context *io, int fd)
 {
+    if (fd < 0)
+	return;
+
     if (!io->handler[fd].want_write_app) {
 	io->handler[fd].want_write_app = 1;
 	mech_io_set_o(io, fd);
@@ -431,6 +458,9 @@ void io_set_o(struct io_context *io, int fd)
 
 void io_clr_i(struct io_context *io, int fd)
 {
+    if (fd < 0)
+	return;
+
     if (io->handler[fd].want_read_app) {
 	io->handler[fd].want_read_app = 0;
 #if defined(WITH_SSL) || defined(WITH_TLS)
@@ -446,6 +476,9 @@ void io_clr_i(struct io_context *io, int fd)
 
 void io_clr_o(struct io_context *io, int fd)
 {
+    if (fd < 0)
+	return;
+
     if (io->handler[fd].want_write_app) {
 	io->handler[fd].want_write_app = 0;
 #if defined(WITH_SSL) || defined(WITH_TLS)
@@ -461,6 +494,9 @@ void io_clr_o(struct io_context *io, int fd)
 #if defined(WITH_SSL) || defined(WITH_TLS)
 static __inline__ void io_SSL_set_i(struct io_context *io, int fd)
 {
+    if (fd < 0)
+	return;
+
     if (!io->handler[fd].want_read_ssl) {
 	io->handler[fd].want_read_ssl = 1;
 	mech_io_set_i(io, fd);
@@ -469,6 +505,9 @@ static __inline__ void io_SSL_set_i(struct io_context *io, int fd)
 
 static __inline__ void io_SSL_set_o(struct io_context *io, int fd)
 {
+    if (fd < 0)
+	return;
+
     if (!io->handler[fd].want_write_ssl) {
 	io->handler[fd].want_write_ssl = 1;
 	mech_io_set_o(io, fd);
@@ -477,6 +516,9 @@ static __inline__ void io_SSL_set_o(struct io_context *io, int fd)
 
 static __inline__ void io_SSL_clr_i(struct io_context *io, int fd)
 {
+    if (fd < 0)
+	return;
+
     if (io->handler[fd].want_read_ssl) {
 	io->handler[fd].want_read_ssl = 0;
 	if (!io->handler[fd].want_read_app)
@@ -486,6 +528,9 @@ static __inline__ void io_SSL_clr_i(struct io_context *io, int fd)
 
 static __inline__ void io_SSL_clr_o(struct io_context *io, int fd)
 {
+    if (fd < 0)
+	return;
+
     if (io->handler[fd].want_write_ssl) {
 	io->handler[fd].want_write_ssl = 0;
 	if (!io->handler[fd].want_write_app)
