@@ -84,15 +84,6 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-struct authen_data {
-    u_char *data;
-    size_t data_len;
-    char *msg;
-    size_t msg_len;
-    int iterations;
-    void (*authfn)(tac_session *);
-};
-
 static struct log_item *li_user_access_verification = NULL;
 static struct log_item *li_username = NULL;
 static struct log_item *li_password = NULL;
