@@ -41,7 +41,7 @@ int scm_send_msg(int sock, struct scm_data *sd, int fd)
 
     struct msghdr msg = {.msg_iov = &vector,.msg_iovlen = 1 };
 
-    char buf[CMSG_SPACE(sizeof(int))] __attribute__((aligned(8)));
+    char buf[CMSG_SPACE(sizeof(int))] __attribute__((aligned(8))) = { 0 };
     if (fd > -1) {
 	msg.msg_control = (caddr_t) buf;
 	msg.msg_controllen = sizeof(buf);
