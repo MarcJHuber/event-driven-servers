@@ -80,19 +80,22 @@ void report(tac_session * session, int priority, int level, char *fmt, ...)
 	}
 	if (common_data.debugtty || common_data.debug_redirected) {
 	    static pid_t pid = 0;
+	    if (!pid)
+		pid = getpid();
 	    static char now[80];
-	    static time_t last = 0;
-	    time_t dummy;
-	    struct tm *tm;
-	    *now = 0;
-	    dummy = (time_t) io_now.tv_sec;
-	    if (!dummy)
-		dummy = time(NULL);
-	    if (last != io_now.tv_sec) {
-		    tm = localtime(&dummy);
-		    strftime(now, sizeof(now), "%H:%M:%S", tm);
+	    static struct timeval last = { 0 };
+	    if (!io_now.tv_sec)
+		io_now.tv_sec = time(NULL);
+	    if (last.tv_sec != io_now.tv_sec || last.tv_usec != io_now.tv_usec) {
+		last.tv_sec = io_now.tv_sec;
+		last.tv_usec = io_now.tv_usec;
+		*now = 0;
+		time_t dummy = (time_t) io_now.tv_sec;
+		if (!dummy)
+		    dummy = time(NULL);
+		struct tm *tm = localtime(&dummy);
+		strftime(now, sizeof(now), "%H:%M:%S", tm);
 	    }
-	    pid = pid ? pid : getpid();
 	    fprintf(stderr, "%ld: %s.%.3lu %x/%.8x: %s %s\n", (long int) pid,
 		    now, (u_long) io_now.tv_usec / 1000, (session
 							  && session->ctx) ? session->ctx->id : 0, session ? ntohl(session->session_id) : 0, nas_addr, msg);
