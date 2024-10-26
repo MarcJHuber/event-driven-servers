@@ -335,6 +335,8 @@ static void delay_packet(struct context *ctx, tac_pak * p, int delay)
 /* write a packet to the wire, encrypting it */
 static void write_packet(struct context *ctx, tac_pak * p)
 {
+    p->hdr.flags |= ctx->flags;
+
     if ((common_data.debug | ctx->debug) & DEBUG_PACKET_FLAG) {
 	tac_session dummy_session = { 0 };
 	dummy_session.session_id = p->hdr.session_id;
@@ -343,9 +345,6 @@ static void write_packet(struct context *ctx, tac_pak * p)
 	report(&dummy_session, LOG_DEBUG, DEBUG_PACKET_FLAG, "Writing %s size=%d", summarise_outgoing_packet_type(&p->hdr), (int) p->length);
 	dump_tacacs_pak(&dummy_session, &p->hdr);
     }
-
-    p->hdr.flags |= ctx->flags;
-    ctx->flags = 0;
 
     /* encrypt the data portion */
     if (!ctx->unencrypted_flag && ctx->key)
