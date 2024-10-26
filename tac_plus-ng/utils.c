@@ -60,24 +60,14 @@ static void create_dirs(char *path)
 
 static int tac_lockfd(int lockfd)
 {
-    static struct flock *flock = NULL;
-    if (!flock) {
-	flock = calloc(1, sizeof(struct flock));
-	flock->l_type = F_WRLCK;
-	flock->l_whence = SEEK_SET;
-    }
-    return fcntl(lockfd, F_SETLK, flock);
+    static struct flock flock = { .l_type = F_WRLCK, .l_whence = SEEK_SET };
+    return fcntl(lockfd, F_SETLK, &flock);
 }
 
 static int tac_unlockfd(int lockfd)
 {
-    static struct flock *flock = NULL;
-    if (!flock) {
-	flock = calloc(1, sizeof(struct flock));
-	flock->l_type = F_UNLCK;
-	flock->l_whence = SEEK_SET;
-    }
-    return fcntl(lockfd, F_SETLK, flock);
+    static struct flock flock = { .l_type = F_UNLCK, .l_whence = SEEK_SET };
+    return fcntl(lockfd, F_SETLK, &flock);
 }
 
 struct logfile {
