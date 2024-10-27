@@ -402,8 +402,7 @@ static int accounting_pak_looks_bogus(struct context *ctx)
 
 static __inline__ tac_session *RB_lookup_session(rb_tree_t * rbt, int session_id)
 {
-    tac_session s;
-    s.session_id = session_id;
+    tac_session s = { .session_id = session_id };
     return RB_lookup(rbt, &s);
 }
 
