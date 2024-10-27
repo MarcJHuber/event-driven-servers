@@ -454,7 +454,7 @@ int su_pton(sockaddr_union * su, char *src)
 
 int su_addrinfo(char *address, char *port, int protocol, int family, int count, void *data, int (*func)(sockaddr_union *, void *))
 {
-    sockaddr_union su;
+    sockaddr_union su = { 0 };
     uint16_t p = 0;
 #ifdef AF_INET6
     struct addrinfo *res;
@@ -463,7 +463,6 @@ int su_addrinfo(char *address, char *port, int protocol, int family, int count, 
     struct hostent *he;
 #endif				/* AF_INET */
 #endif				/* AF_INET6 */
-    memset(&su, 0, sizeof(su));
 
     if (port && (service_to_port(&p, port, protocol) < 0))
 	return -1;

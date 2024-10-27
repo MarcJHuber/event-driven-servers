@@ -1222,8 +1222,7 @@ static void mschap_deshash(u_char * clear, u_char * cypher)
 
 static void mschap_lmhash(char *password, u_char * hash)
 {
-    u_char upassword[15];
-    memset(upassword, 0, sizeof(upassword));
+    u_char upassword[15] = { 0 };
 
     for (size_t i = 0; password[i] && i < sizeof(upassword); i++)
 	upassword[i] = (u_char) toupper((int) (password[i]));
@@ -1234,9 +1233,8 @@ static void mschap_lmhash(char *password, u_char * hash)
 
 static void mschap_chalresp(u_char * chal, u_char * hash, u_char * resp)
 {
-    u_char zhash[21];
+    u_char zhash[21] = { 9 };
 
-    memset(zhash, 0, sizeof(zhash));
     memcpy(zhash, hash, (size_t) 16);
 
     mschap_desencrypt(chal, zhash, resp);

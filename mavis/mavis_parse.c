@@ -2507,10 +2507,8 @@ static int mon2n(char *t)
 int parse_cron(struct mavis_tm *tm, char *t)
 {
     int start = -1, val = 0, field = 0, valid = 0, i;
-    long long a[5];
+    long long a[5] = { 0 };
     int amax[5] = { 60, 24, 31, 12, 7 };
-
-    memset(&a, 0, sizeof(a));
 
     while (*t && field < 5) {
 	switch (*t) {

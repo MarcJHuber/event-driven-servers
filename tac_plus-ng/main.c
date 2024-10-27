@@ -564,10 +564,9 @@ static struct context_px *new_context_px(struct io_context *io, struct scm_data_
 
 static void read_px(struct context_px *ctx, int cur)
 {
-    char tmp[240];
+    char tmp[240] = { 0 };
     struct proxy_hdr_v2 *hdr = (struct proxy_hdr_v2 *) tmp;
     union proxy_addr *addr = (union proxy_addr *) &tmp[sizeof(struct proxy_hdr_v2)];
-    memset(&tmp, 0, sizeof(tmp));
     ssize_t len = recv(cur, &tmp, sizeof(tmp), MSG_PEEK);
     ctx->last_io = io_now.tv_sec;
     uint16_t hlen;
