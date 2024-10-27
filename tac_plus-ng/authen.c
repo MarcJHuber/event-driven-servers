@@ -1690,8 +1690,6 @@ void get_revmap_nac(tac_session * session)
 #ifdef WITH_DNS
 static void set_revmap_nas(struct context *ctx, char *hostname, int ttl)
 {
-    rb_node_t *rbn, *rbnext;
-
     if (!hostname)
 	ttl = 60;
 
@@ -1705,7 +1703,7 @@ static void set_revmap_nas(struct context *ctx, char *hostname, int ttl)
 
     add_revmap(ctx->realm, &ctx->nas_address, hostname, ttl, 1);
 
-    for (rbn = RB_first(ctx->sessions); rbn; rbn = rbnext) {
+    for (rb_node_t *rbnext, *rbn = RB_first(ctx->sessions); rbn; rbn = rbnext) {
 	tac_session *session = RB_payload(rbn, tac_session *);
 	rbnext = RB_next(rbn);
 

@@ -368,8 +368,7 @@ void complete_realm(tac_realm * r)
 		    r->default_host->user_messages[um] = rp->default_host->user_messages[um];
     }
     if (r->realms) {
-	rb_node_t *rbn;
-	for (rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
+	for (rb_node_t *rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    complete_realm(RB_payload(rbn, tac_realm *));
     }
 }
@@ -555,8 +554,7 @@ void drop_mcx(tac_realm * r)
 void expire_dynamic_users(tac_realm * r)
 {
     if (r->usertable) {
-	rb_node_t *rbnext;
-	for (rb_node_t * rbn = RB_first(r->usertable); rbn; rbn = rbnext) {
+	for (rb_node_t *rbnext, *rbn = RB_first(r->usertable); rbn; rbn = rbnext) {
 	    time_t v = RB_payload(rbn, tac_user *)->dynamic;
 	    rbnext = RB_next(rbn);
 
@@ -1100,8 +1098,7 @@ tac_realm *lookup_sni(const char *name, size_t name_len, tac_realm * r)
 
     if (r->realms) {
 	tac_realm *res;
-	rb_node_t *rbn;
-	for (rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
+	for (rb_node_t *rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    if ((res = lookup_sni(name, name_len, RB_payload(rbn, tac_realm *))))
 		return res;
     }

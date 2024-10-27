@@ -1838,7 +1838,6 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 void log_exec(tac_session * session, struct context *ctx, enum token token, time_t sec)
 {
     tac_realm *r = ctx->realm;
-    rb_node_t *rbn;
     while (r) {
 	rb_tree_t *rbt;
 	switch (token) {
@@ -1859,7 +1858,7 @@ void log_exec(tac_session * session, struct context *ctx, enum token token, time
 	    rbt = NULL;
 	}
 	if (rbt) {
-	    for (rbn = RB_first(rbt); rbn; rbn = RB_next(rbn)) {
+	    for (rb_node_t *rbn = RB_first(rbt); rbn; rbn = RB_next(rbn)) {
 		struct logfile *lf = RB_payload(rbn, struct logfile *);
 		struct log_item *li = NULL;
 		char *s;

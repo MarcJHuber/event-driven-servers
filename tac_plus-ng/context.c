@@ -133,8 +133,7 @@ void tac_script_expire_exec_context(struct context *ctx)
 {
 
     if (ctx->shellctxcache) {
-	rb_node_t *rbn, *rbnext;
-	for (rbn = RB_first(ctx->shellctxcache); rbn; rbn = rbnext) {
+	for (rb_node_t *rbnext, *rbn = RB_first(ctx->shellctxcache); rbn; rbn = rbnext) {
 	    time_t v = RB_payload(rbn, struct shellctx *)->expires;
 	    rbnext = RB_next(rbn);
 	    if (v < io_now.tv_sec)

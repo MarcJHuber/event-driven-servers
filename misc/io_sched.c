@@ -1731,10 +1731,9 @@ struct timeval *io_sched_peek_time(struct io_context *io, void *data)
 
 static void io_reschedule(struct io_context *io)
 {
-    rb_node_t *rbn, *rbnext;
     struct io_sched *ios;
 
-    for (rbn = RB_first(io->events_by_time);
+    for (rb_node_t *rbnext, *rbn = RB_first(io->events_by_time);
 	 rbn &&
 	 ((ios =
 	   RB_payload(rbn,
@@ -1754,7 +1753,6 @@ static void io_reschedule(struct io_context *io)
 
 int io_sched_exec(struct io_context *io)
 {
-    rb_node_t *rbn, *rbnext;
     int poll_timeout = -1;
     struct io_sched *ios;
 
@@ -1762,7 +1760,7 @@ int io_sched_exec(struct io_context *io)
 
     io_reschedule(io);
 
-    for (rbn = RB_first(io->events_by_time);
+    for (rb_node_t *rbnext, *rbn = RB_first(io->events_by_time);
 	 rbn && (ios = RB_payload(rbn, struct io_sched *)) && (ios->time_when.tv_sec < io_now.tv_sec
 							       || (ios->time_when.tv_sec == io_now.tv_sec && ios->time_when.tv_usec <= io_now.tv_usec));
 	 rbn = rbnext) {
@@ -1775,7 +1773,7 @@ int io_sched_exec(struct io_context *io)
 
     io_reschedule(io);
 
-    rbn = RB_first(io->events_by_time);
+    rb_node_t *rbn = RB_first(io->events_by_time);
     if (rbn) {
 	ios = RB_payload(rbn, struct io_sched *);
 	if (ios)

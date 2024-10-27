@@ -251,8 +251,7 @@ static void expire_dns(tac_realm * r)
 	r->dns_tree_ptr[1] = NULL;
     }
     if (r->realms) {
-	rb_node_t *rbn;
-	for (rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
+	for (rb_node_t *rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    expire_dns(RB_payload(rbn, tac_realm *));
     }
 }

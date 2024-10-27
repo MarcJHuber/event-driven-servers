@@ -348,7 +348,6 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 static void mavis_drop_in(mavis_ctx * mcx)
 {
     struct remote_addr_s *ra, *rat;
-    rb_node_t *rb, *rbn;
     if (mcx->io)
 	io_close(mcx->io, mcx->sock);
     else if (mcx->sock > -1)
@@ -363,7 +362,7 @@ static void mavis_drop_in(mavis_ctx * mcx)
     mcx->remote_addr = NULL;
     Xfree(&mcx->local_addr);
     RB_tree_delete(mcx->retransmit_by_app_ctx);
-    for (rb = RB_first(mcx->retransmit); rb; rb = rbn) {
+    for (rb_node_t *rbn, *rb = RB_first(mcx->retransmit); rb; rb = rbn) {
 	struct query *q = RB_payload(rb, struct query *);
 	rbn = RB_next(rb);
 	io_sched_pop(mcx->io, q);
