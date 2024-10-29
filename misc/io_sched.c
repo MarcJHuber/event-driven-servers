@@ -62,8 +62,8 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 #define IO_MODE_select	(1 << 4)
 #define IO_MODE_port	(1 << 5)
 
-#define ARRAYINC 128
-#define LISTINC 128
+#define ARRAYINC 8192
+#define LISTINC 8192
 
 struct io_handler {
     void *i;			/* input handler */
@@ -97,7 +97,7 @@ struct kqueue_io_context {
 struct epoll_io_context {
     int *changelist;
     int *changemap;
-    int *diskfilemap;
+    int *diskfilemap; // epoll() doesn't work with regular files
     int *diskfile;
     struct epoll_event *eventlist;
     int nchanges;
@@ -865,8 +865,7 @@ static void epoll_io_init(struct io_context *io)
     fcntl(io->Epoll.fd, F_SETFD, flags);
 
     io->Epoll.nchanges = io->Epoll.ndiskfile = 0;
-    io->Epoll.nevents_max = io->nfds_max;
-    io->Epoll.eventlist = Xcalloc(io->Epoll.nevents_max, sizeof(struct epoll_event));
+    io->Epoll.eventlist = Xcalloc(io->nfds_max, sizeof(struct epoll_event));
     io->Epoll.changelist = Xcalloc(io->nfds_max, sizeof(int));
     io->Epoll.changemap = Xcalloc(io->nfds_max, sizeof(int));
     io->Epoll.diskfile = Xcalloc(io->nfds_max, sizeof(int));
@@ -896,14 +895,14 @@ static void epoll_io_register(struct io_context *io, int fd)
     Debug((DEBUG_PROC, " io_register %d\n", fd));
 
     if (fd >= io->nfds_max) {
-	int i;
 	int omax = io->nfds_max;
 	io_resize(io, fd);
+	io->Epoll.eventlist = Xrealloc(io->Epoll.eventlist, io->nfds_max * sizeof(struct epoll_event));
 	io->Epoll.changelist = Xrealloc(io->Epoll.changelist, io->nfds_max * sizeof(int));
 	io->Epoll.changemap = Xrealloc(io->Epoll.changemap, io->nfds_max * sizeof(int));
 	io->Epoll.diskfile = Xrealloc(io->Epoll.diskfile, io->nfds_max * sizeof(int));
 	io->Epoll.diskfilemap = Xrealloc(io->Epoll.diskfile, io->nfds_max * sizeof(int));
-	for (i = omax; i < io->nfds_max; i++) {
+	for (int i = omax; i < io->nfds_max; i++) {
 	    io->Epoll.changelist[i] = -1;
 	    io->Epoll.changemap[i] = -1;
 	    io->Epoll.diskfile[i] = -1;
@@ -920,14 +919,13 @@ static void epoll_io_register(struct io_context *io, int fd)
 
 static int epoll_io_poll(struct io_context *io, int poll_timeout, int *cax)
 {
-    int count, res;
     Debug((DEBUG_PROC, "io_poll (%p)\n", io));
 
     *cax = 0;
 
-    for (count = 0; count < io->Epoll.nchanges; count++) {
-	int fd = io->Epoll.changelist[count];
-	if (fd > -1 && io->Epoll.changemap[fd] == count && io->Epoll.diskfilemap[fd] == -1) {
+    for (int i = 0; i < io->Epoll.nchanges; i++) {
+	int fd = io->Epoll.changelist[i];
+	if (fd > -1 && io->Epoll.changemap[fd] == i && io->Epoll.diskfilemap[fd] == -1) {
 	    struct epoll_event e;
 	    e.data.fd = fd;
 	    e.events = (io->handler[fd].want_read ? EPOLLIN : 0) | (io->handler[fd].want_write ? EPOLLOUT : 0);
@@ -942,12 +940,12 @@ static int epoll_io_poll(struct io_context *io, int poll_timeout, int *cax)
     }
     io->Epoll.nchanges = 0;
 
-    res = epoll_wait(io->Epoll.fd, io->Epoll.eventlist, io->Epoll.nevents_max, io->Epoll.ndiskfile ? 0 : poll_timeout);
+    int res = epoll_wait(io->Epoll.fd, io->Epoll.eventlist, io->nfds_max, io->Epoll.ndiskfile ? 0 : poll_timeout);
 
     gettimeofday(&io_now, NULL);
 
-    for (count = 0; count < res; count++) {
-	int cur = io->Epoll.eventlist[count].data.fd;
+    for (int i = 0; i < res; i++) {
+	int cur = io->Epoll.eventlist[i].data.fd;
 
 	if (io->rcache_map[cur] < 0) {
 	    io->rcache[*cax].events = 0;
@@ -955,13 +953,13 @@ static int epoll_io_poll(struct io_context *io, int poll_timeout, int *cax)
 	    io->rcache_map[cur] = (*cax)++;
 	}
 
-	io->rcache[io->rcache_map[cur]].events = io->Epoll.eventlist[count].events;
+	io->rcache[io->rcache_map[cur]].events = io->Epoll.eventlist[i].events;
     }
 
     res += io->Epoll.ndiskfile;
 
-    for (count = 0; count < io->Epoll.ndiskfile; count++) {
-	int cur = io->Epoll.diskfilemap[count];
+    for (int i = 0; i < io->Epoll.ndiskfile; i++) {
+	int cur = io->Epoll.diskfilemap[i];
 
 	if (io->rcache_map[cur] < 0) {
 	    io->rcache[*cax].events = 0;
