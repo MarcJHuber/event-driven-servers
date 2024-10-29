@@ -40,7 +40,7 @@ static void cleanup_context(struct context *ctx, int cur)
     if (ctx->is_client)
 	common_data.users_cur--;
 
-    struct scm_data sd = {.type = SCM_DONE };
+    struct scm_data sd = {.type = SCM_DONE, .count = 1 }; //FIXME
     if (ctx->is_client && common_data.scm_send_msg(0, &sd, -1))
 	die_when_idle = -1;
 

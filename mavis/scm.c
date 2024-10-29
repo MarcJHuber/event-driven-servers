@@ -29,9 +29,6 @@ int scm_send_msg(int sock, struct scm_data *sd, int fd)
 {
     struct iovec vector = {.iov_base = sd };
     switch (sd->type) {
-    case SCM_MAX:
-	vector.iov_len = sizeof(struct scm_data_max);
-	break;
     case SCM_ACCEPT:
 	vector.iov_len = sizeof(struct scm_data_accept);
 	break;
@@ -93,7 +90,7 @@ int fakescm_send_msg(int sock __attribute__((unused)), struct scm_data *sd, int 
 	common_data.scm_accept(fd, (struct scm_data_accept *) sd);
 	break;
     case SCM_MAX:
-	common_data.users_max = common_data.users_max_total = ((struct scm_data_max *) sd)->max;
+	common_data.users_max = common_data.users_max_total = ((struct scm_data *) sd)->count;
 	break;
     default:
 	;

@@ -138,7 +138,7 @@ int main(int argc, char **argv, char **envp)
 	fcntl(0, O_NONBLOCK);
     }
 
-    struct scm_data_max sd = {.type = SCM_MAX,.max = (io_get_nfds_limit(common_data.io) - 10) / 2 };
+    struct scm_data sd = {.type = SCM_MAX,.count = (io_get_nfds_limit(common_data.io) - 10) / 2 };
     common_data.scm_send_msg(0, (struct scm_data *) &sd, -1);
     io_sched_add(io, new_context(io), (void *) periodics, 60, 0);
 

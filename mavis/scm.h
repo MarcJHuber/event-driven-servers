@@ -17,11 +17,7 @@ enum scm_token { SCM_DONE = 0, SCM_KEEPALIVE, SCM_MAY_DIE, SCM_DYING, SCM_BAD_CF
 
 struct scm_data {
     enum scm_token type;
-};
-
-struct scm_data_max {
-    enum scm_token type;
-    int max;
+    int count;
 };
 
 struct scm_data_accept {

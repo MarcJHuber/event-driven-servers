@@ -206,10 +206,15 @@ static void users_inc(void)
 
 static void users_dec(void)
 {
+    static int pending = 0;
+    pending++;
     common_data.users_cur--;
-    struct scm_data d = {.type = SCM_DONE };
-    if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &d, -1) < 0)
-	die_when_idle = 1;
+    struct scm_data d = {.type = SCM_DONE, .count = pending };
+    if (ctx_spawnd && (common_data.scm_send_msg(ctx_spawnd->sock, &d, -1) < 0)) {
+	if  (errno != EAGAIN && errno != EWOULDBLOCK)
+		die_when_idle = 1;
+    } else
+	pending = 0;
     set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 }
 
@@ -272,7 +277,7 @@ static void periodics(struct context *ctx, int cur __attribute__((unused)))
 	    die_when_idle = -1;
 	} else {
 	    struct scm_data sd = {.type = SCM_KEEPALIVE };
-	    if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1))
+	    if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1) && errno != EAGAIN && errno !=EWOULDBLOCK)
 		die_when_idle = -1;
 	}
     }
@@ -373,7 +378,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (ctx_spawnd) {
-	struct scm_data_max sd = {.type = SCM_MAX,.max = io_get_nfds_limit(common_data.io) / 4 };
+	struct scm_data sd = {.type = SCM_MAX,.count = io_get_nfds_limit(common_data.io) / 4 };
 	common_data.scm_send_msg(ctx_spawnd->sock, (struct scm_data *) &sd, -1);
     }
 

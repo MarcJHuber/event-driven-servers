@@ -86,6 +86,26 @@ static int compare_session(const void *a, const void *b)
 
 static u_int context_id = 0;
 
+static void users_inc(void)
+{
+    common_data.users_cur++;
+    set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
+}
+
+static void users_dec(void)
+{
+    static int pending = 0;
+    pending++;
+    common_data.users_cur--;
+    struct scm_data d = {.type = SCM_DONE, .count = pending };
+    if (ctx_spawnd && (common_data.scm_send_msg(ctx_spawnd->sock, &d, -1) < 0)) {
+	if  (errno != EAGAIN && errno != EWOULDBLOCK)
+		die_when_idle = 1;
+    } else
+	pending = 0;
+    set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
+}
+
 struct context *new_context(struct io_context *io, tac_realm * r)
 {
     struct context *c = calloc(1, sizeof(struct context));
@@ -145,7 +165,7 @@ static void periodics(struct context *ctx, int cur __attribute__((unused)))
     }
 
     sd.type = SCM_KEEPALIVE;
-    if (ctx_spawnd && !die_when_idle && common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1))
+    if (ctx_spawnd && !die_when_idle && common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1) && errno != EAGAIN && errno !=EWOULDBLOCK)
 	die_when_idle = -1;
 
     if (common_data.users_cur == 0 && die_when_idle)
@@ -266,7 +286,7 @@ int main(int argc, char **argv, char **envp)
     }
 
     if (ctx_spawnd) {
-	struct scm_data_max sd = {.type = SCM_MAX,.max = io_get_nfds_limit(common_data.io) / 4 };
+	struct scm_data sd = {.type = SCM_MAX,.count = io_get_nfds_limit(common_data.io) / 4 };
 	common_data.scm_send_msg(ctx_spawnd->sock, (struct scm_data *) &sd, -1);
     }
 
@@ -316,16 +336,13 @@ void cleanup(struct context *ctx, int cur)
     }
 #endif
 
+    users_dec();
     mem_destroy(ctx->mem);
-
-    common_data.users_cur--;
-    set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 
     if (ctx_spawnd) {
 	struct scm_data sd = {.type = SCM_DONE };
 	common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
     }
-    set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 
     if (ctx_spawnd && common_data.users_cur == 0 && die_when_idle)
 	cleanup(ctx_spawnd, 0);
@@ -377,9 +394,8 @@ static void cleanup_px(struct context_px *ctx, int cur __attribute__((unused)))
     struct scm_data sd = {.type = SCM_DONE };
     if (ctx_spawnd)
 	common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
+    users_dec();
     free(ctx);
-    common_data.users_cur--;
-    set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 }
 
 static void try_raw(struct context_px *ctx, int cur __attribute__((unused)))
@@ -502,11 +518,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	report(NULL, LOG_DEBUG, DEBUG_PACKET_FLAG, "getpeername: %s", strerror(errno));
 	io_close(common_data.io, s);
 
-	common_data.users_cur--;
-	set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
-
-	struct scm_data d = {.type = SCM_DONE };
-	common_data.scm_send_msg(ctx_spawnd->sock, &d, -1);
+	users_dec();
 	return;
     }
 
@@ -766,16 +778,12 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
 	}
     } else {
 	close(s);
-	common_data.users_cur--;
-	set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
+	users_dec();
 
 	if (p)
 	    report(NULL, LOG_INFO, ~0, "proxied connection request from %s for %s %srejected%s", p, f, rs, hint);
 	else
 	    report(NULL, LOG_INFO, ~0, "connection request from %s %srejected%s", f, rs, hint);
-
-	struct scm_data d = { .type = SCM_DONE };
-	common_data.scm_send_msg(ctx_spawnd->sock, &d, -1);
     }
 }
 
@@ -795,8 +803,7 @@ static void accept_control(struct context *ctx, int cur)
     case SCM_ACCEPT:
 	setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (char *) &one, (socklen_t) sizeof(one));
 	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (char *) &one, (socklen_t) sizeof(one));
-	common_data.users_cur++;
-	set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
+	users_inc();
 	if (config.haproxy)
 	    accept_control_px(s, &sd);
 	else

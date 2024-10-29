@@ -144,21 +144,20 @@ static void recv_childmsg(struct spawnd_context *ctx, int cur)
     else
 	switch (sd.type) {
 	case SCM_DONE:
-	    common_data.users_cur--, ctx->use--;
+	    common_data.users_cur -= (((struct scm_data *) &sd))->count, ctx->use -= (((struct scm_data *) &sd))->count;
 	    if (spawnd_data.listeners_inactive) {
-		int i;
 		logmsg("resuming normal operation");
 		spawnd_data.listeners_inactive = 0;
 		switch (spawnd_data.overload) {
 		case S_queue:
-		    for (i = 0; i < spawnd_data.listeners_max; i++) {
+		    for (int i = 0; i < spawnd_data.listeners_max; i++) {
 			if (spawnd_data.listener_arr[i]->listen_backlog != spawnd_data.listener_arr[i]->overload_backlog)
 			    listen(spawnd_data.listener_arr[i]->fn, spawnd_data.listener_arr[i]->listen_backlog);
 			io_set_i(ctx->io, spawnd_data.listener_arr[i]->fn);
 		    }
 		    break;
 		case S_reset:
-		    for (i = 0; i < spawnd_data.listeners_max; i++)
+		    for (int i = 0; i < spawnd_data.listeners_max; i++)
 			spawnd_bind_listener(spawnd_data.listener_arr[i], spawnd_data.listener_arr[i]->fn);
 		    break;
 		default:;
@@ -173,7 +172,7 @@ static void recv_childmsg(struct spawnd_context *ctx, int cur)
 	    spawnd_cleanup_internal(ctx, cur);
 	    break;
 	case SCM_MAX:
-	    max = ((struct scm_data_max *) (&sd))->max;
+	    max = (((struct scm_data *) &sd))->count;
 	    if (common_data.users_max > max) {
 		common_data.users_max = max;
 		logmsg("child limits maximum number of users to %d", common_data.users_max);
