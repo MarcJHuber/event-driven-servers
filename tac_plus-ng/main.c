@@ -363,6 +363,7 @@ int main(int argc, char **argv, char **envp)
 	ctx_spawnd = new_context(common_data.io, NULL);
 	ctx_spawnd->sock = dup(0);
 	dup2(2, 0);
+	fcntl(ctx_spawnd->sock, F_SETFL, O_NONBLOCK);
 	io_register(common_data.io, ctx_spawnd->sock, ctx_spawnd);
 	io_set_cb_i(common_data.io, ctx_spawnd->sock, (void *) accept_control);
 	io_clr_cb_o(common_data.io, ctx_spawnd->sock);

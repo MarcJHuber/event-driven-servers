@@ -135,6 +135,7 @@ int main(int argc, char **argv, char **envp)
 	io_set_cb_e(io, 0, (void *) cleanup_spawnd);
 	io_set_cb_h(io, 0, (void *) cleanup_spawnd);
 	io_set_i(io, 0);
+	fcntl(0, O_NONBLOCK);
     }
 
     struct scm_data_max sd = {.type = SCM_MAX,.max = (io_get_nfds_limit(common_data.io) - 10) / 2 };

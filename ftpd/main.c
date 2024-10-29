@@ -119,6 +119,7 @@ int main(int argc, char **argv, char **envp)
 	setup_signals();
 	ctx_spawnd = new_context(io);
 	ctx_spawnd->cfn = 0;
+	fcntl(ctx_spawnd->cfn, F_SETFL, O_NONBLOCK);
 	io_register(io, 0, ctx_spawnd);
 	io_set_cb_i(io, 0, (void *) accept_control);
 	io_clr_cb_o(io, 0);
