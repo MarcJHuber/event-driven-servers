@@ -339,11 +339,6 @@ void cleanup(struct context *ctx, int cur)
     users_dec();
     mem_destroy(ctx->mem);
 
-    if (ctx_spawnd) {
-	struct scm_data sd = {.type = SCM_DONE };
-	common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
-    }
-
     if (ctx_spawnd && common_data.users_cur == 0 && die_when_idle)
 	cleanup(ctx_spawnd, 0);
 }
@@ -391,9 +386,6 @@ static void cleanup_px(struct context_px *ctx, int cur __attribute__((unused)))
     while (io_sched_pop(ctx->io, ctx));
     io_close(ctx->io, ctx->sock);
 
-    struct scm_data sd = {.type = SCM_DONE };
-    if (ctx_spawnd)
-	common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
     users_dec();
     free(ctx);
 }
