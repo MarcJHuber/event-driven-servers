@@ -314,40 +314,38 @@ int io_is_invalid_h(struct io_context *io, int cur)
 
 int io_poll(struct io_context *io, int poll_timeout)
 {
-    int count, cax = 0;
+    int cax = 0;
     int res = mech_io_poll(io, poll_timeout, &cax);
 
-    for (count = 0; count < cax; count++) {
-	int cur = io->rcache[count].fd;
-	struct io_context *ctx;
+    for (int i = 0; i < cax; i++) {
+	int fd = io->rcache[i].fd;
+	int ev = io->rcache[i].events;
 
-	if (cur > -1) {
-	    ctx = io_get_ctx(io, cur);
-	    Debug((DEBUG_PROC, "fd %d ctx %p\n", cur, ctx));
+	if (fd > -1) {
+	    Debug((DEBUG_PROC, "fd %d ctx %p\n", fd, ctx));
+	    struct io_context *ctx = io_get_ctx(io, fd);
 	    if (ctx) {
-		void (*cb)(void *, int);
-		if (io->handler[cur].want_read && (io->rcache[count].events & POLLIN))
-		    cb = (void (*)(void *, int)) (io_get_cb_i(io, cur));
-		else if (io->handler[cur].want_write && (io->rcache[count].events & POLLOUT)
-			 && !(io->rcache[count].events & POLLHUP))
-		    cb = (void (*)(void *, int)) (io_get_cb_o(io, cur));
-		else if (io->rcache[count].events & POLLERR)
-		    cb = (void (*)(void *, int)) (io_get_cb_e(io, cur));
-		else if (io->rcache[count].events & POLLHUP)
-		    cb = (void (*)(void *, int)) (io_get_cb_h(io, cur));
-		else
-		    cb = NULL;
+		void (*cb)(void *, int) = NULL;
+		if (io->handler[fd].want_read && (ev & POLLIN))
+		    cb = (void (*)(void *, int)) (io_get_cb_i(io, fd));
+		else if (io->handler[fd].want_write && (ev & POLLOUT) && !(ev & POLLHUP))
+		    cb = (void (*)(void *, int)) (io_get_cb_o(io, fd));
+		else if (ev & POLLERR)
+		    cb = (void (*)(void *, int)) (io_get_cb_e(io, fd));
+		else if (ev & POLLHUP)
+		    cb = (void (*)(void *, int)) (io_get_cb_h(io, fd));
 
-		Debug((DEBUG_PROC, "fd %d cb = %p\n", cur, cb));
+		Debug((DEBUG_PROC, "fd %d cb = %p\n", fd, cb));
 		if (cb)
-		    cb(ctx, cur);
+		    cb(ctx, fd);
 	    }
-	    io->rcache_map[cur] = -1;
+	    io->rcache_map[fd] = -1;
 	}
 
-	io->rcache[count].fd = -1;
-	io->rcache[count].events = 0;
+	io->rcache[i].fd = -1;
+	io->rcache[i].events = 0;
     }
+
     if (mech_io_poll_finish)
 	mech_io_poll_finish(io, res);
 
@@ -865,7 +863,8 @@ static void epoll_io_init(struct io_context *io)
     fcntl(io->Epoll.fd, F_SETFD, flags);
 
     io->Epoll.nchanges = io->Epoll.ndiskfile = 0;
-    io->Epoll.eventlist = Xcalloc(io->nfds_max, sizeof(struct epoll_event));
+    io->Epoll.nevents_max = io->nfds_max;
+    io->Epoll.eventlist = Xcalloc(io->Epoll.nevents_max, sizeof(struct epoll_event));
     io->Epoll.changelist = Xcalloc(io->nfds_max, sizeof(int));
     io->Epoll.changemap = Xcalloc(io->nfds_max, sizeof(int));
     io->Epoll.diskfile = Xcalloc(io->nfds_max, sizeof(int));
@@ -897,7 +896,6 @@ static void epoll_io_register(struct io_context *io, int fd)
     if (fd >= io->nfds_max) {
 	int omax = io->nfds_max;
 	io_resize(io, fd);
-	io->Epoll.eventlist = Xrealloc(io->Epoll.eventlist, io->nfds_max * sizeof(struct epoll_event));
 	io->Epoll.changelist = Xrealloc(io->Epoll.changelist, io->nfds_max * sizeof(int));
 	io->Epoll.changemap = Xrealloc(io->Epoll.changemap, io->nfds_max * sizeof(int));
 	io->Epoll.diskfile = Xrealloc(io->Epoll.diskfile, io->nfds_max * sizeof(int));
@@ -940,7 +938,7 @@ static int epoll_io_poll(struct io_context *io, int poll_timeout, int *cax)
     }
     io->Epoll.nchanges = 0;
 
-    int res = epoll_wait(io->Epoll.fd, io->Epoll.eventlist, io->nfds_max, io->Epoll.ndiskfile ? 0 : poll_timeout);
+    int res = epoll_wait(io->Epoll.fd, io->Epoll.eventlist, io->Epoll.nevents_max, io->Epoll.ndiskfile ? 0 : poll_timeout);
 
     gettimeofday(&io_now, NULL);
 
