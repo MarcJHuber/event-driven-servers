@@ -20,6 +20,7 @@
 #include <signal.h>
 #include <dlfcn.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 #include "misc/io.h"
@@ -196,8 +197,10 @@ static void get_hash(mavis_ctx * mcx, av_ctx * ac, char *buf)
     uint64_t hashbits = mcx->hashbits;
     for (int i = 0; i < AV_A_ARRAYSIZE; i++) {
 	char *t;
-	if ((hashbits & 1) && (t = av_get(ac, i)))
+	if ((hashbits & 1) && (t = av_get(ac, i))) {
 	    myMD5Update(&m, (u_char *) t, strlen(t));
+	    myMD5Update(&m, (u_char *) " ", 1);
+	}
 	hashbits >>= 1;
     }
     myMD5Final(u, &m);
@@ -232,8 +235,14 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	if (!fstat(fn, &st) && (st.st_mtime + mcx->blacklist_period < io_now.tv_sec)) {
 	    unlink(mcx->hashfile);	// blacklist period expired
 	} else {
-	    uint32_t i;
-	    if (sizeof(i) == read(fn, &i, sizeof(i)) && ntohl(i) >= mcx->blacklist_count) {
+	    uint32_t i = 0;
+	    char buf[80];
+	    ssize_t len = read(fn, buf, sizeof(buf));
+	    if (len > 0) {
+		buf[len] = 0;
+		sscanf(buf, "count = %u", &i);
+	    }
+	    if (i >= mcx->blacklist_count) {
 		av_setf(*ac, AV_A_USER_RESPONSE, "Authentication failure (banned for another %ld seconds) [id: %s]",
 			(long) (st.st_mtime + mcx->blacklist_period - io_now.tv_sec), mcx->hashfile + mcx->hashfile_offset + 3);
 		av_set(*ac, AV_A_RESULT, AV_V_RESULT_FAIL);
@@ -300,15 +309,34 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
     int fn = open(mcx->hashfile, O_RDONLY);
     uint32_t i = 0;
     if (fn > -1) {
-	if (sizeof(i) == read(fn, &i, sizeof(i)))
-	    i = ntohl(i);
+	char buf[80];
+	ssize_t len = read(fn, buf, sizeof(buf));
+	if (len > 0) {
+	    buf[len] = 0;
+	    sscanf(buf, "count = %u", &i);
+	}
 	close(fn);
     }
     fn = open(mcx->hashfile_tmp, O_CREAT | O_WRONLY, 0600);
     if (fn > -1) {
 	i++;
-	i = htonl(i);
-	write(fn, &i, sizeof(i));
+	char buf[80];
+	int len = snprintf(buf, sizeof(buf), "count = %u\n", i);
+	write(fn, buf, len);
+	uint64_t hashbits = mcx->hashbits;
+	for (int j = 0; j < AV_A_ARRAYSIZE; j++) {
+	    char *t;
+	    if ((hashbits & 1) && (t = av_get(*ac, j))) {
+		struct iovec iov[4] = {
+		    {.iov_base = av_char[j].name,.iov_len = strlen(av_char[j].name) },
+		    {.iov_base = " = ",.iov_len = 3 },
+		    {.iov_base = t,.iov_len = strlen(t) },
+		    {.iov_base = "\n",.iov_len = 1 }
+		};
+		writev(fn, iov, 4);
+	    }
+	    hashbits >>= 1;
+	}
 	close(fn);
 	rename(mcx->hashfile_tmp, mcx->hashfile);
     }
