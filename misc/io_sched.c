@@ -863,8 +863,7 @@ static void epoll_io_init(struct io_context *io)
     fcntl(io->Epoll.fd, F_SETFD, flags);
 
     io->Epoll.nchanges = io->Epoll.ndiskfile = 0;
-    io->Epoll.nevents_max = io->nfds_max;
-    io->Epoll.eventlist = Xcalloc(io->Epoll.nevents_max, sizeof(struct epoll_event));
+    io->Epoll.eventlist = Xcalloc(io->nfds_max, sizeof(struct epoll_event));
     io->Epoll.changelist = Xcalloc(io->nfds_max, sizeof(int));
     io->Epoll.changemap = Xcalloc(io->nfds_max, sizeof(int));
     io->Epoll.diskfile = Xcalloc(io->nfds_max, sizeof(int));
@@ -896,6 +895,7 @@ static void epoll_io_register(struct io_context *io, int fd)
     if (fd >= io->nfds_max) {
 	int omax = io->nfds_max;
 	io_resize(io, fd);
+	io->Epoll.eventlist = Xrealloc(io->Epoll.eventlist, io->nfds_max * sizeof(struct epoll_event));
 	io->Epoll.changelist = Xrealloc(io->Epoll.changelist, io->nfds_max * sizeof(int));
 	io->Epoll.changemap = Xrealloc(io->Epoll.changemap, io->nfds_max * sizeof(int));
 	io->Epoll.diskfile = Xrealloc(io->Epoll.diskfile, io->nfds_max * sizeof(int));
@@ -938,7 +938,7 @@ static int epoll_io_poll(struct io_context *io, int poll_timeout, int *cax)
     }
     io->Epoll.nchanges = 0;
 
-    int res = epoll_wait(io->Epoll.fd, io->Epoll.eventlist, io->Epoll.nevents_max, io->Epoll.ndiskfile ? 0 : poll_timeout);
+    int res = epoll_wait(io->Epoll.fd, io->Epoll.eventlist, io->nfds_max, io->Epoll.ndiskfile ? 0 : poll_timeout);
 
     gettimeofday(&io_now, NULL);
 
