@@ -37,7 +37,7 @@ dup2 ($devnull, 0);
 
 $pollfd->fdopen($scm_socket, "r+");
 autoflush $pollfd 1;
-finish if Scm::scm_sendmsg($scm_socket, "MAX 1", -1);
+finish if Scm::scm_sendmsg($scm_socket, Scm::SCM_MAX, 1, -1);
 
 for (;;)
 {
@@ -58,14 +58,14 @@ for (;;)
 			main;
 			dup2 ($devnull, 0);
 			dup2 ($devnull, 1);
-			finish if Scm::scm_sendmsg($scm_socket, "DONE", -1);
+			finish if Scm::scm_sendmsg($scm_socket, Scm::SCM_DONE, 1, -1);
 		}
 		elsif ($msg eq "MAY-DIE")
 		{
 			finish;
 		}
 	}
-	elsif ($ev || Scm::scm_sendmsg($scm_socket, "KEEPALIVE", -1))
+	elsif ($ev || Scm::scm_sendmsg($scm_socket, Scm::SCM_KEEPALIVE, -1, -1))
 	{
 		finish;
 	}

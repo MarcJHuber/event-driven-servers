@@ -143,7 +143,7 @@ close $sock1;
 
 # create a socket pair for packet injection and send the second fd to tac_plus-ng:
 socketpair(my $conn0, my $conn1, AF_UNIX, SOCK_STREAM, PF_UNIX) or die "socketpair: $!";
-Scm::scm_sendmsg_accept(fileno $sock0, 6, fileno $conn1, 1, $realm);
+Scm::scm_sendmsg_accept(fileno $sock0, Scm::SCM_ACCEPT, fileno $conn1, 1, $realm);
 
 # create a haproxy v2 header for NAD address simulation:
 my $src = new Net::IP($nad) or die Net::IP::Error();

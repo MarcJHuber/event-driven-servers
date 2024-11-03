@@ -9,14 +9,16 @@ MODULE = Scm         PACKAGE = Scm
 PROTOTYPES: DISABLE
 
 int
-scm_sendmsg (sock, type, fd)
+scm_sendmsg (sock, type, count, fd)
 	int sock
 	int type
+	int count
 	int fd
     CODE:
 	struct scm_data sd;
 	memset(&sd, 0, sizeof(sd));
 	sd.type = type;
+	sd.count = count;
 	RETVAL = scm_send_msg (sock, &sd, fd);
     OUTPUT:
 	RETVAL
