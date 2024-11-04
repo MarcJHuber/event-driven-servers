@@ -782,9 +782,9 @@ session  required       pam_opendirectory.so
 5.2.13. The tacinfo_cache module
 
    This module implements on-disk caching of authorization
-   attributes for later authorization, both for users and hosts.
-   It may be useful to reduce load from the backend, or just to
-   share RADIUS authorization data between tac_plus worker
+   attributes for later authorization, both for users and device
+   (hosts). It may be useful to reduce load from the backend, or
+   just to share RADIUS authorization data between tac_plus worker
    processes.
      __________________________________________________________
 
@@ -799,6 +799,9 @@ session  required       pam_opendirectory.so
        that the daemon will not clean up the files/directories in
        there. This configuration is mandatory, there is no
        default. Example: directory = /tmp/tacauth
+     * device cache timeout = seconds
+       Sets the number of seconds device info should be cached.
+       Default: 60s.
      __________________________________________________________
 
 5.2.13.2. Example
