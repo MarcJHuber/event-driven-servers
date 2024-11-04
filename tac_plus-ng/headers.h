@@ -836,7 +836,7 @@ struct context {
     struct user_profile_cache user_profile_cache[USER_PROFILE_CACHE_SIZE];
     char *hint;
      TRISTATE(cleanup_when_idle);	/* cleanup context when idle */
-     BISTATE(unencrypted_flag);	/* not MD5 encryped ? */
+     BISTATE(unencrypted_flag);	/* not MD5 encrypted? */
      BISTATE(single_connection_flag);	/* single-connection enabled? */
      BISTATE(single_connection_test);	/* single-connection capable, but not telling? */
      BISTATE(single_connection_did_warn);
@@ -879,7 +879,7 @@ void report_hex(tac_session *, int, int, u_char *, int);
 void report(tac_session *, int, int, char *, ...)
     __attribute__((format(printf, 4, 5)));
 
-	/* packet.c */
+/* packet.c */
 void send_authen_reply(tac_session *, int, char *, int, u_char *, int, u_char);
 void send_authen_error(tac_session *, char *, ...)
     __attribute__((format(printf, 2, 3)));
@@ -892,18 +892,18 @@ void log_exec(tac_session *, struct context *, enum token, time_t);
 void log_add(struct sym *, rb_tree_t **, char *, tac_realm *);
 int logs_flushed(tac_realm *);
 
-	/* dump.c */
+/* dump.c */
 char *summarise_outgoing_packet_type(tac_pak_hdr *);
 void dump_nas_pak(tac_session *, int);
 void dump_tacacs_pak(tac_session *, tac_pak_hdr *);
 
-	/* authen.c */
+/* authen.c */
 void authen(tac_session *, tac_pak_hdr *);
 
-	/* author.c */
+/* author.c */
 void author(tac_session *, tac_pak_hdr *);
 
-	/* config.c */
+/* config.c */
 int cfg_get_enable(tac_session *, struct pwdat **);
 
 void parse_decls(struct sym *);
