@@ -4613,7 +4613,7 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t * mem, int
 {
     struct mavis_action *m = NULL;
     char *sep = "=";
-    char buf[8192];
+    char buf[0x10000];
 
     switch (sym->code) {
     case S_closebra:
