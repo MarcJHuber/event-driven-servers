@@ -78,36 +78,36 @@ ALL = $(MAVIS_LIB) $(MAVIS_PRG) $(MAVIS_LIBS)
 
 all:	$(ALL) install_stage
 
-mavistest$(EXEC_EXT): mavistest.o
+mavistest$(EXEC_EXT): mavistest.o $(MAVIS_LIB)
 	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_NET)
 
-radmavis-mt.o: INC += $(INC_FREERADIUS_CLIENT) $(INC_RADCLI)
+radmavis-mt.o: INC += $(INC_FREERADIUS_CLIENT) $(INC_RADCLI) $(MAVIS_LIB)
 
-radmavis-mt$(EXEC_EXT): radmavis-mt.o
+radmavis-mt$(EXEC_EXT): radmavis-mt.o $(MAVIS_LIB)
 	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PTHREAD) $(LIB_FREERADIUS_CLIENT) $(LIB_NET)
 
 ldapavis-mt.o: INC += $(INC_LDAP)
 
-ldapmavis-mt$(EXEC_EXT): ldapmavis-mt.o
+ldapmavis-mt$(EXEC_EXT): ldapmavis-mt.o $(MAVIS_LIB)
 	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PTHREAD) $(LIB_LDAP) $(LIB_LBER) $(LIB_NET) $(LIB_PCRE)
 
 radmavis.o: INC += $(INC_FREERADIUS_CLIENT) $(INC_RADCLI)
 
-radmavis$(EXEC_EXT): radmavis.o
+radmavis$(EXEC_EXT): radmavis.o $(MAVIS_LIB)
 	$(CC) -o $@ $^ $(LIB) $(LIB_FREERADIUS_CLIENT) $(LIB_RADCLI) $(LIB_NET)
 
 pammavis.o: CFLAGS += $(INC_PAM)
 
 pammavis.o: $(BASE)/misc/version.h
 
-pammavis$(EXEC_EXT): pammavis.o
+pammavis$(EXEC_EXT): pammavis.o $(MAVIS_LIB)
 	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PAM) $(LIB_NET)
 
 pammavis-mt.o: CFLAGS += $(INC_PAM)
 
 pammavis-mt.o: $(BASE)/misc/version.h
 
-pammavis-mt$(EXEC_EXT): pammavis-mt.o
+pammavis-mt$(EXEC_EXT): pammavis-mt.o $(MAVIS_LIB)
 	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PTHREAD) $(LIB_PAM) $(LIB_NET)
 
 spawnd_main.o: $(BASE)/misc/version.h
