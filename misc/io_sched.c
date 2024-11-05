@@ -322,8 +322,8 @@ int io_poll(struct io_context *io, int poll_timeout)
 	int ev = io->rcache[i].events;
 
 	if (fd > -1) {
-	    Debug((DEBUG_PROC, "fd %d ctx %p\n", fd, ctx));
 	    struct io_context *ctx = io_get_ctx(io, fd);
+	    Debug((DEBUG_PROC, "fd %d ctx %p\n", fd, ctx));
 	    if (ctx) {
 		void (*cb)(void *, int) = NULL;
 		if (io->handler[fd].want_read && (ev & POLLIN))
