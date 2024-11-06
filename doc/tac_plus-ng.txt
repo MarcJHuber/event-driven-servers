@@ -742,9 +742,11 @@ syslog default = deny
    ${dn} Raw dn backend value, typically from LDAP
    ${identity-source} The IDENTITY_SOURCE backend value (the
    identitySourceName of the originating MAVIS module)
+   ${log-sequence} Log sequence number
    ${mavis.latency} The milliseconds it took the MAVIS backend to
    answer a request
    ${memberof} Raw memberOf backend value, typically from LDAP
+   ${pid} Process ID
    ${server.name}, ${hostname} [deprecated] Server host name
    ${server.address} Server address
    ${server.port} Server TCP port
