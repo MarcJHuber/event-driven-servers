@@ -157,88 +157,83 @@ endif
 
 libmavis_system.o: libmavis_system.c mavis_glue.c
 
-libmavis_system.so: libmavis_system.o
+libmavis_system.so: libmavis_system.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LIB_CRYPT) $(LD_SHARED_APPEND)
  
 libmavis_groups.o: libmavis_groups.c mavis_glue.c
 
-libmavis_groups.so: libmavis_groups.o
+libmavis_groups.so: libmavis_groups.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
  
 libmavis_remote.o: libmavis_remote.c mavis_glue.c
 
-libmavis_remote.so: libmavis_remote.o blowfish.o
+libmavis_remote.so: libmavis_remote.o blowfish.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
 libmavis_anonftp.o: libmavis_anonftp.c mavis_glue.c
 
-libmavis_anonftp.so: libmavis_anonftp.o
+libmavis_anonftp.so: libmavis_anonftp.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
 libmavis_external.o: libmavis_external.c mavis_glue.c
 
-libmavis_external.so: libmavis_external.o
+libmavis_external.so: libmavis_external.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
 libmavis_external-mt.o: libmavis_external-mt.c mavis_glue.c
 
-libmavis_external-mt.so: libmavis_external-mt.o
+libmavis_external-mt.so: libmavis_external-mt.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
 libmavis_userdb.o: libmavis_userdb.c mavis_glue.c
 
-libmavis_userdb.so: libmavis_userdb.o
+libmavis_userdb.so: libmavis_userdb.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LIB_CRYPT) $(LD_SHARED_APPEND)
 
-libmavis_tee.so: libmavis_tee.o
+libmavis_tee.so: libmavis_tee.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
-libmavis_tacinfo_cache.so: libmavis_tacinfo_cache.o tohex.o
+libmavis_tacinfo_cache.so: libmavis_tacinfo_cache.o tohex.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
-libmavis_tacauth_limit.so: libmavis_tacauth_limit.o tohex.o
+libmavis_tacauth_limit.so: libmavis_tacauth_limit.o tohex.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
 libmavis_limit.o: libmavis_limit.c mavis_glue.c
 
-libmavis_limit.so: libmavis_limit.o
-	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
-
-libmavis_limit2.o: libmavis_limit2.c mavis_glue.c
-
-libmavis_limit2.so: libmavis_limit2.o
+libmavis_limit.so: libmavis_limit.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
 libmavis_cache.o: libmavis_cache.c mavis_glue.c
 
-libmavis_cache.so: libmavis_cache.o
+libmavis_cache.so: libmavis_cache.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
 libmavis_asciiftp.o: libmavis_asciiftp.c mavis_glue.c
 
-libmavis_asciiftp.so: libmavis_asciiftp.o
+libmavis_asciiftp.so: libmavis_asciiftp.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
-libmavis_log.o: libmavis_log.c mavis_glue.c
+libmavis_log.o: libmavis_log.c mavis_glue.c $(MAVIS_LIB)
 
-libmavis_log.so: libmavis_log.o
+libmavis_log.so: libmavis_log.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
 libmavis_pam.o: CFLAGS += $(INC_PAM)
 
 libmavis_pam.o: libmavis_pam.c mavis_glue.c
 
-libmavis_pam.so: libmavis_pam.o
+libmavis_pam.so: libmavis_pam.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LIB_PAM) $(LD_SHARED_APPEND)
 
 libmavis_auth.o: libmavis_auth.c mavis_glue.c
 
-libmavis_auth.so: libmavis_auth.o tohex.o
+libmavis_auth.so: libmavis_auth.o tohex.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
 libmavis_null.o: libmavis_null.c mavis_glue.c
 
-libmavis_null.so: libmavis_null.o
+libmavis_null.so: libmavis_null.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
 clean:
