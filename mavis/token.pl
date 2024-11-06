@@ -519,3 +519,6 @@ last-recently-used		S_last_recently_used
 #
 hash				S_hash
 #
+log-sequence			S_logsequence
+pid				S_pid
+#

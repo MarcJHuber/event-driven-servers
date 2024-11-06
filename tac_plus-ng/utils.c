@@ -87,6 +87,7 @@ struct logfile {
     char *syslog_ident;
     char *priority;
     size_t priority_len;
+    unsigned int logsequence;
      BISTATE(flag_syslog);
      BISTATE(flag_sync);
      BISTATE(flag_pipe);
@@ -789,6 +790,8 @@ struct log_item *parse_log_format(struct sym *sym, mem_t * mem)
 	    case S_nasname:
 	    case S_mavis_latency:
 	    case S_session_id:
+	    case S_logsequence:
+	    case S_pid:
 	    case S_PASSWORD:
 	    case S_RESPONSE:
 	    case S_PASSWORD_OLD:
@@ -1541,6 +1544,26 @@ static char *eval_log_format_session_id(tac_session * session, struct context *c
     return NULL;
 }
 
+static char *eval_log_format_logsequence(tac_session * session __attribute__((unused)), struct context *ctx __attribute__((unused)), struct logfile *lf, size_t *len __attribute__((unused)))
+{
+    if (lf) {
+	char buf[128];
+	snprintf(buf, sizeof(buf), "%u", lf->logsequence++);
+	return mem_strdup(session->mem, buf);
+    }
+    return NULL;
+}
+
+static char *eval_log_format_pid(tac_session * session __attribute__((unused)), struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len __attribute__((unused)))
+{
+    static char buf[32] = { 0 };
+    static size_t l = 0;
+    if (!*buf)
+	l = snprintf(buf, sizeof(buf), "%lu", (unsigned long) getpid());
+    *len = l;
+    return buf;
+}
+
 #if defined(WITH_TLS) || defined(WITH_SSL)
 static char *eval_log_format_tls_conn_version(tac_session * session __attribute__((unused)), struct context *ctx, struct logfile *lf
 					      __attribute__((unused)), size_t *len)
@@ -1712,6 +1735,8 @@ char *eval_log_format(tac_session * session, struct context *ctx, struct logfile
 	efun[S_nasname] = &eval_log_format_nasname;
 	efun[S_mavis_latency] = &eval_log_format_mavis_latency;
 	efun[S_session_id] = &eval_log_format_session_id;
+	efun[S_logsequence] = &eval_log_format_logsequence;
+	efun[S_pid] = &eval_log_format_pid;
 	efun[S_custom_0] = &eval_log_format_custom_0;
 	efun[S_custom_1] = &eval_log_format_custom_1;
 	efun[S_custom_2] = &eval_log_format_custom_2;
