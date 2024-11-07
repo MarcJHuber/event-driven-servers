@@ -323,8 +323,6 @@ void parse_error_expect(struct sym *, ...);
 enum token parse_permission(struct sym *);
 u_int parse_bool(struct sym *);
 void parse(struct sym *, enum token);
-void getsym(struct sym *);
-void buf_add(struct sym *, char);
 void sym_get(struct sym *);
 enum token sym_peek(struct sym *);
 void cfg_read_config(char *, void (*)(struct sym *), char *);

@@ -349,7 +349,9 @@ static void substitute_envvar(struct sym *sym)
     }
 }
 
-void getsym(struct sym *sym)
+static void buf_add(struct sym *, char);
+
+static void getsym(struct sym *sym)
 {
     char quote;
     *sym->buf = 0;
@@ -576,7 +578,7 @@ void getsym(struct sym *sym)
 	}
 }
 
-void buf_add(struct sym *sym, char c)
+static void buf_add(struct sym *sym, char c)
 {
     if (sym->pos >= (int) sizeof(sym->buf)) {
 	sym->buf[sizeof(sym->buf) - 1] = '\0';
