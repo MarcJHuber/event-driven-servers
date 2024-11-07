@@ -8,7 +8,7 @@
  *
  */
 
-#define MAVIS_name "tacinfo_cache"
+#define MAVIS_name "tacauth_limit"
 
 #include "misc/sysconf.h"
 
