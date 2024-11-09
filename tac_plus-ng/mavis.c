@@ -232,7 +232,7 @@ static void dump_av_pairs(tac_session * session, av_ctx * avc, char *what)
 	    AV_A_IPADDR, AV_A_REALM, AV_A_TACPROFILE, AV_A_SSHKEY, AV_A_SSHKEYHASH, AV_A_SSHKEYID, AV_A_PATH,
 	    AV_A_UID, AV_A_GID, AV_A_HOME, AV_A_ROOT, AV_A_SHELL, AV_A_GIDS, AV_A_PASSWORD_MUSTCHANGE, AV_A_ARGS,
 	    AV_A_RARGS, AV_A_VERDICT, AV_A_IDENTITY_SOURCE, AV_A_CUSTOM_0, AV_A_CUSTOM_1, AV_A_CUSTOM_2, AV_A_CUSTOM_3,
-	    AV_A_COMMENT, AV_A_USER_RESPONSE, -1
+	    AV_A_COMMENT, -1
 	};
 	report(session, LOG_DEBUG, ~0, "%s av pairs:", what);
 	for (int i = 0; show[i] > -1; i++)
