@@ -291,7 +291,7 @@ void send_authen_reply(tac_session * session, int status, char *msg, int msg_len
     else
 	session->authfail_delay = session->authen_data->iterations;
 
-    if (session->authfail_delay)
+    if (session->authfail_delay && !(common_data.debug & DEBUG_TACTRACE_FLAG))
 	delay_packet(session->ctx, pak, session->authfail_delay);
     else
 	write_packet(session->ctx, pak);
