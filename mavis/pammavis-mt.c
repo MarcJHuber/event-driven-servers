@@ -12,6 +12,7 @@
 #include "misc/memops.h"
 #include <pwd.h>
 #include <sys/types.h>
+#include <sys/resource.h>
 #include <grp.h>
 #include <errno.h>
 #include <stdio.h>
@@ -226,6 +227,13 @@ int main(int argc, char **argv)
 
     if (geteuid())
 	fprintf(stderr, "Not running as root, PAM may or may not work as expected.\n");
+
+    {
+	struct rlimit rlim;
+	getrlimit(RLIMIT_NOFILE, &rlim);
+	rlim.rlim_cur = rlim.rlim_max;
+	setrlimit(RLIMIT_NOFILE, &rlim);
+    }
 
     while (1) {
 	size_t hdr_off = 0;

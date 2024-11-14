@@ -15,6 +15,7 @@
 #include <time.h>
 #include <ldap.h>
 #include <ctype.h>
+#include <sys/resource.h>
 #ifdef WITH_PCRE2
 #include <pcre2.h>
 #endif
@@ -971,6 +972,13 @@ int main(int argc, char **argv __attribute__((unused)))
     if (!ldap_filter_group)
 	ldap_filter_group = "(&(objectclass=groupOfNames)(member=%s))";
     ldap_filter_group_len = strlen(ldap_filter_group);
+
+    {
+	struct rlimit rlim;
+	getrlimit(RLIMIT_NOFILE, &rlim);
+	rlim.rlim_cur = rlim.rlim_max;
+	setrlimit(RLIMIT_NOFILE, &rlim);
+    }
 
     while (1) {
 	struct mavis_ext_hdr_v1 hdr;
