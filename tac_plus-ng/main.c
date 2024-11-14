@@ -919,9 +919,13 @@ static void accept_control_tls(struct context *ctx, int cur)
 #ifndef OPENSSL_NO_PSK
   done:
 #endif
+// gcc 13.2 complains about a possible uninitialized usage of "by_address". Looks like a false positive.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
     // fall back to IP address
     if (!ctx->host)
 	ctx->host = by_address;
+#pragma GCC diagnostic pop
 
     if (ctx->host) {
 	complete_host(ctx->host);
