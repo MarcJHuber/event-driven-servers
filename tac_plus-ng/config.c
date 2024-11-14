@@ -192,7 +192,7 @@ static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t 
 static SSL_CTX *ssl_init(char *, char *, char *, char *);
 #endif
 
-void complete_realm(tac_realm * r)
+void complete_realm(tac_realm *r)
 {
     if (r->parent && !r->complete) {
 	tac_realm *rp = r->parent;
@@ -368,12 +368,12 @@ void complete_realm(tac_realm * r)
 		    r->default_host->user_messages[um] = rp->default_host->user_messages[um];
     }
     if (r->realms) {
-	for (rb_node_t *rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
+	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    complete_realm(RB_payload(rbn, tac_realm *));
     }
 }
 
-tac_realm *lookup_realm(char *name, tac_realm * r)
+tac_realm *lookup_realm(char *name, tac_realm *r)
 {
     if (!strcmp(name, r->name))
 	return r;
@@ -387,7 +387,7 @@ tac_realm *lookup_realm(char *name, tac_realm * r)
     return NULL;
 }
 
-void complete_profile(tac_profile * p)
+void complete_profile(tac_profile *p)
 {
     if (p && !p->complete) {
 	p->complete = BISTATE_YES;
@@ -410,7 +410,7 @@ void complete_profile(tac_profile * p)
     }
 }
 
-radixtree_t *lookup_hosttree(tac_realm * r)
+radixtree_t *lookup_hosttree(tac_realm *r)
 {
     while (r) {
 	if (r->hosttree)
@@ -420,7 +420,7 @@ radixtree_t *lookup_hosttree(tac_realm * r)
     return NULL;
 }
 
-static void parse_inline(tac_realm * r, char *format, char *file, int line)
+static void parse_inline(tac_realm *r, char *format, char *file, int line)
 {
     struct sym sym = { 0 };
     sym.filename = file;
@@ -431,7 +431,7 @@ static void parse_inline(tac_realm * r, char *format, char *file, int line)
     parse_tac_acl(&sym, r);
 }
 
-void init_host(tac_host * host, tac_host * parent, tac_realm * r, int top)
+void init_host(tac_host *host, tac_host *parent, tac_realm *r, int top)
 {
     host->parent = parent;
     host->realm = r;
@@ -479,7 +479,7 @@ information:\n\
     }
 }
 
-static tac_host *new_host(struct sym *sym, char *name, tac_host * parent, tac_realm * r, int top)
+static tac_host *new_host(struct sym *sym, char *name, tac_host *parent, tac_realm *r, int top)
 {
     tac_host *host = calloc(1, sizeof(tac_host));
     if (sym) {
@@ -493,7 +493,7 @@ static tac_host *new_host(struct sym *sym, char *name, tac_host * parent, tac_re
     return host;
 }
 
-static tac_realm *new_realm(char *name, tac_realm * parent)
+static tac_realm *new_realm(char *name, tac_realm *parent)
 {
     tac_realm *r = calloc(1, sizeof(tac_realm));
     r->name = strdup(name);
@@ -533,7 +533,7 @@ static tac_realm *new_realm(char *name, tac_realm * parent)
     return r;
 }
 
-void init_mcx(tac_realm * r)
+void init_mcx(tac_realm *r)
 {
     if (r->mcx)
 	mavis_init(r->mcx, MAVIS_API_VERSION);
@@ -542,7 +542,7 @@ void init_mcx(tac_realm * r)
 	    init_mcx(RB_payload(rbn, tac_realm *));
 }
 
-void drop_mcx(tac_realm * r)
+void drop_mcx(tac_realm *r)
 {
     if (r->mcx)
 	mavis_drop(r->mcx);
@@ -551,10 +551,10 @@ void drop_mcx(tac_realm * r)
 	    drop_mcx(RB_payload(rbn, tac_realm *));
 }
 
-void expire_dynamic_users(tac_realm * r)
+void expire_dynamic_users(tac_realm *r)
 {
     if (r->usertable) {
-	for (rb_node_t *rbnext, *rbn = RB_first(r->usertable); rbn; rbn = rbnext) {
+	for (rb_node_t * rbnext, *rbn = RB_first(r->usertable); rbn; rbn = rbnext) {
 	    time_t v = RB_payload(rbn, tac_user *)->dynamic;
 	    rbnext = RB_next(rbn);
 
@@ -567,7 +567,7 @@ void expire_dynamic_users(tac_realm * r)
 	    expire_dynamic_users(RB_payload(rbn, tac_realm *));
 }
 
-tac_user *lookup_user(tac_session * session)
+tac_user *lookup_user(tac_session *session)
 {
     session->user = NULL;
     if (!session->username_len)
@@ -575,25 +575,23 @@ tac_user *lookup_user(tac_session * session)
     tac_user user = {.name = session->username,.name_len = session->username_len };
     tac_realm *r = session->ctx->realm;
     while (r && !session->user) {
-	if (r->usertable) {
-	    tac_user *res = RB_lookup(r->usertable, &user);
-	    if (!res && r->aliastable) {
-		res = RB_lookup(r->aliastable, &user);
-	    }
-	    if (res) {
-		if (res->dynamic && (res->dynamic < io_now.tv_sec)) {
-		    RB_search_and_delete(r->usertable, res);
-		    session->user = NULL;
-		} else
-		    session->user = res;
-	    }
+	if (r->usertable)
+	    session->user = RB_lookup(r->usertable, &user);
+	if (!session->user && r->aliastable) {
+	    tac_alias *a = RB_lookup(r->aliastable, &user);
+	    if (a)
+		session->user = a->user;
+	}
+	if (session->user && session->user->dynamic && (session->user->dynamic < io_now.tv_sec)) {
+	    RB_search_and_delete(r->usertable, session->user);
+	    session->user = NULL;
 	}
 	r = r->parent;
     }
     return session->user;
 }
 
-static tac_profile *lookup_profile(char *name, tac_realm * r)
+static tac_profile *lookup_profile(char *name, tac_realm *r)
 {
     tac_profile profile = {.name = name,.name_len = strlen(name) };
     while (r) {
@@ -607,7 +605,7 @@ static tac_profile *lookup_profile(char *name, tac_realm * r)
     return NULL;
 }
 
-static tac_rewrite *lookup_rewrite(char *name, tac_realm * r)
+static tac_rewrite *lookup_rewrite(char *name, tac_realm *r)
 {
     tac_rewrite rewrite = {.name = name,.name_len = strlen(name) };
     while (r) {
@@ -621,7 +619,7 @@ static tac_rewrite *lookup_rewrite(char *name, tac_realm * r)
     return NULL;
 }
 
-tac_host *lookup_host(char *name, tac_realm * r)
+tac_host *lookup_host(char *name, tac_realm *r)
 {
     tac_host host = {.name = name,.name_len = strlen(name) };
     while (r) {
@@ -635,7 +633,7 @@ tac_host *lookup_host(char *name, tac_realm * r)
     return NULL;
 }
 
-static tac_net *lookup_net(char *name, tac_realm * r)
+static tac_net *lookup_net(char *name, tac_realm *r)
 {
     tac_net net = {.name = name,.name_len = strlen(name) };
     while (r) {
@@ -649,7 +647,7 @@ static tac_net *lookup_net(char *name, tac_realm * r)
     return NULL;
 }
 
-static struct mavis_timespec *lookup_timespec(char *name, tac_realm * r)
+static struct mavis_timespec *lookup_timespec(char *name, tac_realm *r)
 {
     while (r) {
 	if (r->timespectable) {
@@ -672,7 +670,7 @@ static int globerror(const char *epath, int eerrno)
 
 static time_t parse_date(struct sym *sym, time_t offset);
 
-static void parse_key(struct sym *sym, tac_host * host)
+static void parse_key(struct sym *sym, tac_host *host)
 {
     struct tac_key **tk = &host->key;
     int keylen;
@@ -715,7 +713,7 @@ static void free_dns_tree_a(void *payload)
     free(payload);
 }
 
-static void dns_add_a(rb_tree_t ** t, struct in6_addr *a, char *name)
+static void dns_add_a(rb_tree_t **t, struct in6_addr *a, char *name)
 {
     struct dns_forward_mapping *ds, *dn = calloc(1, sizeof(struct dns_forward_mapping));
     struct dns_forward_mapping **dsp = &ds;
@@ -746,7 +744,7 @@ static void dns_add_a(rb_tree_t ** t, struct in6_addr *a, char *name)
     RB_insert(*t, dn);
 }
 
-static struct dns_forward_mapping *dns_lookup_a(tac_realm * r, char *name, int recurse)
+static struct dns_forward_mapping *dns_lookup_a(tac_realm *r, char *name, int recurse)
 {
     while (r) {
 	if (r->dns_tree_a) {
@@ -762,7 +760,7 @@ static struct dns_forward_mapping *dns_lookup_a(tac_realm * r, char *name, int r
     return NULL;
 }
 
-static void parse_etc_hosts(char *url, tac_realm * r)
+static void parse_etc_hosts(char *url, tac_realm *r)
 {
     struct sym sym = {.filename = url,.line = 1,.env_valid = 1 };
     if (setjmp(sym.env))
@@ -818,7 +816,7 @@ static void parse_etc_hosts(char *url, tac_realm * r)
 #define parse_tristate(A) (parse_bool(A) ? TRISTATE_YES : TRISTATE_NO);
 #define parse_bistate(A) (parse_bool(A) ? BISTATE_YES : BISTATE_NO);
 
-static void top_only(struct sym *sym, tac_realm * r)
+static void top_only(struct sym *sym, tac_realm *r)
 {
     if (r != config.default_realm)
 	parse_error(sym, "Directive not available at realm level.");
@@ -826,7 +824,7 @@ static void top_only(struct sym *sym, tac_realm * r)
 
 void parse_decls_real(struct sym *, tac_realm *);
 
-static int loopcheck_group(tac_group * g)
+static int loopcheck_group(tac_group *g)
 {
     int res = 0;
     if (g->visited)
@@ -842,7 +840,7 @@ static int loopcheck_group(tac_group * g)
     return res;
 }
 
-static int loopcheck_realm(tac_realm * r)
+static int loopcheck_realm(tac_realm *r)
 {
     int res = 0;
     if (r->visited)
@@ -854,7 +852,7 @@ static int loopcheck_realm(tac_realm * r)
     return res;
 }
 
-static int loopcheck_net(tac_net * n)
+static int loopcheck_net(tac_net *n)
 {
     int res = 0;
     if (n->visited)
@@ -866,7 +864,7 @@ static int loopcheck_net(tac_net * n)
     return res;
 }
 
-static int loopcheck_host(tac_host * h)
+static int loopcheck_host(tac_host *h)
 {
     int res = 0;
     if (h->visited)
@@ -878,7 +876,7 @@ static int loopcheck_host(tac_host * h)
     return res;
 }
 
-static int loopcheck_profile(tac_profile * p)
+static int loopcheck_profile(tac_profile *p)
 {
     int res = 0;
     if (p->visited)
@@ -890,7 +888,7 @@ static int loopcheck_profile(tac_profile * p)
     return res;
 }
 
-static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent, tac_realm * nrealm, int empty)
+static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm *parent, tac_realm *nrealm, int empty)
 {
     if (!nrealm) {
 	nrealm = new_realm(sym->buf, parent);
@@ -916,7 +914,7 @@ static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm * parent, t
 static char hexbyte(char *);
 
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
-static void parse_tls_psk_key(struct sym *sym, tac_host * host)
+static void parse_tls_psk_key(struct sym *sym, tac_host *host)
 {
     char k[2];
     char *t = sym->buf;
@@ -937,7 +935,7 @@ static void parse_tls_psk_key(struct sym *sym, tac_host * host)
 static void parse_host_attr(struct sym *, tac_realm *, tac_host *);
 
 #ifdef WITH_DNS
-static void parse_host_dns(struct sym *sym, tac_host * host)
+static void parse_host_dns(struct sym *sym, tac_host *host)
 {
     switch (sym->code) {
     case S_timeout:
@@ -977,7 +975,7 @@ static void parse_host_dns(struct sym *sym, tac_host * host)
 }
 #endif
 
-void parse_host_pap_password(struct sym *sym, tac_host * host)
+void parse_host_pap_password(struct sym *sym, tac_host *host)
 {
     sym_get(sym);
     if (sym->code == S_mapping)
@@ -1087,7 +1085,7 @@ struct sni_list {
     char name[1];
 };
 
-tac_realm *lookup_sni(const char *name, size_t name_len, tac_realm * r)
+tac_realm *lookup_sni(const char *name, size_t name_len, tac_realm *r)
 {
     struct sni_list *l = r->sni_list;
     while (l) {
@@ -1098,14 +1096,14 @@ tac_realm *lookup_sni(const char *name, size_t name_len, tac_realm * r)
 
     if (r->realms) {
 	tac_realm *res;
-	for (rb_node_t *rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
+	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    if ((res = lookup_sni(name, name_len, RB_payload(rbn, tac_realm *))))
 		return res;
     }
     return NULL;
 }
 
-static void add_sni(struct sym *sym, tac_realm * r)
+static void add_sni(struct sym *sym, tac_realm *r)
 {
     size_t len = strlen(sym->buf);
     tac_realm *q = lookup_sni(sym->buf, len, r);
@@ -1120,7 +1118,7 @@ static void add_sni(struct sym *sym, tac_realm * r)
 }
 #endif
 
-void parse_decls_real(struct sym *sym, tac_realm * r)
+void parse_decls_real(struct sym *sym, tac_realm *r)
 {
     /* Top level of parser */
     while (sym->code != S_closebra)
@@ -1772,7 +1770,7 @@ static time_t parse_date(struct sym *sym, time_t offset)
     return (time_t) 0;
 }
 
-void free_user(tac_user * user)
+void free_user(tac_user *user)
 {
     while (user->alias) {
 	tac_alias *next = user->alias->next;
@@ -1792,7 +1790,7 @@ static struct pwdat passwd_mavis_dflt = {.type = S_mavis };
 static struct pwdat passwd_login_dflt = {.type = S_login };
 static struct pwdat passwd_permit = {.type = S_permit };
 
-tac_user *new_user(char *name, enum token type, tac_realm * r)
+tac_user *new_user(char *name, enum token type, tac_realm *r)
 {
     mem_t *mem = NULL;
     tac_user *user;
@@ -1823,7 +1821,7 @@ tac_user *new_user(char *name, enum token type, tac_realm * r)
     return user;
 }
 
-tac_profile *new_profile(mem_t * mem, char *name, tac_realm * r)
+tac_profile *new_profile(mem_t *mem, char *name, tac_realm *r)
 {
     tac_profile *profile;
 
@@ -1836,7 +1834,7 @@ tac_profile *new_profile(mem_t * mem, char *name, tac_realm * r)
     return profile;
 }
 
-static void parse_group(struct sym *sym, tac_realm * r, tac_group * parent)
+static void parse_group(struct sym *sym, tac_realm *r, tac_group *parent)
 {
     sym_get(sym);
 
@@ -1878,7 +1876,7 @@ static void parse_group(struct sym *sym, tac_realm * r, tac_group * parent)
     }
 }
 
-static void parse_profile(struct sym *sym, tac_realm * r, tac_profile * parent)
+static void parse_profile(struct sym *sym, tac_realm *r, tac_profile *parent)
 {
     if (!r->profiletable)
 	r->profiletable = RB_tree_new(compare_name, NULL);
@@ -1902,7 +1900,7 @@ static void parse_profile(struct sym *sym, tac_realm * r, tac_profile * parent)
 
 static struct mavis_action *tac_script_parse_r(struct sym *, mem_t *, int, tac_realm *);
 
-static void parse_ruleset(struct sym *sym, tac_realm * realm)
+static void parse_ruleset(struct sym *sym, tac_realm *realm)
 {
     struct tac_rule **r = &(realm->rules);
     while (*r)
@@ -1965,7 +1963,7 @@ static void parse_ruleset(struct sym *sym, tac_realm * realm)
     sym_get(sym);
 }
 
-static enum token lookup_user_profile(tac_session * session)
+static enum token lookup_user_profile(tac_session *session)
 {
     uint32_t crc32 = INITCRC32;
     if (session->nac_address_ascii)
@@ -1986,7 +1984,7 @@ static enum token lookup_user_profile(tac_session * session)
     return S_unknown;
 }
 
-static void cache_user_profile(tac_session * session, enum token res)
+static void cache_user_profile(tac_session *session, enum token res)
 {
     uint32_t crc32 = INITCRC32;
     if (session->nac_address_ascii)
@@ -2017,7 +2015,7 @@ static void cache_user_profile(tac_session * session, enum token res)
     session->ctx->user_profile_cache[j].valid_until = io_now.tv_sec + 120;
 }
 
-enum token eval_ruleset_r(tac_session * session, tac_realm * realm, int parent_first)
+enum token eval_ruleset_r(tac_session *session, tac_realm *realm, int parent_first)
 {
     enum token res = S_unknown;
 
@@ -2060,7 +2058,7 @@ enum token eval_ruleset_r(tac_session * session, tac_realm * realm, int parent_f
     return res;
 }
 
-enum token eval_ruleset(tac_session * session, tac_realm * realm)
+enum token eval_ruleset(tac_session *session, tac_realm *realm)
 {
     enum token res = lookup_user_profile(session);
     if (res != S_unknown) {
@@ -2076,7 +2074,7 @@ enum token eval_ruleset(tac_session * session, tac_realm * realm)
 }
 
 
-static void parse_user(struct sym *sym, tac_realm * r)
+static void parse_user(struct sym *sym, tac_realm *r)
 {
     enum token type = sym->code;
 
@@ -2117,7 +2115,7 @@ static void parse_user(struct sym *sym, tac_realm * r)
     //report(NULL, LOG_INFO, ~0, "user %s added to realm %s", user->name, r->name);
 }
 
-int parse_host_profile(struct sym *sym, tac_realm * r, tac_host * host)
+int parse_host_profile(struct sym *sym, tac_realm *r, tac_host *host)
 {
     sym->env_valid = 1;
     if (setjmp(sym->env))
@@ -2130,7 +2128,7 @@ int parse_host_profile(struct sym *sym, tac_realm * r, tac_host * host)
     return 0;
 }
 
-int parse_user_profile(struct sym *sym, tac_user * user)
+int parse_user_profile(struct sym *sym, tac_user *user)
 {
     sym->env_valid = 1;
     if (setjmp(sym->env))
@@ -2141,7 +2139,7 @@ int parse_user_profile(struct sym *sym, tac_user * user)
     return 0;
 }
 
-int parse_user_profile_fmt(struct sym *sym, tac_user * user, char *fmt, ...)
+int parse_user_profile_fmt(struct sym *sym, tac_user *user, char *fmt, ...)
 {
     va_list ap;
     int l, len = 2 * MAX_INPUT_LINE_LEN;
@@ -2166,7 +2164,7 @@ static char hexbyte(char *s)
     return (h[(s[0] - '0') & 0x1F] << 4) | h[(s[1] - '0') & 0x1F];
 }
 
-static int c7decode(mem_t * mem, char *in)
+static int c7decode(mem_t *mem, char *in)
 {
     char *out = in;
     size_t len = strlen(in);
@@ -2203,7 +2201,7 @@ static int c7decode(mem_t * mem, char *in)
     return 0;
 }
 
-static struct pwdat *parse_pw(struct sym *sym, mem_t * mem, int cry)
+static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
 {
     int c7 = 0;
     parse(sym, S_equal);
@@ -2247,7 +2245,7 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t * mem, int cry)
     return pp;
 }
 
-static void parse_password(struct sym *sym, tac_user * user)
+static void parse_password(struct sym *sym, tac_user *user)
 {
     int one = 0;
 
@@ -2312,7 +2310,7 @@ static void parse_password(struct sym *sym, tac_user * user)
 	parse_error_expect(sym, S_login, S_pap, S_chap, S_mschap, S_openbra, S_unknown);
 }
 
-static struct tac_acl *tac_acl_lookup(char *s, tac_realm * r)
+static struct tac_acl *tac_acl_lookup(char *s, tac_realm *r)
 {
     struct tac_acl a = {.name = s,.name_len = strlen(s) };
     while (r) {
@@ -2326,7 +2324,7 @@ static struct tac_acl *tac_acl_lookup(char *s, tac_realm * r)
     return NULL;
 }
 
-static void parse_member(struct sym *sym, tac_groups ** groups, mem_t * mem, tac_realm * r)
+static void parse_member(struct sym *sym, tac_groups **groups, mem_t *mem, tac_realm *r)
 {
     sym_get(sym);
 
@@ -2348,7 +2346,7 @@ static void parse_member(struct sym *sym, tac_groups ** groups, mem_t * mem, tac
     while (parse_comma(sym));
 }
 
-static void parse_enable(struct sym *sym, mem_t * mem, struct pwdat **enable)
+static void parse_enable(struct sym *sym, mem_t *mem, struct pwdat **enable)
 {
     int level = TAC_PLUS_PRIV_LVL_MAX;
 
@@ -2363,7 +2361,7 @@ static void parse_enable(struct sym *sym, mem_t * mem, struct pwdat **enable)
     enable[level] = parse_pw(sym, mem, 1);
 }
 
-static void parse_profile_attr(struct sym *sym, tac_profile * profile, tac_realm * r)
+static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm *r)
 {
     struct mavis_action **p;
     mem_t *mem = profile->mem;
@@ -2458,7 +2456,7 @@ struct ssh_key {
     char hash[1];
 };
 
-enum token validate_ssh_hash(tac_session * session, char *hash, char **key)
+enum token validate_ssh_hash(tac_session *session, char *hash, char **key)
 {
     enum token res = S_deny;
     *key = NULL;
@@ -2484,7 +2482,7 @@ enum token validate_ssh_hash(tac_session * session, char *hash, char **key)
     return res;
 }
 
-static void parse_sshkeyhash(struct sym *sym, tac_user * user)
+static void parse_sshkeyhash(struct sym *sym, tac_user *user)
 {
     struct ssh_key **ssh_key = &user->ssh_key;
     while (*ssh_key)
@@ -2507,7 +2505,7 @@ struct ssh_key_id {
     char s[1];
 };
 
-enum token validate_ssh_key_id(tac_session * session)
+enum token validate_ssh_key_id(tac_session *session)
 {
     if (!session->user->ssh_key_id) {
 	if (strcmp(session->username, session->ssh_key_id))
@@ -2544,7 +2542,7 @@ enum token validate_ssh_key_id(tac_session * session)
     return S_deny;
 }
 
-static void parse_sshkeyid(struct sym *sym, tac_user * user)
+static void parse_sshkeyid(struct sym *sym, tac_user *user)
 {
     struct ssh_key_id **ssh_key_id = &user->ssh_key_id;
     while (*ssh_key_id)
@@ -2633,7 +2631,7 @@ static char *calc_ssh_key_hash(char *hashname, unsigned char *in, size_t in_len)
     return NULL;
 }
 
-static void parse_sshkey(struct sym *sym, tac_user * user)
+static void parse_sshkey(struct sym *sym, tac_user *user)
 {
     struct ssh_key **ssh_key = &user->ssh_key;
 
@@ -2771,7 +2769,7 @@ static void parse_sshkey(struct sym *sym, tac_user * user)
 }
 #endif				// WITH_SSL
 
-static void parse_user_attr(struct sym *sym, tac_user * user)
+static void parse_user_attr(struct sym *sym, tac_user *user)
 {
     tac_realm *r = user->realm;
 
@@ -2928,7 +2926,7 @@ static void parse_user_attr(struct sym *sym, tac_user * user)
     sym_get(sym);
 }
 
-static void add_host(struct sym *sym, radixtree_t * ht, tac_host * host)
+static void add_host(struct sym *sym, radixtree_t *ht, tac_host *host)
 {
     struct in6_addr a;
     int cm;
@@ -2940,7 +2938,7 @@ static void add_host(struct sym *sym, radixtree_t * ht, tac_host * host)
 	parse_error(sym, "Address '%s' already assigned to host '%s'.", sym->buf, h->name);
 }
 
-static void add_net(struct sym *sym, radixtree_t * ht, tac_net * net)
+static void add_net(struct sym *sym, radixtree_t *ht, tac_net *net)
 {
     struct in6_addr a;
     int cm;
@@ -2950,7 +2948,7 @@ static void add_net(struct sym *sym, radixtree_t * ht, tac_net * net)
     radix_add(ht, &a, cm, net);
 }
 
-static void parse_file(char *url, radixtree_t * ht, tac_host * host, tac_net * net)
+static void parse_file(char *url, radixtree_t *ht, tac_host *host, tac_net *net)
 {
     struct sym sym = {.filename = url,.line = 1 };
 
@@ -2982,7 +2980,7 @@ static void parse_file(char *url, radixtree_t * ht, tac_host * host, tac_net * n
     cfg_close(url, buf, bufsize);
 }
 
-static void parse_rewrite(struct sym *sym, tac_realm * r)
+static void parse_rewrite(struct sym *sym, tac_realm *r)
 {
     tac_rewrite_expr **e;
     tac_rewrite *rewrite = alloca(sizeof(tac_rewrite));
@@ -3044,7 +3042,7 @@ static void fixup_banner(struct log_item **li, char *file, int line)
     *li = parse_log_format_inline("\"${message}${umessage}\"", file, line);
 }
 
-static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
+static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 {
     mem_t *mem = host->mem;
     if (mem)
@@ -3477,7 +3475,7 @@ static void parse_host_attr(struct sym *sym, tac_realm * r, tac_host * host)
     }
 }
 
-static void parse_host(struct sym *sym, tac_realm * r, tac_host * parent)
+static void parse_host(struct sym *sym, tac_realm *r, tac_host *parent)
 {
     tac_host *host, *hp;
     radixtree_t *ht;
@@ -3524,7 +3522,7 @@ static void radix_copy_func(struct in6_addr *addr, int mask, void *payload, void
     radix_add((radixtree_t *) data, addr, mask, payload);
 }
 
-static void parse_net(struct sym *sym, tac_realm * r, tac_net * parent)
+static void parse_net(struct sym *sym, tac_realm *r, tac_net *parent)
 {
     tac_net *net = (tac_net *) calloc(1, sizeof(tac_net)), *np;
     struct dns_forward_mapping *d;
@@ -3615,7 +3613,7 @@ static void parse_net(struct sym *sym, tac_realm * r, tac_net * parent)
 	radix_walk(net->nettree, radix_copy_func, net->parent->nettree);
 }
 
-enum token eval_tac_acl(tac_session * session, struct tac_acl *acl)
+enum token eval_tac_acl(tac_session *session, struct tac_acl *acl)
 {
     if (acl) {
 	char *hint = "";
@@ -3637,7 +3635,7 @@ enum token eval_tac_acl(tac_session * session, struct tac_acl *acl)
 }
 
 // acl = <name> [(permit|deny)] { ... }
-static void parse_tac_acl(struct sym *sym, tac_realm * realm)
+static void parse_tac_acl(struct sym *sym, tac_realm *realm)
 {
     struct tac_acl *a;
     sym_get(sym);
@@ -3670,7 +3668,7 @@ static void parse_tac_acl(struct sym *sym, tac_realm * realm)
     parse(sym, S_closebra);
 }
 
-static void attr_add_single(tac_session * session, char ***v, int *i, char *attr, size_t attr_len)
+static void attr_add_single(tac_session *session, char ***v, int *i, char *attr, size_t attr_len)
 {
     if (!*v) {
 	*v = mem_alloc(session->mem, 0x100 * sizeof(char *));
@@ -3726,7 +3724,7 @@ static void attr_add_single(tac_session * session, char ***v, int *i, char *attr
     }
 }
 
-static void attr_add_multi(tac_session * session, char ***v, int *i, char *attr, size_t attr_len)
+static void attr_add_multi(tac_session *session, char ***v, int *i, char *attr, size_t attr_len)
 {
     char *a = alloca(attr_len + 1);
     size_t a_len;
@@ -3759,7 +3757,7 @@ static void attr_add_multi(tac_session * session, char ***v, int *i, char *attr,
     }
 }
 
-void attr_add(tac_session * session, char ***v, int *i, char *attr, size_t attr_len)
+void attr_add(tac_session *session, char ***v, int *i, char *attr, size_t attr_len)
 {
     if (attr && attr_len) {
 	size_t j;
@@ -3784,7 +3782,7 @@ void cfg_init(void)
     config.hostname_len = strlen(config.hostname);
 }
 
-int cfg_get_enable(tac_session * session, struct pwdat **p)
+int cfg_get_enable(tac_session *session, struct pwdat **p)
 {
     int m = 0;
     struct pwdat **d[3];
@@ -3809,7 +3807,7 @@ int cfg_get_enable(tac_session * session, struct pwdat **p)
     return -1;
 }
 
-static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t * mem, tac_realm * realm)
+static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, tac_realm *realm)
 {
     struct mavis_cond *m, *p = NULL;
 
@@ -4145,7 +4143,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t * mem, 
     return NULL;
 }
 
-static struct mavis_cond *tac_script_cond_parse(struct sym *sym, mem_t * mem, tac_realm * realm)
+static struct mavis_cond *tac_script_cond_parse(struct sym *sym, mem_t *mem, tac_realm *realm)
 {
     struct sym *cond_sym = NULL;
     if (sym_normalize_cond_start(sym, mem, &cond_sym)) {
@@ -4158,7 +4156,7 @@ static struct mavis_cond *tac_script_cond_parse(struct sym *sym, mem_t * mem, ta
     return tac_script_cond_parse_r(sym, mem, realm);
 }
 
-static int tac_script_cond_eval_res(tac_session * session, struct mavis_cond *m, int res)
+static int tac_script_cond_eval_res(tac_session *session, struct mavis_cond *m, int res)
 {
     char *r = res ? "true" : "false";
     switch (m->type) {
@@ -4177,7 +4175,7 @@ static int tac_script_cond_eval_res(tac_session * session, struct mavis_cond *m,
     return res;
 }
 
-static int tac_mavis_cond_compare(tac_session * session, struct mavis_cond *m, char *name, size_t name_len)
+static int tac_mavis_cond_compare(tac_session *session, struct mavis_cond *m, char *name, size_t name_len)
 {
     char *hint = "regex";
     int res = 0;
@@ -4200,7 +4198,7 @@ static int tac_mavis_cond_compare(tac_session * session, struct mavis_cond *m, c
     return res;
 }
 
-static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
+static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 {
     int res = 0;
     char *v = NULL;
@@ -4538,7 +4536,7 @@ static int tac_script_cond_eval(tac_session * session, struct mavis_cond *m)
 void tac_rewrite_user(tac_session *, tac_rewrite *);
 #endif
 
-enum token tac_script_eval_r(tac_session * session, struct mavis_action *m)
+enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 {
     enum token r;
     char *v;
@@ -4609,7 +4607,7 @@ enum token tac_script_eval_r(tac_session * session, struct mavis_action *m)
     return m->n ? tac_script_eval_r(session, m->n) : S_unknown;
 }
 
-static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t * mem, int section, tac_realm * realm)
+static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int section, tac_realm *realm)
 {
     struct mavis_action *m = NULL;
     char *sep = "=";
@@ -4699,7 +4697,7 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t * mem, int
 }
 
 #ifdef WITH_PCRE2
-void tac_rewrite_user(tac_session * session, tac_rewrite * rewrite)
+void tac_rewrite_user(tac_session *session, tac_rewrite *rewrite)
 {
     if (!session->username_orig) {
 	session->username_orig = session->username;
@@ -4731,7 +4729,7 @@ void tac_rewrite_user(tac_session * session, tac_rewrite * rewrite)
 }
 #endif
 
-static tac_group *lookup_group(char *name, tac_realm * r)
+static tac_group *lookup_group(char *name, tac_realm *r)
 {
     tac_group g = {.name = name,.name_len = strlen(name) };
 
@@ -4746,7 +4744,7 @@ static tac_group *lookup_group(char *name, tac_realm * r)
     return 0;
 }
 
-mavis_ctx *lookup_mcx(tac_realm * r)
+mavis_ctx *lookup_mcx(tac_realm *r)
 {
     while (r) {
 	if (r->mcx)
@@ -4757,7 +4755,7 @@ mavis_ctx *lookup_mcx(tac_realm * r)
 }
 
 /* add name to tree, return id (globally unique) */
-static tac_group *tac_group_new(struct sym *sym, char *name, tac_realm * r)
+static tac_group *tac_group_new(struct sym *sym, char *name, tac_realm *r)
 {
     if (!r->groups_by_name)
 	r->groups_by_name = RB_tree_new(compare_name, NULL);
@@ -4777,7 +4775,7 @@ static tac_group *tac_group_new(struct sym *sym, char *name, tac_realm * r)
 }
 
 /* add id to groups struct */
-static int tac_group_add(tac_group * add, tac_groups * g, mem_t * mem)
+static int tac_group_add(tac_group *add, tac_groups *g, mem_t *mem)
 {
     if (g->count == g->allocated) {
 	g->allocated += 32;
@@ -4788,7 +4786,7 @@ static int tac_group_add(tac_group * add, tac_groups * g, mem_t * mem)
     return 0;
 }
 
-static int tac_group_check(tac_group * g, tac_groups * gids, tac_group * parent)
+static int tac_group_check(tac_group *g, tac_groups *gids, tac_group *parent)
 {
     if (gids) {
 	for (u_int i = 0; i < gids->count; i++) {
@@ -4804,7 +4802,7 @@ static int tac_group_check(tac_group * g, tac_groups * gids, tac_group * parent)
     return 0;
 }
 
-static int tac_group_regex_check(tac_session * session, struct mavis_cond *m, tac_groups * gids, tac_group * parent)
+static int tac_group_regex_check(tac_session *session, struct mavis_cond *m, tac_groups *gids, tac_group *parent)
 {
     if (gids) {
 	for (u_int i = 0; i < gids->count; i++) {
@@ -4822,7 +4820,7 @@ static int tac_group_regex_check(tac_session * session, struct mavis_cond *m, ta
 }
 
 /* add id to tags struct */
-static int tac_tag_add(mem_t * mem, tac_tag * add, tac_tags * g)
+static int tac_tag_add(mem_t *mem, tac_tag *add, tac_tags *g)
 {
     if (g->count == g->allocated) {
 	g->allocated += 32;
@@ -4849,7 +4847,7 @@ static tac_tag *tac_tag_parse(struct sym *sym)
     return tag;
 }
 
-static int tac_tag_check(tac_session * session, tac_tag * tag, tac_tags * tags)
+static int tac_tag_check(tac_session *session, tac_tag *tag, tac_tags *tags)
 {
     if (tags)
 	for (u_int i = 0; i < tags->count; i++)
@@ -4860,7 +4858,7 @@ static int tac_tag_check(tac_session * session, tac_tag * tag, tac_tags * tags)
     return 0;
 }
 
-static int tac_tag_list_check(tac_session * session, tac_host * h, tac_user * u)
+static int tac_tag_list_check(tac_session *session, tac_host *h, tac_user *u)
 {
     for (; h; h = h->parent)
 	if (h->tags && u->tags)
@@ -4870,7 +4868,7 @@ static int tac_tag_list_check(tac_session * session, tac_host * h, tac_user * u)
     return 0;
 }
 
-static int tac_tag_regex_check(tac_session * session, struct mavis_cond *m, tac_tags * tags)
+static int tac_tag_regex_check(tac_session *session, struct mavis_cond *m, tac_tags *tags)
 {
     if (tags) {
 	for (u_int i = 0; i < tags->count; i++) {
@@ -4886,7 +4884,7 @@ static int tac_tag_regex_check(tac_session * session, struct mavis_cond *m, tac_
 
 #ifdef WITH_SSL
 #ifndef OPENSSL_NO_PSK
-static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char ** key, size_t *keylen)
+static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char **key, size_t *keylen)
 {
     char *t = identity;
     // host may have key set:
@@ -4918,7 +4916,7 @@ static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char ** key, s
     return -1;
 }
 
-static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION ** sess)
+static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION **sess)
 {
     SSL_SESSION *nsession = NULL;
     const SSL_CIPHER *cipher = NULL;
