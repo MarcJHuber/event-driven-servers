@@ -750,6 +750,10 @@ static void accept_control_tls(struct context *ctx, int cur)
 	reject_conn(ctx, "SNI", "TLS ", __LINE__);
 	return;
     }
+
+    tac_host *by_address = ctx->host;
+    ctx->host = NULL;
+
 #ifndef OPENSSL_NO_PSK
     if (ctx->tls_psk_identity) {
 	set_host_by_psk_identity(ctx, ctx->tls_psk_identity);
@@ -764,9 +768,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 	return;
     }
 #endif
-
-    tac_host *by_address = ctx->host;
-    ctx->host = NULL;
 
     if (
 #ifdef WITH_TLS
@@ -920,7 +921,6 @@ static void accept_control_tls(struct context *ctx, int cur)
   done:
 #endif
 
-// gcc 13.2 complains about a possible uninitialized usage of "by_address". Looks like a false positive.
     // fall back to IP address
     if (!ctx->host)
 	ctx->host = by_address;
