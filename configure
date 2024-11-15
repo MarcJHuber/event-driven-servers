@@ -464,7 +464,7 @@ if (defined $DEFS{"CC_GCC"}) {
 	$DEFS{"LDOPT_R"} = "-Wl,-rpath,";
 	$DEFS{"LD_SHARED"} = "$DEFS{'CC'} -shared";
 
-	$DEFS{"CFLAGS"} .= " -Wno-deprecated-declarations -Wno-unused-result" if exists $DEFS{'DEBUG'};
+	$DEFS{"CFLAGS"} .= " -Werror -Wno-deprecated-declarations -Wno-unused-result" if exists $DEFS{'DEBUG'};
 }
 
 if (defined $DEFS{"CC_SUN"}) {
