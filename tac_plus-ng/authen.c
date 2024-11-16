@@ -1720,8 +1720,7 @@ void get_revmap_nas(tac_session * session)
     if (!ctx->nas_dns_name) {
 	tac_realm *r = ctx->realm;
 	while (r) {
-	    int i;
-	    for (i = 0; i < 3; i++) {
+	    for (int i = 0; i < 3; i++) {
 		if (r->dns_tree_ptr[i]) {
 		    struct revmap *rev = radix_lookup(r->dns_tree_ptr[i], &ctx->nas_address, NULL);
 		    if (rev && rev->name && rev->ttl >= io_now.tv_sec) {
@@ -1792,7 +1791,6 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	li_change_password = parse_log_format_inline("\"${CHANGE_PASSWORD}\n\"", __FILE__, __LINE__);
 	li_enable_password_incorrect = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n\"", __FILE__, __LINE__);
 	li_password_incorrect = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n${AUTHFAIL_BANNER}\"", __FILE__, __LINE__);
-	li_response_incorrect = parse_log_format_inline("\"${RESPONSE_INCORRECT}\n${AUTHFAIL_BANNER}\"", __FILE__, __LINE__);
 	li_password_incorrect_retry = parse_log_format_inline("\"${PASSWORD_INCORRECT}\n${PASSWORD}\"", __FILE__, __LINE__);
 	li_response_incorrect_retry = parse_log_format_inline("\"${RESPONSE_INCORRECT}\n${RESPONSE}\"", __FILE__, __LINE__);
 	li_account_expires = parse_log_format_inline("\"${ACCOUNT_EXPIRES}\n\"", __FILE__, __LINE__);
