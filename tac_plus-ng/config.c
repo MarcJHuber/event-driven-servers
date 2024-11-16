@@ -1281,7 +1281,6 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		case S_file:
 		    {
 			glob_t globbuf = { 0 };
-			int i;
 
 			sym_get(sym);
 			parse(sym, S_equal);
@@ -1291,7 +1290,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 
 			switch (glob(sym->buf, GLOB_ERR | GLOB_NOESCAPE | GLOB_NOMAGIC | GLOB_BRACE, globerror, &globbuf)) {
 			case 0:
-			    for (i = 0; i < (int) globbuf.gl_pathc; i++)
+			    for (int i = 0; i < (int) globbuf.gl_pathc; i++)
 				parse_etc_hosts(globbuf.gl_pathv[i], r);
 			    break;
 #ifdef GLOB_NOMATCH
@@ -2608,12 +2607,11 @@ static char *calc_ssh_key_hash(char *hashname, unsigned char *in, size_t in_len)
     if (!strcmp(hashname, "MD5")) {
 	char hex[] = "0123456789abcdef";
 	o = out;
-	int i;
 	*o++ = 'M';
 	*o++ = 'D';
 	*o++ = '5';
 	*o++ = ':';
-	for (i = 0; i < 16; i++) {
+	for (int i = 0; i < 16; i++) {
 	    *o++ = hex[md[i] >> 4];
 	    *o++ = hex[md[i] & 15];
 	    *o++ = (i < 15) ? ':' : 0;
@@ -4502,10 +4500,9 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	    return 0;
 	case S_arg:
 	    if (session->argp) {
-		u_char arg_cnt = session->arg_cnt;
 		u_char *arg_len = session->arg_len;
 		u_char *argp = session->argp;
-		for (; arg_cnt; arg_cnt--, arg_len++) {
+		for (u_char arg_cnt = session->arg_cnt; arg_cnt; arg_cnt--, arg_len++) {
 		    size_t len = strlen(m->u.s.lhs);
 		    size_t l;
 		    char *s = (char *) argp;

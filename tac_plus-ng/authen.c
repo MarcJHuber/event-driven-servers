@@ -1380,8 +1380,7 @@ static void do_mschapv2(tac_session * session)
 	    u_char *resp = session->authen_data->data + session->authen_data->data_len - MSCHAP_DIGEST_LEN;
 	    session->authen_data->data = NULL;
 	    u_char reserved = 0;
-	    u_char *r;
-	    for (r = resp + 16; r < resp + 24; r++)
+	    for (u_char *r = resp + 16; r < resp + 24; r++)
 		reserved |= *r;
 	    if (!reserved && !resp[48] /* reserved, must be zero */ ) {
 		u_char response[24];
@@ -1657,8 +1656,7 @@ void get_revmap_nac(tac_session * session)
     tac_realm *r = session->ctx->realm;
     if (session->nac_address_valid) {
 	while (r) {
-	    int i;
-	    for (i = 0; i < 3; i++) {
+	    for (int i = 0; i < 3; i++) {
 		if (r->dns_tree_ptr[i]) {
 		    struct revmap *rev = radix_lookup(r->dns_tree_ptr[i], &session->nac_address, NULL);
 		    if (rev && rev->name && rev->ttl >= io_now.tv_sec) {
