@@ -209,16 +209,16 @@ static void users_dec(void)
     static int pending = 0;
     pending++;
     common_data.users_cur--;
-    struct scm_data d = {.type = SCM_DONE, .count = pending };
+    struct scm_data d = {.type = SCM_DONE,.count = pending };
     if (ctx_spawnd && (common_data.scm_send_msg(ctx_spawnd->sock, &d, -1) < 0)) {
-	if  (errno != EAGAIN && errno != EWOULDBLOCK)
-		die_when_idle = 1;
+	if (errno != EAGAIN && errno != EWOULDBLOCK)
+	    die_when_idle = 1;
     } else
 	pending = 0;
     set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 }
 
-struct context *new_context(struct io_context *io, tac_realm * r)
+struct context *new_context(struct io_context *io, tac_realm *r)
 {
     mem_t *mem = mem_create(M_POOL);
     struct context *c = mem_alloc(mem, sizeof(struct context));
@@ -245,7 +245,7 @@ static void process_signals(void)
 }
 
 #ifdef WITH_DNS
-static void expire_dns(tac_realm * r)
+static void expire_dns(tac_realm *r)
 {
     /* purge old DNS cache */
     if (r->dnspurge_last + r->dns_caching_period < io_now.tv_sec) {
@@ -256,7 +256,7 @@ static void expire_dns(tac_realm * r)
 	r->dns_tree_ptr[1] = NULL;
     }
     if (r->realms) {
-	for (rb_node_t *rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
+	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    expire_dns(RB_payload(rbn, tac_realm *));
     }
 }
@@ -271,13 +271,13 @@ static void periodics(struct context *ctx, int cur __attribute__((unused)))
     if (!die_when_idle) {
 	if (config.suicide && (config.suicide < io_now.tv_sec)) {
 	    report(NULL, LOG_INFO, ~0, "Retire timeout is up. Told parent about this.");
-	    struct scm_data sd = { .type = SCM_DYING };
+	    struct scm_data sd = {.type = SCM_DYING };
 	    if (ctx_spawnd)
 		common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1);
 	    die_when_idle = -1;
 	} else {
 	    struct scm_data sd = {.type = SCM_KEEPALIVE };
-	    if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1) && errno != EAGAIN && errno !=EWOULDBLOCK)
+	    if (ctx_spawnd && common_data.scm_send_msg(ctx_spawnd->sock, &sd, -1) && errno != EAGAIN && errno != EWOULDBLOCK)
 		die_when_idle = -1;
 	}
     }
@@ -299,7 +299,7 @@ static void periodics_ctx(struct context *ctx, int cur __attribute__((unused)))
 	return;
     }
 
-    for (rb_node_t *rbnext, *rbn = RB_first(ctx->sessions); rbn; rbn = rbnext) {
+    for (rb_node_t * rbnext, *rbn = RB_first(ctx->sessions); rbn; rbn = rbnext) {
 	tac_session *s = RB_payload(rbn, tac_session *);
 	rbnext = RB_next(rbn);
 	if (s->session_timeout < io_now.tv_sec)
@@ -429,7 +429,7 @@ void cleanup(struct context *ctx, int cur __attribute__((unused)))
     io_close(ctx->io, ctx->sock);
     ctx->sock = -1;
 
-    for (rb_node_t *u, *t = RB_first(ctx->sessions); t; t = u) {
+    for (rb_node_t * u, *t = RB_first(ctx->sessions); t; t = u) {
 	u = RB_next(t);
 	cleanup_session(RB_payload(t, tac_session *));
     }
@@ -545,7 +545,7 @@ static tac_realm *set_sd_realm(int, struct scm_data_accept_ext *);
 
 static void accept_control_singleprocess(int s, struct scm_data_accept *sd)
 {
-    struct scm_data_accept_ext sd_ext = { .sd = *sd };
+    struct scm_data_accept_ext sd_ext = {.sd = *sd };
     tac_realm *r = set_sd_realm(-1, &sd_ext);
     users_inc();
     if (sd->haproxy || r->haproxy_autodetect == TRISTATE_YES)
@@ -951,7 +951,7 @@ static void accept_control_px(int s, struct scm_data_accept_ext *sd)
     io_sched_add(ctx->io, ctx, (void *) try_raw, 2, 0);
 }
 
-void complete_host(tac_host * h)
+void complete_host(tac_host *h)
 {
     if (!h->complete && h->parent) {
 	tac_host *hp = h->parent;
@@ -1035,7 +1035,7 @@ void complete_host(tac_host * h)
 }
 
 #ifdef WITH_SSL
-static int app_verify_cb(X509_STORE_CTX * ctx, void *app_ctx)
+static int app_verify_cb(X509_STORE_CTX *ctx, void *app_ctx)
 {
     X509 *cert = X509_STORE_CTX_get0_cert(ctx);
     int res = (cert && (X509_check_purpose(cert, X509_PURPOSE_SSL_CLIENT, 0) == 1) && (X509_verify_cert(ctx) == 1)) ? 1 : 0;
@@ -1044,7 +1044,7 @@ static int app_verify_cb(X509_STORE_CTX * ctx, void *app_ctx)
     return res;
 }
 
-static int alpn_cb(SSL * s __attribute__((unused)), const unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg)
+static int alpn_cb(SSL *s __attribute__((unused)), const unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg)
 {
     struct context *ctx = (struct context *) arg;
     if (SSL_select_next_proto((unsigned char **) out, outlen, ctx->realm->alpn_vec, ctx->realm->alpn_vec_len, in, inlen) != OPENSSL_NPN_NEGOTIATED) {
@@ -1057,7 +1057,7 @@ static int alpn_cb(SSL * s __attribute__((unused)), const unsigned char **out, u
     return SSL_TLSEXT_ERR_OK;
 }
 
-static int sni_cb(SSL * s, int *al __attribute__((unused)), void *arg)
+static int sni_cb(SSL *s, int *al __attribute__((unused)), void *arg)
 {
     struct context *ctx = (struct context *) arg;
     const char *servername = SSL_get_servername(s, TLSEXT_NAMETYPE_host_name);
@@ -1084,6 +1084,22 @@ static int sni_cb(SSL * s, int *al __attribute__((unused)), void *arg)
     ctx->hint = "SNI verification";
     *al = SSL_AD_UNRECOGNIZED_NAME;
     return SSL_TLSEXT_ERR_ALERT_FATAL;
+}
+
+static int SSLKEYLOGFILE = -1;
+static void keylog_cb(const SSL *ssl __attribute__((unused)), const char *line)
+{
+    if (SSLKEYLOGFILE > -1) {
+	struct flock flock = {.l_type = F_WRLCK,.l_whence = SEEK_SET };
+	fcntl(SSLKEYLOGFILE, F_SETLK, &flock);
+
+	lseek(SSLKEYLOGFILE, 0, SEEK_END);
+	write(SSLKEYLOGFILE, line, strlen(line));
+	write(SSLKEYLOGFILE, line, strlen(line));
+
+	struct flock funlock = {.l_type = F_UNLCK,.l_whence = SEEK_SET };
+	fcntl(SSLKEYLOGFILE, F_SETLK, &funlock);
+    }
 }
 #endif
 
@@ -1136,7 +1152,7 @@ static tac_realm *set_sd_realm(int s __attribute__((unused)), struct scm_data_ac
 
 static void complete_host_mavis(struct context *);
 
-static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, sockaddr_union * nad_address)
+static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, sockaddr_union *nad_address)
 {
     fcntl(s, F_SETFD, FD_CLOEXEC);
     fcntl(s, F_SETFL, O_NONBLOCK);
@@ -1236,7 +1252,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1304,6 +1320,13 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	} else
 	    ctx->sni_passed = BISTATE_YES;
 
+	char *sslkeylogfile = getenv("SSLKEYLOGFILE");
+	if (sslkeylogfile) {
+	    SSLKEYLOGFILE = open(sslkeylogfile, O_CREAT | O_APPEND, 0644);
+	    if (SSLKEYLOGFILE > -1)
+		SSL_CTX_set_keylog_callback(ctx->realm->tls, keylog_cb);
+	}
+
 	ctx->tls = SSL_new(ctx->realm->tls);
 	SSL_set_fd(ctx->tls, ctx->sock);
 #endif
@@ -1320,7 +1343,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 static void accept_control_final(struct context *ctx)
 {
     static int count = 0;
-    tac_session session = { .ctx = ctx };
+    tac_session session = {.ctx = ctx };
 
     if (ctx->proxy_addr_ascii) {
 	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
