@@ -33,6 +33,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/uio.h>
 
 /* MD5 context. */
 typedef struct {
@@ -45,4 +46,5 @@ void myMD5Init(myMD5_CTX *);
 void myMD5Update(myMD5_CTX *, void *, size_t);
 void myMD5Final(u_char[16], myMD5_CTX *);
 
+int md5v(u_char *digest, size_t digest_len, const struct iovec *iov, int iovcnt);
 #endif

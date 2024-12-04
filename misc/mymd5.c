@@ -312,3 +312,18 @@ u_int len;
     for (i = 0, j = 0; j < len; i++, j += 4)
 	output[i] = ((u_int) input[j]) | (((u_int) input[j + 1]) << 8) | (((u_int) input[j + 2]) << 16) | (((u_int) input[j + 3]) << 24);
 }
+
+int md5v(u_char *digest, size_t digest_len, const struct iovec *iov, int iovcnt)
+{
+	if (!digest || digest_len != 16)
+		return -1;
+
+	myMD5_CTX ctx;
+	myMD5Init(&ctx);
+
+	for (int i = 0; i < iovcnt; i++)
+		myMD5Update(&ctx, iov[i].iov_base, iov[i].iov_len);
+
+	myMD5Final(digest, &ctx);
+	return 0;
+}
