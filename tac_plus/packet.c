@@ -68,23 +68,21 @@ static void md5_xor(tac_pak_hdr * hdr, char *key, int keylen)
 {
     if (key && *key) {
 	u_char *data = tac_payload(hdr, u_char *);
-	int i, j, data_len = ntohl(hdr->datalength), h = 0;
+	int data_len = ntohl(hdr->datalength), h = 0;
 	u_char hash[MD5_LEN][2];
 
-	for (i = 0; i < data_len; i += 16) {
+	for (int i = 0; i < data_len; i += 16) {
 	    int min = minimum(data_len - i, 16);
-	    myMD5_CTX mdcontext;
+	    struct iovec iov[5] = {
+		{.iov_base = (u_char *) & hdr->session_id,.iov_len = sizeof(hdr->session_id) },
+		{.iov_base = key,.iov_len = keylen },
+		{.iov_base = (u_char *) & hdr->version,.iov_len = sizeof(hdr->version) },
+		{.iov_base = (u_char *) & hdr->seq_no,.iov_len = sizeof(hdr->seq_no) },
+		{.iov_base = (u_char *) hash[h ^ 1],.iov_len = MD5_LEN }
+	    };
+	    md5v(hash[h], MD5_LEN, iov, i ? 5 : 4);
 
-	    myMD5Init(&mdcontext);
-	    myMD5Update(&mdcontext, (u_char *) & hdr->session_id, sizeof(hdr->session_id));
-	    myMD5Update(&mdcontext, (u_char *) key, keylen);
-	    myMD5Update(&mdcontext, (u_char *) & hdr->version, sizeof(hdr->version));
-	    myMD5Update(&mdcontext, (u_char *) & hdr->seq_no, sizeof(hdr->seq_no));
-	    if (i)
-		myMD5Update(&mdcontext, (u_char *) hash[h ^ 1], MD5_LEN);
-	    myMD5Final(hash[h], &mdcontext);
-
-	    for (j = 0; j < min; j++)
+	    for (int j = 0; j < min; j++)
 		data[i + j] ^= hash[h][j];
 	    h ^= 1;
 	}
@@ -94,7 +92,7 @@ static void md5_xor(tac_pak_hdr * hdr, char *key, int keylen)
 
 static tac_pak *new_pak(tac_session * session, u_char type, int len)
 {
-    tac_pak *pak = mem_alloc(session->ctx->mem, sizeof(tac_pak) + len);
+    tac_pak *pak = mem_alloc(session->ctx->mem, sizeof(struct tac_pak) + len);
     pak->length = TAC_PLUS_HDR_SIZE + len;
     pak->hdr.type = type;
     pak->hdr.flags = TAC_PLUS_UNENCRYPTED_FLAG;
@@ -108,16 +106,14 @@ static tac_pak *new_pak(tac_session * session, u_char type, int len)
 /* send an accounting response packet */
 void send_acct_reply(tac_session * session, u_char status, char *msg, char *data)
 {
-    tac_pak *pak;
-    struct acct_reply *reply;
     u_char *p;
     int msg_len = msg ? (int) strlen(msg) : 0;
     int data_len = data ? (int) strlen(data) : 0;
     int len = TAC_ACCT_REPLY_FIXED_FIELDS_SIZE + msg_len + data_len;
 
-    pak = new_pak(session, TAC_PLUS_ACCT, len);
+    tac_pak *pak = new_pak(session, TAC_PLUS_ACCT, len);
 
-    reply = tac_payload(&pak->hdr, struct acct_reply *);
+    struct acct_reply *reply = tac_payload(&pak->hdr, struct acct_reply *);
     reply->status = status;
     reply->msg_len = htons((u_short) msg_len);
     reply->data_len = htons((u_short) data_len);
@@ -135,8 +131,6 @@ void send_acct_reply(tac_session * session, u_char status, char *msg, char *data
 void send_author_reply(tac_session * session, u_char status, char *msg, char *data, int arg_cnt, char **args)
 {
     tac_pak *pak;
-    struct author_reply *reply;
-    int i, len;
     u_char *p;
     int msg_len = msg ? (int) strlen(msg) : 0;
     int data_len = data ? (int) strlen(data) : 0;
@@ -152,16 +146,16 @@ void send_author_reply(tac_session * session, u_char status, char *msg, char *da
     msg_len = minimum(msg_len, 0xffff);
     data_len = minimum(data_len, 0xffff);
 
-    len = TAC_AUTHOR_REPLY_FIXED_FIELDS_SIZE + msg_len + data_len;
+    int len = TAC_AUTHOR_REPLY_FIXED_FIELDS_SIZE + msg_len + data_len;
 
-    for (i = 0; i < arg_cnt; i++) {
+    for (int i = 0; i < arg_cnt; i++) {
 	arglen[i] = (int) strlen(args[i]);
 	len += arglen[i] + 1;
     }
 
     pak = new_pak(session, TAC_PLUS_AUTHOR, len);
 
-    reply = tac_payload(&pak->hdr, struct author_reply *);
+    struct author_reply *reply = tac_payload(&pak->hdr, struct author_reply *);
     reply->status = status;
     reply->msg_len = htons((u_short) msg_len);
     reply->data_len = htons((u_short) data_len);
@@ -170,7 +164,7 @@ void send_author_reply(tac_session * session, u_char status, char *msg, char *da
     p = (u_char *) reply + TAC_AUTHOR_REPLY_FIXED_FIELDS_SIZE;
 
     /* place arg sizes into packet  */
-    for (i = 0; i < arg_cnt; i++)
+    for (int i = 0; i < arg_cnt; i++)
 	*p++ = arglen[i];
 
     if (user_msg_len) {
@@ -184,12 +178,13 @@ void send_author_reply(tac_session * session, u_char status, char *msg, char *da
     p += data_len;
 
     /* copy arg bodies into packet */
-    for (i = 0; i < arg_cnt; i++) {
+    for (int i = 0; i < arg_cnt; i++) {
 	memcpy(p, args[i], arglen[i]);
 	p += arglen[i];
     }
 
     write_packet(session->ctx, pak);
+
     cleanup_session(session);
 }
 
@@ -222,10 +217,7 @@ static void delay_packet(struct context *, tac_pak *, int);
 
 void send_authen_reply(tac_session * session, int status, char *msg, int msg_len, u_char * data, int data_len, u_char flags)
 {
-    tac_pak *pak;
-    struct authen_reply *reply;
-    u_char *p;
-    int len, delay = 0;
+    int delay = 0;
     int user_msg_len = session->user_msg ? (int) strlen(session->user_msg) : 0;
 
     if (data && !data_len)
@@ -240,17 +232,16 @@ void send_authen_reply(tac_session * session, int status, char *msg, int msg_len
     msg_len = minimum(msg_len, 0xffff);
     data_len = minimum(data_len, 0xffff);
 
-    len = TAC_AUTHEN_REPLY_FIXED_FIELDS_SIZE + msg_len + data_len;
+    int len = TAC_AUTHEN_REPLY_FIXED_FIELDS_SIZE + msg_len + data_len;
+    tac_pak *pak = new_pak(session, TAC_PLUS_AUTHEN, len);
 
-    pak = new_pak(session, TAC_PLUS_AUTHEN, len);
-
-    reply = tac_payload(&pak->hdr, struct authen_reply *);
+    struct authen_reply *reply = tac_payload(&pak->hdr, struct authen_reply *);
     reply->status = status;
     reply->msg_len = htons((u_short) msg_len);
     reply->data_len = htons((u_short) data_len);
     reply->flags = flags;
 
-    p = (u_char *) reply + TAC_AUTHEN_REPLY_FIXED_FIELDS_SIZE;
+    u_char *p = (u_char *) reply + TAC_AUTHEN_REPLY_FIXED_FIELDS_SIZE;
 
     if (user_msg_len) {
 	memcpy(p, session->user_msg, user_msg_len);
@@ -313,12 +304,12 @@ static void write_delayed_packet(struct context *ctx, int cur __attribute__((unu
 	io_sched_add(ctx->io, ctx, (void *) write_delayed_packet, ctx->delayed->delay_until - io_now.tv_sec, 0);
 }
 
-static void delay_packet(struct context *ctx, tac_pak * p, int delay)
+static void delay_packet(struct context *ctx, tac_pak *p, int delay)
 {
-    tac_pak **pp;
 
     p->delay_until = io_now.tv_sec + delay;
 
+    tac_pak **pp;
     for (pp = &ctx->delayed; *pp && (*pp)->delay_until < p->delay_until; pp = &(*pp)->next);
 
     p->next = *pp;
@@ -331,14 +322,14 @@ static void delay_packet(struct context *ctx, tac_pak * p, int delay)
 /* write a packet to the wire, encrypting it */
 static void write_packet(struct context *ctx, tac_pak * p)
 {
-    tac_pak **pp;
     p->hdr.flags |= ctx->flags;
 
     if ((common_data.debug | ctx->debug) & DEBUG_PACKET_FLAG) {
-	tac_session dummy_session = { 0 };
-	dummy_session.session_id = p->hdr.session_id;
-	dummy_session.ctx = ctx;
-	dummy_session.debug = ctx->debug;
+	tac_session dummy_session = {
+		.session_id = p->hdr.session_id,
+		.ctx = ctx,
+		.debug = ctx->debug,
+	};
 	report(&dummy_session, LOG_DEBUG, DEBUG_PACKET_FLAG, "Writing %s size=%d", summarise_outgoing_packet_type(&p->hdr), (int) p->length);
 	dump_tacacs_pak(&dummy_session, &p->hdr);
     }
@@ -346,6 +337,7 @@ static void write_packet(struct context *ctx, tac_pak * p)
     /* encrypt the data portion */
     md5_xor(&p->hdr, ctx->key->key, ctx->key->len);
 
+    tac_pak **pp;
     for (pp = &ctx->out; *pp; pp = &(*pp)->next);
     *pp = p;
 
@@ -368,7 +360,6 @@ static int authen_pak_looks_bogus(tac_pak_hdr * hdr)
 static int author_pak_looks_bogus(tac_pak_hdr * hdr)
 {
     u_char *p;
-    int i;
     u_int len;
     struct author *pak = tac_payload(hdr, struct author *);
     u_int datalength = ntohl(hdr->datalength);
@@ -379,6 +370,7 @@ static int author_pak_looks_bogus(tac_pak_hdr * hdr)
     /* Length checks */
     len = TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE + pak->user_len + pak->port_len + pak->rem_addr_len + pak->arg_cnt;
 
+    int i;
     for (i = 0; i < (int) pak->arg_cnt; i++)
 	len += p[i];
 
@@ -391,13 +383,12 @@ static int accounting_pak_looks_bogus(tac_pak_hdr * hdr)
 {
     struct acct *acct = tac_payload(hdr, struct acct *);
     u_char *p = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
-    int i;
-    u_int len;
     u_int datalength = ntohl(hdr->datalength);
 
     /* Do some sanity checking on the packet */
-    len = TAC_ACCT_REQ_FIXED_FIELDS_SIZE + acct->user_len + acct->port_len + acct->rem_addr_len + acct->arg_cnt;
+    u_int len = TAC_ACCT_REQ_FIXED_FIELDS_SIZE + acct->user_len + acct->port_len + acct->rem_addr_len + acct->arg_cnt;
 
+    int i;
     for (i = 0; i < (int) acct->arg_cnt; i++)
 	len += p[i];
 
@@ -415,7 +406,6 @@ static __inline__ tac_session *RB_lookup_session(rb_tree_t * rbt, int session_id
 void tac_read(struct context *ctx, int cur)
 {
     ssize_t len;
-    tac_session *session;
     char msg[80];
     u_int data_len;
     int more_keys = 0;
@@ -446,11 +436,12 @@ void tac_read(struct context *ctx, int cur)
 	cleanup(ctx, cur);
 	return;
     }
-    if (!ctx->in)
+    if (!ctx->in) {
 	ctx->in = mem_alloc(ctx->mem, sizeof(tac_pak) + data_len);
-    memcpy(&ctx->in->hdr, &ctx->hdr, TAC_PLUS_HDR_SIZE);
-    ctx->in->offset = TAC_PLUS_HDR_SIZE;
-    ctx->in->length = TAC_PLUS_HDR_SIZE + data_len;
+	ctx->in->offset = TAC_PLUS_HDR_SIZE;
+	ctx->in->length = TAC_PLUS_HDR_SIZE + data_len;
+	memcpy(&ctx->in->hdr, &ctx->hdr, TAC_PLUS_HDR_SIZE);
+    }
     len = read(cur, (u_char *) & ctx->in->hdr + ctx->in->offset, ctx->in->length - ctx->in->offset);
     if (len < min_len && min_len) {
 	cleanup(ctx, cur);
@@ -460,7 +451,7 @@ void tac_read(struct context *ctx, int cur)
     if (ctx->in->offset != ctx->in->length)
 	return;
 
-    session = RB_lookup_session(ctx->sessions, ctx->hdr.session_id);
+    tac_session *session = RB_lookup_session(ctx->sessions, ctx->hdr.session_id);
 
     if (session) {
 	session->seq_no++;

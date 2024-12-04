@@ -58,13 +58,17 @@
 
 #include "headers.h"
 #include "misc/mymd5.h"
+#ifdef WITH_SSL
+#include <openssl/hmac.h>
+#include <openssl/evp.h>
+#endif
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
 static void write_packet(struct context *, tac_pak *);
-static tac_session *new_session(struct context *, tac_pak_hdr *);
+static tac_session *new_session(struct context *, tac_pak_hdr *, rad_pak_hdr *);
 
-static void md5_xor(tac_pak_hdr * hdr, char *key, int keylen)
+static void md5_xor(tac_pak_hdr *hdr, char *key, int keylen)
 {
     if (key && *key) {
 	u_char *data = tac_payload(hdr, u_char *);
@@ -73,16 +77,14 @@ static void md5_xor(tac_pak_hdr * hdr, char *key, int keylen)
 
 	for (int i = 0; i < data_len; i += 16) {
 	    int min = minimum(data_len - i, 16);
-	    myMD5_CTX mdcontext;
-
-	    myMD5Init(&mdcontext);
-	    myMD5Update(&mdcontext, (u_char *) & hdr->session_id, sizeof(hdr->session_id));
-	    myMD5Update(&mdcontext, (u_char *) key, keylen);
-	    myMD5Update(&mdcontext, (u_char *) & hdr->version, sizeof(hdr->version));
-	    myMD5Update(&mdcontext, (u_char *) & hdr->seq_no, sizeof(hdr->seq_no));
-	    if (i)
-		myMD5Update(&mdcontext, (u_char *) hash[h ^ 1], MD5_LEN);
-	    myMD5Final(hash[h], &mdcontext);
+	    struct iovec iov[5] = {
+		{.iov_base = (u_char *) & hdr->session_id,.iov_len = sizeof(hdr->session_id) },
+		{.iov_base = key,.iov_len = keylen },
+		{.iov_base = (u_char *) & hdr->version,.iov_len = sizeof(hdr->version) },
+		{.iov_base = (u_char *) & hdr->seq_no,.iov_len = sizeof(hdr->seq_no) },
+		{.iov_base = (u_char *) hash[h ^ 1],.iov_len = MD5_LEN }
+	    };
+	    md5v(hash[h], MD5_LEN, iov, i ? 5 : 4);
 
 	    for (int j = 0; j < min; j++)
 		data[i + j] ^= hash[h][j];
@@ -92,21 +94,29 @@ static void md5_xor(tac_pak_hdr * hdr, char *key, int keylen)
     }
 }
 
-static tac_pak *new_pak(tac_session * session, u_char type, int len)
+static tac_pak *new_pak(tac_session *session, u_char type, int len)
 {
-    tac_pak *pak = mem_alloc(session->ctx->mem, sizeof(tac_pak) + len);
+    tac_pak *pak = mem_alloc(session->ctx->mem, sizeof(struct tac_pak) + len);
     pak->length = TAC_PLUS_HDR_SIZE + len;
-    pak->hdr.type = type;
-    pak->hdr.flags = TAC_PLUS_UNENCRYPTED_FLAG;
-    pak->hdr.seq_no = ++session->seq_no;
-    pak->hdr.version = session->version;
-    pak->hdr.session_id = session->session_id;
-    pak->hdr.datalength = htonl(len);
+    pak->pak.tac.type = type;
+    pak->pak.tac.flags = TAC_PLUS_UNENCRYPTED_FLAG;
+    pak->pak.tac.seq_no = ++session->seq_no;
+    pak->pak.tac.version = session->version;
+    pak->pak.tac.session_id = session->session_id;
+    pak->pak.tac.datalength = htonl(len);
+    return pak;
+}
+
+static tac_pak *new_rad_pak(tac_session *session)
+{
+    int len = session->radius_data->data_len + RADIUS_HDR_SIZE;
+    tac_pak *pak = mem_alloc(session->ctx->mem, sizeof(struct tac_pak) + len);
+    pak->length = len;
     return pak;
 }
 
 /* send an accounting response packet */
-void send_acct_reply(tac_session * session, u_char status, char *msg, char *data)
+void send_acct_reply(tac_session *session, u_char status, char *msg, char *data)
 {
     int msg_len = msg ? (int) strlen(msg) : 0;
     int data_len = data ? (int) strlen(data) : 0;
@@ -114,7 +124,7 @@ void send_acct_reply(tac_session * session, u_char status, char *msg, char *data
 
     tac_pak *pak = new_pak(session, TAC_PLUS_ACCT, len);
 
-    struct acct_reply *reply = tac_payload(&pak->hdr, struct acct_reply *);
+    struct acct_reply *reply = tac_payload(&pak->pak, struct acct_reply *);
     reply->status = status;
     reply->msg_len = htons((u_short) msg_len);
     reply->data_len = htons((u_short) data_len);
@@ -129,7 +139,7 @@ void send_acct_reply(tac_session * session, u_char status, char *msg, char *data
 }
 
 /* send an authorization reply packet */
-void send_author_reply(tac_session * session, u_char status, char *msg, char *data, int arg_cnt, char **args)
+void send_author_reply(tac_session *session, u_char status, char *msg, char *data, int arg_cnt, char **args)
 {
     int msg_len = msg ? (int) strlen(msg) : 0;
     int data_len = data ? (int) strlen(data) : 0;
@@ -154,7 +164,7 @@ void send_author_reply(tac_session * session, u_char status, char *msg, char *da
 
     tac_pak *pak = new_pak(session, TAC_PLUS_AUTHOR, len);
 
-    struct author_reply *reply = tac_payload(&pak->hdr, struct author_reply *);
+    struct author_reply *reply = tac_payload(&pak->pak, struct author_reply *);
     reply->status = status;
     reply->msg_len = htons((u_short) msg_len);
     reply->data_len = htons((u_short) data_len);
@@ -237,7 +247,7 @@ void send_author_reply(tac_session * session, u_char status, char *msg, char *da
 
 /* Send an authentication reply packet indicating an error has occurred. */
 
-void send_authen_error(tac_session * session, char *fmt, ...)
+void send_authen_error(tac_session *session, char *fmt, ...)
 {
     int nlen, len = 1024;
     char *msg = alloca(len);
@@ -262,7 +272,7 @@ static void delay_packet(struct context *, tac_pak *, int);
 
 /* create and send an authentication reply packet from tacacs+ to a NAS */
 
-void send_authen_reply(tac_session * session, int status, char *msg, int msg_len, u_char * data, int data_len, u_char flags)
+void send_authen_reply(tac_session *session, int status, char *msg, int msg_len, u_char *data, int data_len, u_char flags)
 {
     if (data && !data_len)
 	data_len = (int) strlen((char *) data);
@@ -275,7 +285,7 @@ void send_authen_reply(tac_session * session, int status, char *msg, int msg_len
     int len = TAC_AUTHEN_REPLY_FIXED_FIELDS_SIZE + msg_len + data_len;
     tac_pak *pak = new_pak(session, TAC_PLUS_AUTHEN, len);
 
-    struct authen_reply *reply = tac_payload(&pak->hdr, struct authen_reply *);
+    struct authen_reply *reply = tac_payload(&pak->pak, struct authen_reply *);
     reply->status = status;
     reply->msg_len = htons((u_short) msg_len);
     reply->data_len = htons((u_short) data_len);
@@ -305,6 +315,72 @@ void send_authen_reply(tac_session * session, int status, char *msg, int msg_len
     }
 }
 
+static void set_response_authenticator(tac_session *session, rad_pak_hdr *pak)
+{
+    struct iovec iov[4] = {
+	{.iov_base = pak, 4 },
+	{.iov_base = session->radius_data->pak_in->authenticator,.iov_len = 16 },
+	{.iov_base = session->radius_data->data,.iov_len = session->radius_data->data_len },
+	{.iov_base = "radsec",.iov_len = 6 }
+    };
+    md5v(pak->authenticator, MD5_LEN, iov, 4);
+}
+
+void rad_send_authen_reply(tac_session *session, int status, char *msg)
+{
+    if (msg && *msg) {
+	size_t msg_len = strlen(msg);
+	if ((session->radius_data->data_len + 2 + msg_len < sizeof(session->radius_data->data)) && (msg_len + 2 < 256)) {
+	    u_char *data = session->radius_data->data;
+	    *data++ = RADIUS_A_REPLY_MESSAGE;
+	    *data++ = (u_char) msg_len;
+	    memcpy(data, msg, msg_len);
+	    session->radius_data->data_len += 2 + msg_len;
+	}
+    }
+    tac_pak *pak = new_rad_pak(session);
+    pak->pak.rad.code = (status == TAC_PLUS_AUTHEN_STATUS_PASS ? RADIUS_CODE_ACCESS_ACCEPT : RADIUS_CODE_ACCESS_REJECT);
+    pak->pak.rad.identifier = session->radius_data->pak_in->identifier;
+    pak->pak.rad.length = htons((uint16_t) (session->radius_data->data_len));
+    memcpy(RADIUS_DATA(&pak->pak), session->radius_data->data, session->radius_data->data_len);
+
+    set_response_authenticator(session, &pak->pak.rad);
+
+    if ((common_data.debug | session->ctx->debug) & DEBUG_PACKET_FLAG)
+	dump_rad_pak(session, &pak->pak.rad);
+
+    if (session->authfail_delay && !(common_data.debug & DEBUG_TACTRACE_FLAG))
+	delay_packet(session->ctx, (tac_pak *) pak, session->authfail_delay);
+    else {
+	tac_pak **pp;
+	for (pp = &session->ctx->out; *pp; pp = &(*pp)->next);
+	*pp = (tac_pak *) pak;
+	io_set_o(session->ctx->io, session->ctx->sock);
+    }
+    cleanup_session(session);
+}
+
+void rad_send_acct_reply(tac_session *session)
+{
+    tac_pak *pak = new_rad_pak(session);
+    pak->pak.rad.code = RADIUS_CODE_ACCOUNTING_RESPONSE;
+    pak->pak.rad.identifier = session->radius_data->pak_in->identifier;
+    pak->pak.rad.length = ntohs((uint16_t) (session->radius_data->data_len));
+    memcpy(RADIUS_DATA(&pak->pak), session->radius_data->data, session->radius_data->data_len);
+
+    set_response_authenticator(session, &pak->pak.rad);
+
+    if ((common_data.debug | session->ctx->debug) & DEBUG_PACKET_FLAG)
+	dump_rad_pak(session, &pak->pak.rad);
+
+    tac_pak **pp;
+    for (pp = &session->ctx->out; *pp; pp = &(*pp)->next);
+    *pp = (tac_pak *) pak;
+    io_set_o(session->ctx->io, session->ctx->sock);
+
+    cleanup_session(session);
+}
+
 static void write_delayed_packet(struct context *ctx, int cur __attribute__((unused)))
 {
     while (ctx->delayed && ctx->delayed->delay_until <= io_now.tv_sec) {
@@ -318,7 +394,7 @@ static void write_delayed_packet(struct context *ctx, int cur __attribute__((unu
 	io_sched_add(ctx->io, ctx, (void *) write_delayed_packet, ctx->delayed->delay_until - io_now.tv_sec, 0);
 }
 
-static void delay_packet(struct context *ctx, tac_pak * p, int delay)
+static void delay_packet(struct context *ctx, tac_pak *p, int delay)
 {
     p->delay_until = io_now.tv_sec + delay;
 
@@ -333,22 +409,23 @@ static void delay_packet(struct context *ctx, tac_pak * p, int delay)
 }
 
 /* write a packet to the wire, encrypting it */
-static void write_packet(struct context *ctx, tac_pak * p)
+static void write_packet(struct context *ctx, tac_pak *p)
 {
-    p->hdr.flags |= ctx->flags;
+    p->pak.tac.flags |= ctx->flags;
 
     if ((common_data.debug | ctx->debug) & DEBUG_PACKET_FLAG) {
-	tac_session dummy_session = { 0 };
-	dummy_session.session_id = p->hdr.session_id;
-	dummy_session.ctx = ctx;
-	dummy_session.debug = ctx->debug;
-	report(&dummy_session, LOG_DEBUG, DEBUG_PACKET_FLAG, "Writing %s size=%d", summarise_outgoing_packet_type(&p->hdr), (int) p->length);
-	dump_tacacs_pak(&dummy_session, &p->hdr);
+	tac_session dummy_session = {
+		.session_id = p->pak.tac.session_id,
+		.ctx = ctx,
+		.debug = ctx->debug,
+	};
+	report(&dummy_session, LOG_DEBUG, DEBUG_PACKET_FLAG, "Writing %s size=%d", summarise_outgoing_packet_type(&p->pak.tac), (int) p->length);
+	dump_tacacs_pak(&dummy_session, &p->pak.tac);
     }
 
     /* encrypt the data portion */
     if (!ctx->unencrypted_flag && ctx->key)
-	md5_xor(&p->hdr, ctx->key->key, ctx->key->len);
+	md5_xor(&p->pak.tac, ctx->key->key, ctx->key->len);
 
     tac_pak **pp;
     for (pp = &ctx->out; *pp; pp = &(*pp)->next);
@@ -359,7 +436,7 @@ static void write_packet(struct context *ctx, tac_pak * p)
 
 static int authen_pak_looks_bogus(struct context *ctx)
 {
-    tac_pak_hdr *hdr = &ctx->in->hdr;
+    tac_pak_hdr *hdr = &ctx->in->pak.tac;
     struct authen_start *start = tac_payload(hdr, struct authen_start *);
     struct authen_cont *cont = tac_payload(hdr, struct authen_cont *);
     u_int datalength = ntohl(hdr->datalength);
@@ -372,7 +449,7 @@ static int authen_pak_looks_bogus(struct context *ctx)
 
 static int author_pak_looks_bogus(struct context *ctx)
 {
-    tac_pak_hdr *hdr = &ctx->in->hdr;
+    tac_pak_hdr *hdr = &ctx->in->pak.tac;
     struct author *pak = tac_payload(hdr, struct author *);
     u_char *p = (u_char *) pak + TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE;
     u_int datalength = ntohl(hdr->datalength);
@@ -387,7 +464,7 @@ static int author_pak_looks_bogus(struct context *ctx)
 
 static int accounting_pak_looks_bogus(struct context *ctx)
 {
-    tac_pak_hdr *hdr = &ctx->in->hdr;
+    tac_pak_hdr *hdr = &ctx->in->pak.tac;
     struct acct *pak = tac_payload(hdr, struct acct *);
     u_char *p = (u_char *) pak + TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
     u_int datalength = ntohl(hdr->datalength);
@@ -400,9 +477,9 @@ static int accounting_pak_looks_bogus(struct context *ctx)
     return (i != pak->arg_cnt) || (ctx->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
 }
 
-static __inline__ tac_session *RB_lookup_session(rb_tree_t * rbt, int session_id)
+static __inline__ tac_session *RB_lookup_session(rb_tree_t *rbt, int session_id)
 {
-    tac_session s = { .session_id = session_id };
+    tac_session s = {.session_id = session_id };
     return RB_lookup(rbt, &s);
 }
 
@@ -418,15 +495,15 @@ void tac_read(struct context *ctx, int cur)
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE) {
 #ifdef WITH_TLS
 	if (ctx->tls)
-	    len = io_TLS_read(ctx->tls, ((u_char *) & ctx->hdr) + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) tac_read);
+	    len = io_TLS_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) tac_read);
 	else
 #endif
 #ifdef WITH_SSL
 	if (ctx->tls)
-	    len = io_SSL_read(ctx->tls, ((u_char *) & ctx->hdr) + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) tac_read);
+	    len = io_SSL_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) tac_read);
 	else
 #endif
-	    len = read(cur, ((u_char *) & ctx->hdr) + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff);
+	    len = read(cur, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff);
 	if (len <= 0) {
 	    cleanup(ctx, cur);
 	    return;
@@ -434,36 +511,52 @@ void tac_read(struct context *ctx, int cur)
 	ctx->hdroff += len;
 	min_len = 0;
     }
+#ifdef WITH_SSL
+    // auto-detect radsec
+    if (ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
+	if (!ctx->tls && !(common_data.debug & DEBUG_TACTRACE_FLAG)) {
+	    cleanup(ctx, cur);
+	    return;
+	}
+	io_set_cb_i(ctx->io, ctx->sock, (void *) rad_read);
+	ctx->radsec = BISTATE_YES;
+	return;
+    }
+#endif
+
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
 	return;
-    if ((ctx->hdr.version & TAC_PLUS_MAJOR_VER_MASK) != TAC_PLUS_MAJOR_VER) {
-	report(NULL, LOG_ERR, ~0, "%s: Illegal major version specified: found %d wanted %d", ctx->nas_address_ascii, ctx->hdr.version, TAC_PLUS_MAJOR_VER);
+
+    if ((ctx->hdr.tac.version & TAC_PLUS_MAJOR_VER_MASK) != TAC_PLUS_MAJOR_VER) {
+	report(NULL, LOG_ERR, ~0, "%s: Illegal major version specified: found %d wanted %d", ctx->nas_address_ascii, ctx->hdr.tac.version,
+	       TAC_PLUS_MAJOR_VER);
 	cleanup(ctx, cur);
 	return;
     }
-    u_int data_len = ntohl(ctx->hdr.datalength);
+    u_int data_len = ntohl(ctx->hdr.tac.datalength);
 
     if (data_len & ~0xffffUL) {
 	report(NULL, LOG_ERR, ~0, "%s: Illegal data size: %u", ctx->nas_address_ascii, data_len);
 	cleanup(ctx, cur);
 	return;
     }
-    if (!ctx->in)
+    if (!ctx->in) {
 	ctx->in = mem_alloc(ctx->mem, sizeof(tac_pak) + data_len);
-    memcpy(&ctx->in->hdr, &ctx->hdr, TAC_PLUS_HDR_SIZE);
-    ctx->in->offset = TAC_PLUS_HDR_SIZE;
-    ctx->in->length = TAC_PLUS_HDR_SIZE + data_len;
+	ctx->in->offset = TAC_PLUS_HDR_SIZE;
+	ctx->in->length = TAC_PLUS_HDR_SIZE + data_len;
+	memcpy(&ctx->in->pak.tac, &ctx->hdr, TAC_PLUS_HDR_SIZE);
+    }
 #ifdef WITH_TLS
     if (ctx->tls)
-	len = io_TLS_read(ctx->tls, (u_char *) & ctx->in->hdr + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) tac_read);
+	len = io_TLS_read(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) tac_read);
     else
 #endif
 #ifdef WITH_SSL
     if (ctx->tls)
-	len = io_SSL_read(ctx->tls, (u_char *) & ctx->in->hdr + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) tac_read);
+	len = io_SSL_read(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) tac_read);
     else
 #endif
-	len = read(cur, (u_char *) & ctx->in->hdr + ctx->in->offset, ctx->in->length - ctx->in->offset);
+	len = read(cur, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset);
     if (len < min_len && min_len) {
 	cleanup(ctx, cur);
 	return;
@@ -472,12 +565,12 @@ void tac_read(struct context *ctx, int cur)
     if (ctx->in->offset != ctx->in->length)
 	return;
 
-    tac_session *session = RB_lookup_session(ctx->sessions, ctx->hdr.session_id);
+    tac_session *session = RB_lookup_session(ctx->sessions, ctx->hdr.tac.session_id);
 
     if (session) {
 	if (session->seq_no / 2 == ctx->host->max_rounds) {
 	    report(session, LOG_ERR, ~0,
-		   "%s: Limit of %d rounds reached for session %.8x", ctx->nas_address_ascii, (int) ctx->host->max_rounds, ntohl(ctx->hdr.session_id));
+		   "%s: Limit of %d rounds reached for session %.8x", ctx->nas_address_ascii, (int) ctx->host->max_rounds, ntohl(ctx->hdr.tac.session_id));
 	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_ERROR, "Too many rounds.", 0, NULL, 0, 0);
 	    cleanup(ctx, cur);
 	    return;
@@ -485,22 +578,22 @@ void tac_read(struct context *ctx, int cur)
 	session->seq_no++;
 	if (!session->user_is_session_specific)
 	    session->user = NULL;	/* may be outdated */
-	if (session->seq_no != ctx->hdr.seq_no) {
+	if (session->seq_no != ctx->hdr.tac.seq_no) {
 	    report(session, LOG_ERR, ~0,
 		   "%s: Illegal sequence number %d (!= %d) for session %.8x",
-		   ctx->nas_address_ascii, (int) ctx->hdr.seq_no, (int) session->seq_no, ntohl(ctx->hdr.session_id));
+		   ctx->nas_address_ascii, (int) ctx->hdr.tac.seq_no, (int) session->seq_no, ntohl(ctx->hdr.tac.session_id));
 	    cleanup(ctx, cur);
 	    return;
 	}
     } else {
-	if (ctx->hdr.seq_no == 1) {
-	    session = new_session(ctx, &ctx->hdr);
+	if (ctx->hdr.tac.seq_no == 1) {
+	    session = new_session(ctx, &ctx->hdr.tac, NULL);
 	    mem_attach(session->mem, mem_detach(ctx->mem, ctx->in));
 	    detached++;
 	} else {
 	    report(NULL, LOG_ERR, ~0,
-		   "%s: %s packet (sequence number: %d) for session %.8x", "Stray", ctx->nas_address_ascii, (int) ctx->hdr.seq_no,
-		   ntohl(ctx->hdr.session_id));
+		   "%s: %s packet (sequence number: %d) for session %.8x", "Stray", ctx->nas_address_ascii, (int) ctx->hdr.tac.seq_no,
+		   ntohl(ctx->hdr.tac.session_id));
 	    cleanup(ctx, cur);
 	    return;
 	}
@@ -508,10 +601,10 @@ void tac_read(struct context *ctx, int cur)
 
     if (
 #if defined(WITH_TLS) || defined(WITH_SSL)
-	   (ctx->tls && !(ctx->in->hdr.flags & TAC_PLUS_UNENCRYPTED_FLAG) && !(session->ctx->bug_compatibility & CLIENT_BUG_TLS_OBFUSCATED))
-	   || (!ctx->tls && (ctx->in->hdr.flags & TAC_PLUS_UNENCRYPTED_FLAG))
+	   (ctx->tls && !(ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG) && !(session->ctx->bug_compatibility & CLIENT_BUG_TLS_OBFUSCATED))
+	   || (!ctx->tls && (ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG))
 #else
-	   (ctx->in->hdr.flags & TAC_PLUS_UNENCRYPTED_FLAG)
+	   (ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG)
 #endif
 	) {
 	char *msg =
@@ -519,12 +612,12 @@ void tac_read(struct context *ctx, int cur)
 	    ctx->tls ? "Peers MUST NOT use Obfuscation with TLS." :
 #endif
 	    "Peers MUST use Obfuscation.";
-	report(NULL, LOG_ERR, ~0, "%s: %s packet (sequence number: %d) for %ssession %.8x", "Encrypted", ctx->nas_address_ascii, (int) ctx->hdr.seq_no,
+	report(NULL, LOG_ERR, ~0, "%s: %s packet (sequence number: %d) for %ssession %.8x", "Encrypted", ctx->nas_address_ascii, (int) ctx->hdr.tac.seq_no,
 #if defined(WITH_TLS) || defined(WITH_SSL)
 	       ctx->tls ? "TLS " :
 #endif
-	       "", ntohl(ctx->hdr.session_id));
-	switch (ctx->hdr.type) {
+	       "", ntohl(ctx->hdr.tac.session_id));
+	switch (ctx->hdr.tac.type) {
 	case TAC_PLUS_AUTHEN:
 	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_ERROR, msg, 0, NULL, 0, 0);
 	    break;
@@ -541,17 +634,17 @@ void tac_read(struct context *ctx, int cur)
 	return;
     }
 
-    if (ctx->in->hdr.flags & TAC_PLUS_UNENCRYPTED_FLAG)
+    if (ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG)
 	ctx->unencrypted_flag = 1;
 
 
-    if ((ctx->in->hdr.flags & TAC_PLUS_SINGLE_CONNECT_FLAG) && (ctx->host->single_connection == TRISTATE_YES)) {
+    if ((ctx->in->pak.tac.flags & TAC_PLUS_SINGLE_CONNECT_FLAG) && (ctx->host->single_connection == TRISTATE_YES)) {
 	ctx->flags |= TAC_PLUS_SINGLE_CONNECT_FLAG;
 	ctx->single_connection_flag = 1;
     }
 
     char msg[80];
-    snprintf(msg, sizeof(msg), "Illegal packet (version=0x%.2x type=0x%.2x)", ctx->in->hdr.version, ctx->in->hdr.type);
+    snprintf(msg, sizeof(msg), "Illegal packet (version=0x%.2x type=0x%.2x)", ctx->in->pak.tac.version, ctx->in->pak.tac.type);
 
     int more_keys = 0;
     do {
@@ -559,15 +652,15 @@ void tac_read(struct context *ctx, int cur)
 
 	if (!ctx->unencrypted_flag) {
 	    if (more_keys) {
-		md5_xor(&ctx->in->hdr, ctx->key->key, ctx->key->len);
+		md5_xor(&ctx->in->pak.tac, ctx->key->key, ctx->key->len);
 		ctx->key = ctx->key->next;
 		more_keys = 0;
 	    }
 	    if (ctx->key)
-		md5_xor(&ctx->in->hdr, ctx->key->key, ctx->key->len);
+		md5_xor(&ctx->in->pak.tac, ctx->key->key, ctx->key->len);
 	}
 
-	switch (ctx->hdr.type) {
+	switch (ctx->hdr.tac.type) {
 	case TAC_PLUS_AUTHEN:
 	    bogus = authen_pak_looks_bogus(ctx);
 	    break;
@@ -588,25 +681,25 @@ void tac_read(struct context *ctx, int cur)
 	if ((common_data.debug | ctx->debug) & DEBUG_PACKET_FLAG)
 	    dump_nas_pak(session, bogus);
 
-	switch (ctx->hdr.type) {
+	switch (ctx->hdr.tac.type) {
 
 	case TAC_PLUS_AUTHEN:
-	    if (!bogus && (ctx->in->hdr.version == TAC_PLUS_VER_DEFAULT || ctx->in->hdr.version == TAC_PLUS_VER_ONE))
-		authen(session, &ctx->in->hdr);
+	    if (!bogus && (ctx->in->pak.tac.version == TAC_PLUS_VER_DEFAULT || ctx->in->pak.tac.version == TAC_PLUS_VER_ONE))
+		authen(session, &ctx->in->pak.tac);
 	    else
 		send_authen_error(session, "%s", msg);
 	    break;
 
 	case TAC_PLUS_AUTHOR:
-	    if (!bogus && (ctx->in->hdr.version == TAC_PLUS_VER_DEFAULT || (session->ctx->bug_compatibility & CLIENT_BUG_BAD_VERSION)))
-		author(session, &ctx->in->hdr);
+	    if (!bogus && (ctx->in->pak.tac.version == TAC_PLUS_VER_DEFAULT || (session->ctx->bug_compatibility & CLIENT_BUG_BAD_VERSION)))
+		author(session, &ctx->in->pak.tac);
 	    else
 		send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_ERROR, msg, NULL, 0, NULL);
 	    break;
 
 	case TAC_PLUS_ACCT:
-	    if (!bogus && (ctx->in->hdr.version == TAC_PLUS_VER_DEFAULT || (session->ctx->bug_compatibility & CLIENT_BUG_BAD_VERSION)))
-		accounting(session, &ctx->in->hdr);
+	    if (!bogus && (ctx->in->pak.tac.version == TAC_PLUS_VER_DEFAULT || (session->ctx->bug_compatibility & CLIENT_BUG_BAD_VERSION)))
+		accounting(session, &ctx->in->pak.tac);
 	    else
 		send_acct_reply(session, TAC_PLUS_ACCT_STATUS_ERROR, msg, NULL);
 	    break;
@@ -621,6 +714,153 @@ void tac_read(struct context *ctx, int cur)
 	report(NULL, LOG_INFO, ~0, "%s uses deprecated key (line %d)", ctx->nas_address_ascii, ctx->key->line);
 
     ctx->key_fixed = 1;
+    if (detached)
+	ctx->in = NULL;
+    else
+	mem_free(ctx->mem, &ctx->in);
+    ctx->hdroff = 0;
+}
+
+void rad_read(struct context *ctx, int cur)
+{
+    ssize_t len;
+    int min_len = 1;
+    int detached = 0;
+
+    ctx->last_io = io_now.tv_sec;
+    context_lru_append(ctx);
+
+    if (ctx->hdroff != RADIUS_HDR_SIZE) {
+#ifdef WITH_TLS
+	if (ctx->tls)
+	    len = io_TLS_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) rad_read);
+	else
+#endif
+#ifdef WITH_SSL
+	if (ctx->tls)
+	    len = io_SSL_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) rad_read);
+	else {
+#endif
+	    len = read(cur, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff);
+	}
+	if (len <= 0) {
+	    cleanup(ctx, cur);
+	    return;
+	}
+	ctx->hdroff += len;
+	min_len = 0;
+    }
+    if (ctx->hdroff != RADIUS_HDR_SIZE)
+	return;
+
+    u_int data_len = RADIUS_DATA_LEN(&ctx->hdr.rad);
+
+    if (!ctx->in) {
+	ctx->in = mem_alloc(ctx->mem, sizeof(tac_pak) + data_len);
+	ctx->in->offset = RADIUS_HDR_SIZE;
+	ctx->in->length = RADIUS_HDR_SIZE + data_len;
+	memcpy(&ctx->in->pak.rad, &ctx->hdr, RADIUS_HDR_SIZE);
+    }
+#ifdef WITH_TLS
+    if (ctx->tls)
+	len = io_TLS_read(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) rad_read);
+    else
+#endif
+#ifdef WITH_SSL
+    if (ctx->tls)
+	len = io_SSL_read(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) rad_read);
+    else
+#endif
+	len = read(cur, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset);
+
+    if (len < min_len && min_len) {
+	cleanup(ctx, cur);
+	return;
+    }
+    ctx->in->offset += len;
+    if (ctx->in->offset != ctx->in->length)
+	return;
+
+    rad_pak_hdr *pak = &ctx->in->pak.rad;
+
+// Consistency check: Do the attribute lengths sum up exactly?
+    u_char *p = RADIUS_DATA(&ctx->in->pak.rad);
+    u_char *e = p + data_len;
+    u_char *message_authenticator = NULL;
+    while (p < e) {
+	if (p + 1 == e || p[1] < 2)
+	    break;
+	if (p[0] == RADIUS_A_VENDOR_SPECIFIC) {
+	    u_char *pv = p + 6;
+	    u_char *ev = p + p[1];
+	    while (pv < ev) {
+		if (pv + 1 == ev || pv[1] < 2)
+		    break;
+		pv += pv[1];
+	    }
+	    if (pv != ev)
+		break;
+	} else if (p[0] == RADIUS_A_MESSAGE_AUTHENTICATOR && p[1] == 18) {
+	    message_authenticator = p + 2;
+	}
+	p += p[1];
+    }
+
+    if (p != e) {
+	cleanup(ctx, cur);
+	return;
+    }
+// Packet looks sane, check message authentiator, if present
+    if (message_authenticator) {
+	u_char ma_original[16];
+	u_char ma_calculated[16];
+	memcpy(ma_original, message_authenticator, 16);
+	memset(message_authenticator, 0, 16);
+	u_int ma_calculated_len = sizeof(ma_calculated);
+
+#ifdef WITH_SSL
+	HMAC(EVP_md5(), "radsec", 6, (const unsigned char *) &ctx->in->pak.uchar, ntohs(ctx->in->pak.rad.length), ma_calculated, &ma_calculated_len);
+#endif
+	memcpy(message_authenticator, ma_original, 16);
+	if (memcmp(ma_original, ma_calculated, 16)) {
+	    cleanup(ctx, cur);
+	    return;
+	}
+    }
+
+    tac_session *session = RB_lookup_session(ctx->sessions, (int) ctx->hdr.rad.identifier);
+
+    if (session) {
+	// Currently, there's no support for multi-packet exchanges, so this is most likely
+	// a retransmission. This shouldn't happen for RADSEC/TCP.
+	mem_free(ctx->mem, &ctx->in);
+	ctx->hdroff = 0;
+	return;
+    }
+    session = new_session(ctx, NULL, &ctx->hdr.rad);
+    mem_attach(session->mem, mem_detach(ctx->mem, ctx->in));
+    detached++;
+
+    if ((common_data.debug | ctx->debug) & DEBUG_PACKET_FLAG)
+	dump_rad_pak(session, &ctx->in->pak.rad);
+
+    if (!session->radius_data) {
+	session->radius_data = mem_alloc(session->mem, sizeof(struct radius_data));
+	session->radius_data->pak_in = pak;
+    }
+
+    switch (pak->code) {
+    case RADIUS_CODE_ACCESS_REQUEST:
+	rad_authen(session);
+	break;
+    case RADIUS_CODE_ACCOUNTING_REQUEST:
+	rad_acct(session);
+	break;
+    default:
+	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->nas_address_ascii, pak->code);
+	cleanup_session(session);
+    }
+
     if (detached)
 	ctx->in = NULL;
     else
@@ -661,17 +901,15 @@ void tac_write(struct context *ctx, int cur)
 	ssize_t len;
 #ifdef WITH_TLS
 	if (ctx->tls)
-	    len =
-		io_TLS_write(ctx->tls, (u_char *) & ctx->out->hdr + ctx->out->offset, ctx->out->length - ctx->out->offset, ctx->io, cur, (void *) tac_write);
+	    len = io_TLS_write(ctx->tls, &ctx->out->pak.uchar + ctx->out->offset, ctx->out->length - ctx->out->offset, ctx->io, cur, (void *) tac_write);
 	else
 #endif
 #ifdef WITH_SSL
 	if (ctx->tls)
-	    len =
-		io_SSL_write(ctx->tls, (u_char *) & ctx->out->hdr + ctx->out->offset, ctx->out->length - ctx->out->offset, ctx->io, cur, (void *) tac_write);
+	    len = io_SSL_write(ctx->tls, &ctx->out->pak.uchar + ctx->out->offset, ctx->out->length - ctx->out->offset, ctx->io, cur, (void *) tac_write);
 	else
 #endif
-	    len = write(cur, (u_char *) & ctx->out->hdr + ctx->out->offset, ctx->out->length - ctx->out->offset);
+	    len = write(cur, &ctx->out->pak.uchar + ctx->out->offset, ctx->out->length - ctx->out->offset);
 	if (len < 0) {
 	    if (errno != EAGAIN)
 		cleanup(ctx, cur);
@@ -717,18 +955,33 @@ static struct type_s types[] = {
     { "acct", 4 }
 };
 
-static tac_session *new_session(struct context *ctx, tac_pak_hdr * hdr)
+static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_pak_hdr *radhdr)
 {
     tac_session *session = mem_alloc(ctx->mem, sizeof(tac_session));
     session->ctx = ctx;
     session->debug = ctx->debug;
     session->mem = mem_create(M_LIST);
-    session->version = hdr->version;
-    session->session_id = hdr->session_id;
+    if (tac_hdr) {
+	session->version = tac_hdr->version;
+	session->session_id = tac_hdr->session_id;
+	session->type = types[tac_hdr->type & 3].str;
+	session->type_len = types[tac_hdr->type & 3].str_len;
+    } else {
+	session->session_id = radhdr->identifier;
+	if (radhdr->code == RADIUS_CODE_ACCESS_REQUEST) {
+#define S "authen"
+	    session->type = S;
+	    session->type_len = sizeof(S);
+#undef S
+	} else if (radhdr->code == RADIUS_CODE_ACCOUNTING_REQUEST) {
+#define S "acct"
+	    session->type = S;
+	    session->type_len = sizeof(S);
+#undef S
+	}
+    }
     session->seq_no = 1;
     session->session_timeout = io_now.tv_sec + ctx->host->session_timeout;
-    session->type = types[hdr->type & 3].str;
-    session->type_len = types[hdr->type & 3].str_len;
     session->password_expiry = -1;
     RB_insert(ctx->sessions, session);
 
@@ -748,7 +1001,7 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr * hdr)
     return session;
 }
 
-void cleanup_session(tac_session * session)
+void cleanup_session(tac_session *session)
 {
     struct context *ctx = session->ctx;
     mavis_ctx *mcx = lookup_mcx(ctx->realm);
@@ -768,7 +1021,7 @@ void cleanup_session(tac_session * session)
     if (session->user && session->user_is_session_specific)
 	free_user(session->user);
 
-    tac_session s = { .session_id = session->session_id };
+    tac_session s = {.session_id = session->session_id };
     RB_search_and_delete(ctx->sessions, &s);
 
     if (session->mavis_pending && mcx)

@@ -57,7 +57,7 @@ struct mavis_ctx_data {
 
 static void mavis_lookup_final(tac_session *, av_ctx *);
 
-static void mavis_switch(tac_session * session, av_ctx * avc, int result)
+static void mavis_switch(tac_session *session, av_ctx *avc, int result)
 {
     if (!session->user_is_session_specific)
 	session->user = NULL;	/* may be outdated */
@@ -103,14 +103,14 @@ static void mavis_switch(tac_session * session, av_ctx * avc, int result)
     }
 }
 
-static void mavis_callback(tac_session * session)
+static void mavis_callback(tac_session *session)
 {
     av_ctx *avc = NULL;
     int rc = mavis_recv(lookup_mcx(session->ctx->realm), &avc, session);
     mavis_switch(session, avc, rc);
 }
 
-void mavis_lookup(tac_session * session, void (*f)(tac_session *), const char *const type, enum pw_ix pw_ix)
+void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *const type, enum pw_ix pw_ix)
 {
     tac_realm *r = session->ctx->realm;
     mavis_ctx *mcx = lookup_mcx(r);
@@ -195,7 +195,7 @@ void mavis_lookup(tac_session * session, void (*f)(tac_session *), const char *c
     }
 }
 
-static int parse_user_profile_multi(av_ctx * avc, struct sym *sym, tac_user * u, char *format, int attribute)
+static int parse_user_profile_multi(av_ctx *avc, struct sym *sym, tac_user *u, char *format, int attribute)
 {
     int res = 0;
     char *a = av_get(avc, attribute);
@@ -212,7 +212,7 @@ static int parse_user_profile_multi(av_ctx * avc, struct sym *sym, tac_user * u,
     return res;
 }
 
-static inline int parse_user_profile_single(av_ctx * avc, struct sym *sym, tac_user * u, char *format, int attribute)
+static inline int parse_user_profile_single(av_ctx *avc, struct sym *sym, tac_user *u, char *format, int attribute)
 {
     char *a = av_get(avc, attribute);
     if (a)
@@ -225,7 +225,7 @@ static __inline__ long long timediff(struct timeval *start)
     return (io_now.tv_sec - start->tv_sec) * 1000 + (io_now.tv_usec - start->tv_usec) / 1000;
 }
 
-static void dump_av_pairs(tac_session * session, av_ctx * avc, char *what)
+static void dump_av_pairs(tac_session *session, av_ctx *avc, char *what)
 {
     if (common_data.debug & (DEBUG_MAVIS_FLAG | DEBUG_TACTRACE_FLAG)) {
 	int show[] = { AV_A_USER, AV_A_DN, AV_A_TACMEMBER, AV_A_MEMBEROF, AV_A_USER_RESPONSE, AV_A_SERVERIP,
@@ -242,7 +242,7 @@ static void dump_av_pairs(tac_session * session, av_ctx * avc, char *what)
     }
 }
 
-static void mavis_lookup_final(tac_session * session, av_ctx * avc)
+static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 {
     char *t, *result = NULL;
     tac_realm *r = session->ctx->realm;
@@ -267,7 +267,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 		session->authorized = 1;
 
 	    if (!u || u->dynamic) {
-		struct sym sym = { .filename = session->username, .line = 1, .flag_prohibit_include = 1 };
+		struct sym sym = {.filename = session->username,.line = 1,.flag_prohibit_include = 1 };
 
 		if (!r->caching_period && session->user) {
 		    free_user(session->user);
@@ -426,7 +426,7 @@ static void mavis_lookup_final(tac_session * session, av_ctx * avc)
 
 static void mavis_ctx_lookup_final(struct context *, av_ctx *);
 
-static void mavis_ctx_switch(struct context *ctx, av_ctx * avc, int result)
+static void mavis_ctx_switch(struct context *ctx, av_ctx *avc, int result)
 {
     switch (result) {
     case MAVIS_FINAL:
@@ -519,7 +519,7 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
     }
 }
 
-static void mavis_ctx_lookup_final(struct context *ctx, av_ctx * avc)
+static void mavis_ctx_lookup_final(struct context *ctx, av_ctx *avc)
 {
     char *t, *result = NULL;
     tac_session session = {.ctx = ctx };

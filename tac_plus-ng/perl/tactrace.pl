@@ -10,6 +10,7 @@ use Net::IP;
 use Net::TacacsPlus::Packet;
 use Getopt::Long;
 use Scm; # This is from spawnd/perl/ ...
+#use Data::HexDump;
 
 my $version = '$Id$';
 
@@ -34,6 +35,9 @@ our $exec = "/usr/local/sbin/tac_plus-ng";
 our $conf = "/usr/local/etc/tac_plus-ng.cfg";
 our $id = "tac_plus-ng";
 our @args = ( "service=shell", "cmd*" );
+our $radsec = undef;
+our $debug = undef;
+our $valgrind = undef;
 
 sub help {
 	my $arglist = '"' . join('" "', @args) . '"';
@@ -62,6 +66,7 @@ Options:
   --exec=<path>		executable path [$exec]
   --conf=<config>	configuration file [$conf]
   --id=<id>		id for configuration selection [$id]
+  --radsec		testin uing RADSEC instead of TACACS+
 
 For authc the password can be set either via the environment variable
 TACTRACEPASSWORD or the defaults file. Setting it via a CLI option isn't
@@ -96,6 +101,7 @@ sub read_defaults {
 
 GetOptions (
 	"help"		=> \&help,
+	"debug"		=> \$debug,
 	"defaults=s"	=> \&read_defaults,
 	"mode=s"	=> \$mode,
 	"username=s"	=> \$username,
@@ -110,7 +116,10 @@ GetOptions (
 	"authenservice=s"=> \$authenservice,
 	"exec=s"	=> \$exec,
 	"conf=s"	=> \$conf,
-	"id=s"		=> \$id
+	"id=s"		=> \$id,
+	"radsec"	=> \$radsec,
+	"radius-dict=s"	=> \$raddict,
+	"valgrind"	=> \$valgrind,
 ) or help();
 
 @args = @ARGV if $#ARGV > -1;
@@ -118,6 +127,7 @@ GetOptions (
 die "Can't access $conf" unless -r "$conf";
 
 my %Mode = ( "authc" => 1, "authz" => 2, "acct" => 3 );
+my %RMode = ( "authc" => 1, "authz" => 2, "acct" => 3 );
 die "--mode=$mode unknown, supported args are " . join(", ", keys %Mode) unless exists $Mode{$mode};
 my %Authentype = ( "ascii" => 1, "pap" => 2 );
 die "--authentype=$authentype unknown, supported args are " . join(", ", keys %Authentype) unless exists $Authentype{$authentype};
@@ -136,7 +146,9 @@ if ($pid == 0) {
 	close $sock0;
 	POSIX::dup2 (fileno $sock1, 0) or die "POSIX::dup2: $!";
 	close $sock1;
+	exec("/usr/bin/valgrind", $exec, "-d", "802", "-d", "4194304", $conf, $id) if defined $valgrind;
 	exec($exec, "-d", "802", "-d", "4194304", $conf, $id);
+#	exec($exec, "-d", "802", "-d", "4194304", "-d", "-1", $conf, $id);
 	die "exec: $!";;
 }
 close $sock1;
@@ -155,31 +167,75 @@ my $phdr = pack('W' x 16 . 'B8' x ($#binip + 1) . 'W' x $pad,
 	$fam, $famlen >> 8, $famlen & 0xff, @binip, 0 x $pad);
 syswrite($conn0, $phdr, 16 + $famlen) or die "syswrite: $!";;
 
-# create a TACACS+ $mode packet and send it to tac_plus-ng:
+my $raw;
 
-my $pkt = Net::TacacsPlus::Packet->new(
-	'type' => $Mode{$mode},
-	'seq_no' => 1,
-	'session_id' => 1,
- 	'authen_method' => $Authenmethod{$authenmethod},
-	'authen_type' => $Authentype{$authentype},
-	'user' => $username,
-	'args' => \@args,
-	'key' => $key,
-	'rem_addr' => $remote,
-	'port' => $port,
-	'authen_service' => $Authenservice{$authenservice},
-	'action' => 1,
-	'data' => $password,
-	'minor_version' => ($authentype eq "pap" && $mode eq "authc") ? 1 : 0
-);
+if (defined $radsec) {
+	# Create a RADIUS+ $mode packet and send it to tac_plus-ng:
+	# This is an early shot and needs refinement.
+
+	use Data::Radius::Constants qw(:all);
+	use Data::Radius::Dictionary;
+	use Data::Radius::Packet;
+	my $dictionary = Data::Radius::Dictionary->load_file($raddict);
+	my $packet = Data::Radius::Packet->new(secret => "radsec", dict => $dictionary);
+	my $type = ACCESS_REQUEST;
+	$type = ACCOUNTING_REQUEST if $mode eq "acct";
+	my ($request, $req_id, $authenticator);
+	if ($mode eq "acct") {
+		($request, $req_id, $authenticator) = $packet->build(
+			type => $type,
+			av_list => [
+				{ Name => 'User-Name', Value => $username},
+				{ Name => 'NAS-Port-Type', Value => 5},
+				{ Name => 'NAS-Port-Type', Value => 50},
+			],
+		);
+	} else {
+		 ($request, $req_id, $authenticator) = $packet->build(
+			type => $type,
+			av_list => [
+				{ Name => 'Message-Authenticator', Value => '' },
+				{ Name => 'User-Name', Value => $username},
+#				{ Name => 'User-Password', Value => $password },
+				{ Name => 'Password', Value => $password},
+				{ Name => 'Calling-Station-Id', Value => "123.123.123.123"},
+			],
+		);
+	}
+	$raw = $request;
+} else {
+	# create a TACACS+ $mode packet and send it to tac_plus-ng:
+
+	my $pkt = Net::TacacsPlus::Packet->new(
+		'type' => $Mode{$mode},
+		'seq_no' => 1,
+		'session_id' => 1,
+		'authen_method' => $Authenmethod{$authenmethod},
+		'authen_type' => $Authentype{$authentype},
+		'user' => $username,
+		'args' => \@args,
+		'key' => $key,
+		'rem_addr' => $remote,
+		'port' => $port,
+		'authen_service' => $Authenservice{$authenservice},
+		'action' => 1,
+		'data' => $password,
+		'minor_version' => ($authentype eq "pap" && $mode eq "authc") ? 1 : 0
+	);
+	$raw = $pkt->raw();
+}
 
 $SIG{CHLD} = sub {
 	printf STDERR "\nThe server process prematurely closed the connection.\n";
 	exit -1;
 };
 
-my $raw = $pkt->raw();
+if (defined $debug) {
+	printf "sudo gdb -p $pid\n";
+	sleep 10;
+}
+
+#print HexDump($raw);
 syswrite($conn0, $raw, length($raw)) or die;
 sysread($conn0, my $buf, my $len = 1);
 exit 0;

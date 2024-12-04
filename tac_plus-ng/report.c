@@ -41,7 +41,7 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-static __inline__ int report_flag_set(tac_session * session, int priority, int level)
+static __inline__ int report_flag_set(tac_session *session, int priority, int level)
 {
     int res = (common_data.debug & level) || (session && (session->debug & level));	// debug mode
     res &= common_data.debugtty || common_data.debug_redirected || common_data.syslog_dflt;	//  and output to tty, file or syslog
@@ -49,7 +49,7 @@ static __inline__ int report_flag_set(tac_session * session, int priority, int l
     return res;
 }
 
-void report(tac_session * session, int priority, int level, char *fmt, ...)
+void report(tac_session *session, int priority, int level, char *fmt, ...)
 {
     int len = 2048;
     char *nas_addr = "-";
@@ -114,7 +114,7 @@ void report(tac_session * session, int priority, int level, char *fmt, ...)
 	syslog(priority, "%s %s%s", nas_addr, (priority & LOG_PRIMASK) == LOG_ERR ? "Error: " : "", msg);
 }
 
-void report_hex(tac_session * session, int priority, int level, u_char * ptr, int len)
+void report_hex(tac_session *session, int priority, int level, u_char *ptr, int len)
 {
     u_char *p = ptr;
     while (len > 0) {
@@ -139,7 +139,7 @@ void report_hex(tac_session * session, int priority, int level, u_char * ptr, in
     }
 }
 
-void report_string(tac_session * session, int priority, int level, char *pre, char *p, int len)
+void report_string(tac_session *session, int priority, int level, char *pre, char *p, int len)
 {
     if (report_flag_set(session, priority, level)) {
 	size_t outlen = len * 4 + 1;

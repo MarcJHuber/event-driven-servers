@@ -199,7 +199,7 @@ static struct hint_struct hints[hint_max] = {
 #undef S2
 };
 
-static char *get_hint(tac_session * session, enum hint_enum h)
+static char *get_hint(tac_session *session, enum hint_enum h)
 {
     if (session->user_msg) {
 	size_t n = hints[h].plain_len + strlen(session->user_msg) + 20;
@@ -217,7 +217,7 @@ static char *get_hint(tac_session * session, enum hint_enum h)
     return hints[h].plain;
 }
 
-static void report_auth(tac_session * session, char *what, enum hint_enum hint, int res)
+static void report_auth(tac_session *session, char *what, enum hint_enum hint, int res)
 {
     char *realm = alloca(session->ctx->realm->name_len + 40);
     tac_realm *r = session->ctx->realm;
@@ -240,15 +240,19 @@ static void report_auth(tac_session * session, char *what, enum hint_enum hint, 
 
     char *hint_augmented = get_hint(session, hint);
 
+#define IS_SET(A) (A && A[0])
     report(session, LOG_INFO, ~0,
 	   "%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	   what,
-	   session->username[0] ? " for '" : "", session->username,
-	   session->username[0] ? "'" : "", realm,
-	   session->nac_address_ascii[0] ? " from " : "",
-	   session->nac_address_ascii, session->nas_port[0] ? " on " : "", session->nas_port,
-	   hint_augmented ? " " : "", hint_augmented, session->profile ? " (profile=" : "", session->profile ? session->profile->name : "",
-	   session->profile ? ")" : "");
+	   IS_SET(session->username) ? " for '" : "", session->username,
+	   IS_SET(session->username) ? "'" : "", realm,
+	   IS_SET(session->nac_address_ascii) ? " from " : "",
+	   IS_SET(session->nac_address_ascii) ? session->nac_address_ascii : "",
+	   IS_SET(session->nas_port) ? " on " : "",
+	   IS_SET(session->nas_port) ? session->nas_port : "",
+	   hint_augmented ? " " : "", hint_augmented,
+	   session->profile ? " (profile=" : "", session->profile ? session->profile->name : "", session->profile ? ")" : "");
+#undef IS_SET
 
     session->msgid = hints[hint].msgid;
     session->msgid_len = hints[hint].msgid_len;
@@ -257,10 +261,10 @@ static void report_auth(tac_session * session, char *what, enum hint_enum hint, 
     session->hint = hint_augmented;
     session->hint_len = strlen(hint_augmented);
 
-    log_exec(session, session->ctx, S_authentication, io_now.tv_sec);
+    log_exec(session, session->ctx, session->radius_data ? S_radius_access : S_authentication, io_now.tv_sec);
 }
 
-static int password_requirements_failed(tac_session * session, char *what)
+static int password_requirements_failed(tac_session *session, char *what)
 {
     tac_realm *r = session->ctx->realm;
 
@@ -273,15 +277,20 @@ static int password_requirements_failed(tac_session * session, char *what)
 	if (token != S_permit) {
 	    report(session, LOG_ERR, ~0, "password doesn't meet minimum requirements");
 	    report_auth(session, what, hint_weak_password, TAC_PLUS_AUTHEN_STATUS_FAIL);
-	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL,
-			      eval_log_format(session, session->ctx, NULL, li_password_minreq, io_now.tv_sec, NULL), 0, NULL, 0, 0);
-	    return -1;
+	    if (session->ctx->radsec) {
+		//FIXME
+		return -1;
+	    } else {
+		send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL,
+				  eval_log_format(session, session->ctx, NULL, li_password_minreq, io_now.tv_sec, NULL), 0, NULL, 0, 0);
+		return -1;
+	    }
 	}
     }
     return 0;
 }
 
-static int user_invalid(tac_user * user, enum hint_enum *hint)
+static int user_invalid(tac_user *user, enum hint_enum *hint)
 {
     int res = (user->valid_from && user->valid_from > io_now.tv_sec) || (user->valid_until && user->valid_until <= io_now.tv_sec);
     if (res && hint)
@@ -329,7 +338,7 @@ static int compare_pwdat(struct pwdat *a, char *b, enum hint_enum *hint)
     return TAC_PLUS_AUTHEN_STATUS_PASS;
 }
 
-static enum token lookup_and_set_user(tac_session * session)
+static enum token lookup_and_set_user(tac_session *session)
 {
     enum token res = S_unknown;
     tac_host *h = session->ctx->host;
@@ -376,7 +385,7 @@ static enum token lookup_and_set_user(tac_session * session)
     return res;
 }
 
-static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
+static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
 	&& ((!session->user && (session->ctx->realm->mavis_login == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
@@ -406,7 +415,7 @@ static int query_mavis_auth_login(tac_session * session, void (*f)(tac_session *
     return res;
 }
 
-static int query_mavis_info_login(tac_session * session, void (*f)(tac_session *))
+static int query_mavis_info_login(tac_session *session, void (*f)(tac_session *))
 {
     int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
@@ -415,7 +424,7 @@ static int query_mavis_info_login(tac_session * session, void (*f)(tac_session *
     return res;
 }
 
-int query_mavis_info(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
+int query_mavis_info(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_info && !session->user;
     session->flag_mavis_info = 1;
@@ -424,7 +433,7 @@ int query_mavis_info(tac_session * session, void (*f)(tac_session *), enum pw_ix
     return res;
 }
 
-static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *), enum pw_ix pw_ix)
+static int query_mavis_auth_pap(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
 	((!session->user && (session->ctx->realm->mavis_pap == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
@@ -435,7 +444,7 @@ static int query_mavis_auth_pap(tac_session * session, void (*f)(tac_session *),
     return res;
 }
 
-static int query_mavis_info_pap(tac_session * session, void (*f)(tac_session *))
+static int query_mavis_info_pap(tac_session *session, void (*f)(tac_session *))
 {
     int res = !session->user && (session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
     session->flag_mavis_info = 1;
@@ -444,7 +453,7 @@ static int query_mavis_info_pap(tac_session * session, void (*f)(tac_session *))
     return res;
 }
 
-static void do_chap(tac_session * session)
+static void do_chap(tac_session *session)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 
@@ -490,7 +499,7 @@ static void do_chap(tac_session * session)
     send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
 }
 
-static int check_access(tac_session * session, struct pwdat *pwdat, char *passwd, enum hint_enum *hint, char **resp)
+static int check_access(tac_session *session, struct pwdat *pwdat, char *passwd, enum hint_enum *hint, char **resp)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 
@@ -537,7 +546,7 @@ static int check_access(tac_session * session, struct pwdat *pwdat, char *passwd
     return res;
 }
 
-static void set_pwdat(tac_session * session, struct pwdat **pwdat, enum pw_ix *pw_ix)
+static void set_pwdat(tac_session *session, struct pwdat **pwdat, enum pw_ix *pw_ix)
 {
     if (session->user) {
 	if (!session->user->fallback_only && (session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period > io_now.tv_sec)
@@ -561,14 +570,14 @@ static void set_pwdat(tac_session * session, struct pwdat **pwdat, enum pw_ix *p
 	*pwdat = NULL;
 }
 
-static char *set_welcome_banner(tac_session * session, struct log_item *fmt_dflt)
+static char *set_welcome_banner(tac_session *session, struct log_item *fmt_dflt)
 {
     if (session->welcome_banner)
 	return session->msg;
 
     struct log_item *fmt = ((session->ctx->host->authfallback != TRISTATE_YES)
-	   || !session->ctx->host->welcome_banner_fallback
-	   || (session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period < io_now.tv_sec))
+			    || !session->ctx->host->welcome_banner_fallback
+			    || (session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period < io_now.tv_sec))
 	? session->ctx->host->welcome_banner : session->ctx->host->welcome_banner_fallback;
 
     if (!fmt)
@@ -582,7 +591,7 @@ static char *set_welcome_banner(tac_session * session, struct log_item *fmt_dflt
     return session->welcome_banner;
 }
 
-static char *set_motd_banner(tac_session * session)
+static char *set_motd_banner(tac_session *session)
 {
     struct log_item *fmt = session->ctx->host->motd;
 
@@ -599,7 +608,7 @@ static char *set_motd_banner(tac_session * session)
     return session->motd;
 }
 
-static void do_chpass(tac_session * session)
+static void do_chpass(tac_session *session)
 {
     enum hint_enum hint = hint_nosuchuser;
 
@@ -702,7 +711,7 @@ static void do_chpass(tac_session * session)
     send_authen_reply(session, res, resp, 0, NULL, 0, 0);
 }
 
-static void send_password_prompt(tac_session * session, enum pw_ix pw_ix, void (*f)(tac_session *))
+static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*f)(tac_session *))
 {
     if ((session->ctx->realm->chalresp == TRISTATE_YES) && (!session->user || ((pw_ix == PW_MAVIS) && (TRISTATE_NO != session->user->chalresp)))) {
 	if (!session->flag_chalresp) {
@@ -738,7 +747,7 @@ static void send_password_prompt(tac_session * session, enum pw_ix pw_ix, void (
 }
 
 /* enable with login password */
-static void do_enable_login(tac_session * session)
+static void do_enable_login(tac_session *session)
 {
     enum hint_enum hint = hint_nosuchuser;
     char *resp = eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL);
@@ -788,7 +797,7 @@ static void do_enable_login(tac_session * session)
 
 static void do_enable_getuser(tac_session *);
 
-static void do_enable_augmented(tac_session * session)
+static void do_enable_augmented(tac_session *session)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
@@ -851,7 +860,7 @@ static void do_enable_augmented(tac_session * session)
     send_authen_reply(session, res, ((res == TAC_PLUS_AUTHEN_STATUS_PASS) ? NULL : resp), 0, NULL, 0, 0);
 }
 
-static void do_enable(tac_session * session)
+static void do_enable(tac_session *session)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
@@ -915,7 +924,7 @@ static void do_enable(tac_session * session)
 		      eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL), 0, NULL, 0, 0);
 }
 
-static void do_ascii_login(tac_session * session)
+static void do_ascii_login(tac_session *session)
 {
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL, *m;
@@ -1040,9 +1049,9 @@ static void do_ascii_login(tac_session * session)
 #define EAP_RESPONSE    2
 #define EAP_SUCCESS     3
 #define EAP_FAILURE     4
-static int eap_step(tac_session * session __attribute__((unused)),
-		    u_char * eap_in __attribute__((unused)), size_t eap_in_len __attribute__((unused)),
-		    u_char * eap_out __attribute__((unused)), size_t *eap_out_len __attribute__((unused)))
+static int eap_step(tac_session *session __attribute__((unused)),
+		    u_char *eap_in __attribute__((unused)), size_t eap_in_len __attribute__((unused)),
+		    u_char *eap_out __attribute__((unused)), size_t *eap_out_len __attribute__((unused)))
 {
     // This is a stub. An implementation bases on libeap (from hostapd) seems feasible,
     // but makes no sense without client support.
@@ -1054,7 +1063,7 @@ static int eap_step(tac_session * session __attribute__((unused)),
     return eap_out[0];
 }
 
-static void do_eap(tac_session * session)
+static void do_eap(tac_session *session)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
@@ -1107,7 +1116,7 @@ static void do_eap(tac_session * session)
 }
 #endif
 
-static void do_enable_getuser(tac_session * session)
+static void do_enable_getuser(tac_session *session)
 {
     enum hint_enum hint = hint_nosuchuser;
     char *resp = eval_log_format(session, session->ctx, NULL, li_enable_password_incorrect, io_now.tv_sec, NULL);
@@ -1175,7 +1184,7 @@ static void do_enable_getuser(tac_session * session)
 }
 
 #ifdef WITH_CRYPTO
-static void mschap_desencrypt(u_char * clear, u_char * str __attribute__((unused)), u_char * cypher)
+static void mschap_desencrypt(u_char *clear, u_char *str __attribute__((unused)), u_char *cypher)
 {
     unsigned char key[8];
 
@@ -1215,12 +1224,12 @@ static void mschap_desencrypt(u_char * clear, u_char * str __attribute__((unused
 #endif
 }
 
-static void mschap_deshash(u_char * clear, u_char * cypher)
+static void mschap_deshash(u_char *clear, u_char *cypher)
 {
     mschap_desencrypt((u_char *) "KGS!@#$%", clear, cypher);
 }
 
-static void mschap_lmhash(char *password, u_char * hash)
+static void mschap_lmhash(char *password, u_char *hash)
 {
     u_char upassword[15] = { 0 };
 
@@ -1231,7 +1240,7 @@ static void mschap_lmhash(char *password, u_char * hash)
     mschap_deshash(upassword + 7, hash + 8);
 }
 
-static void mschap_chalresp(u_char * chal, u_char * hash, u_char * resp)
+static void mschap_chalresp(u_char *chal, u_char *hash, u_char *resp)
 {
     u_char zhash[21] = { 9 };
 
@@ -1242,7 +1251,7 @@ static void mschap_chalresp(u_char * chal, u_char * hash, u_char * resp)
     mschap_desencrypt(chal, zhash + 14, resp + 16);
 }
 
-static void mschap_lmchalresp(u_char * chal, char *password, u_char * resp)
+static void mschap_lmchalresp(u_char *chal, char *password, u_char *resp)
 {
     u_char hash[16];
 
@@ -1250,7 +1259,7 @@ static void mschap_lmchalresp(u_char * chal, char *password, u_char * resp)
     mschap_chalresp(chal, hash, resp);
 }
 
-static void mschap_nthash(char *password, u_char * hash)
+static void mschap_nthash(char *password, u_char *hash)
 {
     myMD4_CTX context;
 
@@ -1274,7 +1283,7 @@ static void mschap_nthash(char *password, u_char * hash)
     MD4Final(hash, &context);
 }
 
-static void mschap_ntchalresp(u_char * chal, char *password, u_char * resp)
+static void mschap_ntchalresp(u_char *chal, char *password, u_char *resp)
 {
     u_char hash[16];
 
@@ -1282,7 +1291,7 @@ static void mschap_ntchalresp(u_char * chal, char *password, u_char * resp)
     mschap_chalresp(chal, hash, resp);
 }
 
-static void do_mschap(tac_session * session)
+static void do_mschap(tac_session *session)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
@@ -1328,7 +1337,7 @@ static void do_mschap(tac_session * session)
 
 // The MSCHAPv2 support code is completely untested as of 2020-12-12 ...
 
-static void mschapv2_chalhash(u_char * peerChal, u_char * authChal, char *user, u_char * chal)
+static void mschapv2_chalhash(u_char *peerChal, u_char *authChal, char *user, u_char *chal)
 {
     u_char md[SHA_DIGEST_LENGTH];
 #if OPENSSL_VERSION_NUMBER < 0x30000000
@@ -1349,7 +1358,7 @@ static void mschapv2_chalhash(u_char * peerChal, u_char * authChal, char *user, 
     memcpy(chal, md, 8);
 }
 
-static void mschapv2_ntresp(u_char * achal, u_char * pchal, char *user, char *pass, u_char * resp)
+static void mschapv2_ntresp(u_char *achal, u_char *pchal, char *user, char *pass, u_char *resp)
 {
     u_char challenge[8];
     u_char hash[16];
@@ -1358,7 +1367,7 @@ static void mschapv2_ntresp(u_char * achal, u_char * pchal, char *user, char *pa
     mschap_chalresp(challenge, hash, resp);
 }
 
-static void do_mschapv2(tac_session * session)
+static void do_mschapv2(tac_session *session)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
@@ -1380,7 +1389,7 @@ static void do_mschapv2(tac_session * session)
 	    u_char *resp = session->authen_data->data + session->authen_data->data_len - MSCHAP_DIGEST_LEN;
 	    session->authen_data->data = NULL;
 	    u_char reserved = 0;
-	    for (u_char *r = resp + 16; r < resp + 24; r++)
+	    for (u_char * r = resp + 16; r < resp + 24; r++)
 		reserved |= *r;
 	    if (!reserved && !resp[48] /* reserved, must be zero */ ) {
 		u_char response[24];
@@ -1402,7 +1411,7 @@ static void do_mschapv2(tac_session * session)
 }
 #endif
 
-static void do_login(tac_session * session)
+static void do_login(tac_session *session)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
@@ -1437,7 +1446,7 @@ static void do_login(tac_session * session)
     send_authen_reply(session, res, resp, 0, NULL, 0, 0);
 }
 
-static void do_pap(tac_session * session)
+static void do_pap(tac_session *session)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
@@ -1501,7 +1510,7 @@ static void do_pap(tac_session * session)
 //
 // OpenSSH integration is easily possible, too, via AuthorizedKeysCommand.
 //
-static void do_sshkeyhash(tac_session * session)
+static void do_sshkeyhash(tac_session *session)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
@@ -1555,7 +1564,7 @@ static void do_sshkeyhash(tac_session * session)
 // OpenSSH integration is easily possible, too, via AuthorizedPrincipalsCommand.
 //
 
-static void do_sshcerthash(tac_session * session)
+static void do_sshcerthash(tac_session *session)
 {
     int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
@@ -1611,7 +1620,7 @@ void free_reverse(void *payload, void *data __attribute__((unused)))
     }
 }
 
-void add_revmap(tac_realm * r, struct in6_addr *address, char *hostname, int ttl, int table)
+void add_revmap(tac_realm *r, struct in6_addr *address, char *hostname, int ttl, int table)
 {
     while (r && !r->idc)
 	r = r->parent;
@@ -1635,7 +1644,7 @@ void add_revmap(tac_realm * r, struct in6_addr *address, char *hostname, int ttl
 }
 
 #ifdef WITH_DNS
-static void set_revmap_nac(tac_session * session, char *hostname, int ttl)
+static void set_revmap_nac(tac_session *session, char *hostname, int ttl)
 {
     report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "NAC revmap(%s) = %s", session->nac_address_ascii, hostname ? hostname : "(not found)");
     if (hostname)
@@ -1651,7 +1660,7 @@ static void set_revmap_nac(tac_session * session, char *hostname, int ttl)
 }
 #endif
 
-void get_revmap_nac(tac_session * session)
+void get_revmap_nac(tac_session *session)
 {
     tac_realm *r = session->ctx->realm;
     if (session->nac_address_valid) {
@@ -1701,7 +1710,7 @@ static void set_revmap_nas(struct context *ctx, char *hostname, int ttl)
 
     add_revmap(ctx->realm, &ctx->nas_address, hostname, ttl, 1);
 
-    for (rb_node_t *rbnext, *rbn = RB_first(ctx->sessions); rbn; rbn = rbnext) {
+    for (rb_node_t * rbnext, *rbn = RB_first(ctx->sessions); rbn; rbn = rbnext) {
 	tac_session *session = RB_payload(rbn, tac_session *);
 	rbnext = RB_next(rbn);
 
@@ -1712,7 +1721,7 @@ static void set_revmap_nas(struct context *ctx, char *hostname, int ttl)
 #endif
 
 
-void get_revmap_nas(tac_session * session)
+void get_revmap_nas(tac_session *session)
 {
     struct context *ctx = session->ctx;
     if (!ctx->nas_dns_name) {
@@ -1748,7 +1757,7 @@ void get_revmap_nas(tac_session * session)
 }
 
 #ifdef WITH_DNS
-void resume_session(tac_session * session, int cur __attribute__((unused)))
+void resume_session(tac_session *session, int cur __attribute__((unused)))
 {
     void (*resumefn)(tac_session *) = session->resumefn;
     report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "resuming");
@@ -1762,7 +1771,7 @@ void resume_session(tac_session * session, int cur __attribute__((unused)))
 }
 #endif
 
-void authen(tac_session * session, tac_pak_hdr * hdr)
+void authen(tac_session *session, tac_pak_hdr *hdr)
 {
     int username_required = 1;
     struct authen_start *start = tac_payload(hdr, struct authen_start *);
@@ -1940,4 +1949,81 @@ void authen(tac_session * session, tac_pak_hdr * hdr)
 	}
     } else
 	send_authen_error(session, "Invalid or unsupported AUTHEN/START (action=%d authen_type=%d)", start->action, start->type);
+}
+
+static void do_radius_login(tac_session *session)
+{
+    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum hint_enum hint = hint_nosuchuser;
+    char *resp = NULL;
+
+    mem_free(session->mem, &session->password);
+
+    if (rad_get(session, -1, RADIUS_A_USER_NAME, RADTYPE_STRING, &session->username, &session->username_len)
+	|| rad_get_password(session, &session->password, NULL)) {
+	cleanup_session(session);
+	return;
+    }
+
+    if (password_requirements_failed(session, "radius login"))
+	return;
+
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, "radius login", hint_denied_by_acl, res);
+	rad_send_authen_reply(session, res, NULL);
+	return;
+    }
+    if (query_mavis_info_pap(session, do_radius_login))
+	return;
+
+    enum pw_ix pw_ix = (session->ctx->host->map_pap_to_login == TRISTATE_YES) ? PW_LOGIN : PW_PAP;
+    struct pwdat *pwdat = NULL;
+    set_pwdat(session, &pwdat, &pw_ix);
+
+    if (query_mavis_auth_pap(session, do_radius_login, pw_ix))
+	return;
+
+    session->debug |= session->user->debug;
+
+    res = check_access(session, pwdat, session->password, &hint, &resp);
+
+    enum token sres = author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first);
+
+    if (res == TAC_PLUS_AUTHEN_STATUS_PASS && sres != S_deny && session->profile) {
+	session->debug |= session->profile->debug;
+	sres = author_eval_profile(session, session->profile, session->ctx->realm->script_profile_parent_first);
+    }
+    if (sres == S_deny) {
+	static struct log_item *li_denied_by_acl = NULL;
+	if (!li_denied_by_acl)
+	    li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
+	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
+	res = TAC_PLUS_AUTHOR_STATUS_FAIL;
+	resp = eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL);
+    }
+
+    report_auth(session, "radius login", hint, res);
+
+    if (!resp)
+	resp = session->user_msg;
+
+    rad_send_authen_reply(session, res, resp);
+}
+
+void rad_authen(tac_session *session)
+{
+    if (!rad_get(session, -1, RADIUS_A_CALLED_STATION_ID, RADTYPE_STRING, &session->nac_address_ascii, &session->nac_address_ascii_len))
+	session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
+
+    if (rad_get(session, -1, RADIUS_A_NAS_PORT_ID, RADTYPE_STRING, &session->nas_port, &session->nas_port_len))
+	rad_get(session, -1, RADIUS_A_NAS_PORT, RADTYPE_STRING, &session->nas_port, &session->nas_port_len);
+
+    switch (session->radius_data->pak_in->code) {
+    case RADIUS_CODE_ACCESS_REQUEST:
+	session->radius_data->authfn = do_radius_login;
+	break;
+    default:
+	cleanup_session(session);
+    }
+    session->radius_data->authfn(session);
 }

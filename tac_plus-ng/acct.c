@@ -62,7 +62,7 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 
 static void do_acct(tac_session *);
 
-void accounting(tac_session * session, tac_pak_hdr * hdr)
+void accounting(tac_session *session, tac_pak_hdr *hdr)
 {
     struct acct *acct = tac_payload(hdr, struct acct *);
     u_char *p = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE + acct->arg_cnt;
@@ -151,8 +151,113 @@ void accounting(tac_session * session, tac_pak_hdr * hdr)
 	do_acct(session);
 }
 
-static void do_acct(tac_session * session)
+static void do_acct(tac_session *session)
 {
     log_exec(session, session->ctx, S_accounting, io_now.tv_sec);
     send_acct_reply(session, TAC_PLUS_ACCT_STATUS_SUCCESS, NULL, NULL);
+}
+
+
+static void do_rad_acct(tac_session *);
+
+void rad_acct(tac_session *session)
+{
+    tac_host *h = session->ctx->host;
+
+    report(session, LOG_DEBUG, DEBUG_ACCT_FLAG, "Start accounting request");
+
+    rad_get(session, -1, RADIUS_A_USER_NAME, RADTYPE_STRING, &session->username, &session->username_len);
+
+    if (!rad_get(session, -1, RADIUS_A_CALLED_STATION_ID, RADTYPE_STRING, &session->nac_address_ascii, &session->nac_address_ascii_len))
+	session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
+
+    if (rad_get(session, -1, RADIUS_A_NAS_PORT_ID, RADTYPE_STRING, &session->nas_port, &session->nas_port_len))
+	rad_get(session, -1, RADIUS_A_NAS_PORT, RADTYPE_STRING, &session->nas_port, &session->nas_port_len);
+
+    int type = 0;
+    if (!rad_get(session, -1, RADIUS_A_ACCT_STATUS_TYPE, RADTYPE_INTEGER, &type, NULL)) {
+	switch (type) {
+	case RADIUS_V_ACCT_STATUS_TYPE_START:
+#define S "start"
+	    session->acct_type = S;
+	    session->acct_type_len = sizeof(S) - 1;
+#undef S
+#define S "ACCT-START"
+	    session->msgid = S;
+	    session->msgid_len = sizeof(S) - 1;
+#undef S
+	    break;
+	case RADIUS_V_ACCT_STATUS_TYPE_STOP:
+#define S "stop"
+	    session->acct_type = S;
+	    session->acct_type_len = sizeof(S) - 1;
+#undef S
+#define S "ACCT-STOP"
+	    session->msgid = S;
+	    session->msgid_len = sizeof(S) - 1;
+#undef S
+	    break;
+	case RADIUS_V_ACCT_STATUS_TYPE_INTERIM_UPDATE:
+#define S "update"
+	    session->acct_type = S;
+	    session->acct_type_len = sizeof(S) - 1;
+#undef S
+#define S "ACCT-UPDATE"
+	    session->msgid = S;
+	    session->msgid_len = sizeof(S) - 1;
+#undef S
+	    break;
+	case RADIUS_V_ACCT_STATUS_TYPE_ACCOUNTING_ON:
+#define S "on"
+	    session->acct_type = S;
+	    session->acct_type_len = sizeof(S) - 1;
+#undef S
+#define S "ACCT-ON"
+	    session->msgid = S;
+	    session->msgid_len = sizeof(S) - 1;
+#undef S
+	case RADIUS_V_ACCT_STATUS_TYPE_ACCTOUNTING_OFF:
+#define S "off"
+	    session->acct_type = S;
+	    session->acct_type_len = sizeof(S) - 1;
+#undef S
+#define S "ACCT-OFF"
+	    session->msgid = S;
+	    session->msgid_len = sizeof(S) - 1;
+#undef S
+	default:
+#define S "unknown"
+	    session->acct_type = S;
+	    session->acct_type_len = sizeof(S) - 1;
+#undef S
+#define S "ACCT-UNKNOWN"
+	    session->msgid = S;
+	    session->msgid_len = sizeof(S) - 1;
+#undef S
+	}
+    }
+    // script-based user rewriting, current
+    enum token res = S_unknown;
+    while (h && res != S_permit && res != S_deny) {
+	if (h->action)
+	    res = tac_script_eval_r(session, h->action);
+	h = h->parent;
+    }
+
+    if (session->nac_address_valid)
+	get_revmap_nac(session);
+
+#ifdef WITH_DNS
+    if ((session->ctx->host->dns_timeout > 0) && (session->revmap_pending || session->ctx->revmap_pending)) {
+	session->resumefn = do_rad_acct;
+	io_sched_add(session->ctx->io, session, (void *) resume_session, session->ctx->host->dns_timeout, 0);
+    } else
+#endif
+	do_rad_acct(session);
+}
+
+static void do_rad_acct(tac_session *session)
+{
+    log_exec(session, session->ctx, S_radius_accounting, io_now.tv_sec);
+    rad_send_acct_reply(session);
 }

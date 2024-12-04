@@ -60,6 +60,7 @@
 #include "misc/version.h"
 #include "misc/strops.h"
 #include "misc/crc32.h"
+#include "misc/mymd5.h"
 #include <setjmp.h>
 #include <pwd.h>
 #include <grp.h>
@@ -1118,6 +1119,476 @@ static void add_sni(struct sym *sym, tac_realm *r)
 }
 #endif
 
+struct rad_dict_val {
+    TAC_NAME_ATTRIBUTES;
+    struct rad_dict_val *next;
+    int line;
+    int id;
+};
+
+struct rad_dict_attr {
+    TAC_NAME_ATTRIBUTES;
+    struct rad_dict_attr *next;
+    int line;
+    int id;
+    enum rad_type type;
+    struct rad_dict *dict;	// back-reference to vendor
+    struct rad_dict_val *val;
+};
+
+struct rad_dict {
+    TAC_NAME_ATTRIBUTES;
+    struct rad_dict *next;
+    int line;
+    int id;
+    struct rad_dict_attr *attr;
+};
+
+static struct rad_dict *rad_dict_new(struct sym *sym, char *name, int id)
+{
+    struct rad_dict **dict = &config.rad_dict;
+    while (*dict)
+	dict = &(*dict)->next;
+    *dict = calloc(1, sizeof(struct rad_dict));
+    (*dict)->name = strdup(name);
+    (*dict)->name_len = strlen(name);
+    (*dict)->line = sym->line;
+    (*dict)->id = id;
+    return *dict;
+}
+
+struct rad_dict *rad_dict_lookup_by_id(int vendorid)
+{
+    for (struct rad_dict * dict = config.rad_dict; dict; dict = dict->next)
+	if (dict->id == vendorid)
+	    return dict;
+    return NULL;
+}
+
+static struct rad_dict *rad_dict_lookup_by_name(char *vendorname)
+{
+    size_t vendorname_len = strlen(vendorname);
+    for (struct rad_dict * dict = config.rad_dict; dict; dict = dict->next)
+	if (dict->name_len == vendorname_len && !strcmp(dict->name, vendorname))
+	    return dict;
+    return NULL;
+}
+
+struct rad_dict_attr *rad_dict_attr_lookup_by_id(struct rad_dict *dict, int id)
+{
+    for (struct rad_dict_attr * attr = dict->attr; attr; attr = attr->next)
+	if (attr->id == id)
+	    return attr;
+    return NULL;
+}
+
+static struct rad_dict_attr *rad_dict_attr_lookup_by_name(struct rad_dict *dict, char *name)
+{
+    size_t name_len = strlen(name);
+    for (struct rad_dict_attr * attr = dict->attr; attr; attr = attr->next)
+	if (attr->name_len == name_len && !strcmp(attr->name, name))
+	    return attr;
+    return NULL;
+}
+
+struct rad_dict_val *rad_dict_val_lookup_by_id(struct rad_dict_attr *attr, int id)
+{
+    for (struct rad_dict_val * val = attr->val; val; val = val->next)
+	if (val->id == id)
+	    return val;
+    return NULL;
+}
+
+static struct rad_dict_val *rad_dict_val_lookup_by_name(struct rad_dict_attr *attr, char *name)
+{
+    size_t name_len = strlen(name);
+    for (struct rad_dict_val * val = attr->val; val; val = val->next)
+	if (val->name_len == name_len && !strcmp(val->name, name))
+	    return val;
+    return NULL;
+}
+
+static struct rad_dict_attr *rad_dict_attr_add(struct sym *sym, struct rad_dict *dict, char *name, int id, enum rad_type type)
+{
+    struct rad_dict_attr **attr = &(dict->attr);
+    while (*attr)
+	attr = &(*attr)->next;
+    *attr = calloc(1, sizeof(struct rad_dict_attr));
+    (*attr)->name = strdup(name);
+    (*attr)->name_len = strlen(name);
+    (*attr)->line = sym->line;
+    (*attr)->id = id;
+    (*attr)->dict = dict;
+    (*attr)->type = type;
+    return *attr;
+}
+
+static void rad_dict_attr_add_val(struct sym *sym, struct rad_dict_attr *attr, char *name, int id)
+{
+    struct rad_dict_val **val = &(attr->val);
+    while (*val)
+	val = &(*val)->next;
+    *val = calloc(1, sizeof(struct rad_dict_val));
+    (*val)->name = strdup(name);
+    (*val)->name_len = strlen(name);
+    (*val)->line = sym->line;
+    (*val)->id = id;
+}
+
+static struct rad_dict_attr *rad_dict_attr_lookup(struct sym *sym)
+{
+    size_t buf_len = strlen(sym->buf);
+    char *vid_str = alloca(buf_len + 1);
+    memcpy(vid_str, sym->buf, buf_len + 1);
+    char *id_str = strchr(vid_str, ':');
+
+    if (id_str) {
+	*id_str = 0;
+	id_str++;
+    } else {
+	id_str = sym->buf;
+	vid_str = "";
+    }
+
+    struct rad_dict *dict = rad_dict_lookup_by_name(vid_str);
+    if (!dict)
+	parse_error(sym, "RADIUS dictionary '%s', not defined", vid_str);
+
+    struct rad_dict_attr *attr = rad_dict_attr_lookup_by_name(dict, id_str);
+    if (!attr)
+	parse_error(sym, "RADIUS attribute '%s', not defined", sym->buf);
+
+    return attr;
+}
+
+static void rad_attr_val_dump_hex(u_char *data, size_t data_len, char **buf, size_t *buf_len)
+{
+    char hex[16] = "0123456789abcdef";
+    for (size_t i = 0; i < data_len && *buf_len > 10; i++) {
+	if (i) {
+	    *(*buf)++ = ' ';
+	    (*buf_len)--;
+	}
+
+	*(*buf)++ = hex[data[i] >> 4];
+	*(*buf)++ = hex[data[i] & 15];
+	*buf_len -= 2;
+    }
+}
+
+static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, size_t *buf_len, struct rad_dict *dict)
+{
+    // dump exactly one av pair, type is attr->type, prefixed with attr->dict->name (vendor name)
+
+    if (dict->id > -1 && *buf_len > dict->name_len + 2) {
+	memcpy(*buf, dict->name, dict->name_len);
+	*buf += dict->name_len;
+	*buf_len -= dict->name_len;
+	*(*buf)++ = ':';
+	*buf_len -= 1;
+    }
+
+    struct rad_dict_attr *attr = rad_dict_attr_lookup_by_id(dict, *data);
+    if (attr) {
+	if (*buf_len > attr->name_len + 2) {
+	    memcpy(*buf, attr->name, attr->name_len);
+	    *buf += attr->name_len;
+	    *buf_len -= attr->name_len;
+	    *(*buf)++ = '=';
+	    *buf_len -= 1;
+	}
+	switch (attr->type) {
+	case RADTYPE_STRING:{
+		if (*buf_len > (size_t) (data[1] - 1)) {
+		    if (attr->dict->id == -1 && attr->id == RADIUS_A_USER_PASSWORD) {
+			*(*buf)++ = '*';
+			*(*buf)++ = '*';
+			*(*buf)++ = '*';
+			*buf_len -= 3;
+		    } else {
+			memcpy(*buf, data + 2, data[1] - 2);
+			*buf += data[1] - 2;
+			*buf_len -= data[1] - 2;
+		    }
+		}
+		return;
+	    }
+	case RADTYPE_INTEGER:{
+		if (data[1] != 6)
+		    return;
+		int i = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5];
+		struct rad_dict_val *val = rad_dict_val_lookup_by_id(attr, i);
+		if (val && (*buf_len > val->name_len)) {
+		    memcpy(*buf, val->name, val->name_len);
+		    *buf += val->name_len;
+		    *buf_len -= val->name_len;
+		} else {
+		    int len = snprintf(*buf, *buf_len, "%d", i);
+		    if (len > 0) {
+			*buf += len;
+			*buf_len -= len;
+		    }
+		}
+		return;
+	    }
+	case RADTYPE_OCTETS:
+	    rad_attr_val_dump_hex(data, data_len - 2, buf, buf_len);
+	    return;
+	case RADTYPE_IPADDR:{
+		if (data[1] != 6)
+		    return;
+		sockaddr_union from = { 0 };
+		from.sin.sin_family = AF_INET;
+		if (su_ntop(&from, *buf, *buf_len)) {
+		    int len = strlen(*buf);
+		    *buf += len;
+		    *buf_len -= len;
+		}
+		return;
+	    }
+	case RADTYPE_IPV6ADDR:{
+		if (data[1] != 18)
+		    return;
+		sockaddr_union from = { 0 };
+		from.sin.sin_family = AF_INET6;
+		if (su_ntop(&from, *buf, *buf_len)) {
+		    int len = strlen(*buf);
+		    *buf += len;
+		    *buf_len -= len;
+		}
+		return;
+	    }
+	default:
+	    ;
+	}
+    } else {
+	rad_attr_val_dump_hex(data, data[1], buf, buf_len);
+    }
+}
+
+void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, size_t *buf_len, struct rad_dict *dict, char *separator, size_t separator_len)
+{
+    int add_separator = 0;
+    char *buf_start = NULL;
+    if (!dict)
+	dict = rad_dict_lookup_by_id(-1);
+    if (!*buf) {
+	*buf_len = 4096;
+	*buf = mem_alloc(mem, *buf_len);
+	buf_start = *buf;
+    }
+
+    u_char *data_end = data + data_len;
+
+    while (data < data_end) {
+	if (add_separator && separator) {
+	    if (*buf_len > separator_len) {
+		memcpy(*buf, separator, separator_len);
+		*buf += separator_len;
+		*buf_len -= separator_len;
+	    }
+	}
+	u_char *d_start = data;
+	size_t d_len = data[1];
+	struct rad_dict *cur_dict = dict;
+	if (dict->id == -1 && data[0] == RADIUS_A_VENDOR_SPECIFIC) {
+	    int vendorid = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | (data[5] << 0);
+	    cur_dict = rad_dict_lookup_by_id(vendorid);
+	    if (cur_dict) {
+		d_start = data + 6;
+		d_len = data[1] - 6;
+	    }
+	}
+	if (cur_dict)
+	    rad_attr_val_dump_helper(d_start, d_len, buf, buf_len, cur_dict);
+	else
+	    rad_attr_val_dump_hex(d_start, d_len, buf, buf_len);
+
+	data += data[1];
+
+	add_separator = 1;
+    }
+    *(*buf) = 0;
+    if (buf_start) {
+	*buf_len = (*buf - buf_start);
+	*buf = buf_start;
+	// assert (*buf_len == strlen(buf_start));
+    }
+}
+
+static void parse_radius_dictionary(struct sym *sym)
+{
+    struct rad_dict *dict = NULL;
+    sym_get(sym);
+    if (sym->code == S_openbra) {
+	dict = rad_dict_lookup_by_id(-1);
+	if (!dict)
+	    dict = rad_dict_new(sym, "", -1);
+    } else {
+	char *vendor = NULL;
+	int vendorid = -1;
+	dict = rad_dict_lookup_by_name(sym->buf);
+	if (!dict)
+	    vendor = strdup(sym->buf);
+	sym_get(sym);
+	vendorid = parse_int(sym);
+	if (dict && dict->id != vendorid)
+	    parse_error(sym, "RADIUS dictionary '%s', already defined at line %d, with vendor id %d", sym->buf, dict->line, dict->id);
+	if (vendorid < 1)
+	    parse_error(sym, "Expected a valid vendor number but got '%s'", sym->buf);
+	struct rad_dict *dict_by_id = rad_dict_lookup_by_id(vendorid);
+	if (dict && dict != dict_by_id)
+	    parse_error(sym, "RADIUS dictionary id %d is already defined at line %d, with vendor name %s", sym->buf, dict->id, dict->line, dict->name);
+	if (!dict)
+	    dict = rad_dict_new(sym, vendor, vendorid);
+	free(vendor);
+    }
+    parse(sym, S_openbra);
+    while (sym->code == S_attr) {
+	sym_get(sym);
+	char *name = strdup(sym->buf);
+	sym_get(sym);
+	int id = parse_int(sym);
+	if (!id || (id & ~0xff))
+	    parse_error(sym, "Expected a number from 1 to 255 but got '%s'", sym->buf);
+	enum rad_type type = RADTYPE_UNKNOWN;
+	if (!strcmp(sym->buf, "string"))
+	    type = RADTYPE_STRING;
+	else if (!strcmp(sym->buf, "octets"))
+	    type = RADTYPE_OCTETS;
+	else if (!strcmp(sym->buf, "ipaddr"))
+	    type = RADTYPE_IPADDR;
+	else if (!strcmp(sym->buf, "ipv6addr"))
+	    type = RADTYPE_IPV6ADDR;
+	else if (!strcmp(sym->buf, "integer"))
+	    type = RADTYPE_INTEGER;
+	else if (!strcmp(sym->buf, "vsa"))
+	    type = RADTYPE_VSA;
+	else
+	    parse_error(sym, "Expected one of 'string', 'octets', 'ipaddr', 'ipv6addr' or 'integer', but got '%s'", sym->buf);
+	sym_get(sym);
+	struct rad_dict_attr *attr = rad_dict_attr_add(sym, dict, name, id, type);
+	free(name);
+	if (type == RADTYPE_INTEGER && sym->code == S_openbra) {
+	    sym_get(sym);
+	    while (sym->code != S_closebra && sym->code != S_eof) {
+		name = strdup(sym->buf);
+		sym_get(sym);
+		id = parse_int(sym);
+		rad_dict_attr_add_val(sym, attr, name, id);
+		free(name);
+	    }
+	    parse(sym, S_closebra);
+	}
+    }
+    parse(sym, S_closebra);
+}
+
+static int rad_get_helper(tac_session *session, enum rad_type type, void *val, size_t *val_len, u_char *data, size_t data_len)
+{
+    if (val)
+	switch (type) {
+	case RADTYPE_STRING:{
+		char **s = (char **) val;
+		*s = mem_strndup(session->mem, data, data_len);
+		if (val_len)
+		    *val_len = data_len;
+		return 0;
+	    }
+	case RADTYPE_IPADDR:
+	    if (data_len != 4)
+		return -1;
+	    memcpy(val, data, 4);
+	    if (val_len)
+		*val_len = data_len;
+	    return 0;
+	case RADTYPE_IPV6ADDR:
+	    if (data_len != 16)
+		return -1;
+	    memcpy(val, data, 16);
+	    if (val_len)
+		*val_len = data_len;
+	    return 0;
+	case RADTYPE_INTEGER:{
+		if (data_len != 4)
+		    return -1;
+		int32_t i, *p = (int32_t *) val;
+		memcpy(&i, data, 4);
+		*p = ntohl(i);
+		if (val_len)
+		    *val_len = data_len;
+		return 0;
+	    }
+	case RADTYPE_OCTETS:{
+		u_char **s = (u_char **) val;
+		*s = mem_copy(session->mem, data, data_len);
+		if (val_len)
+		    *val_len = data_len;
+		return 0;
+	    }
+	default:
+	    ;
+	}
+    return -1;
+}
+
+int rad_get_password(tac_session *session, char **val, size_t *val_len)
+{
+    u_char *p = RADIUS_DATA(session->radius_data->pak_in);
+    size_t len = RADIUS_DATA_LEN(session->radius_data->pak_in);
+    u_char *e = p + len;
+    while (p < e) {
+	if (p[0] == RADIUS_A_USER_PASSWORD) {
+	    u_char digest[16];
+	    char *pass = mem_alloc(session->mem, p[1] - 1);
+	    for (int i = 0; i <= p[1]; i++) {
+		if (!(i & 0xf)) {
+		    struct iovec iov[2] = {
+			{.iov_base = "radsec",.iov_len = 6 },
+			{.iov_base = i ? (p + i + 2 - 16) : session->radius_data->pak_in->authenticator,.iov_len = 16 }
+		    };
+		    md5v(digest, 16, iov, 2);
+		}
+		pass[i] = digest[i % 16] ^ p[i + 2];
+	    }
+	    *val = pass;
+	    if (val_len)
+		*val_len = strlen(pass);
+	    return 0;
+	}
+	p += p[1];
+    }
+    return -1;
+}
+
+int rad_get(tac_session *session, int vendorid, int id, enum rad_type type, void *val, size_t *val_len)
+{
+    struct rad_dict *dict = rad_dict_lookup_by_id(vendorid);
+    if (dict && session->radius_data) {
+	u_char *p = RADIUS_DATA(session->radius_data->pak_in);
+	size_t len = RADIUS_DATA_LEN(session->radius_data->pak_in);
+	u_char *e = p + len;
+	while (p < e) {
+	    if (vendorid == -1 && p[0] == id)
+		return rad_get_helper(session, type, val, val_len, p + 2, p[1] - 2);
+	    if (vendorid > -1 && p[0] == RADIUS_A_VENDOR_SPECIFIC && p[2] == ((id >> 24) & 0xff)
+		&& p[3] == ((id >> 16) & 0xff)
+		&& p[4] == ((id >> 8) & 0xff)
+		&& p[5] == ((id >> 0) & 0xff)) {
+		u_char *ve = p + p[1];
+		u_char *vp = p + 6;
+		while (vp < ve && vp[1] > 1) {
+		    if (vp[0] == id)
+			return rad_get_helper(session, type, val, val_len, vp + 2, vp[1] - 2);
+		    vp += vp[1];
+		}
+	    }
+	    p += p[1];
+	}
+    }
+    return -1;
+}
+
 void parse_decls_real(struct sym *sym, tac_realm *r)
 {
     /* Top level of parser */
@@ -1244,6 +1715,20 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    parse(sym, S_log);
 	    parse(sym, S_equal);
 	    log_add(sym, &r->authorlog, sym->buf, r);
+	    sym_get(sym);
+	    continue;
+	case S_radius_access:
+	    sym_get(sym);
+	    parse(sym, S_log);
+	    parse(sym, S_equal);
+	    log_add(sym, &r->rad_accesslog, sym->buf, r);
+	    sym_get(sym);
+	    continue;
+	case S_radius_accounting:
+	    sym_get(sym);
+	    parse(sym, S_log);
+	    parse(sym, S_equal);
+	    log_add(sym, &r->rad_acctlog, sym->buf, r);
 	    sym_get(sym);
 	    continue;
 	case S_warning:
@@ -1401,6 +1886,10 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    parse(sym, S_limit);
 	    parse(sym, S_equal);
 	    config.ctx_lru_threshold = parse_int(sym);
+	    continue;
+	case S_radius_dictionary:
+	    top_only(sym, r);
+	    parse_radius_dictionary(sym);
 	    continue;
 	case S_user:
 	    parse_user(sym, r);
@@ -1730,7 +2219,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 			       S_rewrite,
 #endif
 #if defined(WITH_TLS) || defined(WITH_SSL)
-			       S_tls,
+			       S_tls, S_radius_dictionary,
 #endif
 			       S_unknown);
 	}
@@ -3908,6 +4397,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
     case S_server_name:
     case S_server_port:
     case S_server_address:
+    case S_radius:
 #if defined(WITH_TLS) || defined(WITH_SSL)
     case S_tls_conn_version:
     case S_tls_conn_cipher:
@@ -3920,7 +4410,15 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 	m = mavis_cond_new(sym, mem, S_equal);
 	m->u.s.token = sym->code;
 
-	if (m->u.s.token == S_arg) {
+	if (m->u.s.token == S_radius) {
+	    sym_get(sym);
+	    parse(sym, S_leftsquarebra);
+	    m->type = m->u.s.token;
+	    m->u.s.lhs = rad_dict_attr_lookup(sym);
+	    m->u.s.lhs_txt = mem_strdup(mem, sym->buf);
+	    sym_get(sym);
+	    parse(sym, S_rightsquarebra);
+	} else if (m->u.s.token == S_arg) {
 	    sym_get(sym);
 	    parse(sym, S_leftsquarebra);
 	    m->u.s.lhs = mem_strdup(mem, sym->buf);
@@ -4070,6 +4568,24 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		}
 		return p ? p : m;
 	    }
+	    if (m->u.s.token == S_radius) {
+		m->type = m->u.s.token;
+		struct rad_dict_attr *attr = (struct rad_dict_attr *) m->u.s.lhs;
+		if (attr->type == RADTYPE_INTEGER) {
+		    if (isdigit((int) sym->buf[0])) {
+			m->u.s.rhs_txt = mem_strdup(mem, sym->buf);
+			m->u.s.rhs = (void *) (long) parse_int(sym);
+		    } else {	// non-numeric
+			struct rad_dict_val *val = rad_dict_val_lookup_by_name(attr, sym->buf);
+			if (attr->val && !val)
+			    parse_error(sym, "RADIUS value '$s' not found (attribute: %s)", sym->buf, attr->name);
+			sym_get(sym);
+			m->u.s.rhs_txt = val->name;
+			m->u.s.rhs = (void *) (long) val->id;
+		    }
+		    return p ? p : m;
+		}
+	    }
 	    m->u.s.rhs = mem_strdup(mem, sym->buf);
 	    m->u.s.rhs_txt = m->u.s.rhs;
 	    sym_get(sym);
@@ -4134,7 +4650,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 			   S_server_name, S_server_address, S_server_port, S_usertag,
 #if defined(WITH_TLS) || defined(WITH_SSL)
 			   S_tls_conn_version, S_tls_conn_cipher,
-			   S_tls_peer_cert_issuer, S_tls_peer_cert_subject, S_tls_conn_cipher_strength, S_tls_peer_cn, S_tls_psk_identity,
+			   S_tls_peer_cert_issuer, S_tls_peer_cert_subject, S_tls_conn_cipher_strength, S_tls_peer_cn, S_tls_psk_identity, S_radius,
 #endif
 			   S_unknown);
     }
@@ -4287,6 +4803,16 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	    while (!res && r) {
 		res = (r == (tac_realm *) m->u.s.rhs);
 		r = r->parent;
+	    }
+	    return tac_script_cond_eval_res(session, m, res);
+	}
+    case S_radius:
+	{
+	    struct rad_dict_attr *attr = (struct rad_dict_attr *) m->u.s.lhs;
+	    if (attr->type == RADTYPE_INTEGER) {
+		int i;
+		int id = (int) (long) m->u.s.rhs;
+		res = !rad_get(session, attr->dict->id, attr->id, attr->type, &i, NULL) && (i == id);
 	    }
 	    return tac_script_cond_eval_res(session, m, res);
 	}
@@ -4498,6 +5024,36 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 		}
 	    }
 	    return 0;
+	case S_radius:
+	    if (session->radius_data) {
+		struct rad_dict_attr *attr = (struct rad_dict_attr *) m->u.s.lhs;
+		if (attr->type == RADTYPE_INTEGER) {
+		    int i;
+		    int id = (int) (long) m->u.s.rhs;
+		    int res = !rad_get(session, attr->dict->id, attr->id, RADTYPE_INTEGER, &i, NULL) && (i == id);
+		    return tac_script_cond_eval_res(session, m, res);
+		}
+		if (attr->type == RADTYPE_IPADDR) {
+		    char buf[256];
+		    sockaddr_union from = { 0 };
+		    from.sin.sin_family = AF_INET;
+		    if (!rad_get(session, attr->dict->id, attr->id, RADTYPE_IPV6ADDR, &from.sin.sin_addr, NULL)
+			&& su_ntop(&from, buf, sizeof(buf)))
+			v = mem_strdup(session->mem, buf);
+		} else if (attr->type == RADTYPE_IPV6ADDR) {
+		    char buf[256];
+		    sockaddr_union from = { 0 };
+		    from.sin.sin_family = AF_INET6;
+		    if (!rad_get(session, attr->dict->id, attr->id, RADTYPE_IPV6ADDR, &from.sin6.sin6_addr, NULL)
+			&& su_ntop(&from, buf, sizeof(buf)))
+			v = mem_strdup(session->mem, buf);
+		    if (!res)
+			v = mem_strdup(session->mem, su_ntop(&from, buf, sizeof(buf)) ? buf : "<unknown>");
+		} else if (attr->type == RADTYPE_STRING) {
+		    rad_get(session, attr->dict->id, attr->id, RADTYPE_STRING, &v, &v_len);
+		}
+	    }
+	    break;
 	case S_arg:
 	    if (session->argp) {
 		u_char *arg_len = session->arg_len;
@@ -4532,6 +5088,85 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 #ifdef WITH_PCRE2
 void tac_rewrite_user(tac_session *, tac_rewrite *);
 #endif
+
+struct rad_dict_attr;
+
+union rad_action_union {
+    int i;
+    u_int ipv4[4];
+    u_int ipv6[16];
+    char *s;
+};
+
+struct rad_action {
+    struct rad_dict_attr *attr;
+    union rad_action_union u;
+    struct log_item *li;	// overrides u if set
+    struct tac_action *next;
+};
+
+static void rad_attr_add(tac_session *session, struct rad_action *a, union rad_action_union *u, char *code, unsigned int line)
+{
+    if (!session->radius_data)
+	return;
+    size_t data_len = session->radius_data->data_len;
+    size_t data_len_orig = data_len;
+    u_char *data = session->radius_data->data + data_len;
+    u_char *data_orig = data;
+    u_char *data_end = session->radius_data->data + sizeof(session->radius_data->data);
+
+    void *val = NULL;
+    size_t val_len = 0;
+    switch (a->attr->type) {
+    case RADTYPE_STRING:
+	val = u->s;
+	val_len = strlen(u->s);
+	break;
+    case RADTYPE_INTEGER:
+	val = &u->i;
+	val_len = 4;
+	break;
+    case RADTYPE_IPADDR:
+	val = &u->ipv4;
+	val_len = 4;
+	break;
+    case RADTYPE_IPV6ADDR:
+	val = &u->ipv6;
+	val_len = 16;
+	break;
+    default:			// just skip, likely OCTETS or VSA
+	return;
+    }
+
+    int id_len = 2;
+    if (a->attr->dict->id > -1)
+	id_len += 6;
+    if (data + id_len + val_len >= data_end || id_len + val_len > 255)
+	return;
+
+    if (a->attr->dict->id > -1) {
+	*data++ = RADIUS_A_VENDOR_SPECIFIC;
+	*data++ = id_len + val_len;
+	*data++ = (u_char) (0xff & (a->attr->dict->id >> 24));
+	*data++ = (u_char) (0xff & (a->attr->dict->id >> 16));
+	*data++ = (u_char) (0xff & (a->attr->dict->id >> 8));
+	*data++ = (u_char) (0xff & (a->attr->dict->id >> 0));
+	data_len += 6;
+    }
+
+    *data++ = a->attr->id;
+    *data++ = 2 + val_len;
+    data_len += 2;
+    memcpy(data, val, val_len);
+    data += val_len;
+    data_len += val_len;
+    session->radius_data->data_len = data_len;
+
+    char *buf = NULL;
+    size_t buf_len = 0;
+    rad_attr_val_dump(session->mem, data_orig, data_len - data_len_orig, &buf, &buf_len, NULL, NULL, 0);
+    report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] set '%s'", line, code, buf ? buf : "<empty>");
+}
 
 enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 {
@@ -4572,6 +5207,33 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 	session->attr_dflt = (enum token) (long) (m->b.v);
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code], codestring[session->attr_dflt]);
 	break;
+    case S_radius:
+	{
+	    struct rad_action *a = (struct rad_action *) m->b.v;
+	    union rad_action_union u;
+	    memcpy(&u, &a->u, sizeof(u));
+	    if (a->li) {
+		char *s = eval_log_format(session, session->ctx, NULL, a->li, io_now.tv_sec, NULL);
+		switch (a->attr->type) {
+		case RADTYPE_INTEGER:
+		    u.i = htonl(atoi(s));
+		    break;
+		case RADTYPE_IPADDR:
+		    inet_pton(AF_INET, s, &u.ipv4);
+		    break;
+		case RADTYPE_IPV6ADDR:
+		    inet_pton(AF_INET6, s, &u.ipv6);
+		    break;
+		case RADTYPE_STRING:
+		    u.s = s;
+		    break;
+		default:	// unsupported type
+		    break;
+		}
+	    }
+	    rad_attr_add(session, a, &u, codestring[m->code], m->line);
+	    break;
+	}
     case S_add:
     case S_set:
     case S_optional:
@@ -4602,6 +5264,15 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 	return S_unknown;
     }
     return m->n ? tac_script_eval_r(session, m->n) : S_unknown;
+}
+
+struct rad_action *new_rad_action(mem_t *mem, struct rad_dict_attr *attr, union rad_action_union *u, struct log_item *li)
+{
+    struct rad_action *a = mem_alloc(mem, sizeof(struct rad_action));
+    a->attr = attr;
+    a->li = li;
+    memcpy(&a->u, u, sizeof(a->u));
+    return a;
 }
 
 static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int section, tac_realm *realm)
@@ -4679,6 +5350,38 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	sep = "*";
     case S_set:
 	m = mavis_action_new(sym, mem);
+	if (sym->code == S_radius) {
+	    m->code = sym->code;
+	    sym_get(sym);
+	    parse(sym, S_leftsquarebra);
+	    struct rad_dict_attr *attr = rad_dict_attr_lookup(sym);
+	    if (!attr)
+		parse_error(sym, "RADIUS attribute %s not recognized", sym->buf);
+	    sym_get(sym);
+	    parse(sym, S_rightsquarebra);
+	    parse(sym, S_equal);
+	    struct rad_dict_val *val = NULL;
+	    union rad_action_union u;
+	    if (attr->val && attr->type == RADTYPE_INTEGER && !isdigit(*sym->buf)) {
+		val = rad_dict_val_lookup_by_name(attr, sym->buf);
+		if (!val)
+		    parse_error(sym, "RADIUS value '$s' not found (attribute: %s)", sym->buf, attr->name);
+		u.i = val->id;
+		m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
+	    } else if (attr->type == RADTYPE_INTEGER) {
+		u.i = parse_int(sym);
+		m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
+	    } else if (attr->type == RADTYPE_IPADDR) {
+		if (1 == inet_pton(AF_INET, sym->buf, &u.ipv4))
+		    m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
+	    } else if (attr->type == RADTYPE_IPV6ADDR) {
+		if (1 == inet_pton(AF_INET6, sym->buf, &u.ipv6))
+		    m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
+	    }
+	    if (!m->b.v)
+		m->b.v = (void *) new_rad_action(mem, attr, &u, parse_log_format(sym, mem));
+	    break;
+	}
 	snprintf(buf, sizeof(buf), "\"%s%s\"", sym->buf, sep);
 	sym_get(sym);
 	m->b.v = (char *) parse_log_format_inline(buf, sym->filename, sym->line);

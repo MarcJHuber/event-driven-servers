@@ -69,16 +69,16 @@ static void shellctx_free(void *payload)
 }
 
 
-static rb_node_t *tac_script_lookup_exec_context(tac_session * session)
+static rb_node_t *tac_script_lookup_exec_context(tac_session *session)
 {
     if (!session->ctx->shellctxcache)
 	return NULL;
-    struct shellctx sc = { .username = session->username, .portname = session->nas_port };
+    struct shellctx sc = {.username = session->username,.portname = session->nas_port };
     memcpy(&sc.nas_address, &session->ctx->nas_address, sizeof(struct in6_addr));
     return RB_search(session->ctx->shellctxcache, &sc);
 }
 
-void tac_script_set_exec_context(tac_session * session, char *ctxname)
+void tac_script_set_exec_context(tac_session *session, char *ctxname)
 {
     rb_node_t *rb = NULL;
     struct shellctx *sc;
@@ -119,7 +119,7 @@ void tac_script_set_exec_context(tac_session * session, char *ctxname)
     sc->expires = io_now.tv_sec + session->ctx->host->context_timeout;
 }
 
-char *tac_script_get_exec_context(tac_session * session)
+char *tac_script_get_exec_context(tac_session *session)
 {
     rb_node_t *rb = tac_script_lookup_exec_context(session);
     if (rb) {
@@ -133,7 +133,7 @@ void tac_script_expire_exec_context(struct context *ctx)
 {
 
     if (ctx->shellctxcache) {
-	for (rb_node_t *rbnext, *rbn = RB_first(ctx->shellctxcache); rbn; rbn = rbnext) {
+	for (rb_node_t * rbnext, *rbn = RB_first(ctx->shellctxcache); rbn; rbn = rbnext) {
 	    time_t v = RB_payload(rbn, struct shellctx *)->expires;
 	    rbnext = RB_next(rbn);
 	    if (v < io_now.tv_sec)

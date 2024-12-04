@@ -257,7 +257,7 @@ static char *i2s(struct i2s *s, int i, size_t *len)
     return s->str;
 }
 
-void get_pkt_data(tac_session * session, struct authen_start *start, struct author *author)
+void get_pkt_data(tac_session *session, struct authen_start *start, struct author *author)
 {
     if (start) {
 	session->authen_action = i2s(map_action, start->action, &session->authen_action_len);
@@ -270,7 +270,7 @@ void get_pkt_data(tac_session * session, struct authen_start *start, struct auth
     }
 }
 
-char *summarise_outgoing_packet_type(tac_pak_hdr * hdr)
+char *summarise_outgoing_packet_type(tac_pak_hdr *hdr)
 {
     switch (hdr->type) {
     case TAC_PLUS_AUTHEN:
@@ -284,7 +284,7 @@ char *summarise_outgoing_packet_type(tac_pak_hdr * hdr)
     }
 }
 
-static void dump_header(tac_session * session, tac_pak_hdr * hdr, int bogus)
+static void dump_header(tac_session *session, tac_pak_hdr *hdr, int bogus)
 {
     if (!(common_data.debug & DEBUG_TACTRACE_FLAG)) {
 	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "key used: %s", session->ctx->key ? session->ctx->key->key : "<NULL>");
@@ -322,7 +322,7 @@ static void dump_header(tac_session * session, tac_pak_hdr * hdr, int bogus)
     report_string(session, LOG_DEBUG, DEBUG_HEX_FLAG, "packet body", tac_payload(hdr, char *), ntohl(hdr->datalength));
 }
 
-static void dump_args(tac_session * session, u_char arg_cnt, char *p, unsigned char *sizep)
+static void dump_args(tac_session *session, u_char arg_cnt, char *p, unsigned char *sizep)
 {
     for (int i = 0; i < arg_cnt; i++) {
 	char a[20];
@@ -334,11 +334,11 @@ static void dump_args(tac_session * session, u_char arg_cnt, char *p, unsigned c
 }
 
 /* Dump packets originated by a NAS */
-void dump_nas_pak(tac_session * session, int bogus)
+void dump_nas_pak(tac_session *session, int bogus)
 {
     char *p;
     unsigned char *argsizep;
-    tac_pak_hdr *hdr = &session->ctx->in->hdr;
+    tac_pak_hdr *hdr = &session->ctx->in->pak.tac;
 
     report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
     dump_header(session, hdr, bogus);
@@ -438,7 +438,7 @@ void dump_nas_pak(tac_session * session, int bogus)
 }
 
 /* Dump packets originated by tac_plus */
-void dump_tacacs_pak(tac_session * session, tac_pak_hdr * hdr)
+void dump_tacacs_pak(tac_session *session, tac_pak_hdr *hdr)
 {
     char *p;
 
@@ -493,5 +493,46 @@ void dump_tacacs_pak(tac_session * session, tac_pak_hdr * hdr)
     default:
 	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s: unrecognized header type %d", __func__, hdr->type);
     }
+    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<end packet>---%s", common_data.font_green, common_data.font_plain);
+}
+
+static struct i2s map_rad_code[] = {
+#define S "UNKNOWN"
+    { 0, S, sizeof(S) - 1 },
+#undef S
+#define S "ACCESS-REQUEST"
+    { RADIUS_CODE_ACCESS_REQUEST, S, sizeof(S) - 1 },
+#undef S
+#define S "ACCESS-ACCEPT"
+    { RADIUS_CODE_ACCESS_ACCEPT, S, sizeof(S) - 1 },
+#undef S
+#define S "ACCESS-REJECT"
+    { RADIUS_CODE_ACCESS_REJECT, S, sizeof(S) - 1 },
+#undef S
+#define S "ACCOUNTING-REQUEST"
+    { RADIUS_CODE_ACCOUNTING_REQUEST, S, sizeof(S) - 1 },
+#undef S
+#define S "ACCOUNTING-RESPONSE"
+    { RADIUS_CODE_ACCOUNTING_RESPONSE, S, sizeof(S) - 1 },
+#undef S
+    { 0, NULL, 0 }
+};
+
+void dump_rad_pak(tac_session *session, rad_pak_hdr *pkt)
+{
+    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
+
+    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%scode=%s identifer=%d length=%d%s", common_data.font_blue, i2s(map_rad_code, pkt->code, NULL),
+	   pkt->identifier, ntohs(pkt->length), common_data.font_plain);
+
+    char *buf = NULL;
+    size_t buf_len = 0;
+    rad_attr_val_dump(session->mem, RADIUS_DATA(pkt), RADIUS_DATA_LEN(pkt), &buf, &buf_len, NULL, "\n\t", 2);
+
+    if (*buf)
+	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "Attributes: \n\t%s%s%s", common_data.font_red, buf, common_data.font_plain);
+    else
+	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "Attributes: None");
+
     report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<end packet>---%s", common_data.font_green, common_data.font_plain);
 }

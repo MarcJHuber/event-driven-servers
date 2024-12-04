@@ -522,3 +522,8 @@ hash				S_hash
 log-sequence			S_logsequence
 pid				S_pid
 #
+radius				S_radius
+radius.access			S_radius_access
+radius.accounting		S_radius_accounting
+radius.dictionary		S_radius_dictionary
+#

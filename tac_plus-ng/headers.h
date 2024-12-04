@@ -299,6 +299,9 @@ struct tac_alias {
     tac_alias *next;
 };
 
+struct rad_dict;
+enum rad_type { RADTYPE_STRING = 0, RADTYPE_IPADDR, RADTYPE_IPV6ADDR, RADTYPE_INTEGER, RADTYPE_OCTETS, RADTYPE_VSA, RADTYPE_UNKNOWN };
+
 struct config {
     mode_t mask;		/* file mask */
     char *hostname;
@@ -307,6 +310,7 @@ struct config {
     int ctx_lru_threshold;	/* purge lru context if number reached */
     time_t suicide;		/* when to commit suicide */
     tac_realm *default_realm;	/* actually the one called "default" */
+    struct rad_dict *rad_dict;
 };
 
 struct tac_acl {
@@ -329,6 +333,8 @@ struct realm {
     rb_tree_t *accesslog;
     rb_tree_t *authorlog;
     rb_tree_t *connlog;
+    rb_tree_t *rad_accesslog;
+    rb_tree_t *rad_acctlog;
     rb_tree_t *usertable;
     rb_tree_t *aliastable;
     rb_tree_t *profiletable;
@@ -409,6 +415,9 @@ struct realm {
     radixtree_t *dns_tree_ptr[3];	// 0: static, 1-2: dynamic
 };
 
+struct tac_session;
+typedef struct tac_session tac_session;
+
 /* All tacacs+ packets have the same header format */
 
 typedef struct {
@@ -436,6 +445,81 @@ typedef struct {
 
     /* datalength bytes of encrypted data */
 } __attribute__((__packed__)) tac_pak_hdr;
+
+typedef struct {
+    uint8_t code;
+    uint8_t identifier;
+    uint16_t length;
+    u_char authenticator[16];
+} __attribute__((__packed__)) rad_pak_hdr;
+#define RADIUS_HDR_SIZE sizeof(rad_pak_hdr)
+
+// various #defines, mostly derived from RFC2856/RFC2866. 
+
+#define RADIUS_CODE_ACCESS_REQUEST		1
+#define RADIUS_CODE_ACCESS_ACCEPT		2
+#define RADIUS_CODE_ACCESS_REJECT		3
+#define RADIUS_CODE_ACCOUNTING_REQUEST		4
+#define RADIUS_CODE_ACCOUNTING_RESPONSE		5
+#define RADIUS_CODE_STATUS_SERVER		12
+#define RADIUS_CODE_STATUS_CLIENT		13
+
+#define RADIUS_A_USER_NAME			1
+#define RADIUS_A_USER_PASSWORD			2
+#define RADIUS_A_CHAP_PASSWORD			3
+#define RADIUS_A_NAS_IP_ADDRESS			4
+#define RADIUS_A_NAS_PORT			5
+#define RADIUS_A_SERVICE_TYPE			6
+#define RADIUS_A_LOGIN_IP_HOST			14
+#define RADIUS_A_LOGIN_SERVICE			15
+#define RADIUS_A_LOGIN_TCP_PORT			16
+#define RADIUS_A_REPLY_MESSAGE			18
+#define RADIUS_A_STATE				24
+#define RADIUS_A_CLASS				25
+#define RADIUS_A_VENDOR_SPECIFIC		26
+#define RADIUS_A_TERMINATION_ACTION		29
+#define RADIUS_A_CALLED_STATION_ID		30
+#define RADIUS_A_CALLING_STATION_ID		31
+#define RADIUS_A_NAS_IDENTIFIER			32
+#define RADIUS_A_NAS_PORT_TYPE			61
+#define RADIUS_A_MESSAGE_AUTHENTICATOR		80
+#define RADIUS_A_NAS_PORT_ID			87
+
+#define RADIUS_A_ACCT_STATUS_TYPE			40
+#define RADIUS_V_ACCT_STATUS_TYPE_START			1
+#define RADIUS_V_ACCT_STATUS_TYPE_STOP			2
+#define RADIUS_V_ACCT_STATUS_TYPE_INTERIM_UPDATE	3
+#define RADIUS_V_ACCT_STATUS_TYPE_ACCOUNTING_ON		7
+#define RADIUS_V_ACCT_STATUS_TYPE_ACCTOUNTING_OFF	8
+
+#define RADIUS_A_ACCT_DELAY_TIME	41
+#define RADIUS_A_ACCT_INPUT_OCTETS	42
+#define RADIUS_A_ACCT_OUTPUT_OCTETS	43
+#define RADIUS_A_ACCT_SESSION_ID	44
+
+#define RADIUS_A_ACCT_AUTHENTIC		45
+#define RADIUS_V_ACCT_AUTHENTIC_RADIUS	1
+#define RADIUS_V_ACCT_AUTHENTIC_LOCAL	2
+#define RADIUS_V_ACCT_AUTHENTIC_REMOTE	3
+
+#define RADIUS_A_ACCT_SESSION_TIME	46
+#define RADIUS_A_ACCT_INPUT_PACKETS	47
+#define RADIUS_A_ACCT_OUTPUT_PACKETS	48
+#define RADIUS_A_ACCT_TERMINATE_CAUSE	49
+#define RADIUS_A_ACCT_MULTI_SESSION_ID	50
+#define RADIUS_A_ACCT_LINK_COUNT	51
+#define RADIUS_A_ACCT_INTERIM_INTERVAL	85
+
+struct radius_data
+{
+    rad_pak_hdr *pak_in;
+    u_char data[4096];
+    size_t data_len;
+    void (*authfn)(tac_session *);
+};
+
+#define RADIUS_DATA(A) (((u_char *)(A)) + RADIUS_HDR_SIZE)
+#define RADIUS_DATA_LEN(A) (ntohs(((rad_pak_hdr *)A)->length) - RADIUS_HDR_SIZE)
 
 /* Authentication packet NAS sends to us */
 
@@ -610,15 +694,30 @@ struct acct_reply {
 #define TAC_PLUS_HDR_SIZE 12
 #define tac_payload(A,B) ((B) ((u_char *) A + TAC_PLUS_HDR_SIZE))
 
+union pak_hdr {
+	    tac_pak_hdr tac;
+    	    rad_pak_hdr rad;
+	    u_char uchar[1];
+};
+
 struct tac_pak {
     struct tac_pak *next;
     ssize_t offset;
     ssize_t length;
     time_t delay_until;
-    tac_pak_hdr hdr;
+    union pak_hdr pak;
 };
 
+/*
+struct rad_pak {
+    struct tac_pak *next;
+    ssize_t offset;
+    ssize_t length;
+    time_t delay_until;
+};*/
+
 typedef struct tac_pak tac_pak;
+typedef struct rad_pak rad_pak;
 
 struct author_data {
     char *admin_msg;		/* admin message (optional) */
@@ -631,9 +730,6 @@ struct author_data {
     int is_cmd;
 };
 
-struct tac_session;
-typedef struct tac_session tac_session;
-
 struct authen_data {
     u_char *data;
     size_t data_len;
@@ -643,6 +739,7 @@ struct authen_data {
     void (*authfn)(tac_session *);
 };
 
+struct radius_data;
 struct mavis_data;
 struct mavis_ctx_data;
 
@@ -723,6 +820,7 @@ struct tac_session {
     struct author_data *author_data;
     struct authen_data *authen_data;
     struct mavis_data *mavis_data;
+    struct radius_data *radius_data;
     struct pwdat *enable;
     tac_profile *profile;
      BISTATE(nac_address_valid);
@@ -786,7 +884,7 @@ struct context {
     size_t nas_address_ascii_len;
     struct in6_addr nas_address;	/* host byte order */
     u_char flags;		/* TAC_PLUS_SINGLE_CONNECT_FLAG */
-    tac_pak_hdr hdr;
+    union pak_hdr hdr;
     ssize_t hdroff;
     struct tac_key *key;
     time_t last_io;
@@ -847,6 +945,7 @@ struct context {
      BISTATE(use_tls);
      BISTATE(mavis_pending);
      BISTATE(mavis_tried);
+     BISTATE(radsec);
     enum token mavis_result;
     u_int id;
     u_int bug_compatibility;
@@ -872,6 +971,7 @@ void cleanup(struct context *, int);
 
 /* acct.c */
 void accounting(tac_session *, tac_pak_hdr *);
+void rad_acct(tac_session *);
 
 /* report.c */
 void report_string(tac_session *, int, int, char *, char *, int);
@@ -885,6 +985,8 @@ void send_authen_error(tac_session *, char *, ...)
     __attribute__((format(printf, 2, 3)));
 void send_acct_reply(tac_session *, u_char, char *, char *);
 void send_author_reply(tac_session *, u_char, char *, char *, int, char **);
+void rad_send_authen_reply(tac_session *, int, char *);
+void rad_send_acct_reply(tac_session * session);
 
 int tac_exit(int) __attribute__((noreturn));
 
@@ -896,12 +998,17 @@ int logs_flushed(tac_realm *);
 char *summarise_outgoing_packet_type(tac_pak_hdr *);
 void dump_nas_pak(tac_session *, int);
 void dump_tacacs_pak(tac_session *, tac_pak_hdr *);
+void dump_rad_pak(tac_session *, rad_pak_hdr *);
 
 /* authen.c */
 void authen(tac_session *, tac_pak_hdr *);
+void rad_authen(tac_session *);
 
 /* author.c */
 void author(tac_session *, tac_pak_hdr *);
+enum token author_eval_host(tac_session * session, tac_host * h, int parent_first);
+enum token author_eval_profile(tac_session * session, tac_profile * p, int parent_first);
+
 
 /* config.c */
 int cfg_get_enable(tac_session *, struct pwdat **);
@@ -929,6 +1036,10 @@ static __inline__ int minimum(int a, int b)
 
 void tac_read(struct context *, int);
 void tac_write(struct context *, int);
+void rad_read(struct context *, int);
+int rad_get(tac_session *session, int vendorid, int id, enum rad_type, void *, size_t *);
+int rad_get_password (tac_session *session, char **val, size_t *val_len);
+void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, size_t *buf_len, struct rad_dict *dict, char *separator, size_t separator_len);
 
 void cleanup_session(tac_session *);
 struct log_item *parse_log_format(struct sym *, mem_t *);

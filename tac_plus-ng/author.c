@@ -63,7 +63,7 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 static void do_author(tac_session *);
 static int bad_nas_args(tac_session *, struct author_data *);
 
-void eval_args(tac_session * session, u_char * p, u_char * argsizep, size_t argcnt)
+void eval_args(tac_session *session, u_char *p, u_char *argsizep, size_t argcnt)
 {
     size_t len = 0, tlen = 0;
     char *cmdline, *t;
@@ -99,7 +99,7 @@ void eval_args(tac_session * session, u_char * p, u_char * argsizep, size_t argc
     session->cmdline_len = tlen;
 }
 
-void author(tac_session * session, tac_pak_hdr * hdr)
+void author(tac_session *session, tac_pak_hdr *hdr)
 {
     u_char *p, *argsizep;
     char **cmd_argp;
@@ -188,7 +188,7 @@ static int strcmp_a(char *a, char *b)
     return (int) ((u_char) * a - (u_char) * b);
 }
 
-static int bad_nas_args(tac_session * session, struct author_data *data)
+static int bad_nas_args(tac_session *session, struct author_data *data)
 {
     /* Check the nas args for well-formedness */
     for (int i = 0; i < data->in_cnt; i++) {
@@ -238,7 +238,7 @@ static char *lookup_attr(char **attrs, int cnt, char *na)
     return NULL;
 }
 
-static enum token author_eval_host(tac_session * session, tac_host * h, int parent_first)
+enum token author_eval_host(tac_session *session, tac_host *h, int parent_first)
 {
     enum token res = S_unknown;
     if (!h)
@@ -252,7 +252,7 @@ static enum token author_eval_host(tac_session * session, tac_host * h, int pare
     return res;
 }
 
-static enum token author_eval_profile(tac_session * session, tac_profile * p, int parent_first)
+enum token author_eval_profile(tac_session *session, tac_profile *p, int parent_first)
 {
     enum token res = S_unknown;
     if (!p)
@@ -266,7 +266,7 @@ static enum token author_eval_profile(tac_session * session, tac_profile * p, in
     return res;
 }
 
-static void do_author(tac_session * session)
+static void do_author(tac_session *session)
 {
     int replaced = 0, added = 0, out_cnt = 0;
     char **out_args, **outp;
