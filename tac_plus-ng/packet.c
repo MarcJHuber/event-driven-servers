@@ -739,10 +739,9 @@ void rad_read(struct context *ctx, int cur)
 #ifdef WITH_SSL
 	if (ctx->tls)
 	    len = io_SSL_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) rad_read);
-	else {
+	else
 #endif
 	    len = read(cur, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff);
-	}
 	if (len <= 0) {
 	    cleanup(ctx, cur);
 	    return;
@@ -786,7 +785,9 @@ void rad_read(struct context *ctx, int cur)
 // Consistency check: Do the attribute lengths sum up exactly?
     u_char *p = RADIUS_DATA(&ctx->in->pak.rad);
     u_char *e = p + data_len;
+#ifdef WITH_SSL
     u_char *message_authenticator = NULL;
+#endif
     while (p < e) {
 	if (p + 1 == e || p[1] < 2)
 	    break;
@@ -800,8 +801,10 @@ void rad_read(struct context *ctx, int cur)
 	    }
 	    if (pv != ev)
 		break;
+#ifdef WITH_SSL
 	} else if (p[0] == RADIUS_A_MESSAGE_AUTHENTICATOR && p[1] == 18) {
 	    message_authenticator = p + 2;
+#endif
 	}
 	p += p[1];
     }
@@ -810,6 +813,7 @@ void rad_read(struct context *ctx, int cur)
 	cleanup(ctx, cur);
 	return;
     }
+#ifdef WITH_SSL
 // Packet looks sane, check message authentiator, if present
     if (message_authenticator) {
 	u_char ma_original[16];
@@ -818,15 +822,14 @@ void rad_read(struct context *ctx, int cur)
 	memset(message_authenticator, 0, 16);
 	u_int ma_calculated_len = sizeof(ma_calculated);
 
-#ifdef WITH_SSL
 	HMAC(EVP_md5(), "radsec", 6, (const unsigned char *) &ctx->in->pak.uchar, ntohs(ctx->in->pak.rad.length), ma_calculated, &ma_calculated_len);
-#endif
 	memcpy(message_authenticator, ma_original, 16);
 	if (memcmp(ma_original, ma_calculated, 16)) {
 	    cleanup(ctx, cur);
 	    return;
 	}
     }
+#endif
 
     tac_session *session = RB_lookup_session(ctx->sessions, (int) ctx->hdr.rad.identifier);
 
