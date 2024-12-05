@@ -26,7 +26,7 @@ for my $w (sort { $K{$a} cmp $K{$b} } keys %K){
 open F, "> token.h" or die;
 print F "extern char *codestring[];\n";
 print F "extern size_t codestring_len[];\n";
-print F "enum token {\n\t" . join(",\n\t", @enum), ",\n\tS_null\n};\n";
+print F "enum token : short {\n\t" . join(",\n\t", @enum), ",\n\tS_null\n};\n";
 close F;
 
 open F, "> token.c" or die;
