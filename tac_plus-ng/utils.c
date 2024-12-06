@@ -1622,7 +1622,7 @@ static char *eval_log_format_pid(tac_session *session __attribute__((unused)), s
     return buf;
 }
 
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
 static char *eval_log_format_tls_conn_version(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
 					      __attribute__((unused)), size_t *len)
 {
@@ -1800,7 +1800,7 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 	efun[S_custom_1] = &eval_log_format_custom_1;
 	efun[S_custom_2] = &eval_log_format_custom_2;
 	efun[S_custom_3] = &eval_log_format_custom_3;
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
 	efun[S_tls_conn_cipher] = &eval_log_format_tls_conn_cipher;
 	efun[S_tls_conn_cipher_strength] = &eval_log_format_tls_conn_cipher_strength;
 	efun[S_tls_conn_version] = &eval_log_format_tls_conn_version;

@@ -529,11 +529,6 @@ void tac_read(struct context *ctx, int cur)
     context_lru_append(ctx);
 
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE) {
-#ifdef WITH_TLS
-	if (ctx->tls)
-	    len = io_TLS_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) tac_read);
-	else
-#endif
 #ifdef WITH_SSL
 	if (ctx->tls)
 	    len = io_SSL_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) tac_read);
@@ -603,11 +598,6 @@ void tac_read(struct context *ctx, int cur)
 	ctx->in->length = TAC_PLUS_HDR_SIZE + data_len;
 	memcpy(&ctx->in->pak.tac, &ctx->hdr, TAC_PLUS_HDR_SIZE);
     }
-#ifdef WITH_TLS
-    if (ctx->tls)
-	len = io_TLS_read(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) tac_read);
-    else
-#endif
 #ifdef WITH_SSL
     if (ctx->tls)
 	len = io_SSL_read(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) tac_read);
@@ -657,7 +647,7 @@ void tac_read(struct context *ctx, int cur)
     }
 
     if (
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
 	   (ctx->tls && !(ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG) && !(session->ctx->bug_compatibility & CLIENT_BUG_TLS_OBFUSCATED))
 	   || (!ctx->tls && (ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG))
 #else
@@ -665,12 +655,12 @@ void tac_read(struct context *ctx, int cur)
 #endif
 	) {
 	char *msg =
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
 	    ctx->tls ? "Peers MUST NOT use Obfuscation with TLS." :
 #endif
 	    "Peers MUST use Obfuscation.";
 	report(NULL, LOG_ERR, ~0, "%s: %s packet (sequence number: %d) for %ssession %.8x", "Encrypted", ctx->nas_address_ascii, (int) ctx->hdr.tac.seq_no,
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
 	       ctx->tls ? "TLS " :
 #endif
 	       "", ntohl(ctx->hdr.tac.session_id));
@@ -843,11 +833,6 @@ void rad_read(struct context *ctx, int cur)
     context_lru_append(ctx);
 
     if (ctx->hdroff != RADIUS_HDR_SIZE) {
-#ifdef WITH_TLS
-	if (ctx->tls)
-	    len = io_TLS_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) rad_read);
-	else
-#endif
 #ifdef WITH_SSL
 	if (ctx->tls)
 	    len = io_SSL_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) rad_read);
@@ -872,11 +857,6 @@ void rad_read(struct context *ctx, int cur)
 	ctx->in->length = RADIUS_HDR_SIZE + data_len;
 	memcpy(&ctx->in->pak.rad, &ctx->hdr, RADIUS_HDR_SIZE);
     }
-#ifdef WITH_TLS
-    if (ctx->tls)
-	len = io_TLS_read(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) rad_read);
-    else
-#endif
 #ifdef WITH_SSL
     if (ctx->tls)
 	len = io_SSL_read(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) rad_read);
@@ -979,18 +959,6 @@ void rad_udp_inject(struct context *ctx)
     }
 }
 
-#ifdef WITH_TLS
-static void tls_shutdown_sock(struct context *ctx, int cur)
-{
-    int res = io_TLS_shutdown(ctx->tls, ctx->io, cur, tls_shutdown_sock);
-    if (res < 0 && errno == EAGAIN)
-	return;
-    tls_free(ctx->tls);
-    ctx->tls = NULL;
-    if (shutdown(cur, SHUT_WR))
-	cleanup(ctx, cur);	// We only get here if shutdown(2) failed.
-}
-#endif
 #ifdef WITH_SSL
 static void ssl_shutdown_sock(struct context *ctx, int cur)
 {
@@ -1010,11 +978,6 @@ void tac_write(struct context *ctx, int cur)
     context_lru_append(ctx);
     while (ctx->out) {
 	ssize_t len;
-#ifdef WITH_TLS
-	if (ctx->tls)
-	    len = io_TLS_write(ctx->tls, &ctx->out->pak.uchar + ctx->out->offset, ctx->out->length - ctx->out->offset, ctx->io, cur, (void *) tac_write);
-	else
-#endif
 #ifdef WITH_SSL
 	if (ctx->tls)
 	    len = io_SSL_write(ctx->tls, &ctx->out->pak.uchar + ctx->out->offset, ctx->out->length - ctx->out->offset, ctx->io, cur, (void *) tac_write);
@@ -1036,12 +999,6 @@ void tac_write(struct context *ctx, int cur)
     }
     io_clr_o(ctx->io, cur);
 
-#ifdef WITH_TLS
-    if (ctx->tls && ctx->dying && !ctx->delayed) {
-	if (io_TLS_shutdown(ctx->tls, ctx->io, cur, tls_shutdown_sock))
-	    return;
-    }
-#endif
 #ifdef WITH_SSL
     if (ctx->tls && ctx->dying && !ctx->delayed) {
 	if (io_SSL_shutdown(ctx->tls, ctx->io, cur, ssl_shutdown_sock))

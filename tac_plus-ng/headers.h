@@ -111,10 +111,6 @@
 #warning Disabling OpenSSL support. Please upgrade to version 3.0
 #endif
 
-#ifdef WITH_SSL
-#undef WITH_TLS
-#endif
-
 struct context;
 struct tac_acl;
 
@@ -389,14 +385,8 @@ struct realm {
 #ifdef WITH_PCRE2
     pcre2_code *password_minimum_requirement;
 #endif
-#ifdef WITH_TLS
-    struct tls *tls;
-    struct tls_config *tls_cfg;
-#endif
 #ifdef WITH_SSL
     SSL_CTX *tls;
-#endif
-#if defined(WITH_TLS) || defined(WITH_SSL)
     char *tls_cert;
     char *tls_key;
     char *tls_pass;
@@ -411,9 +401,6 @@ struct realm {
     struct sni_list *sni_list;
     u_char *alpn_vec;
     size_t alpn_vec_len;
-#endif
-#ifdef WITH_TLS
-    char *alpn;
 #endif
     u_int debug;
     int rulecount;
@@ -895,15 +882,10 @@ struct context {
     struct tac_key *radius_key;
     time_t last_io;
     struct radius_data *radius_data;
-#ifdef WITH_TLS
-    struct tls *tls;
-#endif
 #ifdef WITH_SSL
     SSL *tls;
      BISTATE(alpn_passed);
      BISTATE(sni_passed);
-#endif
-#if defined(WITH_TLS) || defined(WITH_SSL)
     const char *tls_conn_version;
     size_t tls_conn_version_len;
     const char *tls_conn_cipher;

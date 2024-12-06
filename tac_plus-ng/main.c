@@ -327,7 +327,7 @@ static void accept_control_udp_singleprocess(int s, struct scm_data_udp *sd);
 static void accept_control_raw(int, struct scm_data_accept_ext *);
 static void accept_control_px(int, struct scm_data_accept_ext *);
 static void accept_control_check_tls(struct context *, int);
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
 static void accept_control_tls(struct context *, int);
 #endif
 static void setup_signals(void);
@@ -400,16 +400,6 @@ int main(int argc, char **argv, char **envp)
 void cleanup(struct context *ctx, int cur __attribute__((unused)))
 {
     if (ctx->aaa_protocol != S_radius) {
-#ifdef WITH_TLS
-	if (ctx->tls) {
-	    int res = io_TLS_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
-	    if (res < 0 && errno == EAGAIN)
-		return;
-	    tls_free(ctx->tls);
-	    ctx->tls = NULL;
-	}
-#endif
-
 #ifdef WITH_SSL
 	if (ctx->tls) {
 	    int res = io_SSL_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
@@ -665,7 +655,7 @@ static void reject_conn(struct context *ctx, const char *hint, char *tls, int li
 
 void complete_host(tac_host *);
 
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
 static int query_mavis_host(struct context *, void (*)(struct context *));
 
 static void complete_host_mavis_tls(struct context *ctx)
@@ -716,24 +706,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 
     ctx->last_io = io_now.tv_sec;
 
-#ifdef WITH_TLS
-    switch (tls_handshake(ctx->tls)) {
-    case TLS_WANT_POLLIN:
-	io_set_i(ctx->io, cur);
-	return;
-    case TLS_WANT_POLLOUT:
-	io_set_o(ctx->io, cur);
-	return;
-    default:
-	hint = (ctx->hint && *ctx->hint) ? ctx->hint : tls_error(ctx->tls);
-	reject_conn(ctx, hint, "TLS ", __LINE__);
-	return;
-    case 0:
-	io_unregister(ctx->io, ctx->sock);
-	break;
-    }
-#endif
-
 #ifdef WITH_SSL
     int r = 0;
     switch (SSL_accept(ctx->tls)) {
@@ -781,32 +753,14 @@ static void accept_control_tls(struct context *ctx, int cur)
 #endif
     X509 *cert = SSL_get_peer_certificate(ctx->tls);
 #endif
-#ifdef WITH_TLS
-    if (ctx->realm->alpn && !tls_conn_alpn_selected(ctx->tls)) {
-	reject_conn(ctx, "ALPN", "TLS ", __LINE__);
-	return;
-    }
-#endif
 
     if (
-#ifdef WITH_TLS
-	   tls_peer_cert_provided(ctx->tls)
-#endif
 #ifdef WITH_SSL
 	   cert
 #endif
 	) {
 	char buf[40];
 	time_t notafter = -1, notbefore = -1;
-#ifdef WITH_TLS
-	ctx->tls_conn_version = tls_conn_version(ctx->tls);
-	ctx->tls_conn_cipher = tls_conn_cipher(ctx->tls);
-	snprintf(buf, sizeof(buf), "%d", tls_conn_cipher_strength(ctx->tls));
-	ctx->tls_conn_cipher_strength = mem_strdup(ctx->mem, buf);
-	ctx->tls_peer_cert_subject = tls_peer_cert_subject(ctx->tls);
-	notafter = tls_peer_cert_notafter(ctx->tls);
-	notbefore = tls_peer_cert_notbefore(ctx->tls);
-#endif
 #ifdef WITH_SSL
 	ctx->tls_conn_version = SSL_get_version(ctx->tls);
 	ctx->tls_conn_cipher = SSL_get_cipher(ctx->tls);
@@ -1349,7 +1303,7 @@ static void complete_host_mavis_udp(struct context *ctx)
 
 static void accept_control_check_tls(struct context *ctx, int cur __attribute__((unused)))
 {
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
     char tmp[6];
     if (ctx->realm->tls_autodetect == TRISTATE_YES)
 	ctx->use_tls = (recv(ctx->sock, &tmp, sizeof(tmp), MSG_PEEK) == (ssize_t) sizeof(tmp) && tmp[0] == 0x16 && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
@@ -1366,9 +1320,6 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	io_set_cb_h(ctx->io, ctx->sock, (void *) cleanup);
 	io_set_cb_e(ctx->io, ctx->sock, (void *) cleanup);
 	io_sched_add(ctx->io, ctx, (void *) periodics_ctx, 60, 0);
-#ifdef WITH_TLS
-	tls_accept_socket(ctx->realm->tls, &ctx->tls, ctx->sock);
-#endif
 #ifdef WITH_SSL
 	SSL_CTX_set_cert_verify_callback(ctx->realm->tls, app_verify_cb, ctx);
 

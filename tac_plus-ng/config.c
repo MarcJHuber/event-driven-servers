@@ -227,10 +227,7 @@ void complete_realm(tac_realm *r)
 	if (!r->alpn_vec_len)
 	    r->alpn_vec_len = rp->alpn_vec_len;
 #endif
-#ifdef WITH_TLS
-	RS(alpn, NULL);
-#endif
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
 	RS(tls_accept_expired, TRISTATE_DUNNO);
 #endif
 #undef RS
@@ -246,74 +243,10 @@ void complete_realm(tac_realm *r)
 	RS(default_host->authen_max_attempts);
 	RS(default_host->password_expiry_warning);
 	RS(backend_failure_period);
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
 	RS(tls_verify_depth);
 #endif
 #undef RS
-#ifdef WITH_TLS
-	if (r->tls_cfg && r->tls_cert) {
-	    uint8_t *p;
-	    size_t p_len;
-
-	    tls_config_verify_client(r->tls_cfg);
-	    if (r->tls_cafile && tls_config_set_ca_file(r->tls_cfg, r->tls_cafile)) {
-		const char *terr = tls_config_error(r->tls_cfg);
-		report(NULL, LOG_ERR, ~0, "realm %s: tls_config_set_ca_file(\"%s\") failed%s%s", r->name, r->tls_cafile, terr ? ": " : "", terr ? terr : "");
-		exit(EX_CONFIG);
-	    }
-	    if (tls_config_set_protocols(r->tls_cfg, TLS_PROTOCOL_TLSv1_3)) {
-		const char *terr = tls_config_error(r->tls_cfg);
-		report(NULL, LOG_ERR, ~0, "realm %s: tls_config_set_protocols failed%s%s", r->name, terr ? ": " : "", terr ? terr : "");
-		exit(EX_CONFIG);
-	    }
-	    if (tls_config_set_ciphers(r->tls_cfg, r->tls_ciphers)) {
-		const char *terr = tls_config_error(r->tls_cfg);
-		report(NULL, LOG_ERR, ~0, "realm %s: tls_config_set_ciphers(\"%s\") failed%s%s", r->name, r->tls_ciphers, terr ? ": " : "", terr ? terr : "");
-		exit(EX_CONFIG);
-	    }
-	    if (!(p = tls_load_file(r->tls_cert, &p_len, NULL))) {
-		report(NULL, LOG_ERR, ~0, "realm %s: tls_load_file(%s) failed: %s", r->name, r->tls_cert, strerror(errno));
-		exit(EX_CONFIG);
-	    }
-	    if (tls_config_set_cert_mem(r->tls_cfg, p, p_len)) {
-		const char *terr = tls_config_error(r->tls_cfg);
-		report(NULL, LOG_ERR, ~0, "realm %s: tls_config_set_cert_mem failed%s%s", r->name, terr ? ": " : "", terr ? terr : "");
-		exit(EX_CONFIG);
-	    }
-	    if (r->alpn && tls_config_set_alpn(r->tls_cfg, r->alpn)) {
-		const char *terr = tls_config_error(r->tls_cfg);
-		report(NULL, LOG_ERR, ~0, "realm %s: tls_config_set_alpn failed%s%s", r->name, terr ? ": " : "", terr ? terr : "");
-		exit(EX_CONFIG);
-	    }
-	    if (!r->tls_key) {
-		report(NULL, LOG_ERR, ~0, "realm %s: No key defined for cert %s", r->name, r->tls_cert);
-		exit(EX_CONFIG);
-	    }
-	    if (!(p = tls_load_file(r->tls_key, &p_len, r->tls_pass))) {
-		report(NULL, LOG_ERR, ~0, "realm %s: tls_load_file(%s) failed: %s", r->name, r->tls_key, strerror(errno));
-		exit(EX_CONFIG);
-	    }
-	    if (tls_config_set_key_mem(r->tls_cfg, p, p_len)) {
-		report(NULL, LOG_ERR, ~0, "realm %s: tls_config_set_key_mem failed", r->name);
-		exit(EX_CONFIG);
-	    }
-	    if (r->tls_accept_expired == TRISTATE_YES)
-		tls_config_insecure_noverifytime(r->tls_cfg);
-	    if (r->tls_verify_depth > -1)
-		tls_config_set_verify_depth(r->tls_cfg, r->tls_verify_depth);
-
-	    if (!(r->tls = tls_server())) {
-		report(NULL, LOG_ERR, ~0, "realm %s: tls_server() returned NULL", r->name);
-		exit(EX_CONFIG);
-	    }
-	    if (tls_configure(r->tls, r->tls_cfg)) {
-		const char *terr = tls_config_error(r->tls_cfg);
-		report(NULL, LOG_ERR, ~0, "realm %s: tls_configure failed%s%s", r->name, terr ? ": " : "", terr ? terr : "");
-		exit(EX_CONFIG);
-	    }
-	} else
-	    r->tls_cfg = rp->tls_cfg;
-#endif
 #ifdef WITH_SSL
 	if (r->tls_cert && r->tls_key) {
 	    r->tls = ssl_init(r->tls_cert, r->tls_key, r->tls_pass, r->tls_ciphers);
@@ -506,14 +439,9 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
     r->default_host = new_host(NULL, "default", NULL, r, parent ? 0 : 1);
 
     r->debug = parent ? 0 : common_data.debug;
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
     r->tls_verify_depth = -1;
-#ifdef WITH_TLS
-    //r->tls_ciphers = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384";
-#endif
-#ifdef WITH_SSL
     //r->tls_ciphers = "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256";
-#endif
 #endif
 
     if (parent) {
@@ -908,11 +836,6 @@ static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm *parent, ta
 	nrealm->line = sym->line;
 	nrealm->name = name;
 	nrealm->name_len = strlen(name);
-
-#ifdef WITH_TLS
-	if (!(nrealm->tls_cfg = tls_config_new()))
-	    report(NULL, LOG_ERR, ~0, "realm %s: tls_config_new() failed", name);
-#endif
     }
 
     if (!empty)
@@ -2080,7 +2003,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    parse(sym, S_equal);
 	    r->haproxy_autodetect = parse_tristate(sym);
 	    continue;
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
 	case S_tls:
 	    sym_get(sym);
 	    switch (sym->code) {
@@ -2156,9 +2079,6 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		r->alpn_vec = str2protocollist(sym->buf, &r->alpn_vec_len);
 		if (!r->alpn_vec)
 		    parse_error(sym, "TLS ALPN is malformed.");
-#endif
-#ifdef WITH_TLS
-		r->alpn = strdup(sym->buf);
 #endif
 		sym_get(sym);
 		continue;
@@ -2256,16 +2176,11 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 #ifdef WITH_PCRE2
 			       S_rewrite,
 #endif
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
 			       S_tls, S_radius_dictionary,
 #endif
 			       S_unknown);
 	}
-#ifdef WITH_TLS
-    if ((r->tls_cert || r->tls_key || r->tls_cafile)
-	&& (!r->tls_cert || !r->tls_key || !r->tls_cafile))
-	parse_error(sym, "TLS configuration for realm %s is incomplete", r->name);
-#endif
 }
 
 void parse_decls(struct sym *sym)
@@ -4438,7 +4353,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
     case S_server_port:
     case S_server_address:
     case S_radius:
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
     case S_tls_conn_version:
     case S_tls_conn_cipher:
     case S_tls_peer_cert_issuer:
@@ -4704,7 +4619,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 			   S_password, S_service, S_protocol, S_authen_action,
 			   S_authen_type, S_authen_service, S_authen_method, S_privlvl, S_vrf, S_dn, S_type, S_identity_source,
 			   S_server_name, S_server_address, S_server_port, S_usertag, S_aaa_protocol,
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
 			   S_tls_conn_version, S_tls_conn_cipher,
 			   S_tls_peer_cert_issuer, S_tls_peer_cert_subject, S_tls_conn_cipher_strength, S_tls_peer_cn, S_tls_psk_identity, S_radius,
 #endif
@@ -4903,7 +4818,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	    v = session->ctx->vrf;
 	    v_len = session->ctx->vrf_len;
 	    break;
-#if defined(WITH_TLS) ||defined(WITH_SSL)
+#if defined(WITH_SSL)
 	case S_tls_conn_version:
 	    v = (char *) session->ctx->tls_conn_version;
 	    v_len = session->ctx->tls_conn_version_len;
