@@ -1332,6 +1332,18 @@ static void complete_host_mavis_udp(struct context *ctx)
     if (ctx->host)
 	ctx->radius_key = ctx->host->radius_key;
 
+#define S "CONN-START"
+    ctx->msgid = S;
+    ctx->msgid_len = sizeof(S) - 1;
+#undef S
+#define S "start"
+    ctx->acct_type = S;
+    ctx->acct_type_len = sizeof(S) - 1;
+#undef S
+    log_exec(NULL, ctx, S_connection, io_now.tv_sec);
+    ctx->msgid = NULL;
+    ctx->msgid_len = 0;
+
     rad_udp_inject(ctx);
 }
 
