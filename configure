@@ -88,7 +88,7 @@ my @ALLDIRS = qw(mavis spawnd mavisd ftpd tac_plus tac_plus-ng tcprelay );
 my $DIRS_DEFAULT = join(" ", @DIRS_DEFAULT);
 my $ALLDIRS = join(" ", @ALLDIRS);
 
-my @options = qw(pcre2 ssl tls zlib freeradius-client freeradius pam execinfo sctp curl ipc ares crypto ldap radcli);
+my @options = qw(pcre2 ssl zlib freeradius-client freeradius pam execinfo sctp curl ipc ares crypto ldap radcli);
 my %COMMENT;
 
 my $sbin = "sbin";
@@ -138,10 +138,6 @@ $COMMENT{"crypto"} =
 
 $COMMENT{"ssl"} =
 "Use the \"ssl\" option if you have the OpenSSL libraries available. If enabled, TLS support is added to FTPd and TcpRelay, and TACACS+ will be able to utilize the crypto library.
-";
-
-$COMMENT{"tls"} =
-"Use the \"tls\" option if you have the LibreTLS libraries available. If enabled, TLS support is added to tac_plus-ng and TcpRelay.
 ";
 
 $COMMENT{"sctp"} =
@@ -222,7 +218,7 @@ This script should be smart enough to figure out availability of most configurat
 
 You can easily skip features you don't need, e.g.:
 
-  ./configure --without-curl --without-tls --without-ssl --without-crypto --without-ares --without-sctp --without-zlib [targets]
+  ./configure --without-curl --without-ssl --without-crypto --without-ares --without-sctp --without-zlib [targets]
 
 or, as a shortcut,
 
@@ -633,7 +629,6 @@ $DEFS{"WITH_DNS"} = 1 if exists $DEFS{"LIB_DNS"};
 check_for("SSL", "openssl", "openssl/ssl.h", "ssl", undef) if !exists $DEFS{"WITH_TLS"} || $DEFS{"WITH_TLS"} == 0;
 $DEFS{"LIB_SSL"} .= " -lcrypto" if exists $DEFS{"LIB_SSL"} && exists $DEFS{"WITH_CRYPTO"} && $DEFS{"WITH_CRYPTO"} == 0;
 check_for("CRYPTO", "openssl", "openssl/ssl.h", "crypto", undef);
-check_for("TLS", "libtls", "tls.h", "tls", undef) if !exists $DEFS{"WITH_SSL"} || $DEFS{"WITH_SSL"} == 0;
 check_for("PCRE2", "libpcre2-8", "pcre2.h", "pcre2-8", "-DPCRE2_CODE_UNIT_WIDTH=8");
 $DEFS{"INC_PCRE"} = $DEFS{"INC_PCRE2"} if exists $DEFS{"INC_PCRE2"};
 $DEFS{"LIB_PCRE"} = $DEFS{"LIB_PCRE2"} if exists $DEFS{"LIB_PCRE2"};
