@@ -485,7 +485,7 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
     av_set(avc, AV_A_TACTYPE, (char *) type);	// "HOST"
     av_set(avc, AV_A_REALM, ctx->realm->name);
 
-#if defined(WITH_TLS) || defined(WITH_SSL)
+#if defined(WITH_SSL)
     if (ctx->tls_peer_cert_subject)
 	av_set(avc, AV_A_CERTSUBJ, (char *) ctx->tls_peer_cert_subject);
     if (ctx->tls_peer_cert_san_count) {
