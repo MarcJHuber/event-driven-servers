@@ -1964,7 +1964,7 @@ static void do_radius_login(tac_session *session)
 
     if (rad_get(session, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username, &session->username_len)
 	|| rad_get_password(session, &session->password, NULL)) {
-	if (session->ctx->udp)
+	if (session->ctx->aaa_protocol == S_radius)
 	    cleanup(session->ctx, -1);
 	else
 	    cleanup_session(session);
@@ -1998,7 +1998,7 @@ static void do_radius_login(tac_session *session)
     if (res == TAC_PLUS_AUTHEN_STATUS_ERROR) {
 	// Backend failure. Don't send a reply.
 	report_auth(session, "radius login", hint, res);
-	if (session->ctx->udp)
+	if (session->ctx->aaa_protocol == S_radius)
 	    cleanup(session->ctx, -1);
 	else
 	    cleanup_session(session);
@@ -2039,7 +2039,7 @@ void rad_authen(tac_session *session)
 	session->radius_data->authfn = do_radius_login;
 	break;
     default:
-	if (session->ctx->udp)
+	if (session->ctx->aaa_protocol == S_radius)
 	    cleanup(session->ctx, -1);
 	else
 	    cleanup_session(session);

@@ -206,6 +206,8 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 	io_sched_del(common_data.io, ctx, (void *) spawnd_bind_listener);
 
 	cur = su_socket(ctx->sa.sa.sa_family, ctx->socktype, ctx->protocol);
+	if (ctx->socktype != SOCK_DGRAM)
+	    fcntl(cur, F_SETFD, fcntl(cur, F_GETFD, 0) | FD_CLOEXEC);
 
 	if (cur < 0) {
 	    logerr("socket(%d, %d, %d) [%s:%d]", ctx->sa.sa.sa_family, ctx->socktype, ctx->protocol, __FILE__, __LINE__);

@@ -377,7 +377,7 @@ void rad_send_authen_reply(tac_session *session, int status, char *msg)
     if ((common_data.debug | session->ctx->debug) & DEBUG_PACKET_FLAG)
 	dump_rad_pak(session, &pak->pak.rad);
 
-    if (session->ctx->udp) {
+    if (session->ctx->aaa_protocol == S_radius) {
 	send_udp(session, pak);
     } else {
 	if (session->authfail_delay && !(common_data.debug & DEBUG_TACTRACE_FLAG))
@@ -405,7 +405,7 @@ void rad_send_acct_reply(tac_session *session)
     if ((common_data.debug | session->ctx->debug) & DEBUG_PACKET_FLAG)
 	dump_rad_pak(session, &pak->pak.rad);
 
-    if (session->ctx->udp) {
+    if (session->ctx->aaa_protocol == S_radius) {
 	send_udp(session, pak);
     } else {
 	tac_pak **pp;

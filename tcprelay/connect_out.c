@@ -100,6 +100,7 @@ void connect_out(struct context *ctx, int cur)
     }
 
     s = su_socket(con_arr[ctx->con_arr_idx].sa.sa.sa_family, SOCK_STREAM, con_arr[ctx->con_arr_idx].protocol);
+    fcntl(s, F_SETFD, fcntl(s, F_GETFD, 0) | FD_CLOEXEC);
 
     if (s < 0) {
 	logerr("socket (%s:%d)", __FILE__, __LINE__);

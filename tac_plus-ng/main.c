@@ -399,7 +399,7 @@ int main(int argc, char **argv, char **envp)
 
 void cleanup(struct context *ctx, int cur __attribute__((unused)))
 {
-    if (!ctx->udp) {
+    if (ctx->aaa_protocol != S_radius) {
 #ifdef WITH_TLS
 	if (ctx->tls) {
 	    int res = io_TLS_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
@@ -435,7 +435,7 @@ void cleanup(struct context *ctx, int cur __attribute__((unused)))
     log_exec(NULL, ctx, S_connection, io_now.tv_sec);
 
     io_sched_drop(ctx->io, ctx);
-    if (!ctx->udp) {
+    if (ctx->aaa_protocol != S_radius) {
 	io_close(ctx->io, ctx->sock);
 	ctx->sock = -1;
     }
@@ -1483,14 +1483,12 @@ static void accept_control_udp(int s __attribute__((unused)), struct scm_data_ac
     struct context *ctx = new_context(common_data.io, r);
     ctx->sock = sd_ext->sd_udp.sock;
     context_lru_append(ctx);
-    ctx->udp = BISTATE_YES;
+    ctx->aaa_protocol = S_radius;
 
     if (ctx->realm->allowed_protocol_radius != TRISTATE_YES) {
 	cleanup(ctx, -1);
 	return;
     }
-
-    ctx->aaa_protocol = S_radius;
 
     if (h) {
 	if (!h->radius_key)

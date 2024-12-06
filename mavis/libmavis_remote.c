@@ -90,6 +90,7 @@ static int udp_bind(sockaddr_union * sa)
 	Debug((DEBUG_MAVIS, "- %s: socket() failed\n", __func__));
 	return -1;
     }
+    fcntl(s, F_SETFD, fcntl(s, F_GETFD, 0) | FD_CLOEXEC);
     if (su_bind(s, &(*sa)) < 0) {
 	close(s);
 	Debug((DEBUG_MAVIS, "- %s: bind() failed\n", __func__));

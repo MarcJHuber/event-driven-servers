@@ -39,6 +39,7 @@ static int init_rcvr(sockaddr_union * su, void *data)
 	logerr("socket");
 	return (-1);
     }
+    fcntl(c->sock, F_SETFD, fcntl(c->sock, F_GETFD, 0) | FD_CLOEXEC);
 #ifdef AF_UNIX
     if (c->sa.sa.sa_family == AF_UNIX)
 	unlink(c->sa.sun.sun_path);

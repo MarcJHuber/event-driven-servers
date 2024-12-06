@@ -162,6 +162,7 @@ void connect_port(struct context *ctx)
 	DebugOut(DEBUG_COMMAND);
 	return;
     }
+    fcntl(s, F_SETFD, fcntl(s, F_GETFD, 0) | FD_CLOEXEC);
 
     if (0 > su_bind(s, &su)) {
 	logerr("bind (%s:%d)", __FILE__, __LINE__);

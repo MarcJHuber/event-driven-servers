@@ -952,7 +952,6 @@ struct context {
      BISTATE(use_tls);
      BISTATE(mavis_pending);
      BISTATE(mavis_tried);
-     BISTATE(udp);
     enum token mavis_result;
     enum token aaa_protocol;
     u_int id;

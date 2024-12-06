@@ -699,6 +699,7 @@ void parse_log(struct sym *sym, tac_realm *r)
 		free(lf);
 		return;
 	    }
+	    fcntl(lf->sock, F_SETFD, fcntl(lf->sock, F_GETFD, 0) | FD_CLOEXEC);
 	    if (lf->syslog_destination.sa.sa_family == AF_UNIX && su_connect(lf->sock, &lf->syslog_destination)) {
 		report(NULL, LOG_DEBUG, ~0, "su_connect (%s:%d): %s", __FILE__, __LINE__, strerror(errno));
 		close(lf->sock);

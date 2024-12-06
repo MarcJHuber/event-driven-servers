@@ -301,7 +301,6 @@ int su_socket(int domain, int type, int protocol)
 {
     int s = socket(domain, type, protocol);
     if (s > -1) {
-	fcntl(s, F_SETFD, fcntl(s, F_GETFD, 0) | FD_CLOEXEC);
 	fcntl(s, F_SETFL, O_NONBLOCK);
     }
     return s;
