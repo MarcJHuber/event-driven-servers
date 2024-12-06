@@ -97,19 +97,26 @@ EOT
 		script {
 			if (device.tag != user.tag)
 				deny
-			if (service == shell) { 
-				if (cmd == "") {
-					set priv-lvl = 15
-					permit
+			if (aaa.protocol == tacacs || aaa.protocol == tacacss) {
+				if (service == shell) {
+					if (cmd == "") {
+						set priv-lvl = 15
+						permit
+					}
+					if (user.tag == ro) {
+						if (cmd =~ /^show /) permit
+						if (cmd =~ /^ping /) permit
+						if (cmd =~ /^traceroute /) permit
+						deny
+					}
+					if (user.tag == rw)
+						permit
 				}
-				if (user.tag == ro) {
-					if (cmd =~ /^show /) permit
-					if (cmd =~ /^ping /) permit
-					if (cmd =~ /^traceroute /) permit
-					deny
-				}
-				if (user.tag == rw)
-					permit
+				deny
+			}
+			if (aaa.protocol == radius || aaa.protocol == radsec) {
+				set radius[cisco:Cisco-AVPair] = "shell:priv-lvl=15"
+				permit
 			}
 			deny
 		}
