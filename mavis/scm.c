@@ -32,6 +32,9 @@ int scm_send_msg(int sock, struct scm_data *sd, int fd)
     case SCM_ACCEPT:
 	vector.iov_len = sizeof(struct scm_data_accept);
 	break;
+    case SCM_UDPDATA:
+	vector.iov_len = sizeof(struct scm_data_udp) + ((struct scm_data_udp *) sd)->data_len;
+	break;
     default:
 	vector.iov_len = sizeof(struct scm_data);
     }
@@ -69,8 +72,21 @@ int scm_recv_msg(int sock, struct scm_data_accept *sd, size_t sd_len, int *fd)
     struct cmsghdr *cmsg = (struct cmsghdr *) buf;
     cmsg->cmsg_len = CMSG_LEN(sizeof(int));
     struct msghdr msg = {.msg_iov = &vector,.msg_iovlen = 1,.msg_controllen = CMSG_SPACE(sizeof(int)),.msg_control = (caddr_t) cmsg };
+    size_t len = 0;
 
-    int res = recvmsg(sock, &msg, 0);
+    int res = recvmsg(sock, &msg, MSG_PEEK);
+    if (sd->type == SCM_UDPDATA) {
+	len = sizeof(struct scm_data_udp) + ((struct scm_data_udp *) sd)->data_len;
+	if (len <= sd_len)
+	    vector.iov_len = len;
+    }
+
+    res = recvmsg(sock, &msg, 0);
+
+    if (len && len > sd_len) {
+	logmsg("scm_recv_msg: recvmsg: buffer too small (%lu < %lu)", sd_len, len);
+	return -1;
+    }
     if (0 < res) {
 	if (sd->type == SCM_ACCEPT) {
 	    struct cmsghdr *chdr = CMSG_FIRSTHDR(&msg);
@@ -88,6 +104,10 @@ int fakescm_send_msg(int sock __attribute__((unused)), struct scm_data *sd, int 
     switch (sd->type) {
     case SCM_ACCEPT:
 	common_data.scm_accept(fd, (struct scm_data_accept *) sd);
+	break;
+    case SCM_UDPDATA:
+	if (common_data.scm_udpdata)
+	    common_data.scm_udpdata(fd, (struct scm_data_udp *) sd);
 	break;
     case SCM_MAX:
 	common_data.users_max = common_data.users_max_total = ((struct scm_data *) sd)->count;

@@ -119,82 +119,113 @@ static void tracking_register(struct in6_addr *addr, int i)
 
 void spawnd_accepted(struct spawnd_context *ctx, int cur)
 {
-    int s, i, min, min_i, res, flags;
+    int s = -1, i, min, min_i, res, flags;
     int one = 1;
     sockaddr_union sin;
     socklen_t sinlen = (socklen_t) sizeof(sin);
     int iteration_cur = 0;
     struct in6_addr addr;
+    struct scm_data_accept *sd = NULL;
+    struct scm_data_udp *sd_udp = NULL;
 
     DebugIn(DEBUG_NET);
 
-    s = accept(cur, &sin.sa, &sinlen);
-    if (s < 0) {
-	if (errno != EAGAIN)
-	    logerr("accept (%s:%d)", __FILE__, __LINE__);
-	DebugOut(DEBUG_NET);
-	return;
-    }
+    if (ctx->socktype == SOCK_DGRAM) {
+	char buf[4096];
+	ssize_t len = recvfrom(cur, &buf, sizeof(buf), 0, &sin.sa, &sinlen);
+	if (len < 1) {
+	    DebugOut(DEBUG_NET);
+	    return;
+	}
+	sd_udp = alloca(sizeof(struct scm_data_udp) + len);
+	sd_udp->data_len = len;
+	memcpy(sd_udp->data, buf, len);
+	sd_udp->sock = cur;
+	sd_udp->type = SCM_UDPDATA;
+	memcpy(sd_udp->realm, ctx->tag, SCM_REALM_SIZE);
+	sd_udp->protocol = sin.sa.sa_family;
+	switch (sin.sa.sa_family) {
+#ifdef AF_INET
+	case AF_INET:
+	    memcpy(&sd_udp->src, &sin.sin.sin_addr, 4);
+	    sd_udp->port = sin.sin.sin_port;
+	    break;
+#endif
+#ifdef AF_INET6
+	case AF_INET6:
+	    memcpy(&sd_udp->src, &sin.sin6.sin6_addr, 16);
+	    sd_udp->port = sin.sin6.sin6_port;
+	    break;
+#endif
+	default:
+	    DebugOut(DEBUG_NET);
+	    return;
+	}
+    } else {
 
-    if (common_data.users_cur == common_data.users_max_total) {
-	close(s);
-	DebugOut(DEBUG_NET);
-	return;
-    }
+	s = accept(cur, &sin.sa, &sinlen);
+	if (s < 0) {
+	    if (errno != EAGAIN)
+		logerr("accept (%s:%d)", __FILE__, __LINE__);
+	    DebugOut(DEBUG_NET);
+	    return;
+	}
 
-    if (!spawnd_acl_check(&sin)) {
-	char buf[INET6_ADDRSTRLEN];
-	close(s);
-	if (errno != EAGAIN)
-	    logerr("connection attempt from [%s] rejected", su_ntop(&sin, buf, (socklen_t) sizeof(buf)));
-	DebugOut(DEBUG_NET);
-	return;
-    }
+	if (common_data.users_cur == common_data.users_max_total) {
+	    close(s);
+	    DebugOut(DEBUG_NET);
+	    return;
+	}
 
-    flags = fcntl(s, F_GETFD, 0) | FD_CLOEXEC;
-    fcntl(s, F_SETFD, flags);
+	if (!spawnd_acl_check(&sin)) {
+	    char buf[INET6_ADDRSTRLEN];
+	    close(s);
+	    if (errno != EAGAIN)
+		logerr("connection attempt from [%s] rejected", su_ntop(&sin, buf, (socklen_t) sizeof(buf)));
+	    DebugOut(DEBUG_NET);
+	    return;
+	}
 
-    setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (char *) &one, (socklen_t) sizeof(one));
+	flags = fcntl(s, F_GETFD, 0) | FD_CLOEXEC;
+	fcntl(s, F_SETFD, flags);
+
+	setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (char *) &one, (socklen_t) sizeof(one));
 
 #ifdef TCP_KEEPCNT		/* __linux__ */
-    if ((ctx->keepcnt > -1)
-	&& (setsockopt(s, IPPROTO_TCP, TCP_KEEPCNT, (char *) &ctx->keepcnt, (socklen_t) sizeof(ctx->keepcnt)) < 0))
-	ctx->keepcnt = -1;
+	if ((ctx->keepcnt > -1)
+	    && (setsockopt(s, IPPROTO_TCP, TCP_KEEPCNT, (char *) &ctx->keepcnt, (socklen_t) sizeof(ctx->keepcnt)) < 0))
+	    ctx->keepcnt = -1;
 #endif
 #ifdef TCP_KEEPIDLE		/* __linux__ */
-    if ((ctx->keepidle > -1)
-	&& (setsockopt(s, IPPROTO_TCP, TCP_KEEPIDLE, (char *) &ctx->keepidle, (socklen_t) sizeof(ctx->keepidle)) < 0))
-	ctx->keepidle = -1;
+	if ((ctx->keepidle > -1)
+	    && (setsockopt(s, IPPROTO_TCP, TCP_KEEPIDLE, (char *) &ctx->keepidle, (socklen_t) sizeof(ctx->keepidle)) < 0))
+	    ctx->keepidle = -1;
 #endif
 #ifdef TCP_KEEPINTVL		/* __linux__ */
-    if ((ctx->keepintvl > -1)
-	&& (setsockopt(s, IPPROTO_TCP, TCP_KEEPINTVL, (char *) &ctx->keepintvl, (socklen_t) sizeof(ctx->keepintvl)) < 0))
-	ctx->keepintvl = -1;
+	if ((ctx->keepintvl > -1)
+	    && (setsockopt(s, IPPROTO_TCP, TCP_KEEPINTVL, (char *) &ctx->keepintvl, (socklen_t) sizeof(ctx->keepintvl)) < 0))
+	    ctx->keepintvl = -1;
 #endif
 #ifdef TCP_KEEPALIVE		/* __APPLE__ */
-    if ((ctx->keepidle > -1)
-	&& (setsockopt(s, IPPROTO_TCP, TCP_KEEPALIVE, (char *) &ctx->keepidle, (socklen_t) sizeof(ctx->keepidle)) < 0))
-	ctx->keepidle = -1;
+	if ((ctx->keepidle > -1)
+	    && (setsockopt(s, IPPROTO_TCP, TCP_KEEPALIVE, (char *) &ctx->keepidle, (socklen_t) sizeof(ctx->keepidle)) < 0))
+	    ctx->keepidle = -1;
 #endif
+
+	sd = alloca(sizeof(struct scm_data_accept));
+	sd->type = SCM_ACCEPT, sd->haproxy = ctx->haproxy ? 1 : 0, sd->use_tls = ctx->use_ssl ? 1 : 0, sd->protocol = ctx->protocol;
+	memcpy(sd->realm, ctx->tag, SCM_REALM_SIZE);
+    }
 
     /* Server selection algorithm */
 
     if (!common_data.singleprocess)
 	while (common_data.servers_cur < common_data.servers_min)
 	    spawnd_add_child();
-
-    struct scm_data_accept sd = {
-	.type = SCM_ACCEPT,
-	.haproxy = ctx->haproxy ? 1 : 0,
-	.use_tls = ctx->use_ssl ? 1 : 0,
-	.protocol = ctx->protocol
-    };
-    memcpy(sd.realm, ctx->tag, SCM_REALM_SIZE);
-
     su_ptoh(&sin, &addr);
 
     if (common_data.singleprocess)
-	common_data.scm_send_msg(-1, (struct scm_data *) &sd, s);
+	common_data.scm_send_msg(-1, sd ? (struct scm_data *) sd : (struct scm_data *) sd_udp, s);
     else {
 	do {
 	    min = common_data.users_max;
@@ -229,7 +260,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 		exit(EX_SOFTWARE);
 	    }
 
-	    res = common_data.scm_send_msg(spawnd_data.server_arr[min_i]->fn, (struct scm_data *) &sd, s);
+	    res = common_data.scm_send_msg(spawnd_data.server_arr[min_i]->fn, sd ? (struct scm_data *) sd : (struct scm_data *) sd_udp, s);
 
 	    if (res) {
 		logerr("scm_send_msg (%s:%d), pid: %d", __FILE__, __LINE__, (int) spawnd_data.server_arr[min_i]->pid);

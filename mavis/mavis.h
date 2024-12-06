@@ -396,6 +396,7 @@ struct common_data {
     int (*scm_send_msg)(int, struct scm_data *, int);
     int (*scm_recv_msg)(int, struct scm_data_accept *, size_t, int *);
     void (*scm_accept)(int, struct scm_data_accept *);
+    void (*scm_udpdata)(int, struct scm_data_udp *);
 };
 
 extern struct common_data common_data;

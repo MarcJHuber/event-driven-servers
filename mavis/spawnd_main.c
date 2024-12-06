@@ -188,7 +188,7 @@ struct spawnd_context *spawnd_new_context(struct io_context *io)
     return c;
 }
 
-int spawnd_note_listener(sockaddr_union * sa __attribute__((unused)), void *data)
+int spawnd_note_listener(sockaddr_union *sa __attribute__((unused)), void *data)
 {
     spawnd_data.listener_arr = Xrealloc(spawnd_data.listener_arr, (spawnd_data.listeners_max + 1) * sizeof(struct spawnd_context *));
     spawnd_data.listener_arr[spawnd_data.listeners_max] = (struct spawnd_context *) data;
@@ -238,6 +238,12 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 #endif
 			   , &opt, optlen))
 		logerr("setsockopt failed to set the VRF to \"%d\" [%s:%d]", ctx->vrf_id, __FILE__, __LINE__);
+	}
+#endif
+#ifdef SO_REUSEPORT
+	if (ctx->protocol == IPPROTO_UDP) {
+	    int one = 1;
+	    setsockopt(cur, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
 	}
 #endif
 	if (su_bind(cur, &ctx->sa)) {
@@ -295,7 +301,7 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 
     logmsg("bind to [%s]:%d succeeded%s", su_ntop(&ctx->sa, buf, (socklen_t) sizeof(buf)), su_get_port(&ctx->sa), ctx->fn ? "" : " (via inetd)");
 
-    if (listen(ctx->fn, ctx->listen_backlog)) {
+    if (ctx->socktype != SOCK_DGRAM && listen(ctx->fn, ctx->listen_backlog)) {
 	logerr("listen (%s:%d)", __FILE__, __LINE__);
 	Debug((DEBUG_NET, "- %s (listen error)\n", __func__));
 	return;

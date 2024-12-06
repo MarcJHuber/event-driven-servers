@@ -12,7 +12,7 @@
 #define __SCM_H__
 
 enum scm_token { SCM_DONE = 0, SCM_KEEPALIVE, SCM_MAY_DIE, SCM_DYING, SCM_BAD_CFG, SCM_MAX,
-    SCM_ACCEPT
+    SCM_ACCEPT, SCM_UDPDATA,
 };
 
 struct scm_data {
@@ -22,12 +22,23 @@ struct scm_data {
 
 struct scm_data_accept {
     enum scm_token type;
-    int socktype;
-    int protocol;
+    int socktype;		// SOCK_STREAM, SOCK_SEQPACKET; SOCK_DGRAM
+    int protocol;		// AF_INET, AF_INET6, ...
     u_int use_tls:1;
     u_int haproxy:1;
 #define SCM_REALM_SIZE 16
     char realm[SCM_REALM_SIZE];
+};
+
+struct scm_data_udp {
+    enum scm_token type;
+    u_char protocol;		// AF_INET, AF_INET6
+    u_char src[16];
+    short port;
+    int sock;			// actually interited from spawnd via fork() -- for spawnd/udp: remember to set SO_REUSEPORT
+    char realm[SCM_REALM_SIZE];
+    short data_len;
+    u_char data[] __attribute__((aligned(8)));
 };
 
 int scm_send_msg(int, struct scm_data *, int);

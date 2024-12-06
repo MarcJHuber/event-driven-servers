@@ -75,7 +75,7 @@ static enum token eval_acl(struct in6_addr *addr)
     return acl_start ? S_deny : S_permit;
 }
 
-int spawnd_acl_check(sockaddr_union * su)
+int spawnd_acl_check(sockaddr_union *su)
 {
     struct in6_addr a;
     if (su_ptoh(su, &a))
@@ -183,13 +183,16 @@ static void parse_listen(struct sym *sym)
 	    case S_STREAM:
 		ctx->socktype = SOCK_STREAM;
 		break;
+	    case S_DGRAM:
+		ctx->socktype = SOCK_DGRAM;
+		break;
 #ifdef SOCK_SEQPACKET
 	    case S_SEQPACKET:
 		ctx->socktype = SOCK_SEQPACKET;
 		break;
 #endif
 	    default:
-		parse_error_expect(sym, S_STREAM,
+		parse_error_expect(sym, S_STREAM, S_DGRAM,
 #ifdef SOCK_SEQPACKET
 				   S_SEQPACKET,
 #endif
@@ -203,6 +206,11 @@ static void parse_listen(struct sym *sym)
 	    switch (sym->code) {
 	    case S_TCP:
 		ctx->protocol = IPPROTO_TCP;
+		ctx->socktype = SOCK_STREAM;
+		break;
+	    case S_UDP:
+		ctx->protocol = IPPROTO_UDP;
+		ctx->socktype = SOCK_DGRAM;
 		break;
 #ifdef IPPROTO_SCTP
 	    case S_SCTP:
@@ -210,7 +218,7 @@ static void parse_listen(struct sym *sym)
 		break;
 #endif
 	    default:
-		parse_error_expect(sym, S_TCP,
+		parse_error_expect(sym, S_TCP, S_UDP,
 #ifdef IPPROTO_SCTP
 				   S_SCTP,
 #endif
