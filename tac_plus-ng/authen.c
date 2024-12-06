@@ -1995,6 +1995,16 @@ static void do_radius_login(tac_session *session)
 
     enum token sres = author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first);
 
+    if (res == TAC_PLUS_AUTHEN_STATUS_ERROR) {
+	// Backend failure. Don't send a reply.
+	report_auth(session, "radius login", hint, res);
+	if (session->ctx->udp)
+	    cleanup(session->ctx, -1);
+	else
+	    cleanup_session(session);
+	return;
+    }
+
     if (res == TAC_PLUS_AUTHEN_STATUS_PASS && sres != S_deny && session->profile) {
 	session->debug |= session->profile->debug;
 	sres = author_eval_profile(session, session->profile, session->ctx->realm->script_profile_parent_first);
