@@ -195,6 +195,7 @@ struct tac_host {
     tac_realm *target_realm;
     mem_t *mem;
     struct tac_key *key;
+    struct tac_key *radius_key;
     struct log_item *motd;
     struct log_item *welcome_banner;	/* prompt */
     struct log_item *welcome_banner_fallback;	/* fallback prompt */
@@ -300,7 +301,6 @@ struct tac_alias {
 };
 
 struct rad_dict;
-enum rad_type { RADTYPE_STRING = 0, RADTYPE_IPADDR, RADTYPE_IPV6ADDR, RADTYPE_INTEGER, RADTYPE_OCTETS, RADTYPE_VSA, RADTYPE_UNKNOWN };
 
 struct config {
     mode_t mask;		/* file mask */
@@ -368,6 +368,12 @@ struct realm {
      TRISTATE(script_host_parent_first);
      TRISTATE(script_realm_parent_first);
      TRISTATE(haproxy_autodetect);
+
+     TRISTATE(allowed_protocol_radius);
+     TRISTATE(allowed_protocol_radsec);
+     TRISTATE(allowed_protocol_tacacs);
+     TRISTATE(allowed_protocol_tacacss);
+
      BISTATE(use_tls_psk);
      BISTATE(visited);
      BISTATE(skip_parent_script);
@@ -510,12 +516,19 @@ typedef struct {
 #define RADIUS_A_ACCT_LINK_COUNT	51
 #define RADIUS_A_ACCT_INTERIM_INTERVAL	85
 
-struct radius_data
-{
+struct radius_data {
     rad_pak_hdr *pak_in;
-    u_char data[4096];
-    size_t data_len;
+    size_t pak_in_len;
+    int sock;
+    u_char protocol;		// AF_INET, AF_INET6
+    short port;			// network byte order
     void (*authfn)(tac_session *);
+    u_char src[16];
+    size_t data_len;
+    union {
+	rad_pak_hdr pak;
+	u_char data[4096];
+    };
 };
 
 #define RADIUS_DATA(A) (((u_char *)(A)) + RADIUS_HDR_SIZE)
@@ -695,9 +708,9 @@ struct acct_reply {
 #define tac_payload(A,B) ((B) ((u_char *) A + TAC_PLUS_HDR_SIZE))
 
 union pak_hdr {
-	    tac_pak_hdr tac;
-    	    rad_pak_hdr rad;
-	    u_char uchar[1];
+    tac_pak_hdr tac;
+    rad_pak_hdr rad;
+    u_char uchar[1];
 };
 
 struct tac_pak {
@@ -707,14 +720,6 @@ struct tac_pak {
     time_t delay_until;
     union pak_hdr pak;
 };
-
-/*
-struct rad_pak {
-    struct tac_pak *next;
-    ssize_t offset;
-    ssize_t length;
-    time_t delay_until;
-};*/
 
 typedef struct tac_pak tac_pak;
 typedef struct rad_pak rad_pak;
@@ -887,7 +892,9 @@ struct context {
     union pak_hdr hdr;
     ssize_t hdroff;
     struct tac_key *key;
+    struct tac_key *radius_key;
     time_t last_io;
+    struct radius_data *radius_data;
 #ifdef WITH_TLS
     struct tls *tls;
 #endif
@@ -945,8 +952,9 @@ struct context {
      BISTATE(use_tls);
      BISTATE(mavis_pending);
      BISTATE(mavis_tried);
-     BISTATE(radsec);
+     BISTATE(udp);
     enum token mavis_result;
+    enum token aaa_protocol;
     u_int id;
     u_int bug_compatibility;
     u_int debug;
@@ -1037,9 +1045,12 @@ static __inline__ int minimum(int a, int b)
 void tac_read(struct context *, int);
 void tac_write(struct context *, int);
 void rad_read(struct context *, int);
-int rad_get(tac_session *session, int vendorid, int id, enum rad_type, void *, size_t *);
-int rad_get_password (tac_session *session, char **val, size_t *val_len);
-void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, size_t *buf_len, struct rad_dict *dict, char *separator, size_t separator_len);
+int rad_get(tac_session * session, int vendorid, int id, enum token, void *, size_t *);
+int rad_get_password(tac_session * session, char **val, size_t *val_len);
+void rad_attr_val_dump(mem_t * mem, u_char * data, size_t data_len, char **buf, size_t *buf_len, struct rad_dict *dict, char *separator,
+		       size_t separator_len);
+
+void rad_udp_inject(struct context *);
 
 void cleanup_session(tac_session *);
 struct log_item *parse_log_format(struct sym *, mem_t *);

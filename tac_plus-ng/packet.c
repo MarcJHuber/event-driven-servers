@@ -321,9 +321,37 @@ static void set_response_authenticator(tac_session *session, rad_pak_hdr *pak)
 	{.iov_base = pak, 4 },
 	{.iov_base = session->radius_data->pak_in->authenticator,.iov_len = 16 },
 	{.iov_base = session->radius_data->data,.iov_len = session->radius_data->data_len },
-	{.iov_base = "radsec",.iov_len = 6 }
+	{.iov_base = session->ctx->radius_key->key,.iov_len = session->ctx->radius_key->len }
     };
     md5v(pak->authenticator, MD5_LEN, iov, 4);
+}
+
+static void send_udp(tac_session *session, tac_pak *pak)
+{
+    sockaddr_union sa = { 0 };
+    socklen_t sa_len = 0;
+    sa.sa.sa_family = session->ctx->radius_data->protocol;
+    switch (sa.sa.sa_family) {
+#ifdef AF_INET
+    case AF_INET:
+	memcpy(&sa.sin.sin_addr, &session->ctx->radius_data->src, 4);
+	sa.sin.sin_port = session->ctx->radius_data->port;
+	sa_len = sizeof(sa.sin);
+	break;
+#endif
+#ifdef AF_INET6
+    case AF_INET6:
+	memcpy(&sa.sin6.sin6_addr, &session->ctx->radius_data->src, 16);
+	sa.sin6.sin6_port = session->ctx->radius_data->port;
+	sa_len = sizeof(sa.sin6);
+	break;
+#endif
+    default:
+	cleanup(session->ctx, -1);
+	return;
+    }
+    sendto(session->radius_data->sock, pak->pak.uchar, pak->length, 0, &sa.sa, sa_len);
+    cleanup(session->ctx, -1);
 }
 
 void rad_send_authen_reply(tac_session *session, int status, char *msg)
@@ -333,7 +361,7 @@ void rad_send_authen_reply(tac_session *session, int status, char *msg)
 	if ((session->radius_data->data_len + 2 + msg_len < sizeof(session->radius_data->data)) && (msg_len + 2 < 256)) {
 	    u_char *data = session->radius_data->data;
 	    *data++ = RADIUS_A_REPLY_MESSAGE;
-	    *data++ = (u_char) msg_len;
+	    *data++ = (u_char) msg_len + 2;
 	    memcpy(data, msg, msg_len);
 	    session->radius_data->data_len += 2 + msg_len;
 	}
@@ -341,7 +369,7 @@ void rad_send_authen_reply(tac_session *session, int status, char *msg)
     tac_pak *pak = new_rad_pak(session);
     pak->pak.rad.code = (status == TAC_PLUS_AUTHEN_STATUS_PASS ? RADIUS_CODE_ACCESS_ACCEPT : RADIUS_CODE_ACCESS_REJECT);
     pak->pak.rad.identifier = session->radius_data->pak_in->identifier;
-    pak->pak.rad.length = htons((uint16_t) (session->radius_data->data_len));
+    pak->pak.rad.length = htons((uint16_t) (session->radius_data->data_len + RADIUS_HDR_SIZE));
     memcpy(RADIUS_DATA(&pak->pak), session->radius_data->data, session->radius_data->data_len);
 
     set_response_authenticator(session, &pak->pak.rad);
@@ -349,15 +377,19 @@ void rad_send_authen_reply(tac_session *session, int status, char *msg)
     if ((common_data.debug | session->ctx->debug) & DEBUG_PACKET_FLAG)
 	dump_rad_pak(session, &pak->pak.rad);
 
-    if (session->authfail_delay && !(common_data.debug & DEBUG_TACTRACE_FLAG))
-	delay_packet(session->ctx, (tac_pak *) pak, session->authfail_delay);
-    else {
-	tac_pak **pp;
-	for (pp = &session->ctx->out; *pp; pp = &(*pp)->next);
-	*pp = (tac_pak *) pak;
-	io_set_o(session->ctx->io, session->ctx->sock);
+    if (session->ctx->udp) {
+	send_udp(session, pak);
+    } else {
+	if (session->authfail_delay && !(common_data.debug & DEBUG_TACTRACE_FLAG))
+	    delay_packet(session->ctx, (tac_pak *) pak, session->authfail_delay);
+	else {
+	    tac_pak **pp;
+	    for (pp = &session->ctx->out; *pp; pp = &(*pp)->next);
+	    *pp = (tac_pak *) pak;
+	    io_set_o(session->ctx->io, session->ctx->sock);
+	}
+	cleanup_session(session);
     }
-    cleanup_session(session);
 }
 
 void rad_send_acct_reply(tac_session *session)
@@ -365,7 +397,7 @@ void rad_send_acct_reply(tac_session *session)
     tac_pak *pak = new_rad_pak(session);
     pak->pak.rad.code = RADIUS_CODE_ACCOUNTING_RESPONSE;
     pak->pak.rad.identifier = session->radius_data->pak_in->identifier;
-    pak->pak.rad.length = ntohs((uint16_t) (session->radius_data->data_len));
+    pak->pak.rad.length = ntohs((uint16_t) (session->radius_data->data_len + RADIUS_HDR_SIZE));
     memcpy(RADIUS_DATA(&pak->pak), session->radius_data->data, session->radius_data->data_len);
 
     set_response_authenticator(session, &pak->pak.rad);
@@ -373,12 +405,16 @@ void rad_send_acct_reply(tac_session *session)
     if ((common_data.debug | session->ctx->debug) & DEBUG_PACKET_FLAG)
 	dump_rad_pak(session, &pak->pak.rad);
 
-    tac_pak **pp;
-    for (pp = &session->ctx->out; *pp; pp = &(*pp)->next);
-    *pp = (tac_pak *) pak;
-    io_set_o(session->ctx->io, session->ctx->sock);
+    if (session->ctx->udp) {
+	send_udp(session, pak);
+    } else {
+	tac_pak **pp;
+	for (pp = &session->ctx->out; *pp; pp = &(*pp)->next);
+	*pp = (tac_pak *) pak;
+	io_set_o(session->ctx->io, session->ctx->sock);
 
-    cleanup_session(session);
+	cleanup_session(session);
+    }
 }
 
 static void write_delayed_packet(struct context *ctx, int cur __attribute__((unused)))
@@ -415,9 +451,9 @@ static void write_packet(struct context *ctx, tac_pak *p)
 
     if ((common_data.debug | ctx->debug) & DEBUG_PACKET_FLAG) {
 	tac_session dummy_session = {
-		.session_id = p->pak.tac.session_id,
-		.ctx = ctx,
-		.debug = ctx->debug,
+	    .session_id = p->pak.tac.session_id,
+	    .ctx = ctx,
+	    .debug = ctx->debug,
 	};
 	report(&dummy_session, LOG_DEBUG, DEBUG_PACKET_FLAG, "Writing %s size=%d", summarise_outgoing_packet_type(&p->pak.tac), (int) p->length);
 	dump_tacacs_pak(&dummy_session, &p->pak.tac);
@@ -511,21 +547,42 @@ void tac_read(struct context *ctx, int cur)
 	ctx->hdroff += len;
 	min_len = 0;
     }
-#ifdef WITH_SSL
+#if defined(WITH_SSL) || defined(WITH_SSL)
     // auto-detect radsec
     if (ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
 	if (!ctx->tls && !(common_data.debug & DEBUG_TACTRACE_FLAG)) {
 	    cleanup(ctx, cur);
 	    return;
 	}
+	if (ctx->realm->allowed_protocol_radsec != TRISTATE_YES) {
+	    cleanup(ctx, cur);
+	    return;
+	}
+	ctx->aaa_protocol = S_radsec;
 	io_set_cb_i(ctx->io, ctx->sock, (void *) rad_read);
-	ctx->radsec = BISTATE_YES;
+	return;
+    }
+#endif
+    if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
+	return;
+
+#if defined(WITH_SSL) || defined(WITH_SSL)
+    if (!ctx->tls && (ctx->realm->allowed_protocol_tacacs != TRISTATE_YES)) {
+	cleanup(ctx, cur);
+	return;
+    }
+    if (ctx->tls && ctx->realm->allowed_protocol_tacacss != TRISTATE_YES) {
+	cleanup(ctx, cur);
+	return;
+    }
+#else
+    if (ctx->realm->allowed_protocol_tacacs != TRISTATE_YES) {
+	cleanup(ctx, cur);
 	return;
     }
 #endif
 
-    if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
-	return;
+    ctx->aaa_protocol = S_tacacss;
 
     if ((ctx->hdr.tac.version & TAC_PLUS_MAJOR_VER_MASK) != TAC_PLUS_MAJOR_VER) {
 	report(NULL, LOG_ERR, ~0, "%s: Illegal major version specified: found %d wanted %d", ctx->nas_address_ascii, ctx->hdr.tac.version,
@@ -721,6 +778,61 @@ void tac_read(struct context *ctx, int cur)
     ctx->hdroff = 0;
 }
 
+static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
+{
+// Consistency check: Do the attribute lengths sum up exactly?
+#ifdef WITH_SSL
+    u_char *message_authenticator = NULL;
+#endif
+    while (p < e) {
+	if (p + 1 == e || p[1] < 2)
+	    break;
+	if (p[0] == RADIUS_A_VENDOR_SPECIFIC) {
+	    u_char *pv = p + 6;
+	    u_char *ev = p + p[1];
+	    while (pv < ev) {
+		if (pv + 1 == ev || pv[1] < 2)
+		    break;
+		pv += pv[1];
+	    }
+	    if (pv != ev)
+		break;
+#ifdef WITH_SSL
+	} else if (p[0] == RADIUS_A_MESSAGE_AUTHENTICATOR && p[1] == 18) {
+	    message_authenticator = p + 2;
+#endif
+	}
+	p += p[1];
+    }
+
+    if (p != e) {
+	cleanup(ctx, -1);
+	return -1;
+    }
+#ifdef WITH_SSL
+// Packet looks sane, check message authentiator, if present
+    if (message_authenticator) {
+	for (; ctx->radius_key; ctx->radius_key = ctx->radius_key->next) {
+	    u_char ma_original[16];
+	    u_char ma_calculated[16];
+	    memcpy(ma_original, message_authenticator, 16);
+	    memset(message_authenticator, 0, 16);
+	    u_int ma_calculated_len = sizeof(ma_calculated);
+	    HMAC(EVP_md5(), ctx->radius_key->key, ctx->radius_key->len, (const unsigned char *) &ctx->in->pak.uchar, ntohs(ctx->in->pak.rad.length),
+		 ma_calculated, &ma_calculated_len);
+	    memcpy(message_authenticator, ma_original, 16);
+	    if (!memcmp(ma_original, ma_calculated, 16)) {
+		report(NULL, LOG_INFO, ~0, "%s uses deprecated radius key (line %d)", ctx->nas_address_ascii, ctx->radius_key->line);
+		return 0;
+	    }
+	}
+	cleanup(ctx, -1);
+	return -1;
+    }
+#endif
+    return 0;
+}
+
 void rad_read(struct context *ctx, int cur)
 {
     ssize_t len;
@@ -782,54 +894,10 @@ void rad_read(struct context *ctx, int cur)
 
     rad_pak_hdr *pak = &ctx->in->pak.rad;
 
-// Consistency check: Do the attribute lengths sum up exactly?
     u_char *p = RADIUS_DATA(&ctx->in->pak.rad);
     u_char *e = p + data_len;
-#ifdef WITH_SSL
-    u_char *message_authenticator = NULL;
-#endif
-    while (p < e) {
-	if (p + 1 == e || p[1] < 2)
-	    break;
-	if (p[0] == RADIUS_A_VENDOR_SPECIFIC) {
-	    u_char *pv = p + 6;
-	    u_char *ev = p + p[1];
-	    while (pv < ev) {
-		if (pv + 1 == ev || pv[1] < 2)
-		    break;
-		pv += pv[1];
-	    }
-	    if (pv != ev)
-		break;
-#ifdef WITH_SSL
-	} else if (p[0] == RADIUS_A_MESSAGE_AUTHENTICATOR && p[1] == 18) {
-	    message_authenticator = p + 2;
-#endif
-	}
-	p += p[1];
-    }
-
-    if (p != e) {
-	cleanup(ctx, cur);
+    if (rad_check_failed(ctx, p, e))
 	return;
-    }
-#ifdef WITH_SSL
-// Packet looks sane, check message authentiator, if present
-    if (message_authenticator) {
-	u_char ma_original[16];
-	u_char ma_calculated[16];
-	memcpy(ma_original, message_authenticator, 16);
-	memset(message_authenticator, 0, 16);
-	u_int ma_calculated_len = sizeof(ma_calculated);
-
-	HMAC(EVP_md5(), "radsec", 6, (const unsigned char *) &ctx->in->pak.uchar, ntohs(ctx->in->pak.rad.length), ma_calculated, &ma_calculated_len);
-	memcpy(message_authenticator, ma_original, 16);
-	if (memcmp(ma_original, ma_calculated, 16)) {
-	    cleanup(ctx, cur);
-	    return;
-	}
-    }
-#endif
 
     tac_session *session = RB_lookup_session(ctx->sessions, (int) ctx->hdr.rad.identifier);
 
@@ -869,6 +937,46 @@ void rad_read(struct context *ctx, int cur)
     else
 	mem_free(ctx->mem, &ctx->in);
     ctx->hdroff = 0;
+}
+
+void rad_udp_inject(struct context *ctx)
+{
+    ctx->last_io = io_now.tv_sec;
+    context_lru_append(ctx);
+
+    rad_pak_hdr *pak = ctx->radius_data->pak_in;
+
+    u_char *p = ctx->radius_data->data;
+    u_char *e = p + ctx->radius_data->data_len;
+    if (rad_check_failed(ctx, p, e))
+	return;
+
+    tac_session *session = RB_lookup_session(ctx->sessions, (int) pak->identifier);
+
+    if (session) {
+	// Currently, there's no support for multi-packet exchanges, so this is most likely
+	// a retransmission. This shouldn't happen for RADSEC/TCP.
+	mem_free(ctx->mem, &ctx->in);
+	ctx->hdroff = 0;
+	return;
+    }
+    session = new_session(ctx, NULL, pak);
+
+    if ((common_data.debug | ctx->debug) & DEBUG_PACKET_FLAG)
+	dump_rad_pak(session, pak);
+
+    session->radius_data = ctx->radius_data;
+    switch (pak->code) {
+    case RADIUS_CODE_ACCESS_REQUEST:
+	rad_authen(session);
+	break;
+    case RADIUS_CODE_ACCOUNTING_REQUEST:
+	rad_acct(session);
+	break;
+    default:
+	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->nas_address_ascii, pak->code);
+	cleanup(ctx, -1);
+    }
 }
 
 #ifdef WITH_TLS

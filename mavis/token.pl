@@ -528,4 +528,18 @@ radius				S_radius
 radius.access			S_radius_access
 radius.accounting		S_radius_accounting
 radius.dictionary		S_radius_dictionary
+radius.key			S_radius_key
+#
+string				S_string_keyword
+ipaddr				S_ipaddr
+ipv6addr			S_ipv6addr
+integer				S_integer
+octets				S_octets
+vsa				S_vsa
+#
+aaa.protocol			S_aaa_protocol
+tacacs				S_tacacs
+tacacss				S_tacacss
+radsec				S_radsec
+aaa.protocols.allowed		S_aaa_protocols_allowed
 #

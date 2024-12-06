@@ -216,6 +216,10 @@ void complete_realm(tac_realm *r)
 	RS(password_acl, NULL);
 	RS(haproxy_autodetect, TRISTATE_DUNNO);
 	RS(default_host->authfallback, TRISTATE_DUNNO);
+	RS(allowed_protocol_radius, TRISTATE_DUNNO);
+	RS(allowed_protocol_radsec, TRISTATE_DUNNO);
+	RS(allowed_protocol_tacacs, TRISTATE_DUNNO);
+	RS(allowed_protocol_tacacss, TRISTATE_DUNNO);
 #ifdef WITH_SSL
 	RS(tls_sni_required, TRISTATE_DUNNO);
 	RS(tls_autodetect, TRISTATE_DUNNO);
@@ -523,6 +527,10 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
 	r->dns_caching_period = 1800;
 	r->warning_period = 14 * 86400;
 	r->backend_failure_period = 60;
+	r->allowed_protocol_radius = TRISTATE_YES;
+	r->allowed_protocol_radsec = TRISTATE_YES;
+	r->allowed_protocol_tacacs = TRISTATE_YES;;
+	r->allowed_protocol_tacacss = TRISTATE_YES;
 	config.default_realm = r;
 	r->complete = 1;
 	parse_inline(r, "acl __internal__username_acl__ { if (user =~ \"[]<>/()|=[*\\\"':$]+\") deny permit }\n", __FILE__, __LINE__);
@@ -673,10 +681,14 @@ static time_t parse_date(struct sym *sym, time_t offset);
 
 static void parse_key(struct sym *sym, tac_host *host)
 {
-    struct tac_key **tk = &host->key;
+    struct tac_key **tk;
     int keylen;
     time_t warn = 0;
 
+    if (sym->code == S_key)
+	tk = &host->key;
+    else			// S_radius_key
+	tk = &host->radius_key;
     sym_get(sym);
     if (sym->code == S_warn) {
 	sym_get(sym);
@@ -1131,7 +1143,7 @@ struct rad_dict_attr {
     struct rad_dict_attr *next;
     int line;
     int id;
-    enum rad_type type;
+    enum token type;
     struct rad_dict *dict;	// back-reference to vendor
     struct rad_dict_val *val;
 };
@@ -1208,7 +1220,7 @@ static struct rad_dict_val *rad_dict_val_lookup_by_name(struct rad_dict_attr *at
     return NULL;
 }
 
-static struct rad_dict_attr *rad_dict_attr_add(struct sym *sym, struct rad_dict *dict, char *name, int id, enum rad_type type)
+static struct rad_dict_attr *rad_dict_attr_add(struct sym *sym, struct rad_dict *dict, char *name, int id, enum token type)
 {
     struct rad_dict_attr **attr = &(dict->attr);
     while (*attr)
@@ -1298,7 +1310,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 	    *buf_len -= 1;
 	}
 	switch (attr->type) {
-	case RADTYPE_STRING:{
+	case S_string_keyword:{
 		if (*buf_len > (size_t) (data[1] - 1)) {
 		    if (attr->dict->id == -1 && attr->id == RADIUS_A_USER_PASSWORD) {
 			*(*buf)++ = '*';
@@ -1313,7 +1325,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		}
 		return;
 	    }
-	case RADTYPE_INTEGER:{
+	case S_integer:{
 		if (data[1] != 6)
 		    return;
 		int i = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5];
@@ -1331,10 +1343,10 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		}
 		return;
 	    }
-	case RADTYPE_OCTETS:
+	case S_octets:
 	    rad_attr_val_dump_hex(data, data_len - 2, buf, buf_len);
 	    return;
-	case RADTYPE_IPADDR:{
+	case S_ipaddr:{
 		if (data[1] != 6)
 		    return;
 		sockaddr_union from = { 0 };
@@ -1346,7 +1358,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		}
 		return;
 	    }
-	case RADTYPE_IPV6ADDR:{
+	case S_ipv6addr:{
 		if (data[1] != 18)
 		    return;
 		sockaddr_union from = { 0 };
@@ -1451,25 +1463,22 @@ static void parse_radius_dictionary(struct sym *sym)
 	int id = parse_int(sym);
 	if (!id || (id & ~0xff))
 	    parse_error(sym, "Expected a number from 1 to 255 but got '%s'", sym->buf);
-	enum rad_type type = RADTYPE_UNKNOWN;
-	if (!strcmp(sym->buf, "string"))
-	    type = RADTYPE_STRING;
-	else if (!strcmp(sym->buf, "octets"))
-	    type = RADTYPE_OCTETS;
-	else if (!strcmp(sym->buf, "ipaddr"))
-	    type = RADTYPE_IPADDR;
-	else if (!strcmp(sym->buf, "ipv6addr"))
-	    type = RADTYPE_IPV6ADDR;
-	else if (!strcmp(sym->buf, "integer"))
-	    type = RADTYPE_INTEGER;
-	else if (!strcmp(sym->buf, "vsa"))
-	    type = RADTYPE_VSA;
-	else
-	    parse_error(sym, "Expected one of 'string', 'octets', 'ipaddr', 'ipv6addr' or 'integer', but got '%s'", sym->buf);
+	enum token type = sym->code;
+	switch (type) {
+	case S_string_keyword:
+	case S_octets:
+	case S_ipaddr:
+	case S_ipv6addr:
+	case S_integer:
+	case S_vsa:
+	    break;
+	default:
+	    parse_error_expect(sym, S_string_keyword, S_octets, S_ipaddr, S_ipv6addr, S_integer, S_vsa, S_unknown);
+	}
 	sym_get(sym);
 	struct rad_dict_attr *attr = rad_dict_attr_add(sym, dict, name, id, type);
 	free(name);
-	if (type == RADTYPE_INTEGER && sym->code == S_openbra) {
+	if (type == S_integer && sym->code == S_openbra) {
 	    sym_get(sym);
 	    while (sym->code != S_closebra && sym->code != S_eof) {
 		name = strdup(sym->buf);
@@ -1484,32 +1493,32 @@ static void parse_radius_dictionary(struct sym *sym)
     parse(sym, S_closebra);
 }
 
-static int rad_get_helper(tac_session *session, enum rad_type type, void *val, size_t *val_len, u_char *data, size_t data_len)
+static int rad_get_helper(tac_session *session, enum token type, void *val, size_t *val_len, u_char *data, size_t data_len)
 {
     if (val)
 	switch (type) {
-	case RADTYPE_STRING:{
+	case S_string_keyword:{
 		char **s = (char **) val;
 		*s = mem_strndup(session->mem, data, data_len);
 		if (val_len)
 		    *val_len = data_len;
 		return 0;
 	    }
-	case RADTYPE_IPADDR:
+	case S_ipaddr:
 	    if (data_len != 4)
 		return -1;
 	    memcpy(val, data, 4);
 	    if (val_len)
 		*val_len = data_len;
 	    return 0;
-	case RADTYPE_IPV6ADDR:
+	case S_ipv6addr:
 	    if (data_len != 16)
 		return -1;
 	    memcpy(val, data, 16);
 	    if (val_len)
 		*val_len = data_len;
 	    return 0;
-	case RADTYPE_INTEGER:{
+	case S_integer:{
 		if (data_len != 4)
 		    return -1;
 		int32_t i, *p = (int32_t *) val;
@@ -1519,7 +1528,7 @@ static int rad_get_helper(tac_session *session, enum rad_type type, void *val, s
 		    *val_len = data_len;
 		return 0;
 	    }
-	case RADTYPE_OCTETS:{
+	case S_octets:{
 		u_char **s = (u_char **) val;
 		*s = mem_copy(session->mem, data, data_len);
 		if (val_len)
@@ -1544,7 +1553,7 @@ int rad_get_password(tac_session *session, char **val, size_t *val_len)
 	    for (int i = 0; i <= p[1]; i++) {
 		if (!(i & 0xf)) {
 		    struct iovec iov[2] = {
-			{.iov_base = "radsec",.iov_len = 6 },
+			{.iov_base = session->ctx->radius_key->key,.iov_len = session->ctx->radius_key->len },
 			{.iov_base = i ? (p + i + 2 - 16) : session->radius_data->pak_in->authenticator,.iov_len = 16 }
 		    };
 		    md5v(digest, 16, iov, 2);
@@ -1561,7 +1570,7 @@ int rad_get_password(tac_session *session, char **val, size_t *val_len)
     return -1;
 }
 
-int rad_get(tac_session *session, int vendorid, int id, enum rad_type type, void *val, size_t *val_len)
+int rad_get(tac_session *session, int vendorid, int id, enum token type, void *val, size_t *val_len)
 {
     struct rad_dict *dict = rad_dict_lookup_by_id(vendorid);
     if (dict && session->radius_data) {
@@ -2048,6 +2057,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    continue;
 	case S_anonenable:
 	case S_key:
+	case S_radius_key:
 	case S_motd:
 	case S_welcome:
 	case S_reject:
@@ -2207,6 +2217,34 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		parse_error_expect(sym, S_host, S_realm, S_profile, S_unknown);
 	    }
 	    continue;
+	case S_aaa_protocols_allowed:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    r->allowed_protocol_radius = TRISTATE_NO;
+	    r->allowed_protocol_radsec = TRISTATE_NO;
+	    r->allowed_protocol_tacacs = TRISTATE_NO;
+	    r->allowed_protocol_tacacss = TRISTATE_NO;
+	    do {
+		switch (sym->code) {
+		case S_radius:
+		    r->allowed_protocol_radius = TRISTATE_YES;
+		    break;
+		case S_radsec:
+		    r->allowed_protocol_radsec = TRISTATE_YES;
+		    break;
+		case S_tacacs:
+		    r->allowed_protocol_tacacs = TRISTATE_YES;
+		    break;
+		case S_tacacss:
+		    r->allowed_protocol_tacacss = TRISTATE_YES;
+		    break;
+		default:
+		    parse_error_expect(sym, S_radius, S_radsec, S_tacacs, S_tacacss, S_unknown);
+		}
+		sym_get(sym);
+	    } while (parse_comma(sym));
+
+	    continue;
 	default:
 	    parse_error_expect(sym, S_password, S_pap, S_login, S_accounting, S_authentication, S_access, S_authorization, S_warning,
 			       S_connection, S_dns, S_cache, S_log, S_umask, S_retire, S_user, S_group, S_profile, S_acl, S_mavis,
@@ -2214,7 +2252,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 			       S_anonenable,
 			       S_key, S_motd, S_welcome, S_reject, S_permit, S_bug, S_augmented_enable, S_singleconnection, S_context,
 			       S_script, S_message, S_session, S_maxrounds, S_host, S_device, S_syslog, S_proctitle, S_coredump, S_alias,
-			       S_script_order, S_skip,
+			       S_script_order, S_skip, S_aaa_protocols_allowed,
 #ifdef WITH_PCRE2
 			       S_rewrite,
 #endif
@@ -3679,6 +3717,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	}
 	return;
     case S_key:
+    case S_radius_key:
 	parse_key(sym, host);
 	return;
     case S_motd:
@@ -4355,6 +4394,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 	    parse_error(sym, "Timespec '%s' not found", sym->buf);
 	sym_get(sym);
 	return m;
+    case S_aaa_protocol:
     case S_arg:
     case S_cmd:
     case S_context:
@@ -4455,6 +4495,22 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		sym_get(sym);
 		m->type = S_member;
 		m->u.s.rhs = g;
+		return p ? p : m;
+	    }
+	    if (m->u.s.token == S_aaa_protocol) {
+		m->type = S_aaa_protocol;
+		switch (sym->code) {
+		case S_radius:
+		case S_radsec:
+		case S_tacacs:
+		case S_tacacss:
+		    break;
+		default:
+		    parse_error_expect(sym, S_radius, S_radsec, S_tacacs, S_tacacss, S_unknown);
+		}
+		m->u.s.rhs = codestring[sym->code];
+		m->u.s.rhs_txt = codestring[sym->code];
+		sym_get(sym);
 		return p ? p : m;
 	    }
 	    if (m->u.s.token == S_device || m->u.s.token == S_devicename || m->u.s.token == S_deviceaddress) {
@@ -4571,7 +4627,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 	    if (m->u.s.token == S_radius) {
 		m->type = m->u.s.token;
 		struct rad_dict_attr *attr = (struct rad_dict_attr *) m->u.s.lhs;
-		if (attr->type == RADTYPE_INTEGER) {
+		if (attr->type == S_integer) {
 		    if (isdigit((int) sym->buf[0])) {
 			m->u.s.rhs_txt = mem_strdup(mem, sym->buf);
 			m->u.s.rhs = (void *) (long) parse_int(sym);
@@ -4647,7 +4703,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 			   S_client, S_clientname, S_clientdns, S_clientaddress,
 			   S_password, S_service, S_protocol, S_authen_action,
 			   S_authen_type, S_authen_service, S_authen_method, S_privlvl, S_vrf, S_dn, S_type, S_identity_source,
-			   S_server_name, S_server_address, S_server_port, S_usertag,
+			   S_server_name, S_server_address, S_server_port, S_usertag, S_aaa_protocol,
 #if defined(WITH_TLS) || defined(WITH_SSL)
 			   S_tls_conn_version, S_tls_conn_cipher,
 			   S_tls_peer_cert_issuer, S_tls_peer_cert_subject, S_tls_conn_cipher_strength, S_tls_peer_cn, S_tls_psk_identity, S_radius,
@@ -4732,6 +4788,9 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	for (int i = 0; !res && i < m->u.m.n; i++)
 	    res = tac_script_cond_eval(session, m->u.m.e[i]);
 	return tac_script_cond_eval_res(session, m, res);
+    case S_aaa_protocol:
+	res = ((char *) m->u.s.rhs == codestring[session->ctx->aaa_protocol]);
+	return tac_script_cond_eval_res(session, m, res);
     case S_address:
 	switch (m->u.s.token) {
 	case S_nac:
@@ -4809,7 +4868,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
     case S_radius:
 	{
 	    struct rad_dict_attr *attr = (struct rad_dict_attr *) m->u.s.lhs;
-	    if (attr->type == RADTYPE_INTEGER) {
+	    if (attr->type == S_integer) {
 		int i;
 		int id = (int) (long) m->u.s.rhs;
 		res = !rad_get(session, attr->dict->id, attr->id, attr->type, &i, NULL) && (i == id);
@@ -5027,30 +5086,30 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	case S_radius:
 	    if (session->radius_data) {
 		struct rad_dict_attr *attr = (struct rad_dict_attr *) m->u.s.lhs;
-		if (attr->type == RADTYPE_INTEGER) {
+		if (attr->type == S_integer) {
 		    int i;
 		    int id = (int) (long) m->u.s.rhs;
-		    int res = !rad_get(session, attr->dict->id, attr->id, RADTYPE_INTEGER, &i, NULL) && (i == id);
+		    int res = !rad_get(session, attr->dict->id, attr->id, S_integer, &i, NULL) && (i == id);
 		    return tac_script_cond_eval_res(session, m, res);
 		}
-		if (attr->type == RADTYPE_IPADDR) {
+		if (attr->type == S_ipaddr) {
 		    char buf[256];
 		    sockaddr_union from = { 0 };
 		    from.sin.sin_family = AF_INET;
-		    if (!rad_get(session, attr->dict->id, attr->id, RADTYPE_IPV6ADDR, &from.sin.sin_addr, NULL)
+		    if (!rad_get(session, attr->dict->id, attr->id, S_ipaddr, &from.sin.sin_addr, NULL)
 			&& su_ntop(&from, buf, sizeof(buf)))
 			v = mem_strdup(session->mem, buf);
-		} else if (attr->type == RADTYPE_IPV6ADDR) {
+		} else if (attr->type == S_ipv6addr) {
 		    char buf[256];
 		    sockaddr_union from = { 0 };
 		    from.sin.sin_family = AF_INET6;
-		    if (!rad_get(session, attr->dict->id, attr->id, RADTYPE_IPV6ADDR, &from.sin6.sin6_addr, NULL)
+		    if (!rad_get(session, attr->dict->id, attr->id, S_ipv6addr, &from.sin6.sin6_addr, NULL)
 			&& su_ntop(&from, buf, sizeof(buf)))
 			v = mem_strdup(session->mem, buf);
 		    if (!res)
 			v = mem_strdup(session->mem, su_ntop(&from, buf, sizeof(buf)) ? buf : "<unknown>");
-		} else if (attr->type == RADTYPE_STRING) {
-		    rad_get(session, attr->dict->id, attr->id, RADTYPE_STRING, &v, &v_len);
+		} else if (attr->type == S_string_keyword) {
+		    rad_get(session, attr->dict->id, attr->id, S_string_keyword, &v, &v_len);
 		}
 	    }
 	    break;
@@ -5118,19 +5177,19 @@ static void rad_attr_add(tac_session *session, struct rad_action *a, union rad_a
     void *val = NULL;
     size_t val_len = 0;
     switch (a->attr->type) {
-    case RADTYPE_STRING:
+    case S_string_keyword:
 	val = u->s;
 	val_len = strlen(u->s);
 	break;
-    case RADTYPE_INTEGER:
+    case S_integer:
 	val = &u->i;
 	val_len = 4;
 	break;
-    case RADTYPE_IPADDR:
+    case S_ipaddr:
 	val = &u->ipv4;
 	val_len = 4;
 	break;
-    case RADTYPE_IPV6ADDR:
+    case S_ipv6addr:
 	val = &u->ipv6;
 	val_len = 16;
 	break;
@@ -5138,20 +5197,21 @@ static void rad_attr_add(tac_session *session, struct rad_action *a, union rad_a
 	return;
     }
 
-    int id_len = 2;
+    int len = 2 + val_len;
     if (a->attr->dict->id > -1)
-	id_len += 6;
-    if (data + id_len + val_len >= data_end || id_len + val_len > 255)
+	len += 6;
+    if (data + len >= data_end || len > 255)
 	return;
 
     if (a->attr->dict->id > -1) {
 	*data++ = RADIUS_A_VENDOR_SPECIFIC;
-	*data++ = id_len + val_len;
+	*data++ = len;
 	*data++ = (u_char) (0xff & (a->attr->dict->id >> 24));
 	*data++ = (u_char) (0xff & (a->attr->dict->id >> 16));
 	*data++ = (u_char) (0xff & (a->attr->dict->id >> 8));
 	*data++ = (u_char) (0xff & (a->attr->dict->id >> 0));
 	data_len += 6;
+	len = 2 + val_len;
     }
 
     *data++ = a->attr->id;
@@ -5215,16 +5275,16 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 	    if (a->li) {
 		char *s = eval_log_format(session, session->ctx, NULL, a->li, io_now.tv_sec, NULL);
 		switch (a->attr->type) {
-		case RADTYPE_INTEGER:
+		case S_integer:
 		    u.i = htonl(atoi(s));
 		    break;
-		case RADTYPE_IPADDR:
+		case S_ipaddr:
 		    inet_pton(AF_INET, s, &u.ipv4);
 		    break;
-		case RADTYPE_IPV6ADDR:
+		case S_ipv6addr:
 		    inet_pton(AF_INET6, s, &u.ipv6);
 		    break;
-		case RADTYPE_STRING:
+		case S_string_keyword:
 		    u.s = s;
 		    break;
 		default:	// unsupported type
@@ -5362,19 +5422,19 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	    parse(sym, S_equal);
 	    struct rad_dict_val *val = NULL;
 	    union rad_action_union u;
-	    if (attr->val && attr->type == RADTYPE_INTEGER && !isdigit(*sym->buf)) {
+	    if (attr->val && attr->type == S_integer && !isdigit(*sym->buf)) {
 		val = rad_dict_val_lookup_by_name(attr, sym->buf);
 		if (!val)
 		    parse_error(sym, "RADIUS value '$s' not found (attribute: %s)", sym->buf, attr->name);
-		u.i = val->id;
+		u.i = htonl(val->id);
 		m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
-	    } else if (attr->type == RADTYPE_INTEGER) {
-		u.i = parse_int(sym);
+	    } else if (attr->type == S_integer) {
+		u.i = htonl(parse_int(sym));
 		m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
-	    } else if (attr->type == RADTYPE_IPADDR) {
+	    } else if (attr->type == S_ipaddr) {
 		if (1 == inet_pton(AF_INET, sym->buf, &u.ipv4))
 		    m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
-	    } else if (attr->type == RADTYPE_IPV6ADDR) {
+	    } else if (attr->type == S_ipv6addr) {
 		if (1 == inet_pton(AF_INET6, sym->buf, &u.ipv6))
 		    m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
 	    }

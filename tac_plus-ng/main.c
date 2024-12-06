@@ -130,20 +130,23 @@ void context_lru_append(struct context *ctx)
 }
 
 struct scm_data_accept_ext {
-    struct scm_data_accept sd;
     tac_realm *realm;
     size_t vrf_len;
     char vrf[IFNAMSIZ + 1];
+    union {
+	struct scm_data_accept sd;
+	struct scm_data_udp sd_udp;
+    };
 };
 
 struct context_px {
     int sock;			/* socket for this connection */
     int type;
     io_context_t *io;
-    struct scm_data_accept_ext sd;
     time_t last_io;
     struct context_px *lru_prev;
     struct context_px *lru_next;
+    struct scm_data_accept_ext sd;
 };
 
 static void cleanup_px(struct context_px *, int);
@@ -226,6 +229,7 @@ struct context *new_context(struct io_context *io, tac_realm *r)
     c->sock = -1;
     c->mem = mem;
     c->hint = "";
+    c->aaa_protocol = S_tacacs;
     if (r) {
 	c->sessions = RB_tree_new(compare_session, NULL);
 	c->id = context_id++;
@@ -317,7 +321,9 @@ static void periodics_ctx(struct context *ctx, int cur __attribute__((unused)))
 static void accept_control(struct context *, int __attribute__((unused)));
 static void accept_control_final(struct context *);
 static void accept_control_common(int, struct scm_data_accept_ext *, sockaddr_union *);
+static void accept_control_udp(int s, struct scm_data_accept_ext *sd_ext, u_char * data, size_t data_len);
 static void accept_control_singleprocess(int, struct scm_data_accept *);
+static void accept_control_udp_singleprocess(int s, struct scm_data_udp *sd);
 static void accept_control_raw(int, struct scm_data_accept_ext *);
 static void accept_control_px(int, struct scm_data_accept_ext *);
 static void accept_control_check_tls(struct context *, int);
@@ -362,6 +368,7 @@ int main(int argc, char **argv, char **envp)
 
     if (common_data.singleprocess) {
 	common_data.scm_accept = accept_control_singleprocess;
+	common_data.scm_udpdata = accept_control_udp_singleprocess;
     } else {
 	setproctitle_init(argv, envp);
 	setup_signals();
@@ -392,25 +399,27 @@ int main(int argc, char **argv, char **envp)
 
 void cleanup(struct context *ctx, int cur __attribute__((unused)))
 {
+    if (!ctx->udp) {
 #ifdef WITH_TLS
-    if (ctx->tls) {
-	int res = io_TLS_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
-	if (res < 0 && errno == EAGAIN)
-	    return;
-	tls_free(ctx->tls);
-	ctx->tls = NULL;
-    }
+	if (ctx->tls) {
+	    int res = io_TLS_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
+	    if (res < 0 && errno == EAGAIN)
+		return;
+	    tls_free(ctx->tls);
+	    ctx->tls = NULL;
+	}
 #endif
 
 #ifdef WITH_SSL
-    if (ctx->tls) {
-	int res = io_SSL_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
-	if (res < 0 && errno == EAGAIN)
-	    return;
-	SSL_free(ctx->tls);
-	ctx->tls = NULL;
-    }
+	if (ctx->tls) {
+	    int res = io_SSL_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
+	    if (res < 0 && errno == EAGAIN)
+		return;
+	    SSL_free(ctx->tls);
+	    ctx->tls = NULL;
+	}
 #endif
+    }
 
     if (!ctx->msgid) {
 #define S "CONN-STOP"
@@ -426,8 +435,10 @@ void cleanup(struct context *ctx, int cur __attribute__((unused)))
     log_exec(NULL, ctx, S_connection, io_now.tv_sec);
 
     io_sched_drop(ctx->io, ctx);
-    io_close(ctx->io, ctx->sock);
-    ctx->sock = -1;
+    if (!ctx->udp) {
+	io_close(ctx->io, ctx->sock);
+	ctx->sock = -1;
+    }
 
     for (rb_node_t * u, *t = RB_first(ctx->sessions); t; t = u) {
 	u = RB_next(t);
@@ -552,6 +563,14 @@ static void accept_control_singleprocess(int s, struct scm_data_accept *sd)
 	accept_control_px(s, &sd_ext);
     else
 	accept_control_raw(s, &sd_ext);
+}
+
+static void accept_control_udp_singleprocess(int s, struct scm_data_udp *sd)
+{
+    struct scm_data_accept_ext sd_ext = {.sd_udp = *sd };
+    set_sd_realm(-1, &sd_ext);
+    users_inc();
+    accept_control_udp(s, &sd_ext, sd->data, sd->data_len);
 }
 
 static void accept_control_raw(int s, struct scm_data_accept_ext *sd)
@@ -991,6 +1010,7 @@ void complete_host(tac_host *h)
 	HS(authfail_banner, NULL);
 	HS(motd, NULL);
 	HS(key, NULL);
+	HS(radius_key, NULL);
 	HS(target_realm, NULL);
 #ifdef WITH_SSL
 #ifndef OPENSSL_NO_PSK
@@ -1152,6 +1172,30 @@ static tac_realm *set_sd_realm(int s __attribute__((unused)), struct scm_data_ac
 
 static void complete_host_mavis(struct context *);
 
+static void set_server_info(struct context *ctx, struct in6_addr *addr, struct scm_data_accept_ext *sd_ext)
+{
+    sockaddr_union me = { 0 };
+    socklen_t me_len = (socklen_t) sizeof(me);
+    if (!getsockname(ctx->sock, &me.sa, &me_len)) {
+	char buf[256];
+	su_convert(&me, AF_INET);
+	snprintf(buf, 10, "%u", su_get_port(&me));
+	ctx->server_port_ascii = mem_strdup(ctx->mem, buf);
+	ctx->server_port_ascii_len = strlen(buf);
+	if (su_ntop(&me, buf, 256)) {
+	    ctx->server_addr_ascii = mem_strdup(ctx->mem, buf);
+	    ctx->server_addr_ascii_len = strlen(buf);
+	}
+    }
+
+    ctx->nas_address = *addr;
+    if (sd_ext->vrf_len)
+	ctx->vrf = mem_strndup(ctx->mem, (u_char *) sd_ext->vrf, sd_ext->vrf_len);
+    ctx->vrf_len = sd_ext->vrf_len;
+    ctx->nas_address_ascii = ctx->peer_addr_ascii;
+    ctx->nas_address_ascii_len = strlen(ctx->peer_addr_ascii);
+}
+
 static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, sockaddr_union *nad_address)
 {
     fcntl(s, F_SETFD, FD_CLOEXEC);
@@ -1225,34 +1269,15 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	ctx->proxy_addr_ascii = mem_strdup(ctx->mem, peer);
 	ctx->proxy_addr_ascii_len = strlen(peer);
     }
-    {
-	sockaddr_union me = { 0 };
-	socklen_t me_len = (socklen_t) sizeof(me);
-	if (!getsockname(ctx->sock, &me.sa, &me_len)) {
-	    char buf[256];
-	    su_convert(&me, AF_INET);
-	    snprintf(buf, 10, "%u", su_get_port(&me));
-	    ctx->server_port_ascii = mem_strdup(ctx->mem, buf);
-	    ctx->server_port_ascii_len = strlen(buf);
-	    if (su_ntop(&me, buf, 256)) {
-		ctx->server_addr_ascii = mem_strdup(ctx->mem, buf);
-		ctx->server_addr_ascii_len = strlen(buf);
-	    }
-	}
-    }
 
-    ctx->nas_address = addr;
-    if (sd_ext->vrf_len)
-	ctx->vrf = mem_strndup(ctx->mem, (u_char *) sd_ext->vrf, sd_ext->vrf_len);
-    ctx->vrf_len = sd_ext->vrf_len;
-    ctx->nas_address_ascii = ctx->peer_addr_ascii;
-    ctx->nas_address_ascii_len = strlen(ctx->peer_addr_ascii);
+    set_server_info(ctx, &addr, sd_ext);
+
     complete_host_mavis(ctx);
 }
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1272,7 +1297,15 @@ static void complete_host_mavis(struct context *ctx)
 	return;
     }
 
-    if (ctx->host)
+    if (ctx->aaa_protocol == S_radsec) {
+	static struct tac_key *key_radsec = NULL;
+	if (!key_radsec) {
+	    key_radsec = calloc(1, sizeof(struct tac_key) + 6);
+	    key_radsec->len = 6;
+	    strcpy(key_radsec->key, "radsec");
+	}
+	ctx->key = key_radsec;
+    } else if (ctx->host)
 	ctx->key = ctx->host->key;
 
     io_register(ctx->io, ctx->sock, ctx);
@@ -1282,6 +1315,24 @@ static void complete_host_mavis(struct context *ctx)
     io_set_cb_e(ctx->io, ctx->sock, (void *) cleanup);
     io_sched_add(ctx->io, ctx, (void *) periodics_ctx, 60, 0);
     io_set_i(ctx->io, ctx->sock);
+}
+
+
+
+static void complete_host_mavis_udp(struct context *ctx)
+{
+    if (query_mavis_host(ctx, complete_host_mavis_udp))
+	return;
+
+    if (ctx->mavis_result == S_deny) {
+	reject_conn(ctx, ctx->hint, "by MAVIS backend", __LINE__);
+	return;
+    }
+
+    if (ctx->host)
+	ctx->radius_key = ctx->host->radius_key;
+
+    rad_udp_inject(ctx);
 }
 
 static void accept_control_check_tls(struct context *ctx, int cur __attribute__((unused)))
@@ -1382,20 +1433,121 @@ static void accept_control_final(struct context *ctx)
     ctx->msgid_len = 0;
 }
 
+static void accept_control_udp(int s __attribute__((unused)), struct scm_data_accept_ext *sd_ext, u_char *data, size_t data_len)
+{
+    sockaddr_union from = { 0 };
+
+    from.sa.sa_family = sd_ext->sd_udp.protocol;
+    switch (from.sa.sa_family) {
+#ifdef AF_INET
+    case AF_INET:
+	memcpy(&from.sin.sin_addr, &sd_ext->sd_udp.src, 4);
+	from.sin.sin_port = sd_ext->sd_udp.port;
+	break;
+#endif
+#ifdef AF_INET6
+    case AF_INET6:
+	memcpy(&from.sin6.sin6_addr, &sd_ext->sd_udp.src, 16);
+	from.sin6.sin6_port = sd_ext->sd_udp.port;
+	break;
+#endif
+    default:
+	return;
+    }
+
+    su_convert(&from, AF_INET);
+    struct in6_addr addr;
+    su_ptoh(&from, &addr);
+
+    tac_realm *r = set_sd_realm(s, sd_ext);
+
+    tac_host *h = NULL;
+    radixtree_t *rxt = lookup_hosttree(r);
+    if (rxt)
+	h = radix_lookup(rxt, &addr, NULL);
+
+    if (h) {
+	complete_host(h);
+
+	if (h->target_realm && r != h->target_realm) {
+	    r = h->target_realm;
+	    rxt = lookup_hosttree(r);
+	    if (rxt) {
+		h = radix_lookup(rxt, &addr, NULL);
+		if (h)
+		    complete_host(h);
+	    }
+	}
+    }
+
+    struct context *ctx = new_context(common_data.io, r);
+    ctx->sock = sd_ext->sd_udp.sock;
+    context_lru_append(ctx);
+    ctx->udp = BISTATE_YES;
+
+    if (ctx->realm->allowed_protocol_radius != TRISTATE_YES) {
+	cleanup(ctx, -1);
+	return;
+    }
+
+    ctx->aaa_protocol = S_radius;
+
+    if (h) {
+	if (!h->radius_key)
+	    ctx->hint = "no encryption key found";
+    } else
+	ctx->hint = "host unknown";
+
+    char afrom[256];
+    ctx->peer_addr_ascii = mem_strdup(ctx->mem, su_ntop(&from, afrom, sizeof(afrom)) ? afrom : "<unknown>");
+    ctx->peer_addr_ascii_len = strlen(ctx->peer_addr_ascii);
+    ctx->host = h;
+
+    set_server_info(ctx, &addr, sd_ext);
+
+    ctx->radius_data = mem_alloc(ctx->mem, sizeof(struct radius_data));
+    ctx->radius_data->pak_in = mem_copy(ctx->mem, data, data_len);
+    ctx->radius_data->pak_in_len = data_len;
+    ctx->radius_data->port = sd_ext->sd_udp.port;
+    ctx->radius_data->protocol = sd_ext->sd_udp.protocol;
+    ctx->radius_data->sock = sd_ext->sd_udp.sock;
+    memcpy(&ctx->radius_data->src, &sd_ext->sd_udp.src, 16);
+
+    complete_host_mavis_udp(ctx);
+}
+
 static void accept_control(struct context *ctx, int cur)
 {
     int s;
-    struct scm_data_accept_ext sd_ext = { 0 };
 
-    if (common_data.scm_recv_msg(cur, &sd_ext.sd, sizeof(sd_ext.sd), &s)) {
+    union {
+	struct scm_data_accept sd;
+	struct scm_data_udp sd_udp;
+	u_char buf[1024];	// radius packets are usually < 100
+    } u;
+
+    if (common_data.scm_recv_msg(cur, &u.sd, sizeof(u), &s)) {
 	cleanup_spawnd(ctx, cur);
 	return;
     }
-    switch (sd_ext.sd.type) {
+    struct scm_data_accept_ext sd_ext = { 0 };
+
+    switch (u.sd.type) {
     case SCM_MAY_DIE:
 	cleanup_spawnd(ctx, cur);
 	return;
+    case SCM_UDPDATA:{
+	    rad_pak_hdr *hdr = (rad_pak_hdr *) (&u.sd_udp.data);
+	    if (u.sd_udp.data_len != ntohs(hdr->length))
+		return;
+	    memcpy(&sd_ext.sd, &u.sd_udp, sizeof(struct scm_data_udp));
+	    users_inc();
+	    set_sd_realm(cur, &sd_ext);
+	    accept_control_udp(s, &sd_ext, u.sd_udp.data, u.sd_udp.data_len);
+	    return;
+	}
     case SCM_ACCEPT:
+	memcpy(&sd_ext.sd, &u.sd, sizeof(struct scm_data_accept));
 	users_inc();
 	int one = 1;
 	setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (char *) &one, (socklen_t) sizeof(one));

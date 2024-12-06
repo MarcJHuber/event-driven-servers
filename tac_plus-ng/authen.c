@@ -277,14 +277,17 @@ static int password_requirements_failed(tac_session *session, char *what)
 	if (token != S_permit) {
 	    report(session, LOG_ERR, ~0, "password doesn't meet minimum requirements");
 	    report_auth(session, what, hint_weak_password, TAC_PLUS_AUTHEN_STATUS_FAIL);
-	    if (session->ctx->radsec) {
-		//FIXME
-		return -1;
-	    } else {
-		send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL,
-				  eval_log_format(session, session->ctx, NULL, li_password_minreq, io_now.tv_sec, NULL), 0, NULL, 0, 0);
+	    if (session->ctx->aaa_protocol == S_radsec) {
+		cleanup_session(session);
 		return -1;
 	    }
+	    if (session->ctx->aaa_protocol == S_radius) {
+		cleanup(session->ctx, -1);
+		return -1;
+	    }
+	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL,
+			      eval_log_format(session, session->ctx, NULL, li_password_minreq, io_now.tv_sec, NULL), 0, NULL, 0, 0);
+	    return -1;
 	}
     }
     return 0;
@@ -388,8 +391,8 @@ static enum token lookup_and_set_user(tac_session *session)
 static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&& ((!session->user && (session->ctx->realm->mavis_login == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
-	    || (session->user && pw_ix == PW_MAVIS));
+	&&( (!session->user &&(session->ctx->realm->mavis_login == TRISTATE_YES) &&(session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
+	   ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -417,7 +420,7 @@ static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *)
 
 static int query_mavis_info_login(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
+    int res = !session->flag_mavis_info && !session->user &&(session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_LOGIN);
@@ -436,8 +439,8 @@ int query_mavis_info(tac_session *session, void (*f)(tac_session *), enum pw_ix 
 static int query_mavis_auth_pap(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
-	((!session->user && (session->ctx->realm->mavis_pap == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
-	 || (session->user && pw_ix == PW_MAVIS));
+	( (!session->user &&(session->ctx->realm->mavis_pap == TRISTATE_YES) &&(session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
+	 ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_PAP);
@@ -446,7 +449,7 @@ static int query_mavis_auth_pap(tac_session *session, void (*f)(tac_session *), 
 
 static int query_mavis_info_pap(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->user && (session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
+    int res = !session->user &&(session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_PAP);
@@ -713,8 +716,8 @@ static void do_chpass(tac_session *session)
 
 static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*f)(tac_session *))
 {
-    if ((session->ctx->realm->chalresp == TRISTATE_YES) && (!session->user || ((pw_ix == PW_MAVIS) && (TRISTATE_NO != session->user->chalresp)))) {
-	if (!session->flag_chalresp) {
+    if( (session->ctx->realm->chalresp == TRISTATE_YES) &&(!session->user ||( (pw_ix == PW_MAVIS) &&(TRISTATE_NO != session->user->chalresp)))) {
+	if(!session->flag_chalresp) {
 	    session->flag_chalresp = 1;
 	    mavis_lookup(session, f, AV_V_TACTYPE_CHAL, PW_LOGIN);
 	    return;
@@ -1959,9 +1962,12 @@ static void do_radius_login(tac_session *session)
 
     mem_free(session->mem, &session->password);
 
-    if (rad_get(session, -1, RADIUS_A_USER_NAME, RADTYPE_STRING, &session->username, &session->username_len)
+    if (rad_get(session, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username, &session->username_len)
 	|| rad_get_password(session, &session->password, NULL)) {
-	cleanup_session(session);
+	if (session->ctx->udp)
+	    cleanup(session->ctx, -1);
+	else
+	    cleanup_session(session);
 	return;
     }
 
@@ -2012,18 +2018,22 @@ static void do_radius_login(tac_session *session)
 
 void rad_authen(tac_session *session)
 {
-    if (!rad_get(session, -1, RADIUS_A_CALLED_STATION_ID, RADTYPE_STRING, &session->nac_address_ascii, &session->nac_address_ascii_len))
+    if (!rad_get(session, -1, RADIUS_A_CALLED_STATION_ID, S_string_keyword, &session->nac_address_ascii, &session->nac_address_ascii_len))
 	session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
 
-    if (rad_get(session, -1, RADIUS_A_NAS_PORT_ID, RADTYPE_STRING, &session->nas_port, &session->nas_port_len))
-	rad_get(session, -1, RADIUS_A_NAS_PORT, RADTYPE_STRING, &session->nas_port, &session->nas_port_len);
+    if (rad_get(session, -1, RADIUS_A_NAS_PORT_ID, S_string_keyword, &session->nas_port, &session->nas_port_len))
+	rad_get(session, -1, RADIUS_A_NAS_PORT, S_string_keyword, &session->nas_port, &session->nas_port_len);
 
     switch (session->radius_data->pak_in->code) {
     case RADIUS_CODE_ACCESS_REQUEST:
 	session->radius_data->authfn = do_radius_login;
 	break;
     default:
-	cleanup_session(session);
+	if (session->ctx->udp)
+	    cleanup(session->ctx, -1);
+	else
+	    cleanup_session(session);
+	return;
     }
     session->radius_data->authfn(session);
 }

@@ -166,16 +166,16 @@ void rad_acct(tac_session *session)
 
     report(session, LOG_DEBUG, DEBUG_ACCT_FLAG, "Start accounting request");
 
-    rad_get(session, -1, RADIUS_A_USER_NAME, RADTYPE_STRING, &session->username, &session->username_len);
+    rad_get(session, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username, &session->username_len);
 
-    if (!rad_get(session, -1, RADIUS_A_CALLED_STATION_ID, RADTYPE_STRING, &session->nac_address_ascii, &session->nac_address_ascii_len))
+    if (!rad_get(session, -1, RADIUS_A_CALLED_STATION_ID, S_string_keyword, &session->nac_address_ascii, &session->nac_address_ascii_len))
 	session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
 
-    if (rad_get(session, -1, RADIUS_A_NAS_PORT_ID, RADTYPE_STRING, &session->nas_port, &session->nas_port_len))
-	rad_get(session, -1, RADIUS_A_NAS_PORT, RADTYPE_STRING, &session->nas_port, &session->nas_port_len);
+    if (rad_get(session, -1, RADIUS_A_NAS_PORT_ID, S_string_keyword, &session->nas_port, &session->nas_port_len))
+	rad_get(session, -1, RADIUS_A_NAS_PORT, S_string_keyword, &session->nas_port, &session->nas_port_len);
 
     int type = 0;
-    if (!rad_get(session, -1, RADIUS_A_ACCT_STATUS_TYPE, RADTYPE_INTEGER, &type, NULL)) {
+    if (!rad_get(session, -1, RADIUS_A_ACCT_STATUS_TYPE, S_integer, &type, NULL)) {
 	switch (type) {
 	case RADIUS_V_ACCT_STATUS_TYPE_START:
 #define S "start"
