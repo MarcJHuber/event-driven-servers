@@ -198,7 +198,6 @@ int spawnd_note_listener(sockaddr_union *sa __attribute__((unused)), void *data)
 
 void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 {
-
     char buf[INET6_ADDRSTRLEN];
 
     DebugIn(DEBUG_NET);
@@ -248,6 +247,7 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 	    setsockopt(cur, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
 	}
 #endif
+	ctx->port = su_get_port(&ctx->sa);
 	if (su_bind(cur, &ctx->sa)) {
 	    if (!ctx->logged_retry)
 		logerr("bind (%s:%d)", __FILE__, __LINE__);
