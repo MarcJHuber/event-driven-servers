@@ -2137,7 +2137,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		parse_error_expect(sym, S_host, S_realm, S_profile, S_unknown);
 	    }
 	    continue;
-	case S_aaa_protocols_allowed:
+	case S_aaa_protocol_allowed:
 	    sym_get(sym);
 	    parse(sym, S_equal);
 	    r->allowed_protocol_radius = TRISTATE_NO;
@@ -2172,7 +2172,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 			       S_anonenable,
 			       S_key, S_motd, S_welcome, S_reject, S_permit, S_bug, S_augmented_enable, S_singleconnection, S_context,
 			       S_script, S_message, S_session, S_maxrounds, S_host, S_device, S_syslog, S_proctitle, S_coredump, S_alias,
-			       S_script_order, S_skip, S_aaa_protocols_allowed,
+			       S_script_order, S_skip, S_aaa_protocol_allowed,
 #ifdef WITH_PCRE2
 			       S_rewrite,
 #endif

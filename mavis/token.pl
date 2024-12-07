@@ -540,10 +540,10 @@ octets				S_octets
 vsa				S_vsa
 #
 aaa.protocol			S_aaa_protocol
+aaa.protocol.allowed		S_aaa_protocol_allowed
 tacacs				S_tacacs
 tacacss				S_tacacss
 radsec				S_radsec
-aaa.protocols.allowed		S_aaa_protocols_allowed
 #
 conn.protocol			S_conn_protocol
 #
