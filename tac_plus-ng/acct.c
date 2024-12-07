@@ -123,11 +123,11 @@ void accounting(tac_session *session, tac_pak_hdr *hdr)
     }
 
     p += acct->user_len;
-    session->nas_port = mem_strndup(session->mem, p, acct->port_len);
-    session->nas_port_len = acct->port_len;
+    session->port = mem_strndup(session->mem, p, acct->port_len);
+    session->port_len = acct->port_len;
     p += acct->port_len;
-    session->nac_address_ascii = mem_strndup(session->mem, p, acct->rem_addr_len);
-    session->nac_address_ascii_len = acct->rem_addr_len;
+    session->nac_addr_ascii = mem_strndup(session->mem, p, acct->rem_addr_len);
+    session->nac_addr_ascii_len = acct->rem_addr_len;
     p += acct->rem_addr_len;
     session->argp = p;
     session->arg_cnt = acct->arg_cnt;
@@ -135,8 +135,8 @@ void accounting(tac_session *session, tac_pak_hdr *hdr)
 
     eval_args(session, p, session->arg_len, session->arg_cnt);
 
-    session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
-    if (session->nac_address_valid)
+    session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii) ? 0 : 1;
+    if (session->nac_addr_valid)
 	get_revmap_nac(session);
 
     if (acct->flags & TAC_PLUS_ACCT_FLAG_STOP && session->service && !strcmp(session->service, "shell"))
@@ -168,11 +168,11 @@ void rad_acct(tac_session *session)
 
     rad_get(session, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username, &session->username_len);
 
-    if (!rad_get(session, -1, RADIUS_A_CALLED_STATION_ID, S_string_keyword, &session->nac_address_ascii, &session->nac_address_ascii_len))
-	session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
+    if (!rad_get(session, -1, RADIUS_A_CALLED_STATION_ID, S_string_keyword, &session->nac_addr_ascii, &session->nac_addr_ascii_len))
+	session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii) ? 0 : 1;
 
-    if (rad_get(session, -1, RADIUS_A_NAS_PORT_ID, S_string_keyword, &session->nas_port, &session->nas_port_len))
-	rad_get(session, -1, RADIUS_A_NAS_PORT, S_string_keyword, &session->nas_port, &session->nas_port_len);
+    if (rad_get(session, -1, RADIUS_A_NAS_PORT_ID, S_string_keyword, &session->port, &session->port_len))
+	rad_get(session, -1, RADIUS_A_NAS_PORT, S_string_keyword, &session->port, &session->port_len);
 
     int type = 0;
     if (!rad_get(session, -1, RADIUS_A_ACCT_STATUS_TYPE, S_integer, &type, NULL)) {
@@ -244,7 +244,7 @@ void rad_acct(tac_session *session)
 	h = h->parent;
     }
 
-    if (session->nac_address_valid)
+    if (session->nac_addr_valid)
 	get_revmap_nac(session);
 
 #ifdef WITH_DNS

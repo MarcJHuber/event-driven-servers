@@ -2407,10 +2407,10 @@ static void parse_ruleset(struct sym *sym, tac_realm *realm)
 static enum token lookup_user_profile(tac_session *session)
 {
     uint32_t crc32 = INITCRC32;
-    if (session->nac_address_ascii)
-	crc32 = crc32_update(crc32, (u_char *) session->nac_address_ascii, session->nac_address_ascii_len);
-    if (session->nas_port)
-	crc32 = crc32_update(crc32, (u_char *) session->nas_port, session->nas_port_len);
+    if (session->nac_addr_ascii)
+	crc32 = crc32_update(crc32, (u_char *) session->nac_addr_ascii, session->nac_addr_ascii_len);
+    if (session->port)
+	crc32 = crc32_update(crc32, (u_char *) session->port, session->port_len);
     for (int i = 0; i < USER_PROFILE_CACHE_SIZE; i++) {
 	if (session->ctx->user_profile_cache[i].user == session->user && session->ctx->user_profile_cache[i].crc32 == crc32) {
 	    if (session->ctx->user_profile_cache[i].valid_until >= io_now.tv_sec) {
@@ -2428,10 +2428,10 @@ static enum token lookup_user_profile(tac_session *session)
 static void cache_user_profile(tac_session *session, enum token res)
 {
     uint32_t crc32 = INITCRC32;
-    if (session->nac_address_ascii)
-	crc32 = crc32_update(crc32, (u_char *) session->nac_address_ascii, session->nac_address_ascii_len);
-    if (session->nas_port)
-	crc32 = crc32_update(crc32, (u_char *) session->nas_port, session->nas_port_len);
+    if (session->nac_addr_ascii)
+	crc32 = crc32_update(crc32, (u_char *) session->nac_addr_ascii, session->nac_addr_ascii_len);
+    if (session->port)
+	crc32 = crc32_update(crc32, (u_char *) session->port, session->port_len);
 
     int j = 0;
     for (int i = 0; i < USER_PROFILE_CACHE_SIZE; i++) {
@@ -2480,7 +2480,7 @@ enum token eval_ruleset_r(tac_session *session, tac_realm *realm, int parent_fir
 	    res = eval_tac_acl(session, &rule->acl);
 	    report(session, LOG_DEBUG, DEBUG_ACL_FLAG | DEBUG_REGEX_FLAG,
 		   "%s@%s: ACL %s: %s (profile: %s)", session->username,
-		   session->nac_address_ascii, rule->acl.name, codestring[res], session->profile ? session->profile->name : "n/a");
+		   session->nac_addr_ascii, rule->acl.name, codestring[res], session->profile ? session->profile->name : "n/a");
 	    switch (res) {
 	    case S_permit:
 	    case S_deny:
@@ -2505,7 +2505,7 @@ enum token eval_ruleset(tac_session *session, tac_realm *realm)
     if (res != S_unknown) {
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG | DEBUG_REGEX_FLAG,
 	       "%s@%s: cached: %s (profile: %s)", session->username,
-	       session->nac_address_ascii, codestring[res], session->profile ? session->profile->name : "n/a");
+	       session->nac_addr_ascii, codestring[res], session->profile ? session->profile->name : "n/a");
 	return res;
     }
     res = eval_ruleset_r(session, realm, session->ctx->realm->script_realm_parent_first);
@@ -4709,11 +4709,11 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
     case S_address:
 	switch (m->u.s.token) {
 	case S_nac:
-	    if (session->nac_address_valid)
+	    if (session->nac_addr_valid)
 		res = v6_contains(&((struct in6_cidr *) (m->u.s.rhs))->addr, ((struct in6_cidr *) (m->u.s.rhs))->mask, &session->nac_address);
 	    break;
 	case S_nas:
-	    res = v6_contains(&((struct in6_cidr *) (m->u.s.rhs))->addr, ((struct in6_cidr *) (m->u.s.rhs))->mask, &session->ctx->nas_address);
+	    res = v6_contains(&((struct in6_cidr *) (m->u.s.rhs))->addr, ((struct in6_cidr *) (m->u.s.rhs))->mask, &session->ctx->device_addr);
 	default:
 	    ;
 	}
@@ -4730,8 +4730,8 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
     case S_net:
 	if (m->u.s.token == S_nas) {
 	    tac_net *net = (tac_net *) (m->u.s.rhs);
-	    res = radix_lookup(net->nettree, &session->ctx->nas_address, NULL) ? -1 : 0;
-	} else if (session->nac_address_valid) {
+	    res = radix_lookup(net->nettree, &session->ctx->device_addr, NULL) ? -1 : 0;
+	} else if (session->nac_addr_valid) {
 	    tac_net *net = (tac_net *) (m->u.s.rhs);
 	    res = radix_lookup(net->nettree, &session->nac_address, NULL) ? -1 : 0;
 	}
@@ -4857,13 +4857,13 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	    break;
 	case S_nac:
 	case S_clientaddress:
-	    v = session->nac_address_ascii;
-	    v_len = session->nac_address_ascii_len;
+	    v = session->nac_addr_ascii;
+	    v_len = session->nac_addr_ascii_len;
 	    break;
 	case S_nas:
 	case S_deviceaddress:
-	    v = session->ctx->nas_address_ascii;
-	    v_len = session->ctx->nas_address_ascii_len;
+	    v = session->ctx->device_addr_ascii;
+	    v_len = session->ctx->device_addr_ascii_len;
 	    break;
 	case S_clientdns:
 	case S_nacname:
@@ -4874,15 +4874,15 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	    break;
 	case S_devicedns:
 	case S_nasname:
-	    if (session->ctx->nas_dns_name && *session->ctx->nas_dns_name) {
-		v = session->ctx->nas_dns_name;
-		v_len = session->ctx->nas_dns_name_len;
+	    if (session->ctx->device_dns_name && *session->ctx->device_dns_name) {
+		v = session->ctx->device_dns_name;
+		v_len = session->ctx->device_dns_name_len;
 	    }
 	    break;
 	case S_deviceport:
 	case S_port:
-	    v = session->nas_port;
-	    v_len = session->nas_port_len;
+	    v = session->port;
+	    v_len = session->port_len;
 	    break;
 	case S_type:
 	    v = session->type;

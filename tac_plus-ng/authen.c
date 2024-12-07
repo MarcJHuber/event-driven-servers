@@ -246,10 +246,10 @@ static void report_auth(tac_session *session, char *what, enum hint_enum hint, i
 	   what,
 	   IS_SET(session->username) ? " for '" : "", session->username,
 	   IS_SET(session->username) ? "'" : "", realm,
-	   IS_SET(session->nac_address_ascii) ? " from " : "",
-	   IS_SET(session->nac_address_ascii) ? session->nac_address_ascii : "",
-	   IS_SET(session->nas_port) ? " on " : "",
-	   IS_SET(session->nas_port) ? session->nas_port : "",
+	   IS_SET(session->nac_addr_ascii) ? " from " : "",
+	   IS_SET(session->nac_addr_ascii) ? session->nac_addr_ascii : "",
+	   IS_SET(session->port) ? " on " : "",
+	   IS_SET(session->port) ? session->port : "",
 	   hint_augmented ? " " : "", hint_augmented,
 	   session->profile ? " (profile=" : "", session->profile ? session->profile->name : "", session->profile ? ")" : "");
 #undef IS_SET
@@ -391,8 +391,8 @@ static enum token lookup_and_set_user(tac_session *session)
 static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&&( (!session->user &&(session->ctx->realm->mavis_login == TRISTATE_YES) &&(session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
-	   ||(session->user && pw_ix == PW_MAVIS));
+	&& ((!session->user && (session->ctx->realm->mavis_login == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
+	    || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -420,7 +420,7 @@ static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *)
 
 static int query_mavis_info_login(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->user &&(session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
+    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_LOGIN);
@@ -439,8 +439,8 @@ int query_mavis_info(tac_session *session, void (*f)(tac_session *), enum pw_ix 
 static int query_mavis_auth_pap(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
-	( (!session->user &&(session->ctx->realm->mavis_pap == TRISTATE_YES) &&(session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
-	 ||(session->user && pw_ix == PW_MAVIS));
+	((!session->user && (session->ctx->realm->mavis_pap == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
+	 || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_PAP);
@@ -449,7 +449,7 @@ static int query_mavis_auth_pap(tac_session *session, void (*f)(tac_session *), 
 
 static int query_mavis_info_pap(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->user &&(session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
+    int res = !session->user && (session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_PAP);
@@ -716,8 +716,8 @@ static void do_chpass(tac_session *session)
 
 static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*f)(tac_session *))
 {
-    if( (session->ctx->realm->chalresp == TRISTATE_YES) &&(!session->user ||( (pw_ix == PW_MAVIS) &&(TRISTATE_NO != session->user->chalresp)))) {
-	if(!session->flag_chalresp) {
+    if ((session->ctx->realm->chalresp == TRISTATE_YES) && (!session->user || ((pw_ix == PW_MAVIS) && (TRISTATE_NO != session->user->chalresp)))) {
+	if (!session->flag_chalresp) {
 	    session->flag_chalresp = 1;
 	    mavis_lookup(session, f, AV_V_TACTYPE_CHAL, PW_LOGIN);
 	    return;
@@ -1649,7 +1649,7 @@ void add_revmap(tac_realm *r, struct in6_addr *address, char *hostname, int ttl,
 #ifdef WITH_DNS
 static void set_revmap_nac(tac_session *session, char *hostname, int ttl)
 {
-    report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "NAC revmap(%s) = %s", session->nac_address_ascii, hostname ? hostname : "(not found)");
+    report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "NAC revmap(%s) = %s", session->nac_addr_ascii, hostname ? hostname : "(not found)");
     if (hostname)
 	session->nac_dns_name = mem_strdup(session->mem, hostname);
 
@@ -1666,7 +1666,7 @@ static void set_revmap_nac(tac_session *session, char *hostname, int ttl)
 void get_revmap_nac(tac_session *session)
 {
     tac_realm *r = session->ctx->realm;
-    if (session->nac_address_valid) {
+    if (session->nac_addr_valid) {
 	while (r) {
 	    for (int i = 0; i < 3; i++) {
 		if (r->dns_tree_ptr[i]) {
@@ -1674,7 +1674,7 @@ void get_revmap_nac(tac_session *session)
 		    if (rev && rev->name && rev->ttl >= io_now.tv_sec) {
 			session->nac_dns_name = mem_strdup(session->mem, rev->name);
 			session->nac_dns_name_len = strlen(session->nac_dns_name);
-			report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAC revmap(%s) = %s [TTL: %lld]", session->nac_address_ascii, rev->name,
+			report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAC revmap(%s) = %s [TTL: %lld]", session->nac_addr_ascii, rev->name,
 			       (long long) (rev->ttl - io_now.tv_sec));
 			return;
 		    }
@@ -1690,7 +1690,7 @@ void get_revmap_nac(tac_session *session)
 	    r = r->parent;
 	if (r) {
 	    session->revmap_pending = 1;
-	    report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "Querying NAC revmap (%s)", session->nac_address_ascii);
+	    report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "Querying NAC revmap (%s)", session->nac_addr_ascii);
 	    io_dns_add_addr(r->idc, &session->nac_address, (void *) set_revmap_nac, session);
 	}
     }
@@ -1703,15 +1703,15 @@ static void set_revmap_nas(struct context *ctx, char *hostname, int ttl)
     if (!hostname)
 	ttl = 60;
 
-    report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAS revmap(%s) = %s [TTL: %d]", ctx->nas_address_ascii, hostname ? hostname : "(not found)", ttl);
+    report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAS revmap(%s) = %s [TTL: %d]", ctx->device_addr_ascii, hostname ? hostname : "(not found)", ttl);
 
     if (hostname)
-	ctx->nas_dns_name = mem_strdup(ctx->mem, hostname);
+	ctx->device_dns_name = mem_strdup(ctx->mem, hostname);
 
     ctx->revmap_pending = 0;
     ctx->revmap_timedout = 0;
 
-    add_revmap(ctx->realm, &ctx->nas_address, hostname, ttl, 1);
+    add_revmap(ctx->realm, &ctx->device_addr, hostname, ttl, 1);
 
     for (rb_node_t * rbnext, *rbn = RB_first(ctx->sessions); rbn; rbn = rbnext) {
 	tac_session *session = RB_payload(rbn, tac_session *);
@@ -1727,16 +1727,16 @@ static void set_revmap_nas(struct context *ctx, char *hostname, int ttl)
 void get_revmap_nas(tac_session *session)
 {
     struct context *ctx = session->ctx;
-    if (!ctx->nas_dns_name) {
+    if (!ctx->device_dns_name) {
 	tac_realm *r = ctx->realm;
 	while (r) {
 	    for (int i = 0; i < 3; i++) {
 		if (r->dns_tree_ptr[i]) {
-		    struct revmap *rev = radix_lookup(r->dns_tree_ptr[i], &ctx->nas_address, NULL);
+		    struct revmap *rev = radix_lookup(r->dns_tree_ptr[i], &ctx->device_addr, NULL);
 		    if (rev && rev->name && rev->ttl >= io_now.tv_sec) {
-			ctx->nas_dns_name = mem_strdup(ctx->mem, rev->name);
-			ctx->nas_dns_name_len = strlen(ctx->nas_dns_name);
-			report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAS revmap(%s) = %s [TTL: %lld]", ctx->nas_address_ascii, rev->name,
+			ctx->device_dns_name = mem_strdup(ctx->mem, rev->name);
+			ctx->device_dns_name_len = strlen(ctx->device_dns_name);
+			report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAS revmap(%s) = %s [TTL: %lld]", ctx->device_addr_ascii, rev->name,
 			       (long long) (rev->ttl - io_now.tv_sec));
 			return;
 		    }
@@ -1751,8 +1751,8 @@ void get_revmap_nas(tac_session *session)
 		r = r->parent;
 	    if (r) {
 		ctx->revmap_pending = 1;
-		report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "Querying NAS revmap (%s)", ctx->nas_address_ascii);
-		io_dns_add_addr(r->idc, &ctx->nas_address, (void *) set_revmap_nas, ctx);
+		report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "Querying NAS revmap (%s)", ctx->device_addr_ascii);
+		io_dns_add_addr(r->idc, &ctx->device_addr, (void *) set_revmap_nas, ctx);
 	    }
 	}
 #endif
@@ -1889,13 +1889,13 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	    session->username_len = start->user_len;
 
 	    p += start->user_len;
-	    session->nas_port = mem_strndup(session->mem, p, start->port_len);
-	    session->nas_port_len = start->port_len;
+	    session->port = mem_strndup(session->mem, p, start->port_len);
+	    session->port_len = start->port_len;
 	    p += start->port_len;
-	    session->nac_address_ascii = mem_strndup(session->mem, p, start->rem_addr_len);
-	    session->nac_address_ascii_len = start->rem_addr_len;
-	    session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
-	    if (session->nac_address_valid)
+	    session->nac_addr_ascii = mem_strndup(session->mem, p, start->rem_addr_len);
+	    session->nac_addr_ascii_len = start->rem_addr_len;
+	    session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii) ? 0 : 1;
+	    if (session->nac_addr_valid)
 		get_revmap_nac(session);
 	    p += start->rem_addr_len;
 	    session->authen_data->data = (u_char *) mem_copy(session->mem, p, start->data_len);
@@ -2028,11 +2028,11 @@ static void do_radius_login(tac_session *session)
 
 void rad_authen(tac_session *session)
 {
-    if (!rad_get(session, -1, RADIUS_A_CALLED_STATION_ID, S_string_keyword, &session->nac_address_ascii, &session->nac_address_ascii_len))
-	session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
+    if (!rad_get(session, -1, RADIUS_A_CALLED_STATION_ID, S_string_keyword, &session->nac_addr_ascii, &session->nac_addr_ascii_len))
+	session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii) ? 0 : 1;
 
-    if (rad_get(session, -1, RADIUS_A_NAS_PORT_ID, S_string_keyword, &session->nas_port, &session->nas_port_len))
-	rad_get(session, -1, RADIUS_A_NAS_PORT, S_string_keyword, &session->nas_port, &session->nas_port_len);
+    if (rad_get(session, -1, RADIUS_A_NAS_PORT_ID, S_string_keyword, &session->port, &session->port_len))
+	rad_get(session, -1, RADIUS_A_NAS_PORT, S_string_keyword, &session->port, &session->port_len);
 
     switch (session->radius_data->pak_in->code) {
     case RADIUS_CODE_ACCESS_REQUEST:

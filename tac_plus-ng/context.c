@@ -42,7 +42,7 @@
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
 struct shellctx {
-    struct in6_addr nas_address;
+    struct in6_addr device_address;
     char *username;
     char *portname;
     char *ctxname;
@@ -58,7 +58,7 @@ static int shellctx_cmp(const void *a, const void *b)
     i = strcmp(((struct shellctx *) a)->portname, ((struct shellctx *) b)->portname);
     if (i)
 	return i;
-    return memcmp(&((struct shellctx *) a)->nas_address, &((struct shellctx *) b)->nas_address, sizeof(struct in6_addr));
+    return memcmp(&((struct shellctx *) a)->device_address, &((struct shellctx *) b)->device_address, sizeof(struct in6_addr));
 }
 
 
@@ -73,8 +73,8 @@ static rb_node_t *tac_script_lookup_exec_context(tac_session *session)
 {
     if (!session->ctx->shellctxcache)
 	return NULL;
-    struct shellctx sc = {.username = session->username,.portname = session->nas_port };
-    memcpy(&sc.nas_address, &session->ctx->nas_address, sizeof(struct in6_addr));
+    struct shellctx sc = {.username = session->username,.portname = session->port };
+    memcpy(&sc.device_address, &session->ctx->device_addr, sizeof(struct in6_addr));
     return RB_search(session->ctx->shellctxcache, &sc);
 }
 
@@ -87,7 +87,7 @@ void tac_script_set_exec_context(tac_session *session, char *ctxname)
 	if (!session->ctx->single_connection_did_warn) {
 	    session->ctx->single_connection_did_warn = BISTATE_YES;
 	    report(session, LOG_INFO, ~0,
-		   "%s: Possibly no single-connection support. " "Context feature may or may not work.", session->ctx->nas_address_ascii);
+		   "%s: Possibly no single-connection support. " "Context feature may or may not work.", session->ctx->device_addr_ascii);
 	}
     }
 
@@ -107,12 +107,12 @@ void tac_script_set_exec_context(tac_session *session, char *ctxname)
 	sc = RB_payload(rb, struct shellctx *);
 	free(sc->ctxname);
     } else {
-	sc = calloc(1, sizeof(struct shellctx) + session->username_len + session->nas_port_len);
+	sc = calloc(1, sizeof(struct shellctx) + session->username_len + session->port_len);
 	sc->username = sc->data;
 	sc->portname = sc->data + session->username_len + 1;
 	memcpy(sc->username, session->username, session->username_len);
-	memcpy(sc->portname, session->nas_port, session->nas_port_len);
-	memcpy(&sc->nas_address, &session->ctx->nas_address, sizeof(struct in6_addr));
+	memcpy(sc->portname, session->port, session->port_len);
+	memcpy(&sc->device_address, &session->ctx->device_addr, sizeof(struct in6_addr));
 	RB_insert(session->ctx->shellctxcache, sc);
     }
     sc->ctxname = strdup(ctxname);

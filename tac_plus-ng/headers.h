@@ -508,7 +508,8 @@ struct radius_data {
     size_t pak_in_len;
     int sock;
     u_char protocol;		// AF_INET, AF_INET6
-    short port;			// network byte order
+    short src_port;		// host byte order
+    short dst_port;		// host byte order
     void (*authfn)(tac_session *);
     u_char src[16];
     size_t data_len;
@@ -755,10 +756,10 @@ struct tac_session {
     size_t msg_len;
     char *user_msg;
     size_t user_msg_len;
-    char *nas_port;
-    size_t nas_port_len;
-    char *nac_address_ascii;
-    size_t nac_address_ascii_len;
+    char *port;
+    size_t port_len;
+    char *nac_addr_ascii;
+    size_t nac_addr_ascii_len;
     char *type;
     size_t type_len;
     char *nac_dns_name;		/* DNS reverse mapping for NAC */
@@ -815,7 +816,7 @@ struct tac_session {
     struct radius_data *radius_data;
     struct pwdat *enable;
     tac_profile *profile;
-     BISTATE(nac_address_valid);
+     BISTATE(nac_addr_valid);
      BISTATE(flag_mavis_info);
      BISTATE(flag_mavis_auth);
      BISTATE(flag_chalresp);
@@ -870,12 +871,29 @@ struct context {
     rb_tree_t *shellctxcache;
     tac_realm *realm;
     struct mavis_ctx_data *mavis_data;
-    char *nas_dns_name;
-    size_t nas_dns_name_len;
-    char *nas_address_ascii;
-    size_t nas_address_ascii_len;
-    struct in6_addr nas_address;	/* host byte order */
-    u_char flags;		/* TAC_PLUS_SINGLE_CONNECT_FLAG */
+
+    char *device_dns_name;	// device
+    size_t device_dns_name_len;
+    char *device_addr_ascii;
+    size_t device_addr_ascii_len;
+    char *device_port_ascii;
+    size_t device_port_ascii_len;
+    struct in6_addr device_addr;	// for binary comparisions
+
+    char *server_addr_ascii;
+    size_t server_addr_ascii_len;
+    char *server_port_ascii;
+    size_t server_port_ascii_len;
+
+    char *proxy_addr_ascii;	// NULL if not proxied
+    size_t proxy_addr_ascii_len;
+
+    char *peer_addr_ascii;	// TCP/UDP peer
+    size_t peer_addr_ascii_len;
+    char *peer_port_ascii;
+    size_t peer_port_ascii_len;
+
+    u_char flags;
     union pak_hdr hdr;
     ssize_t hdroff;
     struct tac_key *key;
@@ -905,14 +923,7 @@ struct context {
     char **tls_peer_cert_san;
     size_t tls_peer_cert_san_count;
 #endif
-    char *server_addr_ascii;
-    size_t server_addr_ascii_len;
-    char *server_port_ascii;
-    size_t server_port_ascii_len;
-    char *proxy_addr_ascii;
-    size_t proxy_addr_ascii_len;
-    char *peer_addr_ascii;
-    size_t peer_addr_ascii_len;
+
     char *msgid;
     size_t msgid_len;
     char *acct_type;

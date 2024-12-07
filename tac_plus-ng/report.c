@@ -52,7 +52,7 @@ static __inline__ int report_flag_set(tac_session *session, int priority, int le
 void report(tac_session *session, int priority, int level, char *fmt, ...)
 {
     int len = 2048;
-    char *nas_addr = "-";
+    char *device_addr = "-";
     char *msg = alloca(len);
     va_list ap;
     int nlen;
@@ -69,12 +69,12 @@ void report(tac_session *session, int priority, int level, char *fmt, ...)
 	va_end(ap);
     }
 
-    if (session && session->ctx && session->ctx->nas_address_ascii)
-	nas_addr = session->ctx->nas_address_ascii;
+    if (session && session->ctx && session->ctx->device_addr_ascii)
+	device_addr = session->ctx->device_addr_ascii;
 
     if ((common_data.debug & level) || (session && (session->debug & level))) {
 	if (common_data.debug & DEBUG_TACTRACE_FLAG) {
-	    fprintf(stderr, "%s %s\n", nas_addr, msg);
+	    fprintf(stderr, "%s %s\n", device_addr, msg);
 	    fflush(stderr);
 	    return;
 	}
@@ -98,20 +98,21 @@ void report(tac_session *session, int priority, int level, char *fmt, ...)
 	    }
 	    fprintf(stderr, "%ld: %s.%.3lu %x/%.8x: %s %s\n", (long int) pid,
 		    now, (u_long) io_now.tv_usec / 1000, (session
-							  && session->ctx) ? session->ctx->id : 0, session ? ntohl(session->session_id) : 0, nas_addr, msg);
+							  && session->ctx) ? session->ctx->id : 0, session ? ntohl(session->session_id) : 0, device_addr,
+		    msg);
 	    fflush(stderr);
 	    return;
 	}
 	if (common_data.syslog_dflt) {
 	    syslog(LOG_DEBUG, "%x/%.8x: %s %s%s",
 		   (session && session->ctx) ? session->ctx->id : 0,
-		   session ? ntohl(session->session_id) : 0, nas_addr, (priority & LOG_PRIMASK) == LOG_ERR ? "Error: " : "", msg);
+		   session ? ntohl(session->session_id) : 0, device_addr, (priority & LOG_PRIMASK) == LOG_ERR ? "Error: " : "", msg);
 	    return;
 	}
     }
 
     if (priority != LOG_DEBUG && common_data.syslog_dflt)
-	syslog(priority, "%s %s%s", nas_addr, (priority & LOG_PRIMASK) == LOG_ERR ? "Error: " : "", msg);
+	syslog(priority, "%s %s%s", device_addr, (priority & LOG_PRIMASK) == LOG_ERR ? "Error: " : "", msg);
 }
 
 void report_hex(tac_session *session, int priority, int level, u_char *ptr, int len)

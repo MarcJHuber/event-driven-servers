@@ -427,6 +427,8 @@ authen-method			S_authen_method
 umessage			S_umessage
 proxy				S_proxy
 peer				S_peer
+peer.address			S_peer_address
+peer.port			S_peer_port
 #
 tls.conn.version		S_tls_conn_version
 tls.conn.cipher			S_tls_conn_cipher
@@ -542,4 +544,6 @@ tacacs				S_tacacs
 tacacss				S_tacacss
 radsec				S_radsec
 aaa.protocols.allowed		S_aaa_protocols_allowed
+#
+conn.protocol			S_conn_protocol
 #

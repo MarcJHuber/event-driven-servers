@@ -264,7 +264,7 @@ void send_authen_error(tac_session *session, char *fmt, ...)
 	va_end(ap);
     }
 
-    report(session, LOG_ERR, ~0, "%s %s: %s", session->ctx->nas_address_ascii, session->nas_port, msg);
+    report(session, LOG_ERR, ~0, "%s %s: %s", session->ctx->device_addr_ascii, session->port, msg);
     send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_ERROR, msg, 0, NULL, 0, 0);
 }
 
@@ -335,14 +335,14 @@ static void send_udp(tac_session *session, tac_pak *pak)
 #ifdef AF_INET
     case AF_INET:
 	memcpy(&sa.sin.sin_addr, &session->ctx->radius_data->src, 4);
-	sa.sin.sin_port = session->ctx->radius_data->port;
+	sa.sin.sin_port = htons(session->ctx->radius_data->src_port);
 	sa_len = sizeof(sa.sin);
 	break;
 #endif
 #ifdef AF_INET6
     case AF_INET6:
 	memcpy(&sa.sin6.sin6_addr, &session->ctx->radius_data->src, 16);
-	sa.sin6.sin6_port = session->ctx->radius_data->port;
+	sa.sin6.sin6_port = htons(session->ctx->radius_data->src_port);
 	sa_len = sizeof(sa.sin6);
 	break;
 #endif
@@ -580,7 +580,7 @@ void tac_read(struct context *ctx, int cur)
     ctx->aaa_protocol = S_tacacss;
 
     if ((ctx->hdr.tac.version & TAC_PLUS_MAJOR_VER_MASK) != TAC_PLUS_MAJOR_VER) {
-	report(NULL, LOG_ERR, ~0, "%s: Illegal major version specified: found %d wanted %d", ctx->nas_address_ascii, ctx->hdr.tac.version,
+	report(NULL, LOG_ERR, ~0, "%s: Illegal major version specified: found %d wanted %d", ctx->device_addr_ascii, ctx->hdr.tac.version,
 	       TAC_PLUS_MAJOR_VER);
 	cleanup(ctx, cur);
 	return;
@@ -588,7 +588,7 @@ void tac_read(struct context *ctx, int cur)
     u_int data_len = ntohl(ctx->hdr.tac.datalength);
 
     if (data_len & ~0xffffUL) {
-	report(NULL, LOG_ERR, ~0, "%s: Illegal data size: %u", ctx->nas_address_ascii, data_len);
+	report(NULL, LOG_ERR, ~0, "%s: Illegal data size: %u", ctx->device_addr_ascii, data_len);
 	cleanup(ctx, cur);
 	return;
     }
@@ -617,7 +617,7 @@ void tac_read(struct context *ctx, int cur)
     if (session) {
 	if (session->seq_no / 2 == ctx->host->max_rounds) {
 	    report(session, LOG_ERR, ~0,
-		   "%s: Limit of %d rounds reached for session %.8x", ctx->nas_address_ascii, (int) ctx->host->max_rounds, ntohl(ctx->hdr.tac.session_id));
+		   "%s: Limit of %d rounds reached for session %.8x", ctx->device_addr_ascii, (int) ctx->host->max_rounds, ntohl(ctx->hdr.tac.session_id));
 	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_ERROR, "Too many rounds.", 0, NULL, 0, 0);
 	    cleanup(ctx, cur);
 	    return;
@@ -628,7 +628,7 @@ void tac_read(struct context *ctx, int cur)
 	if (session->seq_no != ctx->hdr.tac.seq_no) {
 	    report(session, LOG_ERR, ~0,
 		   "%s: Illegal sequence number %d (!= %d) for session %.8x",
-		   ctx->nas_address_ascii, (int) ctx->hdr.tac.seq_no, (int) session->seq_no, ntohl(ctx->hdr.tac.session_id));
+		   ctx->device_addr_ascii, (int) ctx->hdr.tac.seq_no, (int) session->seq_no, ntohl(ctx->hdr.tac.session_id));
 	    cleanup(ctx, cur);
 	    return;
 	}
@@ -639,7 +639,7 @@ void tac_read(struct context *ctx, int cur)
 	    detached++;
 	} else {
 	    report(NULL, LOG_ERR, ~0,
-		   "%s: %s packet (sequence number: %d) for session %.8x", "Stray", ctx->nas_address_ascii, (int) ctx->hdr.tac.seq_no,
+		   "%s: %s packet (sequence number: %d) for session %.8x", "Stray", ctx->device_addr_ascii, (int) ctx->hdr.tac.seq_no,
 		   ntohl(ctx->hdr.tac.session_id));
 	    cleanup(ctx, cur);
 	    return;
@@ -659,7 +659,7 @@ void tac_read(struct context *ctx, int cur)
 	    ctx->tls ? "Peers MUST NOT use Obfuscation with TLS." :
 #endif
 	    "Peers MUST use Obfuscation.";
-	report(NULL, LOG_ERR, ~0, "%s: %s packet (sequence number: %d) for %ssession %.8x", "Encrypted", ctx->nas_address_ascii, (int) ctx->hdr.tac.seq_no,
+	report(NULL, LOG_ERR, ~0, "%s: %s packet (sequence number: %d) for %ssession %.8x", "Encrypted", ctx->device_addr_ascii, (int) ctx->hdr.tac.seq_no,
 #if defined(WITH_SSL)
 	       ctx->tls ? "TLS " :
 #endif
@@ -752,13 +752,13 @@ void tac_read(struct context *ctx, int cur)
 	    break;
 
 	default:
-	    report(session, LOG_ERR, ~0, "%s: %s", ctx->nas_address_ascii, msg);
+	    report(session, LOG_ERR, ~0, "%s: %s", ctx->device_addr_ascii, msg);
 	    cleanup_session(session);
 	}
     } while (more_keys);
 
     if (ctx->key && ctx->key->warn && !ctx->key_fixed && (ctx->key->warn <= io_now.tv_sec))
-	report(NULL, LOG_INFO, ~0, "%s uses deprecated key (line %d)", ctx->nas_address_ascii, ctx->key->line);
+	report(NULL, LOG_INFO, ~0, "%s uses deprecated key (line %d)", ctx->device_addr_ascii, ctx->key->line);
 
     ctx->key_fixed = 1;
     if (detached)
@@ -812,7 +812,7 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 		 ma_calculated, &ma_calculated_len);
 	    memcpy(message_authenticator, ma_original, 16);
 	    if (!memcmp(ma_original, ma_calculated, 16)) {
-		report(NULL, LOG_INFO, ~0, "%s uses deprecated radius key (line %d)", ctx->nas_address_ascii, ctx->radius_key->line);
+		report(NULL, LOG_INFO, ~0, "%s uses deprecated radius key (line %d)", ctx->device_addr_ascii, ctx->radius_key->line);
 		return 0;
 	    }
 	}
@@ -908,7 +908,7 @@ void rad_read(struct context *ctx, int cur)
 	rad_acct(session);
 	break;
     default:
-	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->nas_address_ascii, pak->code);
+	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->device_addr_ascii, pak->code);
 	cleanup_session(session);
     }
 
@@ -954,7 +954,7 @@ void rad_udp_inject(struct context *ctx)
 	rad_acct(session);
 	break;
     default:
-	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->nas_address_ascii, pak->code);
+	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->device_addr_ascii, pak->code);
 	cleanup(ctx, -1);
     }
 }

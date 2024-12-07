@@ -152,11 +152,11 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
     av_set(avc, AV_A_USER, session->username);
     av_setf(avc, AV_A_TIMESTAMP, "%d", session->session_id);
     av_set(avc, AV_A_TACTYPE, (char *) type);
-    av_set(avc, AV_A_SERVERIP, session->ctx->nas_address_ascii);
+    av_set(avc, AV_A_SERVERIP, session->ctx->device_addr_ascii);
     if (session->passwd_changeable)
 	av_set(avc, AV_A_CALLER_CAP, ":chpw:");
-    if (session->nac_address_valid)
-	av_set(avc, AV_A_IPADDR, session->nac_address_ascii);
+    if (session->nac_addr_valid)
+	av_set(avc, AV_A_IPADDR, session->nac_addr_ascii);
     if (r->name)
 	av_set(avc, AV_A_REALM, r->name);
 
@@ -470,7 +470,7 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 	return;
 
     tac_session session = {.ctx = ctx };
-    report(&session, LOG_INFO, ~0, "looking for host %s in MAVIS backend", ctx->nas_address_ascii);
+    report(&session, LOG_INFO, ~0, "looking for host %s in MAVIS backend", ctx->device_addr_ascii);
 
     if (!ctx->mavis_data)
 	ctx->mavis_data = mem_alloc(ctx->mem, sizeof(struct mavis_data));
@@ -481,7 +481,7 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 
     av_ctx *avc = av_new((void *) mavis_ctx_callback, (void *) ctx);
     av_set(avc, AV_A_TYPE, AV_V_TYPE_TACPLUS);
-    av_set(avc, AV_A_USER, ctx->nas_address_ascii);
+    av_set(avc, AV_A_USER, ctx->device_addr_ascii);
     av_set(avc, AV_A_TACTYPE, (char *) type);	// "HOST"
     av_set(avc, AV_A_REALM, ctx->realm->name);
 
@@ -527,7 +527,7 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx *avc)
     ctx->mavis_result = S_deny;
     if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&	//
 	(t = av_get(avc, AV_A_TACTYPE)) && !strcmp(t, ctx->mavis_data->mavistype) &&	//
-	(t = av_get(avc, AV_A_USER)) && !strcmp(t, ctx->nas_address_ascii) &&	//
+	(t = av_get(avc, AV_A_USER)) && !strcmp(t, ctx->device_addr_ascii) &&	//
 	(result = av_get(avc, AV_A_RESULT)) && !strcmp(result, AV_V_RESULT_OK)) {
 
 	ctx->mavis_result = S_permit;
@@ -539,7 +539,7 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx *avc)
 	    init_host(h, ctx->host, ctx->realm, 0);
 
 	    struct sym sym = { 0 };
-	    sym.filename = ctx->nas_address_ascii;
+	    sym.filename = ctx->device_addr_ascii;
 	    sym.line = 1;
 	    sym.flag_prohibit_include = 1;
 	    sym.in = sym.tin = profile;
@@ -558,6 +558,6 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx *avc)
     }
     if (result) {
 	ctx->mavis_latency = timediff(&ctx->mavis_data->start);
-	report(&session, LOG_INFO, ~0, "result for host %s is %s [%lu ms]", ctx->nas_address_ascii, result, ctx->mavis_latency);
+	report(&session, LOG_INFO, ~0, "result for host %s is %s [%lu ms]", ctx->device_addr_ascii, result, ctx->mavis_latency);
     }
 }

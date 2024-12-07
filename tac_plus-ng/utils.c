@@ -578,21 +578,24 @@ void parse_log(struct sym *sym, tac_realm *r)
 	access_syslog3 = parse_log_format_inline("\"${nas}|${user}|${port}|${nac}|${action} ${hint}\"", __FILE__, __LINE__);
 
 	conn_file =
-	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${tls.conn.version}\t${tls.peer.cert.issuer}\t${tls.peer.cert.subject}\n\"",
-				    __FILE__, __LINE__);
+	    parse_log_format_inline
+	    ("\"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${conn.protocol}\t${peer.address}\t${peer.port}\t${server.address}\t${server.port}\t${tls.conn.version}\t${tls.peer.cert.issuer}\t${tls.peer.cert.subject}\n\"",
+	     __FILE__, __LINE__);
 	conn_syslog =
 	    parse_log_format_inline
-	    ("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}\"",
+	    ("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${conn.protocol}|${peer.address}|${peer.port}|${server.address}|${server.port}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}\"",
 	     __FILE__, __LINE__);
 	conn_syslog3 =
-	    parse_log_format_inline("\"${accttype}|${nas}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}\"", __FILE__, __LINE__);
+	    parse_log_format_inline
+	    ("\"${accttype}|${conn.protocol}|${peer.address}|${peer.port}|${server.address}|${server.port}|${nas}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}\"",
+	     __FILE__, __LINE__);
 	rad_access_file =
-	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${args, }\t${rargs, }\n\"",
-				    __FILE__, __LINE__);
+	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${args, }\t${rargs, }\n\"", __FILE__,
+				    __LINE__);
 	rad_access_syslog =
 	    parse_log_format_inline
-	    ("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${nas}|${user}|${port}|${nac}|${accttype}|${args, }|${rargs, }\"",
-	     __FILE__, __LINE__);
+	    ("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${nas}|${user}|${port}|${nac}|${accttype}|${args, }|${rargs, }\"", __FILE__,
+	     __LINE__);
 	rad_access_syslog3 = parse_log_format_inline("\"${accttype}|${nas}|\"", __FILE__, __LINE__);
 	rad_acct_file =
 	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${args, }\t${rargs, }\n\"",
@@ -786,11 +789,14 @@ struct log_item *parse_log_format(struct sym *sym, mem_t *mem)
 	    case S_clientname:
 	    case S_clientaddress:
 	    case S_context:
+	    case S_conn_protocol:
 	    case S_devicedns:
 	    case S_devicename:
 	    case S_deviceaddress:
 	    case S_proxy:
 	    case S_peer:
+	    case S_peer_address:
+	    case S_peer_port:
 	    case S_user:
 	    case S_user_original:
 	    case S_profile:
@@ -962,8 +968,8 @@ static char *eval_log_format_profile(tac_session *session, struct context *ctx _
 static char *eval_log_format_nac(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->nac_address_ascii_len;
-	return session->nac_address_ascii;
+	*len = session->nac_addr_ascii_len;
+	return session->nac_addr_ascii;
     }
     return NULL;
 }
@@ -984,8 +990,12 @@ static char *eval_log_format_msgid(tac_session *session, struct context *ctx, st
 static char *eval_log_format_port(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->nas_port_len;
-	return session->nas_port;
+	*len = session->port_len;
+	return session->port;
+    }
+    if (ctx) {
+	*len = ctx->device_port_ascii_len;
+	return ctx->device_port_ascii;
     }
     return NULL;
 }
@@ -1243,8 +1253,8 @@ static char *eval_log_format_identity_source(tac_session *session, struct contex
 static char *eval_log_format_nas(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->nas_address_ascii_len;
-	return ctx->nas_address_ascii;
+	*len = ctx->device_addr_ascii_len;
+	return ctx->device_addr_ascii;
     }
     return NULL;
 }
@@ -1507,6 +1517,16 @@ static char *eval_log_format_server_port(tac_session *session __attribute__((unu
     return NULL;
 }
 
+static char *eval_log_format_peer_port(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+				       __attribute__((unused)), size_t *len)
+{
+    if (ctx) {
+	*len = ctx->peer_port_ascii_len;
+	return ctx->peer_port_ascii;
+    }
+    return NULL;
+}
+
 static char *eval_log_format_server_address(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
 					    __attribute__((unused)), size_t *len)
 {
@@ -1520,8 +1540,8 @@ static char *eval_log_format_server_address(tac_session *session __attribute__((
 static char *eval_log_format_nasname(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
 				     __attribute__((unused)), size_t *len __attribute__((unused)))
 {
-    if (ctx && ctx->nas_dns_name && *ctx->nas_dns_name)
-	return ctx->nas_dns_name;
+    if (ctx && ctx->device_dns_name && *ctx->device_dns_name)
+	return ctx->device_dns_name;
     return NULL;
 }
 
@@ -1620,6 +1640,18 @@ static char *eval_log_format_pid(tac_session *session __attribute__((unused)), s
 	l = snprintf(buf, sizeof(buf), "%lu", (unsigned long) getpid());
     *len = l;
     return buf;
+}
+
+static char *eval_log_format_conn_protocol(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+					   __attribute__((unused)), size_t *len __attribute__((unused)))
+{
+    if (ctx) {
+	*len = 3;
+	if (ctx->aaa_protocol == S_radius)
+	    return codestring[S_UDP];
+	return codestring[S_TCP];
+    }
+    return NULL;
 }
 
 #if defined(WITH_SSL)
@@ -1743,6 +1775,7 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 	efun[S_authen_method] = &eval_log_format_authen_method;
 	efun[S_authen_service] = &eval_log_format_authen_service;
 	efun[S_authen_type] = &eval_log_format_authen_type;
+	efun[S_conn_protocol] = &eval_log_format_conn_protocol;
 	efun[S_dn] = &eval_log_format_dn;
 	efun[S_gid] = &eval_log_format_gid;
 	efun[S_gids] = &eval_log_format_gids;
@@ -1767,6 +1800,8 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 	efun[S_nas] = &eval_log_format_nas;
 	efun[S_path] = &eval_log_format_path;
 	efun[S_peer] = &eval_log_format_peer;
+	efun[S_peer_address] = &eval_log_format_peer;
+	efun[S_peer_port] = &eval_log_format_peer_port;
 	efun[S_port] = &eval_log_format_port;
 	efun[S_deviceport] = &eval_log_format_port;
 	efun[S_priority] = &eval_log_format_priority;

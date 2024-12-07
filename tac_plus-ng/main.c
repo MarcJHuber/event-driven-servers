@@ -603,9 +603,11 @@ static void read_px(struct context_px *ctx, int cur)
     case 0x11:
 	from.sin.sin_family = AF_INET;
 	from.sin.sin_addr.s_addr = addr->ipv4_addr.src_addr;
+	from.sin6.sin6_port = addr->ipv4_addr.src_port;
 	break;
     case 0x21:
 	from.sin6.sin6_family = AF_INET6;
+	from.sin6.sin6_port = addr->ipv6_addr.dst_port;
 	memcpy(&from.sin6.sin6_addr, addr->ipv6_addr.src_addr, 16);
 	break;
     case 0x00:
@@ -1126,7 +1128,7 @@ static tac_realm *set_sd_realm(int s __attribute__((unused)), struct scm_data_ac
 
 static void complete_host_mavis(struct context *);
 
-static void set_server_info(struct context *ctx, struct in6_addr *addr, struct scm_data_accept_ext *sd_ext)
+static void set_ctx_info(struct context *ctx, struct scm_data_accept_ext *sd_ext)
 {
     sockaddr_union me = { 0 };
     socklen_t me_len = (socklen_t) sizeof(me);
@@ -1136,29 +1138,25 @@ static void set_server_info(struct context *ctx, struct in6_addr *addr, struct s
 	snprintf(buf, 10, "%u", su_get_port(&me));
 	ctx->server_port_ascii = mem_strdup(ctx->mem, buf);
 	ctx->server_port_ascii_len = strlen(buf);
-	if (su_ntop(&me, buf, 256)) {
+	if (su_ntop(&me, buf, sizeof(buf))) {
 	    ctx->server_addr_ascii = mem_strdup(ctx->mem, buf);
 	    ctx->server_addr_ascii_len = strlen(buf);
 	}
     }
-
-    ctx->nas_address = *addr;
     if (sd_ext->vrf_len)
 	ctx->vrf = mem_strndup(ctx->mem, (u_char *) sd_ext->vrf, sd_ext->vrf_len);
     ctx->vrf_len = sd_ext->vrf_len;
-    ctx->nas_address_ascii = ctx->peer_addr_ascii;
-    ctx->nas_address_ascii_len = strlen(ctx->peer_addr_ascii);
 }
 
-static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, sockaddr_union *nad_address)
+static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, sockaddr_union *device_addr)
 {
     fcntl(s, F_SETFD, FD_CLOEXEC);
     fcntl(s, F_SETFL, O_NONBLOCK);
 
-    sockaddr_union from = { 0 };
-    socklen_t from_len = (socklen_t) sizeof(from);
+    sockaddr_union peer = { 0 };
+    socklen_t peer_len = (socklen_t) sizeof(peer);
 
-    if (getpeername(s, &from.sa, &from_len)) {
+    if (getpeername(s, &peer.sa, &peer_len)) {
 	// error path
 	report(NULL, LOG_DEBUG, DEBUG_PACKET_FLAG, "getpeername: %s", strerror(errno));
 	io_close(common_data.io, s);
@@ -1170,18 +1168,21 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	return;
     }
 
-    char *peer = NULL;
-    char pfrom[256];
-    if (nad_address)
-	peer = su_ntop(&from, pfrom, sizeof(pfrom)) ? pfrom : "<unknown>";
-    else
-	nad_address = &from;
-
-    su_convert(nad_address, AF_INET);
-    struct in6_addr addr;
-    su_ptoh(nad_address, &addr);
-
     tac_realm *r = set_sd_realm(s, sd_ext);
+    struct context *ctx = new_context(common_data.io, r);
+
+    char *proxy_addr_ascii = NULL;
+    size_t proxy_addr_ascii_len = 0;
+    char buf[256];
+    if (device_addr) {		// proxied
+	proxy_addr_ascii = mem_strdup(ctx->mem, su_ntop(&peer, buf, sizeof(buf)) ? buf : "<unknown>");
+	proxy_addr_ascii_len = strlen(proxy_addr_ascii);
+    } else			// not proxied
+	device_addr = &peer;
+
+    su_convert(device_addr, AF_INET);
+    struct in6_addr addr;
+    su_ptoh(device_addr, &addr);
 
     tac_host *h = NULL;
     radixtree_t *rxt = lookup_hosttree(r);
@@ -1202,7 +1203,6 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	}
     }
 
-    struct context *ctx = new_context(common_data.io, r);
     ctx->sock = s;
     context_lru_append(ctx);
     ctx->use_tls = sd_ext->sd.use_tls ? BISTATE_YES : BISTATE_NO;
@@ -1215,23 +1215,38 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	    ctx->hint = "host unknown";
     }
 
-    char afrom[256];
-    ctx->peer_addr_ascii = mem_strdup(ctx->mem, su_ntop(nad_address, afrom, sizeof(afrom)) ? afrom : "<unknown>");
+    ctx->peer_addr_ascii = mem_strdup(ctx->mem, su_ntop(&peer, buf, sizeof(buf)) ? buf : "<unknown>");
     ctx->peer_addr_ascii_len = strlen(ctx->peer_addr_ascii);
-    ctx->host = h;
-    if (peer) {
-	ctx->proxy_addr_ascii = mem_strdup(ctx->mem, peer);
-	ctx->proxy_addr_ascii_len = strlen(peer);
-    }
+    snprintf(buf, sizeof(buf), "%u", su_get_port(&peer));
+    ctx->peer_port_ascii = mem_strdup(ctx->mem, buf);
+    ctx->peer_port_ascii_len = strlen(ctx->peer_port_ascii);
 
-    set_server_info(ctx, &addr, sd_ext);
+    ctx->proxy_addr_ascii = proxy_addr_ascii;
+    ctx->proxy_addr_ascii_len = proxy_addr_ascii_len;
+
+    ctx->device_addr = device_addr->sin6.sin6_addr;
+    if (device_addr == &peer) {
+	ctx->device_addr_ascii = ctx->peer_addr_ascii;
+	ctx->device_addr_ascii_len = ctx->peer_addr_ascii_len;
+	ctx->device_port_ascii = ctx->peer_port_ascii;
+	ctx->device_port_ascii_len = ctx->peer_port_ascii_len;
+    } else {
+	ctx->device_addr_ascii = mem_strdup(ctx->mem, su_ntop(device_addr, buf, sizeof(buf)) ? buf : "<unknown>");
+	ctx->device_addr_ascii_len = strlen(ctx->device_addr_ascii);
+	snprintf(buf, sizeof(buf), "%u", (short) su_get_port(device_addr));
+	ctx->device_port_ascii = mem_strdup(ctx->mem, buf);
+	ctx->device_port_ascii_len = strlen(ctx->device_port_ascii);
+    }
+    ctx->host = h;
+
+    set_ctx_info(ctx, sd_ext);
 
     complete_host_mavis(ctx);
 }
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1405,13 +1420,13 @@ static void accept_control_udp(int s __attribute__((unused)), struct scm_data_ac
 #ifdef AF_INET
     case AF_INET:
 	memcpy(&from.sin.sin_addr, &sd_ext->sd_udp.src, 4);
-	from.sin.sin_port = sd_ext->sd_udp.port;
+	from.sin.sin_port = htons(sd_ext->sd_udp.src_port);
 	break;
 #endif
 #ifdef AF_INET6
     case AF_INET6:
 	memcpy(&from.sin6.sin6_addr, &sd_ext->sd_udp.src, 16);
-	from.sin6.sin6_port = sd_ext->sd_udp.port;
+	from.sin6.sin6_port = htons(sd_ext->sd_udp.src_port);
 	break;
 #endif
     default:
@@ -1419,7 +1434,7 @@ static void accept_control_udp(int s __attribute__((unused)), struct scm_data_ac
     }
 
     su_convert(&from, AF_INET);
-    struct in6_addr addr;
+    struct in6_addr addr = { 0 };
     su_ptoh(&from, &addr);
 
     tac_realm *r = set_sd_realm(s, sd_ext);
@@ -1428,7 +1443,6 @@ static void accept_control_udp(int s __attribute__((unused)), struct scm_data_ac
     radixtree_t *rxt = lookup_hosttree(r);
     if (rxt)
 	h = radix_lookup(rxt, &addr, NULL);
-
     if (h) {
 	complete_host(h);
 
@@ -1453,23 +1467,39 @@ static void accept_control_udp(int s __attribute__((unused)), struct scm_data_ac
 	return;
     }
 
-    if (h) {
-	if (!h->radius_key)
-	    ctx->hint = "no encryption key found";
-    } else
-	ctx->hint = "host unknown";
-
-    char afrom[256];
-    ctx->peer_addr_ascii = mem_strdup(ctx->mem, su_ntop(&from, afrom, sizeof(afrom)) ? afrom : "<unknown>");
+    char buf[256];
+    ctx->peer_addr_ascii = mem_strdup(ctx->mem, su_ntop(&from, buf, sizeof(buf)) ? buf : "<unknown>");
     ctx->peer_addr_ascii_len = strlen(ctx->peer_addr_ascii);
-    ctx->host = h;
 
-    set_server_info(ctx, &addr, sd_ext);
+    snprintf(buf, 10, "%u", 0xffff & sd_ext->sd_udp.src_port);
+    ctx->peer_port_ascii = mem_strdup(ctx->mem, buf);
+    ctx->peer_port_ascii_len = strlen(buf);
+
+    snprintf(buf, 10, "%u", 0xffff & sd_ext->sd_udp.dst_port);
+    ctx->server_port_ascii = mem_strdup(ctx->mem, buf);
+    ctx->server_port_ascii_len = strlen(buf);
+
+    set_ctx_info(ctx, sd_ext);
+
+    if (h) {
+	if (!h->radius_key) {
+	    ctx->hint = "no encryption key found";
+	    reject_conn(ctx, ctx->hint, NULL, __LINE__);
+	    return;
+	}
+    } else {
+	ctx->hint = "host unknown";
+	reject_conn(ctx, ctx->hint, NULL, __LINE__);
+	return;
+    }
+
+    ctx->host = h;
 
     ctx->radius_data = mem_alloc(ctx->mem, sizeof(struct radius_data));
     ctx->radius_data->pak_in = mem_copy(ctx->mem, data, data_len);
     ctx->radius_data->pak_in_len = data_len;
-    ctx->radius_data->port = sd_ext->sd_udp.port;
+    ctx->radius_data->src_port = sd_ext->sd_udp.src_port;
+    ctx->radius_data->dst_port = sd_ext->sd_udp.dst_port;
     ctx->radius_data->protocol = sd_ext->sd_udp.protocol;
     ctx->radius_data->sock = sd_ext->sd_udp.sock;
     memcpy(&ctx->radius_data->src, &sd_ext->sd_udp.src, 16);

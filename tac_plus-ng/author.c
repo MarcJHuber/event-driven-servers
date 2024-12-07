@@ -121,11 +121,11 @@ void author(tac_session *session, tac_pak_hdr *hdr)
     session->username_len = (size_t) pak->user_len;
     session->username = mem_strndup(session->mem, p, session->username_len);
     p += pak->user_len;
-    session->nas_port = mem_strndup(session->mem, p, (size_t) pak->port_len);
-    session->nas_port_len = pak->port_len;
+    session->port = mem_strndup(session->mem, p, (size_t) pak->port_len);
+    session->port_len = pak->port_len;
     p += pak->port_len;
-    session->nac_address_ascii = mem_strndup(session->mem, p, (size_t) pak->rem_addr_len);
-    session->nac_address_ascii_len = (size_t) pak->rem_addr_len;
+    session->nac_addr_ascii = mem_strndup(session->mem, p, (size_t) pak->rem_addr_len);
+    session->nac_addr_ascii_len = (size_t) pak->rem_addr_len;
     p += pak->rem_addr_len;
 
     session->argp = p;
@@ -135,8 +135,8 @@ void author(tac_session *session, tac_pak_hdr *hdr)
     session->priv_lvl = pak->priv_lvl;
     session->privlvl_len = snprintf(session->privlvl, sizeof(session->privlvl), "%u", session->priv_lvl);
 
-    session->nac_address_valid = v6_ptoh(&session->nac_address, NULL, session->nac_address_ascii) ? 0 : 1;
-    if (session->nac_address_valid)
+    session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii) ? 0 : 1;
+    if (session->nac_addr_valid)
 	get_revmap_nac(session);
 
     data = mem_alloc(session->mem, sizeof(struct author_data));
@@ -199,7 +199,7 @@ static int bad_nas_args(tac_session *session, struct author_data *data)
 		snprintf(buf, sizeof(buf), "Illegal arg from NAS: %s", data->in_args[i]);
 		data->status = TAC_PLUS_AUTHOR_STATUS_ERROR;
 		data->admin_msg = mem_strdup(session->mem, buf);
-		report(session, LOG_ERR, ~0, "%s: %s", session->ctx->nas_address_ascii, buf);
+		report(session, LOG_ERR, ~0, "%s: %s", session->ctx->device_addr_ascii, buf);
 		return -1;
 	    }
 	}
@@ -328,14 +328,14 @@ static void do_author(tac_session *session)
     switch (res) {
     case S_deny:
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG,
-	       "%s@%s: svcname=%s protocol=%s denied", session->username, session->ctx->nas_address_ascii, session->service ? session->service : "",
+	       "%s@%s: svcname=%s protocol=%s denied", session->username, session->ctx->device_addr_ascii, session->service ? session->service : "",
 	       session->protocol ? session->protocol : "");
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
 	return;
     default:
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG,
 	       "%s@%s: svcname=%s protocol=%s not found",
-	       session->username, session->ctx->nas_address_ascii, session->service ? session->service : "", session->protocol ? session->protocol : "");
+	       session->username, session->ctx->device_addr_ascii, session->service ? session->service : "", session->protocol ? session->protocol : "");
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
 	return;
     case S_permit:
