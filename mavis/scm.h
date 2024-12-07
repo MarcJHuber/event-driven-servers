@@ -34,8 +34,11 @@ struct scm_data_udp {
     enum scm_token type;
     u_char protocol;		// AF_INET, AF_INET6
     u_char src[16];
-    short port;
-    int sock;			// actually interited from spawnd via fork() -- for spawnd/udp: remember to set SO_REUSEPORT
+    struct {
+	short src_port;		// host byte order
+	short dst_port;		// host byte order
+    } __attribute__((packed));
+    int sock;			// inherited from spawnd
     char realm[SCM_REALM_SIZE];
     short data_len;
     u_char data[] __attribute__((aligned(8)));

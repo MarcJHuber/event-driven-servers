@@ -90,6 +90,7 @@ struct spawnd_context {
     u_int haproxy:1;		/* server only */
     int socktype;		/* SOCK_STREAM, SOCK_SEQPACKET */
     int protocol;		/* IPROTO_IP (default)/_TCP/_SCTP */
+    short port;			/* tcp/udp port in network byte order */
     int listen_backlog;
     int overload_backlog;
     struct timeval tv;		/* server only */

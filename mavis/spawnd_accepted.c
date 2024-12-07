@@ -121,8 +121,8 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 {
     int s = -1, i, min, min_i, res, flags;
     int one = 1;
-    sockaddr_union sin;
-    socklen_t sinlen = (socklen_t) sizeof(sin);
+    sockaddr_union sa;
+    socklen_t sa_len = (socklen_t) sizeof(sa);
     int iteration_cur = 0;
     struct in6_addr addr;
     struct scm_data_accept *sd = NULL;
@@ -132,7 +132,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 
     if (ctx->socktype == SOCK_DGRAM) {
 	char buf[4096];
-	ssize_t len = recvfrom(cur, &buf, sizeof(buf), 0, &sin.sa, &sinlen);
+	ssize_t len = recvfrom(cur, &buf, sizeof(buf), 0, &sa.sa, &sa_len);
 	if (len < 1) {
 	    DebugOut(DEBUG_NET);
 	    return;
@@ -143,27 +143,27 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	sd_udp->sock = cur;
 	sd_udp->type = SCM_UDPDATA;
 	memcpy(sd_udp->realm, ctx->tag, SCM_REALM_SIZE);
-	sd_udp->protocol = sin.sa.sa_family;
-	switch (sin.sa.sa_family) {
+	sd_udp->protocol = sa.sa.sa_family;
+	switch (sa.sa.sa_family) {
 #ifdef AF_INET
 	case AF_INET:
-	    memcpy(&sd_udp->src, &sin.sin.sin_addr, 4);
-	    sd_udp->port = sin.sin.sin_port;
+	    memcpy(&sd_udp->src, &sa.sin.sin_addr, 4);
+	    sd_udp->src_port = ntohs(sa.sin.sin_port);
 	    break;
 #endif
 #ifdef AF_INET6
 	case AF_INET6:
-	    memcpy(&sd_udp->src, &sin.sin6.sin6_addr, 16);
-	    sd_udp->port = sin.sin6.sin6_port;
+	    memcpy(&sd_udp->src, &sa.sin6.sin6_addr, 16);
+	    sd_udp->src_port = ntohs(sa.sin6.sin6_port);
 	    break;
 #endif
 	default:
 	    DebugOut(DEBUG_NET);
 	    return;
 	}
+	sd_udp->dst_port = ctx->port;
     } else {
-
-	s = accept(cur, &sin.sa, &sinlen);
+	s = accept(cur, &sa.sa, &sa_len);
 	if (s < 0) {
 	    if (errno != EAGAIN)
 		logerr("accept (%s:%d)", __FILE__, __LINE__);
@@ -177,11 +177,11 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	    return;
 	}
 
-	if (!spawnd_acl_check(&sin)) {
+	if (!spawnd_acl_check(&sa)) {
 	    char buf[INET6_ADDRSTRLEN];
 	    close(s);
 	    if (errno != EAGAIN)
-		logerr("connection attempt from [%s] rejected", su_ntop(&sin, buf, (socklen_t) sizeof(buf)));
+		logerr("connection attempt from [%s] rejected", su_ntop(&sa, buf, (socklen_t) sizeof(buf)));
 	    DebugOut(DEBUG_NET);
 	    return;
 	}
@@ -222,7 +222,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
     if (!common_data.singleprocess)
 	while (common_data.servers_cur < common_data.servers_min)
 	    spawnd_add_child();
-    su_ptoh(&sin, &addr);
+    su_ptoh(&sa, &addr);
 
     if (common_data.singleprocess)
 	common_data.scm_send_msg(-1, sd ? (struct scm_data *) sd : (struct scm_data *) sd_udp, s);
