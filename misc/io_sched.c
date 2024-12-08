@@ -885,11 +885,12 @@ static void epoll_io_unregister(struct io_context *io __attribute__((unused)), i
 	io->Epoll.diskfile[io->Epoll.diskfilemap[io->Epoll.ndiskfile]] = io->Epoll.diskfile[fd];
 	io->Epoll.diskfile[fd] = -1;
     }
+    struct epoll_event e = { .data.fd = fd };
+    epoll_ctl(io->Epoll.fd, EPOLL_CTL_DEL, fd, &e);
 }
 
 static void epoll_io_register(struct io_context *io, int fd)
 {
-    struct epoll_event e;
     Debug((DEBUG_PROC, " io_register %d\n", fd));
 
     if (fd >= io->nfds_max) {
@@ -908,8 +909,7 @@ static void epoll_io_register(struct io_context *io, int fd)
 	}
     }
 
-    e.data.fd = fd;
-    e.events = 0;
+    struct epoll_event e = { .data.fd = fd };
     if (-1 == epoll_ctl(io->Epoll.fd, EPOLL_CTL_ADD, fd, &e)
 	&& errno == EPERM)
 	io->Epoll.diskfile[fd] = -2;
