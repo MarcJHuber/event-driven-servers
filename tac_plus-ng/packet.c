@@ -546,6 +546,7 @@ void tac_read(struct context *ctx, int cur)
     // auto-detect radsec
     if (ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
 	if (!ctx->tls && !(common_data.debug & DEBUG_TACTRACE_FLAG)) {
+	    // plain non-standard RADIUS-over-TCP
 	    cleanup(ctx, cur);
 	    return;
 	}
@@ -554,6 +555,14 @@ void tac_read(struct context *ctx, int cur)
 	    return;
 	}
 	ctx->aaa_protocol = S_radsec;
+	static struct tac_key *key_radsec = NULL;
+	if (!key_radsec) {
+	    key_radsec = calloc(1, sizeof(struct tac_key) + 6);
+	    key_radsec->len = 6;
+	    strcpy(key_radsec->key, "radsec");
+	}
+	ctx->radius_key = key_radsec;
+
 	io_set_cb_i(ctx->io, ctx->sock, (void *) rad_read);
 	return;
     }
@@ -812,7 +821,8 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 		 ma_calculated, &ma_calculated_len);
 	    memcpy(message_authenticator, ma_original, 16);
 	    if (!memcmp(ma_original, ma_calculated, 16)) {
-		report(NULL, LOG_INFO, ~0, "%s uses deprecated radius key (line %d)", ctx->device_addr_ascii, ctx->radius_key->line);
+		if (ctx->radius_key->warn)
+		    report(NULL, LOG_INFO, ~0, "%s uses deprecated radius key (line %d)", ctx->device_addr_ascii, ctx->radius_key->line);
 		return 0;
 	    }
 	}

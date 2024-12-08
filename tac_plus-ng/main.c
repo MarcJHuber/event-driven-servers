@@ -1266,15 +1266,7 @@ static void complete_host_mavis(struct context *ctx)
 	return;
     }
 
-    if (ctx->aaa_protocol == S_radsec) {
-	static struct tac_key *key_radsec = NULL;
-	if (!key_radsec) {
-	    key_radsec = calloc(1, sizeof(struct tac_key) + 6);
-	    key_radsec->len = 6;
-	    strcpy(key_radsec->key, "radsec");
-	}
-	ctx->key = key_radsec;
-    } else if (ctx->host)
+    if (ctx->host)
 	ctx->key = ctx->host->key;
 
     io_register(ctx->io, ctx->sock, ctx);
