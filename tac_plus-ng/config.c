@@ -1326,7 +1326,6 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 
 void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, size_t *buf_len, struct rad_dict *dict, char *separator, size_t separator_len)
 {
-    int add_separator = 0;
     char *buf_start = NULL;
     if (!dict)
 	dict = rad_dict_lookup_by_id(-1);
@@ -1337,13 +1336,15 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
     }
 
     u_char *data_end = data + data_len;
+    char *buf_last = *buf;
 
     while (data < data_end) {
-	if (add_separator && separator) {
+	if (separator && (*buf != buf_last)) {
 	    if (*buf_len > separator_len) {
 		memcpy(*buf, separator, separator_len);
 		*buf += separator_len;
 		*buf_len -= separator_len;
+		buf_last = *buf;
 	    }
 	}
 	u_char *d_start = data;
@@ -1358,12 +1359,11 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 	    }
 	}
 
-	if (dict->id != -1 || *d_start != RADIUS_A_MESSAGE_AUTHENTICATOR) {
+	if (dict->id != -1 || (*d_start != RADIUS_A_MESSAGE_AUTHENTICATOR && *d_start != RADIUS_A_USER_PASSWORD)) {
 	    if (cur_dict)
 		rad_attr_val_dump_helper(d_start, d_len, buf, buf_len, cur_dict);
 	    else
 		rad_attr_val_dump_hex(d_start, d_len, buf, buf_len);
-	    add_separator = 1;
 	}
 	data += data[1];
 
