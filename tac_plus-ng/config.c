@@ -1295,6 +1295,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		    return;
 		sockaddr_union from = { 0 };
 		from.sin.sin_family = AF_INET;
+		memcpy(&from.sin.sin_addr, data + 2, 4);
 		if (su_ntop(&from, *buf, *buf_len)) {
 		    int len = strlen(*buf);
 		    *buf += len;
@@ -1307,6 +1308,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		    return;
 		sockaddr_union from = { 0 };
 		from.sin.sin_family = AF_INET6;
+		memcpy(&from.sin6.sin6_addr, data + 2, 16);
 		if (su_ntop(&from, *buf, *buf_len)) {
 		    int len = strlen(*buf);
 		    *buf += len;
