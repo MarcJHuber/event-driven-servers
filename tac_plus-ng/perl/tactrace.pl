@@ -1,9 +1,10 @@
-#!/usr/bin/perl -X
+#!/usr/bin/perl -w
 #
 # tactrace.pl
 # (C) 2022-2023 by Marc Huber <Marc.Huber@web.de>
 #
 
+use strict;
 use POSIX;
 use Socket;
 use Net::IP;
@@ -34,7 +35,8 @@ our $authenservice = "login";
 our $exec = "/usr/local/sbin/tac_plus-ng";
 our $conf = "/usr/local/etc/tac_plus-ng.cfg";
 our $id = "tac_plus-ng";
-our @args = ( "service=shell", "cmd*" );
+our @args;
+our $raddict = undef;
 our $radsec = undef;
 our $debug = undef;
 our $debug_wait = "0";
@@ -126,6 +128,10 @@ GetOptions (
 ) or help();
 
 @args = @ARGV if $#ARGV > -1;
+if ($#args< 0 && !defined($radsec)) {
+	@args = ( "service=shell", "cmd*" );
+}
+
 
 die "Can't access $conf" unless -r "$conf";
 
@@ -185,25 +191,31 @@ if (defined $radsec) {
 	my $type = ACCESS_REQUEST;
 	$type = ACCOUNTING_REQUEST if $mode eq "acct";
 	my ($request, $req_id, $authenticator);
+	my @av_list;
+	if ($mode eq "acct") {
+		@av_list = (
+			{ Name => 'User-Name', Value => $username},
+		);
+	} else {
+		@av_list = (
+			{ Name => 'Message-Authenticator', Value => '' },
+			{ Name => 'User-Name', Value => $username},
+			{ Name => $dictionary->attribute('Password') ? 'Password' : 'User-Password', Value => $password},
+		);
+	}
+	foreach my $arg (@args) {
+		my ($n, $v) = split(/=/, $arg, 2);
+		push(@av_list, { Name => $n, Value => $v });
+	}
 	if ($mode eq "acct") {
 		($request, $req_id, $authenticator) = $packet->build(
 			type => $type,
-			av_list => [
-				{ Name => 'User-Name', Value => $username},
-				{ Name => 'NAS-Port-Type', Value => 5},
-				{ Name => 'NAS-Port-Type', Value => 50},
-			],
+			av_list => \@av_list
 		);
 	} else {
-		 ($request, $req_id, $authenticator) = $packet->build(
+		($request, $req_id, $authenticator) = $packet->build(
 			type => $type,
-			av_list => [
-				{ Name => 'Message-Authenticator', Value => '' },
-				{ Name => 'User-Name', Value => $username},
-				{ Name => $dictionary->attribute('Password') ? 'Password' : 'User-Password', Value => $password},
-				{ Name => 'Calling-Station-Id', Value => "123.123.123.123"},
-				{ Name => 'Framed-IP-Address', Value => "123.123.123.123"},
-			],
+			av_list => \@av_list
 		);
 	}
 	$raw = $request;
