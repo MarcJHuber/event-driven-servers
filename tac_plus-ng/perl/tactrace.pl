@@ -194,6 +194,7 @@ if (defined $radsec) {
 	my @av_list;
 	if ($mode eq "acct") {
 		@av_list = (
+			{ Name => 'Message-Authenticator', Value => '' },
 			{ Name => 'User-Name', Value => $username},
 		);
 	} else {
