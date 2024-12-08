@@ -1243,8 +1243,8 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 	*(*buf)++ = ':';
 	*buf_len -= 1;
     }
-
     struct rad_dict_attr *attr = rad_dict_attr_lookup_by_id(dict, *data);
+
     if (attr) {
 	if (*buf_len > attr->name_len + 2) {
 	    memcpy(*buf, attr->name, attr->name_len);
@@ -1357,14 +1357,16 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 		d_len = data[1] - 6;
 	    }
 	}
-	if (cur_dict)
-	    rad_attr_val_dump_helper(d_start, d_len, buf, buf_len, cur_dict);
-	else
-	    rad_attr_val_dump_hex(d_start, d_len, buf, buf_len);
 
+	if (dict->id != -1 || *d_start != RADIUS_A_MESSAGE_AUTHENTICATOR) {
+	    if (cur_dict)
+		rad_attr_val_dump_helper(d_start, d_len, buf, buf_len, cur_dict);
+	    else
+		rad_attr_val_dump_hex(d_start, d_len, buf, buf_len);
+	    add_separator = 1;
+	}
 	data += data[1];
 
-	add_separator = 1;
     }
     *(*buf) = 0;
     if (buf_start) {
