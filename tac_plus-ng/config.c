@@ -193,6 +193,23 @@ static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t 
 static SSL_CTX *ssl_init(char *, char *, char *, char *);
 #endif
 
+static char *confdir_strdup(char *in)
+{
+#define S "$CONFDIR/"
+    if (strncmp(in, S, sizeof(S) - 1) || !common_data.conffile)
+	return strdup(in);
+    size_t in_len = strlen(in);
+    size_t cd_len = strlen(common_data.conffile);
+    char *b = alloca(in_len + cd_len);
+    strcpy(b, common_data.conffile);
+    char *r = strrchr(b, '/');
+    if (r)
+	*r = 0;
+    strcpy(b + strlen(b), in + sizeof(S) - 2);
+    return strdup(b);
+#undef S
+}
+
 void complete_realm(tac_realm *r)
 {
     if (r->parent && !r->complete) {
@@ -709,10 +726,14 @@ static void parse_etc_hosts(char *url, tac_realm *r)
 
     char *buf;
     int bufsize;
-    if (cfg_open_and_read(url, &buf, &bufsize)) {
+
+    char *filename = confdir_strdup(url);
+    if (cfg_open_and_read(filename, &buf, &bufsize)) {
+	free(filename);
 	report_cfg_error(LOG_ERR, ~0, "Couldn't open %s: %s", url, strerror(errno));
 	return;
     }
+    free(filename);
 
     sym.tlen = sym.len = bufsize;
     sym.tin = sym.in = buf;
@@ -2034,19 +2055,19 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    case S_cert_file:
 		sym_get(sym);
 		parse(sym, S_equal);
-		r->tls_cert = strdup(sym->buf);
+		r->tls_cert = confdir_strdup(sym->buf);
 		sym_get(sym);
 		continue;
 	    case S_key_file:
 		sym_get(sym);
 		parse(sym, S_equal);
-		r->tls_key = strdup(sym->buf);
+		r->tls_key = confdir_strdup(sym->buf);
 		sym_get(sym);
 		continue;
 	    case S_cafile:
 		sym_get(sym);
 		parse(sym, S_equal);
-		r->tls_cafile = strdup(sym->buf);
+		r->tls_cafile = confdir_strdup(sym->buf);
 		sym_get(sym);
 		continue;
 	    case S_passphrase:
