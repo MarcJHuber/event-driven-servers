@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl -X
 #
 # tactrace.pl
 # (C) 2022-2023 by Marc Huber <Marc.Huber@web.de>
@@ -200,8 +200,7 @@ if (defined $radsec) {
 			av_list => [
 				{ Name => 'Message-Authenticator', Value => '' },
 				{ Name => 'User-Name', Value => $username},
-#				{ Name => 'User-Password', Value => $password },
-				{ Name => 'Password', Value => $password},
+				{ Name => $dictionary->attribute('Password') ? 'Password' : 'User-Password', Value => $password},
 				{ Name => 'Calling-Station-Id', Value => "123.123.123.123"},
 				{ Name => 'Framed-IP-Address', Value => "123.123.123.123"},
 			],
