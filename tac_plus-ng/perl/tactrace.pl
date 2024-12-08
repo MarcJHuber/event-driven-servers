@@ -37,6 +37,7 @@ our $id = "tac_plus-ng";
 our @args = ( "service=shell", "cmd*" );
 our $radsec = undef;
 our $debug = undef;
+our $debug_wait = "0";
 our $valgrind = undef;
 
 sub help {
@@ -67,6 +68,7 @@ Options:
   --conf=<config>	configuration file [$conf]
   --id=<id>		id for configuration selection [$id]
   --radsec		testin uing RADSEC instead of TACACS+
+  --radius-dict=<file>	radius dictionary to use
 
 For authc the password can be set either via the environment variable
 TACTRACEPASSWORD or the defaults file. Setting it via a CLI option isn't
@@ -101,7 +103,6 @@ sub read_defaults {
 
 GetOptions (
 	"help"		=> \&help,
-	"debug"		=> \$debug,
 	"defaults=s"	=> \&read_defaults,
 	"mode=s"	=> \$mode,
 	"username=s"	=> \$username,
@@ -119,6 +120,8 @@ GetOptions (
 	"id=s"		=> \$id,
 	"radsec"	=> \$radsec,
 	"radius-dict=s"	=> \$raddict,
+	"debug"		=> \$debug,
+	"debug-wait=s"	=> \$debug_wait,
 	"valgrind"	=> \$valgrind,
 ) or help();
 
@@ -142,13 +145,14 @@ $sock0->autoflush(1);
 $sock1->autoflush(1);
 my $pid = fork();
 die "fork: $!" if $pid < 0;
+my $debugopts = "802";
+$debugopts = "-1" if $debug;
 if ($pid == 0) {
 	close $sock0;
 	POSIX::dup2 (fileno $sock1, 0) or die "POSIX::dup2: $!";
 	close $sock1;
-	exec("/usr/bin/valgrind", $exec, "-d", "802", "-d", "4194304", $conf, $id) if defined $valgrind;
-	exec($exec, "-d", "802", "-d", "4194304", $conf, $id);
-#	exec($exec, "-d", "802", "-d", "4194304", "-d", "-1", $conf, $id);
+	exec("/usr/bin/valgrind", $exec, "-d", $debugopts, "-d", "4194304", $conf, $id) if defined $valgrind;
+	exec($exec, "-d", $debugopts, "-d", "4194304", $conf, $id);
 	die "exec: $!";;
 }
 close $sock1;
@@ -199,6 +203,7 @@ if (defined $radsec) {
 #				{ Name => 'User-Password', Value => $password },
 				{ Name => 'Password', Value => $password},
 				{ Name => 'Calling-Station-Id', Value => "123.123.123.123"},
+				{ Name => 'Framed-IP-Address', Value => "123.123.123.123"},
 			],
 		);
 	}
@@ -232,7 +237,7 @@ $SIG{CHLD} = sub {
 
 if (defined $debug) {
 	printf "sudo gdb -p $pid\n";
-	sleep 10;
+	sleep $debug_wait;
 }
 
 #print HexDump($raw);
