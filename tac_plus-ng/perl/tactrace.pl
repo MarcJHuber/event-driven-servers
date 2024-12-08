@@ -190,35 +190,20 @@ if (defined $radsec) {
 	my $packet = Data::Radius::Packet->new(secret => "radsec", dict => $dictionary);
 	my $type = ACCESS_REQUEST;
 	$type = ACCOUNTING_REQUEST if $mode eq "acct";
-	my ($request, $req_id, $authenticator);
-	my @av_list;
-	if ($mode eq "acct") {
-		@av_list = (
-			{ Name => 'Message-Authenticator', Value => '' },
-			{ Name => 'User-Name', Value => $username},
-		);
-	} else {
-		@av_list = (
-			{ Name => 'Message-Authenticator', Value => '' },
-			{ Name => 'User-Name', Value => $username},
-			{ Name => $dictionary->attribute('Password') ? 'Password' : 'User-Password', Value => $password},
-		);
-	}
+	my @av_list = (
+		{ Name => 'Message-Authenticator', Value => '' },
+		{ Name => 'User-Name', Value => $username},
+	);
 	foreach my $arg (@args) {
 		my ($n, $v) = split(/=/, $arg, 2);
 		push(@av_list, { Name => $n, Value => $v });
 	}
-	if ($mode eq "acct") {
-		($request, $req_id, $authenticator) = $packet->build(
-			type => $type,
-			av_list => \@av_list
-		);
-	} else {
-		($request, $req_id, $authenticator) = $packet->build(
-			type => $type,
-			av_list => \@av_list
-		);
-	}
+	push(@av_list, { Name => $dictionary->attribute('Password') ? 'Password' : 'User-Password', Value => $password}) if ($mode ne "acct");
+
+	my ($request, $req_id, $authenticator) = $packet->build(
+		type => $type,
+		av_list => \@av_list
+	);
 	$raw = $request;
 } else {
 	# create a TACACS+ $mode packet and send it to tac_plus-ng:
