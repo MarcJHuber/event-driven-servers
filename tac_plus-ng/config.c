@@ -234,6 +234,7 @@ void complete_realm(tac_realm *r)
 	RS(haproxy_autodetect, TRISTATE_DUNNO);
 	RS(default_host->authfallback, TRISTATE_DUNNO);
 	RS(allowed_protocol_radius, TRISTATE_DUNNO);
+	RS(allowed_protocol_radius_tcp, TRISTATE_DUNNO);
 	RS(allowed_protocol_radsec, TRISTATE_DUNNO);
 	RS(allowed_protocol_tacacs, TRISTATE_DUNNO);
 	RS(allowed_protocol_tacacss, TRISTATE_DUNNO);
@@ -473,6 +474,7 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
 	r->warning_period = 14 * 86400;
 	r->backend_failure_period = 60;
 	r->allowed_protocol_radius = TRISTATE_YES;
+	r->allowed_protocol_radius_tcp = TRISTATE_NO;
 	r->allowed_protocol_radsec = TRISTATE_YES;
 	r->allowed_protocol_tacacs = TRISTATE_YES;;
 	r->allowed_protocol_tacacss = TRISTATE_YES;
@@ -2166,6 +2168,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    sym_get(sym);
 	    parse(sym, S_equal);
 	    r->allowed_protocol_radius = TRISTATE_NO;
+	    r->allowed_protocol_radius_tcp = TRISTATE_NO;
 	    r->allowed_protocol_radsec = TRISTATE_NO;
 	    r->allowed_protocol_tacacs = TRISTATE_NO;
 	    r->allowed_protocol_tacacss = TRISTATE_NO;
@@ -2173,6 +2176,9 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		switch (sym->code) {
 		case S_radius:
 		    r->allowed_protocol_radius = TRISTATE_YES;
+		    break;
+		case S_radius_tcp:
+		    r->allowed_protocol_radius_tcp = TRISTATE_YES;
 		    break;
 		case S_radsec:
 		    r->allowed_protocol_radsec = TRISTATE_YES;
@@ -2184,7 +2190,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    r->allowed_protocol_tacacss = TRISTATE_YES;
 		    break;
 		default:
-		    parse_error_expect(sym, S_radius, S_radsec, S_tacacs, S_tacacss, S_unknown);
+		    parse_error_expect(sym, S_radius, S_radius_tcp, S_radsec, S_tacacs, S_tacacss, S_unknown);
 		}
 		sym_get(sym);
 	    } while (parse_comma(sym));
@@ -4441,6 +4447,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		m->type = S_aaa_protocol;
 		switch (sym->code) {
 		case S_radius:
+		case S_radius_tcp:
 		case S_radsec:
 		case S_tacacs:
 		case S_tacacss:

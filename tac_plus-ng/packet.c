@@ -542,11 +542,10 @@ void tac_read(struct context *ctx, int cur)
 	ctx->hdroff += len;
 	min_len = 0;
     }
-#if defined(WITH_SSL) || defined(WITH_SSL)
+#if defined(WITH_SSL)
     // auto-detect radsec
     if (ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
-	if (!ctx->tls && !(common_data.debug & DEBUG_TACTRACE_FLAG)) {
-	    // plain non-standard RADIUS-over-TCP
+	if (!ctx->tls && !(common_data.debug & DEBUG_TACTRACE_FLAG) && (ctx->realm->allowed_protocol_radius_tcp != TRISTATE_YES)) {
 	    cleanup(ctx, cur);
 	    return;
 	}
@@ -570,7 +569,7 @@ void tac_read(struct context *ctx, int cur)
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
 	return;
 
-#if defined(WITH_SSL) || defined(WITH_SSL)
+#if defined(WITH_SSL)
     if (!ctx->tls && (ctx->realm->allowed_protocol_tacacs != TRISTATE_YES)) {
 	cleanup(ctx, cur);
 	return;

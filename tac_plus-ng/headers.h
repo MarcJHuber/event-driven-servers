@@ -366,6 +366,7 @@ struct realm {
      TRISTATE(haproxy_autodetect);
 
      TRISTATE(allowed_protocol_radius);
+     TRISTATE(allowed_protocol_radius_tcp);
      TRISTATE(allowed_protocol_radsec);
      TRISTATE(allowed_protocol_tacacs);
      TRISTATE(allowed_protocol_tacacss);

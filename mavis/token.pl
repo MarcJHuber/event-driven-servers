@@ -544,6 +544,7 @@ aaa.protocol.allowed		S_aaa_protocol_allowed
 tacacs				S_tacacs
 tacacss				S_tacacss
 radsec				S_radsec
+radius-tcp			S_radius_tcp
 #
 conn.protocol			S_conn_protocol
 #
