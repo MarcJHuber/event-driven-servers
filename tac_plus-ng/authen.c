@@ -554,10 +554,13 @@ static void set_pwdat(tac_session *session, struct pwdat **pwdat, enum pw_ix *pw
     if (session->user) {
 	if (!session->user->fallback_only && (session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period > io_now.tv_sec)
 	    && session->ctx->host->authfallback == TRISTATE_YES) {
-	    if (*pw_ix == PW_LOGIN)
+	    if (*pw_ix == PW_LOGIN) {
 		*pw_ix = PW_LOGIN_FALLBACK;
-	    else if (*pw_ix == PW_PAP)
+		session->mavisauth_res = 0;
+	    } else if (*pw_ix == PW_PAP) {
 		*pw_ix = PW_PAP_FALLBACK;
+		session->mavisauth_res = 0;
+	    }
 	}
 
 	*pwdat = session->user->passwd[*pw_ix];
@@ -791,6 +794,8 @@ static void do_enable_login(tac_session *session)
     if (query_mavis_auth_login(session, do_enable_login, pw_ix))
 	return;
 
+    set_pwdat(session, &pwdat, &pw_ix);
+
     res = check_access(session, pwdat, session->password, &hint, &resp);
 
     report_auth(session, buf, hint, res);
@@ -847,6 +852,8 @@ static void do_enable_augmented(tac_session *session)
     if (session->username[0]) {
 	if (query_mavis_auth_login(session, do_enable_augmented, pw_ix))
 	    return;
+
+	set_pwdat(session, &pwdat, &pw_ix);
 
 	cfg_get_enable(session, &session->enable);
 
@@ -989,6 +996,8 @@ static void do_ascii_login(tac_session *session)
 
     if (query_mavis_auth_login(session, do_ascii_login, pw_ix))
 	return;
+
+    set_pwdat(session, &pwdat, &pw_ix);
 
     if (session->user && session->password && session->password_bad && !strcmp(session->password, session->password_bad)) {
 	/* Safeguard against router-initiated login retries. Stops
@@ -1170,6 +1179,8 @@ static void do_enable_getuser(tac_session *session)
 
     if (query_mavis_auth_login(session, do_enable_getuser, pw_ix))
 	return;
+
+    set_pwdat(session, &pwdat, &pw_ix);
 
     res = check_access(session, pwdat, session->password, &hint, &resp);
     mem_free(session->mem, &session->challenge);
@@ -1441,6 +1452,8 @@ static void do_login(tac_session *session)
 
     if (query_mavis_auth_login(session, do_login, pw_ix))
 	return;
+
+    set_pwdat(session, &pwdat, &pw_ix);
 
     res = check_access(session, pwdat, session->password, &hint, &resp);
 
