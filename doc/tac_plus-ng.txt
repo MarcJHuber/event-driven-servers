@@ -36,26 +36,35 @@ Marc Huber
               4.3.6. Experimental Backends
               4.3.7. Error Handling
 
-   5. Debugging
+   5. RADIUS
 
-        5.1. Debugging Configuration Files
-        5.2. Trace Options
+        5.1. Accepting RADIUS Queries
+        5.2. RADIUS Dictionary
+        5.3. RADIUS Rule Set
+        5.4. RADIUS Logging
+        5.5. RADIUS Example Configurations
 
-   6. Frequently Asked Questions
-   7. Multi-tenant setups
+   6. Debugging
 
-        7.1. AD, Realms and Tenants
+        6.1. Debugging Configuration Files
+        6.2. Trace Options
 
-   8. AAA rule tracing
-   9. Bugs
-   10. References
-   11. Copyrights and Acknowledgements
+   7. Frequently Asked Questions
+   8. Multi-tenant setups
+
+        8.1. AD, Realms and Tenants
+
+   9. AAA rule tracing
+   10. Bugs
+   11. References
+   12. Copyrights and Acknowledgements
 
 1. Introduction
 
-   tac_plus-ng is a TACACS+ daemon. It provides networking
-   components like routers and switches with authentication,
-   authorisation and accounting services.
+   tac_plus-ng is mostly a TACACS+ daemon, but comes with limited
+   RADIUS support, too.. It provides networking components like
+   routers and switches with authentication, authorisation and
+   accounting services.
 
    This version is a major rewrite of the original public Cisco
    source code and is in turn largely based on tac_plus, which
@@ -79,6 +88,8 @@ Marc Huber
      * Supports Linux VRFs
      * Supports (non-standard) SSH Public Key Authentication (see
        the Wiki for reference)
+     * Implements and auto-detects legacy RADIUS and
+       RADSEC-over-TCP (both with PAP authentication only).
      __________________________________________________________
 
 1.1. Download
@@ -98,9 +109,8 @@ Marc Huber
    Client or NAC A Network Access Client, e.g. the source device
    of a ssh (or telnet) connection.
    Device or NAS or NAD A Network Access Server or Device, e.g. a
-   Cisco box, or any other client which makes TACACS+
-   authentication and authorization requests, or generates TACACS+
-   accounting packets.
+   Cisco box, or any other client which makes TACACS+ or RADIUS
+   requests or generates accounting packets.
    Daemon A program which services network requests for
    authentication and authorization, verifies identities, grants
    or denies authorizations, and logs accounting records.
@@ -642,6 +652,10 @@ realm realmName { ... }
   accounting log = log_destination
      * Connections
   connection log = log_destination
+     * RADIUS Authentication
+  radius-acccess log = log_destination
+     * RADIUS Accounting
+  radius.accounting log = log_destination
 
    Logs may be written to multiple destinations:
 
@@ -697,20 +711,20 @@ syslog default = deny
    ${rargs}, ${rargs,separator} output attribute value pairs,
    separated by whitespace or separator
    ${device.address}, ${nas} [deprecated] Device IP address
+   ${device.dnsname}, ${nas-name} [deprecated] Device DNS reverse
+   mapping
+   ${device.name}, ${host} [deprecated] Device name of matching
+   device declaration
+   ${device.port} NAS port (console, tty, ...)
    ${client}, ${nac} Client IP address
    ${user} user name
    ${user.original} user name before any rewrite operations
    ${profile} profile assigned to user
    ${service} service type (e.g. shell)
    ${result} typically permit or deny
-   ${device.port}${port} [deprecated] NAS port (console, tty, ...)
    ${hint} added/replaced for authorization, informal text for
    accounting
-   ${device.name}, ${host} [deprecated] Device name of matching
-   device declaration
    ${client.dnsname}, ${nac-name} [deprecated] Client DNS reverse
-   mapping
-   ${device.dnsname}, ${nas-name} [deprecated] Device DNS reverse
    mapping
    ${msgid} A message ID, perhaps suitable for RFC5424 logs. These
    are listed somewhere below.
@@ -747,9 +761,11 @@ syslog default = deny
    answer a request
    ${memberof} Raw memberOf backend value, typically from LDAP
    ${pid} Process ID
+   ${peer.address} Communication peer IP address
+   ${peer.port} Communication peer TCP/UDP port
    ${server.name}, ${hostname} [deprecated] Server host name
    ${server.address} Server address
-   ${server.port} Server TCP port
+   ${server.port} Server TCP or UDP port
    ${session.id} Session id
    ${tls.conn.version} TLS Connection Version (requires LibTLS or
    OpenSSL)
@@ -798,6 +814,24 @@ conn.version}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}"
 # Connections to syslog(3):
 "${accttype}|${nas}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.pe
 er.cert.subject}"
+# RADIUS Accounting to UDP syslog:
+"<${priority}>Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|{nas}|${user}|
+${port}|${nac}|${accttype}|${args, }|${rargs, }"
+# RADIUS Accounting to syslog(3):
+"${accttype}|${nas}|${user}|${port}|${nac}|${accttype}|${args, }|${rargs
+, }"
+# RADIUS Accounting to file/pipe:
+"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${
+accttype}\t${args, }\t${rargs, }\n"
+# RADIUS Authentication to UDP syslog:
+"<priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${nas}|$
+{user}|${port}|${nac}|${accttype}|${args, }|${rargs, }"
+# RADIUS Authentication to syslog(3):
+"${accttype}|${nas}|${nas}|${nas}|${user}|${port}|${nac}|${accttype}|${a
+rgs, }|${rargs, }\n"
+# RADIUS Authentication to file/pipe:
+"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${
+accttype}\t${args, }\t${rargs, }\n"
 
    Message ID Description
    AUTHZPASS authorization succeeded
@@ -1829,6 +1863,8 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    Left-hand side Operators Right-hand side Comment
    "string" == != =~ !~ String or REGEX Log variable substitutions
    will apply
+   aaa.protocol.allowed == != one (or more, comma-separated) of
+   radius, radsec, tacacs, tacacss
    acl == != ACL object name
    arg[attr] == != =~ !~ String or REGEX arg[protocol],
    arg[service], ...
@@ -1875,6 +1911,7 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    (0 ... 15) reported by the device
    protocol == != =~ !~ String or REGEX session protocol (ppp,
    ...)
+   radius[RADIUS attribute] == != =~ !~ RADIUS attribute value
    realm == != Realm object name
    server.address == != =~ !~ Server address
    server.name == != =~ !~ Server host name
@@ -2082,7 +2119,7 @@ user ... {
    Assigning an existing profile to an user will also work:
 user ... {
 ...
-  profile = profileName{
+  profile = profileName {
 ...
 }
 
@@ -2094,8 +2131,8 @@ user ... {
 
    Shell startup should have an appropriate script definition
 script {
-if (service == "shell" && cmd == "")
-    permit
+    if (service == "shell" && cmd == "")
+        permit
 }
 
    defined. Valid configuration directive within the curly
@@ -2871,10 +2908,157 @@ ntly enabled.\n"
     }
      __________________________________________________________
 
-5. Debugging
+5. RADIUS
+
+   tac_plus-ng comes with limited RADIUS support: Only PAP
+   authentications and accounting are supported. This should be
+   sufficient for handling administrative access, and the main
+   reason for this feature is actually to provide a common
+   configuration for both TACACS+ and RADIUS
+
+   If you don't care about RADIUS: That functionality will not be
+   available unless a RADIUS dictionary (see below) is configured.
+   Plus, you can selectively disable the protocols you want to be
+   supported on a per-realm basis:
+   aaa.protocol.allowd = tacacs,tacacss,radius,radsec # remove the ones
+you don't want
      __________________________________________________________
 
-5.1. Debugging Configuration Files
+5.1. Accepting RADIUS Queries
+
+   By default, spawnd will only care for TCP sessions. This is
+   sufficient for RADSEC-over-TLS, but plain legacy RADIUS
+   requires UDP. This can easily be enables in a spawnd directive:
+id = spawnd {
+        background = no
+        listen { port = 49 } # TACACS+
+        listen { port = 1812 protocol = UDP } # RADIUS
+}
+
+   In fact, the daemon auto-recognizes the supported protocols.
+   You can use the very same port for TACACS+, TACACS+-over-TLS
+   and RADSEC-over-TLS, and the UDP port specified for RADIUS will
+   accept both authentication and accounting packets.
+     __________________________________________________________
+
+5.2. RADIUS Dictionary
+
+   There's no file format standard for RADIUS dictionaries, so
+   tac_plus-ng comes with its own, too. Here's an exceprt from
+   tac_ls-ng/sample/radius-dict.cfg which demonstrates the syntax:
+radius.dictionary {
+        attribute User-Name             1       string
+        attribute User-Password         2       string
+        attribute CHAP-Password         3       octets
+        attribute NAS-IP-Address        4       ipaddr
+        attribute NAS-Port              5       integer
+        attribute Framed-IP-Address     8       ipaddr
+        attribute Framed-IP-Netmask     9       ipaddr
+        attribute Class                 25      octets
+
+        attribute NAS-Port-Type         61      integer
+        {
+                Async                   0
+                Sync                    1
+                ISDN                    2
+                ISDN-V120               3
+                ISDN-V110               4
+                Virtual                 5
+                Cable                   17
+...
+                Wireless-Other          18
+                Wireless-802.11         19
+        }
+
+        attribute Service-Type 6 integer
+        {
+                Login-User              1
+                Framed-User             2
+                Callback-Login-User     3
+...
+                Authorize-Only          17
+                Framed-Management       18
+        }
+
+        attribute Login-IP-Host         14      ipaddr
+        attribute Login-Service         15      integer
+...
+        attribute Framed-IPv6-Pool      100     string
+        attribute Framed-IPv6-Address   168     ipv6addr
+
+        attribute Acct-Session-Time     46      integer
+        attribute Acct-Input-Packets    47      integer
+        attribute Acct-Output-Packets   48      integer
+
+        attribute Acct-Terminate-Cause  49      integer
+        {
+                User-Request            1
+                Lost-Carrier            2
+                Lost-Service            3
+...
+                User-Error              17
+                Host-Request            18
+        }
+
+        attribute Acct-Multi-Session-Id 50      string
+        attribute Acct-Link-Count       51      integer
+}
+
+radius.dictionary cisco 9 {
+        attribute Cisco-AVPair 1 string
+}
+
+   You can put this dictionary data directly into your main
+   configuration file or put it somewhere else and jut include it,
+   which is recommended.
+     __________________________________________________________
+
+5.3. RADIUS Rule Set
+
+   RADIUS attributes are accessible via radius[AttributeName] and
+   can be used both in conditions and set clauses:
+    if (aaa.protocol == radius || aaa.protocol == radsec) {
+        if (radius[Service-Type] ==  Administrative-User)  {
+            set radius[cisco:Cisco-AVPair] = "shell:priv-lvl=15"
+            permit
+        }
+        set radius[cisco:Cisco-AVPair] = "shell:priv-lvl=7"
+        permit
+    }
+     __________________________________________________________
+
+5.4. RADIUS Logging
+
+   TACACS+ and RADIUS share the connection log. Dedicated RADIUS
+   logs for authentication and acounting can be enabled:
+        log accesslog { destination = /tmp/tac/access.log }     # TACACS
++
+        log authorlog { destination = /tmp/tac/author.log }     # TACACS
++
+        log acctlog { destination = /tmp/tac/acct.log }         # TACACS
++
+        log rad-accesslog { destination = /tmp/rad/access.log } # RADIUS
+        log rad-acctlog { destination = /tmp/rad/acct.log }     # RADIUS
+        log connlog { destination = /tmp/conn.log }             # shared
+
+        access log = accesslog
+        authorization log = authorlog
+        accounting log = acctlog
+        radius.access log = rad-accesslog
+        radius.accounting log = rad-acctlog
+        connection log = connlog
+     __________________________________________________________
+
+5.5. RADIUS Example Configurations
+
+   Sample configurations are available in the tac_plus-ng/samples/
+   directory.
+     __________________________________________________________
+
+6. Debugging
+     __________________________________________________________
+
+6.1. Debugging Configuration Files
 
    When creating configuration files, it is convenient to check
    their syntax using the -P flag to tac_plus; e.g:
@@ -2884,7 +3068,7 @@ tac_plus -P config-file
    messages on the terminal.
      __________________________________________________________
 
-5.2. Trace Options
+6.2. Trace Options
 
    Trace (or debugging) options may be specified in global,
    device, user and group context. The current debugging level is
@@ -2956,7 +3140,7 @@ debug = ALL USERINPUT
    option.
      __________________________________________________________
 
-6. Frequently Asked Questions
+7. Frequently Asked Questions
 
      * Is there a Graphical User Interface of any kind?
        No, unless your favourite text editor does qualify.
@@ -3090,7 +3274,7 @@ aaa authorization exec default group tacacs+
        uses it anyway.
      __________________________________________________________
 
-7. Multi-tenant setups
+8. Multi-tenant setups
 
    While using a dedictated tac_plus-ng installation per tenant is
    certainly possible it lacks some elegance. There are other
@@ -3147,7 +3331,7 @@ id = spawnd { ... listen { port = 49000 } ... }
    from as realm name.
      __________________________________________________________
 
-7.1. AD, Realms and Tenants
+8.1. AD, Realms and Tenants
 
    The suggested setup for giving customers limited access to NADs
    is:
@@ -3191,7 +3375,7 @@ erAccount }
    won't work in scripts anywhere else.
      __________________________________________________________
 
-8. AAA rule tracing
+9. AAA rule tracing
 
    The distribution includes the tactrace.pl Perl script. It's
    usually not installed automatically, due to some Perl
@@ -3302,7 +3486,7 @@ l =15
 127.0.0.1 ---<end packet>---
      __________________________________________________________
 
-9. Bugs
+10. Bugs
 
      * This documentation isn't well structured.
      * The examples given are too IPv4-centric. However, the
@@ -3312,7 +3496,7 @@ l =15
        configuration syntax guidance.
      __________________________________________________________
 
-10. References
+11. References
 
      * draft-grant-tacacs-02.txt - The TACACS+ Protocol (Version
        1.78)
@@ -3320,7 +3504,7 @@ l =15
        System Plus (TACACS+) Protocol
      __________________________________________________________
 
-11. Copyrights and Acknowledgements
+12. Copyrights and Acknowledgements
 
    Please see the source for copyright and licensing information
    of individual files.
