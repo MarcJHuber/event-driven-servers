@@ -152,7 +152,7 @@ $sock1->autoflush(1);
 my $pid = fork();
 die "fork: $!" if $pid < 0;
 my $debugopts = "802";
-$debugopts = "1152921504606846974" if $debug;
+$debugopts = "1152921504606846958" if $debug;
 if ($pid == 0) {
 	close $sock0;
 	POSIX::dup2 (fileno $sock1, 0) or die "POSIX::dup2: $!";
