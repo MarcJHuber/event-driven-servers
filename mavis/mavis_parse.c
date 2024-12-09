@@ -731,20 +731,16 @@ void sym_get(struct sym *sym)
 	char *sb = NULL;
 #define S "$CONFDIR/"
 	if (!strncmp(sym->buf, S, sizeof(S) - 1) && common_data.conffile) {
-#define SZ 1024
-	    char *rpbuf = alloca(SZ);
-	    char *rp = realpath(common_data.conffile, rpbuf);
-	    char *r = strrchr(rp, '/');
+	    size_t in_len = strlen(sym->buf);
+	    size_t cd_len = strlen(common_data.conffile);
+	    sb = alloca(in_len + cd_len);
+	    strcpy(sb, common_data.conffile);
+	    char *r = strrchr(sb, '/');
 	    if (r)
 		*r = 0;
-	    if (rp && (strlen(sym->buf) + strlen(rp) < SZ)) {
-		strcpy(rpbuf + strlen(rpbuf), sym->buf + sizeof(S) - 2);
-		sb = rp;
-	    }
-#undef SZ
+	    strcpy(sb + strlen(sb), sym->buf + sizeof(S) - 2);
 #undef S
-	}
-	if (!sb) {
+	} else {
 	    sb = alloca(strlen(sym->buf) + 1);
 	    strcpy(sb, sym->buf);
 	}
