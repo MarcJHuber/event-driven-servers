@@ -1378,6 +1378,22 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
     }
 }
 
+void rad_dict_get_val(int dict_id, int attr_id, int val_id, char **s, size_t *s_len)
+{
+    struct rad_dict *dict = rad_dict_lookup_by_id(dict_id);
+    if (dict) {
+	struct rad_dict_attr *attr = rad_dict_attr_lookup_by_id(dict, attr_id);
+	if (attr) {
+	    for (struct rad_dict_val * val = rad_dict_val_lookup_by_id(attr, attr_id); val; val = val->next)
+		if (val->id == val_id) {
+		    *s = val->name;
+		    *s_len = val->name_len;
+		    return;
+		}
+	}
+    }
+}
+
 static void parse_radius_dictionary(struct sym *sym)
 {
     struct rad_dict *dict = NULL;

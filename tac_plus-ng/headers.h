@@ -1043,6 +1043,12 @@ int rad_get_password(tac_session * session, char **val, size_t *val_len);
 void rad_attr_val_dump(mem_t * mem, u_char * data, size_t data_len, char **buf, size_t *buf_len, struct rad_dict *dict, char *separator,
 		       size_t separator_len);
 
+void rad_dict_get_val(int dict_id, int attr_id, int val_id, char **s, size_t *s_len);
+
+struct rad_dict *rad_dict_lookup_by_id(int vendorid);
+struct rad_dict_attr *rad_dict_attr_lookup_by_id(struct rad_dict *dict, int id);
+struct rad_dict_val *rad_dict_val_lookup_by_id(struct rad_dict_attr *attr, int id);
+
 void rad_udp_inject(struct context *);
 
 void cleanup_session(tac_session *);
