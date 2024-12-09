@@ -589,6 +589,7 @@ void parse_log(struct sym *sym, tac_realm *r)
 	    parse_log_format_inline
 	    ("\"${accttype}|${conn.protocol}|${peer.address}|${peer.port}|${server.address}|${server.port}|${nas}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}\"",
 	     __FILE__, __LINE__);
+
 	rad_access_file =
 	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${args, }\t${rargs, }\n\"", __FILE__,
 				    __LINE__);
@@ -596,7 +597,8 @@ void parse_log(struct sym *sym, tac_realm *r)
 	    parse_log_format_inline
 	    ("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${nas}|${user}|${port}|${nac}|${accttype}|${args, }|${rargs, }\"", __FILE__,
 	     __LINE__);
-	rad_access_syslog3 = parse_log_format_inline("\"${accttype}|${nas}|\"", __FILE__, __LINE__);
+	rad_access_syslog3 = parse_log_format_inline("\"${accttype}|${nas}|${nas}|${nas}|${user}|${port}|${nac}|${accttype}|${args, }|${rargs, }\"", __FILE__, __LINE__);
+
 	rad_acct_file =
 	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${args, }\t${rargs, }\n\"",
 				    __FILE__, __LINE__);
