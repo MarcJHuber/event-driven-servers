@@ -23,41 +23,112 @@ Marc Huber
         4.2. Configuration directives
 
               4.2.1. Global options
-              4.2.2. Realms
-              4.2.3. Realm attributes
 
-        4.3. MAVIS Backends
+        4.3. Realms
 
-              4.3.1. LDAP Backends
-              4.3.2. PAM back-end
-              4.3.3. System Password Backends
-              4.3.4. Shadow Backend
-              4.3.5. RADIUS Backends
-              4.3.6. Experimental Backends
-              4.3.7. Error Handling
+              4.3.1. Railroad Diagrams
 
-   5. RADIUS
+        4.4. Realm attributes
+        4.5. Logging
 
-        5.1. Accepting RADIUS Queries
-        5.2. RADIUS Dictionary
-        5.3. RADIUS Rule Set
-        5.4. RADIUS Logging
-        5.5. RADIUS Example Configurations
+              4.5.1. Accounting
+              4.5.2. Spoofing Syslog Packets
 
-   6. Debugging
+        4.6. User Messages
+        4.7. Limits and timeouts
 
-        6.1. Debugging Configuration Files
-        6.2. Trace Options
+              4.7.1. Authentication
+              4.7.2. User back-end options
+              4.7.3. TLS
 
-   7. Frequently Asked Questions
-   8. Multi-tenant setups
+        4.8. Miscellaneous
+        4.9. Realm Inheritance
+        4.10. Railroad Diagrams
+        4.11. Networks
 
-        8.1. AD, Realms and Tenants
+              4.11.1. Railroad Diagrams
 
-   9. AAA rule tracing
-   10. Bugs
-   11. References
-   12. Copyrights and Acknowledgements
+        4.12. Devices (Hosts)
+
+              4.12.1. Timeouts
+              4.12.2. Authentication
+              4.12.3. Authorization
+              4.12.4. Banners and Messages
+              4.12.5. Workarounds for Client Bugs
+              4.12.6. Inheritance and Hosts
+              4.12.7. Railroad Diagrams
+              4.12.8. Example
+
+        4.13. Time Ranges
+
+              4.13.1. Railroad Diagrams
+
+        4.14. Access Control Lists
+
+              4.14.1. Syntax
+
+        4.15. Rewriting User Names
+        4.16. Users
+
+              4.16.1. Railroad Diagrams
+
+        4.17. Groups
+
+              4.17.1. Railroad Diagrams
+
+        4.18. Profiles
+        4.19. Railroad Diagrams
+        4.20. Configuring Non-local Users via MAVIS
+        4.21. Configuring Local Users for MAVIS authentication
+        4.22. Configuring User Authentication
+        4.23. Configuring Expiry Dates
+        4.24. Configuring Authentication on the NAS
+        4.25. Configuring Authorization
+        4.26. Authorizing Commands
+        4.27. The Authorization Process
+        4.28. Authorization Relies on Authentication
+        4.29. Configuring Service Authorization
+
+              4.29.1. The Authorization Algorithm
+
+   5. MAVIS Backends
+
+        5.1. LDAP Backends
+
+              5.1.1. Multi-threaded LDAP Backend
+
+        5.2. PAM back-end
+        5.3. System Password Backends
+        5.4. Shadow Backend
+        5.5. RADIUS Backends
+
+              5.5.1. Sample Configuration
+
+        5.6. Experimental Backends
+        5.7. Error Handling
+
+   6. RADIUS
+
+        6.1. Accepting RADIUS Queries
+        6.2. RADIUS Dictionary
+        6.3. RADIUS Rule Set
+        6.4. RADIUS Logging
+        6.5. RADIUS Example Configurations
+
+   7. Debugging
+
+        7.1. Debugging Configuration Files
+        7.2. Trace Options
+
+   8. Frequently Asked Questions
+   9. Multi-tenant setups
+
+        9.1. AD, Realms and Tenants
+
+   10. AAA rule tracing
+   11. Bugs
+   12. References
+   13. Copyrights and Acknowledgements
 
 1. Introduction
 
@@ -593,7 +664,7 @@ device router.example.com {
    Railroad diagram: GlobalDecl
      __________________________________________________________
 
-4.2.2. Realms
+4.3. Realms
 
    Bascially, realms are containers to logically separate
    configuration sets. At top-level, there's the default realm
@@ -625,20 +696,20 @@ realm realmName { ... }
    other configuration options.
      __________________________________________________________
 
-4.2.2.1. Railroad Diagrams
+4.3.1. Railroad Diagrams
 
    [RealmDecl.eps]
 
    Railroad diagram: RealmDecl
      __________________________________________________________
 
-4.2.3. Realm attributes
+4.4. Realm attributes
 
    The following options may be specified at realm level. This
    includes the default realm:
      __________________________________________________________
 
-4.2.3.1. Logging
+4.5. Logging
 
    Logging options defined in the top-level default realm will be
    shared with sub-realms unless the sub-realm has its own logging
@@ -873,7 +944,7 @@ accttype}\t${args, }\t${rargs, }\n"
 umask = 0640
      __________________________________________________________
 
-4.2.3.1.1. Accounting
+4.5.1. Accounting
 
    All accounting records are written, as text, to the file (or
    command) specified with the accounting log directive.
@@ -915,7 +986,7 @@ umask = 0640
    usually interested in.
      __________________________________________________________
 
-4.2.3.1.2. Spoofing Syslog Packets
+4.5.2. Spoofing Syslog Packets
 
    The script tacspooflog-ng.pl (which comes bundled with this
    distribution, have a look at the tac_plus-ng/extra/ directory)
@@ -935,7 +1006,7 @@ umask = 0640
    you're thinking about using this script.
      __________________________________________________________
 
-4.2.3.2. User Messages
+4.6. User Messages
 
    User messages, e.g. the Username prompt, can be customized,
    both at device and realm level:
@@ -969,7 +1040,7 @@ message USERNAME = "Utilisateur: "
    USER_ACCESS_VERIFICATION "User Access Verification"
      __________________________________________________________
 
-4.2.3.3. Limits and timeouts
+4.7. Limits and timeouts
 
    A number of global limits and timeouts may be specified at
    realm and global level:
@@ -992,7 +1063,7 @@ message USERNAME = "Utilisateur: "
        127.
      __________________________________________________________
 
-4.2.3.3.1. Authentication
+4.7.1. Authentication
 
      * password acl = acl
        password acl may be used to perform simple compliance
@@ -1126,7 +1197,7 @@ enable user acl = custom_enable_acl
        SHA256:kOkclqivcjludf/jdsfkyqpddffdk38U12+CkA8fBAC
      __________________________________________________________
 
-4.2.3.3.2. User back-end options
+4.7.2. User back-end options
 
    These options are relevant for configuring the MAVIS user
    back-end:
@@ -1192,7 +1263,7 @@ acl __internal__username_acl__ { if (user =~ "[]<>/()|=[]+") deny permit
 mavis user filter = __internal__username_acl__
      __________________________________________________________
 
-4.2.3.3.3. TLS
+4.7.3. TLS
 
    TACACS+-over-TLS is not a standard. These features are
    experimental.
@@ -1251,7 +1322,7 @@ id = spawnd {
 }
      __________________________________________________________
 
-4.2.3.4. Miscellaneous
+4.8. Miscellaneous
 
    In realm context:
 
@@ -1293,7 +1364,7 @@ id = spawnd {
 }
      __________________________________________________________
 
-4.2.3.5. Realm Inheritance
+4.9. Realm Inheritance
 
    Realms inherit quite some configuration from their parent
    realm:
@@ -1313,7 +1384,7 @@ id = spawnd {
    user                 if not found in current realm
      __________________________________________________________
 
-4.2.3.6. Railroad Diagrams
+4.10. Railroad Diagrams
 
    [RealmAttr.eps]
 
@@ -1324,7 +1395,7 @@ id = spawnd {
    Railroad diagram: RealmAttrAuthen
      __________________________________________________________
 
-4.2.3.7. Networks
+4.11. Networks
 
    Networks consist of IP addresses or other networks. They may
    overlap. Networks can be used in ACLs. The parent of a network
@@ -1340,7 +1411,7 @@ id = spawnd {
   }
      __________________________________________________________
 
-4.2.3.7.1. Railroad Diagrams
+4.11.1. Railroad Diagrams
 
    [NetDecl.eps]
 
@@ -1351,7 +1422,7 @@ id = spawnd {
    Railroad diagram: NetAttr
      __________________________________________________________
 
-4.2.3.8. Devices (Hosts)
+4.12. Devices (Hosts)
 
    The daemon will talk to known NAS addresses only. Connections
    from unknown addresses will be rejected.
@@ -1472,7 +1543,7 @@ key = ""
        default host, too.
      __________________________________________________________
 
-4.2.3.8.1. Timeouts
+4.12.1. Timeouts
 
    The connection timeout may be specified:
 
@@ -1481,7 +1552,7 @@ key = ""
        at least s seconds. Defaults to the global option.
      __________________________________________________________
 
-4.2.3.8.2. Authentication
+4.12.2. Authentication
 
    The following authentication related directives are available
    at device object level:
@@ -1535,7 +1606,7 @@ aaa authentication enable default group tacacs+ enable
        This configuration will be accepted at realm level, too.
      __________________________________________________________
 
-4.2.3.8.3. Authorization
+4.12.3. Authorization
 
    The following authorization related directives are available at
    device object level:
@@ -1548,7 +1619,7 @@ aaa authentication enable default group tacacs+ enable
        This configuration will be accepted at realm level, too.
      __________________________________________________________
 
-4.2.3.8.4. Banners and Messages
+4.12.4. Banners and Messages
 
    The daemon allows for various banners to be displayed to the
    user:
@@ -1608,7 +1679,7 @@ aaa authentication enable default group tacacs+ enable
   }
      __________________________________________________________
 
-4.2.3.8.5. Workarounds for Client Bugs
+4.12.5. Workarounds for Client Bugs
 
    The directive
 
@@ -1639,7 +1710,7 @@ aaa authentication enable default group tacacs+ enable
    This configuration will be accepted at realm level, too.
      __________________________________________________________
 
-4.2.3.8.6. Inheritance and Hosts
+4.12.6. Inheritance and Hosts
 
    For address based device lookups, the daemon looks for the most
    specific device definition. Values that aren't defined (if any)
@@ -1648,7 +1719,7 @@ aaa authentication enable default group tacacs+ enable
    parent device, or expliitely, using the parent statement.
      __________________________________________________________
 
-4.2.3.8.7. Railroad Diagrams
+4.12.7. Railroad Diagrams
 
    [DeviceDecl.eps]
 
@@ -1663,7 +1734,7 @@ aaa authentication enable default group tacacs+ enable
    Railroad diagram: EnableExpr
      __________________________________________________________
 
-4.2.3.8.8. Example
+4.12.8. Example
 
 device = customer1 {
     address = 10.0.0.0/8
@@ -1684,7 +1755,7 @@ device = test123 {
 }
      __________________________________________________________
 
-4.2.3.9. Time Ranges
+4.13. Time Ranges
 
    timespec objects may be used for time based profile
    assignments. Both cron and Taylor-UUCP syntax are supported;
@@ -1710,14 +1781,14 @@ timespec example {
 }
      __________________________________________________________
 
-4.2.3.9.1. Railroad Diagrams
+4.13.1. Railroad Diagrams
 
    [TimespecDecl.eps]
 
    Railroad diagram: TimespecDecl
      __________________________________________________________
 
-4.2.3.10. Access Control Lists
+4.14. Access Control Lists
 
    Access Control Lists (or, more exactly, Access Control Scripts)
    are the main component of ruleset evaluation.
@@ -1795,7 +1866,7 @@ le\\.com$/) deny
     }
      __________________________________________________________
 
-4.2.3.10.1. Syntax
+4.14.1. Syntax
 
    A script consists of a series of actions:
 
@@ -1944,7 +2015,7 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    conditions require libtls.
      __________________________________________________________
 
-4.2.3.11. Rewriting User Names
+4.15. Rewriting User Names
 
    A script may refer to a rewrite profile defined at realm level
    to rewrite user names. For example, the following will map both
@@ -1975,7 +2046,7 @@ device ... {
     }
      __________________________________________________________
 
-4.2.3.12. Users
+4.16. Users
 
    The basic form of a user declarations is
 user username { ...  }
@@ -2055,7 +2126,7 @@ user marc {
        group.
      __________________________________________________________
 
-4.2.3.12.1. Railroad Diagrams
+4.16.1. Railroad Diagrams
 
    [UserDecl.eps]
 
@@ -2066,7 +2137,7 @@ user marc {
    Railroad diagram: ServiceDecl
      __________________________________________________________
 
-4.2.3.13. Groups
+4.17. Groups
 
    A user can be a member of multiple groups. A user that is a
    member of a group that comes with a parent group is a member of
@@ -2083,7 +2154,7 @@ group groupname {  ...  }
        Groups may be parents of other groups.
      __________________________________________________________
 
-4.2.3.13.1. Railroad Diagrams
+4.17.1. Railroad Diagrams
 
    [GroupDecl.eps]
 
@@ -2094,7 +2165,7 @@ group groupname {  ...  }
    Railroad diagram: GroupAttr
      __________________________________________________________
 
-4.2.3.14. Profiles
+4.18. Profiles
 
    Profiles are collections of services that can be assigned to
    users via the policy rule-set. Syntax is
@@ -2207,7 +2278,7 @@ set shell:roles = '"network-admin"'
    are equivalent, but the latter is more readable.
      __________________________________________________________
 
-4.2.3.15. Railroad Diagrams
+4.19. Railroad Diagrams
 
    [UserMessage.eps]
 
@@ -2278,7 +2349,7 @@ set shell:roles = '"network-admin"'
    Railroad diagram: ProtoDecl
      __________________________________________________________
 
-4.2.3.16. Configuring Non-local Users via MAVIS
+4.20. Configuring Non-local Users via MAVIS
 
    MAVIS configuration is optional. You don't need it if you're
    content with user configuration in the main configuration file.
@@ -2301,7 +2372,7 @@ cache timeout = seconds
    in the global configuration section.
      __________________________________________________________
 
-4.2.3.17. Configuring Local Users for MAVIS authentication
+4.21. Configuring Local Users for MAVIS authentication
 
    Under certain circumstances you may wish to keep the user
    definitions in the plain text configuration file, but
@@ -2314,7 +2385,7 @@ cache timeout = seconds
    in the corresponding user definition.
      __________________________________________________________
 
-4.2.3.18. Configuring User Authentication
+4.22. Configuring User Authentication
 
    User Authentication can be specified separately for PAP, CHAP,
    and normal logins. CHAP and global user authentication must be
@@ -2356,7 +2427,7 @@ login backend = mavis
 user mary { login = mavis }
      __________________________________________________________
 
-4.2.3.19. Configuring Expiry Dates
+4.23. Configuring Expiry Dates
 
    An entry of the form:
 user lol {
@@ -2378,7 +2449,7 @@ user lol {
    activates a profile at the given date.
      __________________________________________________________
 
-4.2.3.20. Configuring Authentication on the NAS
+4.24. Configuring Authentication on the NAS
 
    On the NAS, to configure login authentication, try
 aaa new-model
@@ -2411,7 +2482,7 @@ aaa authentication login default group tacacs+ local
    way out.
      __________________________________________________________
 
-4.2.3.21. Configuring Authorization
+4.25. Configuring Authorization
 
    Authorization must be configured on both the NAS and the daemon
    to operate correctly. By default, the NAS will allow everything
@@ -2428,7 +2499,7 @@ aaa authentication login default group tacacs+ local
    parts: commands and services.
      __________________________________________________________
 
-4.2.3.22. Authorizing Commands
+4.26. Authorizing Commands
 
    Exec commands are those commands which are typed at a NAS exec
    prompt. When authorization is requested by the NAS, the entire
@@ -2439,7 +2510,7 @@ aaa authentication login default group tacacs+ local
    details.
      __________________________________________________________
 
-4.2.3.23. The Authorization Process
+4.27. The Authorization Process
 
    Authorizing a single session can result in multiple requests
    being sent to the daemon. For example, in order to authorize a
@@ -2473,7 +2544,7 @@ aaa authentication login default group tacacs+ local
        they shut down PPP instead.
      __________________________________________________________
 
-4.2.3.24. Authorization Relies on Authentication
+4.28. Authorization Relies on Authentication
 
    Since we pretty much rely on having a username in authorization
    requests to decide which addresses etc. to hand out, it is
@@ -2503,7 +2574,7 @@ int async 1
    missing.
      __________________________________________________________
 
-4.2.3.25. Configuring Service Authorization
+4.29. Configuring Service Authorization
 
    A list of AV pairs is placed in the daemon's configuration file
    in order to authorize services. The daemon compares each NAS AV
@@ -2513,7 +2584,7 @@ int async 1
    restricting what the user is permitted to do.
      __________________________________________________________
 
-4.2.3.25.1. The Authorization Algorithm
+4.29.1. The Authorization Algorithm
 
    The complete algorithm by which the daemon processes its
    configured AV pairs against the list the NAS sends, is given
@@ -2561,7 +2632,7 @@ int async 1
        ONE AV pair for each optional attribute).
      __________________________________________________________
 
-4.3. MAVIS Backends
+5. MAVIS Backends
 
    The distribution comes with various MAVIS modules, of which the
    external module is probably the most interesting, as it
@@ -2575,7 +2646,7 @@ int async 1
    gives examples for RADIUS and PAM authentication, too.
      __________________________________________________________
 
-4.3.1. LDAP Backends
+5.1. LDAP Backends
 
    mavis_tacplus-ng_ldap.pl is an authentication/authorization
    back-end for the external module. It interfaces to various
@@ -2690,7 +2761,7 @@ int async 1
    Example: 1
      __________________________________________________________
 
-4.3.1.1. Multi-threaded LDAP Backend
+5.1.1. Multi-threaded LDAP Backend
 
    ldapmavis-mt (mt stands for multi-threaded) basically evaluates
    the same envrionment variables as mavis_tacplus-ng_ldap.pl. It
@@ -2699,7 +2770,7 @@ int async 1
    multi-factor authentication.
      __________________________________________________________
 
-4.3.2. PAM back-end
+5.2. PAM back-end
 
    Example configuration for using Pluggable Authentication
    Modules:
@@ -2740,7 +2811,7 @@ id = tac_plus {
 }
      __________________________________________________________
 
-4.3.3. System Password Backends
+5.3. System Password Backends
 
    mavis_tacplus_passwd.pl authenticates against your local
    password database. Alas, to use this functionality, the script
@@ -2752,7 +2823,7 @@ id = tac_plus {
    uses OPIE one-time passwords for authentication.
      __________________________________________________________
 
-4.3.4. Shadow Backend
+5.4. Shadow Backend
 
    mavis_tacplus_shadow.pl may be used to keep user passwords out
    of the tac_plusconfiguration file, enabling users to change
@@ -2798,7 +2869,7 @@ test:$1$pQtQsMuj$GKpIr5r2GNaZNfDfnCBtw.:15218:1:30:
 ...
      __________________________________________________________
 
-4.3.5. RADIUS Backends
+5.5. RADIUS Backends
 
    mavis_tacplus_radius.pl authenticates against a RADIUS server.
    No authorization is done, unless the RADIUS_GROUP_ATTR
@@ -2837,7 +2908,7 @@ test:$1$pQtQsMuj$GKpIr5r2GNaZNfDfnCBtw.:15218:1:30:
    equivalent.
      __________________________________________________________
 
-4.3.5.1. Sample Configuration
+5.5.1. Sample Configuration
 
 ## Use tacinfo_cache to cache authorization data to disk:
 mavis module tacinfo_cache {
@@ -2860,13 +2931,13 @@ authserver=1.2.3.4:1812:mysecret"
 }
      __________________________________________________________
 
-4.3.6. Experimental Backends
+5.6. Experimental Backends
 
    mavis_tacplus_sms.pl is a sample (skeleton) script to send
    One-Time Passwords via a SMS back-end.
      __________________________________________________________
 
-4.3.7. Error Handling
+5.7. Error Handling
 
    If a back-end script fails due to an external problem (e.g.
    LDAP server unavailability), your router may or may not fall
@@ -2908,7 +2979,7 @@ ntly enabled.\n"
     }
      __________________________________________________________
 
-5. RADIUS
+6. RADIUS
 
    tac_plus-ng comes with limited RADIUS support: Only PAP
    authentications and accounting are supported. This should be
@@ -2924,7 +2995,7 @@ ntly enabled.\n"
 you don't want
      __________________________________________________________
 
-5.1. Accepting RADIUS Queries
+6.1. Accepting RADIUS Queries
 
    By default, spawnd will only care for TCP sessions. This is
    sufficient for RADSEC-over-TLS, but plain legacy RADIUS
@@ -2941,7 +3012,7 @@ id = spawnd {
    accept both authentication and accounting packets.
      __________________________________________________________
 
-5.2. RADIUS Dictionary
+6.2. RADIUS Dictionary
 
    There's no file format standard for RADIUS dictionaries, so
    tac_plus-ng comes with its own, too. Here's an exceprt from
@@ -3013,7 +3084,7 @@ radius.dictionary cisco 9 {
    which is recommended.
      __________________________________________________________
 
-5.3. RADIUS Rule Set
+6.3. RADIUS Rule Set
 
    RADIUS attributes are accessible via radius[AttributeName] and
    can be used both in conditions and set clauses:
@@ -3027,7 +3098,7 @@ radius.dictionary cisco 9 {
     }
      __________________________________________________________
 
-5.4. RADIUS Logging
+6.4. RADIUS Logging
 
    TACACS+ and RADIUS share the connection log. Dedicated RADIUS
    logs for authentication and acounting can be enabled:
@@ -3049,16 +3120,16 @@ radius.dictionary cisco 9 {
         connection log = connlog
      __________________________________________________________
 
-5.5. RADIUS Example Configurations
+6.5. RADIUS Example Configurations
 
    Sample configurations are available in the tac_plus-ng/samples/
    directory.
      __________________________________________________________
 
-6. Debugging
+7. Debugging
      __________________________________________________________
 
-6.1. Debugging Configuration Files
+7.1. Debugging Configuration Files
 
    When creating configuration files, it is convenient to check
    their syntax using the -P flag to tac_plus; e.g:
@@ -3068,7 +3139,7 @@ tac_plus -P config-file
    messages on the terminal.
      __________________________________________________________
 
-6.2. Trace Options
+7.2. Trace Options
 
    Trace (or debugging) options may be specified in global,
    device, user and group context. The current debugging level is
@@ -3140,7 +3211,7 @@ debug = ALL USERINPUT
    option.
      __________________________________________________________
 
-7. Frequently Asked Questions
+8. Frequently Asked Questions
 
      * Is there a Graphical User Interface of any kind?
        No, unless your favourite text editor does qualify.
@@ -3274,7 +3345,7 @@ aaa authorization exec default group tacacs+
        uses it anyway.
      __________________________________________________________
 
-8. Multi-tenant setups
+9. Multi-tenant setups
 
    While using a dedictated tac_plus-ng installation per tenant is
    certainly possible it lacks some elegance. There are other
@@ -3331,7 +3402,7 @@ id = spawnd { ... listen { port = 49000 } ... }
    from as realm name.
      __________________________________________________________
 
-8.1. AD, Realms and Tenants
+9.1. AD, Realms and Tenants
 
    The suggested setup for giving customers limited access to NADs
    is:
@@ -3375,7 +3446,7 @@ erAccount }
    won't work in scripts anywhere else.
      __________________________________________________________
 
-9. AAA rule tracing
+10. AAA rule tracing
 
    The distribution includes the tactrace.pl Perl script. It's
    usually not installed automatically, due to some Perl
@@ -3486,7 +3557,7 @@ l =15
 127.0.0.1 ---<end packet>---
      __________________________________________________________
 
-10. Bugs
+11. Bugs
 
      * This documentation isn't well structured.
      * The examples given are too IPv4-centric. However, the
@@ -3496,7 +3567,7 @@ l =15
        configuration syntax guidance.
      __________________________________________________________
 
-11. References
+12. References
 
      * draft-grant-tacacs-02.txt - The TACACS+ Protocol (Version
        1.78)
@@ -3504,7 +3575,7 @@ l =15
        System Plus (TACACS+) Protocol
      __________________________________________________________
 
-12. Copyrights and Acknowledgements
+13. Copyrights and Acknowledgements
 
    Please see the source for copyright and licensing information
    of individual files.
