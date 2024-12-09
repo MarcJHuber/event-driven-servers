@@ -544,7 +544,7 @@ void tac_read(struct context *ctx, int cur)
     }
 #if defined(WITH_SSL)
     // auto-detect radsec
-    if (ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
+    if (config.rad_dict && ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
 	if (!ctx->tls && !(common_data.debug & DEBUG_TACTRACE_FLAG) && (ctx->realm->allowed_protocol_radius_tcp != TRISTATE_YES)) {
 	    cleanup(ctx, cur);
 	    return;

@@ -1246,7 +1246,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1520,6 +1520,11 @@ static void accept_control(struct context *ctx, int cur)
 	cleanup_spawnd(ctx, cur);
 	return;
     case SCM_UDPDATA:{
+	    if (!config.rad_dict) {
+		users_inc();
+		users_dec();
+		return;
+	    }
 	    rad_pak_hdr *hdr = (rad_pak_hdr *) (&u.sd_udp.data);
 	    if (u.sd_udp.data_len != ntohs(hdr->length))
 		return;
