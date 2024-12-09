@@ -3,21 +3,24 @@
 - libpcre2 development headers + libraries
 - libc-ares for DNS reverse lookups, if required
 - Perl. Plus a couple of modules: 
-  - Net::IP
-  - Net::RawIP
-  - Net::Write::Layer
-  - Net::Write::Layer3
+  - Authen::Simple::RADIUS
+  - Crypt::Passwd::XS
+  - Data::Radius
+  - File::Temp
+  - Getopt::Long
   - Net::Frame::Simple
   - Net::Frame::Layer::IPv4
   - Net::Frame::Layer::IPv6
   - Net::Frame::Layer::UDP
-  - Sys::Syslog
-  - Net::LDAP
+  - Net::IP
   - Net::RawIP
+  - Net::Write::Layer
+  - Net::Write::Layer3
+  - Net::LDAP
   - Net::TacacsPlus
-  - Authen::Simple::RADIUS
-  - Crypt::Passwd::XS
+  - Sys::Syslog
   - POSIX
+
   ... and possibly others.
 - Python (optional)
 
