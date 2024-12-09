@@ -186,7 +186,30 @@ if (defined $radsec) {
 	use Data::Radius::Constants qw(:all);
 	use Data::Radius::Dictionary;
 	use Data::Radius::Packet;
+
+	my $dict = undef;
+	unless (defined $raddict) {
+		printf STDERR "No radius dictionary specified, using a limited built-in subset.\n";
+		use File::Temp;
+		$dict = File::Temp->new(DIR => '/tmp');
+		print $dict <<EOT
+ATTRIBUTE	User-Name		1	string
+ATTRIBUTE	Password		2	string
+ATTRIBUTE	Service-Type		6	integer
+ATTRIBUTE	Framed-IP-Address	8	ipaddr
+ATTRIBUTE	Framed-IPv6-Address	168	ipv6addr
+VENDOR		Cisco			9
+BEGIN-VENDOR	Cisco
+ATTRIBUTE	Cisco-AVPair		1	string
+END-VENDOR	Cisco
+EOT
+		;
+		$dict->seek(0, SEEK_END);
+		$raddict = $dict->filename;
+	}
+
 	my $dictionary = Data::Radius::Dictionary->load_file($raddict);
+
 	my $packet = Data::Radius::Packet->new(secret => "radsec", dict => $dictionary);
 	my $type = ACCESS_REQUEST;
 	$type = ACCOUNTING_REQUEST if $mode eq "acct";
