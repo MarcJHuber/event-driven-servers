@@ -2991,8 +2991,8 @@ ntly enabled.\n"
    available unless a RADIUS dictionary (see below) is configured.
    Plus, you can selectively disable the protocols you want to be
    supported on a per-realm basis:
-   aaa.protocol.allowd = tacacs,tacacss,radius,radsec # remove the ones
-you don't want
+   aaa.protocol.allowed = tacacs,tacacss,radius,radsec # remove the ones
+ you don't want
      __________________________________________________________
 
 6.1. Accepting RADIUS Queries
@@ -3004,12 +3004,13 @@ id = spawnd {
         background = no
         listen { port = 49 } # TACACS+
         listen { port = 1812 protocol = UDP } # RADIUS
+        listen { port = 1813 protocol = UDP } # RADIUS
 }
 
    In fact, the daemon auto-recognizes the supported protocols.
    You can use the very same port for TACACS+, TACACS+-over-TLS
-   and RADSEC-over-TLS, and the UDP port specified for RADIUS will
-   accept both authentication and accounting packets.
+   and RADSEC-over-TLS, and the UDP port(s) specified for RADIUS
+   will accept both authentication and accounting packets.
      __________________________________________________________
 
 6.2. RADIUS Dictionary

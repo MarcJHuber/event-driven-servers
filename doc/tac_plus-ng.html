@@ -3501,7 +3501,7 @@ mavis module external {
 <h2 class="section"><a name="AEN3156" id="AEN3156">6. RADIUS</a></h2>
 <p><span class="bold"><b class="emphasis">tac_plus-ng</b></span> comes with limited RADIUS support: Only PAP authentications and accounting are supported. This should be sufficient for handling administrative access, and the main reason for this feature is actually to provide a common configuration for both <span class="emphasis"><i class="emphasis">TACACS+</i></span> and <span class="emphasis"><i class="emphasis">RADIUS</i></span></p>
 <p>If you don't care about <span class="emphasis"><i class="emphasis">RADIUS</i></span>: That functionality will not be available unless a <span class="emphasis"><i class="emphasis">RADIUS dictionary</i></span> (see below) is configured. Plus, you can selectively disable the protocols you want to be supported on a per-realm basis:</p>
-<pre class="screen">   aaa.protocol.allowd = tacacs,tacacss,radius,radsec # remove the ones you don't want
+<pre class="screen">   aaa.protocol.allowed = tacacs,tacacss,radius,radsec # remove the ones you don't want
 </pre>
 <div class="section">
 <hr>
@@ -3511,8 +3511,9 @@ mavis module external {
         background = no
         listen { port = 49 } # TACACS+
         listen { port = 1812 protocol = UDP } # RADIUS
+        listen { port = 1813 protocol = UDP } # RADIUS
 }</pre>
-<p>In fact, the daemon auto-recognizes the supported protocols. You can use the very same port for <span class="emphasis"><i class="emphasis">TACACS+</i></span>, <span class="emphasis"><i class="emphasis">TACACS+-over-TLS</i></span> and <span class="emphasis"><i class="emphasis">RADSEC-over-TLS</i></span>, and the UDP port specified for <span class="emphasis"><i class="emphasis">RADIUS</i></span> will accept both authentication and accounting packets.</p>
+<p>In fact, the daemon auto-recognizes the supported protocols. You can use the very same port for <span class="emphasis"><i class="emphasis">TACACS+</i></span>, <span class="emphasis"><i class="emphasis">TACACS+-over-TLS</i></span> and <span class="emphasis"><i class="emphasis">RADSEC-over-TLS</i></span>, and the UDP port(s) specified for <span class="emphasis"><i class="emphasis">RADIUS</i></span> will accept both authentication and accounting packets.</p>
 </div>
 <div class="section">
 <hr>
