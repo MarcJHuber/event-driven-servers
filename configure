@@ -316,6 +316,11 @@ if (exists $A{"--debug"}) {
 	delete $A{"--debug"};
 }
 
+if (exists $A{"--ggdb"}) {
+	$DEFS{"gdb"} = $A{"--ggdb"};
+	delete $A{"--ggdb"};
+}
+
 $A{"--prefix"} = "/usr/local" unless exists $A{"--prefix"};
 $DEFS{"DEST"} = $A{"--prefix"};
 
@@ -455,12 +460,12 @@ if ($cctest =~ /clang/) {
 
 if (defined $DEFS{"CC_GCC"}) {
 	$DEFS{"CFLAGS"} = "-Wall -W -Wno-strict-prototypes -Wno-implicit-fallthrough";
-	$DEFS{"CFLAGS"} .= " -O2" if exists $DEFS{"CC_CLANG"} && !exists $DEFS{'DEBUG'};
+	$DEFS{"CFLAGS"} .= " -O2" if exists $DEFS{"CC_CLANG"} && !exists $DEFS{'DEBUG'} && !exists $DEFS{'GGDB'};
 	$DEFS{"CFLAGS_PIC"} = "-fPIC";
 	$DEFS{"LDOPT_R"} = "-Wl,-rpath,";
 	$DEFS{"LD_SHARED"} = "$DEFS{'CC'} -shared";
 
-	$DEFS{"CFLAGS"} .= " -Werror -Wno-deprecated-declarations -Wno-unused-result" if exists $DEFS{'DEBUG'};
+	$DEFS{"CFLAGS"} .= " -Werror -Wno-deprecated-declarations -Wno-unused-result" if exists $DEFS{'DEBUG'} || exists $DEFS{'GGDB'};
 }
 
 if (defined $DEFS{"CC_SUN"}) {
@@ -517,6 +522,11 @@ if ($sysname eq "linux") {
 
 if (exists $DEFS{"DEBUG"}) {
 	$DEFS{"DEF"} .= " -DDEBUG";
+	$DEFS{"CFLAGS"}	.= " -g -Og";
+	$DEFS{"CFLAGS"} .= " -ggdb" if exists $DEFS{"CC_GCC"};
+}
+
+if (exists $DEFS{"GGDB"}) {
 	$DEFS{"CFLAGS"}	.= " -g -Og";
 	$DEFS{"CFLAGS"} .= " -ggdb" if exists $DEFS{"CC_GCC"};
 }
