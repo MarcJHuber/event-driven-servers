@@ -585,7 +585,8 @@ void tac_read(struct context *ctx, int cur)
     }
 #endif
 
-    ctx->aaa_protocol = S_tacacss;
+    if (ctx->tls)
+	ctx->aaa_protocol = S_tacacss;
 
     if ((ctx->hdr.tac.version & TAC_PLUS_MAJOR_VER_MASK) != TAC_PLUS_MAJOR_VER) {
 	report(NULL, LOG_ERR, ~0, "%s: Illegal major version specified: found %d wanted %d", ctx->device_addr_ascii, ctx->hdr.tac.version,
