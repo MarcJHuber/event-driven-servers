@@ -70,7 +70,7 @@ Options:
   --conf=<config>	configuration file [$conf]
   --id=<id>		id for configuration selection [$id]
   --radsec		testin uing RADSEC instead of TACACS+
-  --radius-dict=<file>	radius dictionary to use
+  --radius-dict=<file>	radius dictionary to use [limited built-in dictionary]
 
 For authc the password can be set either via the environment variable
 TACTRACEPASSWORD or the defaults file. Setting it via a CLI option isn't
