@@ -1948,8 +1948,8 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    client == != =~ !~ Net object name or IP address or string. Net
    incl. parents
    client.name == != Net object name Client remote address
-   client.address == != =~ !~ String or REGEX Client remote
-   address
+   client.address == != =~ !~ String or REGEX TACACS+ client
+   remote address or RADIUS Calling-Station-Id, if available
    client.dnsname == != =~ !~ Client DNS PTR record
    cmd == != =~ !~ String or REGEX shell command line
    context == != =~ !~ String or REGEX current exec context
@@ -1987,8 +1987,8 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    server.address == != =~ !~ Server address
    server.name == != =~ !~ Server host name
    server.port == != =~ !~ Server TCP port
-   service == != =~ !~ String or REGEX session service (shell,
-   ...)
+   service == != =~ !~ String or REGEX TACACA+ session service
+   (shell, ...) or RADIUS Service-Type
    time == != Timespec object name
    tls.conn.cipher == != =~ !~ String or REGEX TLS specific data
    tls.conn.cipher.strength == != =~ !~ String or REGEX TLS
@@ -3011,6 +3011,12 @@ id = spawnd {
    You can use the very same port for TACACS+, TACACS+-over-TLS
    and RADSEC-over-TLS, and the UDP port(s) specified for RADIUS
    will accept both authentication and accounting packets.
+
+   UDP RADIUS sessions will be accepted only if a matching key
+   (shared secret) exits. You can define that in host context:
+    radius.key = mysecretkey
+
+   RADSEC doesn't need this key definition.
      __________________________________________________________
 
 6.2. RADIUS Dictionary

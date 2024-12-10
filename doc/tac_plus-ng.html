@@ -159,30 +159,30 @@
 <dd>
 <dl>
 <dt>6.1. <a class="lk" href="#AEN3166">Accepting RADIUS Queries</a></dt>
-<dt>6.2. <a class="lk" href="#AEN3178">RADIUS Dictionary</a></dt>
-<dt>6.3. <a class="lk" href="#AEN3186">RADIUS Rule Set</a></dt>
-<dt>6.4. <a class="lk" href="#AEN3195">RADIUS Logging</a></dt>
-<dt>6.5. <a class="lk" href="#AEN3203">RADIUS Example Configurations</a></dt>
+<dt>6.2. <a class="lk" href="#AEN3183">RADIUS Dictionary</a></dt>
+<dt>6.3. <a class="lk" href="#AEN3191">RADIUS Rule Set</a></dt>
+<dt>6.4. <a class="lk" href="#AEN3200">RADIUS Logging</a></dt>
+<dt>6.5. <a class="lk" href="#AEN3208">RADIUS Example Configurations</a></dt>
 </dl>
 </dd>
-<dt>7. <a class="lk" href="#AEN3207">Debugging</a></dt>
+<dt>7. <a class="lk" href="#AEN3212">Debugging</a></dt>
 <dd>
 <dl>
-<dt>7.1. <a class="lk" href="#AEN3210">Debugging Configuration Files</a></dt>
-<dt>7.2. <a class="lk" href="#AEN3218">Trace Options</a></dt>
+<dt>7.1. <a class="lk" href="#AEN3215">Debugging Configuration Files</a></dt>
+<dt>7.2. <a class="lk" href="#AEN3223">Trace Options</a></dt>
 </dl>
 </dd>
-<dt>8. <a class="lk" href="#AEN3376">Frequently Asked Questions</a></dt>
-<dt>9. <a class="lk" href="#AEN3453">Multi-tenant setups</a></dt>
+<dt>8. <a class="lk" href="#AEN3381">Frequently Asked Questions</a></dt>
+<dt>9. <a class="lk" href="#AEN3458">Multi-tenant setups</a></dt>
 <dd>
 <dl>
-<dt>9.1. <a class="lk" href="#AEN3484">AD, Realms and Tenants</a></dt>
+<dt>9.1. <a class="lk" href="#AEN3489">AD, Realms and Tenants</a></dt>
 </dl>
 </dd>
-<dt>10. <a class="lk" href="#AEN3489">AAA rule tracing</a></dt>
-<dt>11. <a class="lk" href="#AEN3505">Bugs</a></dt>
-<dt>12. <a class="lk" href="#AEN3515">References</a></dt>
-<dt>13. <a class="lk" href="#AEN3525">Copyrights and Acknowledgements</a></dt>
+<dt>10. <a class="lk" href="#AEN3494">AAA rule tracing</a></dt>
+<dt>11. <a class="lk" href="#AEN3510">Bugs</a></dt>
+<dt>12. <a class="lk" href="#AEN3520">References</a></dt>
+<dt>13. <a class="lk" href="#AEN3530">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -2366,7 +2366,7 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"</pre></td>
 <td><tt class="literal">client.address</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
 <td>String or REGEX</td>
-<td>Client remote address</td>
+<td>TACACS+ client remote address or RADIUS Calling-Station-Id, if available</td>
 <td>&nbsp;</td>
 </tr>
 <tr>
@@ -2529,7 +2529,7 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"</pre></td>
 <td><tt class="literal">service</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
 <td>String or REGEX</td>
-<td>session service (shell, ...)</td>
+<td>TACACA+ session service (shell, ...) or RADIUS Service-Type</td>
 </tr>
 <tr>
 <td><tt class="literal">time</tt></td>
@@ -3514,10 +3514,13 @@ mavis module external {
         listen { port = 1813 protocol = UDP } # RADIUS
 }</pre>
 <p>In fact, the daemon auto-recognizes the supported protocols. You can use the very same port for <span class="emphasis"><i class="emphasis">TACACS+</i></span>, <span class="emphasis"><i class="emphasis">TACACS+-over-TLS</i></span> and <span class="emphasis"><i class="emphasis">RADSEC-over-TLS</i></span>, and the UDP port(s) specified for <span class="emphasis"><i class="emphasis">RADIUS</i></span> will accept both authentication and accounting packets.</p>
+<p>UDP RADIUS sessions will be accepted only if a matching key (shared secret) exits. You can define that in <tt class="literal">host</tt> context:</p>
+<pre class="screen">    radius.key = mysecretkey</pre>
+<p><span class="emphasis"><i class="emphasis">RADSEC</i></span> doesn't need this key definition.</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN3178" id="AEN3178">6.2. RADIUS Dictionary</a></h3>
+<h3 class="section"><a name="AEN3183" id="AEN3183">6.2. RADIUS Dictionary</a></h3>
 <p>There's no file format standard for RADIUS dictionaries, so <span class="bold"><b class="emphasis">tac_plus-ng</b></span> comes with its own, too. Here's an exceprt from <tt class="literal">tac_ls-ng/sample/radius-dict.cfg</tt> which demonstrates the syntax:</p>
 <pre class="screen">radius.dictionary {
         attribute User-Name             1       string
@@ -3585,7 +3588,7 @@ radius.dictionary cisco 9 {
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN3186" id="AEN3186">6.3. RADIUS Rule Set</a></h3>
+<h3 class="section"><a name="AEN3191" id="AEN3191">6.3. RADIUS Rule Set</a></h3>
 <p><span class="emphasis"><i class="emphasis">RADIUS</i></span> attributes are accessible via <tt class="literal">radius[</tt><span class="emphasis"><i class="emphasis">AttributeName</i></span><tt class="literal">]</tt> and can be used both in conditions and <tt class="literal">set</tt> clauses:</p>
 <pre class="screen">    if (aaa.protocol == radius || aaa.protocol == radsec) {
         if (radius[Service-Type] ==  Administrative-User)  {
@@ -3598,7 +3601,7 @@ radius.dictionary cisco 9 {
 </pre></div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN3195" id="AEN3195">6.4. RADIUS Logging</a></h3>
+<h3 class="section"><a name="AEN3200" id="AEN3200">6.4. RADIUS Logging</a></h3>
 <p><span class="emphasis"><i class="emphasis">TACACS+</i></span> and <span class="emphasis"><i class="emphasis">RADIUS</i></span> share the <tt class="literal">connection log</tt>. Dedicated <span class="emphasis"><i class="emphasis">RADIUS</i></span> logs for authentication and acounting can be enabled:</p>
 <pre class="screen">        log accesslog { destination = /tmp/tac/access.log }     # TACACS+
         log authorlog { destination = /tmp/tac/author.log }     # TACACS+
@@ -3616,23 +3619,23 @@ radius.dictionary cisco 9 {
 </pre></div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN3203" id="AEN3203">6.5. RADIUS Example Configurations</a></h3>
+<h3 class="section"><a name="AEN3208" id="AEN3208">6.5. RADIUS Example Configurations</a></h3>
 <p>Sample configurations are available in the <tt class="literal">tac_plus-ng/samples/</tt> directory.</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3207" id="AEN3207">7. Debugging</a></h2>
+<h2 class="section"><a name="AEN3212" id="AEN3212">7. Debugging</a></h2>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN3210" id="AEN3210">7.1. Debugging Configuration Files</a></h3>
+<h3 class="section"><a name="AEN3215" id="AEN3215">7.1. Debugging Configuration Files</a></h3>
 <p>When creating configuration files, it is convenient to check their syntax using the <tt class="literal">-P</tt> flag to <tt class="literal">tac_plus</tt>; e.g:</p>
 <pre class="screen">tac_plus -P <span class="emphasis"><i class="emphasis">config-file</i></span> </pre>
 <p>will syntax check the configuration file and print any error messages on the terminal.</p>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN3218" id="AEN3218">7.2. Trace Options</a></h3>
+<h3 class="section"><a name="AEN3223" id="AEN3223">7.2. Trace Options</a></h3>
 <p>Trace (or debugging) options may be specified in <span class="emphasis"><i class="emphasis">global</i></span>, <span class="emphasis"><i class="emphasis">device</i></span>, <span class="emphasis"><i class="emphasis">user</i></span> and <span class="emphasis"><i class="emphasis">group</i></span> context. The current debugging level is a combination (read: <tt class="literal">OR</tt>) of all those. Generic syntax is:</p>
 <pre class="screen">debug = <span class="emphasis"><i class="emphasis">option ...</i></span></pre>
 <p>For example, getting command authorization to work in a predictable way can be tricky - the exact attributes the NAS sends to the daemon may depend on the IOS version, and may in general not match your expectations. If your regular expressions don't work, add</p>
@@ -3643,7 +3646,7 @@ radius.dictionary cisco 9 {
 <p>Trace options may be removed by prefixing them with<tt class="literal">-</tt>. Example:</p>
 <pre class="screen">debug = ALL -PARSE</pre>
 <p>The debugging options available are summarized in the following table:</p>
-<div class="informaltable"><a name="AEN3238" id="AEN3238"></a>
+<div class="informaltable"><a name="AEN3243" id="AEN3243"></a>
 <table border="1" frame="border" class="CALSTABLE">
 <col width="5%" title="col1">
 <col width="15%" title="col2">
@@ -3822,7 +3825,7 @@ radius.dictionary cisco 9 {
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3376" id="AEN3376">8. Frequently Asked Questions</a></h2>
+<h2 class="section"><a name="AEN3381" id="AEN3381">8. Frequently Asked Questions</a></h2>
 <ul>
 <li>
 <p><span class="bold"><b class="emphasis">Is there a Graphical User Interface of any kind?</b></span></p>
@@ -3917,7 +3920,7 @@ Router#</pre></li>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3453" id="AEN3453">9. Multi-tenant setups</a></h2>
+<h2 class="section"><a name="AEN3458" id="AEN3458">9. Multi-tenant setups</a></h2>
 <p>While using a dedictated tac_plus-ng installation per tenant is certainly possible it lacks some elegance. There are other ways:</p>
 <p>A single daemon can tell tenants apart by</p>
 <ul>
@@ -3971,7 +3974,7 @@ Router#</pre></li>
 <p>and the daemon will use the VRF name your clients did connect from as realm name.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN3484" id="AEN3484">9.1. AD, Realms and Tenants</a></h3>
+<h3 class="section"><a name="AEN3489" id="AEN3489">9.1. AD, Realms and Tenants</a></h3>
 <p>The suggested setup for giving customers limited access to NADs is:</p>
 <pre class="screen">id = tac_plus-ng {
     mavis module external { your AD configuration goes here }
@@ -4008,7 +4011,7 @@ Router#</pre></li>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3489" id="AEN3489">10. AAA rule tracing</a></h2>
+<h2 class="section"><a name="AEN3494" id="AEN3494">10. AAA rule tracing</a></h2>
 <p>The distribution includes the <tt class="literal">tactrace.pl</tt> Perl script. It's usually not installed automatically, due to some Perl dependencies that need to be met. It requires a couple of CPAN Perl modules, and a custom one. Your OS distribution might provide re-built packages for <tt class="literal">Net::IP</tt> and/or <tt class="literal">Net::TacacsPlus::Packet</tt>, so check for this first. For unavailable packages, you can do a manual install using cpan. Example for Ubuntu:</p>
 <pre class="screen">sudu apt install libnet-ip-perl
 sudo cpan install Net::TacacsPlus::Packet</pre>
@@ -4100,7 +4103,7 @@ supported as the password would show up as clear text in the process listing.</p
 127.0.0.1 ---&lt;end packet&gt;---</pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3505" id="AEN3505">11. Bugs</a></h2>
+<h2 class="section"><a name="AEN3510" id="AEN3510">11. Bugs</a></h2>
 <ul>
 <li>
 <p>This documentation isn't well structured.</p>
@@ -4115,7 +4118,7 @@ supported as the password would show up as clear text in the process listing.</p
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3515" id="AEN3515">12. References</a></h2>
+<h2 class="section"><a name="AEN3520" id="AEN3520">12. References</a></h2>
 <ul>
 <li>
 <p><a class="lk" href="https://tools.ietf.org/html/draft-grant-tacacs-02" target="_top">draft-grant-tacacs-02.txt - The TACACS+ Protocol (Version 1.78)</a></p>
@@ -4127,7 +4130,7 @@ supported as the password would show up as clear text in the process listing.</p
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN3525" id="AEN3525">13. Copyrights and Acknowledgements</a></h2>
+<h2 class="section"><a name="AEN3530" id="AEN3530">13. Copyrights and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of individual files.</p>
 <ul>
 <li>
@@ -4166,7 +4169,7 @@ supported as the password would show up as clear text in the process listing.</p
 </li>
 <li>
 <p>The end-user documentation included with the redistribution, if any, must include the following acknowledgment:</p>
-<a name="AEN3568" id="AEN3568"></a>
+<a name="AEN3573" id="AEN3573"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber (<code class="email">&lt;<a class="lk" href="mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>).</p>
 </blockquote>
