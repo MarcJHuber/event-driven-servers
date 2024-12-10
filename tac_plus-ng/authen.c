@@ -1144,7 +1144,7 @@ static void do_enable_getuser(tac_session *session)
     }
 
     if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, "enforced enable login", hint_denied_by_acl, res);
+	report_auth(session, "enforced enable login", hint_denied_by_acl, TAC_PLUS_AUTHEN_STATUS_FAIL);
 	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
 	return;
     }
