@@ -1995,14 +1995,14 @@ static void do_radius_login(tac_session *session)
 	rad_send_authen_reply(session, res, NULL);
 	return;
     }
-    if (query_mavis_info_pap(session, do_radius_login))
+    if (query_mavis_info_login(session, do_radius_login))
 	return;
 
-    enum pw_ix pw_ix = (session->ctx->host->map_pap_to_login == TRISTATE_YES) ? PW_LOGIN : PW_PAP;
+    enum pw_ix pw_ix = PW_LOGIN;
     struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
-    if (query_mavis_auth_pap(session, do_radius_login, pw_ix))
+    if (query_mavis_auth_login(session, do_radius_login, pw_ix))
 	return;
 
     res = check_access(session, pwdat, session->password, &hint, &resp);
