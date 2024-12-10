@@ -295,7 +295,7 @@ static int user_invalid(tac_user *user, enum hint_enum *hint)
     return res ? TAC_PLUS_AUTHEN_STATUS_FAIL : TAC_PLUS_AUTHEN_STATUS_PASS;
 }
 
-static int compare_pwdat(struct pwdat *a, char *b, enum hint_enum *hint)
+static enum token compare_pwdat(struct pwdat *a, char *b, enum hint_enum *hint)
 {
     int res = -1;
 
@@ -314,25 +314,25 @@ static int compare_pwdat(struct pwdat *a, char *b, enum hint_enum *hint)
 	break;
     case S_permit:
 	*hint = hint_permitted;
-	return TAC_PLUS_AUTHEN_STATUS_PASS;
+	return S_permit;
     case S_deny:
 	*hint = hint_denied;
-	return TAC_PLUS_AUTHEN_STATUS_FAIL;
+	return S_deny;
     case S_unknown:
 	*hint = hint_nopass;
-	return TAC_PLUS_AUTHEN_STATUS_FAIL;
+	return S_deny;
     default:
 	*hint = hint_bug;
-	return TAC_PLUS_AUTHEN_STATUS_FAIL;
+	return S_deny;
     }
 
     if (res) {
 	*hint = hint_failed;
-	return TAC_PLUS_AUTHEN_STATUS_FAIL;
+	return S_deny;
     }
 
     *hint = hint_succeeded;
-    return TAC_PLUS_AUTHEN_STATUS_PASS;
+    return S_permit;
 }
 
 static enum token lookup_and_set_user(tac_session *session)
@@ -506,7 +506,7 @@ static int check_access(tac_session *session, struct pwdat *pwdat, char *passwd,
 	if (res == TAC_PLUS_AUTHEN_STATUS_ERROR && session->ctx->host->authfallback != TRISTATE_YES)
 	    res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     } else if (pwdat)
-	res = compare_pwdat(pwdat, passwd, hint);
+	res = (S_permit == compare_pwdat(pwdat, passwd, hint)) ? TAC_PLUS_AUTHEN_STATUS_PASS : TAC_PLUS_AUTHEN_STATUS_FAIL;
 
     switch (res) {
     case TAC_PLUS_AUTHEN_STATUS_PASS:
@@ -919,7 +919,7 @@ static void do_enable(tac_session *session)
 	}
 
 	if (session->enable)
-	    res = compare_pwdat(session->enable, session->authen_data->msg, &hint);
+	    res = (compare_pwdat(session->enable, session->authen_data->msg, &hint) == S_permit) ? TAC_PLUS_AUTHEN_STATUS_PASS : TAC_PLUS_AUTHEN_STATUS_FAIL;
     }
 
     snprintf(buf, sizeof(buf), "enable %d", session->priv_lvl);
