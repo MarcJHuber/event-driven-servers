@@ -247,7 +247,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
     char *t, *result = NULL;
     tac_realm *r = session->ctx->realm;
 
-    session->mavisauth_res = 0;
+    session->mavisauth_res = S_unknown;
 
     dump_av_pairs(session, avc, "user");
     if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&	//
@@ -305,7 +305,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 
 		    free_user(u);
 		    session->user = NULL;
-		    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+		    session->mavisauth_res = S_deny;
 
 		    static struct log_item *li_mavis_parse_error = NULL;
 		    if (!li_mavis_parse_error)
@@ -324,7 +324,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 		    case PW_LOGIN:
 			if (u->passwd[session->mavis_data->pw_ix]->type != S_mavis) {
 			    /* Authenticated via backend, but the profile tells otherwise */
-			    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+			    session->mavisauth_res = S_deny;
 			    result = AV_V_RESULT_FAIL;
 			    report(session, LOG_ERR, ~0, "profile for user %s conflicts with MAVIS authentication", session->username);
 			    report(session, LOG_ERR, ~0,
@@ -377,7 +377,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 	}
 
 	if (strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_INFO)) {
-	    session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_PASS;
+	    session->mavisauth_res = S_permit;
 	    if ((TRISTATE_YES != u->chalresp) && session->password && !u->passwd_oneshot) {
 		char *pass = session->password_new ? session->password_new : session->password;
 		char *crypt, salt[13];
@@ -396,7 +396,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 	    }
 	}
     } else if (result && !strcmp(result, AV_V_RESULT_ERROR)) {
-	session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_ERROR;
+	session->mavisauth_res = S_error;
 	r->last_backend_failure = io_now.tv_sec;
 	while (r && session->mavisauth_res) {
 	    if (r->usertable) {
@@ -416,7 +416,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 	    r = r->parent;
 	}
     } else if (result && !strcmp(result, AV_V_RESULT_FAIL)) {
-	session->mavisauth_res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+	session->mavisauth_res = S_deny;
     }
     if (result) {
 	session->mavis_latency = timediff(&session->mavis_data->start);
