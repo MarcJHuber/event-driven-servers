@@ -1543,7 +1543,9 @@ static void do_sshkeyhash(tac_session *session)
 	enum token token = validate_ssh_hash(session, session->ssh_key_hash, &key);
 
 	if (token == S_permit) {
-	    token = session->authorized ? S_permit : eval_ruleset(session, session->ctx->realm);
+	    token = session->authorized ? S_permit : ((S_deny == author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first)
+						       || S_permit != eval_ruleset(session, session->ctx->realm)) ? S_deny : S_permit);
+
 	    if (token == S_permit) {
 		res = TAC_PLUS_AUTHEN_STATUS_PASS;
 		hint = hint_permitted;
