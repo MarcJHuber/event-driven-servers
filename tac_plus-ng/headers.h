@@ -898,7 +898,6 @@ struct context {
     union pak_hdr hdr;
     ssize_t hdroff;
     struct tac_key *key;
-    struct tac_key *radius_key;
     time_t last_io;
     struct radius_data *radius_data;
 #ifdef WITH_SSL

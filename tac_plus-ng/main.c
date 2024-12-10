@@ -1291,7 +1291,7 @@ static void complete_host_mavis_udp(struct context *ctx)
     }
 
     if (ctx->host)
-	ctx->radius_key = ctx->host->radius_key;
+	ctx->key = ctx->host->radius_key;
 
 #define S "CONN-START"
     ctx->msgid = S;

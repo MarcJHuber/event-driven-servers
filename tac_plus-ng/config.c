@@ -1519,7 +1519,7 @@ int rad_get_password(tac_session *session, char **val, size_t *val_len)
 	    for (int i = 0; i <= p[1]; i++) {
 		if (!(i & 0xf)) {
 		    struct iovec iov[2] = {
-			{.iov_base = session->ctx->radius_key->key,.iov_len = session->ctx->radius_key->len },
+			{.iov_base = session->ctx->key->key,.iov_len = session->ctx->key->len },
 			{.iov_base = i ? (p + i + 2 - 16) : session->radius_data->pak_in->authenticator,.iov_len = 16 }
 		    };
 		    md5v(digest, 16, iov, 2);

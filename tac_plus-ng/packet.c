@@ -321,7 +321,7 @@ static void set_response_authenticator(tac_session *session, rad_pak_hdr *pak)
 	{.iov_base = pak, 4 },
 	{.iov_base = session->radius_data->pak_in->authenticator,.iov_len = 16 },
 	{.iov_base = session->radius_data->data,.iov_len = session->radius_data->data_len },
-	{.iov_base = session->ctx->radius_key->key,.iov_len = session->ctx->radius_key->len }
+	{.iov_base = session->ctx->key->key,.iov_len = session->ctx->key->len }
     };
     md5v(pak->authenticator, MD5_LEN, iov, 4);
 }
@@ -560,7 +560,7 @@ void tac_read(struct context *ctx, int cur)
 	    key_radsec->len = 6;
 	    strcpy(key_radsec->key, "radsec");
 	}
-	ctx->radius_key = key_radsec;
+	ctx->key = key_radsec;
 
 	io_set_cb_i(ctx->io, ctx->sock, (void *) rad_read);
 	return;
@@ -811,18 +811,18 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 #ifdef WITH_SSL
 // Packet looks sane, check message authentiator, if present
     if (message_authenticator) {
-	for (; ctx->radius_key; ctx->radius_key = ctx->radius_key->next) {
+	for (; ctx->key; ctx->key = ctx->key->next) {
 	    u_char ma_original[16];
 	    u_char ma_calculated[16];
 	    memcpy(ma_original, message_authenticator, 16);
 	    memset(message_authenticator, 0, 16);
 	    u_int ma_calculated_len = sizeof(ma_calculated);
-	    HMAC(EVP_md5(), ctx->radius_key->key, ctx->radius_key->len, (const unsigned char *) &ctx->in->pak.uchar, ntohs(ctx->in->pak.rad.length),
+	    HMAC(EVP_md5(), ctx->key->key, ctx->key->len, (const unsigned char *) &ctx->in->pak.uchar, ntohs(ctx->in->pak.rad.length),
 		 ma_calculated, &ma_calculated_len);
 	    memcpy(message_authenticator, ma_original, 16);
 	    if (!memcmp(ma_original, ma_calculated, 16)) {
-		if (ctx->radius_key->warn)
-		    report(NULL, LOG_INFO, ~0, "%s uses deprecated radius key (line %d)", ctx->device_addr_ascii, ctx->radius_key->line);
+		if (ctx->key->warn)
+		    report(NULL, LOG_INFO, ~0, "%s uses deprecated radius key (line %d)", ctx->device_addr_ascii, ctx->key->line);
 		return 0;
 	    }
 	}
