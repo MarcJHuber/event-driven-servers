@@ -2002,7 +2002,8 @@ static void do_radius_login(tac_session *session)
     if (query_mavis_auth_pap(session, do_radius_login, pw_ix))
 	return;
 
-    session->debug |= session->user->debug;
+    if (session->user)
+	session->debug |= session->user->debug;
 
     res = check_access(session, pwdat, session->password, &hint, &resp);
 
