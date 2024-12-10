@@ -199,6 +199,9 @@ static struct hint_struct hints[hint_max] = {
 #undef S2
 };
 
+#define TAC_SYM_TO_CODE(A) (((A) == S_permit) ? TAC_PLUS_AUTHEN_STATUS_PASS : TAC_PLUS_AUTHEN_STATUS_FAIL)
+#define RAD_SYM_TO_CODE(A) (((A) == S_permit) ? RADIUS_CODE_ACCESS_ACCEPT : RADIUS_CODE_ACCESS_REJECT)
+
 static char *get_hint(tac_session *session, enum hint_enum h)
 {
     if (session->user_msg) {
@@ -217,18 +220,13 @@ static char *get_hint(tac_session *session, enum hint_enum h)
     return hints[h].plain;
 }
 
-static void report_auth(tac_session *session, char *what, enum hint_enum hint, int res)
+static void report_auth(tac_session *session, char *what, enum hint_enum hint, enum token res)
 {
     char *realm = alloca(session->ctx->realm->name_len + 40);
     tac_realm *r = session->ctx->realm;
 
-    if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
-	session->result = codestring[S_permit];
-	session->result_len = codestring_len[S_permit];
-    } else {
-	session->result = codestring[S_deny];
-	session->result_len = codestring_len[S_deny];
-    }
+    session->result = codestring[res];
+    session->result_len = codestring_len[res];
 
     if (r == config.default_realm)
 	*realm = 0;
@@ -276,11 +274,10 @@ static int password_requirements_failed(tac_session *session, char *what)
 	session->debug = debug;
 	if (token != S_permit) {
 	    report(session, LOG_ERR, ~0, "password doesn't meet minimum requirements");
-	    report_auth(session, what, hint_weak_password, TAC_PLUS_AUTHEN_STATUS_FAIL);
-	    if (session->ctx->aaa_protocol == S_radius || session->ctx->aaa_protocol == S_radsec)
-		return -1;
-	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL,
-			      eval_log_format(session, session->ctx, NULL, li_password_minreq, io_now.tv_sec, NULL), 0, NULL, 0, 0);
+	    report_auth(session, what, hint_weak_password, S_deny);
+	    if (session->ctx->aaa_protocol == S_tacacs || session->ctx->aaa_protocol == S_tacacss)
+		send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL,
+				  eval_log_format(session, session->ctx, NULL, li_password_minreq, io_now.tv_sec, NULL), 0, NULL, 0, 0);
 	    return -1;
 	}
     }
@@ -292,7 +289,7 @@ static int user_invalid(tac_user *user, enum hint_enum *hint)
     int res = (user->valid_from && user->valid_from > io_now.tv_sec) || (user->valid_until && user->valid_until <= io_now.tv_sec);
     if (res && hint)
 	*hint = hint_expired;
-    return res ? TAC_PLUS_AUTHEN_STATUS_FAIL : TAC_PLUS_AUTHEN_STATUS_PASS;
+    return res ? S_deny : S_permit;
 }
 
 static enum token compare_pwdat(struct pwdat *a, char *b, enum hint_enum *hint)
@@ -347,8 +344,6 @@ static enum token lookup_and_set_user(tac_session *session)
 		report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
 		report_auth(session, "session", hint_denied_by_acl, S_deny);
 		return S_deny;
-	    case S_permit:
-		break;
 	    default:
 		break;
 	    }
@@ -357,8 +352,10 @@ static enum token lookup_and_set_user(tac_session *session)
     }
 
     report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "looking for user %s realm %s", session->username, session->ctx->realm->name);
+
     if (!session->user_is_session_specific)
 	lookup_user(session);
+
     if (session->user && session->user->fallback_only
 	&& ((session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period < io_now.tv_sec)
 	    || (session->ctx->host->authfallback != TRISTATE_YES)))
@@ -452,10 +449,10 @@ static int query_mavis_info_pap(tac_session *session, void (*f)(tac_session *))
 
 static void do_chap(tac_session *session)
 {
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum token res = S_deny;
 
     if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, "chap login", hint_denied_by_acl, res);
+	report_auth(session, "chap login", hint_denied_by_acl, S_deny);
 	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
 	return;
     }
@@ -466,25 +463,27 @@ static void do_chap(tac_session *session)
     enum hint_enum hint = hint_nosuchuser;
     if (session->user) {
 	res = user_invalid(session->user, &hint);
-	if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
+	if (res == S_permit) {
 	    if (session->user->passwd[PW_CHAP]->type != S_clear) {
 		hint = hint_no_cleartext;
-		res = TAC_PLUS_AUTHEN_STATUS_RESTART;
-	    } else if (session->authen_data->data_len - MD5_LEN > 0) {
+		report_auth(session, "chap login", hint, res);
+		send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_RESTART, NULL, 0, NULL, 0, 0);
+		return;
+	    }
+	    if (session->authen_data->data_len - MD5_LEN > 0) {
 		u_char digest[MD5_LEN];
-		myMD5_CTX mdcontext;
-
-		myMD5Init(&mdcontext);
-		myMD5Update(&mdcontext, session->authen_data->data, (size_t) 1);
-		myMD5Update(&mdcontext, (u_char *) session->user->passwd[PW_CHAP]->value, strlen(session->user->passwd[PW_CHAP]->value));
-		myMD5Update(&mdcontext, session->authen_data->data + 1, (size_t) (session->authen_data->data_len - 1 - MD5_LEN));
-		myMD5Final(digest, &mdcontext);
+		struct iovec iov[3] = {
+		    {.iov_base = session->authen_data->data,.iov_len = 1 },
+		    {.iov_base = session->user->passwd[PW_CHAP]->value,.iov_len = strlen(session->user->passwd[PW_CHAP]->value) },
+		    {.iov_base = session->authen_data->data + 1,.iov_len = session->authen_data->data_len - 1 - MD5_LEN },
+		};
+		md5v(digest, MD5_LEN, iov, 3);
 
 		if (memcmp(digest, session->authen_data->data + session->authen_data->data_len - MD5_LEN, (size_t) MD5_LEN)) {
-		    res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+		    res = S_deny;
 		    hint = hint_failed;
 		} else {
-		    res = TAC_PLUS_AUTHEN_STATUS_PASS;
+		    res = S_permit;
 		    hint = hint_succeeded;
 		}
 	    }
@@ -493,26 +492,26 @@ static void do_chap(tac_session *session)
 
     report_auth(session, "chap login", hint, res);
 
-    send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+    send_authen_reply(session, TAC_SYM_TO_CODE(res), NULL, 0, NULL, 0, 0);
 }
 
-static int check_access(tac_session *session, struct pwdat *pwdat, char *passwd, enum hint_enum *hint, char **resp)
+static enum token check_access(tac_session *session, struct pwdat *pwdat, char *passwd, enum hint_enum *hint, char **resp)
 {
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum token res = S_deny;
 
-    if (session->mavisauth_res) {
+    if (session->mavisauth_res != S_unknown) {
 	res = session->mavisauth_res;
-	session->mavisauth_res = 0;
-	if (res == TAC_PLUS_AUTHEN_STATUS_ERROR && session->ctx->host->authfallback != TRISTATE_YES)
-	    res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+	session->mavisauth_res = S_unknown;
+	if (res == S_error && session->ctx->host->authfallback != TRISTATE_YES)
+	    res = S_deny;
     } else if (pwdat)
-	res = (S_permit == compare_pwdat(pwdat, passwd, hint)) ? TAC_PLUS_AUTHEN_STATUS_PASS : TAC_PLUS_AUTHEN_STATUS_FAIL;
+	res = compare_pwdat(pwdat, passwd, hint);
 
     switch (res) {
-    case TAC_PLUS_AUTHEN_STATUS_PASS:
+    case S_permit:
 	*hint = hint_succeeded;
 	break;
-    case TAC_PLUS_AUTHEN_STATUS_ERROR:
+    case S_error:
 	*hint = hint_backend_error;
 	break;
     default:
@@ -521,18 +520,18 @@ static int check_access(tac_session *session, struct pwdat *pwdat, char *passwd,
     }
 
     if (session->user) {
-	if (res == TAC_PLUS_AUTHEN_STATUS_PASS && !session->authorized &&
+	if (res == S_permit && !session->authorized &&
 	    (S_deny == author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first) ||
 	     S_permit != eval_ruleset(session, session->ctx->realm))) {
-	    res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+	    res = S_deny;
 	    *hint = hint_denied_by_acl;
 	}
 
 	session->password_bad = NULL;
-	if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
+	if (res == S_permit)
 	    res = user_invalid(session->user, hint);
 
-	if (res != TAC_PLUS_AUTHEN_STATUS_PASS) {
+	if (res != S_permit) {
 	    if (session->ctx->host->reject_banner)
 		*resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
 	    session->password_bad = session->password;
@@ -542,6 +541,7 @@ static int check_access(tac_session *session, struct pwdat *pwdat, char *passwd,
 
     if (!*resp)
 	*resp = session->user_msg;
+
     return res;
 }
 
@@ -651,6 +651,7 @@ static void do_chpass(tac_session *session)
 	if (password_requirements_failed(session, "password change"))
 	    return;
     }
+
     if (!session->password_new) {
 	send_authen_reply(session, session->chpass ? TAC_PLUS_AUTHEN_STATUS_GETPASS : TAC_PLUS_AUTHEN_STATUS_GETDATA,
 			  eval_log_format(session, session->ctx, NULL, li_password_new, io_now.tv_sec, NULL), 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
@@ -674,10 +675,10 @@ static void do_chpass(tac_session *session)
 	return;
     }
 
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
-    if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, "password change", hint_denied_by_acl, res);
-	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+    enum token res = lookup_and_set_user(session);
+    if (res == S_deny) {
+	report_auth(session, "password change", hint_denied_by_acl, S_deny);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return;
     }
 
@@ -698,7 +699,7 @@ static void do_chpass(tac_session *session)
     char *resp = NULL;
     res = check_access(session, pwdat, session->password_new, &hint, &resp);
 
-    if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
+    if (res == S_permit) {
 	session->passwd_mustchange = 0;
 	if (resp) {
 	    session->user_msg = resp;
@@ -710,7 +711,7 @@ static void do_chpass(tac_session *session)
 
     report_auth(session, "password change", hint, res);
 
-    send_authen_reply(session, res, resp, 0, NULL, 0, 0);
+    send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
 }
 
 static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*f)(tac_session *))
@@ -753,11 +754,11 @@ static void do_enable_login(tac_session *session)
 {
     enum hint_enum hint = hint_nosuchuser;
     char *resp = eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL);
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 
-    if (S_deny == lookup_and_set_user(session)) {
+    enum token res = lookup_and_set_user(session);
+    if (res == S_deny) {
 	report_auth(session, "enable login", hint_denied_by_acl, res);
-	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return;
     }
 
@@ -796,21 +797,21 @@ static void do_enable_login(tac_session *session)
 
     report_auth(session, buf, hint, res);
 
-    send_authen_reply(session, res, res == TAC_PLUS_AUTHEN_STATUS_PASS ? NULL : resp, 0, NULL, 0, 0);
+    send_authen_reply(session, TAC_SYM_TO_CODE(res), (res == S_permit) ? NULL : resp, 0, NULL, 0, 0);
 }
 
 static void do_enable_getuser(tac_session *);
 
 static void do_enable_augmented(tac_session *session)
 {
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
     enum hint_enum hint = hint_nosuchuser;
     char *u;
     char *resp = eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL);
 
-    if (S_deny == lookup_and_set_user(session)) {
+    enum token res = lookup_and_set_user(session);
+    if (res == S_deny) {
 	report_auth(session, "enable login", hint_denied_by_acl, res);
-	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return;
     }
 
@@ -833,9 +834,10 @@ static void do_enable_augmented(tac_session *session)
 	    session->authen_data->msg = NULL;
 	    if (password_requirements_failed(session, "enable login"))
 		return;
-	    if (S_deny == lookup_and_set_user(session)) {
+	    res = lookup_and_set_user(session);
+	    if (res == S_deny) {
 		report_auth(session, "enable login", hint_denied_by_acl, res);
-		send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+		send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 		return;
 	    }
 	}
@@ -863,14 +865,13 @@ static void do_enable_augmented(tac_session *session)
 
     report_auth(session, "enable login", hint, res);
 
-    send_authen_reply(session, res, ((res == TAC_PLUS_AUTHEN_STATUS_PASS) ? NULL : resp), 0, NULL, 0, 0);
+    send_authen_reply(session, TAC_SYM_TO_CODE(res), (res == S_permit) ? NULL : resp, 0, NULL, 0, 0);
 }
 
 static void do_enable(tac_session *session)
 {
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
-    char buf[40];
 
     if ((session->ctx->host->augmented_enable == TRISTATE_YES) && (S_permit == eval_tac_acl(session, session->ctx->realm->enable_user_acl))
 	) {
@@ -889,10 +890,11 @@ static void do_enable(tac_session *session)
 	return;
     }
 
+    char buf[40];
     if (S_deny == lookup_and_set_user(session)) {
 	snprintf(buf, sizeof(buf), "enable %d", session->priv_lvl);
 	report_auth(session, buf, hint_denied_by_acl, res);
-	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return;
     }
     if (query_mavis_info(session, do_enable, PW_LOGIN))
@@ -903,7 +905,7 @@ static void do_enable(tac_session *session)
 	cfg_get_enable(session, &session->enable);
 
     if (session->enable && session->enable_getuser && (session->enable->type == S_permit))
-	res = TAC_PLUS_AUTHEN_STATUS_PASS;
+	res = S_permit;
     else {
 	if (session->user && session->enable && (session->enable->type == S_login)) {
 	    session->authen_data->authfn = do_enable_login;
@@ -919,22 +921,22 @@ static void do_enable(tac_session *session)
 	}
 
 	if (session->enable)
-	    res = (compare_pwdat(session->enable, session->authen_data->msg, &hint) == S_permit) ? TAC_PLUS_AUTHEN_STATUS_PASS : TAC_PLUS_AUTHEN_STATUS_FAIL;
+	    res = compare_pwdat(session->enable, session->authen_data->msg, &hint);
     }
 
     snprintf(buf, sizeof(buf), "enable %d", session->priv_lvl);
 
     report_auth(session, buf, hint, res);
 
-    send_authen_reply(session, res, (res == TAC_PLUS_AUTHEN_STATUS_PASS) ? NULL :
-		      eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL), 0, NULL, 0, 0);
+    send_authen_reply(session, TAC_SYM_TO_CODE(res),
+		      (res == S_permit) ? NULL : eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL), 0, NULL, 0, 0);
 }
 
 static void do_ascii_login(tac_session *session)
 {
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL, *m;
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum token res = S_deny;
 
     if (!session->username[0] && session->authen_data->msg) {
 	mem_free(session->mem, &session->username);
@@ -1000,7 +1002,7 @@ static void do_ascii_login(tac_session *session)
 	 * backend from prematurely locking the user's account,
 	 * eventually.
 	 */
-	res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+	res = S_deny;
 	hint = hint_failed_password_retry;
 	session->password_bad_again = 1;
     } else {
@@ -1013,10 +1015,10 @@ static void do_ascii_login(tac_session *session)
     report_auth(session, "shell login", hint, res);
 
     switch (res) {
-    case TAC_PLUS_AUTHEN_STATUS_ERROR:
+    case S_error:
 	send_authen_error(session, "Authentication backend failure.");
 	return;
-    case TAC_PLUS_AUTHEN_STATUS_PASS:
+    case S_permit:
 	if (session->passwd_mustchange) {
 	    if (!session->user_msg)
 		session->user_msg = eval_log_format(session, session->ctx, NULL, li_change_password, io_now.tv_sec, NULL);
@@ -1031,11 +1033,8 @@ static void do_ascii_login(tac_session *session)
 
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_PASS, set_motd_banner(session), 0, NULL, 0, 0);
 	return;
-    case TAC_PLUS_AUTHEN_STATUS_FAIL:
-	if (resp) {
-	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, resp, 0, NULL, 0, 0);
-	    return;
-	}
+    default:
+	;
     }
 
     if (++session->authen_data->iterations < session->ctx->host->authen_max_attempts) {
@@ -1073,14 +1072,14 @@ static int eap_step(tac_session *session __attribute__((unused)),
 
 static void do_eap(tac_session *session)
 {
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
     u_char eap_out[0x10000], *eap_in = NULL;
     size_t eap_out_len = 0, eap_in_len = 0;
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "shell login", hint_denied_by_acl, res);
-	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return;
     }
 
@@ -1088,7 +1087,8 @@ static void do_eap(tac_session *session)
 	return;
 
     if (!session->user) {
-	send_authen_reply(session, res, eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL), 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL), 0,
+			  NULL, 0, 0);
 	return;
     }
 
@@ -1105,22 +1105,22 @@ static void do_eap(tac_session *session)
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETDATA, NULL, 0, eap_out, eap_out_len, 0);
 	return;
     case EAP_SUCCESS:
-	res = TAC_PLUS_AUTHEN_STATUS_PASS;
+	res = S_deny;
 	break;
     case -1:			// delayed
 	return;
     default:
-	res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+	res = S_deny;
     }
 
     report_auth(session, "shell login", hint, res);
 
-    if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
+    if (res == S_permit) {
 	if (session->user->valid_until && session->user->valid_until < io_now.tv_sec + session->ctx->realm->warning_period)
 	    session->user_msg = eval_log_format(session, session->ctx, NULL, li_account_expires, io_now.tv_sec, &session->user_msg_len);
 	send_authen_reply(session, res, set_motd_banner(session), 0, eap_out, eap_out_len, 0);
     } else
-	send_authen_reply(session, res, NULL, 0, eap_out, eap_out_len, 0);
+	send_authen_reply(session, TAC_SYM_TO_CODE(res), NULL, 0, eap_out, eap_out_len, 0);
 }
 #endif
 
@@ -1128,7 +1128,7 @@ static void do_enable_getuser(tac_session *session)
 {
     enum hint_enum hint = hint_nosuchuser;
     char *resp = eval_log_format(session, session->ctx, NULL, li_enable_password_incorrect, io_now.tv_sec, NULL);
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum token res = S_deny;
 
     if (!session->username[0] && session->authen_data->msg) {
 	session->username = session->authen_data->msg;
@@ -1144,8 +1144,8 @@ static void do_enable_getuser(tac_session *session)
     }
 
     if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, "enforced enable login", hint_denied_by_acl, TAC_PLUS_AUTHEN_STATUS_FAIL);
-	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	report_auth(session, "enforced enable login", hint_denied_by_acl, S_deny);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return;
     }
     if (query_mavis_info_login(session, do_enable_getuser))
@@ -1167,7 +1167,6 @@ static void do_enable_getuser(tac_session *session)
 	return;
     }
 
-
     if (session->user) {
 	pw_ix = PW_LOGIN;
 	set_pwdat(session, &pwdat, &pw_ix);
@@ -1183,14 +1182,11 @@ static void do_enable_getuser(tac_session *session)
 
     report_auth(session, "enforced enable login", hint, res);
 
-    switch (res) {
-    case TAC_PLUS_AUTHEN_STATUS_PASS:
+    if (res == S_permit) {
 	session->authen_data->authfn = do_enable;
 	do_enable(session);
-	break;
-    default:
+    } else
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, resp, 0, NULL, 0, 0);
-    }
 }
 
 #ifdef WITH_CRYPTO
@@ -1303,12 +1299,12 @@ static void mschap_ntchalresp(u_char *chal, char *password, u_char *resp)
 
 static void do_mschap(tac_session *session)
 {
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "mchap login", hint_denied_by_acl, res);
-	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return;
     }
     if (query_mavis_info(session, do_mschap, PW_MSCHAP))
@@ -1317,8 +1313,11 @@ static void do_mschap(tac_session *session)
     if (session->user) {
 	if (session->user->passwd[PW_MSCHAP]->type != S_clear) {
 	    hint = hint_no_cleartext;
-	    res = TAC_PLUS_AUTHEN_STATUS_RESTART;
-	} else if (session->authen_data->data_len == 1 /* PPP id */  + 8 /* challenge length */  + MSCHAP_DIGEST_LEN) {
+	    report_auth(session, "mschap login", hint, res);
+	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_RESTART, NULL, 0, NULL, 0, 0);
+	    return;
+	}
+	if (session->authen_data->data_len == 1 /* PPP id */  + 8 /* challenge length */  + MSCHAP_DIGEST_LEN) {
 	    u_char response[24];
 	    u_char *chal = session->authen_data->data + 1;
 	    u_char *resp = session->authen_data->data + session->authen_data->data_len - MSCHAP_DIGEST_LEN;
@@ -1327,14 +1326,14 @@ static void do_mschap(tac_session *session)
 	    if (resp[48]) {
 		mschap_ntchalresp(chal, session->user->passwd[PW_MSCHAP]->value, response);
 		if (!memcmp(response, resp + 24, 24))
-		    res = TAC_PLUS_AUTHEN_STATUS_PASS;
+		    res = S_permit;
 	    } else {
 		mschap_lmchalresp(chal, session->user->passwd[PW_MSCHAP]->value, response);
 		if (!memcmp(response, resp, 24))
-		    res = TAC_PLUS_AUTHEN_STATUS_PASS;
+		    res = S_permit;
 	    }
 
-	    if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
+	    if (res == S_permit)
 		res = user_invalid(session->user, &hint);
 	} else
 	    hint = hint_invalid_challenge_length;
@@ -1342,7 +1341,7 @@ static void do_mschap(tac_session *session)
 
     report_auth(session, "mschap login", hint, res);
 
-    send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+    send_authen_reply(session, TAC_SYM_TO_CODE(res), NULL, 0, NULL, 0, 0);
 }
 
 // The MSCHAPv2 support code is completely untested as of 2020-12-12 ...
@@ -1379,12 +1378,12 @@ static void mschapv2_ntresp(u_char *achal, u_char *pchal, char *user, char *pass
 
 static void do_mschapv2(tac_session *session)
 {
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "mchapv2 login", hint_denied_by_acl, res);
-	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return;
     }
     if (query_mavis_info(session, do_mschapv2, PW_MSCHAP))
@@ -1393,7 +1392,9 @@ static void do_mschapv2(tac_session *session)
     if (session->user) {
 	if (session->user->passwd[PW_MSCHAP]->type != S_clear) {
 	    hint = hint_no_cleartext;
-	    res = TAC_PLUS_AUTHEN_STATUS_RESTART;
+	    report_auth(session, "mschapv2 login", hint, res);
+	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_RESTART, NULL, 0, NULL, 0, 0);
+	    return;
 	} else if (session->authen_data->data_len == 1 /* PPP id */  + 16 /* challenge length */  + MSCHAP_DIGEST_LEN) {
 	    u_char *chal = session->authen_data->data + 1;
 	    u_char *resp = session->authen_data->data + session->authen_data->data_len - MSCHAP_DIGEST_LEN;
@@ -1406,10 +1407,10 @@ static void do_mschapv2(tac_session *session)
 
 		mschapv2_ntresp(chal, resp, session->user->name, session->user->passwd[PW_MSCHAP]->value, response);
 		if (!memcmp(response, resp + 24, 24))
-		    res = TAC_PLUS_AUTHEN_STATUS_PASS;
+		    res = S_permit;
 	    }
 
-	    if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
+	    if (res == S_permit)
 		res = user_invalid(session->user, &hint);
 	} else
 	    hint = hint_invalid_challenge_length;
@@ -1417,13 +1418,13 @@ static void do_mschapv2(tac_session *session)
 
     report_auth(session, "mschapv2 login", hint, res);
 
-    send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+    send_authen_reply(session, TAC_SYM_TO_CODE(res), NULL, 0, NULL, 0, 0);
 }
 #endif
 
 static void do_login(tac_session *session)
 {
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
 
@@ -1436,7 +1437,7 @@ static void do_login(tac_session *session)
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "ascii login", hint_denied_by_acl, res);
-	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return;
     }
     if (query_mavis_info_login(session, do_login))
@@ -1455,12 +1456,12 @@ static void do_login(tac_session *session)
 
     report_auth(session, "ascii login", hint, res);
 
-    send_authen_reply(session, res, resp, 0, NULL, 0, 0);
+    send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
 }
 
 static void do_pap(tac_session *session)
 {
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
 
@@ -1484,12 +1485,13 @@ static void do_pap(tac_session *session)
 	session->password = (char *) session->authen_data->msg;
 	session->authen_data->msg = NULL;
     }
+
     if (password_requirements_failed(session, "pap login"))
 	return;
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "pap login", hint_denied_by_acl, res);
-	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return;
     }
     if (query_mavis_info_pap(session, do_pap))
@@ -1509,7 +1511,7 @@ static void do_pap(tac_session *session)
     if (!resp)
 	resp = session->user_msg;
 
-    send_authen_reply(session, res, resp, 0, NULL, 0, 0);
+    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, resp, 0, NULL, 0, 0);
 }
 
 // This is proof-of-concept code for SSH key validation with minor protocol changes.
@@ -1524,14 +1526,14 @@ static void do_pap(tac_session *session)
 //
 static void do_sshkeyhash(tac_session *session)
 {
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
     char *key = NULL;
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "ssh-key-hash login", hint_denied_by_acl, res);
-	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return;
     }
     if (query_mavis_info(session, do_sshkeyhash, PW_LOGIN))
@@ -1540,35 +1542,34 @@ static void do_sshkeyhash(tac_session *session)
     session->ssh_key_hash = (char *) session->authen_data->data;
 
     if (session->user && session->ssh_key_hash && *session->ssh_key_hash) {
-	enum token token = validate_ssh_hash(session, session->ssh_key_hash, &key);
+	res = validate_ssh_hash(session, session->ssh_key_hash, &key);
 
-	if (token == S_permit) {
-	    token = session->authorized ? S_permit : ((S_deny == author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first)
-						       || S_permit != eval_ruleset(session, session->ctx->realm)) ? S_deny : S_permit);
+	if (res == S_permit) {
+	    res = session->authorized ? S_permit : ((S_deny == author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first)
+						     || S_permit != eval_ruleset(session, session->ctx->realm)) ? S_deny : S_permit);
 
-	    if (token == S_permit) {
-		res = TAC_PLUS_AUTHEN_STATUS_PASS;
+	    if (res == S_permit)
 		hint = hint_permitted;
-	    } else {
+	    else {
 		hint = hint_denied_by_acl;
 	    }
 	} else
 	    hint = hint_denied;
 
-	if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
+	if (res == S_permit) {
 	    mem_free(session->mem, &session->password);
-	    if (res != TAC_PLUS_AUTHEN_STATUS_PASS && session->ctx->host->reject_banner)
+	    if (res != S_permit && session->ctx->host->reject_banner)
 		resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
-	    if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
+	    if (res == S_permit)
 		res = user_invalid(session->user, &hint);
 	}
     }
 
-    if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
+    if (res == S_permit)
 	hint = hint_permitted;
     report_auth(session, "ssh-key-hash login", hint, res);
 
-    send_authen_reply(session, res, resp, 0, (u_char *) key, 0, 0);
+    send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, (u_char *) key, 0, 0);
 }
 
 // This is proof-of-concept code for SSH certificate validation with minor protocol changes.
@@ -1580,14 +1581,14 @@ static void do_sshkeyhash(tac_session *session)
 
 static void do_sshcerthash(tac_session *session)
 {
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
     char *key = NULL;
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "ssh-cert-hash login", hint_denied_by_acl, res);
-	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return;
     }
     if (query_mavis_info(session, do_sshcerthash, PW_LOGIN))
@@ -1596,34 +1597,29 @@ static void do_sshcerthash(tac_session *session)
     session->ssh_key_id = (char *) session->authen_data->data;
 
     if (session->user && session->ssh_key_id && *session->ssh_key_id) {
-	enum token token = validate_ssh_key_id(session);
+	res = validate_ssh_key_id(session);
+	if (res == S_permit) {
+	    res = session->authorized ? S_permit : ((S_deny == author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first)
+						     || S_permit != eval_ruleset(session, session->ctx->realm)) ? S_deny : S_permit);
 
-	if (token == S_permit) {
-	    token = session->authorized ? S_permit : ((S_deny == author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first)
-						       || S_permit != eval_ruleset(session, session->ctx->realm)) ? S_deny : S_permit);
-	    if (token == S_permit) {
-		res = TAC_PLUS_AUTHEN_STATUS_PASS;
-		hint = hint_permitted;
-	    } else {
-		hint = hint_denied_by_acl;
-	    }
+	    hint = (res == S_permit) ? hint_permitted : hint_denied_by_acl;
 	} else
 	    hint = hint_denied;
 
-	if (res == TAC_PLUS_AUTHEN_STATUS_PASS) {
+	if (res == S_permit) {
 	    mem_free(session->mem, &session->password);
-	    if (res != TAC_PLUS_AUTHEN_STATUS_PASS && session->ctx->host->reject_banner)
+	    if (res != S_permit && session->ctx->host->reject_banner)
 		resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
-	    if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
+	    if (res == S_permit)
 		res = user_invalid(session->user, &hint);
 	}
     }
 
-    if (res == TAC_PLUS_AUTHEN_STATUS_PASS)
+    if (res == S_permit)
 	hint = hint_permitted;
     report_auth(session, "ssh-key-hash login", hint, res);
 
-    send_authen_reply(session, res, resp, 0, (u_char *) key, 0, 0);
+    send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, (u_char *) key, 0, 0);
 }
 
 void free_reverse(void *payload, void *data __attribute__((unused)))
@@ -1928,7 +1924,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	    snprintf(tmp, l, "%s (%*s)", t, cont->user_msg_len, (char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + ntohs(cont->user_msg_len));
 	    t = tmp;
 	}
-	report_auth(session, t, hint_abort, TAC_PLUS_AUTHEN_STATUS_FAIL);
+	report_auth(session, t, hint_abort, S_deny);
 	cleanup_session(session);
 	return;
     } else {			/* hdr->seq_no != 1 */
@@ -1968,7 +1964,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 
 static void do_radius_login(tac_session *session)
 {
-    int res = TAC_PLUS_AUTHEN_STATUS_FAIL;
+    enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
 
@@ -1977,18 +1973,18 @@ static void do_radius_login(tac_session *session)
     if (rad_get(session, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username, &session->username_len)
 	|| rad_get_password(session, &session->password, NULL)) {
 	report_auth(session, "radius login", hint_nopass, res);
-	rad_send_authen_reply(session, res, NULL);
+	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
     }
 
     if (password_requirements_failed(session, "radius login")) {
-	rad_send_authen_reply(session, res, NULL);
+	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
     }
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "radius login", hint_denied_by_acl, res);
-	rad_send_authen_reply(session, res, NULL);
+	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
     }
     if (query_mavis_info_login(session, do_radius_login))
@@ -2003,7 +1999,7 @@ static void do_radius_login(tac_session *session)
 
     res = check_access(session, pwdat, session->password, &hint, &resp);
 
-    if (res == TAC_PLUS_AUTHEN_STATUS_ERROR) {
+    if (res == S_error) {
 	// Backend failure. Don't send a reply.
 	report_auth(session, "radius login", hint, res);
 	if (session->ctx->aaa_protocol == S_radius)
@@ -2013,17 +2009,16 @@ static void do_radius_login(tac_session *session)
 	return;
     }
 
-    enum token sres = S_deny;
-    if (res == TAC_PLUS_AUTHEN_STATUS_PASS && session->profile) {
+    if (res == S_permit && session->profile) {
 	session->debug |= session->profile->debug;
-	sres = author_eval_profile(session, session->profile, session->ctx->realm->script_profile_parent_first);
+	res = author_eval_profile(session, session->profile, session->ctx->realm->script_profile_parent_first);
 
-	if (sres != S_permit) {
+	if (res != S_permit) {
 	    static struct log_item *li_denied_by_acl = NULL;
 	    if (!li_denied_by_acl)
 		li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
 	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
-	    res = TAC_PLUS_AUTHOR_STATUS_FAIL;
+	    res = S_deny;
 	    resp = eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL);
 	}
     }
@@ -2033,7 +2028,7 @@ static void do_radius_login(tac_session *session)
     if (!resp)
 	resp = session->user_msg;
 
-    rad_send_authen_reply(session, res, resp);
+    rad_send_authen_reply(session, RAD_SYM_TO_CODE(res), resp);
 }
 
 void rad_authen(tac_session *session)
