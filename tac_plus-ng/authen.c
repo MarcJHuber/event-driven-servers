@@ -2002,9 +2002,6 @@ static void do_radius_login(tac_session *session)
     if (query_mavis_auth_pap(session, do_radius_login, pw_ix))
 	return;
 
-    if (session->user)
-	session->debug |= session->user->debug;
-
     res = check_access(session, pwdat, session->password, &hint, &resp);
 
     enum token sres = author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first);
@@ -2019,11 +2016,16 @@ static void do_radius_login(tac_session *session)
 	return;
     }
 
-    if (res == TAC_PLUS_AUTHEN_STATUS_PASS && sres != S_deny && session->profile) {
-	session->debug |= session->profile->debug;
-	sres = author_eval_profile(session, session->profile, session->ctx->realm->script_profile_parent_first);
+    if (res == TAC_PLUS_AUTHEN_STATUS_PASS && sres != S_deny) {
+	if (!session->profile)
+	    res = eval_ruleset(session, session->ctx->realm);
+	if (session->profile) {
+	    session->debug |= session->profile->debug;
+	    sres = author_eval_profile(session, session->profile, session->ctx->realm->script_profile_parent_first);
+	}
     }
-    if (sres == S_deny) {
+
+    if (sres != S_permit) {
 	static struct log_item *li_denied_by_acl = NULL;
 	if (!li_denied_by_acl)
 	    li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
