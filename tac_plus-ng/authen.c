@@ -275,9 +275,11 @@ static int password_requirements_failed(tac_session *session, char *what)
 	if (token != S_permit) {
 	    report(session, LOG_ERR, ~0, "password doesn't meet minimum requirements");
 	    report_auth(session, what, hint_weak_password, S_deny);
+	    char *msg = eval_log_format(session, session->ctx, NULL, li_password_minreq, io_now.tv_sec, NULL);
 	    if (session->ctx->aaa_protocol == S_tacacs || session->ctx->aaa_protocol == S_tacacss)
-		send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL,
-				  eval_log_format(session, session->ctx, NULL, li_password_minreq, io_now.tv_sec, NULL), 0, NULL, 0, 0);
+		send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, msg, 0, NULL, 0, 0);
+	    else if (session->ctx->aaa_protocol == S_radius || session->ctx->aaa_protocol == S_radsec)
+		rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, msg);
 	    return -1;
 	}
     }
@@ -1977,10 +1979,8 @@ static void do_radius_login(tac_session *session)
 	return;
     }
 
-    if (password_requirements_failed(session, "radius login")) {
-	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
+    if (password_requirements_failed(session, "radius login"))
 	return;
-    }
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "radius login", hint_denied_by_acl, res);
