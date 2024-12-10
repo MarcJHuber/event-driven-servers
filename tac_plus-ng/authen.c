@@ -391,8 +391,8 @@ static enum token lookup_and_set_user(tac_session *session)
 static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&& ((!session->user && (session->ctx->realm->mavis_login == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
-	    || (session->user && pw_ix == PW_MAVIS));
+	&&( (!session->user &&(session->ctx->realm->mavis_login == TRISTATE_YES) &&(session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
+	   ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -420,7 +420,7 @@ static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *)
 
 static int query_mavis_info_login(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
+    int res = !session->flag_mavis_info && !session->user &&(session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_LOGIN);
@@ -439,8 +439,8 @@ int query_mavis_info(tac_session *session, void (*f)(tac_session *), enum pw_ix 
 static int query_mavis_auth_pap(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
-	((!session->user && (session->ctx->realm->mavis_pap == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
-	 || (session->user && pw_ix == PW_MAVIS));
+	( (!session->user &&(session->ctx->realm->mavis_pap == TRISTATE_YES) &&(session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
+	 ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_PAP);
@@ -449,7 +449,7 @@ static int query_mavis_auth_pap(tac_session *session, void (*f)(tac_session *), 
 
 static int query_mavis_info_pap(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->user && (session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
+    int res = !session->user &&(session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_PAP);
@@ -527,7 +527,9 @@ static int check_access(tac_session *session, struct pwdat *pwdat, char *passwd,
     }
 
     if (session->user) {
-	if (!session->authorized && (S_permit != eval_ruleset(session, session->ctx->realm))) {
+	if (!session->authorized &&
+	    (S_deny == author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first) ||
+	     S_permit != eval_ruleset(session, session->ctx->realm))) {
 	    res = TAC_PLUS_AUTHEN_STATUS_FAIL;
 	    *hint = hint_denied_by_acl;
 	}
@@ -719,8 +721,8 @@ static void do_chpass(tac_session *session)
 
 static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*f)(tac_session *))
 {
-    if ((session->ctx->realm->chalresp == TRISTATE_YES) && (!session->user || ((pw_ix == PW_MAVIS) && (TRISTATE_NO != session->user->chalresp)))) {
-	if (!session->flag_chalresp) {
+    if( (session->ctx->realm->chalresp == TRISTATE_YES) &&(!session->user ||( (pw_ix == PW_MAVIS) &&(TRISTATE_NO != session->user->chalresp)))) {
+	if(!session->flag_chalresp) {
 	    session->flag_chalresp = 1;
 	    mavis_lookup(session, f, AV_V_TACTYPE_CHAL, PW_LOGIN);
 	    return;
@@ -1977,15 +1979,16 @@ static void do_radius_login(tac_session *session)
 
     if (rad_get(session, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username, &session->username_len)
 	|| rad_get_password(session, &session->password, NULL)) {
-	if (session->ctx->aaa_protocol == S_radius)
-	    cleanup(session->ctx, -1);
-	else
-	    cleanup_session(session);
+	report_auth(session, "radius login", hint_nopass, res);
+	rad_send_authen_reply(session, res, NULL);
 	return;
     }
 
-    if (password_requirements_failed(session, "radius login"))
+    if (password_requirements_failed(session, "radius login")) {
+	report_auth(session, "radius login", hint_weak_password, res);
+	rad_send_authen_reply(session, res, NULL);
 	return;
+    }
 
     if (S_deny == lookup_and_set_user(session)) {
 	report_auth(session, "radius login", hint_denied_by_acl, res);
@@ -2004,8 +2007,6 @@ static void do_radius_login(tac_session *session)
 
     res = check_access(session, pwdat, session->password, &hint, &resp);
 
-    enum token sres = author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first);
-
     if (res == TAC_PLUS_AUTHEN_STATUS_ERROR) {
 	// Backend failure. Don't send a reply.
 	report_auth(session, "radius login", hint, res);
@@ -2016,13 +2017,10 @@ static void do_radius_login(tac_session *session)
 	return;
     }
 
-    if (res == TAC_PLUS_AUTHEN_STATUS_PASS && sres != S_deny) {
-	if (!session->profile)
-	    res = eval_ruleset(session, session->ctx->realm);
-	if (session->profile) {
-	    session->debug |= session->profile->debug;
-	    sres = author_eval_profile(session, session->profile, session->ctx->realm->script_profile_parent_first);
-	}
+    enum token sres = S_deny;
+    if (res == TAC_PLUS_AUTHEN_STATUS_PASS && session->profile) {
+	session->debug |= session->profile->debug;
+	sres = author_eval_profile(session, session->profile, session->ctx->realm->script_profile_parent_first);
     }
 
     if (sres != S_permit) {
