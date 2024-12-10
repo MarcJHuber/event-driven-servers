@@ -527,7 +527,7 @@ static int check_access(tac_session *session, struct pwdat *pwdat, char *passwd,
     }
 
     if (session->user) {
-	if (!session->authorized &&
+	if (res == TAC_PLUS_AUTHEN_STATUS_PASS && !session->authorized &&
 	    (S_deny == author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first) ||
 	     S_permit != eval_ruleset(session, session->ctx->realm))) {
 	    res = TAC_PLUS_AUTHEN_STATUS_FAIL;
@@ -2021,15 +2021,15 @@ static void do_radius_login(tac_session *session)
     if (res == TAC_PLUS_AUTHEN_STATUS_PASS && session->profile) {
 	session->debug |= session->profile->debug;
 	sres = author_eval_profile(session, session->profile, session->ctx->realm->script_profile_parent_first);
-    }
 
-    if (sres != S_permit) {
-	static struct log_item *li_denied_by_acl = NULL;
-	if (!li_denied_by_acl)
-	    li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
-	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
-	res = TAC_PLUS_AUTHOR_STATUS_FAIL;
-	resp = eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL);
+	if (sres != S_permit) {
+	    static struct log_item *li_denied_by_acl = NULL;
+	    if (!li_denied_by_acl)
+		li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
+	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
+	    res = TAC_PLUS_AUTHOR_STATUS_FAIL;
+	    resp = eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL);
+	}
     }
 
     report_auth(session, "radius login", hint, res);
