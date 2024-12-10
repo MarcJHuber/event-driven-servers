@@ -367,7 +367,7 @@ void rad_send_authen_reply(tac_session *session, int status, char *msg)
 	}
     }
     tac_pak *pak = new_rad_pak(session);
-    pak->pak.rad.code = (status == TAC_PLUS_AUTHEN_STATUS_PASS ? RADIUS_CODE_ACCESS_ACCEPT : RADIUS_CODE_ACCESS_REJECT);
+    pak->pak.rad.code = status;
     pak->pak.rad.identifier = session->radius_data->pak_in->identifier;
     pak->pak.rad.length = htons((uint16_t) (session->radius_data->data_len + RADIUS_HDR_SIZE));
     memcpy(RADIUS_DATA(&pak->pak), session->radius_data->data, session->radius_data->data_len);
