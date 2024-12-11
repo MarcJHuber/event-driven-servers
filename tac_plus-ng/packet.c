@@ -948,7 +948,7 @@ void rad_udp_inject(struct context *ctx)
     if (rad_check_failed(ctx, p, e))
 	return;
 
-    tac_session *session = RB_lookup_session(ctx->sessions, (int) pak->identifier);
+    tac_session *session = RB_lookup_session(ctx->sessions, RAD_PAK_SESSIONID(&ctx->hdr.rad));
 
     if (session) {
 	// Currently, there's no support for multi-packet exchanges, so this is most likely
