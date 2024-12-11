@@ -3003,14 +3003,18 @@ ntly enabled.\n"
 id = spawnd {
         background = no
         listen { port = 49 } # TACACS+
-        listen { port = 1812 protocol = UDP } # RADIUS
-        listen { port = 1813 protocol = UDP } # RADIUS
+        listen { port = 1812 protocol = UDP } # RADIUS Access
+        listen { port = 1813 protocol = UDP flag = accounting } # RADIUS
+ Accounting
 }
 
    In fact, the daemon auto-recognizes the supported protocols.
-   You can use the very same port for TACACS+, TACACS+-over-TLS
-   and RADSEC-over-TLS, and the UDP port(s) specified for RADIUS
-   will accept both authentication and accounting packets.
+   You can use the very same TCP port for TACACS+,
+   TACACS+-over-TLS and RADSEC-over-TLS, and the UDP port(s)
+   specified for RADIUS will accept both authentication and
+   accounting packets. However, defining the secondary port (with
+   the accounting flag enabled is required for correct handling of
+   RADIUS Server-Status requests.
 
    UDP RADIUS sessions will be accepted only if a matching key
    (shared secret) exits. You can define that in host context:
