@@ -1028,9 +1028,15 @@ struct type_s {
 
 static struct type_s types[] = {
     { "", 0 },
-    { "authen", 6 },
-    { "author", 6 },
-    { "acct", 4 }
+#define S "authen"
+    { S, sizeof(S)  - 1},
+#undef S
+#define S "author"
+    { S, sizeof(S)  - 1},
+#undef S
+#define S "acct"
+    { S, sizeof(S) - 1 },
+#undef S
 };
 
 static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_pak_hdr *radhdr)
@@ -1047,15 +1053,11 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_p
     } else {
 	session->session_id = radhdr->identifier;
 	if (radhdr->code == RADIUS_CODE_ACCESS_REQUEST) {
-#define S "authen"
-	    session->type = S;
-	    session->type_len = sizeof(S);
-#undef S
+	    session->type = types[1].str;
+	    session->type_len = types[1].str_len;
 	} else if (radhdr->code == RADIUS_CODE_ACCOUNTING_REQUEST) {
-#define S "acct"
-	    session->type = S;
-	    session->type_len = sizeof(S);
-#undef S
+	    session->type = types[3].str;
+	    session->type_len = types[3].str_len;
 	}
     }
     session->seq_no = 1;
