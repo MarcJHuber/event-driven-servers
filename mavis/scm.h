@@ -21,17 +21,22 @@ struct scm_data {
 };
 
 struct scm_data_accept {
-    enum scm_token type;
+    struct {
+	enum scm_token type;
+	u_int use_tls:1;
+	u_int haproxy:1;
+    } __attribute__((packed));
     int socktype;		// SOCK_STREAM, SOCK_SEQPACKET; SOCK_DGRAM
     int protocol;		// AF_INET, AF_INET6, ...
-    u_int use_tls:1;
-    u_int haproxy:1;
 #define SCM_REALM_SIZE 16
     char realm[SCM_REALM_SIZE];
 };
 
 struct scm_data_udp {
-    enum scm_token type;
+    struct {
+	enum scm_token type;
+	u_int rad_acct:1;	// sock is dedicated radius accounting port
+    } __attribute__((packed));
     u_char protocol;		// AF_INET, AF_INET6
     u_char src[16];
     struct {
