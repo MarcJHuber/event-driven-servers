@@ -889,7 +889,8 @@ void rad_read(struct context *ctx, int cur)
     if (rad_check_failed(ctx, p, e))
 	return;
 
-    tac_session *session = RB_lookup_session(ctx->sessions, (int) ctx->hdr.rad.identifier);
+#define RAD_PAK_SESSIONID(A) (((A)->code << 8) | (A)->identifier)
+    tac_session *session = RB_lookup_session(ctx->sessions, RAD_PAK_SESSIONID(&ctx->hdr.rad));
 
     if (session) {
 	// Currently, there's no support for multi-packet exchanges, so this is most likely
@@ -1051,7 +1052,7 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_p
 	session->type = types[tac_hdr->type & 3].str;
 	session->type_len = types[tac_hdr->type & 3].str_len;
     } else {
-	session->session_id = radhdr->identifier;
+	session->session_id = RAD_PAK_SESSIONID(radhdr);
 	if (radhdr->code == RADIUS_CODE_ACCESS_REQUEST) {
 	    session->type = types[1].str;
 	    session->type_len = types[1].str_len;
