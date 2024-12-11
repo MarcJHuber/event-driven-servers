@@ -21,11 +21,9 @@ struct scm_data {
 };
 
 struct scm_data_accept {
-    struct {
-	enum scm_token type;
-	u_int use_tls:1;
-	u_int haproxy:1;
-    } __attribute__((packed));
+    enum scm_token type;
+    u_int use_tls:1;
+    u_int haproxy:1;
     int socktype;		// SOCK_STREAM, SOCK_SEQPACKET; SOCK_DGRAM
     int protocol;		// AF_INET, AF_INET6, ...
 #define SCM_REALM_SIZE 16
@@ -33,16 +31,12 @@ struct scm_data_accept {
 };
 
 struct scm_data_udp {
-    struct {
-	enum scm_token type;
-	u_int rad_acct:1;	// sock is dedicated radius accounting port
-    } __attribute__((packed));
+    enum scm_token type;
+    u_int rad_acct:1;		// sock is dedicated radius accounting port
     u_char protocol;		// AF_INET, AF_INET6
     u_char src[16];
-    struct {
-	short src_port;		// host byte order
-	short dst_port;		// host byte order
-    } __attribute__((packed));
+    short src_port;		// host byte order
+    short dst_port;		// host byte order
     int sock;			// inherited from spawnd
     char realm[SCM_REALM_SIZE];
     short data_len;
