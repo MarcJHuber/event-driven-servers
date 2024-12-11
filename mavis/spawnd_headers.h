@@ -88,6 +88,7 @@ struct spawnd_context {
     u_int dying:1;		/* server only */
     u_int logged_retry:1;	/* server only */
     u_int haproxy:1;		/* server only */
+    u_int rad_acct:1;		/* radius accounting */
     int socktype;		/* SOCK_STREAM, SOCK_SEQPACKET */
     int protocol;		/* IPROTO_IP (default)/_TCP/_SCTP */
     short port;			/* tcp/udp port in network byte order */

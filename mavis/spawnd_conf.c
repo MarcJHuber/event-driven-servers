@@ -249,8 +249,24 @@ static void parse_listen(struct sym *sym)
 		parse_error_expect(sym, S_count, S_idle, S_interval, S_unknown);
 	    }
 	    break;
+	case S_flag:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    switch (sym->code) {
+	    case S_access:
+		ctx->rad_acct = 0;
+		break;
+	    case S_accounting:
+		ctx->rad_acct = 1;
+		break;
+	    default:
+		parse_error_expect(sym, S_access, S_accounting, S_unknown);
+	    }
+	    sym_get(sym);
+	    break;
 	default:
-	    parse_error_expect(sym, S_address, S_path, S_port, S_realm, S_tls, S_userid, S_groupid, S_backlog, S_type, S_protocol, S_retry, S_tcp, S_unknown);
+	    parse_error_expect(sym, S_address, S_path, S_port, S_realm, S_tls, S_userid, S_groupid, S_backlog, S_type, S_protocol, S_retry, S_tcp, S_flag,
+			       S_unknown);
 	}
     }
     if (ctx->overload_backlog > ctx->listen_backlog)

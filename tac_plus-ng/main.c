@@ -1451,6 +1451,7 @@ static void accept_control_udp(int s __attribute__((unused)), struct scm_data_ac
 
     struct context *ctx = new_context(common_data.io, r);
     ctx->sock = sd_ext->sd_udp.sock;
+    ctx->rad_acct = sd_ext->sd_udp.rad_acct;
     context_lru_append(ctx);
     ctx->aaa_protocol = S_radius;
 

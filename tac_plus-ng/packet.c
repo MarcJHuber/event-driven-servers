@@ -918,6 +918,12 @@ void rad_read(struct context *ctx, int cur)
     case RADIUS_CODE_ACCOUNTING_REQUEST:
 	rad_acct(session);
 	break;
+    case RADIUS_CODE_STATUS_SERVER:
+	if (ctx->rad_acct)
+	    rad_send_acct_reply(session);
+	else
+	    rad_send_authen_reply(session, RADIUS_CODE_ACCESS_ACCEPT, NULL);
+	break;
     default:
 	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->device_addr_ascii, pak->code);
 	cleanup_session(session);
@@ -960,10 +966,16 @@ void rad_udp_inject(struct context *ctx)
     switch (pak->code) {
     case RADIUS_CODE_ACCESS_REQUEST:
 	rad_authen(session);
-	break;
+	return;
     case RADIUS_CODE_ACCOUNTING_REQUEST:
 	rad_acct(session);
-	break;
+	return;
+    case RADIUS_CODE_STATUS_SERVER:
+	if (ctx->rad_acct)
+	    rad_send_acct_reply(session);
+	else
+	    rad_send_authen_reply(session, RADIUS_CODE_ACCESS_ACCEPT, NULL);
+	return;
     default:
 	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->device_addr_ascii, pak->code);
 	cleanup(ctx, -1);
@@ -1030,10 +1042,10 @@ struct type_s {
 static struct type_s types[] = {
     { "", 0 },
 #define S "authen"
-    { S, sizeof(S)  - 1},
+    { S, sizeof(S) - 1 },
 #undef S
 #define S "author"
-    { S, sizeof(S)  - 1},
+    { S, sizeof(S) - 1 },
 #undef S
 #define S "acct"
     { S, sizeof(S) - 1 },

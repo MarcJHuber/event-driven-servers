@@ -548,3 +548,5 @@ radius-tcp			S_radius_tcp
 #
 conn.protocol			S_conn_protocol
 #
+flag				S_flag
+#

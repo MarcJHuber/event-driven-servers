@@ -142,6 +142,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	memcpy(sd_udp->data, buf, len);
 	sd_udp->sock = cur;
 	sd_udp->type = SCM_UDPDATA;
+	sd_udp->rad_acct = ctx->rad_acct;
 	memcpy(sd_udp->realm, ctx->tag, SCM_REALM_SIZE);
 	sd_udp->protocol = sa.sa.sa_family;
 	switch (sa.sa.sa_family) {
