@@ -1278,8 +1278,6 @@ static void complete_host_mavis(struct context *ctx)
     io_set_i(ctx->io, ctx->sock);
 }
 
-
-
 static void complete_host_mavis_udp(struct context *ctx)
 {
     if (query_mavis_host(ctx, complete_host_mavis_udp))
@@ -1542,6 +1540,8 @@ static void accept_control(struct context *ctx, int cur)
 	setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (char *) &one, (socklen_t) sizeof(one));
 	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (char *) &one, (socklen_t) sizeof(one));
 	set_sd_realm(cur, &sd_ext);
+	if ((common_data.debug & DEBUG_TACTRACE_FLAG))
+	    sd_ext.realm->haproxy_autodetect = TRISTATE_YES;
 	if (sd_ext.sd.haproxy || (sd_ext.realm->haproxy_autodetect == TRISTATE_YES))
 	    accept_control_px(s, &sd_ext);
 	else
