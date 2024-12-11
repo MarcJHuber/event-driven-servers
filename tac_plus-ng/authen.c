@@ -1513,7 +1513,7 @@ static void do_pap(tac_session *session)
     if (!resp)
 	resp = session->user_msg;
 
-    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, resp, 0, NULL, 0, 0);
+    send_authen_reply(session, (res == S_permit ) ? TAC_PLUS_AUTHEN_STATUS_PASS : TAC_PLUS_AUTHEN_STATUS_FAIL, resp, 0, NULL, 0, 0);
 }
 
 // This is proof-of-concept code for SSH key validation with minor protocol changes.
