@@ -392,6 +392,7 @@ int main(int argc, char **argv, char **envp)
     io_sched_add(common_data.io, new_context(common_data.io, NULL), (void *) periodics, common_data.cleanup_interval, 0);
 
     init_mcx(config.default_realm);
+    authen_init();
 
     set_proctitle(ACCEPT_YES);
     io_main(common_data.io);

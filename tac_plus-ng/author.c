@@ -266,6 +266,8 @@ enum token author_eval_profile(tac_session *session, tac_profile *p, int parent_
     return res;
 }
 
+extern struct log_item *li_denied_by_acl;	// authen.c
+
 static void do_author(tac_session *session)
 {
     int replaced = 0, added = 0, out_cnt = 0;
@@ -275,9 +277,6 @@ static void do_author(tac_session *session)
 
     res = author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first);
     if (res == S_deny) {
-	static struct log_item *li_denied_by_acl = NULL;
-	if (!li_denied_by_acl)
-	    li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message,
 			  eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL), 0, NULL);
