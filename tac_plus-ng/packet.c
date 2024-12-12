@@ -124,7 +124,7 @@ void send_acct_reply(tac_session *session, u_char status, char *msg, char *data)
 
     tac_pak *pak = new_pak(session, TAC_PLUS_ACCT, len);
 
-    struct acct_reply *reply = tac_payload(&pak->pak, struct acct_reply *);
+    struct acct_reply *reply = tac_payload(&pak->pak.tac, struct acct_reply *);
     reply->status = status;
     reply->msg_len = htons((u_short) msg_len);
     reply->data_len = htons((u_short) data_len);
@@ -164,7 +164,7 @@ void send_author_reply(tac_session *session, u_char status, char *msg, char *dat
 
     tac_pak *pak = new_pak(session, TAC_PLUS_AUTHOR, len);
 
-    struct author_reply *reply = tac_payload(&pak->pak, struct author_reply *);
+    struct author_reply *reply = tac_payload(&pak->pak.tac, struct author_reply *);
     reply->status = status;
     reply->msg_len = htons((u_short) msg_len);
     reply->data_len = htons((u_short) data_len);
@@ -285,7 +285,7 @@ void send_authen_reply(tac_session *session, int status, char *msg, int msg_len,
     int len = TAC_AUTHEN_REPLY_FIXED_FIELDS_SIZE + msg_len + data_len;
     tac_pak *pak = new_pak(session, TAC_PLUS_AUTHEN, len);
 
-    struct authen_reply *reply = tac_payload(&pak->pak, struct authen_reply *);
+    struct authen_reply *reply = tac_payload(&pak->pak.tac, struct authen_reply *);
     reply->status = status;
     reply->msg_len = htons((u_short) msg_len);
     reply->data_len = htons((u_short) data_len);
