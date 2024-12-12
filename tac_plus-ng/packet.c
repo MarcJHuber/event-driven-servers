@@ -821,7 +821,7 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 		 ma_calculated, &ma_calculated_len);
 	    memcpy(message_authenticator, ma_original, 16);
 	    if (!memcmp(ma_original, ma_calculated, 16)) {
-		if (ctx->key->warn)
+		if (ctx->key->warn && (ctx->key->warn <= io_now.tv_sec))
 		    report(NULL, LOG_INFO, ~0, "%s uses deprecated radius key (line %d)", ctx->device_addr_ascii, ctx->key->line);
 		return 0;
 	    }
