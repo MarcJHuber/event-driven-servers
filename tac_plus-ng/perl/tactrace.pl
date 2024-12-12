@@ -183,16 +183,17 @@ if (defined $radsec) {
 	# Create a RADIUS+ $mode packet and send it to tac_plus-ng:
 	# This is an early shot and needs refinement.
 
-	use Data::Radius::Constants qw(:all);
-	use Data::Radius::Dictionary;
-	use Data::Radius::Packet;
+	eval {
+		require Data::Radius::Constants;
+		require Data::Radius::Dictionary;
+		require Data::Radius::Packet;
 
-	my $dict = undef;
-	unless (defined $raddict) {
-		printf STDERR "No radius dictionary specified, using a limited built-in subset.\n";
-		use File::Temp;
-		$dict = File::Temp->new(DIR => '/tmp');
-		print $dict <<EOT
+		my $dict = undef;
+		unless (defined $raddict) {
+			printf STDERR "No radius dictionary specified, using a limited built-in subset.\n";
+			use File::Temp;
+			$dict = File::Temp->new(DIR => '/tmp');
+			print $dict <<EOT
 ATTRIBUTE	User-Name		1	string
 ATTRIBUTE	Password		2	string
 ATTRIBUTE	Service-Type		6	integer
@@ -203,31 +204,34 @@ BEGIN-VENDOR	Cisco
 ATTRIBUTE	Cisco-AVPair		1	string
 END-VENDOR	Cisco
 EOT
-		;
-		$dict->seek(0, SEEK_END);
-		$raddict = $dict->filename;
-	}
+			;
+			$dict->seek(0, SEEK_END);
+			$raddict = $dict->filename;
+		}
 
-	my $dictionary = Data::Radius::Dictionary->load_file($raddict);
+		my $dictionary = Data::Radius::Dictionary->load_file($raddict);
 
-	my $packet = Data::Radius::Packet->new(secret => "radsec", dict => $dictionary);
-	my $type = ACCESS_REQUEST;
-	$type = ACCOUNTING_REQUEST if $mode eq "acct";
-	my @av_list = (
-		{ Name => 'Message-Authenticator', Value => '' },
-		{ Name => 'User-Name', Value => $username},
-	);
-	foreach my $arg (@args) {
-		my ($n, $v) = split(/=/, $arg, 2);
-		push(@av_list, { Name => $n, Value => $v });
-	}
-	push(@av_list, { Name => $dictionary->attribute('Password') ? 'Password' : 'User-Password', Value => $password}) if ($mode ne "acct");
+		my $packet = Data::Radius::Packet->new(secret => "radsec", dict => $dictionary);
+		no strict;
+		my $type = 1;
+		$type = 3 if $mode eq "acct";
+		use strict;
+		my @av_list = (
+			{ Name => 'Message-Authenticator', Value => '' },
+			{ Name => 'User-Name', Value => $username},
+		);
+		foreach my $arg (@args) {
+			my ($n, $v) = split(/=/, $arg, 2);
+			push(@av_list, { Name => $n, Value => $v });
+		}
+		push(@av_list, { Name => $dictionary->attribute('Password') ? 'Password' : 'User-Password', Value => $password}) if ($mode ne "acct");
 
-	my ($request, $req_id, $authenticator) = $packet->build(
-		type => $type,
-		av_list => \@av_list
-	);
-	$raw = $request;
+		my ($request, $req_id, $authenticator) = $packet->build(
+			type => $type,
+			av_list => \@av_list
+		);
+		$raw = $request;
+	} or die "Perl module Data::Radius is not installed.";
 } else {
 	# create a TACACS+ $mode packet and send it to tac_plus-ng:
 
