@@ -555,10 +555,10 @@ static void set_pwdat(tac_session *session, struct pwdat **pwdat, enum pw_ix *pw
 	    && session->ctx->host->authfallback == TRISTATE_YES) {
 	    if (*pw_ix == PW_LOGIN) {
 		*pw_ix = PW_LOGIN_FALLBACK;
-		session->mavisauth_res = 0;
+		session->mavisauth_res = S_unknown;
 	    } else if (*pw_ix == PW_PAP) {
 		*pw_ix = PW_PAP_FALLBACK;
-		session->mavisauth_res = 0;
+		session->mavisauth_res = S_unknown;
 	    }
 	}
 
