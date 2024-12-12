@@ -597,16 +597,16 @@ void parse_log(struct sym *sym, tac_realm *r)
 #undef S1
 #undef S2
 
-#define S1 "${accttype}" SEP1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${args, }" SEP1 "${rargs, }"
-#define S2 "${accttype}" SEP2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${accttype}" SEP2 "${args, }" SEP2 "${rargs, }"
+#define S1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${action} ${hint}" SEP1 "${args, }" SEP1 "${rargs, }"
+#define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${accttype}" SEP2 "${action} ${hint}" SEP2 "${args, }" SEP2 "${rargs, }"
 	rad_access_file = parse_log_format_inline(PR DATE S1 FS, __FILE__, __LINE__);
 	rad_access_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
 	rad_access_syslog3 = parse_log_format_inline(PR S2 SS, __FILE__, __LINE__);
 #undef S1
 #undef S2
 
-#define S1 "${accttype}" SEP1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${args, }" SEP1 "${rargs, }"
-#define S2 "${accttype}" SEP2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${accttype}" SEP2 "${args, }" SEP2 "${rargs, }"
+#define S1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${service}" SEP1 "${args, }"
+#define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${accttype}" SEP2 "${service}" SEP2 "${args, }"
 	rad_acct_file = parse_log_format_inline(PR DATE S1 FS, __FILE__, __LINE__);
 	rad_acct_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
 	rad_acct_syslog3 = parse_log_format_inline(PR S2 SS, __FILE__, __LINE__);
