@@ -557,59 +557,69 @@ void parse_log(struct sym *sym, tac_realm *r)
     }
 
     if (!access_file) {
-	acct_file =
-	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${service}\t${cmd}\n\"", __FILE__, __LINE__);
-	acct_syslog =
-	    parse_log_format_inline("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${nas}|${user}|${port}|${nac}|${accttype}|${service}|${cmd}\"",
-				    __FILE__, __LINE__);
-	acct_syslog3 = parse_log_format_inline("\"${nas}|${user}|${port}|${nac}|${accttype}|${service}|${cmd}\"", __FILE__, __LINE__);
+#define DATE "%Y-%m-%d %H:%M:%S %z "
+#define SEP1 "\t"
+#define SEP2 "|"
+#define PR "\"" // prefix
+#define SP "<${priority}>" DATE "${hostname} " // syslog prefix
+#define FS "\n\"" // file suffix
+#define SS "\"" // syslog suffix
 
-	author_file =
-	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${profile}\t${result}\t${service}\t${cmd}\n\"", __FILE__,
-				    __LINE__);
-	author_syslog =
-	    parse_log_format_inline("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${nas}|${user}|${port}|${nac}|${profile}|${result}|${service}|${cmd}\"",
-				    __FILE__, __LINE__);
-	author_syslog3 = parse_log_format_inline("\"${nas}|${user}|${port}|${nac}|${profile}|${result}|${service}|${cmd}\"", __FILE__, __LINE__);
+#define S1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${service}" SEP1 "${cmd}"
+#define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${accttype}" SEP2 "${service}" SEP2 "${cmd}"
+	acct_file = parse_log_format_inline(PR DATE S1 FS, __FILE__, __LINE__);
+	acct_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
+	acct_syslog3 = parse_log_format_inline(PR S2 SS, __FILE__, __LINE__);
+#undef S1
+#undef S2
 
-	access_file = parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${action} ${hint}\n\"", __FILE__, __LINE__);
-	access_syslog =
-	    parse_log_format_inline("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${nas}|${user}|${port}|${nac}|${action} ${hint}\"", __FILE__, __LINE__);
-	access_syslog3 = parse_log_format_inline("\"${nas}|${user}|${port}|${nac}|${action} ${hint}\"", __FILE__, __LINE__);
+#define S1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${profile}" SEP1 "${result}" SEP1 "${service}" SEP1 "${cmd}"
+#define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${profile}" SEP2 "${result}" SEP2 "${service}" SEP2 "${cmd}"
+	author_file = parse_log_format_inline(PR DATE S1 FS, __FILE__, __LINE__);
+	author_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
+	author_syslog3 = parse_log_format_inline(PR S2 SS, __FILE__, __LINE__);
+#undef S1
+#undef S2
 
-	conn_file =
-	    parse_log_format_inline
-	    ("\"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${conn.protocol}\t${peer.address}\t${peer.port}\t${server.address}\t${server.port}\t${tls.conn.version}\t${tls.peer.cert.issuer}\t${tls.peer.cert.subject}\n\"",
-	     __FILE__, __LINE__);
-	conn_syslog =
-	    parse_log_format_inline
-	    ("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${conn.protocol}|${peer.address}|${peer.port}|${server.address}|${server.port}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}\"",
-	     __FILE__, __LINE__);
-	conn_syslog3 =
-	    parse_log_format_inline
-	    ("\"${accttype}|${conn.protocol}|${peer.address}|${peer.port}|${server.address}|${server.port}|${nas}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}\"",
-	     __FILE__, __LINE__);
+#define S1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${action} ${hint}"
+#define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${action} ${hint}"
+	access_file = parse_log_format_inline(PR DATE S1 FS, __FILE__, __LINE__);
+	access_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
+	access_syslog3 = parse_log_format_inline(PR S2 SS, __FILE__, __LINE__);
+#undef S1
+#undef S2
 
-	rad_access_file =
-	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${args, }\t${rargs, }\n\"", __FILE__,
-				    __LINE__);
-	rad_access_syslog =
-	    parse_log_format_inline
-	    ("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${nas}|${user}|${port}|${nac}|${accttype}|${args, }|${rargs, }\"", __FILE__,
-	     __LINE__);
-	rad_access_syslog3 = parse_log_format_inline("\"${accttype}|${nas}|${nas}|${nas}|${user}|${port}|${nac}|${accttype}|${args, }|${rargs, }\"", __FILE__, __LINE__);
+#define S1 "${accttype}" SEP1 "${conn.protocol}" SEP1 "${peer.address}" SEP1 "${peer.port}" SEP1 "${server.address}" SEP1 "${server.port}" SEP1 "${tls.conn.version}" SEP1 "${tls.peer.cert.issuer}" SEP1 "${tls.peer.cert.subject}"
+#define S2 "${accttype}" SEP2 "${conn.protocol}" SEP2 "${peer.address}" SEP2 "${peer.port}" SEP2 "${server.address}" SEP2 "${server.port}" SEP2 "${tls.conn.version}" SEP2 "${tls.peer.cert.issuer}" SEP2 "${tls.peer.cert.subject}"
+	conn_file = parse_log_format_inline(PR DATE S1 FS, __FILE__, __LINE__);
+	conn_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
+	conn_syslog3 = parse_log_format_inline(PR S2 SS, __FILE__, __LINE__);
+#undef S1
+#undef S2
 
-	rad_acct_file =
-	    parse_log_format_inline("\"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${args, }\t${rargs, }\n\"",
-				    __FILE__, __LINE__);
-	rad_acct_syslog =
-	    parse_log_format_inline
-	    ("\"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|{nas}|${user}|${port}|${nac}|${accttype}|${args, }|${rargs, }\"",
-	     __FILE__, __LINE__);
-	rad_acct_syslog3 = parse_log_format_inline("\"${accttype}|${nas}|${user}|${port}|${nac}|${accttype}|${args, }|${rargs, }\"", __FILE__, __LINE__);
+#define S1 "${accttype}" SEP1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${args, }" SEP1 "${rargs, }"
+#define S2 "${accttype}" SEP2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${accttype}" SEP2 "${args, }" SEP2 "${rargs, }"
+	rad_access_file = parse_log_format_inline(PR DATE S1 FS, __FILE__, __LINE__);
+	rad_access_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
+	rad_access_syslog3 = parse_log_format_inline(PR S2 SS, __FILE__, __LINE__);
+#undef S1
+#undef S2
 
+#define S1 "${accttype}" SEP1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${args, }" SEP1 "${rargs, }"
+#define S2 "${accttype}" SEP2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${accttype}" SEP2 "${args, }" SEP2 "${rargs, }"
+	rad_acct_file = parse_log_format_inline(PR DATE S1 FS, __FILE__, __LINE__);
+	rad_acct_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
+	rad_acct_syslog3 = parse_log_format_inline(PR S2 SS, __FILE__, __LINE__);
+
+#undef SEP1
+#undef SEP2
+#undef S1
+#undef S2
+#undef SP
+#undef PR
+#undef FS
+#undef SS
     }
-
     switch (lf->dest[0]) {
     case '/':
 	if (!lf->acct)
