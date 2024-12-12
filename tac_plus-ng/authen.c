@@ -1973,8 +1973,7 @@ static void do_radius_login(tac_session *session)
 
     mem_free(session->mem, &session->password);
 
-    if (rad_get(session, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username, &session->username_len)
-	|| rad_get_password(session, &session->password, NULL)) {
+    if (!session->username || rad_get_password(session, &session->password, NULL)) {
 	report_auth(session, "radius login", hint_nopass, res);
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
@@ -2029,8 +2028,10 @@ static void do_radius_login(tac_session *session)
     rad_send_authen_reply(session, RAD_SYM_TO_CODE(res), resp);
 }
 
-void rad_authen(tac_session *session)
+void rad_set_fields(tac_session *session)
 {
+    rad_get(session, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username, &session->username_len);
+
     if (!rad_get(session, -1, RADIUS_A_CALLED_STATION_ID, S_string_keyword, &session->nac_addr_ascii, &session->nac_addr_ascii_len))
 	session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii) ? 0 : 1;
 
@@ -2041,6 +2042,11 @@ void rad_authen(tac_session *session)
     size_t service_type_len = sizeof(service_type);
     if (!rad_get(session, -1, RADIUS_A_SERVICE_TYPE, S_integer, &service_type, &service_type_len))
 	rad_dict_get_val(-1, RADIUS_A_SERVICE_TYPE, service_type, &session->service, &session->service_len);
+}
+
+void rad_authen(tac_session *session)
+{
+    rad_set_fields(session);
 
     switch (session->radius_data->pak_in->code) {
     case RADIUS_CODE_ACCESS_REQUEST:

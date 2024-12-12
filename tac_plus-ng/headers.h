@@ -1004,6 +1004,7 @@ void dump_rad_pak(tac_session *, rad_pak_hdr *);
 /* authen.c */
 void authen(tac_session *, tac_pak_hdr *);
 void rad_authen(tac_session *);
+void rad_set_fields(tac_session *session);
 void authen_init(void);
 
 /* author.c */
