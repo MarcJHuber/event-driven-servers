@@ -1969,9 +1969,6 @@ static void do_radius_login(tac_session *session)
 {
     enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
-    char *resp = NULL;
-
-    mem_free(session->mem, &session->password);
 
     if (!session->username || rad_get_password(session, &session->password, NULL)) {
 	report_auth(session, "radius login", hint_nopass, res);
@@ -1997,6 +1994,7 @@ static void do_radius_login(tac_session *session)
     if (query_mavis_auth_login(session, do_radius_login, pw_ix))
 	return;
 
+    char *resp = NULL;
     res = check_access(session, pwdat, session->password, &hint, &resp);
 
     if (res == S_error) {
@@ -2048,16 +2046,12 @@ void rad_authen(tac_session *session)
 {
     rad_set_fields(session);
 
-    switch (session->radius_data->pak_in->code) {
-    case RADIUS_CODE_ACCESS_REQUEST:
-	session->radius_data->authfn = do_radius_login;
-	break;
-    default:
-	if (session->ctx->aaa_protocol == S_radius)
-	    cleanup(session->ctx, -1);
-	else
-	    cleanup_session(session);
+    if (session->radius_data->pak_in->code == RADIUS_CODE_ACCESS_REQUEST) {
+	do_radius_login(session);
 	return;
     }
-    session->radius_data->authfn(session);
+    if (session->ctx->aaa_protocol == S_radius)
+	cleanup(session->ctx, -1);
+    else
+	cleanup_session(session);
 }
