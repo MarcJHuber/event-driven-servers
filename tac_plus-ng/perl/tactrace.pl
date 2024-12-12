@@ -212,10 +212,8 @@ EOT
 		my $dictionary = Data::Radius::Dictionary->load_file($raddict);
 
 		my $packet = Data::Radius::Packet->new(secret => "radsec", dict => $dictionary);
-		no strict;
 		my $type = 1;
-		$type = 3 if $mode eq "acct";
-		use strict;
+		$type = 4 if $mode eq "acct";
 		my @av_list = (
 			{ Name => 'Message-Authenticator', Value => '' },
 			{ Name => 'User-Name', Value => $username},
