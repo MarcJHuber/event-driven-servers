@@ -1622,13 +1622,13 @@ static char *eval_log_format_session_id(tac_session *session, struct context *ct
     return NULL;
 }
 
-static char *eval_log_format_logsequence(tac_session *session __attribute__((unused)), struct context *ctx
+static char *eval_log_format_logsequence(tac_session *session, struct context *ctx
 					 __attribute__((unused)), struct logfile *lf, size_t *len __attribute__((unused)))
 {
     if (lf) {
 	char buf[128];
 	snprintf(buf, sizeof(buf), "%u", lf->logsequence++);
-	return mem_strdup(session->mem, buf);
+	return mem_strdup(session ? session->mem : ctx->mem, buf);
     }
     return NULL;
 }
