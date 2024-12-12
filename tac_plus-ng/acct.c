@@ -164,9 +164,9 @@ void rad_acct(tac_session *session)
 {
     tac_host *h = session->ctx->host;
 
-    report(session, LOG_DEBUG, DEBUG_ACCT_FLAG, "Start accounting request");
-
     rad_set_fields(session);
+
+    report(session, LOG_DEBUG, DEBUG_ACCT_FLAG, "Start accounting request");
 
     int type = 0;
     if (!rad_get(session, -1, RADIUS_A_ACCT_STATUS_TYPE, S_integer, &type, NULL)) {
