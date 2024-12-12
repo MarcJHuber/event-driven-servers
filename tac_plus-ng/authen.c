@@ -807,7 +807,7 @@ static void do_enable_getuser(tac_session *);
 
 static void do_enable_augmented(tac_session *session)
 {
-    enum hint_enum hint = hint_nosuchuser;
+    enum hint_enum hint = hint_denied;
     char *u;
     char *resp = eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL);
 
@@ -861,8 +861,6 @@ static void do_enable_augmented(tac_session *session)
 	if (session->enable) {
 	    if (session->enable->type == S_login)
 		res = check_access(session, pwdat, session->password, &hint, &resp);
-	    else
-		hint = hint_denied_profile;
 	}
     }
 
@@ -874,7 +872,7 @@ static void do_enable_augmented(tac_session *session)
 static void do_enable(tac_session *session)
 {
     enum token res = S_deny;
-    enum hint_enum hint = hint_nosuchuser;
+    enum hint_enum hint = hint_denied;
 
     if ((session->ctx->host->augmented_enable == TRISTATE_YES) && (S_permit == eval_tac_acl(session, session->ctx->realm->enable_user_acl))
 	) {
