@@ -15,8 +15,8 @@ OS	:= $(OSs)-$(OSr)-$(OSm)
 
 all: misc/version.h dirs install_fakeroot_doc
 
-misc/version.h: .git/index
-	@test -f .git/HEAD && set `git rev-parse HEAD` && printf "#define VERSION \"$$1\"\n" > $@
+misc/version.h: LAST_COMMIT
+	@set `cat $<` && printf "#define VERSION \"$$1\"\n" > $@
 
 build:
 	mkdir -p -m 0755 $@
