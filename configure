@@ -522,12 +522,12 @@ if ($sysname eq "linux") {
 
 if (exists $DEFS{"DEBUG"}) {
 	$DEFS{"DEF"} .= " -DDEBUG";
-	$DEFS{"CFLAGS"}	.= " -g -Og";
+	$DEFS{"CFLAGS"}	.= " -g -O0";
 	$DEFS{"CFLAGS"} .= " -ggdb" if exists $DEFS{"CC_GCC"};
 }
 
 if (exists $DEFS{"GGDB"}) {
-	$DEFS{"CFLAGS"}	.= " -g -Og";
+	$DEFS{"CFLAGS"}	.= " -g -O0";
 	$DEFS{"CFLAGS"} .= " -ggdb" if exists $DEFS{"CC_GCC"};
 }
 
