@@ -515,6 +515,9 @@ static struct i2s map_rad_code[] = {
 #define S "ACCOUNTING-RESPONSE"
     { RADIUS_CODE_ACCOUNTING_RESPONSE, S, sizeof(S) - 1 },
 #undef S
+#define S "STATUS-SERVER"
+    { RADIUS_CODE_STATUS_SERVER, S, sizeof(S) - 1 },
+#undef S
     { 0, NULL, 0 }
 };
 
