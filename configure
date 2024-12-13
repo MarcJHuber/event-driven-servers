@@ -786,21 +786,5 @@ WriteMakefile(
 EOT
 close OUT;
 
-unless (-d ".git/refs/heads") {
-my $no_git = "GIT info is unavailable. This build might be outdated. Please make sure to update to the latest GIT version before issuing a support request.";
-	wprint ("
-
-$no_git
-"
-	);
-	mkdir(".git");
-	open OUT, ">>.git/index"; # GNUmakefile refers this. Just touch, dont overwrite.
-	close OUT;
-	$out = "misc/version.h";
-	open OUT, ">$out" or die "open ($out): $!";
-	print OUT "#define VERSION \"$no_git\"\n";
-	close OUT;
-}
-
 print "="x$width . "\n";
 # vim: ts=4
