@@ -41,6 +41,7 @@ our $radsec = undef;
 our $debug = undef;
 our $debug_wait = "0";
 our $valgrind = undef;
+our $fragment = undef;
 
 sub help {
 	my $arglist = '"' . join('" "', @args) . '"';
@@ -125,6 +126,7 @@ GetOptions (
 	"debug"		=> \$debug,
 	"debug-wait=s"	=> \$debug_wait,
 	"valgrind"	=> \$valgrind,
+	"fragment"	=> \$fragment,
 ) or help();
 
 @args = @ARGV if $#ARGV > -1;
@@ -263,6 +265,16 @@ if (defined $debug) {
 }
 
 #print HexDump($raw);
+if (defined $fragment) {
+	eval {
+		use Time::HiRes qw(usleep nanosleep);
+		for (my $i = 0; $i < length($raw); $i++) {
+			syswrite($conn0, $raw, 1, $i) or die;
+			usleep(100000);
+		}
+		sysread($conn0, my $buf, my $len = 1);
+	} and exit 0;
+}
 syswrite($conn0, $raw, length($raw)) or die;
 sysread($conn0, my $buf, my $len = 1);
 exit 0;
