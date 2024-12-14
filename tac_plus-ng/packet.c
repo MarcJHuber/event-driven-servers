@@ -206,8 +206,8 @@ void send_author_reply(tac_session *session, u_char status, char *msg, char *dat
 
     switch (status) {
     case TAC_PLUS_AUTHOR_STATUS_PASS_ADD:
-	session->result = codestring[S_permit];
-	session->result_len = codestring_len[S_permit];
+	session->result = codestring[S_permit].txt;
+	session->result_len = codestring[S_permit].len;
 #define S "added"
 	session->hint = S;
 	session->hint_len = sizeof(S) - 1;
@@ -225,8 +225,8 @@ void send_author_reply(tac_session *session, u_char status, char *msg, char *dat
 	}
 	break;
     case TAC_PLUS_AUTHOR_STATUS_PASS_REPL:
-	session->result = codestring[S_permit];
-	session->result_len = codestring_len[S_permit];
+	session->result = codestring[S_permit].txt;
+	session->result_len = codestring[S_permit].len;
 #define S "replaced"
 	session->hint = S;
 	session->hint_len = sizeof(S) - 1;
@@ -237,8 +237,8 @@ void send_author_reply(tac_session *session, u_char status, char *msg, char *dat
 #undef S
 	break;
     default:
-	session->result = codestring[S_deny];
-	session->result_len = codestring_len[S_deny];
+	session->result = codestring[S_deny].txt;
+	session->result_len = codestring[S_deny].len;
 #define S "AUTHZFAIL"
 	session->msgid = S;
 	session->msgid_len = sizeof(S) - 1;

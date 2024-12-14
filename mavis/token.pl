@@ -4,7 +4,7 @@
 use strict;
 
 my @enum = ("S_unknown = 0");
-my @array = ("\"<unknown>\"");
+my @array = ('{.txt="<unknown>", .len=9 }');
 
 my ($k, $t);
 my %K;
@@ -19,24 +19,35 @@ while (<DATA>){
 my $i = 1;
 for my $w (sort { $K{$a} cmp $K{$b} } keys %K){
 	push @enum, $w;
-	push @array, '"' . $K{$w} . '"';
+	push @array, '{ .txt="' . $K{$w} . '", .len=' . length($K{$w}) . '}';
 	$i++;
 }
+push @array, '{ 0 }';
 
 open F, "> token.h" or die;
-print F "extern char *codestring[];\n";
-print F "extern size_t codestring_len[];\n";
+print F <<EOF
+#include <stddef.h>
+typedef struct {
+    char *txt;
+    size_t len;
+} str_t;
+
+extern str_t codestring[];
+EOF
+;
 print F "enum token {\n\t" . join(",\n\t", @enum), ",\n\tS_null\n};\n";
 close F;
 
 open F, "> token.c" or die;
-print F "#include <stdio.h>\n";
-print F "char *codestring[] = {\n\t" . join(",\n\t", @array), ",\n\tNULL\n};\n";
+print F <<EOF
+#include "mavis/token.h"
+EOF
+;
+print F "str_t codestring[] = {\n\t" . join(",\n\t", @array), ",\n};\n";
 my @array_len;
 for(my $i = 0; $i < $#array; $i++){
 	$array_len[$i] = length($array[$i]) - 2;
 }
-print F "size_t codestring_len[] = {\n\t" . join(",\n\t", @array_len), ",\n\t0\n};\n";
 close F;
 
 

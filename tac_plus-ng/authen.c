@@ -226,8 +226,8 @@ static void report_auth(tac_session *session, char *what, enum hint_enum hint, e
     char *realm = alloca(session->ctx->realm->name_len + 40);
     tac_realm *r = session->ctx->realm;
 
-    session->result = codestring[res];
-    session->result_len = codestring_len[res];
+    session->result = codestring[res].txt;
+    session->result_len = codestring[res].len;
 
     if (r == config.default_realm)
 	*realm = 0;

@@ -289,7 +289,7 @@ void av_dump(av_ctx * ac)
 int av_attribute_to_i(char *s)
 {
     for (int i = 0; i < AV_A_ARRAYSIZE; i++)
-	if (!strcasecmp(av_char[i].name, s) || (av_char[i].token && !strcmp(codestring[av_char[i].token], s)))
+	if (!strcasecmp(av_char[i].name, s) || (av_char[i].token && !strcmp(codestring[av_char[i].token].txt, s)))
 	    return i;
     return -1;
 }

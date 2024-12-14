@@ -350,7 +350,7 @@ enum token eval_ftp_acl(struct context *ctx, struct ftp_acl *acl, char *arg, cha
 
 	Debug((DEBUG_ACL, "result: acl matched\n"));
 
-	Debug((DEBUG_ACL, "- %s(%s) = %s\n", __func__, acl ? acl->name : "???", codestring[res]));
+	Debug((DEBUG_ACL, "- %s(%s) = %s\n", __func__, acl ? acl->name : "???", codestring[res].txt));
 	return res;
     }
     return S_permit;
@@ -1644,7 +1644,7 @@ void parse_decls(struct sym *sym)
 		} else
 		    PCRE_add(a0, a1, NULL);
 #else
-		parse_error(sym, "%s requires PCRE2 support.", codestring[S_rewrite]);
+		parse_error(sym, "%s requires PCRE2 support.", codestring[S_rewrite].txt);
 #endif				/* WITH_PCRE2 */
 	    }
 

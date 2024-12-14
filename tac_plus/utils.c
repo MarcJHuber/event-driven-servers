@@ -719,7 +719,7 @@ void log_add(rb_tree_t ** rbt, char *s, tac_realm * r)
 	    lf->log_flush = &log_flush_async;
 	    break;
 	default:
-	    if (!strcmp(s, codestring[S_syslog])) {
+	    if (!strcmp(s, codestring[S_syslog].txt)) {
 		lf->flag_syslog = BISTATE_YES;
 		lf->log_write = &log_write_common;
 		lf->log_write_hostname = &log_write_hostname_common;

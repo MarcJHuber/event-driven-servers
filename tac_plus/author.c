@@ -253,10 +253,10 @@ static void log_author_cmd(tac_session * session, char *cmd, char *args)
 	log_write_separator(rbt);
 	switch (session->author_data->status) {
 	case TAC_PLUS_AUTHOR_STATUS_PASS_ADD:
-	    log_write(rbt, codestring[S_permit], codestring_len[S_permit]);
+	    log_write(rbt, codestring[S_permit].txt, codestring[S_permit].len);
 	    break;
 	default:
-	    log_write(rbt, codestring[S_deny], codestring_len[S_deny]);
+	    log_write(rbt, codestring[S_deny].txt, codestring[S_deny].len);
 	    break;
 	}
 	log_write_separator(rbt);
@@ -391,7 +391,7 @@ static void authorize_svc(tac_session * session, enum token svc, char *svcname, 
     default:
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG,
 	       "%s@%s: svcname=%s protocol=%s not found, default is %s",
-	       session->username, session->ctx->nas_address_ascii, svcname ? svcname : "", protocol ? protocol : "", codestring[svc_dflt]);
+	       session->username, session->ctx->nas_address_ascii, svcname ? svcname : "", protocol ? protocol : "", codestring[svc_dflt].txt);
 	switch (svc_dflt) {
 	case S_permit:
 	    data->status = TAC_PLUS_AUTHOR_STATUS_PASS_ADD;

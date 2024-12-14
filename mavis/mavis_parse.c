@@ -181,7 +181,7 @@ void parse_error_expect(struct sym *sym, ...)
     for (enum token token = va_arg(ap, enum token); token != S_unknown; token = va_arg(ap, enum token)) {
 	a[token] = 1;
 	token_count++;
-	len += 4 + codestring_len[token];
+	len += 4 + codestring[token].len;
     }
     va_end(ap);
 
@@ -197,8 +197,8 @@ void parse_error_expect(struct sym *sym, ...)
 	    *p++ = ' ';
 	}
 	*p++ = '\'';
-	memcpy(p, codestring[j], codestring_len[j]);
-	p += codestring_len[j];
+	memcpy(p, codestring[j].txt, codestring[j].len);
+	p += codestring[j].len;
 	*p++ = '\'';
 	j++;
     }
@@ -211,8 +211,8 @@ void parse_error_expect(struct sym *sym, ...)
 	*p++ = 'r';
 	*p++ = ' ';
 	*p++ = '\'';
-	memcpy(p, codestring[j], codestring_len[j]);
-	p += codestring_len[j];
+	memcpy(p, codestring[j].txt, codestring[j].len);
+	p += codestring[j].len;
 	*p++ = '\'';
     }
     *p = 0;
@@ -343,7 +343,7 @@ static void substitute_envvar(struct sym *sym)
 			 "file=%s line=%u sym=[%s%s%s] buf='%s%s%s' => buf='%s%s%s'",
 			 sym->filename ? sym->filename : "(unset)",
 			 sym->line, common_data.font_red,
-			 codestring[sym->code], common_data.font_plain, common_data.font_blue, sym->buf, common_data.font_plain, common_data.font_blue, buf,
+			 codestring[sym->code].txt, common_data.font_plain, common_data.font_blue, sym->buf, common_data.font_plain, common_data.font_blue, buf,
 			 common_data.font_plain);
 	memcpy(sym->buf, buf, b - buf);
     }
@@ -583,7 +583,7 @@ static void buf_add(struct sym *sym, char c)
     if (sym->pos >= (int) sizeof(sym->buf)) {
 	sym->buf[sizeof(sym->buf) - 1] = '\0';
 	parse_error(sym, "Line too long: sym=[%s%s%s] buf='%s%.*s%s'",
-		    common_data.font_red, codestring[sym->code], common_data.font_plain, sym->pos, common_data.font_blue, sym->buf, common_data.font_plain);
+		    common_data.font_red, codestring[sym->code].txt, common_data.font_plain, sym->pos, common_data.font_blue, sym->buf, common_data.font_plain);
     }
     sym->buf[sym->pos++] = c;
 }
@@ -654,7 +654,7 @@ void sym_get(struct sym *sym)
 	report_cfg_error(LOG_DEBUG, DEBUG_PARSE_FLAG,
 			 "file=%s line=%u sym=[%s%s%s] buf='%s%s%s' (alias)",
 			 token_list->filename ? token_list->filename : "(unset)", token_list->line,
-			 common_data.font_red, codestring[sym->code], common_data.font_plain, common_data.font_blue, token_list->buf, common_data.font_plain);
+			 common_data.font_red, codestring[sym->code].txt, common_data.font_plain, common_data.font_blue, token_list->buf, common_data.font_plain);
 	sym->token_chain->list = sym->token_chain->list->next;
 	if (!sym->token_chain->list) {
 	    struct token_chain *chain = sym->token_chain->next;
@@ -667,7 +667,7 @@ void sym_get(struct sym *sym)
 			 "file=%s line=%u sym=[%s%s%s] buf='%s%s%s'",
 			 sym->filename ? sym->filename : "(unset)",
 			 sym->line, common_data.font_red,
-			 codestring[sym->code], common_data.font_plain, common_data.font_blue, sym->buf, common_data.font_plain);
+			 codestring[sym->code].txt, common_data.font_plain, common_data.font_blue, sym->buf, common_data.font_plain);
     }
 
     if (aliastable && sym->code == S_string) {
@@ -1096,7 +1096,7 @@ enum token keycode(char *keyword)
 
     do {
 	mid = len / 2;
-	i = strcmp(keyword, codestring[start + mid]);
+	i = strcmp(keyword, codestring[start + mid].txt);
 	if (i < 0)
 	    len = mid;
 	else if (!i) {
@@ -1933,7 +1933,7 @@ int sym_normalize_cond_start(struct sym *sym, mem_t *mem, struct sym **mysym)
 	    case S_openbra:
 	    case S_closebra:
 		if (bc)
-		    parse_error(sym, "Got '%s' -- did you omit a ')' somewhere?", codestring[sym->code]);
+		    parse_error(sym, "Got '%s' -- did you omit a ')' somewhere?", codestring[sym->code].txt);
 		prev = sym->code;
 		break;
 	    case S_tilde:
@@ -2148,13 +2148,13 @@ static int mavis_cond_eval_res(mavis_ctx *mcx, struct mavis_cond *m, int res)
     case S_and:
     case S_or:
 	if (common_data.debug & DEBUG_ACL_FLAG)
-	    fprintf(stderr, "%s/line %u: [%s] => %s\n", mcx->identity_source_name, m->line, codestring[m->type], r);
+	    fprintf(stderr, "%s/line %u: [%s] => %s\n", mcx->identity_source_name, m->line, codestring[m->type].txt, r);
 	break;
     default:
 	if (common_data.debug & DEBUG_ACL_FLAG)
 	    fprintf(stderr, "%s/line %u: [%s] %s%s%s '%s' => %s\n", mcx->identity_source_name, m->line,
-		    codestring[m->u.s.token], m->u.s.lhs_txt ? m->u.s.lhs_txt : "",
-		    m->u.s.lhs_txt ? " " : "", codestring[m->type], m->u.s.rhs_txt ? m->u.s.rhs_txt : "", r);
+		    codestring[m->u.s.token].txt, m->u.s.lhs_txt ? m->u.s.lhs_txt : "",
+		    m->u.s.lhs_txt ? " " : "", codestring[m->type].txt, m->u.s.rhs_txt ? m->u.s.rhs_txt : "", r);
     }
 
     return res;
@@ -2280,7 +2280,7 @@ void mavis_script_drop(struct mavis_action **m)
 static void mavis_script_eval_debug(mavis_ctx *mcx, struct mavis_action *m)
 {
     if (common_data.debug & DEBUG_ACL_FLAG)
-	fprintf(stderr, "%s/line %u: [%s]\n", mcx->identity_source_name, m->line, codestring[m->code]);
+	fprintf(stderr, "%s/line %u: [%s]\n", mcx->identity_source_name, m->line, codestring[m->code].txt);
 }
 
 static enum token mavis_script_eval_r(mavis_ctx *mcx, av_ctx *ac, struct mavis_action *m)
@@ -2343,7 +2343,7 @@ static enum token mavis_script_eval_r(mavis_ctx *mcx, av_ctx *ac, struct mavis_a
 		size_t len = strlen(s);
 		size_t olen = len * 4 + 1;
 		char *out = alloca(olen);
-		fprintf(stderr, "%s/line %u: [%s] %s = \"%s\"\n", mcx->identity_source_name, m->line, codestring[m->code], av_char[m->a.a].name,
+		fprintf(stderr, "%s/line %u: [%s] %s = \"%s\"\n", mcx->identity_source_name, m->line, codestring[m->code].txt, av_char[m->a.a].name,
 			escape_string(s, len, out, &olen));
 	    }
 	}
@@ -2352,7 +2352,7 @@ static enum token mavis_script_eval_r(mavis_ctx *mcx, av_ctx *ac, struct mavis_a
 	av_unset(ac, m->a.a);
 	mavis_script_eval_debug(mcx, m);
 	if (common_data.debug & DEBUG_ACL_FLAG)
-	    fprintf(stderr, "%s/line %u: [%s] %s\n", mcx->identity_source_name, m->line, codestring[m->code], av_char[m->a.a].name);
+	    fprintf(stderr, "%s/line %u: [%s] %s\n", mcx->identity_source_name, m->line, codestring[m->code].txt, av_char[m->a.a].name);
 	break;
     case S_toupper:{
 	    char *t = av_get(ac, m->a.a);
@@ -2380,7 +2380,7 @@ static enum token mavis_script_eval_r(mavis_ctx *mcx, av_ctx *ac, struct mavis_a
 		return r;
 	} else if (m->c.a) {
 	    if (common_data.debug & DEBUG_ACL_FLAG)
-		fprintf(stderr, "%s/line %u: [%s]\n", mcx->identity_source_name, m->line, codestring[S_else]);
+		fprintf(stderr, "%s/line %u: [%s]\n", mcx->identity_source_name, m->line, codestring[S_else].txt);
 	    r = mavis_script_eval_r(mcx, ac, m->c.a);
 	    if (r != S_unknown)
 		return r;

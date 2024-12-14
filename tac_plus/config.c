@@ -4407,7 +4407,7 @@ static void match_tac_acl(tac_session * session, struct tac_acllist *acl, struct
 	}
 	report(session, LOG_DEBUG,
 	       DEBUG_ACL_FLAG | DEBUG_AUTHOR_FLAG | DEBUG_REGEX_FLAG,
-	       "%s@%s: %s", session->username, session->ctx->nas_address_ascii, (res == S_unknown) ? "no match" : codestring[res]);
+	       "%s@%s: %s", session->username, session->ctx->nas_address_ascii, (res == S_unknown) ? "no match" : codestring[res].txt);
 
 	if (res == S_deny)
 	    *node = NULL;
@@ -4676,14 +4676,14 @@ static int get_cmd_node_func(tac_user * u)
     tac_session *session = C.session;
     char *cmdname;
 
-    if (service_is_prohibited(session, u, codestring[S_shell]))
+    if (service_is_prohibited(session, u, codestring[S_shell].txt))
 	return 0;
 
     cmdname = alloca(strlen(C.cmdname) + 1);
     strcpy(cmdname, C.cmdname);
     lower(cmdname);
 
-    lookup_svc(session, u, codestring[S_shell], S_shell, NULL, cmdname, &shell, NULL, &cmd, &svc_dflt, NULL, &C.msg_debug, &C.msg_permit, &C.msg_deny);
+    lookup_svc(session, u, codestring[S_shell].txt, S_shell, NULL, cmdname, &shell, NULL, &cmd, &svc_dflt, NULL, &C.msg_debug, &C.msg_permit, &C.msg_deny);
 
     if (!shell)
 	switch (svc_dflt) {
@@ -4712,7 +4712,7 @@ static int get_cmd_node_func(tac_user * u)
 	if (C.cmd_dflt != S_unknown) {
 	    report(session, LOG_DEBUG,
 		   DEBUG_AUTHOR_FLAG | DEBUG_REGEX_FLAG,
-		   "%s@%s: %s: default is %s", session->username, session->ctx->nas_address_ascii, C.cmdname, codestring[C.cmd_dflt]);
+		   "%s@%s: %s: default is %s", session->username, session->ctx->nas_address_ascii, C.cmdname, codestring[C.cmd_dflt].txt);
 	    C.result = C.cmd_dflt;
 	    return 0;
 	}
@@ -4736,7 +4736,7 @@ static int get_cmd_node_func(tac_user * u)
 		   DEBUG_AUTHOR_FLAG | DEBUG_REGEX_FLAG,
 		   "%s@%s: line %u: %s: \"%s\" <=> \"%s\": %s",
 		   session->username, session->ctx->nas_address_ascii,
-		   (u_int) cmd->line, C.cmdname, C.args, (char *) node->name, match ? codestring[node->type] : "no match");
+		   (u_int) cmd->line, C.cmdname, C.args, (char *) node->name, match ? codestring[node->type].txt : "no match");
 	    if (match) {
 		C.result = node->type;
 		return 0;

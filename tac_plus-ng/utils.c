@@ -677,7 +677,7 @@ void parse_log(struct sym *sym, tac_realm *r)
 	lf->log_flush = &log_flush_async;
 	break;
     default:
-	if (!strcmp(lf->dest, codestring[S_syslog])) {
+	if (!strcmp(lf->dest, codestring[S_syslog].txt)) {
 	    if (!lf->acct)
 		lf->acct = acct_syslog3;
 	    if (!lf->author)
@@ -1660,8 +1660,8 @@ static char *eval_log_format_conn_protocol(tac_session *session __attribute__((u
     if (ctx) {
 	*len = 3;
 	if (ctx->aaa_protocol == S_radius)
-	    return codestring[S_UDP];
-	return codestring[S_TCP];
+	    return codestring[S_UDP].txt;
+	return codestring[S_TCP].txt;
     }
     return NULL;
 }
