@@ -223,7 +223,7 @@ static char *get_hint(tac_session *session, enum hint_enum h)
 
 static void report_auth(tac_session *session, char *what, enum hint_enum hint, enum token res)
 {
-    char *realm = alloca(session->ctx->realm->name_len + 40);
+    char *realm = alloca(session->ctx->realm->name.len + 40);
     tac_realm *r = session->ctx->realm;
 
     session->result = codestring[res].txt;
@@ -233,7 +233,7 @@ static void report_auth(tac_session *session, char *what, enum hint_enum hint, e
 	*realm = 0;
     else {
 	strcpy(realm, " (realm: ");
-	strcat(realm, session->ctx->realm->name);
+	strcat(realm, session->ctx->realm->name.txt);
 	strcat(realm, ")");
     }
 
@@ -243,14 +243,14 @@ static void report_auth(tac_session *session, char *what, enum hint_enum hint, e
     report(session, LOG_INFO, ~0,
 	   "%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 	   what,
-	   IS_SET(session->username) ? " for '" : "", session->username,
-	   IS_SET(session->username) ? "'" : "", realm,
+	   IS_SET(session->username.txt) ? " for '" : "", session->username.txt,
+	   IS_SET(session->username.txt) ? "'" : "", realm,
 	   IS_SET(session->nac_addr_ascii) ? " from " : "",
 	   IS_SET(session->nac_addr_ascii) ? session->nac_addr_ascii : "",
 	   IS_SET(session->port) ? " on " : "",
 	   IS_SET(session->port) ? session->port : "",
 	   hint_augmented ? " " : "", hint_augmented,
-	   session->profile ? " (profile=" : "", session->profile ? session->profile->name : "", session->profile ? ")" : "");
+	   session->profile ? " (profile=" : "", session->profile ? session->profile->name.txt : "", session->profile ? ")" : "");
 #undef IS_SET
 
     session->msgid = hints[hint].msgid;
@@ -344,7 +344,7 @@ static enum token lookup_and_set_user(tac_session *session)
 	    res = tac_script_eval_r(session, h->action);
 	    switch (res) {
 	    case S_deny:
-		report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
+		report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "user %s realm %s denied by ACL", session->username.txt, session->ctx->realm->name.txt);
 		report_auth(session, "session", hint_denied_by_acl, S_deny);
 		return S_deny;
 	    default:
@@ -354,7 +354,7 @@ static enum token lookup_and_set_user(tac_session *session)
 	h = h->parent;
     }
 
-    report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "looking for user %s realm %s", session->username, session->ctx->realm->name);
+    report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "looking for user %s realm %s", session->username.txt, session->ctx->realm->name.txt);
 
     if (!session->user_is_session_specific)
 	lookup_user(session);
@@ -365,7 +365,7 @@ static enum token lookup_and_set_user(tac_session *session)
 	session->user = NULL;
 
     if (session->user && session->user->rewritten_only && !session->username_rewritten) {
-	report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Login for user %s is prohibited", session->user->name);
+	report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Login for user %s is prohibited", session->user->name.txt);
 	if (session->user_is_session_specific)
 	    free_user(session->user);
 	session->user = NULL;
@@ -617,13 +617,13 @@ static void do_chpass(tac_session *session)
 {
     enum hint_enum hint = hint_nosuchuser;
 
-    if (!session->username[0] && session->authen_data->msg) {
+    if (!session->username.txt[0] && session->authen_data->msg) {
 	mem_free(session->mem, &session->username);
-	session->username = session->authen_data->msg;
-	session->username_len = session->authen_data->msg_len;
+	session->username.txt = session->authen_data->msg;
+	session->username.len = session->authen_data->msg_len;
 	session->authen_data->msg = NULL;
     }
-    if (!session->username[0]) {
+    if (!session->username.txt[0]) {
 	session->msg = eval_log_format(session, session->ctx, NULL, li_username, io_now.tv_sec, &session->msg_len);
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETUSER, set_welcome_banner(session, li_user_access_verification), 0, NULL, 0, 0);
 	session->msg = NULL;
@@ -830,8 +830,8 @@ static void do_enable_augmented(tac_session *session)
     if (session->authen_data->msg) {
 	u = strchr(session->authen_data->msg, ' ');
 	if (u) {
-	    session->username = session->authen_data->msg;
-	    session->username_len = u - session->authen_data->msg;
+	    session->username.txt = session->authen_data->msg;
+	    session->username.len = u - session->authen_data->msg;
 	    *u++ = 0;
 	    session->password = u;
 	    session->authen_data->msg = NULL;
@@ -850,7 +850,7 @@ static void do_enable_augmented(tac_session *session)
     struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
-    if (session->username[0]) {
+    if (session->username.txt[0]) {
 	if (query_mavis_auth_login(session, do_enable_augmented, pw_ix))
 	    return;
 
@@ -876,16 +876,16 @@ static void do_enable(tac_session *session)
 
     if ((session->ctx->host->augmented_enable == TRISTATE_YES) && (S_permit == eval_tac_acl(session, session->ctx->realm->enable_user_acl))
 	) {
-	session->username[0] = 0;
+	session->username.txt[0] = 0;
 	session->authen_data->authfn = do_enable_augmented;
 	do_enable_augmented(session);
 	return;
     }
 
-    if ((!session->username[0] || (S_permit == eval_tac_acl(session, session->ctx->realm->enable_user_acl)))
+    if ((!session->username.txt[0] || (S_permit == eval_tac_acl(session, session->ctx->realm->enable_user_acl)))
 	&& !session->enable_getuser && (session->ctx->host->anon_enable == TRISTATE_NO)) {
 	session->enable_getuser = 1;
-	session->username[0] = 0;
+	session->username.txt[0] = 0;
 	session->authen_data->authfn = do_enable_getuser;
 	do_enable_getuser(session);
 	return;
@@ -939,14 +939,14 @@ static void do_ascii_login(tac_session *session)
     char *resp = NULL, *m;
     enum token res = S_deny;
 
-    if (!session->username[0] && session->authen_data->msg) {
+    if (!session->username.txt[0] && session->authen_data->msg) {
 	mem_free(session->mem, &session->username);
-	session->username = session->authen_data->msg;
-	session->username_len = session->authen_data->msg_len;
+	session->username.txt = session->authen_data->msg;
+	session->username.len = session->authen_data->msg_len;
 	session->authen_data->msg = NULL;
     }
 
-    if (!session->username[0]) {
+    if (!session->username.txt[0]) {
 	session->msg = eval_log_format(session, session->ctx, NULL, li_username, io_now.tv_sec, &session->msg_len);
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETUSER, set_welcome_banner(session, li_user_access_verification), 0, NULL, 0, 0);
 	session->msg = NULL;
@@ -1131,13 +1131,13 @@ static void do_enable_getuser(tac_session *session)
     char *resp = eval_log_format(session, session->ctx, NULL, li_enable_password_incorrect, io_now.tv_sec, NULL);
     enum token res = S_deny;
 
-    if (!session->username[0] && session->authen_data->msg) {
-	session->username = session->authen_data->msg;
-	session->username_len = session->authen_data->msg_len;
+    if (!session->username.txt[0] && session->authen_data->msg) {
+	session->username.txt = session->authen_data->msg;
+	session->username.len = session->authen_data->msg_len;
 	session->authen_data->msg = NULL;
     }
 
-    if (!session->username[0]) {
+    if (!session->username.txt[0]) {
 	mem_free(session->mem, &session->username);
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETUSER,
 			  eval_log_format(session, session->ctx, NULL, li_username, io_now.tv_sec, NULL), 0, NULL, 0, 0);
@@ -1406,7 +1406,7 @@ static void do_mschapv2(tac_session *session)
 	    if (!reserved && !resp[48] /* reserved, must be zero */ ) {
 		u_char response[24];
 
-		mschapv2_ntresp(chal, resp, session->user->name, session->user->passwd[PW_MSCHAP]->value, response);
+		mschapv2_ntresp(chal, resp, session->user->name.txt, session->user->passwd[PW_MSCHAP]->value, response);
 		if (!memcmp(response, resp + 24, 24))
 		    res = S_permit;
 	    }
@@ -1896,8 +1896,8 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 
 	if (session->authen_data->authfn) {
 	    u_char *p = (u_char *) start + TAC_AUTHEN_START_FIXED_FIELDS_SIZE;
-	    session->username = mem_strndup(session->mem, p, start->user_len);
-	    session->username_len = start->user_len;
+	    session->username.txt = mem_strndup(session->mem, p, start->user_len);
+	    session->username.len = start->user_len;
 
 	    p += start->user_len;
 	    session->port = mem_strndup(session->mem, p, start->port_len);
@@ -1950,7 +1950,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
     }
 
     if (session->authen_data->authfn) {
-	if (username_required && !session->username[0])
+	if (username_required && !session->username.txt[0])
 	    send_authen_error(session, "No username in packet");
 	else {
 #ifdef WITH_DNS
@@ -1970,7 +1970,7 @@ static void do_radius_login(tac_session *session)
     enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
 
-    if (!session->username || rad_get_password(session, &session->password, NULL)) {
+    if (!session->username.txt || rad_get_password(session, &session->password, NULL)) {
 	report_auth(session, "radius login", hint_nopass, res);
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
@@ -2012,7 +2012,7 @@ static void do_radius_login(tac_session *session)
 	res = author_eval_profile(session, session->profile, session->ctx->realm->script_profile_parent_first);
 
 	if (res != S_permit) {
-	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
+	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username.txt, session->ctx->realm->name.txt);
 	    res = S_deny;
 	    resp = eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL);
 	}
@@ -2028,7 +2028,7 @@ static void do_radius_login(tac_session *session)
 
 void rad_set_fields(tac_session *session)
 {
-    rad_get(session, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username, &session->username_len);
+    rad_get(session, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username.txt, &session->username.len);
 
     if (!rad_get(session, -1, RADIUS_A_CALLED_STATION_ID, S_string_keyword, &session->nac_addr_ascii, &session->nac_addr_ascii_len))
 	session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii) ? 0 : 1;

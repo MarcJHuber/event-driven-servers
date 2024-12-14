@@ -73,7 +73,7 @@ static rb_node_t *tac_script_lookup_exec_context(tac_session *session)
 {
     if (!session->ctx->shellctxcache)
 	return NULL;
-    struct shellctx sc = {.username = session->username,.portname = session->port };
+    struct shellctx sc = {.username = session->username.txt,.portname = session->port };
     memcpy(&sc.device_address, &session->ctx->device_addr, sizeof(struct in6_addr));
     return RB_search(session->ctx->shellctxcache, &sc);
 }
@@ -107,10 +107,10 @@ void tac_script_set_exec_context(tac_session *session, char *ctxname)
 	sc = RB_payload(rb, struct shellctx *);
 	free(sc->ctxname);
     } else {
-	sc = calloc(1, sizeof(struct shellctx) + session->username_len + session->port_len);
+	sc = calloc(1, sizeof(struct shellctx) + session->username.len + session->port_len);
 	sc->username = sc->data;
-	sc->portname = sc->data + session->username_len + 1;
-	memcpy(sc->username, session->username, session->username_len);
+	sc->portname = sc->data + session->username.len + 1;
+	memcpy(sc->username, session->username.txt, session->username.len);
 	memcpy(sc->portname, session->port, session->port_len);
 	memcpy(&sc->device_address, &session->ctx->device_addr, sizeof(struct in6_addr));
 	RB_insert(session->ctx->shellctxcache, sc);

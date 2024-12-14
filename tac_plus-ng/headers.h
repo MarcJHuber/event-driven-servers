@@ -158,7 +158,7 @@ enum user_message_enum { UM_PASSWORD = 0, UM_RESPONSE, UM_PASSWORD_OLD, UM_PASSW
     UM_USERNAME, UM_USER_ACCESS_VERIFICATION, UM_DENIED_BY_ACL, UM_PASSWORD_EXPIRED, UM_PASSWORD_EXPIRES, UM_MAVIS_PARSE_ERROR, UM_MAX
 };
 
-#define TAC_NAME_ATTRIBUTES char *name; size_t name_len
+#define TAC_NAME_ATTRIBUTES str_t name
 
 struct memlist;
 typedef struct memlist memlist_t;
@@ -745,8 +745,7 @@ struct tac_session {
     mem_t *mem;
     tac_user *user;
     struct in6_addr nac_address;	/* host byte order */
-    char *username;
-    size_t username_len;
+    str_t username;
     char *username_orig;
     size_t username_orig_len;
     char *password;

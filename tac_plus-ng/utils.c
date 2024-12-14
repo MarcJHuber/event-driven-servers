@@ -461,8 +461,8 @@ void parse_log(struct sym *sym, tac_realm *r)
     struct logfile *lf = calloc(1, sizeof(struct logfile));
     if (sym->code == S_equal)
 	sym_get(sym);
-    lf->name = strdup(sym->buf);
-    lf->name_len = strlen(sym->buf);
+    lf->name.txt = strdup(sym->buf);
+    lf->name.len = strlen(sym->buf);
     sym_get(sym);
     if (r->logdestinations && RB_search(r->logdestinations, lf))
 	parse_error(sym, "log destination '%s' already defined", lf->name);
@@ -738,7 +738,7 @@ void log_add(struct sym *sym, rb_tree_t **rbtp, char *s, tac_realm *r)
 {
     if (!*rbtp)
 	*rbtp = RB_tree_new(compare_name, NULL);
-    struct logfile lf = {.name = s,.name_len = strlen(s) };
+    struct logfile lf = {.name.txt = s,.name.len = strlen(s) };
     while (r) {
 	if (r->logdestinations) {
 	    struct logfile *res = NULL;
@@ -951,8 +951,8 @@ static size_t ememcpy(char *dest, char *src, size_t n, size_t remaining)
 static char *eval_log_format_user(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->username_len;
-	return session->username;
+	*len = session->username.len;
+	return session->username.txt;
     }
     return NULL;
 }
@@ -971,8 +971,8 @@ static char *eval_log_format_profile(tac_session *session, struct context *ctx _
 				     __attribute__((unused)), size_t *len)
 {
     if (session && session->profile) {
-	*len = session->profile->name_len;
-	return session->profile->name;
+	*len = session->profile->name.len;
+	return session->profile->name.txt;
     }
     return NULL;
 }
@@ -1292,8 +1292,8 @@ static char *eval_log_format_peer(tac_session *session __attribute__((unused)), 
 static char *eval_log_format_host(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->host->name_len;
-	return ctx->host->name;
+	*len = ctx->host->name.len;
+	return ctx->host->name.txt;
     }
     return NULL;
 }
@@ -1310,8 +1310,8 @@ static char *eval_log_format_vrf(tac_session *session __attribute__((unused)), s
 static char *eval_log_format_realm(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->realm->name_len;
-	return ctx->realm->name;
+	*len = ctx->realm->name.len;
+	return ctx->realm->name.txt;
     }
     return NULL;
 }

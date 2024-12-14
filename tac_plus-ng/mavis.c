@@ -86,7 +86,7 @@ static void mavis_switch(tac_session *session, av_ctx *avc, int result)
 	session->mavis_data->mavisfn(session);
 	break;
     case MAVIS_TIMEOUT:
-	report(session, LOG_INFO, ~0, "auth_mavis: giving up (%s)", session->username);
+	report(session, LOG_INFO, ~0, "auth_mavis: giving up (%s)", session->username.txt);
 	io_sched_pop(session->ctx->io, session);
 	session->mavis_pending = 0;
 	av_free(avc);
@@ -126,7 +126,7 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
     if (r->mavis_user_acl) {
 	enum token token = eval_tac_acl(session, r->mavis_user_acl);
 	if (token != S_permit) {
-	    report(session, LOG_ERR, ~0, "username '%s' looks bogus", session->username);
+	    report(session, LOG_ERR, ~0, "username '%s' looks bogus", session->username.txt);
 	    f(session);
 	    return;
 	}
@@ -137,7 +137,7 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
 	return;
     }
 
-    report(session, LOG_INFO, ~0, "looking for user %s in MAVIS backend", session->username);
+    report(session, LOG_INFO, ~0, "looking for user %s in MAVIS backend", session->username.txt);
 
     if (!session->mavis_data)
 	session->mavis_data = mem_alloc(session->mem, sizeof(struct mavis_data));
@@ -149,7 +149,7 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
 
     av_ctx *avc = av_new((void *) mavis_callback, (void *) session);
     av_set(avc, AV_A_TYPE, AV_V_TYPE_TACPLUS);
-    av_set(avc, AV_A_USER, session->username);
+    av_set(avc, AV_A_USER, session->username.txt);
     av_setf(avc, AV_A_TIMESTAMP, "%d", session->session_id);
     av_set(avc, AV_A_TACTYPE, (char *) type);
     av_set(avc, AV_A_SERVERIP, session->ctx->device_addr_ascii);
@@ -157,8 +157,8 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
 	av_set(avc, AV_A_CALLER_CAP, ":chpw:");
     if (session->nac_addr_valid)
 	av_set(avc, AV_A_IPADDR, session->nac_addr_ascii);
-    if (r->name)
-	av_set(avc, AV_A_REALM, r->name);
+    if (r->name.txt)
+	av_set(avc, AV_A_REALM, r->name.txt);
 
     if (session->password && strcmp(type, AV_V_TACTYPE_INFO))
 	av_set(avc, AV_A_PASSWORD, session->password);
@@ -252,7 +252,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
     dump_av_pairs(session, avc, "user");
     if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&	//
 	(t = av_get(avc, AV_A_TACTYPE)) && !strcmp(t, session->mavis_data->mavistype) &&	//
-	(t = av_get(avc, AV_A_USER)) && !strcmp(t, session->username) &&	//
+	(t = av_get(avc, AV_A_USER)) && !strcmp(t, session->username.txt) &&	//
 	(t = av_get(avc, AV_A_TIMESTAMP)) && (atoi(t) == session->session_id) &&	//#
 	(result = av_get(avc, AV_A_RESULT)) && !strcmp(result, AV_V_RESULT_OK)) {
 
@@ -267,14 +267,14 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 		session->authorized = 1;
 
 	    if (!u || u->dynamic) {
-		struct sym sym = {.filename = session->username,.line = 1,.flag_prohibit_include = 1 };
+		struct sym sym = {.filename = session->username.txt,.line = 1,.flag_prohibit_include = 1 };
 
 		if (!r->caching_period && session->user) {
 		    free_user(session->user);
 		    session->user = NULL;
 		}
 
-		u = new_user(session->username, S_mavis, r);
+		u = new_user(session->username.txt, S_mavis, r);
 		tac_realm *rf = r;
 		while (rf) {
 		    if (rf->usertable) {
@@ -283,7 +283,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 			    tac_user *uf = RB_payload(rbn, tac_user *);
 			    if (uf->fallback_only) {
 				free_user(u);
-				report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Not in emergency mode, ignoring user %s", uf->name);
+				report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Not in emergency mode, ignoring user %s", uf->name.txt);
 				return;
 			    } else {
 				RB_delete(rf->usertable, rbn);
@@ -326,7 +326,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 			    /* Authenticated via backend, but the profile tells otherwise */
 			    session->mavisauth_res = S_deny;
 			    result = AV_V_RESULT_FAIL;
-			    report(session, LOG_ERR, ~0, "profile for user %s conflicts with MAVIS authentication", session->username);
+			    report(session, LOG_ERR, ~0, "profile for user %s conflicts with MAVIS authentication", session->username.txt);
 			    report(session, LOG_ERR, ~0,
 				   "('%s backend = mavis' at realm or global level or "
 				   "'password %s = mavis' in the user profile may be required)",
@@ -344,7 +344,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 
 		if (strcmp(result, AV_V_RESULT_OK)) {
 		    session->mavis_latency = timediff(&session->mavis_data->start);
-		    report(session, LOG_INFO, ~0, "result for user %s is %s [%lu ms]", session->username, result, session->mavis_latency);
+		    report(session, LOG_INFO, ~0, "result for user %s is %s [%lu ms]", session->username.txt, result, session->mavis_latency);
 		    return;
 		}
 	    }
@@ -401,8 +401,8 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 	while (r && session->mavisauth_res) {
 	    if (r->usertable) {
 		tac_user u;
-		u.name = session->username;
-		u.name_len = strlen(u.name);
+		u.name.txt = session->username.txt;
+		u.name.len = strlen(u.name.txt);
 		rb_node_t *rbn = RB_search(r->usertable, &u);
 		if (rbn) {
 		    tac_user *uf = RB_payload(rbn, tac_user *);
@@ -420,7 +420,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
     }
     if (result) {
 	session->mavis_latency = timediff(&session->mavis_data->start);
-	report(session, LOG_INFO, ~0, "result for user %s is %s [%lu ms]", session->username, result, session->mavis_latency);
+	report(session, LOG_INFO, ~0, "result for user %s is %s [%lu ms]", session->username.txt, result, session->mavis_latency);
     }
 }
 
@@ -483,7 +483,7 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
     av_set(avc, AV_A_TYPE, AV_V_TYPE_TACPLUS);
     av_set(avc, AV_A_USER, ctx->device_addr_ascii);
     av_set(avc, AV_A_TACTYPE, (char *) type);	// "HOST"
-    av_set(avc, AV_A_REALM, ctx->realm->name);
+    av_set(avc, AV_A_REALM, ctx->realm->name.txt);
 
 #if defined(WITH_SSL)
     if (ctx->tls_peer_cert_subject)
@@ -547,9 +547,9 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx *avc)
 	    if (parse_host_profile(&sym, ctx->realm, h))
 		ctx->mavis_result = S_deny;
 	    else {
-		if (!h->name) {
-		    h->name = ctx->host->name;
-		    h->name_len = ctx->host->name_len;
+		if (!h->name.txt) {
+		    h->name.txt = ctx->host->name.txt;
+		    h->name.len = ctx->host->name.len;
 		}
 		complete_host(h);
 		ctx->host = h;

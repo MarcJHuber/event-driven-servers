@@ -118,8 +118,8 @@ void author(tac_session *session, tac_pak_hdr *hdr)
 
     session->pak_authen_type = pak->authen_type;
     session->pak_authen_method = pak->authen_method;
-    session->username_len = (size_t) pak->user_len;
-    session->username = mem_strndup(session->mem, p, session->username_len);
+    session->username.len = (size_t) pak->user_len;
+    session->username.txt = mem_strndup(session->mem, p, session->username.len);
     p += pak->user_len;
     session->port = mem_strndup(session->mem, p, (size_t) pak->port_len);
     session->port_len = pak->port_len;
@@ -277,12 +277,12 @@ static void do_author(tac_session *session)
 
     res = author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first);
     if (res == S_deny) {
-	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username, session->ctx->realm->name);
+	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username.txt, session->ctx->realm->name.txt);
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message,
 			  eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL), 0, NULL);
     }
 
-    if (!session->user && session->username_len) {
+    if (!session->user && session->username.len) {
 	if (lookup_user(session)) {
 	    session->debug |= session->user->debug;
 	    if (session->profile)
@@ -293,7 +293,7 @@ static void do_author(tac_session *session)
     }
 
     if (session->mavisauth_res == TAC_PLUS_AUTHEN_STATUS_ERROR) {
-	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s': backend failure", session->username);
+	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s': backend failure", session->username.txt);
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_ERROR, session->message, NULL, 0, NULL);
 	return;
     }
@@ -301,11 +301,11 @@ static void do_author(tac_session *session)
     if (!session->user) {
 	if ((session->ctx->host->authz_if_authc == TRISTATE_YES) && session->pak_authen_method != TAC_PLUS_AUTHEN_METH_TACACSPLUS
 	    && session->pak_authen_type == TAC_PLUS_AUTHEN_TYPE_ASCII) {
-	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s' not found but authenticated locally, permitted by default", session->username);
+	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s' not found but authenticated locally, permitted by default", session->username.txt);
 	    send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_PASS_ADD, session->message, NULL, 0, NULL);
 	    return;
 	}
-	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s' not found, denied by default", session->username);
+	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s' not found, denied by default", session->username.txt);
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
 	return;
     }
@@ -314,7 +314,7 @@ static void do_author(tac_session *session)
     if (session->profile)
 	session->debug |= session->profile->debug;
 
-    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s' found", session->username);
+    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s' found", session->username.txt);
 
     if (session->authorized)
 	res = S_permit;
@@ -327,14 +327,14 @@ static void do_author(tac_session *session)
     switch (res) {
     case S_deny:
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG,
-	       "%s@%s: svcname=%s protocol=%s denied", session->username, session->ctx->device_addr_ascii, session->service ? session->service : "",
+	       "%s@%s: svcname=%s protocol=%s denied", session->username.txt, session->ctx->device_addr_ascii, session->service ? session->service : "",
 	       session->protocol ? session->protocol : "");
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
 	return;
     default:
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG,
 	       "%s@%s: svcname=%s protocol=%s not found",
-	       session->username, session->ctx->device_addr_ascii, session->service ? session->service : "", session->protocol ? session->protocol : "");
+	       session->username.txt, session->ctx->device_addr_ascii, session->service ? session->service : "", session->protocol ? session->protocol : "");
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
 	return;
     case S_permit:

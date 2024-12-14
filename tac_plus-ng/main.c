@@ -637,12 +637,12 @@ static void reject_conn(struct context *ctx, const char *hint, char *tls, int li
 	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
 	    report(NULL, LOG_INFO, ~0, "proxied %sconnection request from %s for %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%d]",
 		   tls, ctx->proxy_addr_ascii, ctx->peer_addr_ascii,
-		   ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", prehint, hint,
+		   ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name.txt, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", prehint, hint,
 		   posthint, line);
     } else
 	report(NULL, LOG_INFO, ~0, "%sconnection request from %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%d]",
 	       tls, ctx->peer_addr_ascii,
-	       ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", prehint, hint,
+	       ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name.txt, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", prehint, hint,
 	       posthint, line);
 
 #define S "CONN-REJECT"
@@ -1316,7 +1316,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
     if (ctx->host && ctx->use_tls) {
 	if (!ctx->realm->tls) {
 	    report(NULL, LOG_ERR, ~0, "%s but realm %s isn't configured suitably",
-		   (ctx->realm->tls_autodetect == TRISTATE_YES) ? "TLS detected" : "spawnd set TLS flag", ctx->realm->name);
+		   (ctx->realm->tls_autodetect == TRISTATE_YES) ? "TLS detected" : "spawnd set TLS flag", ctx->realm->name.txt);
 	    cleanup(ctx, ctx->sock);
 	    return;
 	}
@@ -1368,9 +1368,9 @@ static void accept_control_final(struct context *ctx)
     if (ctx->proxy_addr_ascii) {
 	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
 	    report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "proxied connection request from %s for %s (realm: %s%s%s)", ctx->proxy_addr_ascii,
-		   ctx->peer_addr_ascii, ctx->realm->name, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "");
+		   ctx->peer_addr_ascii, ctx->realm->name.txt, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "");
     } else
-	report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "connection request from %s (realm: %s%s%s)", ctx->peer_addr_ascii, ctx->realm->name,
+	report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "connection request from %s (realm: %s%s%s)", ctx->peer_addr_ascii, ctx->realm->name.txt,
 	       ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "");
 
     get_revmap_nas(&session);

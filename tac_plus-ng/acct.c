@@ -111,8 +111,8 @@ void accounting(tac_session *session, tac_pak_hdr *hdr)
 #undef S
     }
 
-    session->username = mem_strndup(session->mem, p, acct->user_len);
-    session->username_len = acct->user_len;
+    session->username.txt = mem_strndup(session->mem, p, acct->user_len);
+    session->username.len = acct->user_len;
 
     // script-based user rewriting, current
     enum token res = S_unknown;
