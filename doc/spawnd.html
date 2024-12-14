@@ -22,66 +22,67 @@
 <dt>1. <a class="lk" href="#AEN9">Introduction</a></dt>
 <dd>
 <dl>
-<dt>1.1. <a class="lk" href="#AEN13">Download</a></dt>
+<dt>1.1. <a class="lk" href="#AEN15">Download</a></dt>
 </dl>
 </dd>
-<dt>2. <a class="lk" href="#AEN18">Operation</a></dt>
+<dt>2. <a class="lk" href="#AEN20">Operation</a></dt>
 <dd>
 <dl>
-<dt>2.1. <a class="lk" href="#AEN23">Command line syntax</a></dt>
+<dt>2.1. <a class="lk" href="#AEN25">Command line syntax</a></dt>
 </dl>
 </dd>
-<dt>3. <a class="lk" href="#AEN55">Configuration file syntax</a></dt>
+<dt>3. <a class="lk" href="#AEN57">Configuration file syntax</a></dt>
 <dd>
 <dl>
-<dt>3.1. <a class="lk" href="#AEN367">Railroad Diagrams</a></dt>
+<dt>3.1. <a class="lk" href="#AEN380">Railroad Diagrams</a></dt>
 </dl>
 </dd>
-<dt>4. <a class="lk" href="#AEN426">Signals</a></dt>
-<dt>5. <a class="lk" href="#AEN432">Load balancing algorithm</a></dt>
-<dt>6. <a class="lk" href="#AEN443">Event mechanism selection</a></dt>
-<dt>7. <a class="lk" href="#AEN469">Sample configuration</a></dt>
-<dt>8. <a class="lk" href="#AEN473">Startup examples</a></dt>
+<dt>4. <a class="lk" href="#AEN439">Signals</a></dt>
+<dt>5. <a class="lk" href="#AEN445">Load balancing algorithm</a></dt>
+<dt>6. <a class="lk" href="#AEN456">Event mechanism selection</a></dt>
+<dt>7. <a class="lk" href="#AEN482">Sample configuration</a></dt>
+<dt>8. <a class="lk" href="#AEN486">Startup examples</a></dt>
 <dd>
 <dl>
-<dt>8.1. <a class="lk" href="#AEN485">Manual startup</a></dt>
-<dt>8.2. <a class="lk" href="#AEN498">Startup on demand</a></dt>
+<dt>8.1. <a class="lk" href="#AEN498">Manual startup</a></dt>
+<dt>8.2. <a class="lk" href="#AEN511">Startup on demand</a></dt>
 <dd>
 <dl>
-<dt>8.2.1. <a class="lk" href="#AEN505">inetd</a></dt>
-<dt>8.2.2. <a class="lk" href="#AEN513">xinetd</a></dt>
-<dt>8.2.3. <a class="lk" href="#AEN521">launchd</a></dt>
+<dt>8.2.1. <a class="lk" href="#AEN518">inetd</a></dt>
+<dt>8.2.2. <a class="lk" href="#AEN526">xinetd</a></dt>
+<dt>8.2.3. <a class="lk" href="#AEN534">launchd</a></dt>
 </dl>
 </dd>
-<dt>8.3. <a class="lk" href="#AEN533">Startup at system boot</a></dt>
+<dt>8.3. <a class="lk" href="#AEN546">Startup at system boot</a></dt>
 <dd>
 <dl>
-<dt>8.3.1. <a class="lk" href="#AEN536">Init scripts</a></dt>
-<dt>8.3.2. <a class="lk" href="#AEN541">launchd</a></dt>
-<dt>8.3.3. <a class="lk" href="#AEN552">systemd</a></dt>
+<dt>8.3.1. <a class="lk" href="#AEN549">Init scripts</a></dt>
+<dt>8.3.2. <a class="lk" href="#AEN554">launchd</a></dt>
+<dt>8.3.3. <a class="lk" href="#AEN565">systemd</a></dt>
 </dl>
 </dd>
 </dl>
 </dd>
-<dt>9. <a class="lk" href="#AEN561">Copyrights and Acknowledgements</a></dt>
+<dt>9. <a class="lk" href="#AEN574">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
 <h2 class="section"><a name="AEN9" id="AEN9">1. Introduction</a></h2>
-<p><span class="bold"><b class="emphasis">spawnd</b></span> is a broker with load-balancing functionality that listens for incoming TCP (or SCTP) connections on IP, UNIX or possibly IPv6 sockets, accepts them and finally forwards them (using ancillary messages over UNIX domain sockets) to the spawned server processes.</p>
+<p><span class="bold"><b class="emphasis">spawnd</b></span> is a broker with load-balancing functionality that listens for incoming TCP (or SCTP) connections on IP, UNIX or possibly IPv6 sockets, accepts them and finally forwards them (using ancillary messages over UNIX domain sockets) to the spawned worker processes.</p>
+<p>Support for receiving and forwarding UDP packets to the worker processes is available, too (<span class="bold"><b class="emphasis">tac_plus-ng</b></span> uses that for processing RADIUS/UDP)</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN13" id="AEN13">1.1. Download</a></h3>
+<h3 class="section"><a name="AEN15" id="AEN15">1.1. Download</a></h3>
 <p>You can download the source code from the GitHub repository at <a class="lk" href="https://github.com/MarcJHuber/event-driven-servers/" target="_top">https://github.com/MarcJHuber/event-driven-servers/</a>. On-line documentation is available via <a class="lk" href="https://projects.pro-bono-publico.de/event-driven-servers/doc/" target="_top">https://projects.pro-bono-publico.de/event-driven-servers/doc/</a>, too.</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN18" id="AEN18">2. Operation</a></h2>
+<h2 class="section"><a name="AEN20" id="AEN20">2. Operation</a></h2>
 <p><span class="bold"><b class="emphasis">spawnd</b></span> is now actually implemented as a shared library, and the programs that had to be invoked by it are now utilizing that library and are, as such, standalone. This in no way implies that <span class="bold"><b class="emphasis">spawnd</b></span> configuration would be obsolete; only the binary is.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN23" id="AEN23">2.1. Command line syntax</a></h3>
+<h3 class="section"><a name="AEN25" id="AEN25">2.1. Command line syntax</a></h3>
 <p>Command line syntax is:</p>
 <pre class="screen">spawnd [ <tt class="literal">-b</tt> | <tt class="literal">-f</tt> ] [ <tt class="literal">-p</tt> <span class="emphasis"><i class="emphasis">pidfile-name</i></span> ] [ <tt class="literal">-P</tt> ] [ <tt class="literal">-d</tt> <span class="emphasis"><i class="emphasis">level</i></span> ] <span class="emphasis"><i class="emphasis">configuration-file</i></span> [ <span class="emphasis"><i class="emphasis">id</i></span> ]</pre>
 <p>The path to the configuration file is the only command line argument mandatory. If compiled with CURL support, <span class="emphasis"><i class="emphasis">configuration-file</i></span> may be an URL.</p>
@@ -94,7 +95,7 @@
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN55" id="AEN55">3. Configuration file syntax</a></h2>
+<h2 class="section"><a name="AEN57" id="AEN57">3. Configuration file syntax</a></h2>
 <p>A typical <span class="bold"><b class="emphasis">spawnd</b></span> configuration file consists of multiple <tt class="literal">id</tt> sections: one for <span class="bold"><b class="emphasis">spawnd</b></span> itself, and one for the spawned server process (e.g. <span class="bold"><b class="emphasis">tac_plus</b></span> or <span class="bold"><b class="emphasis">ftpd</b></span>. The actual configuration section used is, by default, the one named after the program evaluating the configuration file. However, a different section may be selected by specifying an <tt class="literal">id</tt> parameter via command line or <span class="bold"><b class="emphasis">spawnd</b></span> directive.</p>
 <div class="mediaobject">
 <p><img alt="" src="railroad/spawnd/Config.svg"></p>
@@ -130,15 +131,19 @@ acl accept ::1</pre></li>
 <p>This directives determines the connection end points the daemon is listening on. For IP, valid configuration directives inside the curly brackets are:</p>
 <ul>
 <li>
-<p><tt class="literal">port =</tt> <span class="emphasis"><i class="emphasis">TCPPort</i></span></p>
-<p>TCPPort can be either numerical or a service name.</p>
+<p><tt class="literal">port =</tt> <span class="emphasis"><i class="emphasis">Port</i></span></p>
+<p><span class="emphasis"><i class="emphasis">Port</i></span> can be either numerical or a service name.</p>
+</li>
+<li>
+<p><tt class="literal">flag =</tt> ( <tt class="literal">access</tt> | <tt class="literal">accounting</tt> )</p>
+<p>RADIUS/UDP supports Status Server queries. If you want to use these reliably you should use a dedicated UDP port for RADIUS accounting packets and set <tt class="literal">flag = accounting</tt>. The <tt class="literal">accounting</tt> flag will be forwarded to and evaluated by <span class="bold"><b class="emphasis">tac_plus-ng</b></span> to choose the correct Server Status response.</p>
 </li>
 <li>
 <p><tt class="literal">address =</tt> <span class="emphasis"><i class="emphasis">IPAddress</i></span></p>
 <p>This is optional; by default the daemon listens on all available IP addresses, both v4 and v6.</p>
 </li>
 <li>
-<p><tt class="literal">protocol =</tt> ( <tt class="literal">TCP</tt> | <tt class="literal">SCTP</tt> )</p>
+<p><tt class="literal">protocol =</tt> ( <tt class="literal">TCP</tt> | <tt class="literal">UDP</tt> | <tt class="literal">SCTP</tt> )</p>
 <p>Default protocol is TCP.</p>
 </li>
 <li>
@@ -320,7 +325,7 @@ syslog severity = INFO</pre></li>
 </ul>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN367" id="AEN367">3.1. Railroad Diagrams</a></h3>
+<h3 class="section"><a name="AEN380" id="AEN380">3.1. Railroad Diagrams</a></h3>
 <div class="mediaobject">
 <p><img alt="" src="railroad/spawnd/SpawndConfig.svg"></p>
 <div class="caption">
@@ -373,19 +378,19 @@ syslog severity = INFO</pre></li>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN426" id="AEN426">4. Signals</a></h2>
+<h2 class="section"><a name="AEN439" id="AEN439">4. Signals</a></h2>
 <p><span class="bold"><b class="emphasis">spawnd</b></span> will terminate upon receiving a SIGTERM or SIGINT signal. SIGHUP will cause <span class="bold"><b class="emphasis">spawnd</b></span> to restart itself from scratch.</p>
 <p>The daemon is only checking for signals every couple of seconds, so actions aren't necessarily immediate.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN432" id="AEN432">5. Load balancing algorithm</a></h2>
+<h2 class="section"><a name="AEN445" id="AEN445">5. Load balancing algorithm</a></h2>
 <p><span class="bold"><b class="emphasis">spawnd</b></span> allows configuration of upper and lower limits for users and processes. The distribution algorithm will try to assign new connections to one of the running servers with less than <span class="emphasis"><i class="emphasis">users_min</i></span> connections. If all servers already have at least <span class="emphasis"><i class="emphasis">users_min</i></span> active connections and the total number of servers doesn't exceed <span class="emphasis"><i class="emphasis">servers_max</i></span>, an additional server process is started, and the connection is assigned to that process. If no more processes may be started, the connection is assigned to the server process with less than <span class="emphasis"><i class="emphasis">users_max</i></span> users, which serves the lowest number of connections. Otherwise, the connection will stall until an existing connection terminates.</p>
 <p>If the <span class="emphasis"><i class="emphasis">sticky</i></span> feature is enabled, <span class="bold"><b class="emphasis">spawnd</b></span> will try to assign connections to server processes based on the remote IP address of the peer. Please not that this will not work in combination with HAProxy.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN443" id="AEN443">6. Event mechanism selection</a></h2>
+<h2 class="section"><a name="AEN456" id="AEN456">6. Event mechanism selection</a></h2>
 <p>Several level-triggered event mechanisms are supported. By default, the one best suited for your operating system will be used. However, you may use the environment variable <tt class="literal">IO_POLL_MECHANISM</tt> to select a specific one.</p>
 <p>The following event mechanisms are supported (in order of preference):</p>
 <ul>
@@ -412,7 +417,7 @@ syslog severity = INFO</pre></li>
 <pre class="screen">setenv IO_POLL_MECHANISM = 4</pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN469" id="AEN469">7. Sample configuration</a></h2>
+<h2 class="section"><a name="AEN482" id="AEN482">7. Sample configuration</a></h2>
 <pre class="screen">id = spawnd {
     listen { port 21 }
     listen { address = ::0 port = 2121 tls }
@@ -429,12 +434,12 @@ syslog severity = INFO</pre></li>
 }</pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN473" id="AEN473">8. Startup examples</a></h2>
+<h2 class="section"><a name="AEN486" id="AEN486">8. Startup examples</a></h2>
 <p><span class="bold"><b class="emphasis">spawnd</b></span> (either standalone, or utilized via the <tt class="literal">MAVIS</tt> library, which is what <span class="bold"><b class="emphasis">ftpd</b></span>, <span class="bold"><b class="emphasis">tac_plus</b></span> and <span class="bold"><b class="emphasis">tcprelay</b></span> do) is a long-running process. It may be started either manually, on demand, or at system boot time.</p>
 <p>The examples in this section focus on <span class="bold"><b class="emphasis">tac_plus</b></span>, but are easily adaptable to the <span class="bold"><b class="emphasis">ftpd</b></span> and <span class="bold"><b class="emphasis">tcprelay</b></span> daemons.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN485" id="AEN485">8.1. Manual startup</a></h3>
+<h3 class="section"><a name="AEN498" id="AEN498">8.1. Manual startup</a></h3>
 <p>Starting a daemon manually is fine for testing, but, generally, undesireable for production. A configuration file that specifies at least a port the daemon should listen to is required:</p>
 <pre class="screen">id = spawnd {
     listen {
@@ -452,7 +457,7 @@ id = tac_plus {
 <pre class="screen"># /usr/local/sbin/tac/plus -b /usr/local/etc/tac_plus.cfg</pre></div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN498" id="AEN498">8.2. Startup on demand</a></h3>
+<h3 class="section"><a name="AEN511" id="AEN511">8.2. Startup on demand</a></h3>
 <p>The daemon may be started on demand by <tt class="literal">inetd</tt>(8) or compatible applications. The configuration file should <span class="bold"><b class="emphasis">not</b></span> specify a port to bind to, as <tt class="literal">inetd</tt> will pass an already bound socket to the daemon:</p>
 <pre class="screen">id = spawnd {
     listen {
@@ -463,12 +468,12 @@ id = tac_plus {
 }</pre>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN505" id="AEN505">8.2.1. inetd</a></h4>
+<h4 class="section"><a name="AEN518" id="AEN518">8.2.1. inetd</a></h4>
 <p>For stock <tt class="literal">inetd</tt>, adding the following line to <tt class="literal">/etc/inetd.conf</tt> and sending a <tt class="literal">HUP</tt> to <tt class="literal">inetd</tt> will activate the daemon:</p>
 <pre class="screen">tacacs  stream  tcp  wait root /usr/local/sbin/tac_plus /usr/local/sbin/tac_plus /usr/local/etc/tac_plus.cfg</pre></div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN513" id="AEN513">8.2.2. xinetd</a></h4>
+<h4 class="section"><a name="AEN526" id="AEN526">8.2.2. xinetd</a></h4>
 <p>The equivalent <tt class="literal">xinetd</tt>(8) configuration:</p>
 <pre class="screen">service tacacs
 {
@@ -485,7 +490,7 @@ id = tac_plus {
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN521" id="AEN521">8.2.3. launchd</a></h4>
+<h4 class="section"><a name="AEN534" id="AEN534">8.2.3. launchd</a></h4>
 <p>Mac OS X comes with <tt class="literal">launchd</tt>(8), and here's a suitable <tt class="literal">/Library/LaunchDaemons/de.pro-bono-publico.tac_plus.plist</tt>:</p>
 <pre class="screen">&lt;xml version="1.0" encoding="UTF-8"?&gt;
 &lt;DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
@@ -521,16 +526,16 @@ id = tac_plus {
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN533" id="AEN533">8.3. Startup at system boot</a></h3>
+<h3 class="section"><a name="AEN546" id="AEN546">8.3. Startup at system boot</a></h3>
 <p>The daemons may be started at system boot time. Alas, that's very specific to your system. You should definitely know what you're doing, or you may render your system unbootable.</p>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN536" id="AEN536">8.3.1. Init scripts</a></h4>
+<h4 class="section"><a name="AEN549" id="AEN549">8.3.1. Init scripts</a></h4>
 <p>The distribution comes with a couple of System V style init scripts, e.g. <tt class="literal">tac_plus/doc/etc_init.d_tac_plus</tt>. Copy this script to a location appropriate to your system (e.g. <tt class="literal">/etc/init.d/tac_plus</tt> and create the relevant symbolic or hardlinks. See your systems documentation for details.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN541" id="AEN541">8.3.2. launchd</a></h4>
+<h4 class="section"><a name="AEN554" id="AEN554">8.3.2. launchd</a></h4>
 <p>On MacOS, create a file <tt class="literal">/Library/LaunchDaemons/de.pro-bono-publico.tac_plus.plist</tt> that consists of:</p>
 <pre class="screen">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
@@ -556,7 +561,7 @@ id = tac_plus {
 <pre class="screen"># sudo kill -HUP `cat /var/run/tac_plus.pid`</pre></div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN552" id="AEN552">8.3.3. systemd</a></h4>
+<h4 class="section"><a name="AEN565" id="AEN565">8.3.3. systemd</a></h4>
 <p>For <tt class="literal">systemd</tt> you'll have to create an appropriate <span class="emphasis"><i class="emphasis">configuration unit</i></span>. Copy</p>
 <pre class="screen">[Unit]
 Description=TACACS+ Service
@@ -577,7 +582,7 @@ WantedBy=multi-user.target</pre>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN561" id="AEN561">9. Copyrights and Acknowledgements</a></h2>
+<h2 class="section"><a name="AEN574" id="AEN574">9. Copyrights and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of individual files.</p>
 <ul>
 <li>
@@ -599,7 +604,7 @@ WantedBy=multi-user.target</pre>
 </li>
 <li>
 <p>The end-user documentation included with the redistribution, if any, must include the following acknowledgment:</p>
-<a name="AEN584" id="AEN584"></a>
+<a name="AEN597" id="AEN597"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber (<code class="email">&lt;<a class="lk" href="mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>).</p>
 </blockquote>

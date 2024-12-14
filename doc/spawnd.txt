@@ -45,7 +45,11 @@ Marc Huber
    listens for incoming TCP (or SCTP) connections on IP, UNIX or
    possibly IPv6 sockets, accepts them and finally forwards them
    (using ancillary messages over UNIX domain sockets) to the
-   spawned server processes.
+   spawned worker processes.
+
+   Support for receiving and forwarding UDP packets to the worker
+   processes is available, too (tac_plus-ng uses that for
+   processing RADIUS/UDP)
      __________________________________________________________
 
 1.1. Download
@@ -152,12 +156,19 @@ acl accept ::1
        This directives determines the connection end points the
        daemon is listening on. For IP, valid configuration
        directives inside the curly brackets are:
-          + port = TCPPort
-            TCPPort can be either numerical or a service name.
+          + port = Port
+            Port can be either numerical or a service name.
+          + flag = ( access | accounting )
+            RADIUS/UDP supports Status Server queries. If you want
+            to use these reliably you should use a dedicated UDP
+            port for RADIUS accounting packets and set flag =
+            accounting. The accounting flag will be forwarded to
+            and evaluated by tac_plus-ng to choose the correct
+            Server Status response.
           + address = IPAddress
             This is optional; by default the daemon listens on all
             available IP addresses, both v4 and v6.
-          + protocol = ( TCP | SCTP )
+          + protocol = ( TCP | UDP | SCTP )
             Default protocol is TCP.
           + bind retry delay = Seconds
             On bind(2) failure, wait the specified number of
