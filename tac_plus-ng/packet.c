@@ -107,11 +107,18 @@ static tac_pak *new_pak(tac_session *session, u_char type, int len)
     return pak;
 }
 
-static tac_pak *new_rad_pak(tac_session *session)
+static void set_response_authenticator(tac_session * session, rad_pak_hdr * pak);
+
+static tac_pak *new_rad_pak(tac_session *session, u_char code)
 {
     int len = session->radius_data->data_len + RADIUS_HDR_SIZE;
     tac_pak *pak = mem_alloc(session->ctx->mem, sizeof(struct tac_pak) + len);
     pak->length = len;
+    pak->pak.rad.code = code;
+    pak->pak.rad.identifier = session->radius_data->pak_in->identifier;
+    pak->pak.rad.length = htons((uint16_t) (session->radius_data->data_len + RADIUS_HDR_SIZE));
+    memcpy(RADIUS_DATA(&pak->pak), session->radius_data->data, session->radius_data->data_len);
+    set_response_authenticator(session, &pak->pak.rad);
     return pak;
 }
 
@@ -354,30 +361,15 @@ static void send_udp(tac_session *session, tac_pak *pak)
     cleanup(session->ctx, -1);
 }
 
-void rad_send_authen_reply(tac_session *session, int status, char *msg)
+static void rad_send_reply(tac_session *session, u_char status)
 {
-    if (msg && *msg) {
-	size_t msg_len = strlen(msg);
-	if ((session->radius_data->data_len + 2 + msg_len < sizeof(session->radius_data->data)) && (msg_len + 2 < 256)) {
-	    u_char *data = session->radius_data->data;
-	    *data++ = RADIUS_A_REPLY_MESSAGE;
-	    *data++ = (u_char) msg_len + 2;
-	    memcpy(data, msg, msg_len);
-	    session->radius_data->data_len += 2 + msg_len;
-	}
-    }
-    tac_pak *pak = new_rad_pak(session);
-    pak->pak.rad.code = status;
-    pak->pak.rad.identifier = session->radius_data->pak_in->identifier;
-    pak->pak.rad.length = htons((uint16_t) (session->radius_data->data_len + RADIUS_HDR_SIZE));
-    memcpy(RADIUS_DATA(&pak->pak), session->radius_data->data, session->radius_data->data_len);
-
-    set_response_authenticator(session, &pak->pak.rad);
+    tac_pak *pak = new_rad_pak(session, status);
 
     if ((common_data.debug | session->ctx->debug) & DEBUG_PACKET_FLAG)
 	dump_rad_pak(session, &pak->pak.rad);
 
     if (session->ctx->aaa_protocol == S_radius) {
+	// FIXME. Delaying UDP packets is not implemented and would likely cause retransmits.
 	send_udp(session, pak);
     } else {
 	if (session->authfail_delay && !(common_data.debug & DEBUG_TACTRACE_FLAG))
@@ -392,29 +384,24 @@ void rad_send_authen_reply(tac_session *session, int status, char *msg)
     }
 }
 
+void rad_send_authen_reply(tac_session *session, u_char status, char *msg)
+{
+    if (msg && *msg) {
+	size_t msg_len = strlen(msg);
+	if ((session->radius_data->data_len + 2 + msg_len < sizeof(session->radius_data->data)) && (msg_len + 2 < 256)) {
+	    u_char *data = session->radius_data->data;
+	    *data++ = RADIUS_A_REPLY_MESSAGE;
+	    *data++ = (u_char) msg_len + 2;
+	    memcpy(data, msg, msg_len);
+	    session->radius_data->data_len += 2 + msg_len;
+	}
+    }
+    rad_send_reply(session, status);
+}
+
 void rad_send_acct_reply(tac_session *session)
 {
-    tac_pak *pak = new_rad_pak(session);
-    pak->pak.rad.code = RADIUS_CODE_ACCOUNTING_RESPONSE;
-    pak->pak.rad.identifier = session->radius_data->pak_in->identifier;
-    pak->pak.rad.length = ntohs((uint16_t) (session->radius_data->data_len + RADIUS_HDR_SIZE));
-    memcpy(RADIUS_DATA(&pak->pak), session->radius_data->data, session->radius_data->data_len);
-
-    set_response_authenticator(session, &pak->pak.rad);
-
-    if ((common_data.debug | session->ctx->debug) & DEBUG_PACKET_FLAG)
-	dump_rad_pak(session, &pak->pak.rad);
-
-    if (session->ctx->aaa_protocol == S_radius) {
-	send_udp(session, pak);
-    } else {
-	tac_pak **pp;
-	for (pp = &session->ctx->out; *pp; pp = &(*pp)->next);
-	*pp = (tac_pak *) pak;
-	io_set_o(session->ctx->io, session->ctx->sock);
-
-	cleanup_session(session);
-    }
+    rad_send_reply(session, RADIUS_CODE_ACCOUNTING_RESPONSE);
 }
 
 static void write_delayed_packet(struct context *ctx, int cur __attribute__((unused)))

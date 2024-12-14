@@ -985,7 +985,7 @@ void send_authen_error(tac_session *, char *, ...)
     __attribute__((format(printf, 2, 3)));
 void send_acct_reply(tac_session *, u_char, char *, char *);
 void send_author_reply(tac_session *, u_char, char *, char *, int, char **);
-void rad_send_authen_reply(tac_session *, int, char *);
+void rad_send_authen_reply(tac_session *, u_char, char *);
 void rad_send_acct_reply(tac_session * session);
 
 int tac_exit(int) __attribute__((noreturn));
