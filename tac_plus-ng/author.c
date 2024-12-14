@@ -85,18 +85,18 @@ void eval_args(tac_session *session, u_char *p, u_char *argsizep, size_t argcnt)
 	    t += len;
 	    tlen += len;
 	} else if (l > 8 && !strncmp(a, "service=", 8)) {
-	    session->service_len = l - 8;
-	    session->service = mem_strndup(session->mem, (u_char *) (a + 8), l - 8);
+	    session->service.len = l - 8;
+	    session->service.txt = mem_strndup(session->mem, (u_char *) (a + 8), l - 8);
 	} else if (l > 9 && !strncmp(a, "protocol=", 9)) {
-	    session->protocol_len = l - 9;
-	    session->protocol = mem_strndup(session->mem, (u_char *) (a + 9), l - 9);
+	    session->protocol.len = l - 9;
+	    session->protocol.txt = mem_strndup(session->mem, (u_char *) (a + 9), l - 9);
 	}
 	p += *argsizep;
 	argsizep++;
     }
     *t = 0;
-    session->cmdline = mem_strdup(session->mem, cmdline);
-    session->cmdline_len = tlen;
+    session->cmdline.txt = mem_strdup(session->mem, cmdline);
+    session->cmdline.len = tlen;
 }
 
 void author(tac_session *session, tac_pak_hdr *hdr)
@@ -121,11 +121,11 @@ void author(tac_session *session, tac_pak_hdr *hdr)
     session->username.len = (size_t) pak->user_len;
     session->username.txt = mem_strndup(session->mem, p, session->username.len);
     p += pak->user_len;
-    session->port = mem_strndup(session->mem, p, (size_t) pak->port_len);
-    session->port_len = pak->port_len;
+    session->port.txt = mem_strndup(session->mem, p, (size_t) pak->port_len);
+    session->port.len = pak->port_len;
     p += pak->port_len;
-    session->nac_addr_ascii = mem_strndup(session->mem, p, (size_t) pak->rem_addr_len);
-    session->nac_addr_ascii_len = (size_t) pak->rem_addr_len;
+    session->nac_addr_ascii.txt = mem_strndup(session->mem, p, (size_t) pak->rem_addr_len);
+    session->nac_addr_ascii.len = (size_t) pak->rem_addr_len;
     p += pak->rem_addr_len;
 
     session->argp = p;
@@ -135,7 +135,7 @@ void author(tac_session *session, tac_pak_hdr *hdr)
     session->priv_lvl = pak->priv_lvl;
     session->privlvl_len = snprintf(session->privlvl, sizeof(session->privlvl), "%u", session->priv_lvl);
 
-    session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii) ? 0 : 1;
+    session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii.txt) ? 0 : 1;
     if (session->nac_addr_valid)
 	get_revmap_nac(session);
 
@@ -154,12 +154,12 @@ void author(tac_session *session, tac_pak_hdr *hdr)
     data->in_args = cmd_argp;	/* input command arguments */
     session->author_data = data;
 
-    session->author_data->is_cmd = session->cmdline_len;
-    if (session->service)
-	session->author_data->is_shell = !strcmp(session->service, "shell");
+    session->author_data->is_cmd = session->cmdline.len;
+    if (session->service.txt)
+	session->author_data->is_shell = !strcmp(session->service.txt, "shell");
 
     if (bad_nas_args(session, data)) {
-	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
+	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt, NULL, 0, NULL);
 	return;
     }
 #ifdef WITH_DNS
@@ -199,7 +199,7 @@ static int bad_nas_args(tac_session *session, struct author_data *data)
 		snprintf(buf, sizeof(buf), "Illegal arg from NAS: %s", data->in_args[i]);
 		data->status = TAC_PLUS_AUTHOR_STATUS_ERROR;
 		data->admin_msg = mem_strdup(session->mem, buf);
-		report(session, LOG_ERR, ~0, "%s: %s", session->ctx->device_addr_ascii, buf);
+		report(session, LOG_ERR, ~0, "%s: %s", session->ctx->device_addr_ascii.txt, buf);
 		return -1;
 	    }
 	}
@@ -278,7 +278,7 @@ static void do_author(tac_session *session)
     res = author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first);
     if (res == S_deny) {
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username.txt, session->ctx->realm->name.txt);
-	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message,
+	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt,
 			  eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL), 0, NULL);
     }
 
@@ -294,7 +294,7 @@ static void do_author(tac_session *session)
 
     if (session->mavisauth_res == TAC_PLUS_AUTHEN_STATUS_ERROR) {
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s': backend failure", session->username.txt);
-	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_ERROR, session->message, NULL, 0, NULL);
+	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_ERROR, session->message.txt, NULL, 0, NULL);
 	return;
     }
 
@@ -302,11 +302,11 @@ static void do_author(tac_session *session)
 	if ((session->ctx->host->authz_if_authc == TRISTATE_YES) && session->pak_authen_method != TAC_PLUS_AUTHEN_METH_TACACSPLUS
 	    && session->pak_authen_type == TAC_PLUS_AUTHEN_TYPE_ASCII) {
 	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s' not found but authenticated locally, permitted by default", session->username.txt);
-	    send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_PASS_ADD, session->message, NULL, 0, NULL);
+	    send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_PASS_ADD, session->message.txt, NULL, 0, NULL);
 	    return;
 	}
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s' not found, denied by default", session->username.txt);
-	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
+	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt, NULL, 0, NULL);
 	return;
     }
 
@@ -327,20 +327,20 @@ static void do_author(tac_session *session)
     switch (res) {
     case S_deny:
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG,
-	       "%s@%s: svcname=%s protocol=%s denied", session->username.txt, session->ctx->device_addr_ascii, session->service ? session->service : "",
-	       session->protocol ? session->protocol : "");
-	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
+	       "%s@%s: svcname=%s protocol=%s denied", session->username.txt, session->ctx->device_addr_ascii.txt, session->service.txt ? session->service.txt : "",
+	       session->protocol.txt ? session->protocol.txt : "");
+	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt, NULL, 0, NULL);
 	return;
     default:
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG,
 	       "%s@%s: svcname=%s protocol=%s not found",
-	       session->username.txt, session->ctx->device_addr_ascii, session->service ? session->service : "", session->protocol ? session->protocol : "");
-	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
+	       session->username.txt, session->ctx->device_addr_ascii.txt, session->service.txt ? session->service.txt : "", session->protocol.txt ? session->protocol.txt : "");
+	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt, NULL, 0, NULL);
 	return;
     case S_permit:
 	data->status = TAC_PLUS_AUTHOR_STATUS_PASS_ADD;
 	if (session->author_data->is_shell && session->author_data->is_cmd) {	// shortcut for command authorization, shell authz will take the regular way.
-	    send_author_reply(session, data->status, session->message, data->admin_msg, 0, NULL);
+	    send_author_reply(session, data->status, session->message.txt, data->admin_msg, 0, NULL);
 	    return;
 	}
     }
@@ -419,7 +419,7 @@ static void do_author(tac_session *session)
 	     * is to deny */
 	    if (session->attr_dflt != S_permit) {
 		report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "nas:%s svr:absent/deny -> denied (c)", na);
-		send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message, NULL, 0, NULL);
+		send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt, NULL, 0, NULL);
 		return;
 	    }
 	} else {
@@ -509,5 +509,5 @@ static void do_author(tac_session *session)
 	}
     }
 
-    send_author_reply(session, data->status, session->message, data->admin_msg, data->out_cnt, data->out_args);
+    send_author_reply(session, data->status, session->message.txt, data->admin_msg, data->out_cnt, data->out_args);
 }

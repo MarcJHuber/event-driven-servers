@@ -152,7 +152,7 @@ void send_author_reply(tac_session *session, u_char status, char *msg, char *dat
     int data_len = data ? (int) strlen(data) : 0;
     size_t j = arg_cnt * sizeof(int);
     int *arglen = alloca(j);
-    int user_msg_len = session->user_msg ? (int) strlen(session->user_msg) : 0;
+    int user_msg_len = session->user_msg.txt ? (int) strlen(session->user_msg.txt) : 0;
 
     if ((user_msg_len + msg_len) & ~0xffff)
 	user_msg_len = 0;
@@ -187,7 +187,7 @@ void send_author_reply(tac_session *session, u_char status, char *msg, char *dat
 	*p++ = arglen[i];
 
     if (user_msg_len) {
-	memcpy(p, session->user_msg, user_msg_len);
+	memcpy(p, session->user_msg.txt, user_msg_len);
 	p += user_msg_len;
     }
     memcpy(p, msg, msg_len - user_msg_len);
@@ -206,42 +206,42 @@ void send_author_reply(tac_session *session, u_char status, char *msg, char *dat
 
     switch (status) {
     case TAC_PLUS_AUTHOR_STATUS_PASS_ADD:
-	session->result = codestring[S_permit].txt;
-	session->result_len = codestring[S_permit].len;
+	session->result.txt = codestring[S_permit].txt;
+	session->result.len = codestring[S_permit].len;
 #define S "added"
-	session->hint = S;
-	session->hint_len = sizeof(S) - 1;
+	session->hint.txt = S;
+	session->hint.len = sizeof(S) - 1;
 #undef S
 	if (arg_cnt) {
 #define S "AUTHZPASS-ADD"
-	    session->msgid = S;
-	    session->msgid_len = sizeof(S) - 1;
+	    session->msgid.txt = S;
+	    session->msgid.len = sizeof(S) - 1;
 #undef S
 	} else {
 #define S "AUTHZPASS"
-	    session->msgid = S;
-	    session->msgid_len = sizeof(S) - 1;
+	    session->msgid.txt = S;
+	    session->msgid.len = sizeof(S) - 1;
 #undef S
 	}
 	break;
     case TAC_PLUS_AUTHOR_STATUS_PASS_REPL:
-	session->result = codestring[S_permit].txt;
-	session->result_len = codestring[S_permit].len;
+	session->result.txt = codestring[S_permit].txt;
+	session->result.len = codestring[S_permit].len;
 #define S "replaced"
-	session->hint = S;
-	session->hint_len = sizeof(S) - 1;
+	session->hint.txt = S;
+	session->hint.len = sizeof(S) - 1;
 #undef S
 #define S "AUTHZPASS-REPL"
-	session->msgid = S;
-	session->msgid_len = sizeof(S) - 1;
+	session->msgid.txt = S;
+	session->msgid.len = sizeof(S) - 1;
 #undef S
 	break;
     default:
-	session->result = codestring[S_deny].txt;
-	session->result_len = codestring[S_deny].len;
+	session->result.txt = codestring[S_deny].txt;
+	session->result.len = codestring[S_deny].len;
 #define S "AUTHZFAIL"
-	session->msgid = S;
-	session->msgid_len = sizeof(S) - 1;
+	session->msgid.txt = S;
+	session->msgid.len = sizeof(S) - 1;
 #undef S
     }
 
@@ -271,7 +271,7 @@ void send_authen_error(tac_session *session, char *fmt, ...)
 	va_end(ap);
     }
 
-    report(session, LOG_ERR, ~0, "%s %s: %s", session->ctx->device_addr_ascii, session->port, msg);
+    report(session, LOG_ERR, ~0, "%s %s: %s", session->ctx->device_addr_ascii.txt, session->port.txt, msg);
     send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_ERROR, msg, 0, NULL, 0, 0);
 }
 
@@ -576,7 +576,7 @@ void tac_read(struct context *ctx, int cur)
 #endif
 
     if ((ctx->hdr.tac.version & TAC_PLUS_MAJOR_VER_MASK) != TAC_PLUS_MAJOR_VER) {
-	report(NULL, LOG_ERR, ~0, "%s: Illegal major version specified: found %d wanted %d", ctx->device_addr_ascii, ctx->hdr.tac.version,
+	report(NULL, LOG_ERR, ~0, "%s: Illegal major version specified: found %d wanted %d", ctx->device_addr_ascii.txt, ctx->hdr.tac.version,
 	       TAC_PLUS_MAJOR_VER);
 	cleanup(ctx, cur);
 	return;
@@ -584,7 +584,7 @@ void tac_read(struct context *ctx, int cur)
     u_int data_len = ntohl(ctx->hdr.tac.datalength);
 
     if (data_len & ~0xffffUL) {
-	report(NULL, LOG_ERR, ~0, "%s: Illegal data size: %u", ctx->device_addr_ascii, data_len);
+	report(NULL, LOG_ERR, ~0, "%s: Illegal data size: %u", ctx->device_addr_ascii.txt, data_len);
 	cleanup(ctx, cur);
 	return;
     }
@@ -615,7 +615,7 @@ void tac_read(struct context *ctx, int cur)
     if (session) {
 	if (session->seq_no / 2 == ctx->host->max_rounds) {
 	    report(session, LOG_ERR, ~0,
-		   "%s: Limit of %d rounds reached for session %.8x", ctx->device_addr_ascii, (int) ctx->host->max_rounds, ntohl(ctx->hdr.tac.session_id));
+		   "%s: Limit of %d rounds reached for session %.8x", ctx->device_addr_ascii.txt, (int) ctx->host->max_rounds, ntohl(ctx->hdr.tac.session_id));
 	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_ERROR, "Too many rounds.", 0, NULL, 0, 0);
 	    cleanup(ctx, cur);
 	    return;
@@ -626,7 +626,7 @@ void tac_read(struct context *ctx, int cur)
 	if (session->seq_no != ctx->hdr.tac.seq_no) {
 	    report(session, LOG_ERR, ~0,
 		   "%s: Illegal sequence number %d (!= %d) for session %.8x",
-		   ctx->device_addr_ascii, (int) ctx->hdr.tac.seq_no, (int) session->seq_no, ntohl(ctx->hdr.tac.session_id));
+		   ctx->device_addr_ascii.txt, (int) ctx->hdr.tac.seq_no, (int) session->seq_no, ntohl(ctx->hdr.tac.session_id));
 	    cleanup(ctx, cur);
 	    return;
 	}
@@ -637,7 +637,7 @@ void tac_read(struct context *ctx, int cur)
 	    detached++;
 	} else {
 	    report(NULL, LOG_ERR, ~0,
-		   "%s: %s packet (sequence number: %d) for session %.8x", "Stray", ctx->device_addr_ascii, (int) ctx->hdr.tac.seq_no,
+		   "%s: %s packet (sequence number: %d) for session %.8x", "Stray", ctx->device_addr_ascii.txt, (int) ctx->hdr.tac.seq_no,
 		   ntohl(ctx->hdr.tac.session_id));
 	    cleanup(ctx, cur);
 	    return;
@@ -657,7 +657,7 @@ void tac_read(struct context *ctx, int cur)
 	    ctx->tls ? "Peers MUST NOT use Obfuscation with TLS." :
 #endif
 	    "Peers MUST use Obfuscation.";
-	report(NULL, LOG_ERR, ~0, "%s: %s packet (sequence number: %d) for %ssession %.8x", "Encrypted", ctx->device_addr_ascii, (int) ctx->hdr.tac.seq_no,
+	report(NULL, LOG_ERR, ~0, "%s: %s packet (sequence number: %d) for %ssession %.8x", "Encrypted", ctx->device_addr_ascii.txt, (int) ctx->hdr.tac.seq_no,
 #if defined(WITH_SSL)
 	       ctx->tls ? "TLS " :
 #endif
@@ -750,13 +750,13 @@ void tac_read(struct context *ctx, int cur)
 	    break;
 
 	default:
-	    report(session, LOG_ERR, ~0, "%s: %s", ctx->device_addr_ascii, msg);
+	    report(session, LOG_ERR, ~0, "%s: %s", ctx->device_addr_ascii.txt, msg);
 	    cleanup_session(session);
 	}
     } while (more_keys);
 
     if (ctx->key && ctx->key->warn && !ctx->key_fixed && (ctx->key->warn <= io_now.tv_sec))
-	report(NULL, LOG_INFO, ~0, "%s uses deprecated key (line %d)", ctx->device_addr_ascii, ctx->key->line);
+	report(NULL, LOG_INFO, ~0, "%s uses deprecated key (line %d)", ctx->device_addr_ascii.txt, ctx->key->line);
 
     ctx->key_fixed = 1;
     if (detached)
@@ -811,7 +811,7 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 	    memcpy(message_authenticator, ma_original, 16);
 	    if (!memcmp(ma_original, ma_calculated, 16)) {
 		if (ctx->key->warn && (ctx->key->warn <= io_now.tv_sec))
-		    report(NULL, LOG_INFO, ~0, "%s uses deprecated radius key (line %d)", ctx->device_addr_ascii, ctx->key->line);
+		    report(NULL, LOG_INFO, ~0, "%s uses deprecated radius key (line %d)", ctx->device_addr_ascii.txt, ctx->key->line);
 		return 0;
 	    }
 	}
@@ -916,7 +916,7 @@ void rad_read(struct context *ctx, int cur)
 	    rad_send_authen_reply(session, RADIUS_CODE_ACCESS_ACCEPT, NULL);
 	break;
     default:
-	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->device_addr_ascii, pak->code);
+	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->device_addr_ascii.txt, pak->code);
 	cleanup_session(session);
     }
 
@@ -968,7 +968,7 @@ void rad_udp_inject(struct context *ctx)
 	    rad_send_authen_reply(session, RADIUS_CODE_ACCESS_ACCEPT, NULL);
 	return;
     default:
-	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->device_addr_ascii, pak->code);
+	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->device_addr_ascii.txt, pak->code);
 	cleanup(ctx, -1);
     }
 }
@@ -1052,16 +1052,16 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_p
     if (tac_hdr) {
 	session->version = tac_hdr->version;
 	session->session_id = tac_hdr->session_id;
-	session->type = types[tac_hdr->type & 3].str;
-	session->type_len = types[tac_hdr->type & 3].str_len;
+	session->type.txt = types[tac_hdr->type & 3].str;
+	session->type.len = types[tac_hdr->type & 3].str_len;
     } else {
 	session->session_id = RAD_PAK_SESSIONID(radhdr);
 	if (radhdr->code == RADIUS_CODE_ACCESS_REQUEST) {
-	    session->type = types[1].str;
-	    session->type_len = types[1].str_len;
+	    session->type.txt = types[1].str;
+	    session->type.len = types[1].str_len;
 	} else if (radhdr->code == RADIUS_CODE_ACCOUNTING_REQUEST) {
-	    session->type = types[3].str;
-	    session->type_len = types[3].str_len;
+	    session->type.txt = types[3].str;
+	    session->type.len = types[3].str_len;
 	}
     }
     session->seq_no = 1;

@@ -412,14 +412,14 @@ void cleanup(struct context *ctx, int cur __attribute__((unused)))
 #endif
     }
 
-    if (!ctx->msgid) {
+    if (!ctx->msgid.txt) {
 #define S "CONN-STOP"
-	ctx->msgid = S;
-	ctx->msgid_len = sizeof(S) - 1;
+	ctx->msgid.txt = S;
+	ctx->msgid.len = sizeof(S) - 1;
 #undef S
 #define S "stop"
-	ctx->acct_type = S;
-	ctx->acct_type_len = sizeof(S) - 1;
+	ctx->acct_type.txt = S;
+	ctx->acct_type.len = sizeof(S) - 1;
 #undef S
     }
 
@@ -633,25 +633,25 @@ static void reject_conn(struct context *ctx, const char *hint, char *tls, int li
     if (*hint)
 	prehint = " (", posthint = ")";
 
-    if (ctx->proxy_addr_ascii) {
+    if (ctx->proxy_addr_ascii.txt) {
 	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
 	    report(NULL, LOG_INFO, ~0, "proxied %sconnection request from %s for %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%d]",
-		   tls, ctx->proxy_addr_ascii, ctx->peer_addr_ascii,
-		   ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name.txt, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", prehint, hint,
+		   tls, ctx->proxy_addr_ascii.txt, ctx->peer_addr_ascii.txt,
+		   ctx->server_addr_ascii.txt, ctx->server_port_ascii.txt, ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "", ctx->vrf.txt ? ctx->vrf.txt : "", prehint, hint,
 		   posthint, line);
     } else
 	report(NULL, LOG_INFO, ~0, "%sconnection request from %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%d]",
-	       tls, ctx->peer_addr_ascii,
-	       ctx->server_addr_ascii, ctx->server_port_ascii, ctx->realm->name.txt, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "", prehint, hint,
+	       tls, ctx->peer_addr_ascii.txt,
+	       ctx->server_addr_ascii.txt, ctx->server_port_ascii.txt, ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "", ctx->vrf.txt ? ctx->vrf.txt : "", prehint, hint,
 	       posthint, line);
 
 #define S "CONN-REJECT"
-    ctx->msgid = S;
-    ctx->msgid_len = sizeof(S) - 1;
+    ctx->msgid.txt = S;
+    ctx->msgid.len = sizeof(S) - 1;
 #undef S
 #define S "reject"
-    ctx->acct_type = S;
-    ctx->acct_type_len = sizeof(S) - 1;
+    ctx->acct_type.txt = S;
+    ctx->acct_type.len = sizeof(S) - 1;
 #undef S
     cleanup(ctx, ctx->sock);
 }
@@ -749,8 +749,8 @@ static void accept_control_tls(struct context *ctx, int cur)
     ctx->host = NULL;
 
 #ifndef OPENSSL_NO_PSK
-    if (ctx->tls_psk_identity) {
-	set_host_by_psk_identity(ctx, ctx->tls_psk_identity);
+    if (ctx->tls_psk_identity.txt) {
+	set_host_by_psk_identity(ctx, ctx->tls_psk_identity.txt);
 	goto done;
     }
 #endif
@@ -765,10 +765,10 @@ static void accept_control_tls(struct context *ctx, int cur)
 	char buf[40];
 	time_t notafter = -1, notbefore = -1;
 #ifdef WITH_SSL
-	ctx->tls_conn_version = SSL_get_version(ctx->tls);
-	ctx->tls_conn_cipher = SSL_get_cipher(ctx->tls);
+	ctx->tls_conn_version.txt = (char *) SSL_get_version(ctx->tls);
+	ctx->tls_conn_cipher.txt = (char *) SSL_get_cipher(ctx->tls);
 	snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
-	ctx->tls_conn_cipher_strength = mem_strdup(ctx->mem, buf);
+	ctx->tls_conn_cipher_strength.txt = mem_strdup(ctx->mem, buf);
 
 	{
 	    char buf[512];
@@ -779,12 +779,12 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    if ((x = X509_get_subject_name(cert))) {
 		char *t = X509_NAME_oneline(x, buf, sizeof(buf));
 		if (t)
-		    ctx->tls_peer_cert_subject = mem_strdup(ctx->mem, t);
+		    ctx->tls_peer_cert_subject.txt = mem_strdup(ctx->mem, t);
 	    }
 	    if ((x = X509_get_issuer_name(cert))) {
 		char *t = X509_NAME_oneline(x, buf, sizeof(buf));
 		if (t)
-		    ctx->tls_peer_cert_issuer = mem_strdup(ctx->mem, t);
+		    ctx->tls_peer_cert_issuer.txt = mem_strdup(ctx->mem, t);
 	    }
 
 	    if (notafter_asn1 && notbefore_asn1) {
@@ -796,35 +796,35 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    }
 	}
 #endif
-	if (ctx->tls_conn_version)
-	    ctx->tls_conn_version_len = strlen(ctx->tls_conn_version);
-	if (ctx->tls_conn_cipher)
-	    ctx->tls_conn_cipher_len = strlen(ctx->tls_conn_cipher);
-	if (ctx->tls_conn_cipher)
-	    ctx->tls_conn_cipher_len = strlen(ctx->tls_conn_cipher);
-	if (ctx->tls_conn_cipher_strength)
-	    ctx->tls_conn_cipher_strength_len = strlen(ctx->tls_conn_cipher_strength);
-	if (ctx->tls_peer_cert_subject) {
-	    while (*ctx->tls_peer_cert_subject == '/')
-		ctx->tls_peer_cert_subject++;
-	    ctx->tls_peer_cert_subject_len = strlen(ctx->tls_peer_cert_subject);
+	if (ctx->tls_conn_version.txt)
+	    ctx->tls_conn_version.len = strlen(ctx->tls_conn_version.txt);
+	if (ctx->tls_conn_cipher.txt)
+	    ctx->tls_conn_cipher.len = strlen(ctx->tls_conn_cipher.txt);
+	if (ctx->tls_conn_cipher.txt)
+	    ctx->tls_conn_cipher.len = strlen(ctx->tls_conn_cipher.txt);
+	if (ctx->tls_conn_cipher_strength.txt)
+	    ctx->tls_conn_cipher_strength.len = strlen(ctx->tls_conn_cipher_strength.txt);
+	if (ctx->tls_peer_cert_subject.txt) {
+	    while (*ctx->tls_peer_cert_subject.txt == '/')
+		ctx->tls_peer_cert_subject.txt++;
+	    ctx->tls_peer_cert_subject.len = strlen(ctx->tls_peer_cert_subject.txt);
 	}
-	if (ctx->tls_peer_cert_issuer) {
-	    while (*ctx->tls_peer_cert_issuer == '/')
-		ctx->tls_peer_cert_issuer++;
-	    ctx->tls_peer_cert_issuer_len = strlen(ctx->tls_peer_cert_issuer);
+	if (ctx->tls_peer_cert_issuer.txt) {
+	    while (*ctx->tls_peer_cert_issuer.txt == '/')
+		ctx->tls_peer_cert_issuer.txt++;
+	    ctx->tls_peer_cert_issuer.len = strlen(ctx->tls_peer_cert_issuer.txt);
 	}
 	if (notafter > -1 && notbefore > -1 && ctx->realm->tls_accept_expired != TRISTATE_YES && notafter < io_now.tv_sec + 30 * 86400)
-	    report(NULL, LOG_INFO, ~0, "peer certificate for %s will expire in %lld days", ctx->peer_addr_ascii,
+	    report(NULL, LOG_INFO, ~0, "peer certificate for %s will expire in %lld days", ctx->peer_addr_ascii.txt,
 		   (long long) (notafter - io_now.tv_sec) / 86400);
 
-	if (ctx->tls_peer_cert_subject) {
-	    char *cn = alloca(ctx->tls_peer_cert_subject_len + 1);
+	if (ctx->tls_peer_cert_subject.txt) {
+	    char *cn = alloca(ctx->tls_peer_cert_subject.len + 1);
 
 	    // normalize subject
-	    cn[ctx->tls_peer_cert_subject_len] = 0;
-	    for (size_t i = 0; i < ctx->tls_peer_cert_subject_len; i++)
-		cn[i] = tolower(ctx->tls_peer_cert_subject[i]);
+	    cn[ctx->tls_peer_cert_subject.len] = 0;
+	    for (size_t i = 0; i < ctx->tls_peer_cert_subject.len; i++)
+		cn[i] = tolower(ctx->tls_peer_cert_subject.txt[i]);
 
 	    // set cn
 	    while (cn) {
@@ -841,8 +841,8 @@ static void accept_control_tls(struct context *ctx, int cur)
 		    while (*e && !isspace(*e))
 			e++;
 		    *e = 0;
-		    ctx->tls_peer_cn = mem_strdup(ctx->mem, cn);
-		    ctx->tls_peer_cn_len = strlen(cn);
+		    ctx->tls_peer_cn.txt = mem_strdup(ctx->mem, cn);
+		    ctx->tls_peer_cn.len = strlen(cn);
 		    break;
 		}
 
@@ -887,11 +887,11 @@ static void accept_control_tls(struct context *ctx, int cur)
 
 	// check for dn match:
 	if (!ctx->host)
-	    set_host_by_dn(ctx, (char *) ctx->tls_peer_cert_subject);
+	    set_host_by_dn(ctx, (char *) ctx->tls_peer_cert_subject.txt);
 
 	// check for cn match:
 	if (!ctx->host)
-	    set_host_by_dn(ctx, ctx->tls_peer_cn);
+	    set_host_by_dn(ctx, ctx->tls_peer_cn.txt);
     }
 #ifndef OPENSSL_NO_PSK
   done:
@@ -903,7 +903,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 
     if (ctx->host) {
 	complete_host(ctx->host);
-	if (ctx->host && (ctx->host != by_address) && (ctx->host->try_mavis == TRISTATE_YES) && ctx->tls_peer_cert_subject) {
+	if (ctx->host && (ctx->host != by_address) && (ctx->host->try_mavis == TRISTATE_YES) && ctx->tls_peer_cert_subject.txt) {
 	    ctx->mavis_tried = 0;
 	    complete_host_mavis_tls(ctx);
 	    return;
@@ -1052,8 +1052,8 @@ static int sni_cb(SSL *s, int *al __attribute__((unused)), void *arg)
     }
 
     ctx->sni_passed = BISTATE_YES;
-    ctx->tls_sni = (char *) servername;
-    ctx->tls_sni_len = strlen(servername);
+    ctx->tls_sni.txt = (char *) servername;
+    ctx->tls_sni.len = strlen(servername);
 
     return SSL_TLSEXT_ERR_OK;
 
@@ -1137,16 +1137,16 @@ static void set_ctx_info(struct context *ctx, struct scm_data_accept_ext *sd_ext
 	char buf[256];
 	su_convert(&me, AF_INET);
 	snprintf(buf, 10, "%u", su_get_port(&me));
-	ctx->server_port_ascii = mem_strdup(ctx->mem, buf);
-	ctx->server_port_ascii_len = strlen(buf);
+	ctx->server_port_ascii.txt = mem_strdup(ctx->mem, buf);
+	ctx->server_port_ascii.len = strlen(buf);
 	if (su_ntop(&me, buf, sizeof(buf))) {
-	    ctx->server_addr_ascii = mem_strdup(ctx->mem, buf);
-	    ctx->server_addr_ascii_len = strlen(buf);
+	    ctx->server_addr_ascii.txt = mem_strdup(ctx->mem, buf);
+	    ctx->server_addr_ascii.len = strlen(buf);
 	}
     }
     if (sd_ext->vrf_len)
-	ctx->vrf = mem_strndup(ctx->mem, (u_char *) sd_ext->vrf, sd_ext->vrf_len);
-    ctx->vrf_len = sd_ext->vrf_len;
+	ctx->vrf.txt = mem_strndup(ctx->mem, (u_char *) sd_ext->vrf, sd_ext->vrf_len);
+    ctx->vrf.len = sd_ext->vrf_len;
 }
 
 static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, sockaddr_union *device_addr)
@@ -1216,27 +1216,27 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	    ctx->hint = "host unknown";
     }
 
-    ctx->peer_addr_ascii = mem_strdup(ctx->mem, su_ntop(&peer, buf, sizeof(buf)) ? buf : "<unknown>");
-    ctx->peer_addr_ascii_len = strlen(ctx->peer_addr_ascii);
+    ctx->peer_addr_ascii.txt = mem_strdup(ctx->mem, su_ntop(&peer, buf, sizeof(buf)) ? buf : "<unknown>");
+    ctx->peer_addr_ascii.len = strlen(ctx->peer_addr_ascii.txt);
     snprintf(buf, sizeof(buf), "%u", su_get_port(&peer));
-    ctx->peer_port_ascii = mem_strdup(ctx->mem, buf);
-    ctx->peer_port_ascii_len = strlen(ctx->peer_port_ascii);
+    ctx->peer_port_ascii.txt = mem_strdup(ctx->mem, buf);
+    ctx->peer_port_ascii.len = strlen(ctx->peer_port_ascii.txt);
 
-    ctx->proxy_addr_ascii = proxy_addr_ascii;
-    ctx->proxy_addr_ascii_len = proxy_addr_ascii_len;
+    ctx->proxy_addr_ascii.txt = proxy_addr_ascii;
+    ctx->proxy_addr_ascii.len = proxy_addr_ascii_len;
 
     ctx->device_addr = device_addr->sin6.sin6_addr;
     if (device_addr == &peer) {
-	ctx->device_addr_ascii = ctx->peer_addr_ascii;
-	ctx->device_addr_ascii_len = ctx->peer_addr_ascii_len;
-	ctx->device_port_ascii = ctx->peer_port_ascii;
-	ctx->device_port_ascii_len = ctx->peer_port_ascii_len;
+	ctx->device_addr_ascii.txt = ctx->peer_addr_ascii.txt;
+	ctx->device_addr_ascii.len = ctx->peer_addr_ascii.len;
+	ctx->device_port_ascii.txt = ctx->peer_port_ascii.txt;
+	ctx->device_port_ascii.len = ctx->peer_port_ascii.len;
     } else {
-	ctx->device_addr_ascii = mem_strdup(ctx->mem, su_ntop(device_addr, buf, sizeof(buf)) ? buf : "<unknown>");
-	ctx->device_addr_ascii_len = strlen(ctx->device_addr_ascii);
+	ctx->device_addr_ascii.txt = mem_strdup(ctx->mem, su_ntop(device_addr, buf, sizeof(buf)) ? buf : "<unknown>");
+	ctx->device_addr_ascii.len = strlen(ctx->device_addr_ascii.txt);
 	snprintf(buf, sizeof(buf), "%u", (short) su_get_port(device_addr));
-	ctx->device_port_ascii = mem_strdup(ctx->mem, buf);
-	ctx->device_port_ascii_len = strlen(ctx->device_port_ascii);
+	ctx->device_port_ascii.txt = mem_strdup(ctx->mem, buf);
+	ctx->device_port_ascii.len = strlen(ctx->device_port_ascii.txt);
     }
     ctx->host = h;
 
@@ -1293,16 +1293,16 @@ static void complete_host_mavis_udp(struct context *ctx)
 	ctx->key = ctx->host->radius_key;
 
 #define S "CONN-START"
-    ctx->msgid = S;
-    ctx->msgid_len = sizeof(S) - 1;
+    ctx->msgid.txt = S;
+    ctx->msgid.len = sizeof(S) - 1;
 #undef S
 #define S "start"
-    ctx->acct_type = S;
-    ctx->acct_type_len = sizeof(S) - 1;
+    ctx->acct_type.txt = S;
+    ctx->acct_type.len = sizeof(S) - 1;
 #undef S
     log_exec(NULL, ctx, S_connection, io_now.tv_sec);
-    ctx->msgid = NULL;
-    ctx->msgid_len = 0;
+    ctx->msgid.txt = NULL;
+    ctx->msgid.len = 0;
 
     rad_udp_inject(ctx);
 }
@@ -1365,13 +1365,13 @@ static void accept_control_final(struct context *ctx)
     static int count = 0;
     tac_session session = {.ctx = ctx };
 
-    if (ctx->proxy_addr_ascii) {
+    if (ctx->proxy_addr_ascii.txt) {
 	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
-	    report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "proxied connection request from %s for %s (realm: %s%s%s)", ctx->proxy_addr_ascii,
-		   ctx->peer_addr_ascii, ctx->realm->name.txt, ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "");
+	    report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "proxied connection request from %s for %s (realm: %s%s%s)", ctx->proxy_addr_ascii.txt,
+		   ctx->peer_addr_ascii.txt, ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "", ctx->vrf.txt ? ctx->vrf.txt : "");
     } else
-	report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "connection request from %s (realm: %s%s%s)", ctx->peer_addr_ascii, ctx->realm->name.txt,
-	       ctx->vrf ? ", vrf: " : "", ctx->vrf ? ctx->vrf : "");
+	report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "connection request from %s (realm: %s%s%s)", ctx->peer_addr_ascii.txt, ctx->realm->name.txt,
+	       ctx->vrf.txt ? ", vrf: " : "", ctx->vrf.txt ? ctx->vrf.txt : "");
 
     get_revmap_nas(&session);
 
@@ -1390,16 +1390,16 @@ static void accept_control_final(struct context *ctx)
 	}
     }
 #define S "CONN-START"
-    ctx->msgid = S;
-    ctx->msgid_len = sizeof(S) - 1;
+    ctx->msgid.txt = S;
+    ctx->msgid.len = sizeof(S) - 1;
 #undef S
 #define S "start"
-    ctx->acct_type = S;
-    ctx->acct_type_len = sizeof(S) - 1;
+    ctx->acct_type.txt = S;
+    ctx->acct_type.len = sizeof(S) - 1;
 #undef S
     log_exec(NULL, ctx, S_connection, io_now.tv_sec);
-    ctx->msgid = NULL;
-    ctx->msgid_len = 0;
+    ctx->msgid.txt = NULL;
+    ctx->msgid.len = 0;
 }
 
 static void accept_control_udp(int s __attribute__((unused)), struct scm_data_accept_ext *sd_ext, u_char *data, size_t data_len)
@@ -1460,16 +1460,16 @@ static void accept_control_udp(int s __attribute__((unused)), struct scm_data_ac
     }
 
     char buf[256];
-    ctx->peer_addr_ascii = mem_strdup(ctx->mem, su_ntop(&from, buf, sizeof(buf)) ? buf : "<unknown>");
-    ctx->peer_addr_ascii_len = strlen(ctx->peer_addr_ascii);
+    ctx->peer_addr_ascii.txt = mem_strdup(ctx->mem, su_ntop(&from, buf, sizeof(buf)) ? buf : "<unknown>");
+    ctx->peer_addr_ascii.len = strlen(ctx->peer_addr_ascii.txt);
 
     snprintf(buf, 10, "%u", 0xffff & sd_ext->sd_udp.src_port);
-    ctx->peer_port_ascii = mem_strdup(ctx->mem, buf);
-    ctx->peer_port_ascii_len = strlen(buf);
+    ctx->peer_port_ascii.txt = mem_strdup(ctx->mem, buf);
+    ctx->peer_port_ascii.len = strlen(buf);
 
     snprintf(buf, 10, "%u", 0xffff & sd_ext->sd_udp.dst_port);
-    ctx->server_port_ascii = mem_strdup(ctx->mem, buf);
-    ctx->server_port_ascii_len = strlen(buf);
+    ctx->server_port_ascii.txt = mem_strdup(ctx->mem, buf);
+    ctx->server_port_ascii.len = strlen(buf);
 
     set_ctx_info(ctx, sd_ext);
 

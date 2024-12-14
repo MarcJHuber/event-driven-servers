@@ -961,8 +961,8 @@ static char *eval_log_format_user_original(tac_session *session, struct context 
 					   __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->username_orig_len;
-	return session->username_orig;
+	*len = session->username_orig.len;
+	return session->username_orig.txt;
     }
     return NULL;
 }
@@ -980,8 +980,8 @@ static char *eval_log_format_profile(tac_session *session, struct context *ctx _
 static char *eval_log_format_nac(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->nac_addr_ascii_len;
-	return session->nac_addr_ascii;
+	*len = session->nac_addr_ascii.len;
+	return session->nac_addr_ascii.txt;
     }
     return NULL;
 }
@@ -989,12 +989,12 @@ static char *eval_log_format_nac(tac_session *session, struct context *ctx __att
 static char *eval_log_format_msgid(tac_session *session, struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->msgid_len;
-	return session->msgid;
+	*len = session->msgid.len;
+	return session->msgid.txt;
     }
     if (ctx) {
-	*len = ctx->msgid_len;
-	return ctx->msgid;
+	*len = ctx->msgid.len;
+	return ctx->msgid.txt;
     }
     return NULL;
 }
@@ -1002,12 +1002,12 @@ static char *eval_log_format_msgid(tac_session *session, struct context *ctx, st
 static char *eval_log_format_port(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->port_len;
-	return session->port;
+	*len = session->port.len;
+	return session->port.txt;
     }
     if (ctx) {
-	*len = ctx->device_port_ascii_len;
-	return ctx->device_port_ascii;
+	*len = ctx->device_port_ascii.len;
+	return ctx->device_port_ascii.txt;
     }
     return NULL;
 }
@@ -1015,8 +1015,8 @@ static char *eval_log_format_port(tac_session *session, struct context *ctx __at
 static char *eval_log_format_type(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->type_len;
-	return session->type;
+	*len = session->type.len;
+	return session->type.txt;
     }
     return NULL;
 }
@@ -1024,8 +1024,8 @@ static char *eval_log_format_type(tac_session *session, struct context *ctx __at
 static char *eval_log_format_hint(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->hint_len;
-	return session->hint;
+	*len = session->hint.len;
+	return session->hint.txt;
     }
     return NULL;
 }
@@ -1034,8 +1034,8 @@ static char *eval_log_format_authen_action(tac_session *session, struct context 
 					   __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->authen_action_len;
-	return session->authen_action;
+	*len = session->authen_action.len;
+	return session->authen_action.txt;
     }
     return NULL;
 }
@@ -1044,8 +1044,8 @@ static char *eval_log_format_authen_type(tac_session *session, struct context *c
 					 __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->authen_type_len;
-	return session->authen_type;
+	*len = session->authen_type.len;
+	return session->authen_type.txt;
     }
     return NULL;
 }
@@ -1054,8 +1054,8 @@ static char *eval_log_format_authen_service(tac_session *session, struct context
 					    __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->authen_service_len;
-	return session->authen_service;
+	*len = session->authen_service.len;
+	return session->authen_service.txt;
     }
     return NULL;
 }
@@ -1064,8 +1064,8 @@ static char *eval_log_format_authen_method(tac_session *session, struct context 
 					   __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->authen_method_len;
-	return session->authen_method;
+	*len = session->authen_method.len;
+	return session->authen_method.txt;
     }
     return NULL;
 }
@@ -1074,8 +1074,8 @@ static char *eval_log_format_message(tac_session *session, struct context *ctx _
 				     __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->msg_len;
-	return session->msg;
+	*len = session->msg.len;
+	return session->msg.txt;
     }
     return NULL;
 }
@@ -1084,8 +1084,8 @@ static char *eval_log_format_umessage(tac_session *session, struct context *ctx 
 				      __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->user_msg_len;
-	return session->user_msg;
+	*len = session->user_msg.len;
+	return session->user_msg.txt;
     }
     return NULL;
 }
@@ -1093,8 +1093,8 @@ static char *eval_log_format_umessage(tac_session *session, struct context *ctx 
 static char *eval_log_format_label(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->label_len;
-	return session->label;
+	*len = session->label.len;
+	return session->label.txt;
     }
     return NULL;
 }
@@ -1103,8 +1103,8 @@ static char *eval_log_format_result(tac_session *session, struct context *ctx __
 				    __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->result_len;
-	return session->result;
+	*len = session->result.len;
+	return session->result.txt;
     }
     return NULL;
 }
@@ -1113,8 +1113,8 @@ static char *eval_log_format_action(tac_session *session, struct context *ctx __
 				    __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->action_len;
-	return session->action;
+	*len = session->action.len;
+	return session->action.txt;
     }
     return NULL;
 }
@@ -1123,12 +1123,12 @@ static char *eval_log_format_accttype(tac_session *session, struct context *ctx 
 				      __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->acct_type_len;
-	return session->acct_type;
+	*len = session->acct_type.len;
+	return session->acct_type.txt;
     }
     if (ctx) {
-	*len = ctx->acct_type_len;
-	return ctx->acct_type;
+	*len = ctx->acct_type.len;
+	return ctx->acct_type.txt;
     }
     return NULL;
 }
@@ -1137,8 +1137,8 @@ static char *eval_log_format_service(tac_session *session, struct context *ctx _
 				     __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->service_len;
-	return session->service;
+	*len = session->service.len;
+	return session->service.txt;
     }
     return NULL;
 }
@@ -1176,8 +1176,8 @@ static char *eval_log_format_ssh_key_id(tac_session *session, struct context *ct
 static char *eval_log_format_rule(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->rule_len;
-	return session->rule;
+	*len = session->rule.len;
+	return session->rule.txt;
     }
     return NULL;
 }
@@ -1265,8 +1265,8 @@ static char *eval_log_format_identity_source(tac_session *session, struct contex
 static char *eval_log_format_nas(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->device_addr_ascii_len;
-	return ctx->device_addr_ascii;
+	*len = ctx->device_addr_ascii.len;
+	return ctx->device_addr_ascii.txt;
     }
     return NULL;
 }
@@ -1274,8 +1274,8 @@ static char *eval_log_format_nas(tac_session *session __attribute__((unused)), s
 static char *eval_log_format_proxy(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->proxy_addr_ascii_len;
-	return ctx->proxy_addr_ascii;
+	*len = ctx->proxy_addr_ascii.len;
+	return ctx->proxy_addr_ascii.txt;
     }
     return NULL;
 }
@@ -1283,8 +1283,8 @@ static char *eval_log_format_proxy(tac_session *session __attribute__((unused)),
 static char *eval_log_format_peer(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->peer_addr_ascii_len;
-	return ctx->peer_addr_ascii;
+	*len = ctx->peer_addr_ascii.len;
+	return ctx->peer_addr_ascii.txt;
     }
     return NULL;
 }
@@ -1301,8 +1301,8 @@ static char *eval_log_format_host(tac_session *session __attribute__((unused)), 
 static char *eval_log_format_vrf(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->vrf_len;
-	return ctx->vrf;
+	*len = ctx->vrf.len;
+	return ctx->vrf.txt;
     }
     return NULL;
 }
@@ -1515,16 +1515,16 @@ static char *eval_log_format_priority(tac_session *session
 static char *eval_log_format_hostname(tac_session *session __attribute__((unused)), struct context *ctx __attribute__((unused)), struct logfile *lf
 				      __attribute__((unused)), size_t *len)
 {
-    *len = config.hostname_len;
-    return config.hostname;
+    *len = config.hostname.len;
+    return config.hostname.txt;
 }
 
 static char *eval_log_format_server_port(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
 					 __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->server_port_ascii_len;
-	return ctx->server_port_ascii;
+	*len = ctx->server_port_ascii.len;
+	return ctx->server_port_ascii.txt;
     }
     return NULL;
 }
@@ -1533,8 +1533,8 @@ static char *eval_log_format_peer_port(tac_session *session __attribute__((unuse
 				       __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->peer_port_ascii_len;
-	return ctx->peer_port_ascii;
+	*len = ctx->peer_port_ascii.len;
+	return ctx->peer_port_ascii.txt;
     }
     return NULL;
 }
@@ -1543,8 +1543,8 @@ static char *eval_log_format_server_address(tac_session *session __attribute__((
 					    __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->server_addr_ascii_len;
-	return ctx->server_addr_ascii;
+	*len = ctx->server_addr_ascii.len;
+	return ctx->server_addr_ascii.txt;
     }
     return NULL;
 }
@@ -1552,16 +1552,16 @@ static char *eval_log_format_server_address(tac_session *session __attribute__((
 static char *eval_log_format_nasname(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
 				     __attribute__((unused)), size_t *len __attribute__((unused)))
 {
-    if (ctx && ctx->device_dns_name && *ctx->device_dns_name)
-	return ctx->device_dns_name;
+    if (ctx && ctx->device_dns_name.txt && *ctx->device_dns_name.txt)
+	return ctx->device_dns_name.txt;
     return NULL;
 }
 
 static char *eval_log_format_nacname(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
 				     __attribute__((unused)), size_t *len __attribute__((unused)))
 {
-    if (session && session->nac_dns_name && *session->nac_dns_name)
-	return session->nac_dns_name;
+    if (session && session->nac_dns_name.txt && *session->nac_dns_name.txt)
+	return session->nac_dns_name.txt;
     return NULL;
 }
 
@@ -1671,8 +1671,8 @@ static char *eval_log_format_tls_conn_version(tac_session *session __attribute__
 					      __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->tls_conn_version_len;
-	return (char *) ctx->tls_conn_version;
+	*len = ctx->tls_conn_version.len;
+	return (char *) ctx->tls_conn_version.txt;
     }
     return NULL;
 }
@@ -1682,8 +1682,8 @@ static char *eval_log_format_tls_conn_cipher(tac_session *session __attribute__(
 					     __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->tls_conn_cipher_len;
-	return (char *) ctx->tls_conn_cipher;
+	*len = ctx->tls_conn_cipher.len;
+	return (char *) ctx->tls_conn_cipher.txt;
     }
     return NULL;
 }
@@ -1693,8 +1693,8 @@ static char *eval_log_format_tls_peer_cert_issuer(tac_session *session __attribu
 						  __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->tls_peer_cert_issuer_len;
-	return (char *) ctx->tls_peer_cert_issuer;
+	*len = ctx->tls_peer_cert_issuer.len;
+	return (char *) ctx->tls_peer_cert_issuer.txt;
     }
     return NULL;
 }
@@ -1703,8 +1703,8 @@ static char *eval_log_format_tls_peer_cert_subject(tac_session *session __attrib
 						   __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->tls_peer_cert_subject_len;
-	return (char *) ctx->tls_peer_cert_subject;
+	*len = ctx->tls_peer_cert_subject.len;
+	return (char *) ctx->tls_peer_cert_subject.txt;
     }
     return NULL;
 }
@@ -1713,8 +1713,8 @@ static char *eval_log_format_tls_conn_cipher_strength(tac_session *session __att
 						      __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->tls_conn_cipher_strength_len;
-	return ctx->tls_conn_cipher_strength;
+	*len = ctx->tls_conn_cipher_strength.len;
+	return ctx->tls_conn_cipher_strength.txt;
     }
     return NULL;
 }
@@ -1723,8 +1723,8 @@ static char *eval_log_format_tls_peer_cn(tac_session *session __attribute__((unu
 					 __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->tls_peer_cn_len;
-	return ctx->tls_peer_cn;
+	*len = ctx->tls_peer_cn.len;
+	return ctx->tls_peer_cn.txt;
     }
     return NULL;
 }
@@ -1733,8 +1733,8 @@ static char *eval_log_format_tls_psk_identity(tac_session *session __attribute__
 					      __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->tls_psk_identity_len;
-	return ctx->tls_psk_identity;
+	*len = ctx->tls_psk_identity.len;
+	return ctx->tls_psk_identity.txt;
     }
     return NULL;
 }
@@ -1743,8 +1743,8 @@ static char *eval_log_format_tls_conn_sni(tac_session *session __attribute__((un
 					  __attribute__((unused)), size_t *len)
 {
     if (ctx) {
-	*len = ctx->tls_sni_len;
-	return ctx->tls_sni;
+	*len = ctx->tls_sni.len;
+	return ctx->tls_sni.txt;
     }
     return NULL;
 }
@@ -1879,7 +1879,7 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 	    enum token token = li->token;
 	    switch (token) {
 	    case S_cmd:
-		if (session && session->service && strcmp(session->service, "shell"))
+		if (session && session->service.txt && strcmp(session->service.txt, "shell"))
 		    token = S_args;
 	    case S_args:
 	    case S_rargs:

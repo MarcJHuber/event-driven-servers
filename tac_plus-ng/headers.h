@@ -299,8 +299,7 @@ struct rad_dict;
 
 struct config {
     mode_t mask;		/* file mask */
-    char *hostname;
-    size_t hostname_len;
+    str_t hostname;
     int retire;			/* die after <retire> invocations */
     int ctx_lru_threshold;	/* purge lru context if number reached */
     time_t suicide;		/* when to commit suicide */
@@ -745,62 +744,40 @@ struct tac_session {
     tac_user *user;
     struct in6_addr nac_address;	/* host byte order */
     str_t username;
-    char *username_orig;
-    size_t username_orig_len;
+    str_t username_orig;
     char *password;
     char *password_new;
     char *password_bad;
-    char *msg;
-    size_t msg_len;
-    char *user_msg;
-    size_t user_msg_len;
-    char *port;
-    size_t port_len;
-    char *nac_addr_ascii;
-    size_t nac_addr_ascii_len;
-    char *type;
-    size_t type_len;
-    char *nac_dns_name;		/* DNS reverse mapping for NAC */
-    size_t nac_dns_name_len;
-    char *acct_type;
-    size_t acct_type_len;
-    char *action;
-    size_t action_len;
-    char *service;
-    size_t service_len;
-    char *protocol;
-    size_t protocol_len;
-    char *hint;
-    size_t hint_len;
+    str_t msg;
+    str_t user_msg;
+    str_t port;
+    str_t nac_addr_ascii;
+    str_t type;
+    str_t nac_dns_name;		/* DNS reverse mapping for NAC */
+    str_t acct_type;
+    str_t action;
+    str_t service;
+    str_t protocol;
+    str_t hint;
     char *challenge;
     char *motd;
     char *welcome_banner;
-    char *msgid;
-    size_t msgid_len;
-    char *cmdline;
-    size_t cmdline_len;
-    char *message;		// to the user
-    size_t message_len;
-    char *authen_action;
-    size_t authen_action_len;
-    char *authen_type;
-    size_t authen_type_len;
-    char *authen_service;
-    size_t authen_service_len;
-    char *authen_method;
-    size_t authen_method_len;
-    char *rule;
-    size_t rule_len;
-    char *label;
-    size_t label_len;
+    str_t msgid;
+    str_t cmdline;
+    str_t message;		// to the user
+    str_t authen_action;
+    str_t authen_type;
+    str_t authen_service;
+    str_t authen_method;
+    str_t rule;
+    str_t label;
     u_char arg_cnt;
     u_char *arg_len;
     u_char *argp;
     u_char arg_out_cnt;
     u_char *arg_out_len;
     u_char *argp_out;
-    char *result;
-    size_t result_len;
+    str_t result;
     u_int priv_lvl;		/* requested privilege level */
     char privlvl[4];
     int privlvl_len;
@@ -870,26 +847,18 @@ struct context {
     tac_realm *realm;
     struct mavis_ctx_data *mavis_data;
 
-    char *device_dns_name;	// device
-    size_t device_dns_name_len;
-    char *device_addr_ascii;
-    size_t device_addr_ascii_len;
-    char *device_port_ascii;
-    size_t device_port_ascii_len;
+    str_t device_dns_name;	// device
+    str_t device_addr_ascii;
+    str_t device_port_ascii;
     struct in6_addr device_addr;	// for binary comparisions
 
-    char *server_addr_ascii;
-    size_t server_addr_ascii_len;
-    char *server_port_ascii;
-    size_t server_port_ascii_len;
+    str_t server_addr_ascii;
+    str_t server_port_ascii;
 
-    char *proxy_addr_ascii;	// NULL if not proxied
-    size_t proxy_addr_ascii_len;
+    str_t proxy_addr_ascii;	// NULL if not proxied
 
-    char *peer_addr_ascii;	// TCP/UDP peer
-    size_t peer_addr_ascii_len;
-    char *peer_port_ascii;
-    size_t peer_port_ascii_len;
+    str_t peer_addr_ascii;	// TCP/UDP peer
+    str_t peer_port_ascii;
 
     u_char flags;
     union pak_hdr hdr;
@@ -901,32 +870,21 @@ struct context {
     SSL *tls;
      BISTATE(alpn_passed);
      BISTATE(sni_passed);
-    const char *tls_conn_version;
-    size_t tls_conn_version_len;
-    const char *tls_conn_cipher;
-    size_t tls_conn_cipher_len;
-    const char *tls_peer_cert_issuer;
-    size_t tls_peer_cert_issuer_len;
-    const char *tls_peer_cert_subject;
-    size_t tls_peer_cert_subject_len;
-    char *tls_conn_cipher_strength;
-    size_t tls_conn_cipher_strength_len;
-    char *tls_peer_cn;
-    size_t tls_peer_cn_len;
-    char *tls_psk_identity;
-    size_t tls_psk_identity_len;
-    char *tls_sni;;
-    size_t tls_sni_len;
+    str_t tls_conn_version;
+    str_t tls_conn_cipher;
+    str_t tls_peer_cert_issuer;
+    str_t tls_peer_cert_subject;
+    str_t tls_conn_cipher_strength;
+    str_t tls_peer_cn;
+    str_t tls_psk_identity;
+    str_t tls_sni;
     char **tls_peer_cert_san;
     size_t tls_peer_cert_san_count;
 #endif
 
-    char *msgid;
-    size_t msgid_len;
-    char *acct_type;
-    size_t acct_type_len;
-    char *vrf;
-    size_t vrf_len;
+    str_t msgid;
+    str_t acct_type;
+    str_t vrf;
 #define USER_PROFILE_CACHE_SIZE 8
     struct user_profile_cache user_profile_cache[USER_PROFILE_CACHE_SIZE];
     char *hint;

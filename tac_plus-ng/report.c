@@ -69,8 +69,8 @@ void report(tac_session *session, int priority, int level, char *fmt, ...)
 	va_end(ap);
     }
 
-    if (session && session->ctx && session->ctx->device_addr_ascii)
-	device_addr = session->ctx->device_addr_ascii;
+    if (session && session->ctx && session->ctx->device_addr_ascii.txt)
+	device_addr = session->ctx->device_addr_ascii.txt;
 
     if ((common_data.debug & level) || (session && (session->debug & level))) {
 	if (common_data.debug & DEBUG_TACTRACE_FLAG) {

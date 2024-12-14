@@ -2457,10 +2457,10 @@ static void parse_ruleset(struct sym *sym, tac_realm *realm)
 static enum token lookup_user_profile(tac_session *session)
 {
     uint32_t crc32 = INITCRC32;
-    if (session->nac_addr_ascii)
-	crc32 = crc32_update(crc32, (u_char *) session->nac_addr_ascii, session->nac_addr_ascii_len);
-    if (session->port)
-	crc32 = crc32_update(crc32, (u_char *) session->port, session->port_len);
+    if (session->nac_addr_ascii.txt)
+	crc32 = crc32_update(crc32, (u_char *) session->nac_addr_ascii.txt, session->nac_addr_ascii.len);
+    if (session->port.txt)
+	crc32 = crc32_update(crc32, (u_char *) session->port.txt, session->port.len);
     for (int i = 0; i < USER_PROFILE_CACHE_SIZE; i++) {
 	if (session->ctx->user_profile_cache[i].user == session->user && session->ctx->user_profile_cache[i].crc32 == crc32) {
 	    if (session->ctx->user_profile_cache[i].valid_until >= io_now.tv_sec) {
@@ -2478,10 +2478,10 @@ static enum token lookup_user_profile(tac_session *session)
 static void cache_user_profile(tac_session *session, enum token res)
 {
     uint32_t crc32 = INITCRC32;
-    if (session->nac_addr_ascii)
-	crc32 = crc32_update(crc32, (u_char *) session->nac_addr_ascii, session->nac_addr_ascii_len);
-    if (session->port)
-	crc32 = crc32_update(crc32, (u_char *) session->port, session->port_len);
+    if (session->nac_addr_ascii.txt)
+	crc32 = crc32_update(crc32, (u_char *) session->nac_addr_ascii.txt, session->nac_addr_ascii.len);
+    if (session->port.txt)
+	crc32 = crc32_update(crc32, (u_char *) session->port.txt, session->port.len);
 
     int j = 0;
     for (int i = 0; i < USER_PROFILE_CACHE_SIZE; i++) {
@@ -2530,13 +2530,13 @@ enum token eval_ruleset_r(tac_session *session, tac_realm *realm, int parent_fir
 	    res = eval_tac_acl(session, &rule->acl);
 	    report(session, LOG_DEBUG, DEBUG_ACL_FLAG | DEBUG_REGEX_FLAG,
 		   "%s@%s: ACL %s: %s (profile: %s)", session->username.txt,
-		   session->nac_addr_ascii, rule->acl.name.txt, codestring[res].txt, session->profile ? session->profile->name.txt : "n/a");
+		   session->nac_addr_ascii.txt, rule->acl.name.txt, codestring[res].txt, session->profile ? session->profile->name.txt : "n/a");
 	    switch (res) {
 	    case S_permit:
 	    case S_deny:
 		cache_user_profile(session, res);
-		session->rule = rule->acl.name.txt;
-		session->rule_len = rule->acl.name.len;
+		session->rule.txt = rule->acl.name.txt;
+		session->rule.len = rule->acl.name.len;
 		return res;
 	    default:;
 	    }
@@ -2555,7 +2555,7 @@ enum token eval_ruleset(tac_session *session, tac_realm *realm)
     if (res != S_unknown) {
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG | DEBUG_REGEX_FLAG,
 	       "%s@%s: cached: %s (profile: %s)", session->username.txt,
-	       session->nac_addr_ascii, codestring[res].txt, session->profile ? session->profile->name.txt : "n/a");
+	       session->nac_addr_ascii.txt, codestring[res].txt, session->profile ? session->profile->name.txt : "n/a");
 	return res;
     }
     res = eval_ruleset_r(session, realm, session->ctx->realm->script_realm_parent_first);
@@ -4267,10 +4267,10 @@ void cfg_init(void)
 
     struct utsname utsname = { 0 };
     if (uname(&utsname) || !*(utsname.nodename))
-	config.hostname = "amnesiac";
+	config.hostname.txt = "amnesiac";
     else
-	config.hostname = strdup(utsname.nodename);
-    config.hostname_len = strlen(config.hostname);
+	config.hostname.txt = strdup(utsname.nodename);
+    config.hostname.len = strlen(config.hostname.txt);
 }
 
 int cfg_get_enable(tac_session *session, struct pwdat **p)
@@ -4846,117 +4846,117 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
     case S_slash:
 	switch (m->u.s.token) {
 	case S_authen_action:
-	    v = session->authen_action;
-	    v_len = session->authen_action_len;
+	    v = session->authen_action.txt;
+	    v_len = session->authen_action.len;
 	    break;
 	case S_authen_type:
-	    v = session->authen_type;
-	    v_len = session->authen_type_len;
+	    v = session->authen_type.txt;
+	    v_len = session->authen_type.len;
 	    break;
 	case S_authen_service:
-	    v = session->authen_service;
-	    v_len = session->authen_service_len;
+	    v = session->authen_service.txt;
+	    v_len = session->authen_service.len;
 	    break;
 	case S_authen_method:
-	    v = session->authen_method;
-	    v_len = session->authen_method_len;
+	    v = session->authen_method.txt;
+	    v_len = session->authen_method.len;
 	    break;
 	case S_privlvl:
 	    v = session->privlvl;
 	    v_len = session->privlvl_len;
 	    break;
 	case S_vrf:
-	    v = session->ctx->vrf;
-	    v_len = session->ctx->vrf_len;
+	    v = session->ctx->vrf.txt;
+	    v_len = session->ctx->vrf.len;
 	    break;
 #if defined(WITH_SSL)
 	case S_tls_conn_version:
-	    v = (char *) session->ctx->tls_conn_version;
-	    v_len = session->ctx->tls_conn_version_len;
+	    v = (char *) session->ctx->tls_conn_version.txt;
+	    v_len = session->ctx->tls_conn_version.len;
 	    break;
 	case S_tls_conn_cipher:
-	    v = (char *) session->ctx->tls_conn_cipher;
-	    v_len = session->ctx->tls_conn_cipher_len;
+	    v = (char *) session->ctx->tls_conn_cipher.txt;
+	    v_len = session->ctx->tls_conn_cipher.len;
 	    break;
 	case S_tls_peer_cert_issuer:
-	    v = (char *) session->ctx->tls_peer_cert_issuer;
-	    v_len = session->ctx->tls_peer_cert_issuer_len;
+	    v = (char *) session->ctx->tls_peer_cert_issuer.txt;
+	    v_len = session->ctx->tls_peer_cert_issuer.len;
 	    break;
 	case S_tls_peer_cert_subject:
-	    v = (char *) session->ctx->tls_peer_cert_subject;
-	    v_len = session->ctx->tls_peer_cert_subject_len;
+	    v = (char *) session->ctx->tls_peer_cert_subject.txt;
+	    v_len = session->ctx->tls_peer_cert_subject.len;
 	    break;
 	case S_tls_conn_cipher_strength:
-	    v = session->ctx->tls_conn_cipher_strength;
-	    v_len = session->ctx->tls_conn_cipher_strength_len;
+	    v = session->ctx->tls_conn_cipher_strength.txt;
+	    v_len = session->ctx->tls_conn_cipher_strength.len;
 	    break;
 	case S_tls_peer_cn:
-	    v = session->ctx->tls_peer_cn;
-	    v_len = session->ctx->tls_peer_cn_len;
+	    v = session->ctx->tls_peer_cn.txt;
+	    v_len = session->ctx->tls_peer_cn.len;
 	    break;
 	case S_tls_psk_identity:
-	    v = session->ctx->tls_psk_identity;
-	    v_len = session->ctx->tls_psk_identity_len;
+	    v = session->ctx->tls_psk_identity.txt;
+	    v_len = session->ctx->tls_psk_identity.len;
 	    break;
 #endif
 	case S_context:
 	    v = tac_script_get_exec_context(session);
 	    break;
 	case S_cmd:
-	    v = session->cmdline;
-	    v_len = session->cmdline_len;
+	    v = session->cmdline.txt;
+	    v_len = session->cmdline.len;
 	    break;
 	case S_nac:
 	case S_clientaddress:
-	    v = session->nac_addr_ascii;
-	    v_len = session->nac_addr_ascii_len;
+	    v = session->nac_addr_ascii.txt;
+	    v_len = session->nac_addr_ascii.len;
 	    break;
 	case S_nas:
 	case S_deviceaddress:
-	    v = session->ctx->device_addr_ascii;
-	    v_len = session->ctx->device_addr_ascii_len;
+	    v = session->ctx->device_addr_ascii.txt;
+	    v_len = session->ctx->device_addr_ascii.len;
 	    break;
 	case S_clientdns:
 	case S_nacname:
-	    if (session->nac_dns_name && *session->nac_dns_name) {
-		v = session->nac_dns_name;
-		v_len = session->nac_dns_name_len;
+	    if (session->nac_dns_name.txt && *session->nac_dns_name.txt) {
+		v = session->nac_dns_name.txt;
+		v_len = session->nac_dns_name.len;
 	    }
 	    break;
 	case S_devicedns:
 	case S_nasname:
-	    if (session->ctx->device_dns_name && *session->ctx->device_dns_name) {
-		v = session->ctx->device_dns_name;
-		v_len = session->ctx->device_dns_name_len;
+	    if (session->ctx->device_dns_name.txt && *session->ctx->device_dns_name.txt) {
+		v = session->ctx->device_dns_name.txt;
+		v_len = session->ctx->device_dns_name.len;
 	    }
 	    break;
 	case S_deviceport:
 	case S_port:
-	    v = session->port;
-	    v_len = session->port_len;
+	    v = session->port.txt;
+	    v_len = session->port.len;
 	    break;
 	case S_type:
-	    v = session->type;
-	    v_len = session->type_len;
+	    v = session->type.txt;
+	    v_len = session->type.len;
 	    break;
 	case S_user:
 	    v = session->username.txt;
 	    v_len = session->username.len;
 	    break;
 	case S_user_original:
-	    v = session->username_orig;
-	    v_len = session->username_orig_len;
+	    v = session->username_orig.txt;
+	    v_len = session->username_orig.len;
 	    break;
 	case S_password:
 	    v = session->password_new ? session->password_new : session->password;
 	    break;
 	case S_service:
-	    v = session->service;
-	    v_len = session->service_len;
+	    v = session->service.txt;
+	    v_len = session->service.len;
 	    break;
 	case S_protocol:
-	    v = session->protocol;
-	    v_len = session->protocol_len;
+	    v = session->protocol.txt;
+	    v_len = session->protocol.len;
 	    break;
 	case S_dn:
 	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_DN])
@@ -4967,16 +4967,16 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 		v = session->user->avc->arr[AV_A_IDENTITY_SOURCE];
 	    break;
 	case S_server_name:
-	    v = config.hostname;
-	    v_len = config.hostname_len;
+	    v = config.hostname.txt;
+	    v_len = config.hostname.len;
 	    break;
 	case S_server_port:
-	    v = session->ctx->server_port_ascii;
-	    v_len = session->ctx->server_port_ascii_len;
+	    v = session->ctx->server_port_ascii.txt;
+	    v_len = session->ctx->server_port_ascii.len;
 	    break;
 	case S_server_address:
-	    v = session->ctx->server_addr_ascii;
-	    v_len = session->ctx->server_addr_ascii_len;
+	    v = session->ctx->server_addr_ascii.txt;
+	    v_len = session->ctx->server_addr_ascii.len;
 	    break;
 	case S_string:
 	    v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->u.s.lhs, io_now.tv_sec, &v_len);
@@ -5211,8 +5211,8 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s]", m->line, codestring[m->code].txt);
 	break;
     case S_message:
-	session->message = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->message_len);
-	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, session->message ? session->message : "");
+	session->message.txt = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->message.len);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, session->message.txt ? session->message.txt : "");
 	break;
 #ifdef WITH_PCRE2
     case S_rewrite:
@@ -5221,8 +5221,8 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 	break;
 #endif
     case S_label:
-	session->label = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->label_len);
-	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, session->label ? session->label : "");
+	session->label.txt = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->label.len);
+	report(session, LOG_DEBUG, DEBUG_ACL_FLAG, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, session->label.txt ? session->label.txt : "");
 	break;
     case S_profile:
 	session->profile = (tac_profile *) (m->b.v);
@@ -5425,9 +5425,9 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 #ifdef WITH_PCRE2
 void tac_rewrite_user(tac_session *session, tac_rewrite *rewrite)
 {
-    if (!session->username_orig) {
-	session->username_orig = session->username.txt;
-	session->username_orig_len = session->username.len;
+    if (!session->username_orig.txt) {
+	session->username_orig.txt = session->username.txt;
+	session->username_orig.len = session->username.len;
     }
     if (!session->username_rewritten) {
 	tac_rewrite_expr *e = rewrite->expr;
@@ -5446,7 +5446,7 @@ void tac_rewrite_user(tac_session *session, tac_rewrite *rewrite)
 		if (rc > 0) {
 		    session->username.txt = mem_strndup(session->mem, outbuf, outlen);
 		    session->username.len = outlen;
-		    session->username_rewritten = strcmp(session->username_orig, session->username.txt) ? 1 : 0;
+		    session->username_rewritten = strcmp(session->username_orig.txt, session->username.txt) ? 1 : 0;
 		    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: setting username to '%s'", session->username.txt);
 		}
 	    }
@@ -5719,8 +5719,8 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 
     *sess = nsession;
 
-    ctx->tls_psk_identity = mem_strdup(ctx->mem, (char *) identity);
-    ctx->tls_psk_identity_len = strlen((char *) identity);
+    ctx->tls_psk_identity.txt = mem_strdup(ctx->mem, (char *) identity);
+    ctx->tls_psk_identity.len = strlen((char *) identity);
 
     return 1;
 }
