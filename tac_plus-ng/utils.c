@@ -782,17 +782,17 @@ struct log_item *parse_log_format(struct sym *sym, mem_t *mem)
 	    for (sep = in; sep < n && *sep != ','; sep++);
 	    if (sep != n) {
 		*sep++ = 0;
-		(*li)->separator = sep;
-		(*li)->separator_len = strlen(sep);
+		(*li)->separator.txt = sep;
+		(*li)->separator.len = strlen(sep);
 	    }
 	    (*li)->token = keycode(in);
 	    switch ((*li)->token) {
 	    case S_cmd:
 	    case S_args:
 	    case S_rargs:
-		if (!(*li)->separator) {
-		    (*li)->separator = " ";
-		    (*li)->separator_len = 1;
+		if (!(*li)->separator.txt) {
+		    (*li)->separator.txt = " ";
+		    (*li)->separator.len = 1;
 		}
 	    case S_nas:
 	    case S_nac:
@@ -1900,7 +1900,7 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 		    }
 		    size_t buf_len = buf + sizeof(buf) - b;
 		    size_t old_len = buf_len;
-		    rad_attr_val_dump(mem, data, data_len, &b, &buf_len, NULL, li->separator, li->separator_len);
+		    rad_attr_val_dump(mem, data, data_len, &b, &buf_len, NULL, li->separator.txt, li->separator.len);
 		    // rad_attr_val_dump called with buf != NULL. Both b and buf_len are already adjused, but
 		    // total_len isn't.
 		    total_len += old_len - buf_len;
@@ -1947,8 +1947,8 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 				continue;
 			    }
 			}
-			if (separate && li->separator) {
-			    len = ememcpy(b, li->separator, li->separator_len, sizeof(buf) - total_len);
+			if (separate && li->separator.txt) {
+			    len = ememcpy(b, li->separator.txt, li->separator.len, sizeof(buf) - total_len);
 			    total_len += len;
 			    b += len;
 			    if (total_len > sizeof(buf) - 20)

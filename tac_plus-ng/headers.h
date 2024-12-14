@@ -147,8 +147,7 @@ typedef struct tac_host tac_host;
 struct log_item {
     enum token token;
     char *text;
-    char *separator;
-    size_t separator_len;
+    str_t separator;
     struct log_item *next;
 };
 
