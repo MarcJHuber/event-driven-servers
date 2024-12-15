@@ -72,7 +72,8 @@ void accounting(tac_session *session, tac_pak_hdr *hdr)
 
     session->priv_lvl = acct->priv_lvl;
     char buf[10];
-    str_set(&session->priv_lvl_ascii, buf, snprintf(buf, sizeof(buf), "%u", session->priv_lvl));
+    int len = snprintf(buf, sizeof(buf), "%u", session->priv_lvl);
+    str_set(&session->priv_lvl_ascii, mem_strdup(session->mem, buf), len);
 
     if (acct->flags & TAC_PLUS_ACCT_FLAG_STOP) {
 #define S "stop"

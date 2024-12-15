@@ -129,7 +129,8 @@ void author(tac_session *session, tac_pak_hdr *hdr)
 
     session->priv_lvl = pak->priv_lvl;
     char buf[10];
-    str_set(&session->priv_lvl_ascii, buf, snprintf(buf, sizeof(buf), "%u", session->priv_lvl));
+    int len = snprintf(buf, sizeof(buf), "%u", session->priv_lvl);
+    str_set(&session->priv_lvl_ascii, mem_strdup(session->mem, buf), len);
 
     session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii.txt) ? 0 : 1;
     if (session->nac_addr_valid)
