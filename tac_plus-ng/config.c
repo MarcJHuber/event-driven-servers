@@ -1515,7 +1515,7 @@ int rad_get_password(tac_session *session, char **val, size_t *val_len)
 	if (p[0] == RADIUS_A_USER_PASSWORD) {
 	    u_char digest[16];
 	    char *pass = mem_alloc(session->mem, p[1] - 1);
-	    for (int i = 0; i <= p[1]; i++) {
+	    for (int i = 0; i < p[1] - 2; i++) {
 		if (!(i & 0xf)) {
 		    struct iovec iov[2] = {
 			{.iov_base = session->ctx->key->key,.iov_len = session->ctx->key->len },
