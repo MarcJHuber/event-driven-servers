@@ -230,8 +230,7 @@ void send_author_reply(tac_session *session, u_char status, char *msg, char *dat
 #undef S
 	break;
     default:
-	session->result.txt = codestring[S_deny].txt;
-	session->result.len = codestring[S_deny].len;
+	session->result = codestring[S_deny];
 #define S "AUTHZFAIL"
 	str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
