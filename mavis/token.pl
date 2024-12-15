@@ -26,12 +26,8 @@ push @array, '{ 0 }';
 
 open F, "> token.h" or die;
 print F <<EOF
-#include <stddef.h>
-typedef struct {
-    char *txt;
-    size_t len;
-} str_t;
-
+/* automatically generated, do not edit */
+#include "misc/str.h>
 extern str_t codestring[];
 EOF
 ;
@@ -40,6 +36,7 @@ close F;
 
 open F, "> token.c" or die;
 print F <<EOF
+/* automatically generated, do not edit */
 #include "mavis/token.h"
 EOF
 ;
