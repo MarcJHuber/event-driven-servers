@@ -206,42 +206,34 @@ void send_author_reply(tac_session *session, u_char status, char *msg, char *dat
 
     switch (status) {
     case TAC_PLUS_AUTHOR_STATUS_PASS_ADD:
-	session->result.txt = codestring[S_permit].txt;
-	session->result.len = codestring[S_permit].len;
+	session->result = codestring[S_permit];
 #define S "added"
-	session->hint.txt = S;
-	session->hint.len = sizeof(S) - 1;
+	str_set(&session->hint, S, sizeof(S) - 1);
 #undef S
 	if (arg_cnt) {
 #define S "AUTHZPASS-ADD"
-	    session->msgid.txt = S;
-	    session->msgid.len = sizeof(S) - 1;
+	    str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
 	} else {
 #define S "AUTHZPASS"
-	    session->msgid.txt = S;
-	    session->msgid.len = sizeof(S) - 1;
+	    str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
 	}
 	break;
     case TAC_PLUS_AUTHOR_STATUS_PASS_REPL:
-	session->result.txt = codestring[S_permit].txt;
-	session->result.len = codestring[S_permit].len;
+	session->result = codestring[S_permit];
 #define S "replaced"
-	session->hint.txt = S;
-	session->hint.len = sizeof(S) - 1;
+	str_set(&session->hint, S, sizeof(S) - 1);
 #undef S
 #define S "AUTHZPASS-REPL"
-	session->msgid.txt = S;
-	session->msgid.len = sizeof(S) - 1;
+	str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
 	break;
     default:
 	session->result.txt = codestring[S_deny].txt;
 	session->result.len = codestring[S_deny].len;
 #define S "AUTHZFAIL"
-	session->msgid.txt = S;
-	session->msgid.len = sizeof(S) - 1;
+	str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
     }
 
@@ -1025,12 +1017,7 @@ void tac_write(struct context *ctx, int cur)
 	cleanup(ctx, cur);	// We only get here if shutdown(2) failed.
 }
 
-struct type_s {
-    char *str;
-    size_t str_len;
-};
-
-static struct type_s types[] = {
+static str_t types[] = {
     { "", 0 },
 #define S "authen"
     { S, sizeof(S) - 1 },
@@ -1052,16 +1039,13 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_p
     if (tac_hdr) {
 	session->version = tac_hdr->version;
 	session->session_id = tac_hdr->session_id;
-	session->type.txt = types[tac_hdr->type & 3].str;
-	session->type.len = types[tac_hdr->type & 3].str_len;
+	session->type = types[tac_hdr->type & 3];
     } else {
 	session->session_id = RAD_PAK_SESSIONID(radhdr);
 	if (radhdr->code == RADIUS_CODE_ACCESS_REQUEST) {
-	    session->type.txt = types[1].str;
-	    session->type.len = types[1].str_len;
+	    session->type = types[1];
 	} else if (radhdr->code == RADIUS_CODE_ACCOUNTING_REQUEST) {
-	    session->type.txt = types[3].str;
-	    session->type.len = types[3].str_len;
+	    session->type = types[3];
 	}
     }
     session->seq_no = 1;

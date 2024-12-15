@@ -855,7 +855,7 @@ struct context {
     str_t server_addr_ascii;
     str_t server_port_ascii;
 
-    str_t proxy_addr_ascii;	// NULL if not proxied
+    str_t proxy_addr_ascii;	// .txt == NULL if not proxied
 
     str_t peer_addr_ascii;	// TCP/UDP peer
     str_t peer_port_ascii;
@@ -886,8 +886,8 @@ struct context {
     str_t acct_type;
     str_t vrf;
 #define USER_PROFILE_CACHE_SIZE 8
-    struct user_profile_cache user_profile_cache[USER_PROFILE_CACHE_SIZE];
     char *hint;
+    struct user_profile_cache user_profile_cache[USER_PROFILE_CACHE_SIZE];
      TRISTATE(cleanup_when_idle);	/* cleanup context when idle */
      BISTATE(unencrypted_flag);	/* not MD5 encrypted? */
      BISTATE(single_connection_flag);	/* single-connection enabled? */
@@ -1051,7 +1051,7 @@ void attr_add(tac_session *, char ***, int *, char *, size_t);
 enum token validate_ssh_hash(tac_session *, char *, char **);
 enum token validate_ssh_key_id(tac_session *);
 
-tac_realm *lookup_sni(const char *, size_t, tac_realm *);
+tac_realm *lookup_sni(const char *, size_t, tac_realm *, char **, size_t *);
 
 void eval_args(tac_session *, u_char *, u_char *, size_t);
 

@@ -111,91 +111,89 @@ static struct log_item *li_password_expired = NULL;
 struct log_item *li_denied_by_acl = NULL;
 
 struct hint_struct {
-    char *plain;
-    char *msgid;
-    size_t plain_len;
-    size_t msgid_len;
+    str_t plain;
+    str_t msgid;
 };
 
 static struct hint_struct hints[hint_max] = {
 #define S1 "failed"
 #define S2 "AUTHCFAIL"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "failed (denied)"
 #define S2 "AUTHCFAIL-DENY"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "failed (password not set)"
 #define S2 "AUTHCFAIL-NOPASS"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "failed (expired)"
 #define S2 "AUTHCFAIL-EXPIRED"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "failed (no such user)"
 #define S2 "AUTHCFAIL-NOUSER"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "succeeded"
 #define S2 "AUTHCPASS"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "succeeded (permitted)"
 #define S2 "AUTHCPASS-PERMIT"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "failed (no clear text password set)"
 #define S2 "AUTHCFAIL-PASSWORD-NOT-TEXT"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "failed (backend error)"
 #define S2 "AUTHCFAIL-BACKEND"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "denied by user profile"
 #define S2 "AUTHCFAIL-USERPROFILE"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "failed (retry with identical password)"
 #define S2 "AUTHCFAIL-DENY-RETRY"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "failed (This might be a bug, consider reporting it!)"
 #define S2 "AUTHCFAIL-BUG"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "aborted by request"
 #define S2 "AUTHCFAIL-ABORT"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "denied by ACL"
 #define S2 "AUTHCFAIL-ACL"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "denied (invalid challenge length)"
 #define S2 "AUTHCFAIL-BAD-CHALLENGE-LENGTH"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 #define S1 "denied (minimum password requirements not met)"
 #define S2 "AUTHCFAIL-WEAKPASSWORD"
-    { S1, S2, sizeof(S1) - 1, sizeof(S2) - 1 },
+    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
 #undef S1
 #undef S2
 };
@@ -206,9 +204,9 @@ static struct hint_struct hints[hint_max] = {
 static char *get_hint(tac_session *session, enum hint_enum h)
 {
     if (session->user_msg.txt) {
-	size_t n = hints[h].plain_len + strlen(session->user_msg.txt) + 20;
+	size_t n = hints[h].plain.len + session->user_msg.len + 20;
 	char *hint = mem_alloc(session->mem, n);
-	strcpy(hint, hints[h].plain);
+	strcpy(hint, hints[h].plain.txt);
 	strcat(hint, " [");
 	strcat(hint, session->user_msg.txt);
 	char *t = strchr(hint, '\n');
@@ -218,7 +216,7 @@ static char *get_hint(tac_session *session, enum hint_enum h)
 	    strcat(hint, "]");
 	return hint;
     }
-    return hints[h].plain;
+    return hints[h].plain.txt;
 }
 
 static void report_auth(tac_session *session, char *what, enum hint_enum hint, enum token res)
@@ -226,8 +224,7 @@ static void report_auth(tac_session *session, char *what, enum hint_enum hint, e
     char *realm = alloca(session->ctx->realm->name.len + 40);
     tac_realm *r = session->ctx->realm;
 
-    session->result.txt = codestring[res].txt;
-    session->result.len = codestring[res].len;
+    session->result = codestring[res];
 
     if (r == config.default_realm)
 	*realm = 0;
@@ -253,12 +250,9 @@ static void report_auth(tac_session *session, char *what, enum hint_enum hint, e
 	   session->profile ? " (profile=" : "", session->profile ? session->profile->name.txt : "", session->profile ? ")" : "");
 #undef IS_SET
 
-    session->msgid.txt = hints[hint].msgid;
-    session->msgid.len = hints[hint].msgid_len;
-    session->action.txt = what;
-    session->action.len = strlen(what);
-    session->hint.txt = hint_augmented;
-    session->hint.len = strlen(hint_augmented);
+    session->msgid = hints[hint].msgid;
+    str_set(&session->action, what, 0);
+    str_set(&session->hint, hint_augmented, 0);
 
     log_exec(session, session->ctx, session->radius_data ? S_radius_access : S_authentication, io_now.tv_sec);
 }
@@ -404,10 +398,8 @@ static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *)
 	    if (strftime(b, b_len, m, tm))
 		m = mem_strdup(session->mem, b);
 	}
-	if (m) {
-	    session->user_msg.txt = m;
-	    session->user_msg.len = strlen(m);
-	}
+	if (m)
+	    str_set(&session->user_msg, m, 0);
     }
     return res;
 }
@@ -619,15 +611,13 @@ static void do_chpass(tac_session *session)
 
     if (!session->username.txt[0] && session->authen_data->msg) {
 	mem_free(session->mem, &session->username);
-	session->username.txt = session->authen_data->msg;
-	session->username.len = session->authen_data->msg_len;
+	str_set(&session->username, session->authen_data->msg, session->authen_data->msg_len);
 	session->authen_data->msg = NULL;
     }
     if (!session->username.txt[0]) {
 	session->msg.txt = eval_log_format(session, session->ctx, NULL, li_username, io_now.tv_sec, &session->msg.len);
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETUSER, set_welcome_banner(session, li_user_access_verification), 0, NULL, 0, 0);
-	session->msg.txt = NULL;
-	session->msg.len = 0;
+	str_set(&session->msg, NULL, 0);
 	return;
     }
 
@@ -640,7 +630,7 @@ static void do_chpass(tac_session *session)
     if (!session->password) {
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETDATA,
 			  eval_log_format(session, session->ctx, NULL, li_password_old, io_now.tv_sec, NULL), 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
-	session->user_msg.txt = NULL;
+	str_set(&session->user_msg, NULL, 0);
 	return;
     }
 
@@ -659,8 +649,7 @@ static void do_chpass(tac_session *session)
     if (!session->password_new) {
 	send_authen_reply(session, session->chpass ? TAC_PLUS_AUTHEN_STATUS_GETPASS : TAC_PLUS_AUTHEN_STATUS_GETDATA,
 			  eval_log_format(session, session->ctx, NULL, li_password_new, io_now.tv_sec, NULL), 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
-	session->user_msg.txt = NULL;
-	session->user_msg.len = 0;
+	str_set(&session->user_msg, NULL, 0);
 	return;
     }
     if (!session->password_new[0]) {
@@ -707,8 +696,7 @@ static void do_chpass(tac_session *session)
     if (res == S_permit) {
 	session->passwd_mustchange = 0;
 	if (resp) {
-	    session->user_msg.txt = resp;
-	    session->user_msg.len = strlen(resp);
+	    str_set(&session->user_msg, resp, 0);
 	} else
 	    session->user_msg.txt = eval_log_format(session, session->ctx, NULL, li_password_changed, io_now.tv_sec, &session->user_msg.len);
 	resp = set_motd_banner(session);
@@ -736,22 +724,19 @@ static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*
 	    strcat(chal, "\n");
 	    strcat(chal, eval_log_format(session, session->ctx, NULL, li_response, io_now.tv_sec, &session->msg.len));
 	    strcat(chal, " ");
-	    session->msg.txt = chal;
-	    session->msg.len = strlen(chal);
+	    str_set(&session->msg, chal, 0);
 	    session->welcome_banner = set_welcome_banner(session, NULL);
 	    send_authen_reply(session,
 			      TAC_PLUS_AUTHEN_STATUS_GETPASS, session->welcome_banner, 0, NULL, 0,
 			      (session->ctx->realm->chalresp_noecho == TRISTATE_YES) ? TAC_PLUS_REPLY_FLAG_NOECHO : 0);
-	    session->msg.txt = NULL;
-	    session->msg.len = 0;
+	    str_set(&session->msg, NULL, 0);
 	    return;
 	}
     }
 
     session->msg.txt = eval_log_format(session, session->ctx, NULL, li_password, io_now.tv_sec, &session->msg.len);
     session->welcome_banner = set_welcome_banner(session, li_user_access_verification);
-    session->msg.txt = NULL;
-    session->msg.len = 0;
+    str_set(&session->msg, NULL, 0);
 
     send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS, session->welcome_banner, 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
 }
@@ -953,8 +938,7 @@ static void do_ascii_login(tac_session *session)
     if (!session->username.txt[0]) {
 	session->msg.txt = eval_log_format(session, session->ctx, NULL, li_username, io_now.tv_sec, &session->msg.len);
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETUSER, set_welcome_banner(session, li_user_access_verification), 0, NULL, 0, 0);
-	session->msg.txt = NULL;
-	session->msg.len = 0;
+	str_set(&session->msg, NULL, 0);
 	return;
     }
 
@@ -989,7 +973,7 @@ static void do_ascii_login(tac_session *session)
 	    session->password = NULL;
 	    session->authen_data->authfn = do_chpass;
 	    session->flag_mavis_auth = 0;
-	    session->user_msg.txt = eval_log_format(session, session->ctx, NULL, li_password_change_dialog, io_now.tv_sec, NULL);
+	    session->user_msg.txt = eval_log_format(session, session->ctx, NULL, li_password_change_dialog, io_now.tv_sec, &session->user_msg.len);
 	    do_chpass(session);
 	    return;
 	}
@@ -1027,7 +1011,7 @@ static void do_ascii_login(tac_session *session)
     case S_permit:
 	if (session->passwd_mustchange) {
 	    if (!session->user_msg.txt)
-		session->user_msg.txt = eval_log_format(session, session->ctx, NULL, li_change_password, io_now.tv_sec, NULL);
+		session->user_msg.txt = eval_log_format(session, session->ctx, NULL, li_change_password, io_now.tv_sec, &session->user_msg.len);
 	    session->flag_mavis_auth = 0;
 	    session->authen_data->authfn = do_chpass;
 	    do_chpass(session);
@@ -1664,10 +1648,8 @@ void add_revmap(tac_realm *r, struct in6_addr *address, char *hostname, int ttl,
 static void set_revmap_nac(tac_session *session, char *hostname, int ttl)
 {
     report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "NAC revmap(%s) = %s", session->nac_addr_ascii.txt, hostname ? hostname : "(not found)");
-    if (hostname) {
-	session->nac_dns_name.txt = mem_strdup(session->mem, hostname);
-	session->nac_dns_name.len = strlen(hostname);
-    }
+    if (hostname)
+	str_set(&session->nac_dns_name, mem_strdup(session->mem, hostname), 0);
 
     session->revmap_pending = 0;
     session->revmap_timedout = 0;
@@ -1688,8 +1670,7 @@ void get_revmap_nac(tac_session *session)
 		if (r->dns_tree_ptr[i]) {
 		    struct revmap *rev = radix_lookup(r->dns_tree_ptr[i], &session->nac_address, NULL);
 		    if (rev && rev->name && rev->ttl >= io_now.tv_sec) {
-			session->nac_dns_name.txt = mem_strdup(session->mem, rev->name);
-			session->nac_dns_name.len = strlen(session->nac_dns_name.txt);
+			str_set(&session->nac_dns_name, mem_strdup(session->mem, rev->name), 0);
 			report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAC revmap(%s) = %s [TTL: %lld]", session->nac_addr_ascii.txt, rev->name,
 			       (long long) (rev->ttl - io_now.tv_sec));
 			return;
@@ -1721,10 +1702,8 @@ static void set_revmap_nas(struct context *ctx, char *hostname, int ttl)
 
     report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAS revmap(%s) = %s [TTL: %d]", ctx->device_addr_ascii.txt, hostname ? hostname : "(not found)", ttl);
 
-    if (hostname) {
-	ctx->device_dns_name.txt = mem_strdup(ctx->mem, hostname);
-	ctx->device_dns_name.len = strlen(hostname);
-    }
+    if (hostname)
+	str_set(&ctx->device_dns_name, mem_strdup(ctx->mem, hostname), 0);
 
     ctx->revmap_pending = 0;
     ctx->revmap_timedout = 0;
@@ -1752,8 +1731,7 @@ void get_revmap_nas(tac_session *session)
 		if (r->dns_tree_ptr[i]) {
 		    struct revmap *rev = radix_lookup(r->dns_tree_ptr[i], &ctx->device_addr, NULL);
 		    if (rev && rev->name && rev->ttl >= io_now.tv_sec) {
-			ctx->device_dns_name.txt = mem_strdup(ctx->mem, rev->name);
-			ctx->device_dns_name.len = strlen(ctx->device_dns_name.txt);
+			str_set(&ctx->device_dns_name, mem_strdup(ctx->mem, rev->name), 0);
 			report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAS revmap(%s) = %s [TTL: %lld]", ctx->device_addr_ascii.txt, rev->name,
 			       (long long) (rev->ttl - io_now.tv_sec));
 			return;
@@ -1905,15 +1883,12 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 
 	if (session->authen_data->authfn) {
 	    u_char *p = (u_char *) start + TAC_AUTHEN_START_FIXED_FIELDS_SIZE;
-	    session->username.txt = mem_strndup(session->mem, p, start->user_len);
-	    session->username.len = start->user_len;
+	    str_set(&session->username, mem_strndup(session->mem, p, start->user_len), start->user_len);
 
 	    p += start->user_len;
-	    session->port.txt = mem_strndup(session->mem, p, start->port_len);
-	    session->port.len = start->port_len;
+	    str_set(&session->port, mem_strndup(session->mem, p, start->port_len), start->port_len);
 	    p += start->port_len;
-	    session->nac_addr_ascii.txt = mem_strndup(session->mem, p, start->rem_addr_len);
-	    session->nac_addr_ascii.len = start->rem_addr_len;
+	    str_set(&session->nac_addr_ascii, mem_strndup(session->mem, p, start->rem_addr_len), start->rem_addr_len);
 	    session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii.txt) ? 0 : 1;
 	    if (session->nac_addr_valid)
 		get_revmap_nac(session);
@@ -1929,7 +1904,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	    session->privlvl_len = snprintf(session->privlvl, sizeof(session->privlvl), "%u", session->priv_lvl);
 	}
     } else if (cont->flags & TAC_PLUS_CONTINUE_FLAG_ABORT) {
-	char *t = hints[hint_abort].plain;
+	char *t = hints[hint_abort].plain.txt;
 	size_t l = ntohs(cont->user_data_len) + 100;
 	char *tmp = alloca(l);
 	if (cont->user_data_len) {

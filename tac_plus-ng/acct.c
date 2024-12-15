@@ -75,44 +75,35 @@ void accounting(tac_session *session, tac_pak_hdr *hdr)
 
     if (acct->flags & TAC_PLUS_ACCT_FLAG_STOP) {
 #define S "stop"
-	session->acct_type.txt = S;
-	session->acct_type.len = sizeof(S) - 1;
+	str_set(&session->acct_type, S, sizeof(S) - 1);
 #undef S
 #define S "ACCT-STOP"
-	session->msgid.txt = S;
-	session->msgid.len = sizeof(S) - 1;
+	str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
     } else if (acct->flags & TAC_PLUS_ACCT_FLAG_START) {
 #define S "start"
-	session->acct_type.txt = S;
-	session->acct_type.len = sizeof(S) - 1;
+	str_set(&session->acct_type, S, sizeof(S) - 1);
 #undef S
 #define S "ACCT-START"
-	session->msgid.txt = S;
-	session->msgid.len = sizeof(S) - 1;
+	str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
     } else if (acct->flags & TAC_PLUS_ACCT_FLAG_WATCHDOG) {
 #define S "update"
-	session->acct_type.txt = S;
-	session->acct_type.len = sizeof(S) - 1;
+	str_set(&session->acct_type, S, sizeof(S) - 1);
 #undef S
 #define S "ACCT-UPDATE"
-	session->msgid.txt = S;
-	session->msgid.len = sizeof(S) - 1;
+	str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
     } else {
 #define S "unknown"
-	session->acct_type.txt = S;
-	session->acct_type.len = sizeof(S) - 1;
+	str_set(&session->acct_type, S, sizeof(S) - 1);
 #undef S
 #define S "ACCT-UNKNOWN"
-	session->msgid.txt = S;
-	session->msgid.len = sizeof(S) - 1;
+	str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
     }
 
-    session->username.txt = mem_strndup(session->mem, p, acct->user_len);
-    session->username.len = acct->user_len;
+    str_set(&session->username, mem_strndup(session->mem, p, acct->user_len), acct->user_len);
 
     // script-based user rewriting, current
     enum token res = S_unknown;
@@ -123,11 +114,9 @@ void accounting(tac_session *session, tac_pak_hdr *hdr)
     }
 
     p += acct->user_len;
-    session->port.txt = mem_strndup(session->mem, p, acct->port_len);
-    session->port.len = acct->port_len;
+    str_set(&session->port, mem_strndup(session->mem, p, acct->port_len), acct->port_len);
     p += acct->port_len;
-    session->nac_addr_ascii.txt = mem_strndup(session->mem, p, acct->rem_addr_len);
-    session->nac_addr_ascii.len = acct->rem_addr_len;
+    str_set(&session->nac_addr_ascii, mem_strndup(session->mem, p, acct->rem_addr_len), acct->rem_addr_len);
     p += acct->rem_addr_len;
     session->argp = p;
     session->arg_cnt = acct->arg_cnt;
@@ -173,60 +162,48 @@ void rad_acct(tac_session *session)
 	switch (type) {
 	case RADIUS_V_ACCT_STATUS_TYPE_START:
 #define S "start"
-	    session->acct_type.txt = S;
-	    session->acct_type.len = sizeof(S) - 1;
+	    str_set(&session->acct_type, S, sizeof(S) - 1);
 #undef S
 #define S "ACCT-START"
-	    session->msgid.txt = S;
-	    session->msgid.len = sizeof(S) - 1;
+	    str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
 	    break;
 	case RADIUS_V_ACCT_STATUS_TYPE_STOP:
 #define S "stop"
-	    session->acct_type.txt = S;
-	    session->acct_type.len = sizeof(S) - 1;
+	    str_set(&session->acct_type, S, sizeof(S) - 1);
 #undef S
 #define S "ACCT-STOP"
-	    session->msgid.txt = S;
-	    session->msgid.len = sizeof(S) - 1;
+	    str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
 	    break;
 	case RADIUS_V_ACCT_STATUS_TYPE_INTERIM_UPDATE:
 #define S "update"
-	    session->acct_type.txt = S;
-	    session->acct_type.len = sizeof(S) - 1;
+	    str_set(&session->acct_type, S, sizeof(S) - 1);
 #undef S
 #define S "ACCT-UPDATE"
-	    session->msgid.txt = S;
-	    session->msgid.len = sizeof(S) - 1;
+	    str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
 	    break;
 	case RADIUS_V_ACCT_STATUS_TYPE_ACCOUNTING_ON:
 #define S "on"
-	    session->acct_type.txt = S;
-	    session->acct_type.len = sizeof(S) - 1;
+	    str_set(&session->acct_type, S, sizeof(S) - 1);
 #undef S
 #define S "ACCT-ON"
-	    session->msgid.txt = S;
-	    session->msgid.len = sizeof(S) - 1;
+	    str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
 	case RADIUS_V_ACCT_STATUS_TYPE_ACCTOUNTING_OFF:
 #define S "off"
-	    session->acct_type.txt = S;
-	    session->acct_type.len = sizeof(S) - 1;
+	    str_set(&session->acct_type, S, sizeof(S) - 1);
 #undef S
 #define S "ACCT-OFF"
-	    session->msgid.txt = S;
-	    session->msgid.len = sizeof(S) - 1;
+	    str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
 	default:
 #define S "unknown"
-	    session->acct_type.txt = S;
-	    session->acct_type.len = sizeof(S) - 1;
+	    str_set(&session->acct_type, S, sizeof(S) - 1);
 #undef S
 #define S "ACCT-UNKNOWN"
-	    session->msgid.txt = S;
-	    session->msgid.len = sizeof(S) - 1;
+	    str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
 	}
     }

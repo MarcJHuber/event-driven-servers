@@ -400,9 +400,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 	r->last_backend_failure = io_now.tv_sec;
 	while (r && session->mavisauth_res) {
 	    if (r->usertable) {
-		tac_user u;
-		u.name.txt = session->username.txt;
-		u.name.len = strlen(u.name.txt);
+		tac_user u = { .name = session->username };
 		rb_node_t *rbn = RB_search(r->usertable, &u);
 		if (rbn) {
 		    tac_user *uf = RB_payload(rbn, tac_user *);
@@ -547,10 +545,8 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx *avc)
 	    if (parse_host_profile(&sym, ctx->realm, h))
 		ctx->mavis_result = S_deny;
 	    else {
-		if (!h->name.txt) {
-		    h->name.txt = ctx->host->name.txt;
-		    h->name.len = ctx->host->name.len;
-		}
+		if (!h->name.txt)
+		    h->name = ctx->host->name;
 		complete_host(h);
 		ctx->host = h;
 	    }

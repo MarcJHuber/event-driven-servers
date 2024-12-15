@@ -461,8 +461,7 @@ void parse_log(struct sym *sym, tac_realm *r)
     struct logfile *lf = calloc(1, sizeof(struct logfile));
     if (sym->code == S_equal)
 	sym_get(sym);
-    lf->name.txt = strdup(sym->buf);
-    lf->name.len = strlen(sym->buf);
+    str_set(&lf->name, strdup(sym->buf), 0);
     sym_get(sym);
     if (r->logdestinations && RB_search(r->logdestinations, lf))
 	parse_error(sym, "log destination '%s' already defined", lf->name);
@@ -782,18 +781,15 @@ struct log_item *parse_log_format(struct sym *sym, mem_t *mem)
 	    for (sep = in; sep < n && *sep != ','; sep++);
 	    if (sep != n) {
 		*sep++ = 0;
-		(*li)->separator.txt = sep;
-		(*li)->separator.len = strlen(sep);
+		str_set(&(*li)->separator, sep, 0);
 	    }
 	    (*li)->token = keycode(in);
 	    switch ((*li)->token) {
 	    case S_cmd:
 	    case S_args:
 	    case S_rargs:
-		if (!(*li)->separator.txt) {
-		    (*li)->separator.txt = " ";
-		    (*li)->separator.len = 1;
-		}
+		if (!(*li)->separator.txt)
+		    str_set(&(*li)->separator, " ", 1);
 	    case S_nas:
 	    case S_nac:
 	    case S_client:

@@ -85,18 +85,15 @@ void eval_args(tac_session *session, u_char *p, u_char *argsizep, size_t argcnt)
 	    t += len;
 	    tlen += len;
 	} else if (l > 8 && !strncmp(a, "service=", 8)) {
-	    session->service.len = l - 8;
-	    session->service.txt = mem_strndup(session->mem, (u_char *) (a + 8), l - 8);
+	    str_set(&session->service, mem_strndup(session->mem, (u_char *) (a + 8), l - 8), l - 8);
 	} else if (l > 9 && !strncmp(a, "protocol=", 9)) {
-	    session->protocol.len = l - 9;
-	    session->protocol.txt = mem_strndup(session->mem, (u_char *) (a + 9), l - 9);
+	    str_set(&session->protocol, mem_strndup(session->mem, (u_char *) (a + 8), l - 8), l - 9);
 	}
 	p += *argsizep;
 	argsizep++;
     }
     *t = 0;
-    session->cmdline.txt = mem_strdup(session->mem, cmdline);
-    session->cmdline.len = tlen;
+    str_set(&session->cmdline, mem_strdup(session->mem, cmdline), tlen);
 }
 
 void author(tac_session *session, tac_pak_hdr *hdr)
@@ -118,14 +115,12 @@ void author(tac_session *session, tac_pak_hdr *hdr)
 
     session->pak_authen_type = pak->authen_type;
     session->pak_authen_method = pak->authen_method;
-    session->username.len = (size_t) pak->user_len;
-    session->username.txt = mem_strndup(session->mem, p, session->username.len);
+
+    str_set(&session->username, mem_strndup(session->mem, p, pak->user_len), pak->user_len);
     p += pak->user_len;
-    session->port.txt = mem_strndup(session->mem, p, (size_t) pak->port_len);
-    session->port.len = pak->port_len;
+    str_set(&session->port, mem_strndup(session->mem, p, pak->port_len), pak->port_len);
     p += pak->port_len;
-    session->nac_addr_ascii.txt = mem_strndup(session->mem, p, (size_t) pak->rem_addr_len);
-    session->nac_addr_ascii.len = (size_t) pak->rem_addr_len;
+    str_set(&session->nac_addr_ascii, mem_strndup(session->mem, p, pak->rem_addr_len), pak->rem_addr_len);
     p += pak->rem_addr_len;
 
     session->argp = p;

@@ -440,11 +440,10 @@ static tac_host *new_host(struct sym *sym, char *name, tac_host *parent, tac_rea
     tac_host *host = calloc(1, sizeof(tac_host));
     if (sym) {
 	host->line = sym->line;
-	host->name.txt = strdup(sym->buf);
+	str_set(&host->name, strdup(sym->buf), 0);
 	sym_get(sym);
     } else
-	host->name.txt = name;
-    host->name.len = strlen(host->name.txt);
+	str_set(&host->name, name, 0);
     init_host(host, parent, r, top);
     return host;
 }
@@ -452,8 +451,7 @@ static tac_host *new_host(struct sym *sym, char *name, tac_host *parent, tac_rea
 static tac_realm *new_realm(char *name, tac_realm *parent)
 {
     tac_realm *r = calloc(1, sizeof(tac_realm));
-    r->name.txt = strdup(name);
-    r->name.len = strlen(name);
+    str_set(&r->name, strdup(name), 0);
 
     r->default_host = new_host(NULL, "default", NULL, r, parent ? 0 : 1);
 
@@ -680,8 +678,7 @@ static void dns_add_a(rb_tree_t **t, struct in6_addr *a, char *name)
     struct dns_forward_mapping **dsp = &ds;
 
     if (*t) {
-	dn->name.txt = name;
-	dn->name.len = strlen(name);
+	str_set(&dn->name, name, 0);
 	ds = (struct dns_forward_mapping *) RB_lookup(*t, dn);
 	if (ds) {
 	    while (*dsp) {
@@ -693,8 +690,7 @@ static void dns_add_a(rb_tree_t **t, struct in6_addr *a, char *name)
 		dsp = &(*dsp)->next;
 	    }
 	    *dsp = dn;
-	    dn->name.txt = NULL;
-	    dn->name.len = 0;
+	    str_set(&dn->name, NULL, 0);
 	    dn->a = *a;
 	    return;
 	}
@@ -702,8 +698,7 @@ static void dns_add_a(rb_tree_t **t, struct in6_addr *a, char *name)
 	*t = RB_tree_new(compare_name, free_dns_tree_a);
 
     dn->a = *a;
-    dn->name.txt = strdup(name);
-    dn->name.len = strlen(name);
+    str_set(&dn->name, strdup(name), 0);
     RB_insert(*t, dn);
 }
 
@@ -860,8 +855,7 @@ static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm *parent, ta
     if (!nrealm) {
 	nrealm = new_realm(sym->buf, parent);
 	nrealm->line = sym->line;
-	nrealm->name.txt = name; // caller did strdup() this one
-	nrealm->name.len = strlen(name);
+	str_set(&nrealm->name, name, 0);
     }
 
     if (!empty)
@@ -1047,19 +1041,24 @@ struct sni_list {
     char name[1];
 };
 
-tac_realm *lookup_sni(const char *name, size_t name_len, tac_realm *r)
+tac_realm *lookup_sni(const char *name, size_t name_len, tac_realm *r, char **txt, size_t *len)
 {
     struct sni_list *l = r->sni_list;
     while (l) {
-	if (name_len == l->name_len && !strcmp(name, l->name))
+	if (name_len == l->name_len && !strcmp(name, l->name)) {
+	    if (txt)
+		*txt = l->name;
+	    if (len)
+		*len = l->name_len;
 	    return r;
+	}
 	l = l->next;
     }
 
     if (r->realms) {
 	tac_realm *res;
 	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
-	    if ((res = lookup_sni(name, name_len, RB_payload(rbn, tac_realm *))))
+	    if ((res = lookup_sni(name, name_len, RB_payload(rbn, tac_realm *), txt, len)))
 		return res;
     }
     return NULL;
@@ -1068,7 +1067,7 @@ tac_realm *lookup_sni(const char *name, size_t name_len, tac_realm *r)
 static void add_sni(struct sym *sym, tac_realm *r)
 {
     size_t len = strlen(sym->buf);
-    tac_realm *q = lookup_sni(sym->buf, len, r);
+    tac_realm *q = lookup_sni(sym->buf, len, r, NULL, NULL);
     if (q)
 	parse_error(sym, "SNI %s already associated to realm %s", sym->buf, q->name);
     struct sni_list *l = calloc(1, sizeof(struct sni_list) + len);
@@ -1111,8 +1110,7 @@ static struct rad_dict *rad_dict_new(struct sym *sym, char *name, int id)
     while (*dict)
 	dict = &(*dict)->next;
     *dict = calloc(1, sizeof(struct rad_dict));
-    (*dict)->name.txt = strdup(name);
-    (*dict)->name.len = strlen(name);
+    str_set(&(*dict)->name, strdup(name), 0);
     (*dict)->line = sym->line;
     (*dict)->id = id;
     return *dict;
@@ -1175,8 +1173,7 @@ static struct rad_dict_attr *rad_dict_attr_add(struct sym *sym, struct rad_dict 
     while (*attr)
 	attr = &(*attr)->next;
     *attr = calloc(1, sizeof(struct rad_dict_attr));
-    (*attr)->name.txt = strdup(name);
-    (*attr)->name.len = strlen(name);
+    str_set(&(*attr)->name, strdup(name), 0);
     (*attr)->line = sym->line;
     (*attr)->id = id;
     (*attr)->dict = dict;
@@ -1190,8 +1187,7 @@ static void rad_dict_attr_add_val(struct sym *sym, struct rad_dict_attr *attr, c
     while (*val)
 	val = &(*val)->next;
     *val = calloc(1, sizeof(struct rad_dict_val));
-    (*val)->name.txt = strdup(name);
-    (*val)->name.len = strlen(name);
+    str_set(&(*val)->name, strdup(name), 0);
     (*val)->line = sym->line;
     (*val)->id = id;
 }
@@ -2291,8 +2287,7 @@ tac_user *new_user(char *name, enum token type, tac_realm *r)
     if (type == S_mavis)
 	mem = mem_create(M_LIST);
     user = mem_alloc(mem, sizeof(tac_user));
-    user->name.txt = mem_strdup(mem, name);
-    user->name.len = strlen(name);
+    str_set(&user->name, mem_strdup(mem, name), 0);
     user->mem = mem;
     user->realm = r;
 
@@ -2319,8 +2314,7 @@ tac_profile *new_profile(mem_t *mem, char *name, tac_realm *r)
     report(NULL, LOG_DEBUG, DEBUG_CONFIG_FLAG, "creating profile %s in realm %s", name, r->name.txt);
 
     profile = (tac_profile *) mem_alloc(mem, sizeof(tac_profile));
-    profile->name.txt = mem_strdup(mem, name);
-    profile->name.len = strlen(name);
+    str_set(&profile->name, mem_strdup(mem, name), 0);
     profile->realm = r;
     return profile;
 }
@@ -2414,7 +2408,7 @@ static void parse_ruleset(struct sym *sym, tac_realm *realm)
 	    rulename = sym->buf;
 
 	*r = calloc(1, sizeof(struct tac_rule));
-	(*r)->acl.name.txt = strdup(rulename);
+	str_set(&(*r)->acl.name, strdup(rulename), 0);
 	(*r)->enabled = 1;	// enabled by default
 	if (rulename == sym->buf)
 	    sym_get(sym);
@@ -2535,8 +2529,7 @@ enum token eval_ruleset_r(tac_session *session, tac_realm *realm, int parent_fir
 	    case S_permit:
 	    case S_deny:
 		cache_user_profile(session, res);
-		session->rule.txt = rule->acl.name.txt;
-		session->rule.len = rule->acl.name.len;
+		session->rule = rule->acl.name;
 		return res;
 	    default:;
 	    }
@@ -3325,8 +3318,7 @@ static void parse_user_attr(struct sym *sym, tac_user *user)
 		} else
 		    r->aliastable = RB_tree_new(compare_name, NULL);
 		a = mem_alloc(user->mem, sizeof(tac_alias));
-		a->name.txt = mem_strdup(user->mem, sym->buf);
-		a->name.len = strlen(sym->buf);
+		str_set(&a->name, mem_strdup(user->mem, sym->buf), 0);
 		a->user = user;
 		a->line = sym->line;
 		a->next = user->alias;
@@ -3478,13 +3470,11 @@ static void parse_rewrite(struct sym *sym, tac_realm *r)
     if (!r->rewrite)
 	r->rewrite = RB_tree_new(compare_name, NULL);
 
-    rewrite->name.txt = sym->buf;
-    rewrite->name.len = strlen(sym->buf);
+    str_set(&rewrite->name, sym->buf, 0);
     rewrite = RB_lookup(r->rewrite, rewrite);
     if (!rewrite) {
 	rewrite = (tac_rewrite *) calloc(1, sizeof(tac_rewrite));
-	rewrite->name.txt = strdup(sym->buf);
-	rewrite->name.len = strlen(sym->buf);
+	str_set(&rewrite->name, strdup(sym->buf), 0);
 	RB_insert(r->rewrite, rewrite);
     }
 
@@ -3542,8 +3532,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    // dynamic hosts support the "name = <device name>" attribute.
 	    sym_get(sym);
 	    parse(sym, S_equal);
-	    host->name.txt = mem_strdup(host->mem, sym->buf);
-	    host->name.len = strlen(host->name.txt);
+	    str_set(&host->name, mem_strdup(host->mem, sym->buf), 0);
 	    sym_get(sym);
 	    return;
 	case S_parent:
@@ -4026,8 +4015,7 @@ static void parse_net(struct sym *sym, tac_realm *r, tac_net *parent)
 
     sym_get(sym);
 
-    net->name.txt = strdup(sym->buf);
-    net->name.len = strlen(sym->buf);
+    str_set(&net->name, strdup(sym->buf), 0);
     net->nettree = radix_new(NULL, NULL);
     if ((np = RB_lookup(r->nettable, (void *) net)))
 	parse_error(sym, "Net '%s' already defined at line %u", sym->buf, np->line);
@@ -4141,8 +4129,7 @@ static void parse_tac_acl(struct sym *sym, tac_realm *realm)
     a = tac_acl_lookup(sym->buf, realm);
     if (!a) {
 	a = calloc(1, sizeof(struct tac_acl));
-	a->name.txt = strdup(sym->buf);
-	a->name.len = strlen(sym->buf);
+	str_set(&a->name, strdup(sym->buf), 0);
 	RB_insert(realm->acltable, a);
     }
     sym_get(sym);
@@ -4267,10 +4254,9 @@ void cfg_init(void)
 
     struct utsname utsname = { 0 };
     if (uname(&utsname) || !*(utsname.nodename))
-	config.hostname.txt = "amnesiac";
+	str_set(&config.hostname, "amnesiac", 0);
     else
-	config.hostname.txt = strdup(utsname.nodename);
-    config.hostname.len = strlen(config.hostname.txt);
+	str_set(&config.hostname, strdup(utsname.nodename), 0);
 }
 
 int cfg_get_enable(tac_session *session, struct pwdat **p)
@@ -5425,10 +5411,9 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 #ifdef WITH_PCRE2
 void tac_rewrite_user(tac_session *session, tac_rewrite *rewrite)
 {
-    if (!session->username_orig.txt) {
-	session->username_orig.txt = session->username.txt;
-	session->username_orig.len = session->username.len;
-    }
+    if (!session->username_orig.txt)
+	session->username_orig = session->username;
+
     if (!session->username_rewritten) {
 	tac_rewrite_expr *e = rewrite->expr;
 
@@ -5444,8 +5429,7 @@ void tac_rewrite_user(tac_session *session, tac_rewrite *rewrite)
 		pcre2_match_data_free(match_data);
 		report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", e->name, session->username.txt, rc);
 		if (rc > 0) {
-		    session->username.txt = mem_strndup(session->mem, outbuf, outlen);
-		    session->username.len = outlen;
+		    str_set(&session->username, mem_strndup(session->mem, outbuf, outlen), outlen);
 		    session->username_rewritten = strcmp(session->username_orig.txt, session->username.txt) ? 1 : 0;
 		    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: setting username to '%s'", session->username.txt);
 		}
@@ -5493,8 +5477,7 @@ static tac_group *tac_group_new(struct sym *sym, char *name, tac_realm *r)
 	parse_error(sym, "Group %s already defined at line %u", sym->buf, gp->line);
     }
     gp = calloc(1, sizeof(tac_group));
-    gp->name.txt = strdup(name);
-    gp->name.len = strlen(name);
+    str_set(&gp->name, strdup(name), 0);
     RB_insert(r->groups_by_name, gp);
 
     return gp;
@@ -5565,8 +5548,7 @@ static tac_tag *tac_tag_parse(struct sym *sym)
     tac_tag *tag = RB_lookup(tags_by_name, &t);
     if (!tag) {
 	tag = calloc(1, sizeof(tac_tag));
-	tag->name.txt = strdup(sym->buf);
-	tag->name.len = strlen(sym->buf);
+	str_set(&tag->name, strdup(sym->buf), 0);
 	RB_insert(tags_by_name, tag);
     }
     sym_get(sym);
@@ -5719,8 +5701,7 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 
     *sess = nsession;
 
-    ctx->tls_psk_identity.txt = mem_strdup(ctx->mem, (char *) identity);
-    ctx->tls_psk_identity.len = strlen((char *) identity);
+    str_set(&ctx->tls_psk_identity, mem_strdup(ctx->mem, (char *) identity), 0);
 
     return 1;
 }
