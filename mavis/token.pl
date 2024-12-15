@@ -27,7 +27,7 @@ push @array, '{ 0 }';
 open F, "> token.h" or die;
 print F <<EOF
 /* automatically generated, do not edit */
-#include "misc/str.h>
+#include "misc/str.h"
 extern str_t codestring[];
 EOF
 ;
