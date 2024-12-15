@@ -4848,8 +4848,8 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	    v_len = session->authen_method.len;
 	    break;
 	case S_privlvl:
-	    v = session->privlvl;
-	    v_len = session->privlvl_len;
+	    v = session->priv_lvl_ascii.txt;
+	    v_len = session->priv_lvl_ascii.len;
 	    break;
 	case S_vrf:
 	    v = session->ctx->vrf.txt;

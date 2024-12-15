@@ -1901,7 +1901,8 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 		send_authen_error(session, "Invalid privilege level %d in packet.", session->priv_lvl);
 		return;
 	    }
-	    session->privlvl_len = snprintf(session->privlvl, sizeof(session->privlvl), "%u", session->priv_lvl);
+	    char buf[10];
+	    str_set(&session->priv_lvl_ascii, buf, snprintf(buf, sizeof(buf), "%u", session->priv_lvl));
 	}
     } else if (cont->flags & TAC_PLUS_CONTINUE_FLAG_ABORT) {
 	char *t = hints[hint_abort].plain.txt;

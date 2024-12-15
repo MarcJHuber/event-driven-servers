@@ -1143,8 +1143,8 @@ static char *eval_log_format_privlvl(tac_session *session, struct context *ctx _
 				     __attribute__((unused)), size_t *len)
 {
     if (session) {
-	*len = session->privlvl_len;
-	return session->privlvl;
+	*len = session->priv_lvl_ascii.len;
+	return session->priv_lvl_ascii.txt;
     }
     return NULL;
 }

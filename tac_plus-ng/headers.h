@@ -779,8 +779,7 @@ struct tac_session {
     u_char *argp_out;
     str_t result;
     u_int priv_lvl;		/* requested privilege level */
-    char privlvl[4];
-    int privlvl_len;
+    str_t priv_lvl_ascii;
     char *ssh_key_hash;
     char *ssh_key_id;
     int session_id;
