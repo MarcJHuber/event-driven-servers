@@ -527,7 +527,7 @@ tac_user *lookup_user(tac_session *session)
     session->user = NULL;
     if (!session->username.len)
 	return NULL;
-    tac_user user = {.name.txt = session->username.txt,.name.len = session->username.len };
+    tac_user user = {.name = session->username };
     tac_realm *r = session->ctx->realm;
     while (r && !session->user) {
 	if (r->usertable)
