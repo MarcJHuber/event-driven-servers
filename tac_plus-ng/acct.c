@@ -193,7 +193,7 @@ void rad_acct(tac_session *session)
 #define S "ACCT-ON"
 	    str_set(&session->msgid, S, sizeof(S) - 1);
 #undef S
-	case RADIUS_V_ACCT_STATUS_TYPE_ACCTOUNTING_OFF:
+	case RADIUS_V_ACCT_STATUS_TYPE_ACCOUNTING_OFF:
 #define S "off"
 	    str_set(&session->acct_type, S, sizeof(S) - 1);
 #undef S

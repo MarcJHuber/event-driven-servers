@@ -172,20 +172,22 @@ typedef struct mem mem_t;
 struct tac_host {
     TAC_NAME_ATTRIBUTES;
     u_int line;			/* configuration file line number */
-     TRISTATE(anon_enable);	/* permit anonymous enable */
-     TRISTATE(lookup_revmap_nac);	/* lookup reverse mapping in DNS */
-     TRISTATE(lookup_revmap_nas);	/* lookup reverse mapping in DNS */
-     TRISTATE(authfallback);	/* authentication fallback permitted? */
-     TRISTATE(single_connection);	/* single-connection permitted? */
-     TRISTATE(cleanup_when_idle);	/* cleanup context when idle */
-     TRISTATE(augmented_enable);	/* one-step enable for $enab.* user */
-     TRISTATE(map_pap_to_login);
-     TRISTATE(authz_if_authc);
-     TRISTATE(try_mavis);
-     BISTATE(complete);
-     BISTATE(visited);
-     BISTATE(skip_parent_script);
-    u_int bug_compatibility;
+    struct {
+	TRISTATE(anon_enable);	/* permit anonymous enable */
+	TRISTATE(lookup_revmap_nac);	/* lookup reverse mapping in DNS */
+	TRISTATE(lookup_revmap_nas);	/* lookup reverse mapping in DNS */
+	TRISTATE(authfallback);	/* authentication fallback permitted? */
+	TRISTATE(single_connection);	/* single-connection permitted? */
+	TRISTATE(cleanup_when_idle);	/* cleanup context when idle */
+	TRISTATE(augmented_enable);	/* one-step enable for $enab.* user */
+	TRISTATE(map_pap_to_login);
+	TRISTATE(authz_if_authc);
+	TRISTATE(try_mavis);
+	BISTATE(complete);
+	BISTATE(visited);
+	BISTATE(skip_parent_script);
+	u_char bug_compatibility;
+    } __attribute__((__packed__));
     tac_host *parent;
     tac_realm *target_realm;
     mem_t *mem;
@@ -247,11 +249,13 @@ struct tac_profile {
     struct pwdat **enable;
     struct mavis_action *action;
     tac_realm *realm;
-     TRISTATE(hushlogin);
-     BISTATE(complete);
-     BISTATE(visited);
-     BISTATE(skip_parent_script);
-     BISTATE(dynamie);
+    struct {
+	TRISTATE(hushlogin);
+	BISTATE(complete);
+	BISTATE(visited);
+	BISTATE(skip_parent_script);
+	BISTATE(dynamie);
+    } __attribute__((__packed__));
     u_int line;			/* configuration file line number */
     u_int debug;		/* debug flags */
 };
@@ -279,11 +283,13 @@ typedef struct {
     tac_realm *realm;
     tac_alias *alias;
     u_int debug;		/* debug flags */
-     TRISTATE(chalresp);
-     TRISTATE(hushlogin);
-     BISTATE(passwd_oneshot);
-     BISTATE(fallback_only);
-     BISTATE(rewritten_only);
+    struct {
+	TRISTATE(chalresp);
+	TRISTATE(hushlogin);
+	BISTATE(passwd_oneshot);
+	BISTATE(fallback_only);
+	BISTATE(rewritten_only);
+    } __attribute__((__packed__));
     av_ctx *avc;
     struct tac_profile *profile;
 } tac_user;
@@ -346,32 +352,33 @@ struct realm {
     mavis_ctx *mcx;
     struct tac_rule *rules;
     tac_host *default_host;
+    struct {
+	BISTATE(complete);
 
-     BISTATE(complete);
+	TRISTATE(chalresp);	/* enable challenge-response authentication */
+	TRISTATE(chalresp_noecho);	/* enable local echo for response */
+	TRISTATE(chpass);	/* enable password change dialogue */
+	TRISTATE(mavis_userdb);	/* use MAVIS for user authentication, too */
+	TRISTATE(mavis_noauthcache);	/* don't do backend password caching */
+	TRISTATE(mavis_pap);
+	TRISTATE(mavis_login);
+	TRISTATE(mavis_pap_prefetch);
+	TRISTATE(mavis_login_prefetch);
+	TRISTATE(script_profile_parent_first);
+	TRISTATE(script_host_parent_first);
+	TRISTATE(script_realm_parent_first);
+	TRISTATE(haproxy_autodetect);
 
-     TRISTATE(chalresp);	/* enable challenge-response authentication */
-     TRISTATE(chalresp_noecho);	/* enable local echo for response */
-     TRISTATE(chpass);		/* enable password change dialogue */
-     TRISTATE(mavis_userdb);	/* use MAVIS for user authentication, too */
-     TRISTATE(mavis_noauthcache);	/* don't do backend password caching */
-     TRISTATE(mavis_pap);
-     TRISTATE(mavis_login);
-     TRISTATE(mavis_pap_prefetch);
-     TRISTATE(mavis_login_prefetch);
-     TRISTATE(script_profile_parent_first);
-     TRISTATE(script_host_parent_first);
-     TRISTATE(script_realm_parent_first);
-     TRISTATE(haproxy_autodetect);
+	TRISTATE(allowed_protocol_radius);
+	TRISTATE(allowed_protocol_radius_tcp);
+	TRISTATE(allowed_protocol_radsec);
+	TRISTATE(allowed_protocol_tacacs);
+	TRISTATE(allowed_protocol_tacacss);
 
-     TRISTATE(allowed_protocol_radius);
-     TRISTATE(allowed_protocol_radius_tcp);
-     TRISTATE(allowed_protocol_radsec);
-     TRISTATE(allowed_protocol_tacacs);
-     TRISTATE(allowed_protocol_tacacss);
-
-     BISTATE(use_tls_psk);
-     BISTATE(visited);
-     BISTATE(skip_parent_script);
+	BISTATE(use_tls_psk);
+	BISTATE(visited);
+	BISTATE(skip_parent_script);
+    } __attribute__((__packed__));
     int dns_caching_period;	/* dns caching period */
     time_t dnspurge_last;
     int caching_period;		/* user caching period */
@@ -482,7 +489,7 @@ typedef struct {
 #define RADIUS_V_ACCT_STATUS_TYPE_STOP			2
 #define RADIUS_V_ACCT_STATUS_TYPE_INTERIM_UPDATE	3
 #define RADIUS_V_ACCT_STATUS_TYPE_ACCOUNTING_ON		7
-#define RADIUS_V_ACCT_STATUS_TYPE_ACCTOUNTING_OFF	8
+#define RADIUS_V_ACCT_STATUS_TYPE_ACCOUNTING_OFF	8
 
 #define RADIUS_A_ACCT_DELAY_TIME	41
 #define RADIUS_A_ACCT_INPUT_OCTETS	42
@@ -675,7 +682,7 @@ struct acct {
     /* <port_len bytes of char data> */
     /* <rem_addr_len bytes of u_char data> */
     /* char data for args 1 ... n */
-};
+} __attribute__((__packed__));
 
 #define TAC_ACCT_REQ_FIXED_FIELDS_SIZE 9
 
@@ -745,9 +752,6 @@ struct tac_session {
     struct in6_addr nac_address;	/* host byte order */
     str_t username;
     str_t username_orig;
-    char *password;
-    char *password_new;
-    char *password_bad;
     str_t msg;
     str_t user_msg;
     str_t port;
@@ -759,9 +763,6 @@ struct tac_session {
     str_t service;
     str_t protocol;
     str_t hint;
-    char *challenge;
-    char *motd;
-    char *welcome_banner;
     str_t msgid;
     str_t cmdline;
     str_t message;		// to the user
@@ -771,15 +772,21 @@ struct tac_session {
     str_t authen_method;
     str_t rule;
     str_t label;
+    str_t result;
+    str_t priv_lvl_ascii;
     u_char arg_cnt;
     u_char *arg_len;
     u_char *argp;
     u_char arg_out_cnt;
     u_char *arg_out_len;
     u_char *argp_out;
-    str_t result;
     u_int priv_lvl;		/* requested privilege level */
-    str_t priv_lvl_ascii;
+    char *password;
+    char *password_new;
+    char *password_bad;
+    char *challenge;
+    char *motd;
+    char *welcome_banner;
     char *ssh_key_hash;
     char *ssh_key_id;
     int session_id;
@@ -790,22 +797,24 @@ struct tac_session {
     struct radius_data *radius_data;
     struct pwdat *enable;
     tac_profile *profile;
-     BISTATE(nac_addr_valid);
-     BISTATE(flag_mavis_info);
-     BISTATE(flag_mavis_auth);
-     BISTATE(flag_chalresp);
-     BISTATE(mavis_pending);
-     BISTATE(revmap_pending);
-     BISTATE(revmap_timedout);
-     BISTATE(enable_getuser);
-     BISTATE(password_bad_again);
-     BISTATE(passwd_mustchange);
-     BISTATE(passwd_changeable);
-     BISTATE(user_is_session_specific);
-     BISTATE(username_rewritten);
-     BISTATE(chpass);
-     BISTATE(authorized);
-     BISTATE(eval_log_raw);
+    struct {
+	BISTATE(nac_addr_valid);
+	BISTATE(flag_mavis_info);
+	BISTATE(flag_mavis_auth);
+	BISTATE(flag_chalresp);
+	BISTATE(mavis_pending);
+	BISTATE(revmap_pending);
+	BISTATE(revmap_timedout);
+	BISTATE(enable_getuser);
+	BISTATE(password_bad_again);
+	BISTATE(passwd_mustchange);
+	BISTATE(passwd_changeable);
+	BISTATE(user_is_session_specific);
+	BISTATE(username_rewritten);
+	BISTATE(chpass);
+	BISTATE(authorized);
+	BISTATE(eval_log_raw);
+    } __attribute__((__packed__));
     enum token mavisauth_res;
     u_int authfail_delay;
     u_int debug;
@@ -958,7 +967,7 @@ void dump_rad_pak(tac_session *, rad_pak_hdr *);
 /* authen.c */
 void authen(tac_session *, tac_pak_hdr *);
 void rad_authen(tac_session *);
-void rad_set_fields(tac_session *session);
+void rad_set_fields(tac_session * session);
 void authen_init(void);
 
 /* author.c */
