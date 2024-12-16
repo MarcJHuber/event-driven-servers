@@ -401,8 +401,6 @@ struct realm {
     int tls_verify_depth;
      TRISTATE(tls_accept_expired);
      TRISTATE(tls_autodetect);
-#endif
-#ifdef WITH_SSL
      TRISTATE(tls_sni_required);
     struct sni_list *sni_list;
     u_char *alpn_vec;
@@ -417,7 +415,7 @@ struct realm {
 struct tac_session;
 typedef struct tac_session tac_session;
 
-/* All tacacs+ packets have the same header format */
+///// TACACS+ header format
 
 typedef struct {
     u_char version;
@@ -444,6 +442,8 @@ typedef struct {
 
     /* datalength bytes of encrypted data */
 } __attribute__((__packed__)) tac_pak_hdr;
+
+///// RADIUS+ header format
 
 typedef struct {
     uint8_t code;
@@ -737,11 +737,8 @@ struct authen_data {
     void (*authfn)(tac_session *);
 };
 
-struct radius_data;
 struct mavis_data;
 struct mavis_ctx_data;
-
-struct log_item;
 
 typedef struct tac_profile tac_profile;
 
@@ -876,8 +873,10 @@ struct context {
     struct radius_data *radius_data;
 #ifdef WITH_SSL
     SSL *tls;
-     BISTATE(alpn_passed);
-     BISTATE(sni_passed);
+    struct {
+	BISTATE(alpn_passed);
+	BISTATE(sni_passed);
+    } __attribute__((__packed__));
     str_t tls_conn_version;
     str_t tls_conn_cipher;
     str_t tls_peer_cert_issuer;
@@ -896,19 +895,21 @@ struct context {
 #define USER_PROFILE_CACHE_SIZE 8
     char *hint;
     struct user_profile_cache user_profile_cache[USER_PROFILE_CACHE_SIZE];
-     TRISTATE(cleanup_when_idle);	/* cleanup context when idle */
-     BISTATE(unencrypted_flag);	/* not MD5 encrypted? */
-     BISTATE(single_connection_flag);	/* single-connection enabled? */
-     BISTATE(single_connection_test);	/* single-connection capable, but not telling? */
-     BISTATE(single_connection_did_warn);
-     BISTATE(dying);
-     BISTATE(key_fixed);
-     BISTATE(revmap_pending);
-     BISTATE(revmap_timedout);
-     BISTATE(use_tls);
-     BISTATE(mavis_pending);
-     BISTATE(mavis_tried);
-     BISTATE(rad_acct);
+    struct {
+	TRISTATE(cleanup_when_idle);	/* cleanup context when idle */
+	BISTATE(unencrypted_flag);	/* not MD5 encrypted? */
+	BISTATE(single_connection_flag);	/* single-connection enabled? */
+	BISTATE(single_connection_test);	/* single-connection capable, but not telling? */
+	BISTATE(single_connection_did_warn);
+	BISTATE(dying);
+	BISTATE(key_fixed);
+	BISTATE(revmap_pending);
+	BISTATE(revmap_timedout);
+	BISTATE(use_tls);
+	BISTATE(mavis_pending);
+	BISTATE(mavis_tried);
+	BISTATE(rad_acct);
+    } __attribute__((__packed__));
     enum token mavis_result;
     enum token aaa_protocol;
     u_int id;
@@ -945,8 +946,7 @@ void report(tac_session *, int, int, char *, ...)
 
 /* packet.c */
 void send_authen_reply(tac_session *, int, char *, int, u_char *, int, u_char);
-void send_authen_error(tac_session *, char *, ...)
-    __attribute__((format(printf, 2, 3)));
+void send_authen_error(tac_session *, char *, ...) __attribute__((format(printf, 2, 3)));
 void send_acct_reply(tac_session *, u_char, char *, char *);
 void send_author_reply(tac_session *, u_char, char *, char *, int, char **);
 void rad_send_authen_reply(tac_session *, u_char, char *);
