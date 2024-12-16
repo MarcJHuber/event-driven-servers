@@ -1429,6 +1429,7 @@ static void accept_control_udp(int s __attribute__((unused)), struct scm_data_ac
     str_set(&ctx->peer_addr_ascii, mem_strdup(ctx->mem, su_ntop(&from, buf, sizeof(buf)) ? buf : "<unknown>"), 0);
     ctx->device_addr_ascii = ctx->peer_addr_ascii;
     ctx->device_port_ascii = ctx->peer_port_ascii;
+    ctx->device_addr = addr;
 
     snprintf(buf, 10, "%u", 0xffff & sd_ext->sd_udp.src_port);
     str_set(&ctx->peer_port_ascii, mem_strdup(ctx->mem, buf), 0);
