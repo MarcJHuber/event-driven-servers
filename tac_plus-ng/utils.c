@@ -87,8 +87,7 @@ struct logfile {
     struct log_item *rad_access;
     struct log_item *rad_acct;
     char *syslog_ident;
-    char *priority;
-    size_t priority_len;
+    str_t priority;
     unsigned int logsequence;
      BISTATE(flag_syslog);
      BISTATE(flag_sync);
@@ -549,11 +548,8 @@ void parse_log(struct sym *sym, tac_realm *r)
 	}
 	sym_get(sym);
     }
-    {
-	char buf[10];
-	lf->priority_len = snprintf(buf, sizeof(buf), "%d", lf->syslog_priority);
-	lf->priority = strdup(buf);
-    }
+    char buf[10];
+    str_set(&lf->priority, buf, snprintf(buf, sizeof(buf), "%d", lf->syslog_priority));
 
     if (!access_file) {
 #define DATE "%Y-%m-%d %H:%M:%S %z "
@@ -944,804 +940,759 @@ static size_t ememcpy(char *dest, char *src, size_t n, size_t remaining)
     return res;
 }
 
-static char *eval_log_format_user(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->username.len;
-	return session->username.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_user_original(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-					   __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->username_orig.len;
-	return session->username_orig.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_profile(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				     __attribute__((unused)), size_t *len)
-{
-    if (session && session->profile) {
-	*len = session->profile->name.len;
-	return session->profile->name.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_nac(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->nac_addr_ascii.len;
-	return session->nac_addr_ascii.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_msgid(tac_session *session, struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->msgid.len;
-	return session->msgid.txt;
-    }
-    if (ctx) {
-	*len = ctx->msgid.len;
-	return ctx->msgid.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_port(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->port.len;
-	return session->port.txt;
-    }
-    if (ctx) {
-	*len = ctx->device_port_ascii.len;
-	return ctx->device_port_ascii.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_type(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->type.len;
-	return session->type.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_hint(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->hint.len;
-	return session->hint.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_authen_action(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-					   __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->authen_action.len;
-	return session->authen_action.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_authen_type(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-					 __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->authen_type.len;
-	return session->authen_type.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_authen_service(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-					    __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->authen_service.len;
-	return session->authen_service.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_authen_method(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-					   __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->authen_method.len;
-	return session->authen_method.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_message(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				     __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->msg.len;
-	return session->msg.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_umessage(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				      __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->user_msg.len;
-	return session->user_msg.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_label(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->label.len;
-	return session->label.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_result(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				    __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->result.len;
-	return session->result.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_action(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				    __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->action.len;
-	return session->action.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_accttype(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				      __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->acct_type.len;
-	return session->acct_type.txt;
-    }
-    if (ctx) {
-	*len = ctx->acct_type.len;
-	return ctx->acct_type.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_service(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				     __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->service.len;
-	return session->service.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_privlvl(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				     __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->priv_lvl_ascii.len;
-	return session->priv_lvl_ascii.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_ssh_key_hash(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-					  __attribute__((unused)), size_t *len)
-{
-    if (session && session->ssh_key_hash) {
-	*len = strlen(session->ssh_key_hash);
-	return session->ssh_key_hash;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_ssh_key_id(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-					__attribute__((unused)), size_t *len)
-{
-    if (session && session->ssh_key_id) {
-	*len = strlen(session->ssh_key_id);
-	return session->ssh_key_id;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_rule(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len)
-{
-    if (session) {
-	*len = session->rule.len;
-	return session->rule.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_path(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len
-				  __attribute__((unused)))
-{
-    if (session && session->user && session->user->avc)
-	return session->user->avc->arr[AV_A_PATH];
-    return NULL;
-}
-
-static char *eval_log_format_uid(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len
-				 __attribute__((unused)))
-{
-    if (session && session->user && session->user->avc)
-	return session->user->avc->arr[AV_A_UID];
-    return NULL;
-}
-
-static char *eval_log_format_gid(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len
-				 __attribute__((unused)))
-{
-    if (session && session->user && session->user->avc)
-	return session->user->avc->arr[AV_A_GID];
-    return NULL;
-}
-
-static char *eval_log_format_home(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len
-				  __attribute__((unused)))
-{
-    if (session && session->user && session->user->avc)
-	return session->user->avc->arr[AV_A_HOME];
-    return NULL;
-}
-
-static char *eval_log_format_root(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len
-				  __attribute__((unused)))
-{
-    if (session && session->user && session->user->avc)
-	return session->user->avc->arr[AV_A_ROOT];
-    return NULL;
-}
-
-static char *eval_log_format_shell(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len
-				   __attribute__((unused)))
-{
-    if (session && session->user && session->user->avc)
-	return session->user->avc->arr[AV_A_SHELL];
-    return NULL;
-}
-
-static char *eval_log_format_gids(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len
-				  __attribute__((unused)))
-{
-    if (session && session->user && session->user->avc)
-	return session->user->avc->arr[AV_A_GIDS];
-    return NULL;
-}
-
-static char *eval_log_format_memberof(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				      __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (session && session->user && session->user->avc)
-	return session->user->avc->arr[AV_A_MEMBEROF];
-    return NULL;
-}
-
-static char *eval_log_format_dn(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)), size_t *len
-				__attribute__((unused)))
-{
-    if (session && session->user && session->user->avc)
-	return session->user->avc->arr[AV_A_DN];
-    return NULL;
-}
-
-static char *eval_log_format_identity_source(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-					     __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (session && session->user && session->user->avc)
-	return session->user->avc->arr[AV_A_IDENTITY_SOURCE];
-    return NULL;
-}
-
-static char *eval_log_format_nas(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
-{
-    if (ctx) {
-	*len = ctx->device_addr_ascii.len;
-	return ctx->device_addr_ascii.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_proxy(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
-{
-    if (ctx) {
-	*len = ctx->proxy_addr_ascii.len;
-	return ctx->proxy_addr_ascii.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_peer(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
-{
-    if (ctx) {
-	*len = ctx->peer_addr_ascii.len;
-	return ctx->peer_addr_ascii.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_host(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
-{
-    if (ctx) {
-	*len = ctx->host->name.len;
-	return ctx->host->name.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_vrf(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
-{
-    if (ctx) {
-	*len = ctx->vrf.len;
-	return ctx->vrf.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_realm(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)), size_t *len)
-{
-    if (ctx) {
-	*len = ctx->realm->name.len;
-	return ctx->realm->name.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_PASSWORD(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-				      __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_PASSWORD];
-    return NULL;
-}
-
-static char *eval_log_format_RESPONSE(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-				      __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_RESPONSE];
-    return NULL;
-}
-
-static char *eval_log_format_PASSWORD_OLD(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					  __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_PASSWORD_OLD];
-    return NULL;
-}
-
-static char *eval_log_format_PASSWORD_NEW(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					  __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_PASSWORD_NEW];
-    return NULL;
-}
-
-static char *eval_log_format_PASSWORD_ABORT(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					    __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_PASSWORD_ABORT];
-    return NULL;
-}
-
-static char *eval_log_format_PASSWORD_AGAIN(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					    __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_PASSWORD_AGAIN];
-    return NULL;
-}
-
-static char *eval_log_format_PASSWORD_NOMATCH(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					      __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_PASSWORD_NOMATCH];
-    return NULL;
-}
-
-static char *eval_log_format_PASSWORD_MINREQ(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					     __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_PASSWORD_MINREQ];
-    return NULL;
-}
-
-static char *eval_log_format_PERMISSION_DENIED(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					       __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_PERMISSION_DENIED];
-    return NULL;
-}
-
-static char *eval_log_format_ENABLE_PASSWORD(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					     __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_ENABLE_PASSWORD];
-    return NULL;
-}
-
-static char *eval_log_format_PASSWORD_CHANGE_DIALOG(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-						    __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_PASSWORD_CHANGE_DIALOG];
-    return NULL;
-}
-
-static char *eval_log_format_PASSWORD_CHANGED(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					      __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_PASSWORD_CHANGED];
-    return NULL;
-}
-
-static char *eval_log_format_BACKEND_FAILED(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					    __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_BACKEND_FAILED];
-    return NULL;
-}
-
-static char *eval_log_format_CHANGE_PASSWORD(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					     __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_CHANGE_PASSWORD];
-    return NULL;
-}
-
-static char *eval_log_format_ACCOUNT_EXPIRES(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					     __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_ACCOUNT_EXPIRES];
-    return NULL;
-}
-
-static char *eval_log_format_PASSWORD_EXPIRES(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					      __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_PASSWORD_EXPIRES];
-    return NULL;
-}
-
-static char *eval_log_format_PASSWORD_EXPIRED(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					      __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_PASSWORD_EXPIRED];
-    return NULL;
-}
-
-static char *eval_log_format_PASSWORD_INCORRECT(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-						__attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_PASSWORD_INCORRECT];
-    return NULL;
-}
-
-static char *eval_log_format_RESPONSE_INCORRECT(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-						__attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_RESPONSE_INCORRECT];
-    return NULL;
-}
-
-static char *eval_log_format_USERNAME(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-				      __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_USERNAME];
-    return NULL;
-}
-
-static char *eval_log_format_USER_ACCESS_VERIFICATION(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-						      __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx) {
-	return ctx->host->user_messages[UM_USER_ACCESS_VERIFICATION];
-    }
-    return NULL;
-}
-
-static char *eval_log_format_DENIED_BY_ACL(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					   __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx)
-	return ctx->host->user_messages[UM_DENIED_BY_ACL];
-    return NULL;
-}
-
-static char *eval_log_format_AUTHFAIL_BANNER(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-					     __attribute__((unused)), size_t *len)
-{
-    if (session && ctx && ctx->host->authfail_banner)
-	return eval_log_format(session, session->ctx, NULL, ctx->host->authfail_banner, io_now.tv_sec, len);
-    return NULL;
-}
-
-
-static char *eval_log_format_priority(tac_session *session
-				      __attribute__((unused)), struct context *ctx __attribute((unused)), struct logfile *lf, size_t *len)
-{
-    if (lf) {
-	*len = lf->priority_len;
-	return lf->priority;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_hostname(tac_session *session __attribute__((unused)), struct context *ctx __attribute__((unused)), struct logfile *lf
-				      __attribute__((unused)), size_t *len)
-{
-    *len = config.hostname.len;
-    return config.hostname.txt;
-}
-
-static char *eval_log_format_server_port(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					 __attribute__((unused)), size_t *len)
-{
-    if (ctx) {
-	*len = ctx->server_port_ascii.len;
-	return ctx->server_port_ascii.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_peer_port(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-				       __attribute__((unused)), size_t *len)
-{
-    if (ctx) {
-	*len = ctx->peer_port_ascii.len;
-	return ctx->peer_port_ascii.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_server_address(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					    __attribute__((unused)), size_t *len)
-{
-    if (ctx) {
-	*len = ctx->server_addr_ascii.len;
-	return ctx->server_addr_ascii.txt;
-    }
-    return NULL;
-}
-
-static char *eval_log_format_nasname(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-				     __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (ctx && ctx->device_dns_name.txt && *ctx->device_dns_name.txt)
-	return ctx->device_dns_name.txt;
-    return NULL;
-}
-
-static char *eval_log_format_nacname(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				     __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (session && session->nac_dns_name.txt && *session->nac_dns_name.txt)
-	return session->nac_dns_name.txt;
-    return NULL;
-}
-
-static char *eval_log_format_custom_0(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				      __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (session && session->user && session->user->avc)
-	return session->user->avc->arr[AV_A_CUSTOM_0];
-    return NULL;
-}
-
-static char *eval_log_format_custom_1(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				      __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (session && session->user && session->user->avc)
-	return session->user->avc->arr[AV_A_CUSTOM_1];
-    return NULL;
-}
-
-static char *eval_log_format_custom_2(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				      __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (session && session->user && session->user->avc)
-	return session->user->avc->arr[AV_A_CUSTOM_2];
-    return NULL;
-}
-
-static char *eval_log_format_custom_3(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				      __attribute__((unused)), size_t *len __attribute__((unused)))
-{
-    if (session && session->user && session->user->avc)
-	return session->user->avc->arr[AV_A_CUSTOM_3];
-    return NULL;
-}
-
-static char *eval_log_format_context(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-				     __attribute__((unused)), size_t *len __attribute__((unused)))
+static str_t *eval_log_format_user(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
 {
     if (session)
-	return tac_script_get_exec_context(session);
+	return &session->username;
     return NULL;
 }
 
-static char *eval_log_format_mavis_latency(tac_session *session, struct context *ctx, struct logfile *lf
-					   __attribute__((unused)), size_t *len __attribute__((unused)))
+static str_t *eval_log_format_user_original(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					   __attribute__((unused)))
+{
+    if (session)
+	return &session->username_orig;
+    return NULL;
+}
+
+static str_t *eval_log_format_profile(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				     __attribute__((unused)))
+{
+    if (session && session->profile)
+	return &session->profile->name;
+    return NULL;
+}
+
+static str_t *eval_log_format_nac(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session)
+	return &session->nac_addr_ascii;
+    return NULL;
+}
+
+static str_t *eval_log_format_msgid(tac_session *session, struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (session)
+	return &session->msgid;
+    if (ctx)
+	return &ctx->msgid;
+    return NULL;
+}
+
+static str_t *eval_log_format_port(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session)
+	return &session->port;
+    if (ctx)
+	return &ctx->device_port_ascii;
+    return NULL;
+}
+
+static str_t *eval_log_format_type(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session)
+	return &session->type;
+    return NULL;
+}
+
+static str_t *eval_log_format_hint(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session)
+	return &session->hint;
+    return NULL;
+}
+
+static str_t *eval_log_format_authen_action(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					   __attribute__((unused)))
+{
+    if (session)
+	return &session->authen_action;
+    return NULL;
+}
+
+static str_t *eval_log_format_authen_type(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					 __attribute__((unused)))
+{
+    if (session)
+	return &session->authen_type;
+    return NULL;
+}
+
+static str_t *eval_log_format_authen_service(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					    __attribute__((unused)))
+{
+    if (session)
+	return &session->authen_service;
+    return NULL;
+}
+
+static str_t *eval_log_format_authen_method(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					   __attribute__((unused)))
+{
+    if (session)
+	return &session->authen_method;
+    return NULL;
+}
+
+static str_t *eval_log_format_message(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				     __attribute__((unused)))
+{
+    if (session)
+	return &session->msg;
+    return NULL;
+}
+
+static str_t *eval_log_format_umessage(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				      __attribute__((unused)))
+{
+    if (session)
+	return &session->user_msg;
+    return NULL;
+}
+
+static str_t *eval_log_format_label(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session)
+	return &session->label;
+    return NULL;
+}
+
+static str_t *eval_log_format_result(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				    __attribute__((unused)))
+{
+    if (session)
+	return &session->result;
+    return NULL;
+}
+
+static str_t *eval_log_format_action(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				    __attribute__((unused)))
+{
+    if (session)
+	return &session->action;
+    return NULL;
+}
+
+static str_t *eval_log_format_accttype(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				      __attribute__((unused)))
+{
+    if (session)
+	return &session->acct_type;
+    if (ctx)
+	return &ctx->acct_type;
+    return NULL;
+}
+
+static str_t *eval_log_format_service(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				     __attribute__((unused)))
+{
+    if (session)
+	return &session->service;
+    return NULL;
+}
+
+static str_t *eval_log_format_privlvl(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				     __attribute__((unused)))
+{
+    if (session)
+	return &session->priv_lvl_ascii;
+    return NULL;
+}
+
+static str_t str;
+
+static str_t *eval_log_format_ssh_key_hash(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					  __attribute__((unused)))
+{
+    if (session && session->ssh_key_hash) {
+	str_set(&str, session->ssh_key_hash, 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_ssh_key_id(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					__attribute__((unused)))
+{
+    if (session && session->ssh_key_id) {
+	str_set(&str, session->ssh_key_id, 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_rule(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session)
+	return &session->rule;
+    return NULL;
+}
+
+static str_t *eval_log_format_path(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc) {
+	str_set(&str, session->user->avc->arr[AV_A_PATH], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_uid(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc) {
+	str_set(&str, session->user->avc->arr[AV_A_UID], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_gid(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc) {
+	str_set(&str, session->user->avc->arr[AV_A_GID], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_home(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc) {
+	str_set(&str, session->user->avc->arr[AV_A_HOME], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_root(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc) {
+	str_set(&str, session->user->avc->arr[AV_A_ROOT], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_shell(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc) {
+	str_set(&str, session->user->avc->arr[AV_A_SHELL], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_gids(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc) {
+	str_set(&str, session->user->avc->arr[AV_A_GIDS], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_memberof(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+				      __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc) {
+	str_set(&str, session->user->avc->arr[AV_A_MEMBEROF], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_dn(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc) {
+	str_set(&str, session->user->avc->arr[AV_A_DN], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_identity_source(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					     __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc) {
+	str_set(&str, session->user->avc->arr[AV_A_IDENTITY_SOURCE], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_nas(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx)
+	return &ctx->device_addr_ascii;
+    return NULL;
+}
+
+static str_t *eval_log_format_proxy(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx)
+	return &ctx->proxy_addr_ascii;
+    return NULL;
+}
+
+static str_t *eval_log_format_peer(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx)
+	return &ctx->peer_addr_ascii;
+    return NULL;
+}
+
+static str_t *eval_log_format_host(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) 
+	return &ctx->host->name;
+    return NULL;
+}
+
+static str_t *eval_log_format_vrf(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx)
+	return &ctx->vrf;
+    return NULL;
+}
+
+static str_t *eval_log_format_realm(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx)
+	return &ctx->realm->name;
+    return NULL;
+}
+
+static str_t *eval_log_format_PASSWORD(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_PASSWORD], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_RESPONSE(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_RESPONSE], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_PASSWORD_OLD(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_PASSWORD_OLD], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_PASSWORD_NEW(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_PASSWORD_NEW], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_PASSWORD_ABORT(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_PASSWORD_ABORT], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_PASSWORD_AGAIN(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_PASSWORD_AGAIN], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_PASSWORD_NOMATCH(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_PASSWORD_NOMATCH], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_PASSWORD_MINREQ(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_PASSWORD_MINREQ], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_PERMISSION_DENIED(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_PERMISSION_DENIED], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_ENABLE_PASSWORD(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_ENABLE_PASSWORD], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_PASSWORD_CHANGE_DIALOG(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_PASSWORD_CHANGE_DIALOG], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_PASSWORD_CHANGED(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_PASSWORD_CHANGED], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_BACKEND_FAILED(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_BACKEND_FAILED], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_CHANGE_PASSWORD(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_CHANGE_PASSWORD], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_ACCOUNT_EXPIRES(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_ACCOUNT_EXPIRES], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_PASSWORD_EXPIRES(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_PASSWORD_EXPIRES], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_PASSWORD_EXPIRED(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_PASSWORD_EXPIRED], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_PASSWORD_INCORRECT(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_PASSWORD_INCORRECT], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_RESPONSE_INCORRECT(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_RESPONSE_INCORRECT], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_USERNAME(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_USERNAME], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_USER_ACCESS_VERIFICATION(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_USER_ACCESS_VERIFICATION], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_DENIED_BY_ACL(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx) {
+	str_set(&str, ctx->host->user_messages[UM_DENIED_BY_ACL], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_AUTHFAIL_BANNER(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					     __attribute__((unused)))
+{
+    if (session && ctx && ctx->host->authfail_banner) {
+	str.txt = eval_log_format(session, session->ctx, NULL, ctx->host->authfail_banner, io_now.tv_sec, &str.len);
+	return &str;
+    }
+    return NULL;
+}
+
+
+static str_t *eval_log_format_priority(tac_session *session
+				      __attribute__((unused)), struct context *ctx __attribute((unused)), struct logfile *lf)
+{
+    if (lf)
+	return &lf->priority;
+    return NULL;
+}
+
+static str_t *eval_log_format_hostname(tac_session *session __attribute__((unused)), struct context *ctx __attribute__((unused)), struct logfile *lf
+				      __attribute__((unused)))
+{
+    return &config.hostname;
+}
+
+static str_t *eval_log_format_server_port(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+					 __attribute__((unused)))
+{
+    if (ctx)
+	return &ctx->server_port_ascii;
+    return NULL;
+}
+
+static str_t *eval_log_format_peer_port(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+				       __attribute__((unused)))
+{
+    if (ctx)
+	return &ctx->peer_port_ascii;
+    return NULL;
+}
+
+static str_t *eval_log_format_server_address(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx)
+	return &ctx->server_addr_ascii;
+    return NULL;
+}
+
+static str_t *eval_log_format_nasname(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+				     __attribute__((unused))) {
+    if (ctx && ctx->device_dns_name.txt && *ctx->device_dns_name.txt)
+	return &ctx->device_dns_name;
+    return NULL;
+}
+
+static str_t *eval_log_format_nacname(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session && session->nac_dns_name.txt && *session->nac_dns_name.txt)
+	return &session->nac_dns_name;
+    return NULL;
+}
+
+static str_t *eval_log_format_custom_0(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc) {
+	str_set(&str, session->user->avc->arr[AV_A_CUSTOM_0], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_custom_1(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc) {
+	str_set(&str, session->user->avc->arr[AV_A_CUSTOM_1], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_custom_2(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc) {
+	str_set(&str, session->user->avc->arr[AV_A_CUSTOM_2], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_custom_3(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session && session->user && session->user->avc) {
+	str_set(&str, session->user->avc->arr[AV_A_CUSTOM_3], 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_context(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+{
+    if (session) {
+	str_set(&str, tac_script_get_exec_context(session), 0);
+	return &str;
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_mavis_latency(tac_session *session, struct context *ctx, struct logfile *lf
+					   __attribute__((unused)))
 {
     if (session) {
 	char buf[128];
 	snprintf(buf, sizeof(buf), "%lu", session->mavis_latency);
-	return mem_strdup(session->mem, buf);
+	str_set(&str, mem_strdup(session->mem, buf), 0);
+	return &str;
     }
     if (ctx) {
 	char buf[128];
 	snprintf(buf, sizeof(buf), "%lu", ctx->mavis_latency);
-	return mem_strdup(ctx->mem, buf);
+	str_set(&str, mem_strdup(ctx->mem, buf), 0);
+	return &str;
     }
     return NULL;
 }
 
-static char *eval_log_format_session_id(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
-					__attribute__((unused)), size_t *len __attribute__((unused)))
+static str_t *eval_log_format_session_id(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
+					__attribute__((unused)))
 {
     if (session) {
 	char buf[128];
 	snprintf(buf, sizeof(buf), "%.8x", ntohl(session->session_id));
-	return mem_strdup(session->mem, buf);
+	str_set(&str, mem_strdup(session->mem, buf), 0);
+	return &str;
     }
     return NULL;
 }
 
-static char *eval_log_format_logsequence(tac_session *session, struct context *ctx
-					 __attribute__((unused)), struct logfile *lf, size_t *len __attribute__((unused)))
+static str_t *eval_log_format_logsequence(tac_session *session, struct context *ctx
+					 __attribute__((unused)), struct logfile *lf)
 {
     if (lf) {
 	char buf[128];
 	snprintf(buf, sizeof(buf), "%u", lf->logsequence++);
-	return mem_strdup(session ? session->mem : ctx->mem, buf);
+	str_set(&str, mem_strdup(session ? session->mem : ctx->mem, buf), 0);
+	return &str;
     }
     return NULL;
 }
 
-static char *eval_log_format_pid(tac_session *session __attribute__((unused)), struct context *ctx __attribute__((unused)), struct logfile *lf
-				 __attribute__((unused)), size_t *len __attribute__((unused)))
+static str_t *eval_log_format_pid(tac_session *session __attribute__((unused)), struct context *ctx __attribute__((unused)), struct logfile *lf
+				 __attribute__((unused)))
 {
     static char buf[32] = { 0 };
     static size_t l = 0;
     if (!*buf)
 	l = snprintf(buf, sizeof(buf), "%lu", (unsigned long) getpid());
-    *len = l;
-    return buf;
+    str_set(&str, buf, l);
+    return &str;
 }
 
-static char *eval_log_format_conn_protocol(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					   __attribute__((unused)), size_t *len __attribute__((unused)))
+static str_t *eval_log_format_conn_protocol(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+					   __attribute__((unused)))
 {
     if (ctx) {
-	*len = 3;
 	if (ctx->aaa_protocol == S_radius)
-	    return codestring[S_UDP].txt;
-	return codestring[S_TCP].txt;
+	    return &codestring[S_UDP];
+	return &codestring[S_TCP];
     }
     return NULL;
 }
 
 #if defined(WITH_SSL)
-static char *eval_log_format_tls_conn_version(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					      __attribute__((unused)), size_t *len)
+static str_t *eval_log_format_tls_conn_version(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+					      __attribute__((unused)))
 {
-    if (ctx) {
-	*len = ctx->tls_conn_version.len;
-	return (char *) ctx->tls_conn_version.txt;
-    }
+    if (ctx)
+	return &ctx->tls_conn_version;
     return NULL;
 }
 
-
-static char *eval_log_format_tls_conn_cipher(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					     __attribute__((unused)), size_t *len)
+static str_t *eval_log_format_tls_conn_cipher(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+					     __attribute__((unused)))
 {
-    if (ctx) {
-	*len = ctx->tls_conn_cipher.len;
-	return (char *) ctx->tls_conn_cipher.txt;
-    }
+    if (ctx)
+	return &ctx->tls_conn_cipher;
     return NULL;
 }
 
-
-static char *eval_log_format_tls_peer_cert_issuer(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-						  __attribute__((unused)), size_t *len)
+static str_t *eval_log_format_tls_peer_cert_issuer(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+						  __attribute__((unused)))
 {
-    if (ctx) {
-	*len = ctx->tls_peer_cert_issuer.len;
-	return (char *) ctx->tls_peer_cert_issuer.txt;
-    }
+    if (ctx)
+	return &ctx->tls_peer_cert_issuer;
     return NULL;
 }
 
-static char *eval_log_format_tls_peer_cert_subject(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-						   __attribute__((unused)), size_t *len)
+static str_t *eval_log_format_tls_peer_cert_subject(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+						   __attribute__((unused)))
 {
-    if (ctx) {
-	*len = ctx->tls_peer_cert_subject.len;
-	return (char *) ctx->tls_peer_cert_subject.txt;
-    }
+    if (ctx)
+	return &ctx->tls_peer_cert_subject;
     return NULL;
 }
 
-static char *eval_log_format_tls_conn_cipher_strength(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-						      __attribute__((unused)), size_t *len)
+static str_t *eval_log_format_tls_conn_cipher_strength(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+						      __attribute__((unused)))
 {
-    if (ctx) {
-	*len = ctx->tls_conn_cipher_strength.len;
-	return ctx->tls_conn_cipher_strength.txt;
-    }
+    if (ctx)
+	return &ctx->tls_conn_cipher_strength;
     return NULL;
 }
 
-static char *eval_log_format_tls_peer_cn(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					 __attribute__((unused)), size_t *len)
+static str_t *eval_log_format_tls_peer_cn(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+					 __attribute__((unused)))
 {
-    if (ctx) {
-	*len = ctx->tls_peer_cn.len;
-	return ctx->tls_peer_cn.txt;
-    }
+    if (ctx)
+	return &ctx->tls_peer_cn;
     return NULL;
 }
 
-static char *eval_log_format_tls_psk_identity(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					      __attribute__((unused)), size_t *len)
+static str_t *eval_log_format_tls_psk_identity(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+					      __attribute__((unused)))
 {
-    if (ctx) {
-	*len = ctx->tls_psk_identity.len;
-	return ctx->tls_psk_identity.txt;
-    }
+    if (ctx)
+	return &ctx->tls_psk_identity;
     return NULL;
 }
 
-static char *eval_log_format_tls_conn_sni(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
-					  __attribute__((unused)), size_t *len)
+static str_t *eval_log_format_tls_conn_sni(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+					  __attribute__((unused)))
 {
-    if (ctx) {
-	*len = ctx->tls_sni.len;
-	return ctx->tls_sni.txt;
-    }
+    if (ctx)
+	return &ctx->tls_sni;
     return NULL;
 }
 #endif
@@ -1749,7 +1700,7 @@ static char *eval_log_format_tls_conn_sni(tac_session *session __attribute__((un
 char *eval_log_format(tac_session *session, struct context *ctx, struct logfile *lf, struct log_item *start, time_t sec, size_t *outlen)
 {
     static int initialized = 0;
-    static char *((*efun[S_null]) (tac_session *, struct context *, struct logfile *, size_t *)) = { 0 };
+    static str_t *((*efun[S_null]) (tac_session *, struct context *, struct logfile *)) = { 0 };
     mem_t *mem = session ? session->mem : ctx->mem;
 
     if (!initialized) {
@@ -1861,7 +1812,7 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 
     for (struct log_item * li = start; li; li = li->next) {
 	size_t len = 0;
-	char *s = NULL;
+	str_t *s = NULL;
 	if (li->text) {
 	    struct tm *tm = localtime(&sec);
 	    len = strftime(b, sizeof(buf) - total_len, li->text, tm);
@@ -1870,7 +1821,7 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 	    continue;
 	}
 	if (efun[li->token])
-	    s = efun[li->token] (session, ctx, lf, &len);
+	    s = efun[li->token] (session, ctx, lf);
 	else if (session) {
 	    enum token token = li->token;
 	    switch (token) {
@@ -1964,14 +1915,15 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 	    }
 	}
 
-	if (s) {
+	if (s && s->txt && s->txt[0]) {
+	    len = s->len;
 	    if (!len)
-		len = strlen(s);
+		len = strlen(s->txt);
 	    if (li->token == S_umessage || li->token == S_AUTHFAIL_BANNER || (session && session->eval_log_raw)) {
 		if (sizeof(buf) - total_len > len + 20)
-		    memcpy(b, s, len);
+		    memcpy(b, s->txt, s->len);
 	    } else
-		len = ememcpy(b, s, len, sizeof(buf) - total_len);
+		len = ememcpy(b, s->txt, s->len, sizeof(buf) - total_len);
 	    total_len += len;
 	    b += len;
 	    if (total_len > sizeof(buf) - 20)
