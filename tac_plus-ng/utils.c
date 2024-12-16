@@ -1152,7 +1152,7 @@ static char *eval_log_format_privlvl(tac_session *session, struct context *ctx _
 static char *eval_log_format_ssh_key_hash(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
 					  __attribute__((unused)), size_t *len)
 {
-    if (session) {
+    if (session && session->ssh_key_hash) {
 	*len = strlen(session->ssh_key_hash);
 	return session->ssh_key_hash;
     }
@@ -1162,7 +1162,7 @@ static char *eval_log_format_ssh_key_hash(tac_session *session, struct context *
 static char *eval_log_format_ssh_key_id(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf
 					__attribute__((unused)), size_t *len)
 {
-    if (session) {
+    if (session && session->ssh_key_id) {
 	*len = strlen(session->ssh_key_id);
 	return session->ssh_key_id;
     }
