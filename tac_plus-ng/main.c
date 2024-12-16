@@ -602,7 +602,7 @@ static void read_px(struct context_px *ctx, int cur)
     case 0x11:
 	from.sin.sin_family = AF_INET;
 	from.sin.sin_addr.s_addr = addr->ipv4_addr.src_addr;
-	from.sin6.sin6_port = addr->ipv4_addr.src_port;
+	from.sin.sin_port = addr->ipv4_addr.src_port;
 	break;
     case 0x21:
 	from.sin6.sin6_family = AF_INET6;
@@ -1163,13 +1163,12 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	device_addr = &peer;
 
     su_convert(device_addr, AF_INET);
-    struct in6_addr addr;
-    su_ptoh(device_addr, &addr);
+    su_ptoh(device_addr, &ctx->device_addr);
 
     tac_host *h = NULL;
     radixtree_t *rxt = lookup_hosttree(r);
     if (rxt)
-	h = radix_lookup(rxt, &addr, NULL);
+	h = radix_lookup(rxt, &ctx->device_addr, NULL);
 
     if (h) {
 	complete_host(h);
@@ -1178,7 +1177,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	    r = h->target_realm;
 	    rxt = lookup_hosttree(r);
 	    if (rxt) {
-		h = radix_lookup(rxt, &addr, NULL);
+		h = radix_lookup(rxt, &ctx->device_addr, NULL);
 		if (h)
 		    complete_host(h);
 	    }
@@ -1203,7 +1202,6 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
     str_set(&ctx->proxy_addr_ascii, proxy_addr_ascii, proxy_addr_ascii_len);
 
-    ctx->device_addr = device_addr->sin6.sin6_addr;
     if (device_addr == &peer) {
 	ctx->device_addr_ascii = ctx->peer_addr_ascii;
 	ctx->device_port_ascii = ctx->peer_port_ascii;
