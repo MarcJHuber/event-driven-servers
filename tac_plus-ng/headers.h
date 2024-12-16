@@ -855,7 +855,7 @@ struct context {
     str_t device_dns_name;	// device
     str_t device_addr_ascii;
     str_t device_port_ascii;
-    struct in6_addr device_addr;	// for binary comparisions
+    struct in6_addr device_addr;	// for binary comparisions, in host byte order
 
     str_t server_addr_ascii;
     str_t server_port_ascii;
