@@ -5542,7 +5542,7 @@ static int tac_tag_add(mem_t *mem, tac_tag *add, tac_tags *g)
 
 static tac_tag *tac_tag_parse(struct sym *sym)
 {
-    tac_tag t = {.name = sym->buf,.name.len = strlen(sym->buf) };
+    tac_tag t = {.name.txt = sym->buf,.name.len = strlen(sym->buf) };
     if (!tags_by_name)
 	tags_by_name = RB_tree_new(compare_name, NULL);
     tac_tag *tag = RB_lookup(tags_by_name, &t);
