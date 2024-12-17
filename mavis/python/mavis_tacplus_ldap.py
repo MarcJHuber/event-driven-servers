@@ -182,7 +182,7 @@ def expand_memberof(g):
 
 
 # A helper function to improve human readability of LDAP responses: ##########
-data_regex = re.compile(',\s+data\s+([^,]+),')
+data_regex = re.compile(r',\s+data\s+([^,]+),')
 
 ad_error_codes = {
 	"525": "Invalid credentials.", # "User not found.", actually
