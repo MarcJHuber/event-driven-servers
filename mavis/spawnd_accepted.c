@@ -43,6 +43,7 @@ static struct track *alloc_track(void)
 	if (left > 1024)
 	    left = 1024;
 	tracks = calloc(left, sizeof(struct track));
+	spawnd_data.tracking_size -= left;
 	left--;
 	for (int i = 0; i < left; i++)
 	    tracks[i].nextfree = &tracks[i + 1];
