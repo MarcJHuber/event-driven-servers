@@ -9,13 +9,16 @@
  */
 
 #include "spawnd_headers.h"
+#include "misc/mymd5.h"
 #include <netinet/tcp.h>
+#include <sys/uio.h>
 #include <sysexits.h>
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
 struct track {
-    struct in6_addr addr;
+#define MD5_DIGEST_SIZE 16
+    u_char digest[MD5_DIGEST_SIZE];
     int i;
     time_t expires;
     struct track *nextfree;
@@ -26,7 +29,7 @@ static struct track *tracks = NULL;
 
 static int compare_track(const void *a, const void *b)
 {
-    return memcmp(&((struct track *) a)->addr, &((struct track *) b)->addr, sizeof(struct in6_addr));
+    return memcmp(&((struct track *) a)->digest, &((struct track *) b)->digest, MD5_DIGEST_SIZE);
 }
 
 static void free_track(void *p)
@@ -54,11 +57,11 @@ static struct track *alloc_track(void)
     return t;
 }
 
-static int tracking_lookup(struct in6_addr *addr)
+static int tracking_lookup(u_char *digest)
 {
     if (trackdb) {
 	struct track t, *tp;
-	t.addr = *addr;
+	memcpy(&t.digest, digest, MD5_DIGEST_SIZE);
 	if ((tp = RB_lookup(trackdb, &t)))
 	    return tp->i;
     }
@@ -98,20 +101,20 @@ void spawnd_adjust_tracking(int old, int new)
     }
 }
 
-static void tracking_register(struct in6_addr *addr, int i)
+static void tracking_register(u_char *digest, int i)
 {
     struct track t, *tp;
     if (spawnd_data.tracking_period < 1)
 	return;
     if (!trackdb)
 	trackdb = RB_tree_new(compare_track, free_track);
-    memcpy(&t.addr, addr, sizeof(struct in6_addr));
+    memcpy(&t.digest, digest, MD5_DIGEST_SIZE);
     tp = RB_lookup(trackdb, &t);
     if (!tp) {
 	tp = alloc_track();
 	if (!tp)
 	    return;
-	tp->addr = *addr;
+	memcpy(tp->digest, digest, MD5_DIGEST_SIZE);
 	RB_insert(trackdb, tp);
     }
     tp->i = i;
@@ -229,9 +232,64 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
     if (common_data.singleprocess)
 	common_data.scm_send_msg(-1, sd ? (struct scm_data *) sd : (struct scm_data *) sd_udp, s);
     else {
+	struct iovec iov[5];
+	size_t iov_len = 0;
+	// cover source address
+	switch (sa.sa.sa_family) {
+#ifdef AF_INET
+	    iov[iov_len].iov_base = &sa.sin.sin_addr;
+	    iov[iov_len++].iov_len = 4;
+	    break;
+#endif
+#ifdef AF_INET6
+	case AF_INET6:
+	    iov[iov_len].iov_base = &sa.sin6.sin6_addr;
+	    iov[iov_len++].iov_len = 16;
+	    break;
+#endif
+	default:
+	    ;
+	}
+	// cover destination port
+	iov[iov_len].iov_base = &ctx->port;
+	iov[iov_len++].iov_len = sizeof(ctx->port);
+	if (sd) {
+	    // TCP: cover protocol
+	    u_char u = IPPROTO_TCP;
+	    iov[iov_len].iov_base = &u;
+	    iov[iov_len++].iov_len = 1;
+	} else {
+	    // UDP: cover protocol, radius identifier and source port
+	    u_char u = IPPROTO_UDP;
+	    iov[iov_len].iov_base = &u;
+	    iov[iov_len++].iov_len = 1;
+	    if (sd_udp->data_len > 21) {
+		iov[iov_len].iov_base = &sd_udp->data[21];	// radius identifier
+		iov[iov_len++].iov_len = 1;
+	    }
+	    switch (sa.sa.sa_family) {
+#ifdef AF_INET
+		iov[iov_len].iov_base = &sa.sin.sin_port;
+		iov[iov_len++].iov_len = sizeof(sa.sin.sin_port);
+		break;
+#endif
+#ifdef AF_INET6
+	    case AF_INET6:
+		iov[iov_len].iov_base = &sa.sin6.sin6_port;
+		iov[iov_len++].iov_len = sizeof(sa.sin6.sin6_port);;
+		break;
+#endif
+	    default:
+		;
+	    }
+	}
+
+	u_char digest[MD5_DIGEST_SIZE];
+	md5v(digest, sizeof(digest), iov, iov_len);
+
 	do {
 	    min = common_data.users_max;
-	    min_i = tracking_lookup(&addr);
+	    min_i = tracking_lookup(digest);
 	    if (min_i > -1 && spawnd_data.server_arr[min_i]->use >= common_data.users_max)
 		min_i = -1;
 
@@ -276,7 +334,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 		    exit(EX_TEMPFAIL);
 		}
 	    } else if (spawnd_data.tracking_period > 0)
-		tracking_register(&addr, min_i);
+		tracking_register(digest, min_i);
 	}
 	while (res);
 
