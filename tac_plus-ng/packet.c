@@ -606,7 +606,8 @@ void tac_read(struct context *ctx, int cur)
     if (session) {
 	if (session->seq_no / 2 == ctx->host->max_rounds) {
 	    report(session, LOG_ERR, ~0,
-		   "%s: Limit of %d rounds reached for session %.8x", ctx->device_addr_ascii.txt, (int) ctx->host->max_rounds, ntohl(ctx->hdr.tac.session_id));
+		   "%s: Limit of %d rounds reached for session %.8x", ctx->device_addr_ascii.txt, (int) ctx->host->max_rounds,
+		   ntohl(ctx->hdr.tac.session_id));
 	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_ERROR, "Too many rounds.", 0, NULL, 0, 0);
 	    cleanup(ctx, cur);
 	    return;
@@ -648,7 +649,8 @@ void tac_read(struct context *ctx, int cur)
 	    ctx->tls ? "Peers MUST NOT use Obfuscation with TLS." :
 #endif
 	    "Peers MUST use Obfuscation.";
-	report(NULL, LOG_ERR, ~0, "%s: %s packet (sequence number: %d) for %ssession %.8x", "Encrypted", ctx->device_addr_ascii.txt, (int) ctx->hdr.tac.seq_no,
+	report(NULL, LOG_ERR, ~0, "%s: %s packet (sequence number: %d) for %ssession %.8x", "Encrypted", ctx->device_addr_ascii.txt,
+	       (int) ctx->hdr.tac.seq_no,
 #if defined(WITH_SSL)
 	       ctx->tls ? "TLS " :
 #endif
@@ -838,6 +840,16 @@ void rad_read(struct context *ctx, int cur)
     }
     if (ctx->hdroff != RADIUS_HDR_SIZE)
 	return;
+
+    switch (ctx->hdr.rad.code) {
+    case RADIUS_CODE_ACCESS_REQUEST:
+    case RADIUS_CODE_ACCOUNTING_REQUEST:
+    case RADIUS_CODE_STATUS_SERVER:
+	break;
+    default:
+	cleanup(ctx, cur);
+	return;
+    }
 
     u_int data_len = RADIUS_DATA_LEN(&ctx->hdr.rad);
 
