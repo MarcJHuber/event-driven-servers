@@ -67,8 +67,6 @@ static void periodics(struct spawnd_context *ctx, int cur __attribute__((unused)
 	return;
     }
 
-    spawnd_cleanup_tracking();
-
     spawnd_process_signals();
 
     if (common_data.users_cur < (common_data.users_min * (common_data.servers_cur + 1))) {

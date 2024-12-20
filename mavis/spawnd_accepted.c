@@ -21,11 +21,45 @@ struct track {
     u_char digest[MD5_DIGEST_SIZE];
     int i;
     time_t expires;
-    struct track *nextfree;
+    struct track *lru_prev;
+    struct track *lru_next;
 };
 
 static rb_tree_t *trackdb = NULL;
-static struct track *tracks = NULL;
+
+static struct track *track_lru_first = NULL;
+static struct track *track_lru_last = NULL;
+
+static void track_lru_remove(struct track *track)
+{
+    if (track->lru_prev)
+	track->lru_prev->lru_next = track->lru_next;
+
+    if (track->lru_next)
+	track->lru_next->lru_prev = track->lru_prev;
+
+    if (track == track_lru_first)
+	track_lru_first = track->lru_next;
+
+    if (track == track_lru_last)
+	track_lru_last = track->lru_prev;
+
+    track->lru_prev = track->lru_next = NULL;
+}
+
+static void track_lru_append(struct track *track)
+{
+    if (track == track_lru_first || track->lru_prev)
+	track_lru_remove(track);
+    track->lru_prev = track_lru_last;
+    if (track_lru_last)
+	track_lru_last->lru_next = track;
+    if (!track_lru_first)
+	track_lru_first = track;
+    track_lru_last = track;
+    track->lru_next = NULL;
+    track->expires = io_now.tv_sec + spawnd_data.tracking_period;
+}
 
 static int compare_track(const void *a, const void *b)
 {
@@ -34,27 +68,43 @@ static int compare_track(const void *a, const void *b)
 
 static void free_track(void *p)
 {
-    ((struct track *) p)->nextfree = tracks;
-    tracks = p;
+    struct track *track = (struct track *) p;
+    track->expires = 0;
+    track_lru_remove(track);
 }
 
 static struct track *alloc_track(void)
 {
-    struct track *t;
-    if (!tracks && (spawnd_data.tracking_size > 0)) {
-	int left = spawnd_data.tracking_size;
-	if (left > 1024)
-	    left = 1024;
-	tracks = calloc(left, sizeof(struct track));
-	spawnd_data.tracking_size -= left;
-	left--;
-	for (int i = 0; i < left; i++)
-	    tracks[i].nextfree = &tracks[i + 1];
+    if (spawnd_data.tracking_size && (!track_lru_first || track_lru_first->expires > io_now.tv_sec)) {
+	int n = spawnd_data.tracking_size;
+#define ARRSIZE 1024
+	if (n > ARRSIZE)
+	    n = ARRSIZE;
+#undef ARRSIZE
+	spawnd_data.tracking_size -= n;
+	struct track *tracks = calloc(n, sizeof(struct track));
+	for (int i = 1; i < n; i++) {
+	    tracks[i].lru_prev = &tracks[i - 1];
+	    tracks[i - 1].lru_next = &tracks[i];
+	}
+	tracks[n - 1].lru_next = track_lru_first;
+	if (track_lru_first)
+	    track_lru_first->lru_prev = &tracks[n - 1];
+	if (!track_lru_last)
+	    track_lru_last = &tracks[n - 1];
+	track_lru_first = tracks;
     }
-    t = tracks;
-    if (tracks)
-	tracks = tracks->nextfree;
-    return t;
+    struct track *track = track_lru_first;
+    while (track && track->expires && track->expires < io_now.tv_sec) {
+	RB_search_and_delete(trackdb, track);
+	track = track->lru_next;
+    }
+
+    track = track_lru_first;
+    if (track->expires)		// no more entries left, drop least recently used
+	RB_search_and_delete(trackdb, track);
+    track_lru_append(track);
+    return track;
 }
 
 static int tracking_lookup(u_char *digest)
@@ -62,24 +112,12 @@ static int tracking_lookup(u_char *digest)
     if (trackdb) {
 	struct track t, *tp;
 	memcpy(&t.digest, digest, MD5_DIGEST_SIZE);
-	if ((tp = RB_lookup(trackdb, &t)))
+	if ((tp = RB_lookup(trackdb, &t))) {
+	    track_lru_append(tp);
 	    return tp->i;
-    }
-    return -1;
-}
-
-void spawnd_cleanup_tracking(void)
-{
-    if (trackdb) {
-	rb_node_t *r;
-	r = RB_first(trackdb);
-	while (r) {
-	    rb_node_t *rn = RB_next(r);
-	    if (RB_payload(r, struct track *)->expires < io_now.tv_sec)
-		 RB_delete(trackdb, r);
-	    r = rn;
 	}
     }
+    return -1;
 }
 
 void spawnd_adjust_tracking(int old, int new)
@@ -118,7 +156,6 @@ static void tracking_register(u_char *digest, int i)
 	RB_insert(trackdb, tp);
     }
     tp->i = i;
-    tp->expires = io_now.tv_sec + spawnd_data.tracking_period;
 }
 
 void spawnd_accepted(struct spawnd_context *ctx, int cur)
