@@ -106,7 +106,6 @@ static tac_pak *new_pak(tac_session * session, u_char type, int len)
 /* send an accounting response packet */
 void send_acct_reply(tac_session * session, u_char status, char *msg, char *data)
 {
-    u_char *p;
     int msg_len = msg ? (int) strlen(msg) : 0;
     int data_len = data ? (int) strlen(data) : 0;
     int len = TAC_ACCT_REPLY_FIXED_FIELDS_SIZE + msg_len + data_len;
@@ -118,7 +117,7 @@ void send_acct_reply(tac_session * session, u_char status, char *msg, char *data
     reply->msg_len = htons((u_short) msg_len);
     reply->data_len = htons((u_short) data_len);
 
-    p = (u_char *) reply + TAC_ACCT_REPLY_FIXED_FIELDS_SIZE;
+    u_char *p = (u_char *) reply + TAC_ACCT_REPLY_FIXED_FIELDS_SIZE;
     memcpy(p, msg, msg_len);
     p += msg_len;
     memcpy(p, data, data_len);
@@ -130,8 +129,6 @@ void send_acct_reply(tac_session * session, u_char status, char *msg, char *data
 /* send an authorization reply packet */
 void send_author_reply(tac_session * session, u_char status, char *msg, char *data, int arg_cnt, char **args)
 {
-    tac_pak *pak;
-    u_char *p;
     int msg_len = msg ? (int) strlen(msg) : 0;
     int data_len = data ? (int) strlen(data) : 0;
     size_t j = arg_cnt * sizeof(int);
@@ -153,7 +150,7 @@ void send_author_reply(tac_session * session, u_char status, char *msg, char *da
 	len += arglen[i] + 1;
     }
 
-    pak = new_pak(session, TAC_PLUS_AUTHOR, len);
+    tac_pak *pak = new_pak(session, TAC_PLUS_AUTHOR, len);
 
     struct author_reply *reply = tac_payload(&pak->hdr, struct author_reply *);
     reply->status = status;
@@ -161,7 +158,7 @@ void send_author_reply(tac_session * session, u_char status, char *msg, char *da
     reply->data_len = htons((u_short) data_len);
     reply->arg_cnt = arg_cnt;
 
-    p = (u_char *) reply + TAC_AUTHOR_REPLY_FIXED_FIELDS_SIZE;
+    u_char *p = (u_char *) reply + TAC_AUTHOR_REPLY_FIXED_FIELDS_SIZE;
 
     /* place arg sizes into packet  */
     for (int i = 0; i < arg_cnt; i++)
@@ -359,16 +356,10 @@ static int authen_pak_looks_bogus(tac_pak_hdr * hdr)
 
 static int author_pak_looks_bogus(tac_pak_hdr * hdr)
 {
-    u_char *p;
-    u_int len;
     struct author *pak = tac_payload(hdr, struct author *);
+    u_char *p = (u_char *) pak + TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE;
     u_int datalength = ntohl(hdr->datalength);
-
-    /* start of variable length data is here */
-    p = (u_char *) pak + TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE;
-
-    /* Length checks */
-    len = TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE + pak->user_len + pak->port_len + pak->rem_addr_len + pak->arg_cnt;
+    u_int len = TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE + pak->user_len + pak->port_len + pak->rem_addr_len + pak->arg_cnt;
 
     int i;
     for (i = 0; i < (int) pak->arg_cnt; i++)
@@ -381,34 +372,28 @@ static int author_pak_looks_bogus(tac_pak_hdr * hdr)
 
 static int accounting_pak_looks_bogus(tac_pak_hdr * hdr)
 {
-    struct acct *acct = tac_payload(hdr, struct acct *);
+    struct acct *pak = tac_payload(hdr, struct acct *);
     u_char *p = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
     u_int datalength = ntohl(hdr->datalength);
-
-    /* Do some sanity checking on the packet */
-    u_int len = TAC_ACCT_REQ_FIXED_FIELDS_SIZE + acct->user_len + acct->port_len + acct->rem_addr_len + acct->arg_cnt;
+    u_int len = TAC_ACCT_REQ_FIXED_FIELDS_SIZE + pak->user_len + pak->port_len + pak->rem_addr_len + pak->arg_cnt;
 
     int i;
-    for (i = 0; i < (int) acct->arg_cnt; i++)
+    for (i = 0; i < (int) pak->arg_cnt && len < datalength; i++)
 	len += p[i];
 
-    return (i != (int) acct->arg_cnt || len != datalength);
+    return (i != (int) pak->arg_cnt || len != datalength);
 }
 
 
 static __inline__ tac_session *RB_lookup_session(rb_tree_t * rbt, int session_id)
 {
-    tac_session s;
-    s.session_id = session_id;
+    tac_session s = {.session_id = session_id };
     return RB_lookup(rbt, &s);
 }
 
 void tac_read(struct context *ctx, int cur)
 {
     ssize_t len;
-    char msg[80];
-    u_int data_len;
-    int more_keys = 0;
     int min_len = 1;
 
     ctx->last_io = io_now.tv_sec;
@@ -429,7 +414,7 @@ void tac_read(struct context *ctx, int cur)
 	cleanup(ctx, cur);
 	return;
     }
-    data_len = ntohl(ctx->hdr.datalength);
+    u_int data_len = ntohl(ctx->hdr.datalength);
 
     if (data_len & ~0xffffUL) {
 	report(NULL, LOG_ERR, ~0, "%s: Illegal data size: %u", ctx->nas_address_ascii, data_len);
@@ -491,8 +476,10 @@ void tac_read(struct context *ctx, int cur)
 	ctx->single_connection_flag = 1;
     }
 
+    char msg[80];
     snprintf(msg, sizeof msg, "Illegal packet (version=0x%.2x type=0x%.2x)", ctx->in->hdr.version, ctx->in->hdr.type);
 
+    int more_keys = 0;
     do {
 	int bogus = 0;
 
@@ -623,7 +610,6 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr * hdr)
 void cleanup_session(tac_session * session)
 {
     struct context *ctx = session->ctx;
-    tac_session s;
 
     if (session->user && session->user_is_session_specific)
 	free_user(session->user);
@@ -631,7 +617,7 @@ void cleanup_session(tac_session * session)
     if (session->resumefn)
 	io_sched_del(ctx->io, session, (void *) resume_session);
 
-    s.session_id = session->session_id;
+    tac_session s = {.session_id = session->session_id };
     RB_search_and_delete(ctx->sessions, &s);
     if (session->mavis_pending && session->mavis_realm && session->mavis_realm->mcx)
 	mavis_cancel(session->mavis_realm->mcx, session);
