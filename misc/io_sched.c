@@ -876,7 +876,7 @@ static void epoll_io_init(struct io_context *io)
     }
 }
 
-static void epoll_io_unregister(struct io_context *io __attribute__((unused)), int fd __attribute__((unused)))
+static void epoll_io_unregister(struct io_context *io __attribute__((unused)), int fd)
 {
     Debug((DEBUG_PROC, " io_unregister %d\n", fd));
     if (io->Epoll.diskfile[fd] > -1) {
