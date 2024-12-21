@@ -447,6 +447,8 @@ void tac_read(struct context *ctx, int cur)
 	cleanup(ctx, cur);
 	return;
     }
+    if (len < 0)
+	return;
     ctx->in->offset += len;
     if (ctx->in->offset != ctx->in->length)
 	return;
