@@ -50,6 +50,14 @@
 
 extern struct spawnd_data spawnd_data;
 
+struct track_data {
+    rb_tree_t *db;
+    struct track *lru_first;
+    struct track *lru_last;
+    time_t tracking_period;
+    int tracking_size;
+};
+
 struct spawnd_data {
     char *conffile;
     char *child_id;
@@ -70,14 +78,13 @@ struct spawnd_data {
     char *overload_hint;
     struct spawnd_context **listener_arr;
     struct spawnd_context **server_arr;
-    time_t tracking_period;
-    int tracking_size;
     int retry_delay;
     int bind_failures;
     int keepcnt;
     int keepidle;
     int keepintvl;
     int scm_bufsize;
+    struct track_data track_data;
 };
 
 struct spawnd_context {
@@ -114,6 +121,7 @@ struct spawnd_context {
     int keepidle;
     int keepintvl;
     sockaddr_union sa;
+    struct track_data track_data;
 };
 
 void get_exec_path(char **, char *);

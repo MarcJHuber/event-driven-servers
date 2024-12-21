@@ -264,9 +264,27 @@ static void parse_listen(struct sym *sym)
 	    }
 	    sym_get(sym);
 	    break;
+	case S_sticky:
+	    sym_get(sym);
+	    parse(sym, S_cache);
+	    switch (sym->code) {
+	    case S_period:
+		sym_get(sym);
+		parse(sym, S_equal);
+		ctx->track_data.tracking_period = parse_int(sym);
+		break;
+	    case S_size:
+		sym_get(sym);
+		parse(sym, S_equal);
+		ctx->track_data.tracking_size = parse_int(sym);
+		break;
+	    default:
+		parse_error_expect(sym, S_period, S_size, S_unknown);
+	    }
+	    break;
 	default:
 	    parse_error_expect(sym, S_address, S_path, S_port, S_realm, S_tls, S_userid, S_groupid, S_backlog, S_type, S_protocol, S_retry, S_tcp, S_flag,
-			       S_unknown);
+			       S_sticky, S_unknown);
 	}
     }
     if (ctx->overload_backlog > ctx->listen_backlog)
@@ -465,12 +483,12 @@ void spawnd_parse_decls(struct sym *sym)
 		    case S_period:
 			sym_get(sym);
 			parse(sym, S_equal);
-			spawnd_data.tracking_period = parse_int(sym);
+			spawnd_data.track_data.tracking_period = parse_int(sym);
 			break;
 		    case S_size:
 			sym_get(sym);
 			parse(sym, S_equal);
-			spawnd_data.tracking_size = parse_int(sym);
+			spawnd_data.track_data.tracking_size = parse_int(sym);
 			break;
 		    default:
 			parse_error_expect(sym, S_period, S_size, S_unknown);
@@ -506,6 +524,24 @@ void spawnd_parse_decls(struct sym *sym)
 	    }
 #endif
 	    continue;
+	case S_sticky:
+	    sym_get(sym);
+	    parse(sym, S_cache);
+	    switch (sym->code) {
+	    case S_period:
+		sym_get(sym);
+		parse(sym, S_equal);
+		spawnd_data.track_data.tracking_period = parse_int(sym);
+		break;
+	    case S_size:
+		sym_get(sym);
+		parse(sym, S_equal);
+		spawnd_data.track_data.tracking_size = parse_int(sym);
+		break;
+	    default:
+		parse_error_expect(sym, S_period, S_size, S_unknown);
+	    }
+	    break;
 	default:
 	    parse_error(sym, "'%s' unexpected", sym->buf);
 	}

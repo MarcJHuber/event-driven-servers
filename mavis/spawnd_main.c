@@ -371,7 +371,7 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
     spawnd_data.keepidle = -1;
     spawnd_data.scm_bufsize = 0;	// leave at system default
     spawnd_data.abandon = 0;
-    spawnd_data.tracking_size = 1024;
+    spawnd_data.track_data.tracking_size = 1024;
 
     if (!getsockopt(0, SOL_SOCKET, SO_TYPE, &socktype, &socktypelen))
 	switch (socktype) {
