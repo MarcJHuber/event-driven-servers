@@ -207,7 +207,7 @@ static void users_inc(void)
     set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 }
 
-static void users_dec(void)
+void users_dec(void)
 {
     static int pending = 0;
     pending++;

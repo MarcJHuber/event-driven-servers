@@ -1067,6 +1067,8 @@ void init_host(tac_host *, tac_host *, tac_realm *, int);
 
 void context_lru_append(struct context *);
 
+void users_dec(void);
+
 extern struct config config;
 extern int die_when_idle;
 

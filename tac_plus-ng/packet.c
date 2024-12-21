@@ -949,6 +949,8 @@ void rad_udp_inject(struct context *ctx)
 	// a retransmission. This shouldn't happen for RADSEC/TCP.
 	mem_free(ctx->mem, &ctx->in);
 	ctx->hdroff = 0;
+	// Spawnd did forward the packet to us, increasing the usage counter. Decrement the latter.
+	users_dec();
 	return;
     }
     session = new_session(ctx, NULL, pak);
