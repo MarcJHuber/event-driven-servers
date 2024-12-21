@@ -383,7 +383,8 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	}
 	while (res);
 
-	close(s);
+	if (sd)
+	    close(s);
 
 	spawnd_data.server_arr[min_i]->use++, common_data.users_cur++;
     }
