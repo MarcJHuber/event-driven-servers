@@ -185,6 +185,13 @@ acl accept ::1
             This specifies the user ID for socket creation.
           + groupid = GroupID
             This specifies the group ID for socket creation.
+          + sticky cache period = Seconds
+            This option tells the daemon to try to forward all
+            connections from a particular source address to the
+            same worker process. Defaults to 0 (disabled).
+          + sticky cache size = Number
+            This option sets the maximum number of entries in the
+            "sticky" cache. Defaults to 1024.
        Directives which may be used in both cases are:
           + tls = ( yes | no )
             This directive tells a child process if the connection
@@ -221,6 +228,13 @@ acl accept ::1
             Overrides the system default input/output buffer sizes
             (SO_SNDBUF, SO_RCVBUF) for communication with child
             processes.
+          + sticky cache period = Seconds
+            This option tells the daemon to try to forward all
+            connections from a particular source address to the
+            same worker process. Defaults to 0 (disabled).
+          + sticky cache size = Number
+            This option sets the maximum number of entries in the
+            "sticky" cache. Defaults to 1024.
        The listen directive is mandatory unless the daemon is
        started via an inetd(8) (or compatible) process, in which
        case
