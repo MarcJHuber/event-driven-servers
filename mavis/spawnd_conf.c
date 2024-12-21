@@ -83,6 +83,26 @@ int spawnd_acl_check(sockaddr_union *su)
     return S_permit == eval_acl(&a);
 }
 
+static void parse_sticky(struct sym *sym, struct track_data *data)
+{
+    sym_get(sym);
+    parse(sym, S_cache);
+    switch (sym->code) {
+    case S_period:
+	sym_get(sym);
+	parse(sym, S_equal);
+	data->tracking_period = parse_int(sym);
+	break;
+    case S_size:
+	sym_get(sym);
+	parse(sym, S_equal);
+	data->tracking_size = parse_int(sym);
+	break;
+    default:
+	parse_error_expect(sym, S_period, S_size, S_unknown);
+    }
+}
+
 static void parse_listen(struct sym *sym)
 {
     char *address = NULL, *port = NULL;
@@ -265,22 +285,7 @@ static void parse_listen(struct sym *sym)
 	    sym_get(sym);
 	    break;
 	case S_sticky:
-	    sym_get(sym);
-	    parse(sym, S_cache);
-	    switch (sym->code) {
-	    case S_period:
-		sym_get(sym);
-		parse(sym, S_equal);
-		ctx->track_data.tracking_period = parse_int(sym);
-		break;
-	    case S_size:
-		sym_get(sym);
-		parse(sym, S_equal);
-		ctx->track_data.tracking_size = parse_int(sym);
-		break;
-	    default:
-		parse_error_expect(sym, S_period, S_size, S_unknown);
-	    }
+	    parse_sticky(sym, &ctx->track_data);
 	    break;
 	default:
 	    parse_error_expect(sym, S_address, S_path, S_port, S_realm, S_tls, S_userid, S_groupid, S_backlog, S_type, S_protocol, S_retry, S_tcp, S_flag,
@@ -477,22 +482,7 @@ void spawnd_parse_decls(struct sym *sym)
 		    sym_get(sym);
 		    break;
 		case S_sticky:
-		    sym_get(sym);
-		    parse(sym, S_cache);
-		    switch (sym->code) {
-		    case S_period:
-			sym_get(sym);
-			parse(sym, S_equal);
-			spawnd_data.track_data.tracking_period = parse_int(sym);
-			break;
-		    case S_size:
-			sym_get(sym);
-			parse(sym, S_equal);
-			spawnd_data.track_data.tracking_size = parse_int(sym);
-			break;
-		    default:
-			parse_error_expect(sym, S_period, S_size, S_unknown);
-		    }
+		    parse_sticky(sym, &spawnd_data.track_data);
 		    break;
 		default:
 		    parse_error_expect(sym, S_exec, S_id, S_config, S_instances, S_users, S_userid, S_groupid, S_ipc, S_unknown);
@@ -525,22 +515,7 @@ void spawnd_parse_decls(struct sym *sym)
 #endif
 	    continue;
 	case S_sticky:
-	    sym_get(sym);
-	    parse(sym, S_cache);
-	    switch (sym->code) {
-	    case S_period:
-		sym_get(sym);
-		parse(sym, S_equal);
-		spawnd_data.track_data.tracking_period = parse_int(sym);
-		break;
-	    case S_size:
-		sym_get(sym);
-		parse(sym, S_equal);
-		spawnd_data.track_data.tracking_size = parse_int(sym);
-		break;
-	    default:
-		parse_error_expect(sym, S_period, S_size, S_unknown);
-	    }
+	    parse_sticky(sym, &spawnd_data.track_data);
 	    break;
 	default:
 	    parse_error(sym, "'%s' unexpected", sym->buf);
