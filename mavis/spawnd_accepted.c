@@ -39,7 +39,8 @@ static void track_lru_remove(struct track_data *data, struct track *track)
     if (track == data->lru_last)
 	data->lru_last = track->lru_prev;
 
-    track->lru_prev = track->lru_next = NULL;
+    track->lru_next = data->lru_first;
+    data->lru_first = track;
 }
 
 static void track_lru_append(struct track_data *data, struct track *track)
