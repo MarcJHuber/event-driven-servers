@@ -516,8 +516,9 @@ void spawnd_parse_decls(struct sym *sym)
 	    continue;
 	case S_sticky:
 	    parse_sticky(sym, &spawnd_data.track_data);
-	    break;
+	    continue;
 	default:
-	    parse_error(sym, "'%s' unexpected", sym->buf);
+	    parse_error_expect(sym, S_closebra, S_eof, S_permit, S_deny, S_listen, S_background, S_bind, S_tcp, S_pidfile, S_pid_file, S_overload, S_single,
+			       S_spawn, S_sticky, S_trace, S_debug, S_syslog, S_proctitle, S_coredump, S_unknown);
 	}
 }
