@@ -900,7 +900,7 @@ static void epoll_io_register(struct io_context *io, int fd)
 	io->Epoll.changelist = Xrealloc(io->Epoll.changelist, io->nfds_max * sizeof(int));
 	io->Epoll.changemap = Xrealloc(io->Epoll.changemap, io->nfds_max * sizeof(int));
 	io->Epoll.diskfile = Xrealloc(io->Epoll.diskfile, io->nfds_max * sizeof(int));
-	io->Epoll.diskfilemap = Xrealloc(io->Epoll.diskfile, io->nfds_max * sizeof(int));
+	io->Epoll.diskfilemap = Xrealloc(io->Epoll.diskfilemap, io->nfds_max * sizeof(int));
 	for (int i = omax; i < io->nfds_max; i++) {
 	    io->Epoll.changelist[i] = -1;
 	    io->Epoll.changemap[i] = -1;
