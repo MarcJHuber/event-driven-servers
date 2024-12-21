@@ -96,7 +96,7 @@ int scm_recv_msg(int sock, struct scm_data_accept *sd, size_t sd_len, int *fd)
 	if (sd->type == SCM_ACCEPT) {
 	    struct cmsghdr *chdr = CMSG_FIRSTHDR(&msg);
 	    memcpy(fd, CMSG_DATA(chdr), sizeof(int));
-	    if (*fd > -1 && fd_peek > -1) {
+	    if (*fd > -1 && fd_peek > -1 && *fd != fd_peek) {
 		close(fd_peek);
 		fd_peek = -1;
 	    } else if (*fd < 0)
