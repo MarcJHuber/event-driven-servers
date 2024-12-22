@@ -909,6 +909,7 @@ struct context {
 	BISTATE(mavis_pending);
 	BISTATE(mavis_tried);
 	BISTATE(rad_acct);
+	BISTATE(reset_tcp);
     } __attribute__((__packed__));
     enum token mavis_result;
     enum token aaa_protocol;

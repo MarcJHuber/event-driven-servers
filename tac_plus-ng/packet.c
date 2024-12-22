@@ -514,6 +514,7 @@ void tac_read(struct context *ctx, int cur)
 #endif
 	    len = read(cur, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff);
 	if (len <= 0) {
+	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
 	}
@@ -524,10 +525,12 @@ void tac_read(struct context *ctx, int cur)
     // auto-detect radsec
     if (config.rad_dict && ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
 	if (!ctx->tls && !(common_data.debug & DEBUG_TACTRACE_FLAG) && (ctx->realm->allowed_protocol_radius_tcp != TRISTATE_YES)) {
+	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
 	}
 	if (ctx->realm->allowed_protocol_radsec != TRISTATE_YES) {
+	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
 	}
@@ -549,10 +552,12 @@ void tac_read(struct context *ctx, int cur)
 
 #if defined(WITH_SSL)
     if (!ctx->tls && (ctx->realm->allowed_protocol_tacacs != TRISTATE_YES)) {
+	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
 	return;
     }
     if (ctx->tls && ctx->realm->allowed_protocol_tacacss != TRISTATE_YES) {
+	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
 	return;
     }
@@ -561,6 +566,7 @@ void tac_read(struct context *ctx, int cur)
 	ctx->aaa_protocol = S_tacacss;
 #else
     if (ctx->realm->allowed_protocol_tacacs != TRISTATE_YES) {
+	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
 	return;
     }
@@ -569,6 +575,7 @@ void tac_read(struct context *ctx, int cur)
     if ((ctx->hdr.tac.version & TAC_PLUS_MAJOR_VER_MASK) != TAC_PLUS_MAJOR_VER) {
 	report(NULL, LOG_ERR, ~0, "%s: Illegal major version specified: found %d wanted %d", ctx->device_addr_ascii.txt, ctx->hdr.tac.version,
 	       TAC_PLUS_MAJOR_VER);
+	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
 	return;
     }
@@ -576,6 +583,7 @@ void tac_read(struct context *ctx, int cur)
 
     if (data_len & ~0xffffUL) {
 	report(NULL, LOG_ERR, ~0, "%s: Illegal data size: %u", ctx->device_addr_ascii.txt, data_len);
+	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
 	return;
     }
@@ -592,6 +600,7 @@ void tac_read(struct context *ctx, int cur)
 #endif
 	len = read(cur, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset);
     if (len < min_len && min_len) {
+	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
 	return;
     }
@@ -787,6 +796,7 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
     }
 
     if (p != e) {
+	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, -1);
 	return -1;
     }
@@ -808,6 +818,7 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 		return 0;
 	    }
 	}
+	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, -1);
 	return -1;
     }
@@ -832,6 +843,7 @@ void rad_read(struct context *ctx, int cur)
 #endif
 	    len = read(cur, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff);
 	if (len <= 0) {
+	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
 	}
@@ -867,6 +879,7 @@ void rad_read(struct context *ctx, int cur)
 	len = read(cur, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset);
 
     if (len < min_len && min_len) {
+	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
 	return;
     }

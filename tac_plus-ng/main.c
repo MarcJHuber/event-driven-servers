@@ -425,6 +425,10 @@ void cleanup(struct context *ctx, int cur __attribute__((unused)))
 
     io_sched_drop(ctx->io, ctx);
     if (ctx->aaa_protocol != S_radius) {
+	if (ctx->reset_tcp) {
+	    struct linger linger = {.l_onoff = 1 };;
+	    setsockopt(ctx->sock, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger));
+	}
 	io_close(ctx->io, ctx->sock);
 	ctx->sock = -1;
     }
@@ -635,13 +639,13 @@ static void reject_conn(struct context *ctx, const char *hint, char *tls, int li
 	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
 	    report(NULL, LOG_INFO, ~0, "proxied %sconnection request from %s for %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%d]",
 		   tls, ctx->proxy_addr_ascii.txt, ctx->peer_addr_ascii.txt,
-		   ctx->server_addr_ascii.txt, ctx->server_port_ascii.txt, ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "", ctx->vrf.txt ? ctx->vrf.txt : "", prehint, hint,
-		   posthint, line);
+		   ctx->server_addr_ascii.txt, ctx->server_port_ascii.txt, ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "",
+		   ctx->vrf.txt ? ctx->vrf.txt : "", prehint, hint, posthint, line);
     } else
 	report(NULL, LOG_INFO, ~0, "%sconnection request from %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%d]",
 	       tls, ctx->peer_addr_ascii.txt,
-	       ctx->server_addr_ascii.txt, ctx->server_port_ascii.txt, ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "", ctx->vrf.txt ? ctx->vrf.txt : "", prehint, hint,
-	       posthint, line);
+	       ctx->server_addr_ascii.txt, ctx->server_port_ascii.txt, ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "", ctx->vrf.txt ? ctx->vrf.txt : "",
+	       prehint, hint, posthint, line);
 
 #define S "CONN-REJECT"
     str_set(&ctx->msgid, S, sizeof(S) - 1);
@@ -1219,7 +1223,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
