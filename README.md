@@ -12,6 +12,10 @@ Discussions can be started via
 
 Home site is https://www.pro-bono-publico.de/projects/
 
+Bugs
+====
+
+Be prepared for issues. This is work-in-progress, so be prepared for unexpected bahavior. Don't use this in a production environment without testing. If it breaks, please file an issue. The non-helpful alternative would be to just keep the broken pieces, so please don't do that. 
 
 Installation instructions
 =========================
