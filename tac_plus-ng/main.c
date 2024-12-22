@@ -653,6 +653,7 @@ static void reject_conn(struct context *ctx, const char *hint, char *tls, int li
 #define S "reject"
     str_set(&ctx->acct_type, S, sizeof(S) - 1);
 #undef S
+    ctx->reset_tcp = BISTATE_YES;
     cleanup(ctx, ctx->sock);
 }
 
