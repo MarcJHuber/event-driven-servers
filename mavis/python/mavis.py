@@ -156,7 +156,8 @@ class Mavis:
 					self.is_tacplus_authc = (
 						self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_AUTH
 						or self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_CHPW)
-					self.is_tacplus_authz =  self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_INFO
+					self.is_tacplus_authz = self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_INFO
+					self.is_tacplus_host = self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_HOST
 					self.is_tacplus_chpw = (
 						self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_CHPW)
 					if AV_A_USER in self.av_pairs:
