@@ -24,7 +24,7 @@ Marc Huber
               5.2.4. The cache module
               5.2.5. The external module
               5.2.6. The external-mt module
-              5.2.7. The group module
+              5.2.7. The groups module
               5.2.8. The limit module
               5.2.9. The log module
               5.2.10. The PAM module
@@ -189,7 +189,11 @@ Marc Huber
    applications using the MAVIS interface are:
 
      * include = config
-       Evaluates configuration file config.
+       Evaluates configuration file config. If config starts with
+       $CONFDIR/ the latter will be replaced by the directory
+       where the main configuration file is located, so a main
+       configuration file /where/ever/main.cfg with include =
+       "$CONFDIR/part.cfg" will look for /where/ever/part.cfg
      * id = ID{ ... }
        Defines a configuration section ID, which will be evaluated
        by a matching server process.
@@ -548,7 +552,7 @@ ename"
    Railroad diagram: ExternalMTConf
      __________________________________________________________
 
-5.2.7. The group module
+5.2.7. The groups module
 
    This module resolves numerical group IDs returned by a
    downstream backend to their corresponding ASCII names.
@@ -593,6 +597,8 @@ groups filter = /^com/
        Establishes a filter on the MEMBEROF MAVIS attribute after
        name resolving. Example:
 memberof filter = /(?i)^cn=ops,dc=/
+       Please keep in mind that filtering memberOf in the backend
+       module is much more efficient.
 
    (regex syntax in these examples is PCRE, but standard POSIX
    will work, too.)
