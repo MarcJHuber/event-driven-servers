@@ -521,7 +521,7 @@ void tac_read(struct context *ctx, int cur)
 	ctx->hdroff += len;
 	min_len = 0;
     }
-#if defined(WITH_SSL)
+#ifdef WITH_SSL
     // auto-detect radsec
     if (config.rad_dict && ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
 	if (!ctx->tls && !(common_data.debug & DEBUG_TACTRACE_FLAG) && (ctx->realm->allowed_protocol_radius_tcp != TRISTATE_YES)) {
@@ -550,12 +550,15 @@ void tac_read(struct context *ctx, int cur)
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
 	return;
 
-#if defined(WITH_SSL)
-    if (!ctx->tls && (ctx->realm->allowed_protocol_tacacs != TRISTATE_YES)) {
-	ctx->reset_tcp = BISTATE_YES;
-	cleanup(ctx, cur);
-	return;
-    }
+#ifdef WITH_SSL
+    if (!ctx->tls)
+#endif
+	if (ctx->realm->allowed_protocol_tacacs != TRISTATE_YES) {
+	    ctx->reset_tcp = BISTATE_YES;
+	    cleanup(ctx, cur);
+	    return;
+	}
+#ifdef WITH_SSL
     if (ctx->tls && ctx->realm->allowed_protocol_tacacss != TRISTATE_YES) {
 	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
@@ -564,12 +567,6 @@ void tac_read(struct context *ctx, int cur)
 
     if (ctx->tls)
 	ctx->aaa_protocol = S_tacacss;
-#else
-    if (ctx->realm->allowed_protocol_tacacs != TRISTATE_YES) {
-	ctx->reset_tcp = BISTATE_YES;
-	cleanup(ctx, cur);
-	return;
-    }
 #endif
 
     if ((ctx->hdr.tac.version & TAC_PLUS_MAJOR_VER_MASK) != TAC_PLUS_MAJOR_VER) {
@@ -646,7 +643,7 @@ void tac_read(struct context *ctx, int cur)
     }
 
     if (
-#if defined(WITH_SSL)
+#ifdef WITH_SSL
 	   (ctx->tls && !(ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG) && !(session->ctx->bug_compatibility & CLIENT_BUG_TLS_OBFUSCATED))
 	   || (!ctx->tls && (ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG))
 #else
@@ -654,13 +651,13 @@ void tac_read(struct context *ctx, int cur)
 #endif
 	) {
 	char *msg =
-#if defined(WITH_SSL)
+#ifdef WITH_SSL
 	    ctx->tls ? "Peers MUST NOT use Obfuscation with TLS." :
 #endif
 	    "Peers MUST use Obfuscation.";
 	report(NULL, LOG_ERR, ~0, "%s: %s packet (sequence number: %d) for %ssession %.8x", "Encrypted", ctx->device_addr_ascii.txt,
 	       (int) ctx->hdr.tac.seq_no,
-#if defined(WITH_SSL)
+#ifdef WITH_SSL
 	       ctx->tls ? "TLS " :
 #endif
 	       "", ntohl(ctx->hdr.tac.session_id));
