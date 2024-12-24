@@ -277,20 +277,18 @@ void complete_realm(tac_realm *r)
 		    exit(EX_CONFIG);
 		}
 
-		{
-		    unsigned long flags = 0;
-		    if (r->tls_accept_expired == TRISTATE_YES)
-			flags |= X509_V_FLAG_NO_CHECK_TIME;
-		    if (flags) {
-			X509_VERIFY_PARAM *verify;
-			verify = X509_VERIFY_PARAM_new();
-			X509_VERIFY_PARAM_set_flags(verify, flags);
-			SSL_CTX_set1_param(r->tls, verify);
-			X509_VERIFY_PARAM_free(verify);
-		    }
-		    if (r->tls_verify_depth > -1)
-			SSL_CTX_set_verify_depth(r->tls, r->tls_verify_depth);
+		unsigned long flags = 0;
+		if (r->tls_accept_expired == TRISTATE_YES)
+		    flags |= X509_V_FLAG_NO_CHECK_TIME;
+		if (flags) {
+		    X509_VERIFY_PARAM *verify;
+		    verify = X509_VERIFY_PARAM_new();
+		    X509_VERIFY_PARAM_set_flags(verify, flags);
+		    SSL_CTX_set1_param(r->tls, verify);
+		    X509_VERIFY_PARAM_free(verify);
 		}
+		if (r->tls_verify_depth > -1)
+		    SSL_CTX_set_verify_depth(r->tls, r->tls_verify_depth);
 		SSL_CTX_set_verify(r->tls, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 	    }
 	}
@@ -706,7 +704,7 @@ static struct dns_forward_mapping *dns_lookup_a(tac_realm *r, char *name, int re
 {
     while (r) {
 	if (r->dns_tree_a) {
-	    struct dns_forward_mapping dn = {.name.txt = name, .name.len = strlen(name) };
+	    struct dns_forward_mapping dn = {.name.txt = name,.name.len = strlen(name) };
 	    struct dns_forward_mapping *res = (struct dns_forward_mapping *) RB_lookup(r->dns_tree_a, &dn);
 	    if (res)
 		return res;
@@ -1255,24 +1253,22 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 	    *buf_len -= 1;
 	}
 	switch (attr->type) {
-	case S_string_keyword:{
-		if (*buf_len > (size_t) (data[1] - 1)) {
-		    if (attr->dict->id == -1 && attr->id == RADIUS_A_USER_PASSWORD) {
-			*(*buf)++ = '*';
-			*(*buf)++ = '*';
-			*(*buf)++ = '*';
-			*buf_len -= 3;
-		    } else {
-			memcpy(*buf, data + 2, data[1] - 2);
-			*buf += data[1] - 2;
-			*buf_len -= data[1] - 2;
-		    }
+	case S_string_keyword:
+	    if (*buf_len > (size_t) (data[1] - 1)) {
+		if (attr->dict->id == -1 && attr->id == RADIUS_A_USER_PASSWORD) {
+		    *(*buf)++ = '*';
+		    *(*buf)++ = '*';
+		    *(*buf)++ = '*';
+		    *buf_len -= 3;
+		} else {
+		    memcpy(*buf, data + 2, data[1] - 2);
+		    *buf += data[1] - 2;
+		    *buf_len -= data[1] - 2;
 		}
-		return;
 	    }
-	case S_integer:{
-		if (data[1] != 6)
-		    return;
+	    return;
+	case S_integer:
+	    if (data[1] == 6) {
 		int i = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5];
 		struct rad_dict_val *val = rad_dict_val_lookup_by_id(attr, i);
 		if (val && (*buf_len > val->name.len)) {
@@ -1286,14 +1282,13 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 			*buf_len -= len;
 		    }
 		}
-		return;
 	    }
+	    return;
 	case S_octets:
 	    rad_attr_val_dump_hex(data, data_len - 2, buf, buf_len);
 	    return;
-	case S_ipaddr:{
-		if (data[1] != 6)
-		    return;
+	case S_ipaddr:
+	    if (data[1] == 6) {
 		sockaddr_union from = { 0 };
 		from.sin.sin_family = AF_INET;
 		memcpy(&from.sin.sin_addr, data + 2, 4);
@@ -1302,11 +1297,10 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		    *buf += len;
 		    *buf_len -= len;
 		}
-		return;
 	    }
-	case S_ipv6addr:{
-		if (data[1] != 18)
-		    return;
+	    return;
+	case S_ipv6addr:
+	    if (data[1] == 18) {
 		sockaddr_union from = { 0 };
 		from.sin.sin_family = AF_INET6;
 		memcpy(&from.sin6.sin6_addr, data + 2, 16);
@@ -1315,8 +1309,8 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		    *buf += len;
 		    *buf_len -= len;
 		}
-		return;
 	    }
+	    return;
 	default:
 	    ;
 	}
