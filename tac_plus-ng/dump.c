@@ -112,6 +112,22 @@ static struct i2s map_author_type[] = {
     { 0 }
 };
 
+static struct i2s map_acct_type[] = {
+#define S "ACCT/UNKNOWN"
+    { 0, { S, sizeof(S) - 1 } },
+#undef S
+#define S "ACCT/SUCCESS"
+    { TAC_PLUS_ACCT_STATUS_SUCCESS, { S, sizeof(S) - 1 } },
+#undef S
+#define S "ACCT/ERROR"
+    { TAC_PLUS_ACCT_STATUS_ERROR, { S, sizeof(S) - 1 } },
+#undef S
+#define S "ACCT/FOLLOW"
+    { TAC_PLUS_ACCT_STATUS_FOLLOW, { S, sizeof(S) - 1 } },
+#undef S
+    { 0 }
+};
+
 static struct i2s map_action[] = {
 #define S "unknown"
     { 0, { S, sizeof(S) - 1 } },
@@ -291,7 +307,7 @@ char *summarise_outgoing_packet_type(tac_pak_hdr *hdr)
     case TAC_PLUS_AUTHOR:
 	return i2s(map_author_type, tac_payload(hdr, struct author_reply *)->status, NULL);
     case TAC_PLUS_ACCT:
-	return "ACCT";
+	return i2s(map_acct_type, tac_payload(hdr, struct acct_reply *)->status, NULL);
     default:
 	return "UNKNOWN";
     }
@@ -496,7 +512,7 @@ void dump_tacacs_pak(tac_session *session, tac_pak_hdr *hdr)
 	    struct acct_reply *acct = tac_payload(hdr, struct acct_reply *);
 
 	    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG,
-		   "ACCT/REPLY, status=%d, msg_len=%d, data_len=%d", acct->status, ntohs(acct->msg_len), ntohs(acct->data_len));
+		   "ACCT/REPLY, status=%d (%s), msg_len=%d, data_len=%d", acct->status, summarise_outgoing_packet_type(hdr), ntohs(acct->msg_len), ntohs(acct->data_len));
 	    p = (char *) acct + TAC_ACCT_REPLY_FIXED_FIELDS_SIZE;
 	    report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "msg", p, ntohs(acct->msg_len));
 	    p += ntohs(acct->msg_len);
