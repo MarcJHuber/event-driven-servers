@@ -1283,7 +1283,7 @@ static void complete_host_mavis_udp(struct context *ctx)
 
 static void accept_control_check_tls(struct context *ctx, int cur __attribute__((unused)))
 {
-#if defined(WITH_SSL)
+#ifdef WITH_SSL
     char tmp[6];
     if (ctx->realm->tls_autodetect == TRISTATE_YES)
 	ctx->use_tls = (recv(ctx->sock, &tmp, sizeof(tmp), MSG_PEEK) == (ssize_t) sizeof(tmp) && tmp[0] == 0x16 && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
@@ -1300,7 +1300,6 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	io_set_cb_h(ctx->io, ctx->sock, (void *) cleanup);
 	io_set_cb_e(ctx->io, ctx->sock, (void *) cleanup);
 	io_sched_add(ctx->io, ctx, (void *) periodics_ctx, 60, 0);
-#ifdef WITH_SSL
 	SSL_CTX_set_cert_verify_callback(ctx->realm->tls, app_verify_cb, ctx);
 
 	if (ctx->realm->alpn_vec && ctx->realm->alpn_vec_len > 1)
@@ -1323,7 +1322,6 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 
 	ctx->tls = SSL_new(ctx->realm->tls);
 	SSL_set_fd(ctx->tls, ctx->sock);
-#endif
 	accept_control_tls(ctx, ctx->sock);
 	return;
     }
