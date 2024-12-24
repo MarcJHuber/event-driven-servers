@@ -710,7 +710,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 
     ctx->last_io = io_now.tv_sec;
 
-#ifdef WITH_SSL
     int r = 0;
     switch (SSL_accept(ctx->tls)) {
     default:
@@ -756,16 +755,11 @@ static void accept_control_tls(struct context *ctx, int cur)
     }
 #endif
     X509 *cert = SSL_get_peer_certificate(ctx->tls);
-#endif
 
-    if (
-#ifdef WITH_SSL
-	   cert
-#endif
-	) {
+    if (cert) {
 	char buf[40];
 	time_t notafter = -1, notbefore = -1;
-#ifdef WITH_SSL
+
 	str_set(&ctx->tls_conn_version, (char *) SSL_get_version(ctx->tls), 0);
 	str_set(&ctx->tls_conn_cipher, (char *) SSL_get_cipher(ctx->tls), 0);
 	snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
@@ -796,7 +790,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 		}
 	    }
 	}
-#endif
+
 	if (ctx->tls_peer_cert_subject.txt) {
 	    while (*ctx->tls_peer_cert_subject.txt == '/')
 		ctx->tls_peer_cert_subject.txt++;
@@ -845,7 +839,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    }
 
 	}
-#ifdef WITH_SSL
+
 	// check SANs -- cycle through all DNS SANs and find the best host match
 
 	STACK_OF(GENERAL_NAME) * san;
@@ -875,7 +869,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    GENERAL_NAMES_free(san);
 	}
 	X509_free(cert);
-#endif
 
 	// check for dn match:
 	if (!ctx->host)
