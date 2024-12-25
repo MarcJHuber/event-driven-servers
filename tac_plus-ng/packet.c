@@ -78,11 +78,11 @@ static void md5_xor(tac_pak_hdr *hdr, char *key, int keylen)
 	for (int i = 0; i < data_len; i += 16) {
 	    int min = minimum(data_len - i, 16);
 	    struct iovec iov[5] = {
-		{.iov_base = (u_char *) & hdr->session_id,.iov_len = sizeof(hdr->session_id) },
+		{.iov_base = &hdr->session_id,.iov_len = sizeof(hdr->session_id) },
 		{.iov_base = key,.iov_len = keylen },
-		{.iov_base = (u_char *) & hdr->version,.iov_len = sizeof(hdr->version) },
-		{.iov_base = (u_char *) & hdr->seq_no,.iov_len = sizeof(hdr->seq_no) },
-		{.iov_base = (u_char *) hash[h ^ 1],.iov_len = MD5_LEN }
+		{.iov_base = &hdr->version,.iov_len = sizeof(hdr->version) },
+		{.iov_base = &hdr->seq_no,.iov_len = sizeof(hdr->seq_no) },
+		{.iov_base = hash[h ^ 1],.iov_len = MD5_LEN }
 	    };
 	    md5v(hash[h], MD5_LEN, iov, i ? 5 : 4);
 
