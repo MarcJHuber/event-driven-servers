@@ -373,7 +373,7 @@ static int author_pak_looks_bogus(tac_pak_hdr * hdr)
 static int accounting_pak_looks_bogus(tac_pak_hdr * hdr)
 {
     struct acct *pak = tac_payload(hdr, struct acct *);
-    u_char *p = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
+    u_char *p = (u_char *) pak + TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
     u_int datalength = ntohl(hdr->datalength);
     u_int len = TAC_ACCT_REQ_FIXED_FIELDS_SIZE + pak->user_len + pak->port_len + pak->rem_addr_len + pak->arg_cnt;
 
