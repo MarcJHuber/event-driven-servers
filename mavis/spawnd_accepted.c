@@ -353,15 +353,10 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	    iov[iov_len].iov_base = &u;
 	    iov[iov_len++].iov_len = 1;
 	} else {
-	    // UDP: cover protocol, and source port
+	    // UDP: cover protocol and source port
 	    u_char u = IPPROTO_UDP;
 	    iov[iov_len].iov_base = &u;
 	    iov[iov_len++].iov_len = 1;
-	    if (track_data->hash == S_radius && sd_udp->data_len > 21) {
-		// cover radius identifier
-		iov[iov_len].iov_base = &sd_udp->data[21];	// radius identifier
-		iov[iov_len++].iov_len = 1;
-	    }
 	    switch (sa.sa.sa_family) {
 #ifdef AF_INET
 	    case AF_INET:
