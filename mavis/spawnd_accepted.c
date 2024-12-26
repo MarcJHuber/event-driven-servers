@@ -281,6 +281,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	// cover source address
 	switch (sa.sa.sa_family) {
 #ifdef AF_INET
+	case AF_INET:
 	    iov[iov_len].iov_base = &sa.sin.sin_addr;
 	    iov[iov_len++].iov_len = 4;
 	    break;
