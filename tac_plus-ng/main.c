@@ -1457,6 +1457,7 @@ static void accept_control_udp(int s __attribute__((unused)), struct scm_data_ac
     ctx->radius_data->protocol = sd_ext->sd_udp.protocol;
     ctx->radius_data->sock = sd_ext->sd_udp.sock;
     memcpy(&ctx->radius_data->src, &sd_ext->sd_udp.src, 16);
+    memcpy(&ctx->radius_data->dst, &sd_ext->sd_udp.dst, 16);
 
     complete_host_mavis_udp(ctx);
 }

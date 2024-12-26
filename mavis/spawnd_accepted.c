@@ -11,6 +11,7 @@
 #include "spawnd_headers.h"
 #include "misc/mymd5.h"
 #include <netinet/tcp.h>
+#include <netinet/in.h>
 #include <sys/uio.h>
 #include <sysexits.h>
 
@@ -179,13 +180,54 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
     DebugIn(DEBUG_NET);
 
     if (ctx->socktype == SOCK_DGRAM) {
+
 	char buf[4096];
-	ssize_t len = recvfrom(cur, &buf, sizeof(buf), 0, &sa.sa, &sa_len);
+	char cbuf[512];
+
+	struct iovec iov = {
+		.iov_base  = buf,
+		.iov_len = sizeof(buf)
+	};
+
+	struct msghdr msg = {
+		.msg_name = &sa,
+		.msg_namelen = sizeof(sa),
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+		.msg_flags = 0,
+		.msg_control = (caddr_t) cbuf,
+		.msg_controllen = sizeof(cbuf)
+	};
+
+	ssize_t len = recvmsg(cur, &msg, 0);
 	if (len < 1) {
 	    DebugOut(DEBUG_NET);
 	    return;
 	}
+
+	len = msg.msg_iov[0].iov_len;
 	sd_udp = alloca(sizeof(struct scm_data_udp) + len);
+	memset(&sd_udp->dst, 0, 16);
+
+	for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+#ifdef IP_PKTINFO
+		if (cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_PKTINFO) {
+fprintf(stderr, "%s %d\n", __func__, __LINE__);
+			memcpy(&sd_udp->dst, &((struct in_pktinfo *) CMSG_DATA(cmsg))->ipi_addr, 4);
+fprintf(stderr, "%s %d\n", __func__, __LINE__);
+			break;
+		}
+#endif
+#ifdef IPV6_PKTINFO
+		if (cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
+fprintf(stderr, "%s %d\n", __func__, __LINE__);
+			memcpy(&sd_udp->dst, &((struct in6_pktinfo *) CMSG_DATA(cmsg))->ipi6_addr, 16);
+fprintf(stderr, "%s %d\n", __func__, __LINE__);
+			break;
+		}
+#endif
+	}
+
 	sd_udp->data_len = len;
 	memcpy(sd_udp->data, buf, len);
 	sd_udp->sock = cur;

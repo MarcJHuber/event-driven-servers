@@ -517,6 +517,7 @@ struct radius_data {
     short src_port;		// host byte order
     short dst_port;		// host byte order
     u_char src[16];
+    u_char dst[16];
     size_t data_len;
     union {
 	rad_pak_hdr pak;
