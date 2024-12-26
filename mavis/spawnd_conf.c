@@ -98,6 +98,21 @@ static void parse_sticky(struct sym *sym, struct track_data *data)
 	parse(sym, S_equal);
 	data->tracking_size = parse_int(sym);
 	break;
+    case S_hash:
+	sym_get(sym);
+	parse(sym, S_equal);
+	switch (sym->code) {
+	    case S_radius:
+	    case S_none:
+	    case S_TCP:
+	    case S_UDP:
+		data->hash = sym->code;
+		sym_get(sym);
+		break;
+	    default:
+		parse_error_expect(sym, S_radius, S_none, S_unknown);
+	}
+	break;
     default:
 	parse_error_expect(sym, S_period, S_size, S_unknown);
     }

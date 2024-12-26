@@ -56,6 +56,7 @@ struct track_data {
     struct track *lru_last;
     time_t tracking_period;
     int tracking_size;
+    enum token hash;
 };
 
 struct spawnd_data {

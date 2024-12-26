@@ -276,6 +276,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
     if (common_data.singleprocess)
 	common_data.scm_send_msg(-1, sd ? (struct scm_data *) sd : (struct scm_data *) sd_udp, s);
     else {
+	struct track_data *track_data = (ctx->track_data.tracking_period > 0) ? &ctx->track_data : &spawnd_data.track_data;
 	struct iovec iov[5];
 	size_t iov_len = 0;
 	// cover source address
@@ -304,12 +305,12 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	    iov[iov_len].iov_base = &u;
 	    iov[iov_len++].iov_len = 1;
 	} else {
-	    // UDP: cover protocol, radius identifier and source port
-	    // FIXME: needs adjustment for non-radius UDP
+	    // UDP: cover protocol, and source port
 	    u_char u = IPPROTO_UDP;
 	    iov[iov_len].iov_base = &u;
 	    iov[iov_len++].iov_len = 1;
-	    if (sd_udp->data_len > 21) {
+	    if (track_data->hash == S_radius && sd_udp->data_len > 21) {
+		// cover radius identifier
 		iov[iov_len].iov_base = &sd_udp->data[21];	// radius identifier
 		iov[iov_len++].iov_len = 1;
 	    }
@@ -334,7 +335,6 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	u_char digest[MD5_DIGEST_SIZE];
 	md5v(digest, sizeof(digest), iov, iov_len);
 
-	struct track_data *track_data = (ctx->track_data.tracking_period > 0) ? &ctx->track_data : &spawnd_data.track_data;
 	min_i = tracking_lookup(&ctx->track_data, digest);
 	do {
 	    min = common_data.users_max;
