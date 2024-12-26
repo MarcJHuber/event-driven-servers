@@ -20,6 +20,12 @@
 #if !defined(__SYSCONF_H__)
 #define __SYSCONF_H__
 /*******************************************************************************
+ * Linux specific defines
+ */
+#ifdef __linux__
+#define _GNU_SOURCE
+#endif
+/*******************************************************************************
  * BSD summary define
  */
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__DragonFly__)
@@ -96,12 +102,7 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <fcntl.h>
-#if defined(__linux__)
-/* need to #include this before the openssl stuff ... */
-#define __USE_XOPEN
 #include <unistd.h>
-#undef __USE_XOPEN
-#endif
 #if defined(WITH_SSL) || defined(WITH_CRYPTO)
 #include <openssl/ssl.h>
 #endif
