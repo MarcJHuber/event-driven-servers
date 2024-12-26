@@ -512,7 +512,6 @@ typedef struct {
 struct radius_data {
     rad_pak_hdr *pak_in;
     size_t pak_in_len;
-    int sock;
     u_char protocol;		// AF_INET, AF_INET6
     short src_port;		// host byte order
     short dst_port;		// host byte order

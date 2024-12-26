@@ -326,29 +326,7 @@ static void set_response_authenticator(tac_session *session, rad_pak_hdr *pak)
 
 static void send_udp(tac_session *session, tac_pak *pak)
 {
-    sockaddr_union sa = { 0 };
-    socklen_t sa_len = 0;
-    sa.sa.sa_family = session->ctx->radius_data->protocol;
-    switch (sa.sa.sa_family) {
-#ifdef AF_INET
-    case AF_INET:
-	memcpy(&sa.sin.sin_addr, &session->ctx->radius_data->src, 4);
-	sa.sin.sin_port = htons(session->ctx->radius_data->src_port);
-	sa_len = sizeof(sa.sin);
-	break;
-#endif
-#ifdef AF_INET6
-    case AF_INET6:
-	memcpy(&sa.sin6.sin6_addr, &session->ctx->radius_data->src, 16);
-	sa.sin6.sin6_port = htons(session->ctx->radius_data->src_port);
-	sa_len = sizeof(sa.sin6);
-	break;
-#endif
-    default:
-	cleanup(session->ctx, -1);
-	return;
-    }
-    sendto(session->radius_data->sock, pak->pak.uchar, pak->length, 0, &sa.sa, sa_len);
+    send(session->ctx->sock, pak->pak.uchar, pak->length, 0);
     cleanup(session->ctx, -1);
 }
 

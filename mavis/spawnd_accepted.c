@@ -170,7 +170,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 {
     int s = -1, i, min, min_i, res, flags;
     int one = 1;
-    sockaddr_union sa;
+    sockaddr_union sa = { 0 };
     socklen_t sa_len = (socklen_t) sizeof(sa);
     int iteration_cur = 0;
     struct in6_addr addr;
@@ -185,18 +185,18 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	char cbuf[512];
 
 	struct iovec iov = {
-		.iov_base  = buf,
-		.iov_len = sizeof(buf)
+	    .iov_base = buf,
+	    .iov_len = sizeof(buf)
 	};
 
 	struct msghdr msg = {
-		.msg_name = &sa,
-		.msg_namelen = sizeof(sa),
-		.msg_iov = &iov,
-		.msg_iovlen = 1,
-		.msg_flags = 0,
-		.msg_control = (caddr_t) cbuf,
-		.msg_controllen = sizeof(cbuf)
+	    .msg_name = &sa,
+	    .msg_namelen = sizeof(sa),
+	    .msg_iov = &iov,
+	    .msg_iovlen = 1,
+	    .msg_flags = 0,
+	    .msg_control = (caddr_t) cbuf,
+	    .msg_controllen = sizeof(cbuf)
 	};
 
 	ssize_t len = recvmsg(cur, &msg, 0);
@@ -205,54 +205,60 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	    return;
 	}
 
-	len = msg.msg_iov[0].iov_len;
 	sd_udp = alloca(sizeof(struct scm_data_udp) + len);
 	memset(&sd_udp->dst, 0, 16);
 
-	for (struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+	for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 #ifdef IP_PKTINFO
-		if (cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_PKTINFO) {
-fprintf(stderr, "%s %d\n", __func__, __LINE__);
-			memcpy(&sd_udp->dst, &((struct in_pktinfo *) CMSG_DATA(cmsg))->ipi_addr, 4);
-fprintf(stderr, "%s %d\n", __func__, __LINE__);
-			break;
-		}
+	    if (sa.sa.sa_family == AF_INET && cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_PKTINFO) {
+		memcpy(&sd_udp->dst, &((struct in_pktinfo *) CMSG_DATA(cmsg))->ipi_addr, 4);
+		break;
+	    }
 #endif
 #ifdef IPV6_PKTINFO
-		if (cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
-fprintf(stderr, "%s %d\n", __func__, __LINE__);
-			memcpy(&sd_udp->dst, &((struct in6_pktinfo *) CMSG_DATA(cmsg))->ipi6_addr, 16);
-fprintf(stderr, "%s %d\n", __func__, __LINE__);
-			break;
-		}
+	    if (sa.sa.sa_family == AF_INET6 && cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
+		memcpy(&sd_udp->dst, &((struct in6_pktinfo *) CMSG_DATA(cmsg))->ipi6_addr, 16);
+		break;
+	    }
 #endif
 	}
 
 	sd_udp->data_len = len;
 	memcpy(sd_udp->data, buf, len);
-	sd_udp->sock = cur;
 	sd_udp->type = SCM_UDPDATA;
 	sd_udp->rad_acct = ctx->rad_acct;
 	memcpy(sd_udp->realm, ctx->tag, SCM_REALM_SIZE);
 	sd_udp->protocol = sa.sa.sa_family;
+	sd_udp->dst_port = ctx->port;
+	s = socket(sa.sa.sa_family, SOCK_DGRAM, 0);
+	int one = 1;
+	setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *) &one, (socklen_t) sizeof(one));
+
+	sockaddr_union local_su = {.sa.sa_family = sa.sa.sa_family };
+
 	switch (sa.sa.sa_family) {
 #ifdef AF_INET
 	case AF_INET:
 	    memcpy(&sd_udp->src, &sa.sin.sin_addr, 4);
 	    sd_udp->src_port = ntohs(sa.sin.sin_port);
+	    memcpy(&local_su.sin.sin_addr, sd_udp->dst, 4);
+	    local_su.sin.sin_port = htons(ctx->port);
 	    break;
 #endif
 #ifdef AF_INET6
 	case AF_INET6:
 	    memcpy(&sd_udp->src, &sa.sin6.sin6_addr, 16);
 	    sd_udp->src_port = ntohs(sa.sin6.sin6_port);
+	    memcpy(&local_su.sin6.sin6_addr, sd_udp->dst, 16);
+	    local_su.sin6.sin6_port = htons(ctx->port);
 	    break;
 #endif
 	default:
 	    DebugOut(DEBUG_NET);
 	    return;
 	}
-	sd_udp->dst_port = ctx->port;
+	if (-1 < su_bind(s, &local_su))
+	    su_connect(s, &sa);
     } else {
 	s = accept(cur, &sa.sa, &sa_len);
 	if (s < 0) {
@@ -428,7 +434,7 @@ fprintf(stderr, "%s %d\n", __func__, __LINE__);
 	}
 	while (res);
 
-	if (sd)
+	if (s > -1)
 	    close(s);
 
 	spawnd_data.server_arr[min_i]->use++, common_data.users_cur++;

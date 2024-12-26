@@ -424,14 +424,12 @@ void cleanup(struct context *ctx, int cur __attribute__((unused)))
     log_exec(NULL, ctx, S_connection, io_now.tv_sec);
 
     io_sched_drop(ctx->io, ctx);
-    if (ctx->aaa_protocol != S_radius) {
-	if (ctx->reset_tcp) {
-	    struct linger linger = {.l_onoff = 1 };;
-	    setsockopt(ctx->sock, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger));
-	}
-	io_close(ctx->io, ctx->sock);
-	ctx->sock = -1;
+    if (ctx->reset_tcp) {
+	struct linger linger = {.l_onoff = 1 };;
+	setsockopt(ctx->sock, SOL_SOCKET, SO_LINGER, &linger, sizeof(linger));
     }
+    io_close(ctx->io, ctx->sock);
+    ctx->sock = -1;
 
     for (rb_node_t * u, *t = RB_first(ctx->sessions); t; t = u) {
 	u = RB_next(t);
@@ -839,7 +837,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    }
 
 	}
-
 	// check SANs -- cycle through all DNS SANs and find the best host match
 
 	STACK_OF(GENERAL_NAME) * san;
@@ -1217,7 +1214,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1364,7 +1361,7 @@ static void accept_control_final(struct context *ctx)
     str_set(&ctx->msgid, NULL, 0);
 }
 
-static void accept_control_udp(int s __attribute__((unused)), struct scm_data_accept_ext *sd_ext, u_char *data, size_t data_len)
+static void accept_control_udp(int s, struct scm_data_accept_ext *sd_ext, u_char *data, size_t data_len)
 {
     sockaddr_union from = { 0 };
 
@@ -1411,8 +1408,8 @@ static void accept_control_udp(int s __attribute__((unused)), struct scm_data_ac
     }
 
     struct context *ctx = new_context(common_data.io, r);
-    ctx->sock = sd_ext->sd_udp.sock;
     ctx->rad_acct = sd_ext->sd_udp.rad_acct;
+    ctx->sock = s;
     context_lru_append(ctx);
     ctx->aaa_protocol = S_radius;
 
@@ -1455,7 +1452,6 @@ static void accept_control_udp(int s __attribute__((unused)), struct scm_data_ac
     ctx->radius_data->src_port = sd_ext->sd_udp.src_port;
     ctx->radius_data->dst_port = sd_ext->sd_udp.dst_port;
     ctx->radius_data->protocol = sd_ext->sd_udp.protocol;
-    ctx->radius_data->sock = sd_ext->sd_udp.sock;
     memcpy(&ctx->radius_data->src, &sd_ext->sd_udp.src, 16);
     memcpy(&ctx->radius_data->dst, &sd_ext->sd_udp.dst, 16);
 

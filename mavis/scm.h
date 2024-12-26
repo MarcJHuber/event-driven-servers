@@ -38,7 +38,6 @@ struct scm_data_udp {
     u_char dst[16];
     short src_port;		// host byte order
     short dst_port;		// host byte order
-    int sock;			// inherited from spawnd
     char realm[SCM_REALM_SIZE];
     short data_len;
     u_char data[] __attribute__((aligned(8)));

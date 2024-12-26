@@ -80,7 +80,8 @@ int scm_recv_msg(int sock, struct scm_data_accept *sd, size_t sd_len, int *fd)
 	len = sizeof(struct scm_data_udp) + ((struct scm_data_udp *) sd)->data_len;
 	if (len <= sd_len)
 	    vector.iov_len = len;
-    } else if (sd->type == SCM_ACCEPT) {
+    }
+    if (sd->type == SCM_ACCEPT || sd->type == SCM_UDPDATA) {
 	// MSG_PEEK apparently accepts the file descriptor. This is unexpected, and implementations may vary.
 	struct cmsghdr *chdr = CMSG_FIRSTHDR(&msg);
 	memcpy(&fd_peek, CMSG_DATA(chdr), sizeof(int));
@@ -93,7 +94,7 @@ int scm_recv_msg(int sock, struct scm_data_accept *sd, size_t sd_len, int *fd)
 	return -1;
     }
     if (0 < res) {
-	if (sd->type == SCM_ACCEPT) {
+	if (sd->type == SCM_ACCEPT || sd->type == SCM_UDPDATA) {
 	    struct cmsghdr *chdr = CMSG_FIRSTHDR(&msg);
 	    memcpy(fd, CMSG_DATA(chdr), sizeof(int));
 	    if (*fd > -1 && fd_peek > -1 && *fd != fd_peek) {
