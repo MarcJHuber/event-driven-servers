@@ -192,6 +192,10 @@ acl accept ::1
           + sticky cache size = Number
             This option sets the maximum number of entries in the
             "sticky" cache. Defaults to 1024.
+          + sticky cache hash = radius
+            Include the RADIUS identifier when calculating the
+            internal hash. This is recommended if your device uses
+            a static UDP source port for its RADIUS queries.
        Directives which may be used in both cases are:
           + tls = ( yes | no )
             This directive tells a child process if the connection
