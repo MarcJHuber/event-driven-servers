@@ -304,6 +304,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	    iov[iov_len++].iov_len = 1;
 	} else {
 	    // UDP: cover protocol, radius identifier and source port
+	    // FIXME: needs adjustment for non-radius UDP
 	    u_char u = IPPROTO_UDP;
 	    iov[iov_len].iov_base = &u;
 	    iov[iov_len++].iov_len = 1;
@@ -313,6 +314,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	    }
 	    switch (sa.sa.sa_family) {
 #ifdef AF_INET
+	    case AF_INET:
 		iov[iov_len].iov_base = &sa.sin.sin_port;
 		iov[iov_len++].iov_len = sizeof(sa.sin.sin_port);
 		break;
