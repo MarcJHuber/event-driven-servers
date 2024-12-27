@@ -303,6 +303,11 @@ static void periodics_ctx(struct context *ctx, int cur __attribute__((unused)))
 	return;
     }
 
+    if (!ctx->out && !ctx->delayed && (ctx->host->udp_timeout || ctx->dying) && (ctx->last_io + ctx->host->udp_timeout < io_now.tv_sec)) {
+	cleanup(ctx, ctx->sock);
+	return;
+    }
+
     for (rb_node_t * rbnext, *rbn = RB_first(ctx->sessions); rbn; rbn = rbnext) {
 	tac_session *s = RB_payload(rbn, tac_session *);
 	rbnext = RB_next(rbn);
@@ -320,8 +325,7 @@ static void periodics_ctx(struct context *ctx, int cur __attribute__((unused)))
 
 static void accept_control(struct context *, int __attribute__((unused)));
 static void accept_control_final(struct context *);
-static void accept_control_common(int, struct scm_data_accept_ext *, sockaddr_union *);
-static void accept_control_udp(int s, struct scm_data_accept_ext *sd_ext, u_char * data, size_t data_len);
+static void accept_control_common(int, struct scm_data_accept_ext *, sockaddr_union *, u_char *, size_t);
 static void accept_control_singleprocess(int, struct scm_data_accept *);
 static void accept_control_udp_singleprocess(int s, struct scm_data_udp *sd);
 static void accept_control_raw(int, struct scm_data_accept_ext *);
@@ -403,6 +407,12 @@ void cleanup(struct context *ctx, int cur __attribute__((unused)))
     if (ctx->aaa_protocol != S_radius) {
 #ifdef WITH_SSL
 	if (ctx->tls) {
+	    if (ctx->rbio) {
+		char buf[8192];
+		ssize_t len = read(cur, buf, sizeof(buf));
+		if (len > 0)
+		    BIO_write(ctx->rbio, buf, len);
+	    }
 	    int res = io_SSL_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
 	    if (res < 0 && errno == EAGAIN)
 		return;
@@ -561,12 +571,12 @@ static void accept_control_udp_singleprocess(int s, struct scm_data_udp *sd)
     struct scm_data_accept_ext sd_ext = {.sd_udp = *sd };
     set_sd_realm(-1, &sd_ext);
     users_inc();
-    accept_control_udp(s, &sd_ext, sd->data, sd->data_len);
+    accept_control_common(s, &sd_ext, NULL, sd->data, sd->data_len);
 }
 
 static void accept_control_raw(int s, struct scm_data_accept_ext *sd)
 {
-    accept_control_common(s, sd, NULL);
+    accept_control_common(s, sd, NULL, NULL, 0);
 }
 
 static struct context_px *new_context_px(struct io_context *io, struct scm_data_accept_ext *sd)
@@ -621,7 +631,7 @@ static void read_px(struct context_px *ctx, int cur)
 
     io_sched_drop(ctx->io, ctx);
     io_unregister(ctx->io, ctx->sock);
-    accept_control_common(ctx->sock, &ctx->sd, &from);
+    accept_control_common(ctx->sock, &ctx->sd, &from, NULL, 0);
     free(ctx);
 }
 
@@ -709,6 +719,13 @@ static void accept_control_tls(struct context *ctx, int cur)
     ctx->last_io = io_now.tv_sec;
 
     int r = 0;
+
+    if (ctx->rbio) {
+	char buf[8192];
+	ssize_t len = read(cur, buf, sizeof(buf));
+	if (len > 0)
+	    BIO_write(ctx->rbio, buf, len);
+    }
     switch (SSL_accept(ctx->tls)) {
     default:
 	if (SSL_want_read(ctx->tls)) {
@@ -1125,7 +1142,7 @@ static void set_ctx_info(struct context *ctx, struct scm_data_accept_ext *sd_ext
 	str_set(&ctx->vrf, mem_strndup(ctx->mem, (u_char *) sd_ext->vrf, sd_ext->vrf_len), 0);
 }
 
-static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, sockaddr_union *device_addr)
+static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, sockaddr_union *device_addr, u_char *inject_buf, size_t inject_len)
 {
     fcntl(s, F_SETFD, FD_CLOEXEC);
     fcntl(s, F_SETFL, O_NONBLOCK);
@@ -1182,6 +1199,10 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
     ctx->sock = s;
     context_lru_append(ctx);
     ctx->use_tls = sd_ext->sd.use_tls ? BISTATE_YES : BISTATE_NO;
+    if (inject_buf) {
+	ctx->inject_buf = mem_copy(ctx->mem, inject_buf, inject_len);
+	ctx->inject_len = inject_len;
+    }
 
     if (ctx->use_tls == BISTATE_NO) {
 	if (h) {
@@ -1244,39 +1265,35 @@ static void complete_host_mavis(struct context *ctx)
     io_set_cb_e(ctx->io, ctx->sock, (void *) cleanup);
     io_sched_add(ctx->io, ctx, (void *) periodics_ctx, 60, 0);
     io_set_i(ctx->io, ctx->sock);
+    if (ctx->inject_buf)
+	accept_control_check_tls(ctx, ctx->sock);
 }
 
-static void complete_host_mavis_udp(struct context *ctx)
+ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags)
 {
-    if (query_mavis_host(ctx, complete_host_mavis_udp))
-	return;
-
-    if (ctx->mavis_result == S_deny) {
-	reject_conn(ctx, ctx->hint, "by MAVIS backend", __LINE__);
-	return;
+    if (ctx->inject_buf && ctx->inject_len > ctx->inject_off) {
+	if (ctx->inject_len - ctx->inject_off < len)
+	    len = ctx->inject_len - ctx->inject_off;
+	memcpy(buf, ctx->inject_buf + ctx->inject_off, len);
+	if (!(flags & MSG_PEEK))
+	    ctx->inject_off += len;
+	if (ctx->inject_off == ctx->inject_len)
+	    mem_free(ctx->mem, &ctx->inject_buf);
+	return len;
     }
-
-    if (ctx->host)
-	ctx->key = ctx->host->radius_key;
-
-#define S "CONN-START"
-    str_set(&ctx->msgid, S, sizeof(S) - 1);
-#undef S
-#define S "start"
-    str_set(&ctx->acct_type, S, sizeof(S) - 1);
-#undef S
-    log_exec(NULL, ctx, S_connection, io_now.tv_sec);
-    str_set(&ctx->msgid, NULL, 0);
-
-    rad_udp_inject(ctx);
+    return recv(ctx->sock, buf, len, flags);
 }
 
 static void accept_control_check_tls(struct context *ctx, int cur __attribute__((unused)))
 {
 #ifdef WITH_SSL
-    char tmp[6];
-    if (ctx->realm->tls_autodetect == TRISTATE_YES)
-	ctx->use_tls = (recv(ctx->sock, &tmp, sizeof(tmp), MSG_PEEK) == (ssize_t) sizeof(tmp) && tmp[0] == 0x16 && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
+    u_char tmp[6];
+    if (ctx->realm->tls_autodetect == TRISTATE_YES && recv_inject(ctx, tmp, sizeof(tmp), MSG_PEEK) == (ssize_t) sizeof(tmp)) {
+	if (ctx->inject_buf)
+	    ctx->use_dtls = (tmp[0] == 0x16 && tmp[1] == 0xfe && (tmp[2] == 0xfd || tmp[2] == 0xfc)) ? BISTATE_YES : BISTATE_NO;
+	else
+	    ctx->use_tls = (tmp[0] == 0x16 && tmp[1] == 0x03 && tmp[2] == 0x01 && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
+    }
     if (ctx->host && ctx->use_tls) {
 	if (!ctx->realm->tls) {
 	    report(NULL, LOG_ERR, ~0, "%s but realm %s isn't configured suitably",
@@ -1310,13 +1327,22 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 		SSL_CTX_set_keylog_callback(ctx->realm->tls, keylog_cb);
 	}
 
-	ctx->tls = SSL_new(ctx->realm->tls);
-	SSL_set_fd(ctx->tls, ctx->sock);
+	ctx->tls = SSL_new(ctx->use_tls ? ctx->realm->tls : (ctx->use_dtls ? ctx->realm->dtls : NULL));
+	if (ctx->tls) {
+	    SSL_set_fd(ctx->tls, ctx->sock);
+	    if (ctx->inject_buf) {
+		//ctx->rbio = BIO_new(BIO_s_dgram_mem());
+		ctx->rbio = BIO_new(BIO_s_mem());
+		SSL_set0_rbio(ctx->tls, ctx->rbio);
+		BIO_write(ctx->rbio, ctx->inject_buf, ctx->inject_len);
+		mem_free(ctx->mem, &ctx->inject_buf);
+	    }
+	}
 	accept_control_tls(ctx, ctx->sock);
 	return;
     }
 #endif
-    if (!ctx->host || !ctx->host->key)
+    if (!ctx->host)
 	reject_conn(ctx, ctx->hint, "", __LINE__);
     else
 	accept_control_final(ctx);
@@ -1359,103 +1385,8 @@ static void accept_control_final(struct context *ctx)
 #undef S
     log_exec(NULL, ctx, S_connection, io_now.tv_sec);
     str_set(&ctx->msgid, NULL, 0);
-}
-
-static void accept_control_udp(int s, struct scm_data_accept_ext *sd_ext, u_char *data, size_t data_len)
-{
-    sockaddr_union from = { 0 };
-
-    from.sa.sa_family = sd_ext->sd_udp.protocol;
-    switch (from.sa.sa_family) {
-#ifdef AF_INET
-    case AF_INET:
-	memcpy(&from.sin.sin_addr, &sd_ext->sd_udp.src, 4);
-	from.sin.sin_port = htons(sd_ext->sd_udp.src_port);
-	break;
-#endif
-#ifdef AF_INET6
-    case AF_INET6:
-	memcpy(&from.sin6.sin6_addr, &sd_ext->sd_udp.src, 16);
-	from.sin6.sin6_port = htons(sd_ext->sd_udp.src_port);
-	break;
-#endif
-    default:
-	return;
-    }
-
-    su_convert(&from, AF_INET);
-    struct in6_addr addr = { 0 };
-    su_ptoh(&from, &addr);
-
-    tac_realm *r = set_sd_realm(s, sd_ext);
-
-    tac_host *h = NULL;
-    radixtree_t *rxt = lookup_hosttree(r);
-    if (rxt)
-	h = radix_lookup(rxt, &addr, NULL);
-    if (h) {
-	complete_host(h);
-
-	if (h->target_realm && r != h->target_realm) {
-	    r = h->target_realm;
-	    rxt = lookup_hosttree(r);
-	    if (rxt) {
-		h = radix_lookup(rxt, &addr, NULL);
-		if (h)
-		    complete_host(h);
-	    }
-	}
-    }
-
-    struct context *ctx = new_context(common_data.io, r);
-    ctx->rad_acct = sd_ext->sd_udp.rad_acct;
-    ctx->sock = s;
-    context_lru_append(ctx);
-    ctx->aaa_protocol = S_radius;
-
-    if (ctx->realm->allowed_protocol_radius != TRISTATE_YES) {
-	cleanup(ctx, -1);
-	return;
-    }
-
-    char buf[256];
-    str_set(&ctx->peer_addr_ascii, mem_strdup(ctx->mem, su_ntop(&from, buf, sizeof(buf)) ? buf : "<unknown>"), 0);
-    ctx->device_addr_ascii = ctx->peer_addr_ascii;
-    ctx->device_port_ascii = ctx->peer_port_ascii;
-    ctx->device_addr = addr;
-
-    snprintf(buf, 10, "%u", 0xffff & sd_ext->sd_udp.src_port);
-    str_set(&ctx->peer_port_ascii, mem_strdup(ctx->mem, buf), 0);
-
-    snprintf(buf, 10, "%u", 0xffff & sd_ext->sd_udp.dst_port);
-    str_set(&ctx->server_port_ascii, mem_strdup(ctx->mem, buf), 0);
-
-    set_ctx_info(ctx, sd_ext);
-
-    if (h) {
-	if (!h->radius_key) {
-	    ctx->hint = "no encryption key found";
-	    reject_conn(ctx, ctx->hint, NULL, __LINE__);
-	    return;
-	}
-    } else {
-	ctx->hint = "host unknown";
-	reject_conn(ctx, ctx->hint, NULL, __LINE__);
-	return;
-    }
-
-    ctx->host = h;
-
-    ctx->radius_data = mem_alloc(ctx->mem, sizeof(struct radius_data));
-    ctx->radius_data->pak_in = mem_copy(ctx->mem, data, data_len);
-    ctx->radius_data->pak_in_len = data_len;
-    ctx->radius_data->src_port = sd_ext->sd_udp.src_port;
-    ctx->radius_data->dst_port = sd_ext->sd_udp.dst_port;
-    ctx->radius_data->protocol = sd_ext->sd_udp.protocol;
-    memcpy(&ctx->radius_data->src, &sd_ext->sd_udp.src, 16);
-    memcpy(&ctx->radius_data->dst, &sd_ext->sd_udp.dst, 16);
-
-    complete_host_mavis_udp(ctx);
+    if (ctx->inject_buf)
+	tac_read(ctx, ctx->sock);
 }
 
 static void accept_control(struct context *ctx, int cur)
@@ -1490,7 +1421,7 @@ static void accept_control(struct context *ctx, int cur)
 	    memcpy(&sd_ext.sd, &u.sd_udp, sizeof(struct scm_data_udp));
 	    users_inc();
 	    set_sd_realm(cur, &sd_ext);
-	    accept_control_udp(s, &sd_ext, u.sd_udp.data, u.sd_udp.data_len);
+	    accept_control_common(s, &sd_ext, NULL, u.sd_udp.data, u.sd_udp.data_len);
 	    return;
 	}
     case SCM_ACCEPT:

@@ -190,7 +190,7 @@ static rb_tree_t *tags_by_name = NULL;
 #ifndef OPENSSL_NO_PSK
 static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION ** sess);
 #endif
-static SSL_CTX *ssl_init(char *, char *, char *, char *);
+static SSL_CTX *ssl_init(struct realm *, int);
 #endif
 
 static char *confdir_strdup(char *in)
@@ -254,6 +254,7 @@ void complete_realm(tac_realm *r)
 	RS(dns_caching_period);
 	RS(warning_period);
 	RS(default_host->tcp_timeout);
+	RS(default_host->udp_timeout);
 	RS(default_host->session_timeout);
 	RS(default_host->context_timeout);
 	RS(default_host->dns_timeout);
@@ -267,36 +268,17 @@ void complete_realm(tac_realm *r)
 #undef RS
 #ifdef WITH_SSL
 	if (r->tls_cert && r->tls_key) {
-	    r->tls = ssl_init(r->tls_cert, r->tls_key, r->tls_pass, r->tls_ciphers);
-	    if (r->tls) {
-		if (r->tls_cafile && !SSL_CTX_load_verify_locations(r->tls, r->tls_cafile, NULL)) {
-		    char buf[256];
-		    const char *terr = ERR_error_string(ERR_get_error(), buf);
-		    report(NULL, LOG_ERR, ~0,
-			   "realm %s: SSL_CTX_load_verify_locations(\"%s\") failed%s%s", r->name.txt, r->tls_cafile, terr ? ": " : "", terr ? terr : "");
-		    exit(EX_CONFIG);
-		}
-
-		unsigned long flags = 0;
-		if (r->tls_accept_expired == TRISTATE_YES)
-		    flags |= X509_V_FLAG_NO_CHECK_TIME;
-		if (flags) {
-		    X509_VERIFY_PARAM *verify;
-		    verify = X509_VERIFY_PARAM_new();
-		    X509_VERIFY_PARAM_set_flags(verify, flags);
-		    SSL_CTX_set1_param(r->tls, verify);
-		    X509_VERIFY_PARAM_free(verify);
-		}
-		if (r->tls_verify_depth > -1)
-		    SSL_CTX_set_verify_depth(r->tls, r->tls_verify_depth);
-		SSL_CTX_set_verify(r->tls, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
-	    }
+	    r->tls = ssl_init(r, 0);
+	    r->dtls = ssl_init(r, 1);
 	}
 #ifndef OPENSSL_NO_PSK
 	if (r->use_tls_psk) {
 	    if (!r->tls)
-		r->tls = ssl_init(r->tls_cert, r->tls_key, r->tls_pass, r->tls_ciphers);
+		r->tls = ssl_init(r, 0);
+	    if (!r->dtls)
+		r->dtls = ssl_init(r, 1);
 	    SSL_CTX_set_psk_find_session_callback(r->tls, psk_find_session_cb);
+	    SSL_CTX_set_psk_find_session_callback(r->dtls, psk_find_session_cb);
 	}
 #endif
 #endif
@@ -396,6 +378,7 @@ void init_host(tac_host *host, tac_host *parent, tac_realm *r, int top)
     host->max_rounds = top ? 40 : -1;
     host->session_timeout = top ? 240 : -1;
     host->tcp_timeout = top ? 600 : -1;
+    host->udp_timeout = top ? 30 : -1;
     if (top) {
 	host->user_messages = calloc(UM_MAX, sizeof(char *));
 	host->user_messages[UM_PASSWORD] = "Password: ";
@@ -1707,6 +1690,12 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    if (r->warning_period < 60)
 		r->warning_period *= 86400;
 	    continue;
+	case S_stateless:
+	    sym_get(sym);
+	    parse(sym, S_timeout);
+	    parse(sym, S_equal);
+	    r->default_host->udp_timeout = parse_seconds(sym);
+	    break;
 	case S_connection:
 	    sym_get(sym);
 	    switch (sym->code) {
@@ -3742,6 +3731,12 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	parse(sym, S_equal);
 	parse_debug(sym, &host->debug);
 	return;
+    case S_stateless:
+	sym_get(sym);
+	parse(sym, S_timeout);
+	parse(sym, S_equal);
+	host->udp_timeout = parse_seconds(sym);
+	break;
     case S_connection:
 	sym_get(sym);
 	parse(sym, S_timeout);
@@ -5713,29 +5708,52 @@ static int ssl_pem_phrase_cb(char *buf, int size, int rwflag __attribute__((unus
     return i;
 }
 
-static SSL_CTX *ssl_init(char *cert_file, char *key_file, char *pem_phrase, char *ciphers)
+static SSL_CTX *ssl_init(struct realm *r, int dtls)
 {
-    SSL_CTX *ctx = SSL_CTX_new(TLS_server_method());
+    SSL_CTX *ctx = SSL_CTX_new(dtls ? DTLS_server_method() : TLS_server_method());
     if (!ctx) {
 	report(NULL, LOG_ERR, ~0, "SSL_CTX_new");
-    } else {
-	if (!SSL_CTX_set_min_proto_version(ctx, TLS1_3_VERSION))
-	    report(NULL, LOG_ERR, ~0, "SSL_CTX_set_min_proto_version");
-	if (ciphers && !SSL_CTX_set_cipher_list(ctx, ciphers))
-	    report(NULL, LOG_ERR, ~0, "SSL_CTX_set_cipher_list");
-	if (pem_phrase) {
-	    SSL_CTX_set_default_passwd_cb(ctx, ssl_pem_phrase_cb);
-	    SSL_CTX_set_default_passwd_cb_userdata(ctx, pem_phrase);
-	}
-	if (cert_file && !SSL_CTX_use_certificate_chain_file(ctx, cert_file))
-	    report(NULL, LOG_ERR, ~0, "SSL_CTX_use_certificate_chain_file");
-	if ((key_file || cert_file)
-	    && !SSL_CTX_use_PrivateKey_file(ctx, key_file ? key_file : cert_file, SSL_FILETYPE_PEM))
-	    report(NULL, LOG_ERR, ~0, "SSL_CTX_use_PrivateKey_file");
-	if ((key_file || cert_file) && !SSL_CTX_check_private_key(ctx))
-	    report(NULL, LOG_ERR, ~0, "SSL_CTX_check_private_key");
-	SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
+	return ctx;
     }
+    if (!SSL_CTX_set_min_proto_version(ctx, dtls ? DTLS1_2_VERSION : TLS1_3_VERSION))
+	report(NULL, LOG_ERR, ~0, "SSL_CTX_set_min_proto_version");
+    if (r->tls_ciphers && !SSL_CTX_set_cipher_list(ctx, r->tls_ciphers))
+	report(NULL, LOG_ERR, ~0, "SSL_CTX_set_cipher_list");
+    if (r->tls_pass) {
+	SSL_CTX_set_default_passwd_cb(ctx, ssl_pem_phrase_cb);
+	SSL_CTX_set_default_passwd_cb_userdata(ctx, r->tls_pass);
+    }
+    if (r->tls_cert && !SSL_CTX_use_certificate_chain_file(ctx, r->tls_cert))
+	report(NULL, LOG_ERR, ~0, "SSL_CTX_use_certificate_chain_file");
+    if ((r->tls_key || r->tls_cert)
+	&& !SSL_CTX_use_PrivateKey_file(ctx, r->tls_key ? r->tls_key : r->tls_cert, SSL_FILETYPE_PEM))
+	report(NULL, LOG_ERR, ~0, "SSL_CTX_use_PrivateKey_file");
+    if ((r->tls_key || r->tls_cert) && !SSL_CTX_check_private_key(ctx))
+	report(NULL, LOG_ERR, ~0, "SSL_CTX_check_private_key");
+    SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
+
+
+    if (r->tls_cafile && !SSL_CTX_load_verify_locations(r->tls, r->tls_cafile, NULL)) {
+	char buf[256];
+	const char *terr = ERR_error_string(ERR_get_error(), buf);
+	report(NULL, LOG_ERR, ~0,
+	       "realm %s: SSL_CTX_load_verify_locations(\"%s\") failed%s%s", r->name.txt, r->tls_cafile, terr ? ": " : "", terr ? terr : "");
+	exit(EX_CONFIG);
+    }
+
+    unsigned long flags = 0;
+    if (r->tls_accept_expired == TRISTATE_YES)
+	flags |= X509_V_FLAG_NO_CHECK_TIME;
+    if (flags) {
+	X509_VERIFY_PARAM *verify;
+	verify = X509_VERIFY_PARAM_new();
+	X509_VERIFY_PARAM_set_flags(verify, flags);
+	SSL_CTX_set1_param(r->tls, verify);
+	X509_VERIFY_PARAM_free(verify);
+    }
+    if (r->tls_verify_depth > -1)
+	SSL_CTX_set_verify_depth(r->tls, r->tls_verify_depth);
+    SSL_CTX_set_verify(r->tls, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
     return ctx;
 }
 #endif

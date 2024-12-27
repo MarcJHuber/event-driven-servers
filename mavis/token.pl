@@ -145,6 +145,7 @@ cmd				S_cmd
 command				S_command
 config				S_config
 connection			S_connection
+stateless			S_stateless
 content				S_content
 coredump			S_coredump
 count				S_count
@@ -553,6 +554,9 @@ tacacs				S_tacacs
 tacacss				S_tacacss
 radsec				S_radsec
 radius-tcp			S_radius_tcp
+radius-udp			S_radius_udp
+radsec-tcp			S_radsec_tcp
+radsec-udp			S_radsec_udp
 #
 conn.protocol			S_conn_protocol
 #

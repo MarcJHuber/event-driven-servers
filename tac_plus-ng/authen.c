@@ -1986,10 +1986,7 @@ static void do_radius_login(tac_session *session)
     if (res == S_error) {
 	// Backend failure. Don't send a reply.
 	report_auth(session, "radius login", hint, res);
-	if (session->ctx->aaa_protocol == S_radius)
-	    cleanup(session->ctx, -1);
-	else
-	    cleanup_session(session);
+	cleanup_session(session);
 	return;
     }
 
@@ -2036,8 +2033,5 @@ void rad_authen(tac_session *session)
 	do_radius_login(session);
 	return;
     }
-    if (session->ctx->aaa_protocol == S_radius)
-	cleanup(session->ctx, -1);
-    else
-	cleanup_session(session);
+    cleanup_session(session);
 }

@@ -201,6 +201,7 @@ struct tac_host {
     struct pwdat **enable;
     tac_tags *tags;
     int tcp_timeout;		/* tcp connection idle timeout */
+    int udp_timeout;		/* udp connection idle timeout */
     int session_timeout;	/* session idle timeout */
     int context_timeout;	/* shell context idle timeout */
     int dns_timeout;
@@ -393,6 +394,7 @@ struct realm {
 #endif
 #ifdef WITH_SSL
     SSL_CTX *tls;
+    SSL_CTX *dtls;
     char *tls_cert;
     char *tls_key;
     char *tls_pass;
@@ -887,6 +889,7 @@ struct context {
     str_t tls_sni;
     char **tls_peer_cert_san;
     size_t tls_peer_cert_san_count;
+    BIO *rbio;
 #endif
 
     str_t msgid;
@@ -906,6 +909,7 @@ struct context {
 	BISTATE(revmap_pending);
 	BISTATE(revmap_timedout);
 	BISTATE(use_tls);
+	BISTATE(use_dtls);
 	BISTATE(mavis_pending);
 	BISTATE(mavis_tried);
 	BISTATE(rad_acct);
@@ -917,6 +921,9 @@ struct context {
     u_int bug_compatibility;
     u_int debug;
     u_long mavis_latency;
+    u_char *inject_buf;
+    size_t inject_len;
+    size_t inject_off;
     struct context *lru_prev;
     struct context *lru_next;
 };
@@ -1016,6 +1023,7 @@ struct rad_dict_attr *rad_dict_attr_lookup_by_id(struct rad_dict *dict, int id);
 struct rad_dict_val *rad_dict_val_lookup_by_id(struct rad_dict_attr *attr, int id);
 
 void rad_udp_inject(struct context *);
+ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags);
 
 void cleanup_session(tac_session *);
 struct log_item *parse_log_format(struct sym *, mem_t *);

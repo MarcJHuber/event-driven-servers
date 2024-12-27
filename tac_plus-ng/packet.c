@@ -324,12 +324,6 @@ static void set_response_authenticator(tac_session *session, rad_pak_hdr *pak)
     md5v(pak->authenticator, MD5_LEN, iov, 4);
 }
 
-static void send_udp(tac_session *session, tac_pak *pak)
-{
-    send(session->ctx->sock, pak->pak.uchar, pak->length, 0);
-    cleanup(session->ctx, -1);
-}
-
 static void rad_send_reply(tac_session *session, u_char status)
 {
     tac_pak *pak = new_rad_pak(session, status);
@@ -337,20 +331,15 @@ static void rad_send_reply(tac_session *session, u_char status)
     if ((common_data.debug | session->ctx->debug) & DEBUG_PACKET_FLAG)
 	dump_rad_pak(session, &pak->pak.rad);
 
-    if (session->ctx->aaa_protocol == S_radius) {
-	// FIXME. Delaying UDP packets is not implemented and would likely cause retransmits.
-	send_udp(session, pak);
-    } else {
-	if (session->authfail_delay && !(common_data.debug & DEBUG_TACTRACE_FLAG))
-	    delay_packet(session->ctx, (tac_pak *) pak, session->authfail_delay);
-	else {
-	    tac_pak **pp;
-	    for (pp = &session->ctx->out; *pp; pp = &(*pp)->next);
-	    *pp = (tac_pak *) pak;
-	    io_set_o(session->ctx->io, session->ctx->sock);
-	}
-	cleanup_session(session);
+    if (session->authfail_delay && !(common_data.debug & DEBUG_TACTRACE_FLAG) && session->ctx->aaa_protocol != S_radius)
+	delay_packet(session->ctx, (tac_pak *) pak, session->authfail_delay);
+    else {
+	tac_pak **pp;
+	for (pp = &session->ctx->out; *pp; pp = &(*pp)->next);
+	*pp = (tac_pak *) pak;
+	io_set_o(session->ctx->io, session->ctx->sock);
     }
+    cleanup_session(session);
 }
 
 void rad_send_authen_reply(tac_session *session, u_char status, char *msg)
@@ -486,11 +475,17 @@ void tac_read(struct context *ctx, int cur)
 
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE) {
 #ifdef WITH_SSL
+	if (ctx->rbio) {
+	    char buf[8192];
+	    ssize_t len = read(cur, buf, sizeof(buf));
+	    if (len > 0)
+		BIO_write(ctx->rbio, buf, len);
+	}
 	if (ctx->tls)
 	    len = io_SSL_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) tac_read);
 	else
 #endif
-	    len = read(cur, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff);
+	    len = recv_inject(ctx, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, 0);
 	if (len <= 0) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
@@ -500,31 +495,46 @@ void tac_read(struct context *ctx, int cur)
 	min_len = 0;
     }
 #ifdef WITH_SSL
-    // auto-detect radsec
+    // auto-detect radius
     if (config.rad_dict && ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
-	if (!ctx->tls && !(common_data.debug & DEBUG_TACTRACE_FLAG) && (ctx->realm->allowed_protocol_radius_tcp != TRISTATE_YES)) {
+	if (!ctx->tls && !(common_data.debug & DEBUG_TACTRACE_FLAG) && (ctx->realm->allowed_protocol_radius_tcp != TRISTATE_YES)
+	    && (ctx->realm->allowed_protocol_radius != TRISTATE_YES)) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
 	}
-	if (ctx->realm->allowed_protocol_radsec != TRISTATE_YES) {
+	if ((ctx->tls && ctx->realm->allowed_protocol_radsec != TRISTATE_YES) || (!ctx->tls && ctx->realm->allowed_protocol_radius != TRISTATE_YES)) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
 	}
-	ctx->aaa_protocol = S_radsec;
+	if (!ctx->tls && !ctx->host->radius_key) {
+	    ctx->reset_tcp = BISTATE_YES;
+	    cleanup(ctx, cur);
+	    return;
+	}
+	ctx->aaa_protocol = ctx->tls ? S_radsec : S_radius;
 	static struct tac_key *key_radsec = NULL;
 	if (!key_radsec) {
 	    key_radsec = calloc(1, sizeof(struct tac_key) + 6);
 	    key_radsec->len = 6;
 	    strcpy(key_radsec->key, "radsec");
 	}
-	ctx->key = key_radsec;
+	if (ctx->tls)
+	    ctx->key = key_radsec;
 
 	io_set_cb_i(ctx->io, ctx->sock, (void *) rad_read);
+	if (ctx->inject_buf)
+	    rad_read(ctx, ctx->sock);
 	return;
     }
 #endif
+
+    if (!ctx->tls && !ctx->host->key) {
+	cleanup(ctx, cur);
+	return;
+    }
+
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
 	return;
 
@@ -569,11 +579,17 @@ void tac_read(struct context *ctx, int cur)
 	memcpy(&ctx->in->pak.tac, &ctx->hdr, TAC_PLUS_HDR_SIZE);
     }
 #ifdef WITH_SSL
+    if (ctx->rbio) {
+	char buf[8192];
+	ssize_t len = read(cur, buf, sizeof(buf));
+	if (len > 0)
+	    BIO_write(ctx->rbio, buf, len);
+    }
     if (ctx->tls)
 	len = io_SSL_read(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) tac_read);
     else
 #endif
-	len = read(cur, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset);
+	len = recv_inject(ctx, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, 0);
     if (len < min_len && min_len) {
 	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
@@ -812,11 +828,17 @@ void rad_read(struct context *ctx, int cur)
 
     if (ctx->hdroff != RADIUS_HDR_SIZE) {
 #ifdef WITH_SSL
+	if (ctx->rbio) {
+	    char buf[8192];
+	    ssize_t len = read(cur, buf, sizeof(buf));
+	    if (len > 0)
+		BIO_write(ctx->rbio, buf, len);
+	}
 	if (ctx->tls)
 	    len = io_SSL_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) rad_read);
 	else
 #endif
-	    len = read(cur, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff);
+	    len = recv_inject(ctx, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, 0);
 	if (len <= 0) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
@@ -847,11 +869,17 @@ void rad_read(struct context *ctx, int cur)
 	memcpy(&ctx->in->pak.rad, &ctx->hdr, RADIUS_HDR_SIZE);
     }
 #ifdef WITH_SSL
+    if (ctx->rbio) {
+	char buf[8192];
+	ssize_t len = read(cur, buf, sizeof(buf));
+	if (len > 0)
+	    BIO_write(ctx->rbio, buf, len);
+    }
     if (ctx->tls)
 	len = io_SSL_read(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) rad_read);
     else
 #endif
-	len = read(cur, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset);
+	len = recv_inject(ctx, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, 0);
 
     if (len < min_len && min_len) {
 	ctx->reset_tcp = BISTATE_YES;
@@ -916,54 +944,6 @@ void rad_read(struct context *ctx, int cur)
     else
 	mem_free(ctx->mem, &ctx->in);
     ctx->hdroff = 0;
-}
-
-void rad_udp_inject(struct context *ctx)
-{
-    ctx->last_io = io_now.tv_sec;
-    context_lru_append(ctx);
-
-    rad_pak_hdr *pak = ctx->radius_data->pak_in;
-
-    u_char *p = ctx->radius_data->data;
-    u_char *e = p + ctx->radius_data->data_len;
-    if (rad_check_failed(ctx, p, e))
-	return;
-
-    tac_session *session = RB_lookup_session(ctx->sessions, RAD_PAK_SESSIONID(&ctx->hdr.rad));
-
-    if (session) {
-	// Currently, there's no support for multi-packet exchanges, so this is most likely
-	// a retransmission. This shouldn't happen for RADSEC/TCP.
-	mem_free(ctx->mem, &ctx->in);
-	ctx->hdroff = 0;
-	// Spawnd did forward the packet to us, increasing the usage counter. Decrement the latter.
-	users_dec();
-	return;
-    }
-    session = new_session(ctx, NULL, pak);
-
-    if ((common_data.debug | ctx->debug) & DEBUG_PACKET_FLAG)
-	dump_rad_pak(session, pak);
-
-    session->radius_data = ctx->radius_data;
-    switch (pak->code) {
-    case RADIUS_CODE_ACCESS_REQUEST:
-	rad_authen(session);
-	return;
-    case RADIUS_CODE_ACCOUNTING_REQUEST:
-	rad_acct(session);
-	return;
-    case RADIUS_CODE_STATUS_SERVER:
-	if (ctx->rad_acct)
-	    rad_send_acct_reply(session);
-	else
-	    rad_send_authen_reply(session, RADIUS_CODE_ACCESS_ACCEPT, NULL);
-	return;
-    default:
-	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->device_addr_ascii.txt, pak->code);
-	cleanup(ctx, -1);
-    }
 }
 
 #ifdef WITH_SSL
