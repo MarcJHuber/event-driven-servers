@@ -244,8 +244,6 @@ void complete_realm(tac_realm *r)
 	RS(alpn_vec, NULL);
 	if (!r->alpn_vec_len)
 	    r->alpn_vec_len = rp->alpn_vec_len;
-#endif
-#if defined(WITH_SSL)
 	RS(tls_accept_expired, TRISTATE_DUNNO);
 #endif
 #undef RS
@@ -266,22 +264,6 @@ void complete_realm(tac_realm *r)
 	RS(tls_verify_depth);
 #endif
 #undef RS
-#ifdef WITH_SSL
-	if (r->tls_cert && r->tls_key) {
-	    r->tls = ssl_init(r, 0);
-	    r->dtls = ssl_init(r, 1);
-	}
-#ifndef OPENSSL_NO_PSK
-	if (r->use_tls_psk) {
-	    if (!r->tls)
-		r->tls = ssl_init(r, 0);
-	    if (!r->dtls)
-		r->dtls = ssl_init(r, 1);
-	    SSL_CTX_set_psk_find_session_callback(r->tls, psk_find_session_cb);
-	    SSL_CTX_set_psk_find_session_callback(r->dtls, psk_find_session_cb);
-	}
-#endif
-#endif
 
 #ifdef WITH_PCRE2
 	if (!r->password_minimum_requirement)
@@ -303,6 +285,22 @@ void complete_realm(tac_realm *r)
 		if (!r->default_host->user_messages[um])
 		    r->default_host->user_messages[um] = rp->default_host->user_messages[um];
     }
+#ifdef WITH_SSL
+    if (r->tls_cert && r->tls_key) {
+	r->tls = ssl_init(r, 0);
+	r->dtls = ssl_init(r, 1);
+    }
+#ifndef OPENSSL_NO_PSK
+    if (r->use_tls_psk) {
+	if (!r->tls)
+	    r->tls = ssl_init(r, 0);
+	if (!r->dtls)
+	    r->dtls = ssl_init(r, 1);
+	SSL_CTX_set_psk_find_session_callback(r->tls, psk_find_session_cb);
+	SSL_CTX_set_psk_find_session_callback(r->dtls, psk_find_session_cb);
+    }
+#endif
+#endif
     if (r->realms) {
 	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    complete_realm(RB_payload(rbn, tac_realm *));
@@ -5715,7 +5713,7 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls)
 	report(NULL, LOG_ERR, ~0, "SSL_CTX_new");
 	return ctx;
     }
-    if (!SSL_CTX_set_min_proto_version(ctx, dtls ? DTLS1_2_VERSION : TLS1_3_VERSION))
+    if (!SSL_CTX_set_min_proto_version(ctx, dtls ? DTLS1_2_VERSION : TLS1_2_VERSION /* due to radsec */ ))
 	report(NULL, LOG_ERR, ~0, "SSL_CTX_set_min_proto_version");
     if (r->tls_ciphers && !SSL_CTX_set_cipher_list(ctx, r->tls_ciphers))
 	report(NULL, LOG_ERR, ~0, "SSL_CTX_set_cipher_list");
@@ -5732,8 +5730,7 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls)
 	report(NULL, LOG_ERR, ~0, "SSL_CTX_check_private_key");
     SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
 
-
-    if (r->tls_cafile && !SSL_CTX_load_verify_locations(r->tls, r->tls_cafile, NULL)) {
+    if (r->tls_cafile && !SSL_CTX_load_verify_locations(ctx, r->tls_cafile, NULL)) {
 	char buf[256];
 	const char *terr = ERR_error_string(ERR_get_error(), buf);
 	report(NULL, LOG_ERR, ~0,
@@ -5748,12 +5745,12 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls)
 	X509_VERIFY_PARAM *verify;
 	verify = X509_VERIFY_PARAM_new();
 	X509_VERIFY_PARAM_set_flags(verify, flags);
-	SSL_CTX_set1_param(r->tls, verify);
+	SSL_CTX_set1_param(ctx, verify);
 	X509_VERIFY_PARAM_free(verify);
     }
     if (r->tls_verify_depth > -1)
-	SSL_CTX_set_verify_depth(r->tls, r->tls_verify_depth);
-    SSL_CTX_set_verify(r->tls, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+	SSL_CTX_set_verify_depth(ctx, r->tls_verify_depth);
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
     return ctx;
 }
 #endif

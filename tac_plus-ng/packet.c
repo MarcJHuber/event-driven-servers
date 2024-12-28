@@ -515,13 +515,17 @@ void tac_read(struct context *ctx, int cur)
 	}
 	ctx->aaa_protocol = ctx->tls ? S_radsec : S_radius;
 	static struct tac_key *key_radsec = NULL;
+	static struct tac_key *key_radius_dtls = NULL;
 	if (!key_radsec) {
 	    key_radsec = calloc(1, sizeof(struct tac_key) + 6);
 	    key_radsec->len = 6;
 	    strcpy(key_radsec->key, "radsec");
+	    key_radius_dtls = calloc(1, sizeof(struct tac_key) + 11);
+	    key_radius_dtls->len = 11;
+	    strcpy(key_radius_dtls->key, "radius/dtls");
 	}
 	if (ctx->tls)
-	    ctx->key = key_radsec;
+	    ctx->key = ctx->use_tls ? key_radsec : key_radius_dtls;
 
 	io_set_cb_i(ctx->io, ctx->sock, (void *) rad_read);
 	if (ctx->inject_buf)
@@ -539,23 +543,20 @@ void tac_read(struct context *ctx, int cur)
 	return;
 
 #ifdef WITH_SSL
-    if (!ctx->tls)
-#endif
-	if (ctx->realm->allowed_protocol_tacacs != TRISTATE_YES) {
+    if (ctx->tls) {
+	if ((ctx->realm->allowed_protocol_tacacss != TRISTATE_YES) || (SSL_version(ctx->tls) != TLS1_3_VERSION)) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
 	}
-#ifdef WITH_SSL
-    if (ctx->tls && ctx->realm->allowed_protocol_tacacss != TRISTATE_YES) {
+	ctx->aaa_protocol = S_tacacss;
+    } else
+#endif
+    if (ctx->realm->allowed_protocol_tacacs != TRISTATE_YES) {
 	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
 	return;
     }
-
-    if (ctx->tls)
-	ctx->aaa_protocol = S_tacacss;
-#endif
 
     if ((ctx->hdr.tac.version & TAC_PLUS_MAJOR_VER_MASK) != TAC_PLUS_MAJOR_VER) {
 	report(NULL, LOG_ERR, ~0, "%s: Illegal major version specified: found %d wanted %d", ctx->device_addr_ascii.txt, ctx->hdr.tac.version,

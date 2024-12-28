@@ -404,23 +404,21 @@ int main(int argc, char **argv, char **envp)
 
 void cleanup(struct context *ctx, int cur __attribute__((unused)))
 {
-    if (ctx->aaa_protocol != S_radius) {
 #ifdef WITH_SSL
-	if (ctx->tls) {
-	    if (ctx->rbio) {
-		char buf[8192];
-		ssize_t len = read(cur, buf, sizeof(buf));
-		if (len > 0)
-		    BIO_write(ctx->rbio, buf, len);
-	    }
-	    int res = io_SSL_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
-	    if (res < 0 && errno == EAGAIN)
-		return;
-	    SSL_free(ctx->tls);
-	    ctx->tls = NULL;
+    if (ctx->tls) {
+	if (ctx->rbio) {
+	    char buf[8192];
+	    ssize_t len = read(cur, buf, sizeof(buf));
+	    if (len > 0)
+		BIO_write(ctx->rbio, buf, len);
 	}
-#endif
+	int res = io_SSL_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
+	if (res < 0 && errno == EAGAIN)
+	    return;
+	SSL_free(ctx->tls);
+	ctx->tls = NULL;
     }
+#endif
 
     if (!ctx->msgid.txt) {
 #define S "CONN-STOP"
@@ -718,30 +716,33 @@ static void accept_control_tls(struct context *ctx, int cur)
 
     ctx->last_io = io_now.tv_sec;
 
-    int r = 0;
-
     if (ctx->rbio) {
 	char buf[8192];
 	ssize_t len = read(cur, buf, sizeof(buf));
 	if (len > 0)
 	    BIO_write(ctx->rbio, buf, len);
     }
-    switch (SSL_accept(ctx->tls)) {
+    int r = SSL_accept(ctx->tls);
+    switch (r) {
     default:
-	if (SSL_want_read(ctx->tls)) {
+	switch (SSL_get_error(ctx->tls, r)) {
+	case SSL_ERROR_WANT_READ:
 	    io_set_i(ctx->io, cur);
-	    r++;
-	}
-	if (SSL_want_write(ctx->tls)) {
+	    fprintf(stderr, "SSL_ERROR_WANT_READ\n");
+	    if (SSL_want_write(ctx->tls))
+		io_set_o(ctx->io, cur);
+	    return;
+	case SSL_ERROR_WANT_WRITE:
 	    io_set_o(ctx->io, cur);
-	    r++;
-	}
-	if (!r) {
+	    fprintf(stderr, "SSL_ERROR_WANT_WRITE\n");
+	    if (SSL_want_read(ctx->tls))
+		io_set_i(ctx->io, cur);
+	    return;
+	default:
 	    hint = (ctx->hint && *ctx->hint) ? ctx->hint : ERR_error_string(ERR_get_error(), NULL);
 	    reject_conn(ctx, hint, "TLS ", __LINE__);
 	    return;
 	}
-	return;
     case 0:
 	hint = ERR_error_string(ERR_get_error(), NULL);
 	reject_conn(ctx, hint, "TLS ", __LINE__);
@@ -1198,7 +1199,8 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
     ctx->sock = s;
     context_lru_append(ctx);
-    ctx->use_tls = sd_ext->sd.use_tls ? BISTATE_YES : BISTATE_NO;
+    ctx->use_tls = (sd_ext->sd.use_tls && sd_ext->sd.type == SCM_ACCEPT) ? BISTATE_YES : BISTATE_NO;
+    ctx->use_dtls = (sd_ext->sd.use_tls && sd_ext->sd.type == SCM_UDPDATA) ? BISTATE_YES : BISTATE_NO;
     if (inject_buf) {
 	ctx->inject_buf = mem_copy(ctx->mem, inject_buf, inject_len);
 	ctx->inject_len = inject_len;
@@ -1292,10 +1294,10 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	if (ctx->inject_buf)
 	    ctx->use_dtls = (tmp[0] == 0x16 && tmp[1] == 0xfe && (tmp[2] == 0xfd || tmp[2] == 0xfc)) ? BISTATE_YES : BISTATE_NO;
 	else
-	    ctx->use_tls = (tmp[0] == 0x16 && tmp[1] == 0x03 && tmp[2] == 0x01 && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
+	    ctx->use_tls = (tmp[0] == 0x16 /*&& tmp[1] == 0x03 && tmp[2] == 0x01 */  && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
     }
-    if (ctx->host && ctx->use_tls) {
-	if (!ctx->realm->tls) {
+    if (ctx->host && (ctx->use_tls || ctx->use_dtls)) {
+	if ((ctx->use_tls && !ctx->realm->tls) || (ctx->use_dtls && !ctx->realm->dtls)) {
 	    report(NULL, LOG_ERR, ~0, "%s but realm %s isn't configured suitably",
 		   (ctx->realm->tls_autodetect == TRISTATE_YES) ? "TLS detected" : "spawnd set TLS flag", ctx->realm->name.txt);
 	    cleanup(ctx, ctx->sock);
