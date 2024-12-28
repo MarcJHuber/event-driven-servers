@@ -526,6 +526,8 @@ void tac_read(struct context *ctx, int cur)
 	}
 	if (ctx->tls)
 	    ctx->key = ctx->use_tls ? key_radsec : key_radius_dtls;
+	else
+	    ctx->key = ctx->host->radius_key;
 
 	io_set_cb_i(ctx->io, ctx->sock, (void *) rad_read);
 	if (ctx->inject_buf)
