@@ -317,7 +317,7 @@ if (exists $A{"--debug"}) {
 }
 
 if (exists $A{"--ggdb"}) {
-	$DEFS{"gdb"} = $A{"--ggdb"};
+	$DEFS{"GGDB"} = $A{"--ggdb"};
 	delete $A{"--ggdb"};
 }
 
