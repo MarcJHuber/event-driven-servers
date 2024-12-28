@@ -534,12 +534,12 @@ void tac_read(struct context *ctx, int cur)
 	    rad_read(ctx, ctx->sock);
 	return;
     }
-#endif
 
     if (!ctx->tls && !ctx->host->key) {
 	cleanup(ctx, cur);
 	return;
     }
+#endif
 
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
 	return;
