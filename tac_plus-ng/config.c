@@ -235,6 +235,7 @@ void complete_realm(tac_realm *r)
 	RS(default_host->authfallback, TRISTATE_DUNNO);
 	RS(allowed_protocol_radius, TRISTATE_DUNNO);
 	RS(allowed_protocol_radius_tcp, TRISTATE_DUNNO);
+	RS(allowed_protocol_radius_dtls, TRISTATE_DUNNO);
 	RS(allowed_protocol_radsec, TRISTATE_DUNNO);
 	RS(allowed_protocol_tacacs, TRISTATE_DUNNO);
 	RS(allowed_protocol_tacacss, TRISTATE_DUNNO);
@@ -454,6 +455,7 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
 	r->allowed_protocol_radius = TRISTATE_YES;
 	r->allowed_protocol_radius_tcp = TRISTATE_NO;
 	r->allowed_protocol_radsec = TRISTATE_YES;
+	r->allowed_protocol_radius_dtls = TRISTATE_YES;
 	r->allowed_protocol_tacacs = TRISTATE_YES;;
 	r->allowed_protocol_tacacss = TRISTATE_YES;
 	config.default_realm = r;
@@ -2166,6 +2168,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    r->allowed_protocol_radius = TRISTATE_NO;
 	    r->allowed_protocol_radius_tcp = TRISTATE_NO;
 	    r->allowed_protocol_radsec = TRISTATE_NO;
+	    r->allowed_protocol_radius_dtls = TRISTATE_NO;
 	    r->allowed_protocol_tacacs = TRISTATE_NO;
 	    r->allowed_protocol_tacacss = TRISTATE_NO;
 	    do {
@@ -2179,6 +2182,9 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		case S_radsec:
 		    r->allowed_protocol_radsec = TRISTATE_YES;
 		    break;
+		case S_radius_dtls:
+		    r->allowed_protocol_radius_dtls = TRISTATE_YES;
+		    break;
 		case S_tacacs:
 		    r->allowed_protocol_tacacs = TRISTATE_YES;
 		    break;
@@ -2186,7 +2192,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    r->allowed_protocol_tacacss = TRISTATE_YES;
 		    break;
 		default:
-		    parse_error_expect(sym, S_radius, S_radius_tcp, S_radsec, S_tacacs, S_tacacss, S_unknown);
+		    parse_error_expect(sym, S_radius, S_radius_tcp, S_radsec, S_radius_dtls, S_tacacs, S_tacacss, S_unknown);
 		}
 		sym_get(sym);
 	    } while (parse_comma(sym));
@@ -4441,11 +4447,12 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		case S_radius:
 		case S_radius_tcp:
 		case S_radsec:
+		case S_radius_dtls:
 		case S_tacacs:
 		case S_tacacss:
 		    break;
 		default:
-		    parse_error_expect(sym, S_radius, S_radsec, S_tacacs, S_tacacss, S_unknown);
+		    parse_error_expect(sym, S_radius, S_radsec, S_radius_dtls, S_tacacs, S_tacacss, S_unknown);
 		}
 		m->u.s.rhs = codestring[sym->code].txt;
 		m->u.s.rhs_txt = codestring[sym->code].txt;

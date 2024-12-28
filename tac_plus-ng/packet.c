@@ -331,7 +331,7 @@ static void rad_send_reply(tac_session *session, u_char status)
     if ((common_data.debug | session->ctx->debug) & DEBUG_PACKET_FLAG)
 	dump_rad_pak(session, &pak->pak.rad);
 
-    if (session->authfail_delay && !(common_data.debug & DEBUG_TACTRACE_FLAG) && session->ctx->aaa_protocol != S_radius)
+    if (session->authfail_delay && !(common_data.debug & DEBUG_TACTRACE_FLAG) && session->ctx->aaa_protocol != S_radius && session->ctx->aaa_protocol != S_radius_dtls)
 	delay_packet(session->ctx, (tac_pak *) pak, session->authfail_delay);
     else {
 	tac_pak **pp;
@@ -513,7 +513,7 @@ void tac_read(struct context *ctx, int cur)
 	    cleanup(ctx, cur);
 	    return;
 	}
-	ctx->aaa_protocol = ctx->tls ? S_radsec : S_radius;
+	ctx->aaa_protocol = ctx->use_tls ? S_radsec : (ctx->use_dtls ? S_radius_dtls : S_radius);
 	static struct tac_key *key_radsec = NULL;
 	static struct tac_key *key_radius_dtls = NULL;
 	if (!key_radsec) {

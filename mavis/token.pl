@@ -552,11 +552,9 @@ aaa.protocol			S_aaa_protocol
 aaa.protocol.allowed		S_aaa_protocol_allowed
 tacacs				S_tacacs
 tacacss				S_tacacss
-radsec				S_radsec
 radius-tcp			S_radius_tcp
-radius-udp			S_radius_udp
-radsec-tcp			S_radsec_tcp
-radsec-udp			S_radsec_udp
+radsec				S_radsec
+radius-dtls			S_radius_dtls
 #
 conn.protocol			S_conn_protocol
 #
