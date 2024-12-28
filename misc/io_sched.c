@@ -72,13 +72,15 @@ struct io_handler {
     void *o_app;		/* application output handler */
     void *e;			/* error handler */
     void *h;			/* hangup handler */
-    u_int want_read:1;		/* interested in reading */
-    u_int want_write:1;		/* interested in writing */
-    u_int want_read_app:1;	/* App interested in reading */
-    u_int want_write_app:1;	/* App interested in writing */
-    u_int want_read_ssl:1;	/* TLS interested in reading */
-    u_int want_write_ssl:1;	/* TLS interested in writing */
-    u_int reneg:1;		/* TLS renegotiation active */
+    struct {
+	u_int want_read:1;	/* interested in reading */
+	u_int want_write:1;	/* interested in writing */
+	u_int want_read_app:1;	/* App interested in reading */
+	u_int want_write_app:1;	/* App interested in writing */
+	u_int want_read_ssl:1;	/* TLS interested in reading */
+	u_int want_write_ssl:1;	/* TLS interested in writing */
+	u_int reneg:1;		/* TLS renegotiation active */
+    } __attribute__((packed));
     void *data;			/* opaque context information */
 };
 
@@ -97,7 +99,7 @@ struct kqueue_io_context {
 struct epoll_io_context {
     int *changelist;
     int *changemap;
-    int *diskfilemap; // epoll() doesn't work with regular files
+    int *diskfilemap;		// epoll() doesn't work with regular files
     int *diskfile;
     struct epoll_event *eventlist;
     int nchanges;
@@ -354,7 +356,7 @@ int io_poll(struct io_context *io, int poll_timeout)
 
 struct io_context *io_destroy(struct io_context *io, void (*freeproc)(void *))
 {
-    if (io) {
+    if(io) {
 	RB_tree_delete(io->events_by_data);
 	RB_tree_delete(io->events_by_time);
 
@@ -396,6 +398,7 @@ void io_register(struct io_context *io, int fd, void *data)
 #if defined(WITH_SSL) || defined(WITH_TLS)
     io->handler[fd].want_read_ssl = 0;
     io->handler[fd].want_write_ssl = 0;
+    io->handler[fd].reneg = 0;
 #endif
 }
 
@@ -885,7 +888,7 @@ static void epoll_io_unregister(struct io_context *io __attribute__((unused)), i
 	io->Epoll.diskfile[io->Epoll.diskfilemap[io->Epoll.ndiskfile]] = io->Epoll.diskfile[fd];
 	io->Epoll.diskfile[fd] = -1;
     }
-    struct epoll_event e = { .data.fd = fd };
+    struct epoll_event e = {.data.fd = fd };
     epoll_ctl(io->Epoll.fd, EPOLL_CTL_DEL, fd, &e);
 }
 
@@ -909,7 +912,7 @@ static void epoll_io_register(struct io_context *io, int fd)
 	}
     }
 
-    struct epoll_event e = { .data.fd = fd };
+    struct epoll_event e = {.data.fd = fd };
     if (-1 == epoll_ctl(io->Epoll.fd, EPOLL_CTL_ADD, fd, &e)
 	&& errno == EPERM)
 	io->Epoll.diskfile[fd] = -2;
@@ -1500,7 +1503,7 @@ static void port_io_destroy(struct io_context *io)
 }
 #endif
 
-static void insert_isc(rb_tree_t * t, struct io_sched *isc)
+static void insert_isc(rb_tree_t *t, struct io_sched *isc)
 {
     while (!RB_insert(t, isc)) {
 	isc->time_when.tv_usec++;
@@ -1729,7 +1732,7 @@ static void io_reschedule(struct io_context *io)
 {
     struct io_sched *ios;
 
-    for (rb_node_t *rbnext, *rbn = RB_first(io->events_by_time);
+    for (rb_node_t * rbnext, *rbn = RB_first(io->events_by_time);
 	 rbn &&
 	 ((ios =
 	   RB_payload(rbn,
@@ -1756,7 +1759,7 @@ int io_sched_exec(struct io_context *io)
 
     io_reschedule(io);
 
-    for (rb_node_t *rbnext, *rbn = RB_first(io->events_by_time);
+    for (rb_node_t * rbnext, *rbn = RB_first(io->events_by_time);
 	 rbn && (ios = RB_payload(rbn, struct io_sched *)) && (ios->time_when.tv_sec < io_now.tv_sec
 							       || (ios->time_when.tv_sec == io_now.tv_sec && ios->time_when.tv_usec <= io_now.tv_usec));
 	 rbn = rbnext) {
@@ -2192,7 +2195,7 @@ int io_TLS_shutdown(struct tls *ssl, struct io_context *io, int fd, void *cb)
 #ifdef WITH_SSL
 #include <openssl/ssl.h>
 
-static ssize_t io_SSL_rw(SSL * ssl __attribute__((unused)), struct io_context *io, int fd, void *cb, int res)
+static ssize_t io_SSL_rw(SSL *ssl __attribute__((unused)), struct io_context *io, int fd, void *cb, int res)
 {
     DebugIn(DEBUG_PROC | DEBUG_NET);
     if (io->handler[fd].reneg && !SSL_want_read(ssl)
@@ -2222,17 +2225,17 @@ static ssize_t io_SSL_rw(SSL * ssl __attribute__((unused)), struct io_context *i
     return res;
 }
 
-ssize_t io_SSL_read(SSL * ssl, void *buf, size_t num, struct io_context *io, int fd, void *cb)
+ssize_t io_SSL_read(SSL *ssl, void *buf, size_t num, struct io_context *io, int fd, void *cb)
 {
     return io_SSL_rw(ssl, io, fd, cb, SSL_read(ssl, buf, (int) num));
 }
 
-ssize_t io_SSL_write(SSL * ssl, void *buf, size_t num, struct io_context *io, int fd, void *cb)
+ssize_t io_SSL_write(SSL *ssl, void *buf, size_t num, struct io_context *io, int fd, void *cb)
 {
     return io_SSL_rw(ssl, io, fd, cb, SSL_write(ssl, buf, (int) num));
 }
 
-int io_SSL_shutdown(SSL * ssl, struct io_context *io, int fd, void *cb)
+int io_SSL_shutdown(SSL *ssl, struct io_context *io, int fd, void *cb)
 {
     Debug((DEBUG_PROC | DEBUG_NET, "%s\n", __func__));
     int res = SSL_shutdown(ssl);
