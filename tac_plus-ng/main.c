@@ -728,13 +728,11 @@ static void accept_control_tls(struct context *ctx, int cur)
 	switch (SSL_get_error(ctx->tls, r)) {
 	case SSL_ERROR_WANT_READ:
 	    io_set_i(ctx->io, cur);
-	    fprintf(stderr, "SSL_ERROR_WANT_READ\n");
 	    if (SSL_want_write(ctx->tls))
 		io_set_o(ctx->io, cur);
 	    return;
 	case SSL_ERROR_WANT_WRITE:
 	    io_set_o(ctx->io, cur);
-	    fprintf(stderr, "SSL_ERROR_WANT_WRITE\n");
 	    if (SSL_want_read(ctx->tls))
 		io_set_i(ctx->io, cur);
 	    return;
