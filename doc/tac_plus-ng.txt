@@ -159,8 +159,8 @@ Marc Huber
      * Supports Linux VRFs
      * Supports (non-standard) SSH Public Key Authentication (see
        the Wiki for reference)
-     * Implements and auto-detects legacy RADIUS and
-       RADSEC-over-TCP (both with PAP authentication only).
+     * Implements and auto-detects legacy RADIUS, RADSEC (TCP) and
+       RADIUS/DTLS (all with PAP authentication only).
      __________________________________________________________
 
 1.1. Download
@@ -2991,8 +2991,8 @@ ntly enabled.\n"
    available unless a RADIUS dictionary (see below) is configured.
    Plus, you can selectively disable the protocols you want to be
    supported on a per-realm basis:
-   aaa.protocol.allowed = tacacs,tacacss,radius,radsec # remove the ones
- you don't want
+   aaa.protocol.allowed = tacacs,tacacss,radius,radius-udp,radsec,radius
+-dtls # remove the ones you don't want
      __________________________________________________________
 
 6.1. Accepting RADIUS Queries

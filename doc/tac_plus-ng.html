@@ -230,7 +230,7 @@
 <p>Supports (non-standard) SSH Public Key Authentication (see <a class="lk" href="https://github.com/MarcJHuber/event-driven-servers/wiki/TACACS_PLUS---SSH-Public-Key-Authentication" target="_top">the Wiki</a> for reference)</p>
 </li>
 <li>
-<p>Implements and auto-detects legacy RADIUS and RADSEC-over-TCP (both with PAP authentication only).</p>
+<p>Implements and auto-detects legacy RADIUS, RADSEC (TCP) and RADIUS/DTLS (all with PAP authentication only).</p>
 </li>
 </ul>
 <div class="section">
@@ -3501,7 +3501,7 @@ mavis module external {
 <h2 class="section"><a name="AEN3156" id="AEN3156">6. RADIUS</a></h2>
 <p><span class="bold"><b class="emphasis">tac_plus-ng</b></span> comes with limited RADIUS support: Only PAP authentications and accounting are supported. This should be sufficient for handling administrative access, and the main reason for this feature is actually to provide a common configuration for both <span class="emphasis"><i class="emphasis">TACACS+</i></span> and <span class="emphasis"><i class="emphasis">RADIUS</i></span></p>
 <p>If you don't care about <span class="emphasis"><i class="emphasis">RADIUS</i></span>: That functionality will not be available unless a <span class="emphasis"><i class="emphasis">RADIUS dictionary</i></span> (see below) is configured. Plus, you can selectively disable the protocols you want to be supported on a per-realm basis:</p>
-<pre class="screen">   aaa.protocol.allowed = tacacs,tacacss,radius,radsec # remove the ones you don't want
+<pre class="screen">   aaa.protocol.allowed = tacacs,tacacss,radius,radius-udp,radsec,radius-dtls # remove the ones you don't want
 </pre>
 <div class="section">
 <hr>
