@@ -32,6 +32,7 @@ struct scm_data_accept {
 
 struct scm_data_udp {
     enum scm_token type;
+    u_int use_tls:1;
     u_int rad_acct:1;		// sock is dedicated radius accounting port
     u_char protocol;		// AF_INET, AF_INET6
     u_char src[16];

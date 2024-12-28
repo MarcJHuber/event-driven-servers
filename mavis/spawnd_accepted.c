@@ -227,6 +227,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	memcpy(sd_udp->data, buf, len);
 	sd_udp->type = SCM_UDPDATA;
 	sd_udp->rad_acct = ctx->rad_acct;
+	sd_udp->use_tls = ctx->use_ssl ? 1 : 0;
 	memcpy(sd_udp->realm, ctx->tag, SCM_REALM_SIZE);
 	sd_udp->protocol = sa.sa.sa_family;
 	sd_udp->dst_port = ctx->port;
