@@ -1285,6 +1285,7 @@ ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags)
     return recv(ctx->sock, buf, len, flags);
 }
 
+#ifdef WITH_TLS
 static int dtls_ver_ok(u_int ver, u_char v)
 {
     for (; ver; ver >>= 8)
@@ -1292,6 +1293,7 @@ static int dtls_ver_ok(u_int ver, u_char v)
 	    return -1;
     return 0;
 }
+#endif
 
 static void accept_control_check_tls(struct context *ctx, int cur __attribute__((unused)))
 {
@@ -1300,7 +1302,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
     if (ctx->realm->tls_autodetect == TRISTATE_YES && recv_inject(ctx, tmp, sizeof(tmp), MSG_PEEK) == (ssize_t) sizeof(tmp)) {
 	if (ctx->udp) {
 	    ctx->use_dtls = tmp[0] == 0x16 && tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2]) ? BISTATE_YES : BISTATE_NO;
-	    if (tmp[0] == 0x17 && tmp[1] == 0xfe && (tmp[2] == 0xff || tmp[2] == 0xfd || tmp[2] == 0xfc)) {
+	    if (tmp[0] == 0x17 && tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2])) {
 		// DTLS Application Data, but we haven't seen the handshake.
 		cleanup(ctx, ctx->sock);
 		return;

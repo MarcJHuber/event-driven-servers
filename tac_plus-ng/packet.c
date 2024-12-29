@@ -464,6 +464,7 @@ static __inline__ tac_session *RB_lookup_session(rb_tree_t *rbt, int session_id)
     return RB_lookup(rbt, &s);
 }
 
+#ifdef WITH_SSL
 static int tls_ver_ok(u_int ver, u_char v)
 {
     for (; ver; ver >>= 8)
@@ -471,11 +472,16 @@ static int tls_ver_ok(u_int ver, u_char v)
 	    return -1;
     return 0;
 }
+#endif
 
 void tac_read(struct context *ctx, int cur)
 {
     ssize_t len;
+#ifdef WITH_SSL
+    int min_len = ctx->tls ? 0 : 1;
+#else
     int min_len = 1;
+#endif
     int detached = 0;
 
     ctx->last_io = io_now.tv_sec;
@@ -494,7 +500,7 @@ void tac_read(struct context *ctx, int cur)
 	else
 #endif
 	    len = recv_inject(ctx, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, 0);
-	if (len <= 0) {
+	if (len < min_len) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
@@ -643,7 +649,7 @@ void tac_read(struct context *ctx, int cur)
     else
 #endif
 	len = recv_inject(ctx, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, 0);
-    if (len < min_len && min_len) {
+    if (len < min_len) {
 	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
 	return;
@@ -873,7 +879,11 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 void rad_read(struct context *ctx, int cur)
 {
     ssize_t len;
+#ifdef WITH_SSL
+    int min_len = ctx->tls ? 0 : 1;
+#else
     int min_len = 1;
+#endif
     int detached = 0;
 
     ctx->last_io = io_now.tv_sec;
@@ -892,7 +902,7 @@ void rad_read(struct context *ctx, int cur)
 	else
 #endif
 	    len = recv_inject(ctx, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, 0);
-	if (len <= 0) {
+	if (len < min_len) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
@@ -934,7 +944,7 @@ void rad_read(struct context *ctx, int cur)
 #endif
 	len = recv_inject(ctx, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, 0);
 
-    if (len < min_len && min_len) {
+    if (len < min_len) {
 	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
 	return;
