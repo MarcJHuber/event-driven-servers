@@ -2227,12 +2227,38 @@ static ssize_t io_SSL_rw(SSL *ssl __attribute__((unused)), struct io_context *io
 
 ssize_t io_SSL_read(SSL *ssl, void *buf, size_t num, struct io_context *io, int fd, void *cb)
 {
-    return io_SSL_rw(ssl, io, fd, cb, SSL_read(ssl, buf, (int) num));
+    size_t readbytes = 0;
+    int res = SSL_read_ex(ssl, buf, (int) num, &readbytes);
+    if (res < 0)
+	switch (SSL_get_error(ssl, res)) {
+	case SSL_ERROR_WANT_READ:
+	case SSL_ERROR_WANT_WRITE:
+	    errno = EAGAIN;
+	    res = 0;
+	    break;
+	default:
+	    ;
+    } else
+	res = readbytes;
+    return io_SSL_rw(ssl, io, fd, cb, res);
 }
 
 ssize_t io_SSL_write(SSL *ssl, void *buf, size_t num, struct io_context *io, int fd, void *cb)
 {
-    return io_SSL_rw(ssl, io, fd, cb, SSL_write(ssl, buf, (int) num));
+    size_t writebytes = 0;
+    int res = SSL_write_ex(ssl, buf, (int) num, &writebytes);
+    if (res < 0)
+	switch (SSL_get_error(ssl, res)) {
+	case SSL_ERROR_WANT_READ:
+	case SSL_ERROR_WANT_WRITE:
+	    errno = EAGAIN;
+	    res = 0;
+	    break;
+	default:
+	    res = writebytes;
+    } else
+	res = writebytes;
+    return io_SSL_rw(ssl, io, fd, cb, res);
 }
 
 int io_SSL_shutdown(SSL *ssl, struct io_context *io, int fd, void *cb)
