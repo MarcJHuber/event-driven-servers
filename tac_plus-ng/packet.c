@@ -521,7 +521,7 @@ void tac_read(struct context *ctx, int cur)
 	    }
 	} else {
 	    if (ctx->udp) {
-		if (ctx->aaa_protocol != S_radius && ctx->aaa_protocol == S_unknown) {
+		if (ctx->aaa_protocol != S_radius && ctx->aaa_protocol != S_unknown) {
 		    ctx->reset_tcp = BISTATE_YES;
 		    cleanup(ctx, cur);
 		    return;
