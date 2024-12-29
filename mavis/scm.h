@@ -36,11 +36,6 @@ struct scm_data_udp {
     u_int tls_versions;
     int aaa_protocol;
     u_int rad_acct:1;		// sock is dedicated radius accounting port
-    u_char protocol;		// AF_INET, AF_INET6
-    u_char src[16];
-    u_char dst[16];
-    short src_port;		// host byte order
-    short dst_port;		// host byte order
     char realm[SCM_REALM_SIZE];
     short data_len;
     u_char data[] __attribute__((aligned(8)));

@@ -205,24 +205,27 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	    return;
 	}
 
-	sd_udp = alloca(sizeof(struct scm_data_udp) + len);
-	memset(&sd_udp->dst, 0, 16);
+	sockaddr_union local_su = {.sa.sa_family = sa.sa.sa_family };
 
 	for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 #ifdef IP_PKTINFO
-	    if (sa.sa.sa_family == AF_INET && cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_PKTINFO) {
-		memcpy(&sd_udp->dst, &((struct in_pktinfo *) CMSG_DATA(cmsg))->ipi_addr, 4);
+	    if (cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_PKTINFO) {
+		memcpy(&local_su.sin.sin_addr, &((struct in_pktinfo *) CMSG_DATA(cmsg))->ipi_addr, 4);
+		local_su.sa.sa_family = AF_INET;
 		break;
 	    }
 #endif
 #ifdef IPV6_PKTINFO
-	    if (sa.sa.sa_family == AF_INET6 && cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
-		memcpy(&sd_udp->dst, &((struct in6_pktinfo *) CMSG_DATA(cmsg))->ipi6_addr, 16);
+	    if (cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
+		memcpy(&local_su.sin6.sin6_addr, &((struct in6_pktinfo *) CMSG_DATA(cmsg))->ipi6_addr, 16);
+		local_su.sa.sa_family = AF_INET6;
 		break;
 	    }
 #endif
 	}
+	su_convert(&local_su, sa.sa.sa_family);
 
+	sd_udp = alloca(sizeof(struct scm_data_udp) + len);
 	sd_udp->data_len = len;
 	memcpy(sd_udp->data, buf, len);
 	sd_udp->type = SCM_UDPDATA;
@@ -230,28 +233,18 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	sd_udp->tls_versions = ctx->dtls_versions;
 	sd_udp->aaa_protocol = ctx->aaa_protocol;
 	memcpy(sd_udp->realm, ctx->tag, SCM_REALM_SIZE);
-	sd_udp->protocol = sa.sa.sa_family;
-	sd_udp->dst_port = ctx->port;
 	s = socket(sa.sa.sa_family, SOCK_DGRAM, 0);
 	int one = 1;
 	setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *) &one, (socklen_t) sizeof(one));
 
-	sockaddr_union local_su = {.sa.sa_family = sa.sa.sa_family };
-
 	switch (sa.sa.sa_family) {
 #ifdef AF_INET
 	case AF_INET:
-	    memcpy(&sd_udp->src, &sa.sin.sin_addr, 4);
-	    sd_udp->src_port = ntohs(sa.sin.sin_port);
-	    memcpy(&local_su.sin.sin_addr, sd_udp->dst, 4);
 	    local_su.sin.sin_port = htons(ctx->port);
 	    break;
 #endif
 #ifdef AF_INET6
 	case AF_INET6:
-	    memcpy(&sd_udp->src, &sa.sin6.sin6_addr, 16);
-	    sd_udp->src_port = ntohs(sa.sin6.sin6_port);
-	    memcpy(&local_su.sin6.sin6_addr, sd_udp->dst, 16);
 	    local_su.sin6.sin6_port = htons(ctx->port);
 	    break;
 #endif
