@@ -216,6 +216,9 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	    }
 #endif
 #ifdef IPV6_PKTINFO
+#ifndef SOL_IPV6
+#define SOL_IPV6 IPPROTO_IPV6
+#endif
 	    if (cmsg->cmsg_level == SOL_IPV6 && cmsg->cmsg_type == IPV6_PKTINFO) {
 		memcpy(&local_su.sin6.sin6_addr, &((struct in6_pktinfo *) CMSG_DATA(cmsg))->ipi6_addr, 16);
 		local_su.sa.sa_family = AF_INET6;
