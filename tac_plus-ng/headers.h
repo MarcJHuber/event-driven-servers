@@ -890,9 +890,9 @@ struct context {
     str_t tls_sni;
     char **tls_peer_cert_san;
     size_t tls_peer_cert_san_count;
-    u_int tls_versions;
     BIO *rbio;
 #endif
+    u_int tls_versions;
 
     str_t msgid;
     str_t acct_type;
