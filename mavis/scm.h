@@ -22,7 +22,8 @@ struct scm_data {
 
 struct scm_data_accept {
     enum scm_token type;
-    u_int use_tls:1;
+    u_int tls_versions;
+    int aaa_protocol;
     u_int haproxy:1;
     int socktype;		// SOCK_STREAM, SOCK_SEQPACKET; SOCK_DGRAM
     int protocol;		// AF_INET, AF_INET6, ...
@@ -32,7 +33,8 @@ struct scm_data_accept {
 
 struct scm_data_udp {
     enum scm_token type;
-    u_int use_tls:1;
+    u_int tls_versions;
+    int aaa_protocol;
     u_int rad_acct:1;		// sock is dedicated radius accounting port
     u_char protocol;		// AF_INET, AF_INET6
     u_char src[16];

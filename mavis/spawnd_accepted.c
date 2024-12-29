@@ -227,7 +227,8 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	memcpy(sd_udp->data, buf, len);
 	sd_udp->type = SCM_UDPDATA;
 	sd_udp->rad_acct = ctx->rad_acct;
-	sd_udp->use_tls = ctx->use_ssl ? 1 : 0;
+	sd_udp->tls_versions = ctx->dtls_versions;
+	sd_udp->aaa_protocol = ctx->aaa_protocol;
 	memcpy(sd_udp->realm, ctx->tag, SCM_REALM_SIZE);
 	sd_udp->protocol = sa.sa.sa_family;
 	sd_udp->dst_port = ctx->port;
@@ -311,7 +312,10 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 #endif
 
 	sd = alloca(sizeof(struct scm_data_accept));
-	sd->type = SCM_ACCEPT, sd->haproxy = ctx->haproxy ? 1 : 0, sd->use_tls = ctx->use_ssl ? 1 : 0, sd->protocol = ctx->protocol;
+	sd->type = SCM_ACCEPT, sd->haproxy = ctx->haproxy ? 1 : 0i;
+	sd->tls_versions = ctx->tls_versions;
+	sd->aaa_protocol = ctx->aaa_protocol;
+	sd->protocol = ctx->protocol;
 	memcpy(sd->realm, ctx->tag, SCM_REALM_SIZE);
     }
 

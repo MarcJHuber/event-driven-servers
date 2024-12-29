@@ -553,10 +553,19 @@ aaa.protocol.allowed		S_aaa_protocol_allowed
 tacacs				S_tacacs
 tacacss				S_tacacss
 radius-tcp			S_radius_tcp
+radius-tcp			S_radius_tcp
 radsec				S_radsec
 radius-dtls			S_radius_dtls
+radius-any			S_radius_any
+tacacs-any			S_tacacs_any
 #
 conn.protocol			S_conn_protocol
 #
 flag				S_flag
+#
+TLS1.2				S_TLS1_2
+TLS1.3				S_TLS1_3
+DTLS1.0				S_DTLS1_0
+DTLS1.2				S_DTLS1_2
+DTLS1.2				S_DTLS1_3
 #

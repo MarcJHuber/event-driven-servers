@@ -162,7 +162,75 @@ static void parse_listen(struct sym *sym)
 	case S_tls:
 	    sym_get(sym);
 	    parse(sym, S_equal);
-	    ctx->use_ssl = parse_bool(sym) ? 1 : 0;
+	    switch (sym->code) {
+	    case S_yes:
+	    case S_permit:
+	    case S_true:
+		sym_get(sym);
+		ctx->tls_versions = 0x0203;
+		ctx->dtls_versions = 0xfffdfc;
+		sym_get(sym);
+		break;
+	    case S_no:
+	    case S_deny:
+	    case S_false:
+		sym_get(sym);
+		ctx->tls_versions = 0;
+		ctx->dtls_versions = 0;
+		sym_get(sym);
+		break;
+	    case S_TLS1_2:
+	    case S_TLS1_3:
+		ctx->tls_versions = 0;
+		do {
+		    switch (sym->code) {
+		    case S_TLS1_2:
+			ctx->tls_versions <<= 8;
+			ctx->tls_versions |= 0x02;
+			break;
+		    case S_TLS1_3:
+			ctx->tls_versions <<= 8;
+			ctx->tls_versions |= 0x03;
+			break;
+		    default:
+			parse_error_expect(sym, S_TLS1_2, S_TLS1_3, S_unknown);
+		    }
+		    sym_get(sym);
+		} while (parse_comma(sym));
+		break;
+	    case S_DTLS1_0:
+	    case S_DTLS1_2:
+	    case S_DTLS1_3:
+		ctx->dtls_versions = 0;
+		do {
+		    switch (sym->code) {
+		    case S_DTLS1_0:
+			ctx->dtls_versions <<= 8;
+			ctx->dtls_versions |= 0xFF;	// ~0
+			break;
+		    case S_DTLS1_2:
+			ctx->dtls_versions <<= 8;
+			ctx->dtls_versions |= 0xFE;	// ~2
+			break;
+		    case S_DTLS1_3:
+			ctx->dtls_versions <<= 8;
+			ctx->dtls_versions |= 0xFD;	// ~3
+			break;
+		    default:
+			parse_error_expect(sym, S_DTLS1_0, S_DTLS1_2, S_DTLS1_3, S_unknown);
+		    }
+		    sym_get(sym);
+		} while (parse_comma(sym));
+		break;
+	    default:
+		parse_error_expect(sym, S_TLS1_2, S_TLS1_3, S_DTLS1_0, S_DTLS1_2, S_DTLS1_3, S_yes, S_permit, S_true, S_no, S_deny, S_false, S_unknown);
+	    }
+	    break;
+	case S_aaa_protocol:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    ctx->aaa_protocol = sym->code;
+	    sym_get(sym);
 	    break;
 	case S_haproxy:
 	    sym_get(sym);

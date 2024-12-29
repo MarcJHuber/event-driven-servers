@@ -118,82 +118,98 @@ struct hint_struct {
 static struct hint_struct hints[hint_max] = {
 #define S1 "failed"
 #define S2 "AUTHCFAIL"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "failed (denied)"
 #define S2 "AUTHCFAIL-DENY"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "failed (password not set)"
 #define S2 "AUTHCFAIL-NOPASS"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "failed (expired)"
 #define S2 "AUTHCFAIL-EXPIRED"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "failed (no such user)"
 #define S2 "AUTHCFAIL-NOUSER"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "succeeded"
 #define S2 "AUTHCPASS"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "succeeded (permitted)"
 #define S2 "AUTHCPASS-PERMIT"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "failed (no clear text password set)"
 #define S2 "AUTHCFAIL-PASSWORD-NOT-TEXT"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "failed (backend error)"
 #define S2 "AUTHCFAIL-BACKEND"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "denied by user profile"
 #define S2 "AUTHCFAIL-USERPROFILE"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "failed (retry with identical password)"
 #define S2 "AUTHCFAIL-DENY-RETRY"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "failed (This might be a bug, consider reporting it!)"
 #define S2 "AUTHCFAIL-BUG"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "aborted by request"
 #define S2 "AUTHCFAIL-ABORT"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "denied by ACL"
 #define S2 "AUTHCFAIL-ACL"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "denied (invalid challenge length)"
 #define S2 "AUTHCFAIL-BAD-CHALLENGE-LENGTH"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 #define S1 "denied (minimum password requirements not met)"
 #define S2 "AUTHCFAIL-WEAKPASSWORD"
-    { { S1, sizeof(S1) - 1 }, { S2, sizeof(S2) - 1 } },
+    { { S1, sizeof(S1) - 1}, { S2, sizeof(S2) - 1}
+      },
 #undef S1
 #undef S2
 };
@@ -273,7 +289,7 @@ static int password_requirements_failed(tac_session *session, char *what)
 	    char *msg = eval_log_format(session, session->ctx, NULL, li_password_minreq, io_now.tv_sec, NULL);
 	    if (session->ctx->aaa_protocol == S_tacacs || session->ctx->aaa_protocol == S_tacacss)
 		send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, msg, 0, NULL, 0, 0);
-	    else if (session->ctx->aaa_protocol == S_radius || session->ctx->aaa_protocol == S_radsec)
+	    else		// radius
 		rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, msg);
 	    return -1;
 	}

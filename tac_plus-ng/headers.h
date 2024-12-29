@@ -890,6 +890,7 @@ struct context {
     str_t tls_sni;
     char **tls_peer_cert_san;
     size_t tls_peer_cert_san_count;
+    u_int tls_versions;
     BIO *rbio;
 #endif
 
@@ -915,6 +916,7 @@ struct context {
 	BISTATE(mavis_tried);
 	BISTATE(rad_acct);
 	BISTATE(reset_tcp);
+	BISTATE(udp);
     } __attribute__((__packed__));
     enum token mavis_result;
     enum token aaa_protocol;

@@ -92,11 +92,12 @@ struct spawnd_context {
     struct io_context *io;
     int fn;
     u_int is_listener:1;	/* 0: server, 1: listener */
-    u_int use_ssl:1;		/* listener only */
     u_int dying:1;		/* server only */
     u_int logged_retry:1;	/* server only */
     u_int haproxy:1;		/* server only */
     u_int rad_acct:1;		/* radius accounting */
+    u_int tls_versions;
+    u_int dtls_versions;
     int socktype;		/* SOCK_STREAM, SOCK_SEQPACKET */
     int protocol;		/* IPROTO_IP (default)/_TCP/_SCTP */
     short port;			/* tcp/udp port in network byte order */
@@ -121,6 +122,7 @@ struct spawnd_context {
     int keepcnt;
     int keepidle;
     int keepintvl;
+    enum token aaa_protocol;
     sockaddr_union sa;
     struct track_data track_data;
 };

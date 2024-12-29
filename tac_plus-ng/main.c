@@ -229,7 +229,6 @@ struct context *new_context(struct io_context *io, tac_realm *r)
     c->sock = -1;
     c->mem = mem;
     c->hint = "";
-    c->aaa_protocol = S_tacacs;
     if (r) {
 	c->sessions = RB_tree_new(compare_session, NULL);
 	c->id = context_id++;
@@ -1197,9 +1196,11 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
     ctx->sock = s;
     context_lru_append(ctx);
-    ctx->use_tls = (sd_ext->sd.use_tls && sd_ext->sd.type == SCM_ACCEPT) ? BISTATE_YES : BISTATE_NO;
-    ctx->use_dtls = (sd_ext->sd.use_tls && sd_ext->sd.type == SCM_UDPDATA) ? BISTATE_YES : BISTATE_NO;
+    ctx->tls_versions = sd_ext->sd.tls_versions;
+    ctx->use_tls = (sd_ext->sd.tls_versions && sd_ext->sd.type == SCM_ACCEPT) ? BISTATE_YES : BISTATE_NO;
+    ctx->use_dtls = (sd_ext->sd.tls_versions && sd_ext->sd.type == SCM_UDPDATA) ? BISTATE_YES : BISTATE_NO;
     if (inject_buf) {
+	ctx->udp = BISTATE_YES;
 	ctx->inject_buf = mem_copy(ctx->mem, inject_buf, inject_len);
 	ctx->inject_len = inject_len;
     }
@@ -1265,7 +1266,7 @@ static void complete_host_mavis(struct context *ctx)
     io_set_cb_e(ctx->io, ctx->sock, (void *) cleanup);
     io_sched_add(ctx->io, ctx, (void *) periodics_ctx, 60, 0);
     io_set_i(ctx->io, ctx->sock);
-    if (ctx->inject_buf)
+    if (ctx->udp)
 	accept_control_check_tls(ctx, ctx->sock);
 }
 
@@ -1284,20 +1285,28 @@ ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags)
     return recv(ctx->sock, buf, len, flags);
 }
 
+static int dtls_ver_ok(u_int ver, u_char v)
+{
+    for (; ver; ver >>= 8)
+	if ((ver & 0xff) == v)
+	    return -1;
+    return 0;
+}
+
 static void accept_control_check_tls(struct context *ctx, int cur __attribute__((unused)))
 {
 #ifdef WITH_SSL
     u_char tmp[6];
     if (ctx->realm->tls_autodetect == TRISTATE_YES && recv_inject(ctx, tmp, sizeof(tmp), MSG_PEEK) == (ssize_t) sizeof(tmp)) {
-	if (ctx->inject_buf) {
-	    ctx->use_dtls = tmp[0] == 0x16 && tmp[1] == 0xfe && (tmp[2] == 0xff || tmp[2] == 0xfd || tmp[2] == 0xfc) ? BISTATE_YES : BISTATE_NO;
+	if (ctx->udp) {
+	    ctx->use_dtls = tmp[0] == 0x16 && tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2]) ? BISTATE_YES : BISTATE_NO;
 	    if (tmp[0] == 0x17 && tmp[1] == 0xfe && (tmp[2] == 0xff || tmp[2] == 0xfd || tmp[2] == 0xfc)) {
 		// DTLS Application Data, but we haven't seen the handshake.
 		cleanup(ctx, ctx->sock);
 		return;
 	    }
 	} else
-	    ctx->use_tls = (tmp[0] == 0x16 /*&& tmp[1] == 0x03 && tmp[2] == 0x01 */  && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
+	    ctx->use_tls = (tmp[0] == 0x16 && tmp[1] == 0x03 && tmp[2] == 0x01 && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
     }
     if (ctx->host && (ctx->use_tls || ctx->use_dtls)) {
 	if ((ctx->use_tls && !ctx->realm->tls) || (ctx->use_dtls && !ctx->realm->dtls)) {
@@ -1335,7 +1344,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	ctx->tls = SSL_new(ctx->use_tls ? ctx->realm->tls : (ctx->use_dtls ? ctx->realm->dtls : NULL));
 	if (ctx->tls) {
 	    SSL_set_fd(ctx->tls, ctx->sock);
-	    if (ctx->inject_buf) {
+	    if (ctx->udp) {
 		//ctx->rbio = BIO_new(BIO_s_dgram_mem());
 		ctx->rbio = BIO_new(BIO_s_mem());
 		SSL_set0_rbio(ctx->tls, ctx->rbio);
@@ -1390,7 +1399,7 @@ static void accept_control_final(struct context *ctx)
 #undef S
     log_exec(NULL, ctx, S_connection, io_now.tv_sec);
     str_set(&ctx->msgid, NULL, 0);
-    if (ctx->inject_buf)
+    if (ctx->udp)
 	tac_read(ctx, ctx->sock);
 }
 
