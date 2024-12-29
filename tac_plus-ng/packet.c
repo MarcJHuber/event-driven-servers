@@ -524,8 +524,10 @@ void tac_read(struct context *ctx, int cur)
 	    key_radius_dtls->len = 11;
 	    strcpy(key_radius_dtls->key, "radius/dtls");
 	}
-	if (ctx->tls)
-	    ctx->key = ctx->use_tls ? key_radsec : key_radius_dtls;
+	if (ctx->tls && ctx->use_tls)
+	    ctx->key = key_radsec;
+	else if (ctx->tls && ctx->use_dtls)
+	    ctx->key = key_radius_dtls;
 	else
 	    ctx->key = ctx->host->radius_key;
 

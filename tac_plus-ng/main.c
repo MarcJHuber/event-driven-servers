@@ -1289,9 +1289,14 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 #ifdef WITH_SSL
     u_char tmp[6];
     if (ctx->realm->tls_autodetect == TRISTATE_YES && recv_inject(ctx, tmp, sizeof(tmp), MSG_PEEK) == (ssize_t) sizeof(tmp)) {
-	if (ctx->inject_buf)
-	    ctx->use_dtls = (tmp[0] == 0x16 && tmp[1] == 0xfe && (tmp[2] == 0xfd || tmp[2] == 0xfc)) ? BISTATE_YES : BISTATE_NO;
-	else
+	if (ctx->inject_buf) {
+	    ctx->use_dtls = tmp[0] == 0x16 && tmp[1] == 0xfe && (tmp[2] == 0xff || tmp[2] == 0xfd || tmp[2] == 0xfc) ? BISTATE_YES : BISTATE_NO;
+	    if (tmp[0] == 0x17 && tmp[1] == 0xfe && (tmp[2] == 0xff || tmp[2] == 0xfd || tmp[2] == 0xfc)) {
+		// DTLS Application Data, but we haven't seen the handshake.
+		cleanup(ctx, ctx->sock);
+		return;
+	    }
+	} else
 	    ctx->use_tls = (tmp[0] == 0x16 /*&& tmp[1] == 0x03 && tmp[2] == 0x01 */  && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
     }
     if (ctx->host && (ctx->use_tls || ctx->use_dtls)) {
