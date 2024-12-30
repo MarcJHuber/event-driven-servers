@@ -550,6 +550,9 @@ vsa				S_vsa
 #
 aaa.protocol			S_aaa_protocol
 aaa.protocol.allowed		S_aaa_protocol_allowed
+udp				S_udp
+tcp				S_tcp
+dtls				S_dtls
 tacacs				S_tacacs
 tacacss				S_tacacss
 radius-tcp			S_radius_tcp
@@ -560,6 +563,7 @@ radius-any			S_radius_any
 tacacs-any			S_tacacs_any
 #
 conn.protocol			S_conn_protocol
+conn.transport			S_conn_transport
 #
 flag				S_flag
 #

@@ -794,6 +794,7 @@ struct log_item *parse_log_format(struct sym *sym, mem_t *mem)
 	    case S_clientaddress:
 	    case S_context:
 	    case S_conn_protocol:
+	    case S_conn_transport:
 	    case S_devicedns:
 	    case S_devicename:
 	    case S_deviceaddress:
@@ -1623,10 +1624,18 @@ static str_t *eval_log_format_pid(tac_session *session __attribute__((unused)), 
 static str_t *eval_log_format_conn_protocol(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
 					   __attribute__((unused)))
 {
+    if (ctx)
+	return &codestring[ctx->udp ? S_udp : S_tcp];
+    return NULL;
+}
+
+static str_t *eval_log_format_conn_transport(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+					   __attribute__((unused)))
+{
     if (ctx) {
-	if (ctx->aaa_protocol == S_radius)
-	    return &codestring[S_UDP];
-	return &codestring[S_TCP];
+	if (ctx->tls)
+		return &codestring[ctx->udp ? S_dtls : S_tls];
+	return &codestring[ctx->udp ? S_udp : S_tcp];
     }
     return NULL;
 }
@@ -1735,6 +1744,7 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 	efun[S_authen_service] = &eval_log_format_authen_service;
 	efun[S_authen_type] = &eval_log_format_authen_type;
 	efun[S_conn_protocol] = &eval_log_format_conn_protocol;
+	efun[S_conn_transport] = &eval_log_format_conn_transport;
 	efun[S_dn] = &eval_log_format_dn;
 	efun[S_gid] = &eval_log_format_gid;
 	efun[S_gids] = &eval_log_format_gids;

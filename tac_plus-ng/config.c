@@ -4341,6 +4341,8 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
     case S_aaa_protocol:
     case S_arg:
     case S_cmd:
+    case S_conn_protocol:
+    case S_conn_transport:
     case S_context:
     case S_client:
     case S_clientaddress:
@@ -4643,7 +4645,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 
     default:
 	parse_error_expect(sym, S_leftbra, S_exclmark, S_acl, S_time, S_arg,
-			   S_cmd, S_context, S_nac, S_device, S_nas, S_nasname,
+			   S_cmd, S_context, S_conn_protocol, S_conn_transport, S_nac, S_device, S_nas, S_nasname,
 			   S_nacname, S_host, S_port, S_user, S_user_original, S_group, S_member, S_memberof,
 			   S_devicename, S_deviceaddress, S_devicedns, S_devicetag, S_deviceport,
 			   S_client, S_clientname, S_clientdns, S_clientaddress,
@@ -4879,6 +4881,34 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	    v_len = session->ctx->tls_psk_identity.len;
 	    break;
 #endif
+	case S_conn_protocol:
+	    if (session->ctx->udp) {
+		    v = codestring[S_udp].txt;
+		    v_len = codestring[S_udp].len;
+	    } else {
+		    v = codestring[S_tcp].txt;
+		    v_len = codestring[S_tcp].len;
+	    }
+	    break;
+	case S_conn_transport:
+	    if (session->ctx->udp) {
+		if (session->ctx->tls) {
+		    v = codestring[S_dtls].txt;
+		    v_len = codestring[S_dtls].len;
+		} else {
+		    v = codestring[S_udp].txt;
+		    v_len = codestring[S_udp].len;
+	    	}
+	    } else {
+		if (session->ctx->tls) {
+		    v = codestring[S_tls].txt;
+		    v_len = codestring[S_tls].len;
+		} else {
+		    v = codestring[S_tcp].txt;
+		    v_len = codestring[S_tcp].len;
+	    	}
+	    }
+	    break;
 	case S_context:
 	    v = tac_script_get_exec_context(session);
 	    break;

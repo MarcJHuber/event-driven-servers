@@ -301,10 +301,12 @@ static void parse_listen(struct sym *sym)
 	    sym_get(sym);
 	    parse(sym, S_equal);
 	    switch (sym->code) {
+	    case S_tcp:
 	    case S_TCP:
 		ctx->protocol = IPPROTO_TCP;
 		ctx->socktype = SOCK_STREAM;
 		break;
+	    case S_udp:
 	    case S_UDP:
 		ctx->protocol = IPPROTO_UDP;
 		ctx->socktype = SOCK_DGRAM;
@@ -315,7 +317,7 @@ static void parse_listen(struct sym *sym)
 		break;
 #endif
 	    default:
-		parse_error_expect(sym, S_TCP, S_UDP,
+		parse_error_expect(sym, S_TCP, S_UDP, S_tcp, S_udp,
 #ifdef IPPROTO_SCTP
 				   S_SCTP,
 #endif
