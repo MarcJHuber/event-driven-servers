@@ -738,6 +738,8 @@ void sym_get(struct sym *sym)
 	    char *r = strrchr(sb, '/');
 	    if (r)
 		*r = 0;
+	    else
+		strcpy(sb, "./");
 	    strcpy(sb + strlen(sb), sym->buf + sizeof(S) - 2);
 #undef S
 	} else {

@@ -205,6 +205,8 @@ static char *confdir_strdup(char *in)
     char *r = strrchr(b, '/');
     if (r)
 	*r = 0;
+    else
+	strcpy(b, "./");
     strcpy(b + strlen(b), in + sizeof(S) - 2);
     return strdup(b);
 #undef S
