@@ -477,11 +477,6 @@ static int tls_ver_ok(u_int ver, u_char v)
 void tac_read(struct context *ctx, int cur)
 {
     ssize_t len;
-#ifdef WITH_SSL
-    int min_len = ctx->tls ? 0 : 1;
-#else
-    int min_len = 1;
-#endif
     int detached = 0;
 
     ctx->last_io = io_now.tv_sec;
@@ -500,14 +495,15 @@ void tac_read(struct context *ctx, int cur)
 	else
 #endif
 	    len = recv_inject(ctx, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, 0);
-	if (len < min_len) {
+	if (len < 0 && errno != EAGAIN) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
 	}
 	ctx->hdroff += len;
-	min_len = 0;
     }
+    if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
+	return;
 #ifdef WITH_SSL
     // auto-detect radius
     if (config.rad_dict && ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
@@ -649,13 +645,11 @@ void tac_read(struct context *ctx, int cur)
     else
 #endif
 	len = recv_inject(ctx, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, 0);
-    if (len < min_len) {
+    if (len < 0 && errno != EAGAIN) {
 	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
 	return;
     }
-    if (len < 0)
-	return;
     ctx->in->offset += len;
     if (ctx->in->offset != ctx->in->length)
 	return;
@@ -879,11 +873,6 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 void rad_read(struct context *ctx, int cur)
 {
     ssize_t len;
-#ifdef WITH_SSL
-    int min_len = ctx->tls ? 0 : 1;
-#else
-    int min_len = 1;
-#endif
     int detached = 0;
 
     ctx->last_io = io_now.tv_sec;
@@ -902,13 +891,12 @@ void rad_read(struct context *ctx, int cur)
 	else
 #endif
 	    len = recv_inject(ctx, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, 0);
-	if (len < min_len) {
+	if (len < 0 && errno != EAGAIN) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
 	}
 	ctx->hdroff += len;
-	min_len = 0;
     }
     if (ctx->hdroff != RADIUS_HDR_SIZE)
 	return;
@@ -944,7 +932,7 @@ void rad_read(struct context *ctx, int cur)
 #endif
 	len = recv_inject(ctx, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, 0);
 
-    if (len < min_len) {
+    if (len < 0 && errno != EAGAIN) {
 	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
 	return;
