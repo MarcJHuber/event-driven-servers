@@ -228,15 +228,15 @@ static void parse_listen(struct sym *sym)
 	    sym_get(sym);
 	    parse(sym, S_equal);
 	    switch (sym->code) {
-	    case S_tacacs:
-	    case S_tacacss:
-	    case S_radius:
+	    case S_tacacs_tcp:
+	    case S_tacacs_tls:
+	    case S_radius_udp:
 	    case S_radius_tcp:
-	    case S_radsec:
+	    case S_radius_tls:
 	    case S_radius_dtls:
 		break;
 	    default:
-		parse_error_expect(sym, S_tacacs, S_tacacss, S_radius, S_radius_tcp, S_radsec, S_radius_dtls, S_unknown);
+		parse_error_expect(sym, S_tacacs_tcp, S_tacacs_tls, S_radius_udp, S_radius_tcp, S_radius_tls, S_radius_dtls, S_unknown);
 	    }
 	    ctx->aaa_protocol = sym->code;
 	    sym_get(sym);

@@ -2175,11 +2175,15 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		switch (sym->code) {
 		case S_radius:
 		    r->allowed_protocol_radius = TRISTATE_YES;
+		    r->allowed_protocol_radius_tcp = TRISTATE_YES;
+		    r->allowed_protocol_radsec = TRISTATE_YES;
+		    r->allowed_protocol_radius_dtls = TRISTATE_YES;
+		    r->allowed_protocol_radius = TRISTATE_YES;
 		    break;
 		case S_radius_tcp:
 		    r->allowed_protocol_radius_tcp = TRISTATE_YES;
 		    break;
-		case S_radsec:
+		case S_radius_tls:
 		    r->allowed_protocol_radsec = TRISTATE_YES;
 		    break;
 		case S_radius_dtls:
@@ -2187,12 +2191,16 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    break;
 		case S_tacacs:
 		    r->allowed_protocol_tacacs = TRISTATE_YES;
+		    r->allowed_protocol_tacacss = TRISTATE_YES;
 		    break;
-		case S_tacacss:
+		case S_tacacs_tcp:
+		    r->allowed_protocol_tacacs = TRISTATE_YES;
+		    break;
+		case S_tacacs_tls:
 		    r->allowed_protocol_tacacss = TRISTATE_YES;
 		    break;
 		default:
-		    parse_error_expect(sym, S_radius, S_radius_tcp, S_radsec, S_radius_dtls, S_tacacs, S_tacacss, S_unknown);
+		    parse_error_expect(sym, S_radius, S_radius_udp, S_radius_tcp, S_radius_tls, S_radius_dtls, S_tacacs, S_tacacs_tcp, S_tacacs_tls, S_unknown);
 		}
 		sym_get(sym);
 	    } while (parse_comma(sym));
@@ -4447,14 +4455,16 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		m->type = S_aaa_protocol;
 		switch (sym->code) {
 		case S_radius:
+		case S_radius_udp:
 		case S_radius_tcp:
-		case S_radsec:
+		case S_radius_tls:
 		case S_radius_dtls:
 		case S_tacacs:
-		case S_tacacss:
+		case S_tacacs_tcp:
+		case S_tacacs_tls:
 		    break;
 		default:
-		    parse_error_expect(sym, S_radius, S_radsec, S_radius_dtls, S_tacacs, S_tacacss, S_unknown);
+		    parse_error_expect(sym, S_radius, S_radius_udp, S_radius_tcp, S_radius_dtls, S_radius_tls, S_tacacs, S_tacacs_tcp, S_tacacs_tls, S_unknown);
 		}
 		m->u.s.rhs = codestring[sym->code].txt;
 		m->u.s.rhs_txt = codestring[sym->code].txt;
@@ -4738,6 +4748,10 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	return tac_script_cond_eval_res(session, m, res);
     case S_aaa_protocol:
 	res = ((char *) m->u.s.rhs == codestring[session->ctx->aaa_protocol].txt);
+	if (!res) {
+		size_t len = strlen((char *) m->u.s.rhs);
+		res = !strncmp((char *) m->u.s.rhs, codestring[session->ctx->aaa_protocol].txt, len) && codestring[session->ctx->aaa_protocol].txt[len] == '.';
+	}
 	return tac_script_cond_eval_res(session, m, res);
     case S_address:
 	switch (m->u.s.token) {

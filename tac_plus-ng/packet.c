@@ -509,29 +509,32 @@ void tac_read(struct context *ctx, int cur)
     if (config.rad_dict && ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
 	if (ctx->tls) {
 	    if (ctx->udp) {
-		if (ctx->realm->allowed_protocol_radius_dtls != TRISTATE_YES && ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_dtls) {
+		if (ctx->realm->allowed_protocol_radius_dtls != TRISTATE_YES
+			&& ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_dtls && ctx->aaa_protocol != S_radius) {
 		    cleanup(ctx, cur);
 		    return;
 		}
 		ctx->aaa_protocol = S_radius_dtls;
 	    } else {
-		if (ctx->realm->allowed_protocol_radsec != TRISTATE_YES && ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radsec) {
+		if (ctx->realm->allowed_protocol_radsec != TRISTATE_YES
+			&& ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_tls && ctx->aaa_protocol != S_radius) {
 		    cleanup(ctx, cur);
 		    return;
 		}
-		ctx->aaa_protocol = S_radsec;
+		ctx->aaa_protocol = S_radius_tls;
 	    }
 	} else {
 	    if (ctx->udp) {
-		if (ctx->aaa_protocol != S_radius && ctx->aaa_protocol != S_unknown) {
+		if (ctx->realm->allowed_protocol_radius_dtls != TRISTATE_YES
+			&& ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_udp && ctx->aaa_protocol != S_radius) {
 		    ctx->reset_tcp = BISTATE_YES;
 		    cleanup(ctx, cur);
 		    return;
 		}
-		ctx->aaa_protocol = S_radius;
+		ctx->aaa_protocol = S_radius_udp;
 	    } else {
-		if (!(common_data.debug & DEBUG_TACTRACE_FLAG) && (ctx->realm->allowed_protocol_radius_tcp != TRISTATE_YES) && ctx->aaa_protocol != S_unknown
-		    && ctx->aaa_protocol != S_radius_tcp) {
+		if (!(common_data.debug & DEBUG_TACTRACE_FLAG) && (ctx->realm->allowed_protocol_radius_tcp != TRISTATE_YES)
+			&& ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_tcp && ctx->aaa_protocol != S_radius ) {
 		    ctx->reset_tcp = BISTATE_YES;
 		    cleanup(ctx, cur);
 		    return;
@@ -577,12 +580,13 @@ void tac_read(struct context *ctx, int cur)
 
 #ifdef WITH_SSL
     if (ctx->tls) {
-	if (ctx->realm->allowed_protocol_tacacss != ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_tacacss) {
+	if (ctx->realm->allowed_protocol_tacacss != TRISTATE_YES
+		&& ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_tacacs_tls && ctx->aaa_protocol != S_tacacs) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
 	}
-	ctx->aaa_protocol = S_tacacss;
+	ctx->aaa_protocol = S_tacacs_tls;
 	int ssl_version = SSL_version(ctx->tls);
 	switch (ssl_version) {
 	case TLS1_2_VERSION:
@@ -603,12 +607,13 @@ void tac_read(struct context *ctx, int cur)
     } else
 #endif
     {
-	if (ctx->realm->allowed_protocol_tacacs != TRISTATE_YES && ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_tacacs) {
+	if (ctx->realm->allowed_protocol_tacacs != TRISTATE_YES
+		&& ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_tacacs_tcp && ctx->aaa_protocol != S_tacacs) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
 	}
-	ctx->aaa_protocol = S_tacacs;
+	ctx->aaa_protocol = S_tacacs_tcp;
     }
 
     if ((ctx->hdr.tac.version & TAC_PLUS_MAJOR_VER_MASK) != TAC_PLUS_MAJOR_VER) {

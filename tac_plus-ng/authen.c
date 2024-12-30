@@ -287,7 +287,7 @@ static int password_requirements_failed(tac_session *session, char *what)
 	    report(session, LOG_ERR, ~0, "password doesn't meet minimum requirements");
 	    report_auth(session, what, hint_weak_password, S_deny);
 	    char *msg = eval_log_format(session, session->ctx, NULL, li_password_minreq, io_now.tv_sec, NULL);
-	    if (session->ctx->aaa_protocol == S_tacacs || session->ctx->aaa_protocol == S_tacacss)
+	    if (session->ctx->aaa_protocol == S_tacacs_tcp || session->ctx->aaa_protocol == S_tacacs_tls)
 		send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, msg, 0, NULL, 0, 0);
 	    else		// radius
 		rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, msg);

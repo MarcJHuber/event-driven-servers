@@ -554,13 +554,12 @@ udp				S_udp
 tcp				S_tcp
 dtls				S_dtls
 tacacs				S_tacacs
-tacacss				S_tacacss
-radius-tcp			S_radius_tcp
-radius-tcp			S_radius_tcp
-radsec				S_radsec
-radius-dtls			S_radius_dtls
-radius-any			S_radius_any
-tacacs-any			S_tacacs_any
+tacacs.tcp			S_tacacs_tcp
+tacacs.tls			S_tacacs_tls
+radius.udp			S_radius_udp
+radius.tcp			S_radius_tcp
+radius.dtls			S_radius_dtls
+radius.tls			S_radius_tls
 #
 conn.protocol			S_conn_protocol
 conn.transport			S_conn_transport
