@@ -37,7 +37,7 @@ our $conf = "/usr/local/etc/tac_plus-ng.cfg";
 our $id = "tac_plus-ng";
 our @args;
 our $raddict = undef;
-our $radsec = undef;
+our $radius = undef;
 our $debug = undef;
 our $debug_wait = "0";
 our $valgrind = undef;
@@ -70,7 +70,7 @@ Options:
   --exec=<path>		executable path [$exec]
   --conf=<config>	configuration file [$conf]
   --id=<id>		id for configuration selection [$id]
-  --radsec		testin uing RADSEC instead of TACACS+
+  --radius		testin uing RADSEC instead of TACACS+
   --radius-dict=<file>	radius dictionary to use [limited built-in dictionary]
 
 For authc the password can be set either via the environment variable
@@ -121,7 +121,7 @@ GetOptions (
 	"exec=s"	=> \$exec,
 	"conf=s"	=> \$conf,
 	"id=s"		=> \$id,
-	"radsec"	=> \$radsec,
+	"radius"	=> \$radius,
 	"radius-dict=s"	=> \$raddict,
 	"debug"		=> \$debug,
 	"debug-wait=s"	=> \$debug_wait,
@@ -130,7 +130,7 @@ GetOptions (
 ) or help();
 
 @args = @ARGV if $#ARGV > -1;
-if ($#args< 0 && !defined($radsec)) {
+if ($#args< 0 && !defined($radius)) {
 	@args = ( "service=shell", "cmd*" );
 }
 
@@ -181,7 +181,7 @@ syswrite($conn0, $phdr, 16 + $famlen) or die "syswrite: $!";;
 
 my $raw;
 
-if (defined $radsec) {
+if (defined $radius) {
 	# Create a RADIUS+ $mode packet and send it to tac_plus-ng:
 	# This is an early shot and needs refinement.
 
@@ -213,7 +213,7 @@ EOT
 
 		my $dictionary = Data::Radius::Dictionary->load_file($raddict);
 
-		my $packet = Data::Radius::Packet->new(secret => "radsec", dict => $dictionary);
+		my $packet = Data::Radius::Packet->new(secret => $key, dict => $dictionary);
 		my $type = 1;
 		$type = 4 if $mode eq "acct";
 		my @av_list = (
