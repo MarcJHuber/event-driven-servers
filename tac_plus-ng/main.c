@@ -401,16 +401,23 @@ int main(int argc, char **argv, char **envp)
     io_main(common_data.io);
 }
 
+#ifdef WITH_SSL
+void update_bio(struct context *ctx)
+{
+    if (ctx->rbio) {
+	char buf[8192];
+	ssize_t len = read(ctx->sock, buf, sizeof(buf));
+	if (len > 0)
+	    BIO_write(ctx->rbio, buf, len);
+    }
+}
+#endif
+
 void cleanup(struct context *ctx, int cur __attribute__((unused)))
 {
 #ifdef WITH_SSL
     if (ctx->tls) {
-	if (ctx->rbio) {
-	    char buf[8192];
-	    ssize_t len = read(cur, buf, sizeof(buf));
-	    if (len > 0)
-		BIO_write(ctx->rbio, buf, len);
-	}
+	update_bio(ctx);
 	int res = io_SSL_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
 	if (res < 0 && errno == EAGAIN)
 	    return;
@@ -715,12 +722,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 
     ctx->last_io = io_now.tv_sec;
 
-    if (ctx->rbio) {
-	char buf[8192];
-	ssize_t len = read(cur, buf, sizeof(buf));
-	if (len > 0)
-	    BIO_write(ctx->rbio, buf, len);
-    }
+    update_bio(ctx);
     int r = SSL_accept(ctx->tls);
     switch (r) {
     default:

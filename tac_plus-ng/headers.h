@@ -1081,6 +1081,8 @@ void context_lru_append(struct context *);
 
 void users_dec(void);
 
+void update_bio(struct context *);
+
 extern struct config config;
 extern int die_when_idle;
 

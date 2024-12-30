@@ -484,12 +484,7 @@ void tac_read(struct context *ctx, int cur)
 
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE) {
 #ifdef WITH_SSL
-	if (ctx->rbio) {
-	    char buf[8192];
-	    ssize_t len = read(cur, buf, sizeof(buf));
-	    if (len > 0)
-		BIO_write(ctx->rbio, buf, len);
-	}
+	update_bio(ctx);
 	if (ctx->tls)
 	    len = io_SSL_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) tac_read);
 	else
@@ -510,14 +505,14 @@ void tac_read(struct context *ctx, int cur)
 	if (ctx->tls) {
 	    if (ctx->udp) {
 		if (ctx->realm->allowed_protocol_radius_dtls != TRISTATE_YES
-			&& ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_dtls && ctx->aaa_protocol != S_radius) {
+		    && ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_dtls && ctx->aaa_protocol != S_radius) {
 		    cleanup(ctx, cur);
 		    return;
 		}
 		ctx->aaa_protocol = S_radius_dtls;
 	    } else {
 		if (ctx->realm->allowed_protocol_radsec != TRISTATE_YES
-			&& ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_tls && ctx->aaa_protocol != S_radius) {
+		    && ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_tls && ctx->aaa_protocol != S_radius) {
 		    cleanup(ctx, cur);
 		    return;
 		}
@@ -528,7 +523,7 @@ void tac_read(struct context *ctx, int cur)
 	{
 	    if (ctx->udp) {
 		if (ctx->realm->allowed_protocol_radius_dtls != TRISTATE_YES
-			&& ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_udp && ctx->aaa_protocol != S_radius) {
+		    && ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_udp && ctx->aaa_protocol != S_radius) {
 		    ctx->reset_tcp = BISTATE_YES;
 		    cleanup(ctx, cur);
 		    return;
@@ -536,7 +531,7 @@ void tac_read(struct context *ctx, int cur)
 		ctx->aaa_protocol = S_radius_udp;
 	    } else {
 		if (!(common_data.debug & DEBUG_TACTRACE_FLAG) && (ctx->realm->allowed_protocol_radius_tcp != TRISTATE_YES)
-			&& ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_tcp && ctx->aaa_protocol != S_radius ) {
+		    && ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_tcp && ctx->aaa_protocol != S_radius) {
 		    ctx->reset_tcp = BISTATE_YES;
 		    cleanup(ctx, cur);
 		    return;
@@ -579,7 +574,7 @@ void tac_read(struct context *ctx, int cur)
 #ifdef WITH_SSL
     if (ctx->tls) {
 	if (ctx->realm->allowed_protocol_tacacss != TRISTATE_YES
-		&& ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_tacacs_tls && ctx->aaa_protocol != S_tacacs) {
+	    && ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_tacacs_tls && ctx->aaa_protocol != S_tacacs) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
@@ -606,7 +601,7 @@ void tac_read(struct context *ctx, int cur)
 #endif
     {
 	if (ctx->realm->allowed_protocol_tacacs != TRISTATE_YES
-		&& ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_tacacs_tcp && ctx->aaa_protocol != S_tacacs) {
+	    && ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_tacacs_tcp && ctx->aaa_protocol != S_tacacs) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
@@ -636,12 +631,7 @@ void tac_read(struct context *ctx, int cur)
 	memcpy(&ctx->in->pak.tac, &ctx->hdr, TAC_PLUS_HDR_SIZE);
     }
 #ifdef WITH_SSL
-    if (ctx->rbio) {
-	char buf[8192];
-	ssize_t len = read(cur, buf, sizeof(buf));
-	if (len > 0)
-	    BIO_write(ctx->rbio, buf, len);
-    }
+    update_bio(ctx);
     if (ctx->tls)
 	len = io_SSL_read(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) tac_read);
     else
@@ -882,12 +872,7 @@ void rad_read(struct context *ctx, int cur)
 
     if (ctx->hdroff != RADIUS_HDR_SIZE) {
 #ifdef WITH_SSL
-	if (ctx->rbio) {
-	    char buf[8192];
-	    ssize_t len = read(cur, buf, sizeof(buf));
-	    if (len > 0)
-		BIO_write(ctx->rbio, buf, len);
-	}
+	update_bio(ctx);
 	if (ctx->tls)
 	    len = io_SSL_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) rad_read);
 	else
@@ -922,12 +907,7 @@ void rad_read(struct context *ctx, int cur)
 	memcpy(&ctx->in->pak.rad, &ctx->hdr, RADIUS_HDR_SIZE);
     }
 #ifdef WITH_SSL
-    if (ctx->rbio) {
-	char buf[8192];
-	ssize_t len = read(cur, buf, sizeof(buf));
-	if (len > 0)
-	    BIO_write(ctx->rbio, buf, len);
-    }
+    update_bio(ctx);
     if (ctx->tls)
 	len = io_SSL_read(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) rad_read);
     else
