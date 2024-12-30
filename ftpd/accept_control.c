@@ -130,7 +130,7 @@ void accept_control_raw(int s, struct scm_data_accept *sd)
     set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 
 #ifdef WITH_SSL
-    if (sd->use_tls) {
+    if (sd->tls_versions) {
 	ctx->use_tls_c = ctx->use_tls_d = 1;
 	if (ssl_auth)
 	    ssl_set_verify(ssl_ctx, ctx);

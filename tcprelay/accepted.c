@@ -130,7 +130,7 @@ void accepted_raw(int s, struct scm_data_accept *sd __attribute__((unused)))
     set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 
 #ifdef WITH_TLS
-    if (sd->use_tls) {
+    if (sd->tls_versions) {
 	tls_accept_socket(ssl_ctx, &ctx->ssl, s);
 	io_set_cb_i(ctx->io, s, (void *) do_accept_c);
 	io_set_cb_o(ctx->io, s, (void *) do_accept_c);
@@ -143,7 +143,7 @@ void accepted_raw(int s, struct scm_data_accept *sd __attribute__((unused)))
     }
 #else
 #ifdef WITH_SSL
-    if (sd->use_tls) {
+    if (sd->tls_versions) {
 	ctx->ssl = SSL_new(ssl_ctx);
 	SSL_set_fd(ctx->ssl, s);
 	do_accept_c(ctx, s);
