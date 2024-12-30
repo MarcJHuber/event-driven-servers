@@ -34,36 +34,36 @@
 <dt>3. <a class="lk" href="#AEN57">Configuration file syntax</a></dt>
 <dd>
 <dl>
-<dt>3.1. <a class="lk" href="#AEN396">Railroad Diagrams</a></dt>
+<dt>3.1. <a class="lk" href="#AEN414">Railroad Diagrams</a></dt>
 </dl>
 </dd>
-<dt>4. <a class="lk" href="#AEN455">Signals</a></dt>
-<dt>5. <a class="lk" href="#AEN461">Load balancing algorithm</a></dt>
-<dt>6. <a class="lk" href="#AEN472">Event mechanism selection</a></dt>
-<dt>7. <a class="lk" href="#AEN498">Sample configuration</a></dt>
-<dt>8. <a class="lk" href="#AEN502">Startup examples</a></dt>
+<dt>4. <a class="lk" href="#AEN473">Signals</a></dt>
+<dt>5. <a class="lk" href="#AEN479">Load balancing algorithm</a></dt>
+<dt>6. <a class="lk" href="#AEN490">Event mechanism selection</a></dt>
+<dt>7. <a class="lk" href="#AEN516">Sample configuration</a></dt>
+<dt>8. <a class="lk" href="#AEN520">Startup examples</a></dt>
 <dd>
 <dl>
-<dt>8.1. <a class="lk" href="#AEN514">Manual startup</a></dt>
-<dt>8.2. <a class="lk" href="#AEN527">Startup on demand</a></dt>
+<dt>8.1. <a class="lk" href="#AEN532">Manual startup</a></dt>
+<dt>8.2. <a class="lk" href="#AEN545">Startup on demand</a></dt>
 <dd>
 <dl>
-<dt>8.2.1. <a class="lk" href="#AEN534">inetd</a></dt>
-<dt>8.2.2. <a class="lk" href="#AEN542">xinetd</a></dt>
-<dt>8.2.3. <a class="lk" href="#AEN550">launchd</a></dt>
+<dt>8.2.1. <a class="lk" href="#AEN552">inetd</a></dt>
+<dt>8.2.2. <a class="lk" href="#AEN560">xinetd</a></dt>
+<dt>8.2.3. <a class="lk" href="#AEN568">launchd</a></dt>
 </dl>
 </dd>
-<dt>8.3. <a class="lk" href="#AEN562">Startup at system boot</a></dt>
+<dt>8.3. <a class="lk" href="#AEN580">Startup at system boot</a></dt>
 <dd>
 <dl>
-<dt>8.3.1. <a class="lk" href="#AEN565">Init scripts</a></dt>
-<dt>8.3.2. <a class="lk" href="#AEN570">launchd</a></dt>
-<dt>8.3.3. <a class="lk" href="#AEN581">systemd</a></dt>
+<dt>8.3.1. <a class="lk" href="#AEN583">Init scripts</a></dt>
+<dt>8.3.2. <a class="lk" href="#AEN588">launchd</a></dt>
+<dt>8.3.3. <a class="lk" href="#AEN599">systemd</a></dt>
 </dl>
 </dd>
 </dl>
 </dd>
-<dt>9. <a class="lk" href="#AEN590">Copyrights and Acknowledgements</a></dt>
+<dt>9. <a class="lk" href="#AEN608">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -182,7 +182,17 @@ acl accept ::1</pre></li>
 <ul>
 <li>
 <p><tt class="literal">tls =</tt> ( <tt class="literal">yes</tt> | <tt class="literal">no</tt> )</p>
-<p>This directive tells a child process if the connection is encrypted using TLS.</p>
+<p>This directive indicates to a child process whether the connection is supposed to be encrypted using TLS or DTLS.</p>
+<p>Also, this directive can be used for setting the supported TLS/DTLS versions:</p>
+<pre class="screen">    tls = yes             # TLS1.2 and TLS1.3 for TCP, DTLS1.0, DTLS1.2, DTLS1.3 for UDP
+    tls = TLS1.3          # TLS1.3 only
+    tls = DTLS1.2,DTLS1.3 # DTLS1.2 and 1.3 only
+</pre>
+<p><span class="bold"><b class="emphasis">tac_plus-ng</b></span> will accept unencrypted connections from this listeners if <tt class="literal">tls auto-detect = yes</tt> is enabled.</p>
+</li>
+<li>
+<p><tt class="literal">aaa.protocol =</tt> <span class="emphasis"><i class="emphasis">Protocol</i></span></p>
+<p>To keep <span class="bold"><b class="emphasis">tac_plus-ng</b></span> from auto-detecting the AAA protocol, <span class="emphasis"><i class="emphasis">Protocol</i></span> can be set to exactly one of <tt class="literal">tacacs.tcp</tt>, <tt class="literal">tacacs.tls</tt>, <tt class="literal">radius.udp</tt>, <tt class="literal">radius.tcp</tt>, <tt class="literal">radius.dtls</tt> or <tt class="literal">radius.tls</tt>.</p>
 </li>
 <li>
 <p><tt class="literal">haproxy =</tt> ( <tt class="literal">yes</tt> | <tt class="literal">no</tt> )</p>
@@ -341,7 +351,7 @@ syslog severity = INFO</pre></li>
 </ul>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN396" id="AEN396">3.1. Railroad Diagrams</a></h3>
+<h3 class="section"><a name="AEN414" id="AEN414">3.1. Railroad Diagrams</a></h3>
 <div class="mediaobject">
 <p><img alt="" src="railroad/spawnd/SpawndConfig.svg"></p>
 <div class="caption">
@@ -394,19 +404,19 @@ syslog severity = INFO</pre></li>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN455" id="AEN455">4. Signals</a></h2>
+<h2 class="section"><a name="AEN473" id="AEN473">4. Signals</a></h2>
 <p><span class="bold"><b class="emphasis">spawnd</b></span> will terminate upon receiving a SIGTERM or SIGINT signal. SIGHUP will cause <span class="bold"><b class="emphasis">spawnd</b></span> to restart itself from scratch.</p>
 <p>The daemon is only checking for signals every couple of seconds, so actions aren't necessarily immediate.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN461" id="AEN461">5. Load balancing algorithm</a></h2>
+<h2 class="section"><a name="AEN479" id="AEN479">5. Load balancing algorithm</a></h2>
 <p><span class="bold"><b class="emphasis">spawnd</b></span> allows configuration of upper and lower limits for users and processes. The distribution algorithm will try to assign new connections to one of the running servers with less than <span class="emphasis"><i class="emphasis">users_min</i></span> connections. If all servers already have at least <span class="emphasis"><i class="emphasis">users_min</i></span> active connections and the total number of servers doesn't exceed <span class="emphasis"><i class="emphasis">servers_max</i></span>, an additional server process is started, and the connection is assigned to that process. If no more processes may be started, the connection is assigned to the server process with less than <span class="emphasis"><i class="emphasis">users_max</i></span> users, which serves the lowest number of connections. Otherwise, the connection will stall until an existing connection terminates.</p>
 <p>If the <span class="emphasis"><i class="emphasis">sticky</i></span> feature is enabled, <span class="bold"><b class="emphasis">spawnd</b></span> will try to assign connections to server processes based on the remote IP address of the peer. Please not that this will not work in combination with HAProxy.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN472" id="AEN472">6. Event mechanism selection</a></h2>
+<h2 class="section"><a name="AEN490" id="AEN490">6. Event mechanism selection</a></h2>
 <p>Several level-triggered event mechanisms are supported. By default, the one best suited for your operating system will be used. However, you may use the environment variable <tt class="literal">IO_POLL_MECHANISM</tt> to select a specific one.</p>
 <p>The following event mechanisms are supported (in order of preference):</p>
 <ul>
@@ -433,7 +443,7 @@ syslog severity = INFO</pre></li>
 <pre class="screen">setenv IO_POLL_MECHANISM = 4</pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN498" id="AEN498">7. Sample configuration</a></h2>
+<h2 class="section"><a name="AEN516" id="AEN516">7. Sample configuration</a></h2>
 <pre class="screen">id = spawnd {
     listen { port 21 }
     listen { address = ::0 port = 2121 tls }
@@ -450,12 +460,12 @@ syslog severity = INFO</pre></li>
 }</pre></div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN502" id="AEN502">8. Startup examples</a></h2>
+<h2 class="section"><a name="AEN520" id="AEN520">8. Startup examples</a></h2>
 <p><span class="bold"><b class="emphasis">spawnd</b></span> (either standalone, or utilized via the <tt class="literal">MAVIS</tt> library, which is what <span class="bold"><b class="emphasis">ftpd</b></span>, <span class="bold"><b class="emphasis">tac_plus</b></span> and <span class="bold"><b class="emphasis">tcprelay</b></span> do) is a long-running process. It may be started either manually, on demand, or at system boot time.</p>
 <p>The examples in this section focus on <span class="bold"><b class="emphasis">tac_plus</b></span>, but are easily adaptable to the <span class="bold"><b class="emphasis">ftpd</b></span> and <span class="bold"><b class="emphasis">tcprelay</b></span> daemons.</p>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN514" id="AEN514">8.1. Manual startup</a></h3>
+<h3 class="section"><a name="AEN532" id="AEN532">8.1. Manual startup</a></h3>
 <p>Starting a daemon manually is fine for testing, but, generally, undesireable for production. A configuration file that specifies at least a port the daemon should listen to is required:</p>
 <pre class="screen">id = spawnd {
     listen {
@@ -473,7 +483,7 @@ id = tac_plus {
 <pre class="screen"># /usr/local/sbin/tac/plus -b /usr/local/etc/tac_plus.cfg</pre></div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN527" id="AEN527">8.2. Startup on demand</a></h3>
+<h3 class="section"><a name="AEN545" id="AEN545">8.2. Startup on demand</a></h3>
 <p>The daemon may be started on demand by <tt class="literal">inetd</tt>(8) or compatible applications. The configuration file should <span class="bold"><b class="emphasis">not</b></span> specify a port to bind to, as <tt class="literal">inetd</tt> will pass an already bound socket to the daemon:</p>
 <pre class="screen">id = spawnd {
     listen {
@@ -484,12 +494,12 @@ id = tac_plus {
 }</pre>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN534" id="AEN534">8.2.1. inetd</a></h4>
+<h4 class="section"><a name="AEN552" id="AEN552">8.2.1. inetd</a></h4>
 <p>For stock <tt class="literal">inetd</tt>, adding the following line to <tt class="literal">/etc/inetd.conf</tt> and sending a <tt class="literal">HUP</tt> to <tt class="literal">inetd</tt> will activate the daemon:</p>
 <pre class="screen">tacacs  stream  tcp  wait root /usr/local/sbin/tac_plus /usr/local/sbin/tac_plus /usr/local/etc/tac_plus.cfg</pre></div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN542" id="AEN542">8.2.2. xinetd</a></h4>
+<h4 class="section"><a name="AEN560" id="AEN560">8.2.2. xinetd</a></h4>
 <p>The equivalent <tt class="literal">xinetd</tt>(8) configuration:</p>
 <pre class="screen">service tacacs
 {
@@ -506,7 +516,7 @@ id = tac_plus {
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN550" id="AEN550">8.2.3. launchd</a></h4>
+<h4 class="section"><a name="AEN568" id="AEN568">8.2.3. launchd</a></h4>
 <p>Mac OS X comes with <tt class="literal">launchd</tt>(8), and here's a suitable <tt class="literal">/Library/LaunchDaemons/de.pro-bono-publico.tac_plus.plist</tt>:</p>
 <pre class="screen">&lt;xml version="1.0" encoding="UTF-8"?&gt;
 &lt;DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
@@ -542,16 +552,16 @@ id = tac_plus {
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN562" id="AEN562">8.3. Startup at system boot</a></h3>
+<h3 class="section"><a name="AEN580" id="AEN580">8.3. Startup at system boot</a></h3>
 <p>The daemons may be started at system boot time. Alas, that's very specific to your system. You should definitely know what you're doing, or you may render your system unbootable.</p>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN565" id="AEN565">8.3.1. Init scripts</a></h4>
+<h4 class="section"><a name="AEN583" id="AEN583">8.3.1. Init scripts</a></h4>
 <p>The distribution comes with a couple of System V style init scripts, e.g. <tt class="literal">tac_plus/doc/etc_init.d_tac_plus</tt>. Copy this script to a location appropriate to your system (e.g. <tt class="literal">/etc/init.d/tac_plus</tt> and create the relevant symbolic or hardlinks. See your systems documentation for details.</p>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN570" id="AEN570">8.3.2. launchd</a></h4>
+<h4 class="section"><a name="AEN588" id="AEN588">8.3.2. launchd</a></h4>
 <p>On MacOS, create a file <tt class="literal">/Library/LaunchDaemons/de.pro-bono-publico.tac_plus.plist</tt> that consists of:</p>
 <pre class="screen">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
 &lt;!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
@@ -577,7 +587,7 @@ id = tac_plus {
 <pre class="screen"># sudo kill -HUP `cat /var/run/tac_plus.pid`</pre></div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN581" id="AEN581">8.3.3. systemd</a></h4>
+<h4 class="section"><a name="AEN599" id="AEN599">8.3.3. systemd</a></h4>
 <p>For <tt class="literal">systemd</tt> you'll have to create an appropriate <span class="emphasis"><i class="emphasis">configuration unit</i></span>. Copy</p>
 <pre class="screen">[Unit]
 Description=TACACS+ Service
@@ -598,7 +608,7 @@ WantedBy=multi-user.target</pre>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN590" id="AEN590">9. Copyrights and Acknowledgements</a></h2>
+<h2 class="section"><a name="AEN608" id="AEN608">9. Copyrights and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of individual files.</p>
 <ul>
 <li>
@@ -620,7 +630,7 @@ WantedBy=multi-user.target</pre>
 </li>
 <li>
 <p>The end-user documentation included with the redistribution, if any, must include the following acknowledgment:</p>
-<a name="AEN613" id="AEN613"></a>
+<a name="AEN631" id="AEN631"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber (<code class="email">&lt;<a class="lk" href="mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>).</p>
 </blockquote>
