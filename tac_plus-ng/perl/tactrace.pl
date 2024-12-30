@@ -70,7 +70,7 @@ Options:
   --exec=<path>		executable path [$exec]
   --conf=<config>	configuration file [$conf]
   --id=<id>		id for configuration selection [$id]
-  --radius		testin uing RADSEC instead of TACACS+
+  --radius		test RADIUS (RADIUS/TCP, actually) instead of TACACS+
   --radius-dict=<file>	radius dictionary to use [limited built-in dictionary]
 
 For authc the password can be set either via the environment variable
