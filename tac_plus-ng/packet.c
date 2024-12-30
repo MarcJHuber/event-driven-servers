@@ -504,9 +504,9 @@ void tac_read(struct context *ctx, int cur)
     }
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
 	return;
-#ifdef WITH_SSL
     // auto-detect radius
     if (config.rad_dict && ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
+#ifdef WITH_SSL
 	if (ctx->tls) {
 	    if (ctx->udp) {
 		if (ctx->realm->allowed_protocol_radius_dtls != TRISTATE_YES
@@ -523,7 +523,9 @@ void tac_read(struct context *ctx, int cur)
 		}
 		ctx->aaa_protocol = S_radius_tls;
 	    }
-	} else {
+	} else
+#endif
+	{
 	    if (ctx->udp) {
 		if (ctx->realm->allowed_protocol_radius_dtls != TRISTATE_YES
 			&& ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_udp && ctx->aaa_protocol != S_radius) {
@@ -547,6 +549,7 @@ void tac_read(struct context *ctx, int cur)
 		return;
 	    }
 	}
+#ifdef WITH_SSL
 	static struct tac_key *key_radsec = NULL;
 	static struct tac_key *key_radius_dtls = NULL;
 	if (!key_radsec) {
@@ -562,18 +565,13 @@ void tac_read(struct context *ctx, int cur)
 	else if (ctx->tls && ctx->use_dtls)
 	    ctx->key = key_radius_dtls;
 	else
+#endif
 	    ctx->key = ctx->host->radius_key;
 
 	io_set_cb_i(ctx->io, ctx->sock, (void *) rad_read);
 	rad_read(ctx, ctx->sock);
 	return;
     }
-
-    if (!ctx->tls && !ctx->host->key) {
-	cleanup(ctx, cur);
-	return;
-    }
-#endif
 
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
 	return;
