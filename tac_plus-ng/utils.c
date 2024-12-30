@@ -1611,8 +1611,10 @@ static str_t *eval_log_format_conn_protocol(tac_session *session __attribute__((
 static str_t *eval_log_format_conn_transport(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
 {
     if (ctx) {
+#ifdef WITH_SSL
 	if (ctx->tls)
 	    return &codestring[ctx->udp ? S_dtls : S_tls];
+#endif
 	return &codestring[ctx->udp ? S_udp : S_tcp];
     }
     return NULL;

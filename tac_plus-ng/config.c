@@ -2200,7 +2200,8 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    r->allowed_protocol_tacacss = TRISTATE_YES;
 		    break;
 		default:
-		    parse_error_expect(sym, S_radius, S_radius_udp, S_radius_tcp, S_radius_tls, S_radius_dtls, S_tacacs, S_tacacs_tcp, S_tacacs_tls, S_unknown);
+		    parse_error_expect(sym, S_radius, S_radius_udp, S_radius_tcp, S_radius_tls, S_radius_dtls, S_tacacs, S_tacacs_tcp, S_tacacs_tls,
+				       S_unknown);
 		}
 		sym_get(sym);
 	    } while (parse_comma(sym));
@@ -4464,7 +4465,8 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		case S_tacacs_tls:
 		    break;
 		default:
-		    parse_error_expect(sym, S_radius, S_radius_udp, S_radius_tcp, S_radius_dtls, S_radius_tls, S_tacacs, S_tacacs_tcp, S_tacacs_tls, S_unknown);
+		    parse_error_expect(sym, S_radius, S_radius_udp, S_radius_tcp, S_radius_dtls, S_radius_tls, S_tacacs, S_tacacs_tcp, S_tacacs_tls,
+				       S_unknown);
 		}
 		m->u.s.rhs = codestring[sym->code].txt;
 		m->u.s.rhs_txt = codestring[sym->code].txt;
@@ -4749,8 +4751,8 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
     case S_aaa_protocol:
 	res = ((char *) m->u.s.rhs == codestring[session->ctx->aaa_protocol].txt);
 	if (!res) {
-		size_t len = strlen((char *) m->u.s.rhs);
-		res = !strncmp((char *) m->u.s.rhs, codestring[session->ctx->aaa_protocol].txt, len) && codestring[session->ctx->aaa_protocol].txt[len] == '.';
+	    size_t len = strlen((char *) m->u.s.rhs);
+	    res = !strncmp((char *) m->u.s.rhs, codestring[session->ctx->aaa_protocol].txt, len) && codestring[session->ctx->aaa_protocol].txt[len] == '.';
 	}
 	return tac_script_cond_eval_res(session, m, res);
     case S_address:
@@ -4906,18 +4908,24 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	    break;
 	case S_conn_transport:
 	    if (session->ctx->udp) {
+#ifdef WITH_SSL
 		if (session->ctx->tls) {
 		    v = codestring[S_dtls].txt;
 		    v_len = codestring[S_dtls].len;
-		} else {
+		} else
+#endif
+		{
 		    v = codestring[S_udp].txt;
 		    v_len = codestring[S_udp].len;
 		}
 	    } else {
+#ifdef WITH_SSL
 		if (session->ctx->tls) {
 		    v = codestring[S_tls].txt;
 		    v_len = codestring[S_tls].len;
-		} else {
+		} else
+#endif
+		{
 		    v = codestring[S_tcp].txt;
 		    v_len = codestring[S_tcp].len;
 		}
