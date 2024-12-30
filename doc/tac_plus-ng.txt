@@ -3482,7 +3482,7 @@ sudo cpan install Net::TacacsPlus::Packet
    now be ready to use.
 
    Usage information:
-$ This is a TACACS+ AAA validator for tac_plus-ng.
+$ This is a TACACS+ and RADIUS AAA validator for tac_plus-ng.
 
 Usage: ./tactrace.pl [ <Options> ] [ <attributes> ... ]
 
@@ -3493,7 +3493,8 @@ Options:
   --help                show this text
   --defaults=<file>     read default settings from <file>
   --mode=<mode>         authc, authz or acct [authz]
-  --username=<username> username [ubuntu]
+  --username=<username> username [username]
+  --password=<password> user password [$TACTRACEPASSWORD]
   --port=<port>         port [vty0]
   --remote=<client ip>  remote client ip [127.0.0.1]
   --key=<key>           encryption key [demo]
@@ -3506,6 +3507,10 @@ Options:
   --conf=<config>       configuration file [/usr/local/etc/tac_plus-ng.c
 fg]
   --id=<id>             id for configuration selection [tac_plus-ng]
+  --radius                 test RADIUS (RADIUS/TCP, actually) instead of
+ TACACS+
+  --radius-dict=<file>  radius dictionary to use [limited built-in dicti
+onary]
 
 For authc the password can be set either via the environment variable
 TACTRACEPASSWORD or the defaults file. Setting it via a CLI option isn't

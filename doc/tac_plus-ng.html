@@ -4031,7 +4031,7 @@ Router#</pre></li>
 sudo cpan install Net::TacacsPlus::Packet</pre>
 <p>Then <tt class="literal">cd</tt> to <tt class="literal">tac_plus-ng/perl</tt> and run <tt class="literal">make</tt>. <tt class="literal">tactrace.pl</tt> should now be ready to use.</p>
 <p>Usage information:</p>
-<pre class="screen">$ This is a TACACS+ AAA validator for tac_plus-ng.
+<pre class="screen">$ This is a TACACS+ and RADIUS AAA validator for tac_plus-ng.
 
 Usage: ./tactrace.pl [ &lt;Options&gt; ] [ &lt;attributes&gt; ... ]
 
@@ -4042,7 +4042,8 @@ Options:
   --help                show this text
   --defaults=&lt;file&gt;     read default settings from &lt;file&gt;
   --mode=&lt;mode&gt;         authc, authz or acct [authz]
-  --username=&lt;username&gt; username [ubuntu]
+  --username=&lt;username&gt; username [username]
+  --password=&lt;password&gt; user password [$TACTRACEPASSWORD]
   --port=&lt;port&gt;         port [vty0]
   --remote=&lt;client ip&gt;  remote client ip [127.0.0.1]
   --key=&lt;key&gt;           encryption key [demo]
@@ -4054,6 +4055,8 @@ Options:
   --exec=&lt;path&gt;         executable path [/usr/local/sbin/tac_plus-ng]
   --conf=&lt;config&gt;       configuration file [/usr/local/etc/tac_plus-ng.cfg]
   --id=&lt;id&gt;             id for configuration selection [tac_plus-ng]
+  --radius                 test RADIUS (RADIUS/TCP, actually) instead of TACACS+
+  --radius-dict=&lt;file&gt;  radius dictionary to use [limited built-in dictionary]
 
 For authc the password can be set either via the environment variable
 TACTRACEPASSWORD or the defaults file. Setting it via a CLI option isn't
