@@ -1282,7 +1282,8 @@ ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags)
 	    mem_free(ctx->mem, &ctx->inject_buf);
 	return len;
     }
-    return recv(ctx->sock, buf, len, flags);
+    ssize_t res = recv(ctx->sock, buf, len, flags);
+    return (!res && len) ? -1 : res;
 }
 
 #ifdef WITH_SSL
