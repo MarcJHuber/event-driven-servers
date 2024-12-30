@@ -2229,7 +2229,7 @@ ssize_t io_SSL_read(SSL *ssl, void *buf, size_t num, struct io_context *io, int 
 {
     size_t readbytes = 0;
     int res = SSL_read_ex(ssl, buf, (int) num, &readbytes);
-    if (res < 0)
+    if (!res)
 	switch (SSL_get_error(ssl, res)) {
 	case SSL_ERROR_WANT_READ:
 	case SSL_ERROR_WANT_WRITE:
@@ -2237,7 +2237,8 @@ ssize_t io_SSL_read(SSL *ssl, void *buf, size_t num, struct io_context *io, int 
 	    res = 0;
 	    break;
 	default:
-	    ;
+	    errno = EIO;
+	    res = -1;
     } else
 	res = readbytes;
     return io_SSL_rw(ssl, io, fd, cb, res);
@@ -2247,7 +2248,7 @@ ssize_t io_SSL_write(SSL *ssl, void *buf, size_t num, struct io_context *io, int
 {
     size_t writebytes = 0;
     int res = SSL_write_ex(ssl, buf, (int) num, &writebytes);
-    if (res < 0)
+    if (!res)
 	switch (SSL_get_error(ssl, res)) {
 	case SSL_ERROR_WANT_READ:
 	case SSL_ERROR_WANT_WRITE:
@@ -2255,7 +2256,8 @@ ssize_t io_SSL_write(SSL *ssl, void *buf, size_t num, struct io_context *io, int
 	    res = 0;
 	    break;
 	default:
-	    res = writebytes;
+	    errno = EIO;
+	    res = -1;
     } else
 	res = writebytes;
     return io_SSL_rw(ssl, io, fd, cb, res);
