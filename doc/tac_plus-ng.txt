@@ -1935,7 +1935,9 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    "string" == != =~ !~ String or REGEX Log variable substitutions
    will apply
    aaa.protocol.allowed == != one (or more, comma-separated) of
-   radius, radsec, tacacs, tacacss
+   radius (covers all RADIUS transports), radius.udp, radius.tcp,
+   radius.dtls, radius.tls, tacacs (covers all TACACS+
+   transports), tacacs.tcp, tacacs.tls
    acl == != ACL object name
    arg[attr] == != =~ !~ String or REGEX arg[protocol],
    arg[service], ...
@@ -1952,6 +1954,8 @@ set route#3 = "192.168.2.0 255.255.255.0 10.0.0.1"
    remote address or RADIUS Calling-Station-Id, if available
    client.dnsname == != =~ !~ Client DNS PTR record
    cmd == != =~ !~ String or REGEX shell command line
+   conn.protocol == != Protocol tcp, udp
+   conn.transport == != Transport tls, dtls, tcp, udp
    context == != =~ !~ String or REGEX current exec context
    device == != Device (host) object name, net object name or
    device address incl. parents
@@ -2991,8 +2995,12 @@ ntly enabled.\n"
    available unless a RADIUS dictionary (see below) is configured.
    Plus, you can selectively disable the protocols you want to be
    supported on a per-realm basis:
-   aaa.protocol.allowed = tacacs,tacacss,radius,radius-udp,radsec,radius
--dtls # remove the ones you don't want
+   aaa.protocol.allowed = tacacs,tacacs.tcp,tacacs.tls,radius,radius.udp
+,radius.tls,radius.dtls
+    # Actually "tacacs" covers both "tacacs.tcp" (plain TACACS+) and "ta
+cacs.tls" (Secure TACACS+").
+    # Likewise, "radius" overs RADIUS, RADIUS-TCP, RADSEC and RADIUS-DTL
+S.
      __________________________________________________________
 
 6.1. Accepting RADIUS Queries
@@ -3099,7 +3107,7 @@ radius.dictionary cisco 9 {
 
    RADIUS attributes are accessible via radius[AttributeName] and
    can be used both in conditions and set clauses:
-    if (aaa.protocol == radius || aaa.protocol == radsec) {
+    if (aaa.protocol == radius) {
         if (radius[Service-Type] ==  Administrative-User)  {
             set radius[cisco:Cisco-AVPair] = "shell:priv-lvl=15"
             permit
