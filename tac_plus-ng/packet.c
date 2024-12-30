@@ -562,8 +562,7 @@ void tac_read(struct context *ctx, int cur)
 	    ctx->key = ctx->host->radius_key;
 
 	io_set_cb_i(ctx->io, ctx->sock, (void *) rad_read);
-	if (ctx->udp)
-	    rad_read(ctx, ctx->sock);
+	rad_read(ctx, ctx->sock);
 	return;
     }
 

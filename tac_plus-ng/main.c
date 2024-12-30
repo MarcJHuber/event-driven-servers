@@ -745,7 +745,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 	reject_conn(ctx, hint, "TLS ", __LINE__);
 	return;
     case 1:
-	io_unregister(ctx->io, ctx->sock);
 	break;
     }
 
@@ -1195,6 +1194,8 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
     }
 
     ctx->sock = s;
+    io_register(ctx->io, ctx->sock, ctx);
+
     context_lru_append(ctx);
     ctx->tls_versions = sd_ext->sd.tls_versions;
     ctx->use_tls = (sd_ext->sd.tls_versions && sd_ext->sd.type == SCM_ACCEPT) ? BISTATE_YES : BISTATE_NO;
@@ -1259,7 +1260,6 @@ static void complete_host_mavis(struct context *ctx)
     if (ctx->host)
 	ctx->key = ctx->host->key;
 
-    io_register(ctx->io, ctx->sock, ctx);
     io_set_cb_i(ctx->io, ctx->sock, (void *) accept_control_check_tls);
     io_set_cb_o(ctx->io, ctx->sock, (void *) accept_control_check_tls);
     io_set_cb_h(ctx->io, ctx->sock, (void *) cleanup);
@@ -1317,7 +1317,6 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    cleanup(ctx, ctx->sock);
 	    return;
 	}
-	io_register(ctx->io, ctx->sock, ctx);
 	io_set_cb_i(ctx->io, ctx->sock, (void *) accept_control_tls);
 	io_set_cb_o(ctx->io, ctx->sock, (void *) accept_control_tls);
 	io_set_cb_h(ctx->io, ctx->sock, (void *) cleanup);
@@ -1379,7 +1378,6 @@ static void accept_control_final(struct context *ctx)
 
     get_revmap_nas(&session);
 
-    io_register(ctx->io, ctx->sock, ctx);
     io_set_cb_i(ctx->io, ctx->sock, (void *) tac_read);
     io_set_cb_o(ctx->io, ctx->sock, (void *) tac_write);
     io_set_cb_h(ctx->io, ctx->sock, (void *) cleanup);
@@ -1401,8 +1399,7 @@ static void accept_control_final(struct context *ctx)
 #undef S
     log_exec(NULL, ctx, S_connection, io_now.tv_sec);
     str_set(&ctx->msgid, NULL, 0);
-    if (ctx->udp)
-	tac_read(ctx, ctx->sock);
+    tac_read(ctx, ctx->sock);
 }
 
 static void accept_control(struct context *ctx, int cur)
