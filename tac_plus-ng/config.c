@@ -4883,11 +4883,11 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 #endif
 	case S_conn_protocol:
 	    if (session->ctx->udp) {
-		    v = codestring[S_udp].txt;
-		    v_len = codestring[S_udp].len;
+		v = codestring[S_udp].txt;
+		v_len = codestring[S_udp].len;
 	    } else {
-		    v = codestring[S_tcp].txt;
-		    v_len = codestring[S_tcp].len;
+		v = codestring[S_tcp].txt;
+		v_len = codestring[S_tcp].len;
 	    }
 	    break;
 	case S_conn_transport:
@@ -4898,7 +4898,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 		} else {
 		    v = codestring[S_udp].txt;
 		    v_len = codestring[S_udp].len;
-	    	}
+		}
 	    } else {
 		if (session->ctx->tls) {
 		    v = codestring[S_tls].txt;
@@ -4906,7 +4906,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 		} else {
 		    v = codestring[S_tcp].txt;
 		    v_len = codestring[S_tcp].len;
-	    	}
+		}
 	    }
 	    break;
 	case S_context:
