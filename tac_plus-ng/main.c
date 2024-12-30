@@ -1285,7 +1285,7 @@ ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags)
     return recv(ctx->sock, buf, len, flags);
 }
 
-#ifdef WITH_TLS
+#ifdef WITH_SSL
 static int dtls_ver_ok(u_int ver, u_char v)
 {
     for (; ver; ver >>= 8)
