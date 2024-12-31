@@ -452,7 +452,7 @@ char *escape_string(char *in, size_t inlen, char *out, size_t *outlen)
     size_t outlen_max = *outlen - 4, len = 0;
     for (char *t = in; inlen && len < outlen_max; t++, inlen--) {
 	int c = *t;
-	if (iscntrl(c)) {
+	if (!isprint(c)) {
 	    *v++ = '\\';
 	    switch (c) {
 	    case '\a':
