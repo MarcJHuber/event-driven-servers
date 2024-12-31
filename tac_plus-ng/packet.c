@@ -490,15 +490,19 @@ void tac_read(struct context *ctx, int cur)
 	else
 #endif
 	    len = recv_inject(ctx, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, 0);
-	if (len < 0 && errno != EAGAIN) {
-	    ctx->reset_tcp = BISTATE_YES;
-	    cleanup(ctx, cur);
+
+	if (len < 0) {
+	    if (errno != EAGAIN) {
+		ctx->reset_tcp = BISTATE_YES;
+		cleanup(ctx, cur);
+	    }
 	    return;
 	}
+
 	ctx->hdroff += len;
+	if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
+	    return;
     }
-    if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
-	return;
     // auto-detect radius
     if (config.rad_dict && ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
 #ifdef WITH_SSL
@@ -637,11 +641,15 @@ void tac_read(struct context *ctx, int cur)
     else
 #endif
 	len = recv_inject(ctx, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, 0);
-    if (len < 0 && errno != EAGAIN) {
-	ctx->reset_tcp = BISTATE_YES;
-	cleanup(ctx, cur);
+
+    if (len < 0) {
+	if (errno != EAGAIN) {
+	    ctx->reset_tcp = BISTATE_YES;
+	    cleanup(ctx, cur);
+	}
 	return;
     }
+
     ctx->in->offset += len;
     if (ctx->in->offset != ctx->in->length)
 	return;
@@ -878,15 +886,19 @@ void rad_read(struct context *ctx, int cur)
 	else
 #endif
 	    len = recv_inject(ctx, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, 0);
-	if (len < 0 && errno != EAGAIN) {
-	    ctx->reset_tcp = BISTATE_YES;
-	    cleanup(ctx, cur);
+
+	if (len < 0) {
+	    if (errno != EAGAIN) {
+		ctx->reset_tcp = BISTATE_YES;
+		cleanup(ctx, cur);
+	    }
 	    return;
 	}
+
 	ctx->hdroff += len;
+	if (ctx->hdroff != RADIUS_HDR_SIZE)
+	    return;
     }
-    if (ctx->hdroff != RADIUS_HDR_SIZE)
-	return;
 
     switch (ctx->hdr.rad.code) {
     case RADIUS_CODE_ACCESS_REQUEST:
@@ -894,6 +906,7 @@ void rad_read(struct context *ctx, int cur)
     case RADIUS_CODE_STATUS_SERVER:
 	break;
     default:
+	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
 	return;
     }
@@ -914,13 +927,14 @@ void rad_read(struct context *ctx, int cur)
 #endif
 	len = recv_inject(ctx, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, 0);
 
-    if (len < 0 && errno != EAGAIN) {
-	ctx->reset_tcp = BISTATE_YES;
-	cleanup(ctx, cur);
+    if (len < 0) {
+	if (errno != EAGAIN) {
+	    ctx->reset_tcp = BISTATE_YES;
+	    cleanup(ctx, cur);
+	}
 	return;
     }
-    if (len < 0)
-	return;
+
     ctx->in->offset += len;
     if (ctx->in->offset != ctx->in->length)
 	return;
@@ -1004,6 +1018,7 @@ void tac_write(struct context *ctx, int cur)
 	else
 #endif
 	    len = write(cur, &ctx->out->pak.uchar + ctx->out->offset, ctx->out->length - ctx->out->offset);
+
 	if (len < 0) {
 	    if (errno != EAGAIN)
 		cleanup(ctx, cur);
@@ -1078,7 +1093,8 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_p
 	session->flag_mavis_info = 1;
 
     if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
-	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%sNew %s session%s", common_data.font_blue, codestring[tac_hdr ? S_tacacs : S_radius].txt, common_data.font_plain);
+	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%sNew %s session%s", common_data.font_blue, codestring[tac_hdr ? S_tacacs : S_radius].txt,
+	       common_data.font_plain);
 
     return session;
 }
