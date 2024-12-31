@@ -1308,11 +1308,11 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    cleanup(ctx, ctx->sock);
 	    return;
 	}
-	if (ctx->realm->tls_autodetect == TRISTATE_YES) {
-	    if (ctx->udp) {
-		ctx->use_dtls = tmp[0] == 0x16 && tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2]) ? BISTATE_YES : BISTATE_NO;
-	    } else
-		ctx->use_tls = (tmp[0] == 0x16 && tmp[1] == 0x03 && tmp[2] == 0x01 && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
+	if (ctx->realm->tls_autodetect == TRISTATE_YES && tmp[0] == 0x16) {
+	    if (ctx->udp)
+		ctx->use_dtls = (tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2])) ? BISTATE_YES : BISTATE_NO;
+	    else
+		ctx->use_tls = (tmp[1] == 0x03 && tmp[2] == 0x01 && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
 	}
     }
     if (ctx->host && (ctx->use_tls || ctx->use_dtls)) {
