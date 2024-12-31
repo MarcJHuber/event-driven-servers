@@ -167,7 +167,7 @@ static void parse_listen(struct sym *sym)
 	    case S_permit:
 	    case S_true:
 		ctx->tls_versions = 0x0203;
-		ctx->dtls_versions = 0xfffdfc;
+		ctx->dtls_versions = 0xfdfc;
 		sym_get(sym);
 		break;
 	    case S_no:
