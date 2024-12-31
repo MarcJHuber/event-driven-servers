@@ -1269,6 +1269,16 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		}
 	    }
 	    return;
+	case S_time:
+	    if (data[1] == 6) {
+		u_int i = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5];
+		int len = snprintf(*buf, *buf_len, "%u", i);
+		if (len > 0) {
+		    *buf += len;
+		    *buf_len -= len;
+		}
+	    }
+	    return;
 	case S_octets:
 	    rad_attr_val_dump_hex(data, data_len - 2, buf, buf_len);
 	    return;
@@ -1414,10 +1424,11 @@ static void parse_radius_dictionary(struct sym *sym)
 	case S_ipaddr:
 	case S_ipv6addr:
 	case S_integer:
+	case S_time:
 	case S_vsa:
 	    break;
 	default:
-	    parse_error_expect(sym, S_string_keyword, S_octets, S_ipaddr, S_ipv6addr, S_integer, S_vsa, S_unknown);
+	    parse_error_expect(sym, S_string_keyword, S_octets, S_ipaddr, S_ipv6addr, S_integer, S_time, S_vsa, S_unknown);
 	}
 	sym_get(sym);
 	struct rad_dict_attr *attr = rad_dict_attr_add(sym, dict, name, id, type);
@@ -1462,6 +1473,7 @@ static int rad_get_helper(tac_session *session, enum token type, void *val, size
 	    if (val_len)
 		*val_len = data_len;
 	    return 0;
+	case S_time:
 	case S_integer:{
 		if (data_len != 4)
 		    return -1;
@@ -5152,8 +5164,9 @@ struct rad_dict_attr;
 
 union rad_action_union {
     int i;
-    u_int ipv4[4];
-    u_int ipv6[16];
+    u_int u;
+    u_char ipv4[4];
+    u_char ipv6[16];
     char *s;
 };
 
@@ -5181,6 +5194,7 @@ static void rad_attr_add(tac_session *session, struct rad_action *a, union rad_a
 	val = u->s;
 	val_len = strlen(u->s);
 	break;
+    case S_time:
     case S_integer:
 	val = &u->i;
 	val_len = 4;
@@ -5277,6 +5291,11 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 		switch (a->attr->type) {
 		case S_integer:
 		    u.i = htonl(atoi(s));
+		    break;
+		case S_time:
+		    u.u = 0;
+		    sscanf(s, "%u", &u.u);
+		    u.u = htonl(u.u);
 		    break;
 		case S_ipaddr:
 		    inet_pton(AF_INET, s, &u.ipv4);
