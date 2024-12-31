@@ -343,12 +343,16 @@ static void dump_header(tac_session *session, tac_pak_hdr *hdr, int bogus)
 	    if (t) {
 		memcpy(t, tac_payload(hdr, char *), n);
 		memset(t + n - l, '*', l);
-		report_string(session, LOG_DEBUG, DEBUG_HEX_FLAG, "packet body [partially masked]", t, n);
+		report(session, LOG_DEBUG, DEBUG_HEX_FLAG, "%spacket body [partially masked]%s (len: %d):%s", common_data.font_red, common_data.font_plain,
+		       (int) l, common_data.font_plain);
+		report_hex(session, LOG_DEBUG, DEBUG_HEX_FLAG, (u_char *) t, n);
 		return;
 	    }
 	}
     }
-    report_string(session, LOG_DEBUG, DEBUG_HEX_FLAG, "packet body", tac_payload(hdr, char *), ntohl(hdr->datalength));
+    report(session, LOG_DEBUG, DEBUG_HEX_FLAG, "%spacket body%s (len: %d):%s", common_data.font_red, common_data.font_plain, (int) ntohl(hdr->datalength),
+	   common_data.font_plain);
+    report_hex(session, LOG_DEBUG, DEBUG_HEX_FLAG, tac_payload(hdr, u_char *), ntohl(hdr->datalength));
 }
 
 static void dump_args(tac_session *session, u_char arg_cnt, char *p, unsigned char *sizep)
@@ -552,10 +556,16 @@ static struct i2s map_rad_code[] = {
 
 void dump_rad_pak(tac_session *session, rad_pak_hdr *pkt)
 {
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
+    if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
+	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "key used: %s", session->ctx->key ? session->ctx->key->key : "<NULL>");
 
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%scode=%s identifer=%d length=%d%s", common_data.font_blue, i2s(map_rad_code, pkt->code, NULL),
-	   pkt->identifier, ntohs(pkt->length), common_data.font_plain);
+    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
+    report(session, LOG_DEBUG, DEBUG_HEX_FLAG, "%spacket%s (len: %d):%s", common_data.font_red, common_data.font_plain, (int) ntohs(pkt->length),
+	   common_data.font_plain);
+    report_hex(session, LOG_DEBUG, DEBUG_HEX_FLAG, (u_char *) pkt, (int) ntohs(pkt->length));
+
+    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%scode=%s [%u] identifer=%u length=%u%s", common_data.font_blue, i2s(map_rad_code, pkt->code, NULL),
+	   pkt->code, pkt->identifier, ntohs(pkt->length), common_data.font_plain);
 
     char *buf = NULL;
     size_t buf_len = 0;
