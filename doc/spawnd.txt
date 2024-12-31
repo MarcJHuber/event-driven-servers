@@ -199,10 +199,10 @@ acl accept ::1
             or DTLS.
             Also, this directive can be used for setting the
             supported TLS/DTLS versions:
-    tls = yes             # TLSv1.2 and TLSv1.3 for TCP, DTLSv1.0, DTLSv
-1.2, DTLSv1.3 for UDP
+    tls = yes             # TLSv1.2 and TLSv1.3 for TCP, DTLSv1.2, DTLSv
+1.3 for UDP
     tls = TLSv1.3          # TLSv1.3 only
-    tls = DTLSv1.2,DTLSv1.3 # DTLSv1.2 and 1.3 only
+    tls = DTLSv1.0,DTLSv1.2,DTLSv1.3 # DTLSv1.0 and 1.2 only
 
             tac_plus-ng will accept unencrypted connections from
             this listeners if tls auto-detect = yes is enabled.
