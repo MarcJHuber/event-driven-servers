@@ -1305,6 +1305,8 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
     if (recv_inject(ctx, tmp, sizeof(tmp), MSG_PEEK) == (ssize_t) sizeof(tmp)) {
 	if (ctx->udp && tmp[0] == 0x17 && tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2])) {
 	    // DTLS Application Data, but we haven't seen the handshake.
+	    char junk[128] = { 0 };
+	    write(ctx->sock, junk, sizeof(junk)); // send some junk data, the peer is likely to retry with a new handshake
 	    cleanup(ctx, ctx->sock);
 	    return;
 	}
