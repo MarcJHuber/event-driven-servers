@@ -5,11 +5,6 @@ RCS
 build
 mavis/token.h
 mavis/token.c
-ftpd/extra/Makefile
-spawnd/extra/Makefile
-tac_plus-ng/extra/Makefile
-tac_plus/extra/Makefile
-tcprelay/extra/Makefile
 __pycache__
 misc/version.h
 spawnd/perl/MYMETA.json
