@@ -1239,7 +1239,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1302,16 +1302,18 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 {
 #ifdef WITH_SSL
     u_char tmp[6];
-    if (ctx->realm->tls_autodetect == TRISTATE_YES && recv_inject(ctx, tmp, sizeof(tmp), MSG_PEEK) == (ssize_t) sizeof(tmp)) {
-	if (ctx->udp) {
-	    ctx->use_dtls = tmp[0] == 0x16 && tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2]) ? BISTATE_YES : BISTATE_NO;
-	    if (tmp[0] == 0x17 && tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2])) {
-		// DTLS Application Data, but we haven't seen the handshake.
-		cleanup(ctx, ctx->sock);
-		return;
-	    }
-	} else
-	    ctx->use_tls = (tmp[0] == 0x16 && tmp[1] == 0x03 && tmp[2] == 0x01 && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
+    if (recv_inject(ctx, tmp, sizeof(tmp), MSG_PEEK) == (ssize_t) sizeof(tmp)) {
+	if (ctx->udp && tmp[0] == 0x17 && tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2])) {
+	    // DTLS Application Data, but we haven't seen the handshake.
+	    cleanup(ctx, ctx->sock);
+	    return;
+	}
+	if (ctx->realm->tls_autodetect == TRISTATE_YES) {
+	    if (ctx->udp) {
+		ctx->use_dtls = tmp[0] == 0x16 && tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2]) ? BISTATE_YES : BISTATE_NO;
+	    } else
+		ctx->use_tls = (tmp[0] == 0x16 && tmp[1] == 0x03 && tmp[2] == 0x01 && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
+	}
     }
     if (ctx->host && (ctx->use_tls || ctx->use_dtls)) {
 	if ((ctx->use_tls && !ctx->realm->tls) || (ctx->use_dtls && !ctx->realm->dtls)) {
