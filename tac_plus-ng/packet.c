@@ -1078,7 +1078,7 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_p
 	session->flag_mavis_info = 1;
 
     if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
-	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%sNew session%s", common_data.font_blue, common_data.font_plain);
+	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%sNew %s session%s", common_data.font_blue, codestring[tac_hdr ? S_tacacs : S_radius].txt, common_data.font_plain);
 
     return session;
 }
