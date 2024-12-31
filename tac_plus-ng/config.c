@@ -1252,16 +1252,18 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		}
 	    }
 	    return;
+	case S_enum:
+	case S_time:
 	case S_integer:
 	    if (data[1] == 6) {
-		int i = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5];
+		u_int i = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5];
 		struct rad_dict_val *val = rad_dict_val_lookup_by_id(attr, i);
 		if (val && (*buf_len > val->name.len)) {
 		    memcpy(*buf, val->name.txt, val->name.len);
 		    *buf += val->name.len;
 		    *buf_len -= val->name.len;
 		} else {
-		    int len = snprintf(*buf, *buf_len, "%d", i);
+		    int len = snprintf(*buf, *buf_len, "%u", i);
 		    if (len > 0) {
 			*buf += len;
 			*buf_len -= len;
@@ -1269,19 +1271,10 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		}
 	    }
 	    return;
-	case S_time:
-	    if (data[1] == 6) {
-		u_int i = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5];
-		int len = snprintf(*buf, *buf_len, "%u", i);
-		if (len > 0) {
-		    *buf += len;
-		    *buf_len -= len;
-		}
-	    }
-	    return;
 	case S_octets:
 	    rad_attr_val_dump_hex(data, data_len - 2, buf, buf_len);
 	    return;
+	case S_address:
 	case S_ipaddr:
 	    if (data[1] == 6) {
 		sockaddr_union from = { 0 };
@@ -1421,19 +1414,21 @@ static void parse_radius_dictionary(struct sym *sym)
 	switch (type) {
 	case S_string_keyword:
 	case S_octets:
+	case S_address:
 	case S_ipaddr:
 	case S_ipv6addr:
+	case S_enum:
 	case S_integer:
 	case S_time:
 	case S_vsa:
 	    break;
 	default:
-	    parse_error_expect(sym, S_string_keyword, S_octets, S_ipaddr, S_ipv6addr, S_integer, S_time, S_vsa, S_unknown);
+	    parse_error_expect(sym, S_string_keyword, S_octets, S_address, S_ipaddr, S_ipv6addr, S_enum, S_integer, S_time, S_vsa, S_unknown);
 	}
 	sym_get(sym);
 	struct rad_dict_attr *attr = rad_dict_attr_add(sym, dict, name, id, type);
 	free(name);
-	if (type == S_integer && sym->code == S_openbra) {
+	if ((type == S_integer || type == S_time || type == S_enum) && sym->code == S_openbra) {
 	    sym_get(sym);
 	    while (sym->code != S_closebra && sym->code != S_eof) {
 		name = strdup(sym->buf);
@@ -1459,6 +1454,7 @@ static int rad_get_helper(tac_session *session, enum token type, void *val, size
 		    *val_len = data_len;
 		return 0;
 	    }
+	case S_address:
 	case S_ipaddr:
 	    if (data_len != 4)
 		return -1;
@@ -1474,6 +1470,7 @@ static int rad_get_helper(tac_session *session, enum token type, void *val, size
 		*val_len = data_len;
 	    return 0;
 	case S_time:
+	case S_enum:
 	case S_integer:{
 		if (data_len != 4)
 		    return -1;
@@ -4601,7 +4598,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 	    if (m->u.s.token == S_radius) {
 		m->type = m->u.s.token;
 		struct rad_dict_attr *attr = (struct rad_dict_attr *) m->u.s.lhs;
-		if (attr->type == S_integer) {
+		if (attr->type == S_integer || S_type == S_time || S_type == S_enum) {
 		    if (isdigit((int) sym->buf[0])) {
 			m->u.s.rhs_txt = mem_strdup(mem, sym->buf);
 			m->u.s.rhs = (void *) (long) parse_int(sym);
@@ -4846,7 +4843,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
     case S_radius:
 	{
 	    struct rad_dict_attr *attr = (struct rad_dict_attr *) m->u.s.lhs;
-	    if (attr->type == S_integer) {
+	    if (attr->type == S_integer || attr->type == S_time || S_type == S_enum) {
 		int i;
 		int id = (int) (long) m->u.s.rhs;
 		res = !rad_get(session, attr->dict->id, attr->id, attr->type, &i, NULL) && (i == id);
@@ -5098,17 +5095,17 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	case S_radius:
 	    if (session->radius_data) {
 		struct rad_dict_attr *attr = (struct rad_dict_attr *) m->u.s.lhs;
-		if (attr->type == S_integer) {
+		if (attr->type == S_integer || attr->type == S_time || S_type == S_enum) {
 		    int i;
 		    int id = (int) (long) m->u.s.rhs;
-		    int res = !rad_get(session, attr->dict->id, attr->id, S_integer, &i, NULL) && (i == id);
+		    int res = !rad_get(session, attr->dict->id, attr->id, attr->type, &i, NULL) && (i == id);
 		    return tac_script_cond_eval_res(session, m, res);
 		}
-		if (attr->type == S_ipaddr) {
+		if (attr->type == S_ipaddr || attr->type == S_address) {
 		    char buf[256];
 		    sockaddr_union from = { 0 };
 		    from.sin.sin_family = AF_INET;
-		    if (!rad_get(session, attr->dict->id, attr->id, S_ipaddr, &from.sin.sin_addr, NULL)
+		    if (!rad_get(session, attr->dict->id, attr->id, attr->type, &from.sin.sin_addr, NULL)
 			&& su_ntop(&from, buf, sizeof(buf)))
 			v = mem_strdup(session->mem, buf);
 		} else if (attr->type == S_ipv6addr) {
@@ -5163,7 +5160,6 @@ void tac_rewrite_user(tac_session *, tac_rewrite *);
 struct rad_dict_attr;
 
 union rad_action_union {
-    int i;
     u_int u;
     u_char ipv4[4];
     u_char ipv6[16];
@@ -5195,10 +5191,12 @@ static void rad_attr_add(tac_session *session, struct rad_action *a, union rad_a
 	val_len = strlen(u->s);
 	break;
     case S_time:
+    case S_enum:
     case S_integer:
-	val = &u->i;
+	val = &u->u;
 	val_len = 4;
 	break;
+    case S_address:
     case S_ipaddr:
 	val = &u->ipv4;
 	val_len = 4;
@@ -5289,14 +5287,14 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 	    if (a->li) {
 		char *s = eval_log_format(session, session->ctx, NULL, a->li, io_now.tv_sec, NULL);
 		switch (a->attr->type) {
-		case S_integer:
-		    u.i = htonl(atoi(s));
-		    break;
 		case S_time:
+		case S_integer:
+		case S_enum:
 		    u.u = 0;
 		    sscanf(s, "%u", &u.u);
 		    u.u = htonl(u.u);
 		    break;
+		case S_address:
 		case S_ipaddr:
 		    inet_pton(AF_INET, s, &u.ipv4);
 		    break;
@@ -5441,16 +5439,16 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	    parse(sym, S_equal);
 	    struct rad_dict_val *val = NULL;
 	    union rad_action_union u;
-	    if (attr->val && attr->type == S_integer && !isdigit(*sym->buf)) {
+	    if (attr->val && (attr->type == S_integer || attr->type == S_time || attr->type == S_enum) && !isdigit(*sym->buf)) {
 		val = rad_dict_val_lookup_by_name(attr, sym->buf);
 		if (!val)
 		    parse_error(sym, "RADIUS value '$s' not found (attribute: %s)", sym->buf, attr->name);
-		u.i = htonl(val->id);
+		u.u = htonl(val->id);
 		m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
-	    } else if (attr->type == S_integer) {
-		u.i = htonl(parse_int(sym));
+	    } else if (attr->type == S_integer || attr->type == S_time || attr->type == S_enum) {
+		u.u = htonl(parse_uint(sym));
 		m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
-	    } else if (attr->type == S_ipaddr) {
+	    } else if (attr->type == S_ipaddr || attr->type == S_address) {
 		if (1 == inet_pton(AF_INET, sym->buf, &u.ipv4))
 		    m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
 	    } else if (attr->type == S_ipv6addr) {

@@ -328,6 +328,7 @@ enum token sym_peek(struct sym *);
 void cfg_read_config(char *, void (*)(struct sym *), char *);
 enum token keycode(char *);
 int parse_int(struct sym *);
+unsigned int parse_uint(struct sym *);
 u_int parse_uint(struct sym *);
 int parse_seconds(struct sym *);
 void sym_init(struct sym *);

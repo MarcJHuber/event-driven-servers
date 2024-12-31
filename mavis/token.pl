@@ -547,6 +547,7 @@ ipv6addr			S_ipv6addr
 integer				S_integer
 octets				S_octets
 vsa				S_vsa
+enum				S_enum
 #
 aaa.protocol			S_aaa_protocol
 aaa.protocol.allowed		S_aaa_protocol_allowed

@@ -1140,6 +1140,36 @@ int parse_int(struct sym *sym)
     }
 }
 
+u_int parse_uint(struct sym *sym)
+{
+    int i;
+    char c;
+
+    switch (sscanf(sym->buf, "%u%c", &i, &c)) {
+    case 2:
+	switch (c) {
+	default:
+	    goto bye;
+	case 'g':
+	case 'G':
+	    i <<= 10;
+	case 'm':
+	case 'M':
+	    i <<= 10;
+	case 'k':
+	case 'K':
+	    i <<= 10;
+	}
+    case 1:
+	sym_get(sym);
+	return i;
+    default:
+      bye:
+	parse_error(sym, "expected an integer, but got '%s'", sym->buf);
+	return -1;
+    }
+}
+
 int parse_seconds(struct sym *sym)
 {
     int i;
