@@ -429,12 +429,10 @@ void cleanup(struct context *ctx, int cur __attribute__((unused)))
 #endif
 
     if (!ctx->msgid.txt) {
-#define S "CONN-STOP"
-	str_set(&ctx->msgid, S, sizeof(S) - 1);
-#undef S
-#define S "stop"
-	str_set(&ctx->acct_type, S, sizeof(S) - 1);
-#undef S
+#define STRSET(A,B) str_set(&A, B, sizeof(B) - 1)
+	STRSET(ctx->msgid, "CONN-STOP");
+	STRSET(ctx->acct_type, "stop");
+#undef STRSET
     }
 
     log_exec(NULL, ctx, S_connection, io_now.tv_sec);
@@ -661,12 +659,10 @@ static void reject_conn(struct context *ctx, const char *hint, char *tls, int li
 	       ctx->server_addr_ascii.txt, ctx->server_port_ascii.txt, ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "", ctx->vrf.txt ? ctx->vrf.txt : "",
 	       prehint, hint, posthint, line);
 
-#define S "CONN-REJECT"
-    str_set(&ctx->msgid, S, sizeof(S) - 1);
-#undef S
-#define S "reject"
-    str_set(&ctx->acct_type, S, sizeof(S) - 1);
-#undef S
+#define STRSET(A,B) str_set(&A, B, sizeof(B) - 1)
+    STRSET(ctx->msgid, "CONN-REJECT");
+    STRSET(ctx->acct_type, "reject");
+#undef STRSET
     ctx->reset_tcp = BISTATE_YES;
     cleanup(ctx, ctx->sock);
 }

@@ -207,33 +207,23 @@ void send_author_reply(tac_session *session, u_char status, char *msg, char *dat
     switch (status) {
     case TAC_PLUS_AUTHOR_STATUS_PASS_ADD:
 	session->result = codestring[S_permit];
-#define S "added"
-	str_set(&session->hint, S, sizeof(S) - 1);
-#undef S
+#define STRSET(A,B) str_set(&A, B, sizeof(B) - 1)
+	STRSET(session->hint, "added");
 	if (arg_cnt) {
-#define S "AUTHZPASS-ADD"
-	    str_set(&session->msgid, S, sizeof(S) - 1);
-#undef S
+	    STRSET(session->msgid, "AUTHZPASS-ADD");
 	} else {
-#define S "AUTHZPASS"
-	    str_set(&session->msgid, S, sizeof(S) - 1);
-#undef S
+	    STRSET(session->msgid, "AUTHZPASS");
 	}
 	break;
     case TAC_PLUS_AUTHOR_STATUS_PASS_REPL:
 	session->result = codestring[S_permit];
-#define S "replaced"
-	str_set(&session->hint, S, sizeof(S) - 1);
-#undef S
-#define S "AUTHZPASS-REPL"
-	str_set(&session->msgid, S, sizeof(S) - 1);
-#undef S
+	STRSET(session->hint, "replaced");
+	STRSET(session->msgid, "AUTHZPASS-REPL");
 	break;
     default:
 	session->result = codestring[S_deny];
-#define S "AUTHZFAIL"
-	str_set(&session->msgid, S, sizeof(S) - 1);
-#undef S
+	STRSET(session->msgid, "AUTHZFAIL");
+#undef STRSET
     }
 
     log_exec(session, session->ctx, S_authorization, io_now.tv_sec);
