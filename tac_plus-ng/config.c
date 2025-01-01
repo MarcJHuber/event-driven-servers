@@ -235,12 +235,12 @@ void complete_realm(tac_realm *r)
 	RS(password_acl, NULL);
 	RS(haproxy_autodetect, TRISTATE_DUNNO);
 	RS(default_host->authfallback, TRISTATE_DUNNO);
-	RS(allowed_protocol_radius, TRISTATE_DUNNO);
+	RS(allowed_protocol_radius_udp, TRISTATE_DUNNO);
 	RS(allowed_protocol_radius_tcp, TRISTATE_DUNNO);
 	RS(allowed_protocol_radius_dtls, TRISTATE_DUNNO);
-	RS(allowed_protocol_radsec, TRISTATE_DUNNO);
-	RS(allowed_protocol_tacacs, TRISTATE_DUNNO);
-	RS(allowed_protocol_tacacss, TRISTATE_DUNNO);
+	RS(allowed_protocol_radius_tls, TRISTATE_DUNNO);
+	RS(allowed_protocol_tacacs_tcp, TRISTATE_DUNNO);
+	RS(allowed_protocol_tacacs_tls, TRISTATE_DUNNO);
 #ifdef WITH_SSL
 	RS(tls_sni_required, TRISTATE_DUNNO);
 	RS(tls_autodetect, TRISTATE_DUNNO);
@@ -454,12 +454,12 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
 	r->dns_caching_period = 1800;
 	r->warning_period = 14 * 86400;
 	r->backend_failure_period = 60;
-	r->allowed_protocol_radius = TRISTATE_YES;
+	r->allowed_protocol_radius_udp = TRISTATE_YES;
 	r->allowed_protocol_radius_tcp = TRISTATE_NO;
-	r->allowed_protocol_radsec = TRISTATE_YES;
+	r->allowed_protocol_radius_tls = TRISTATE_YES;
 	r->allowed_protocol_radius_dtls = TRISTATE_YES;
-	r->allowed_protocol_tacacs = TRISTATE_YES;;
-	r->allowed_protocol_tacacss = TRISTATE_YES;
+	r->allowed_protocol_tacacs_tcp = TRISTATE_YES;;
+	r->allowed_protocol_tacacs_tls = TRISTATE_YES;
 	config.default_realm = r;
 	r->complete = 1;
 	parse_inline(r, "acl __internal__username_acl__ { if (user =~ \"[]<>/()|=[*\\\"':$]+\") deny permit }\n", __FILE__, __LINE__);
@@ -2176,39 +2176,41 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	case S_aaa_protocol_allowed:
 	    sym_get(sym);
 	    parse(sym, S_equal);
-	    r->allowed_protocol_radius = TRISTATE_NO;
+	    r->allowed_protocol_radius_udp = TRISTATE_NO;
 	    r->allowed_protocol_radius_tcp = TRISTATE_NO;
-	    r->allowed_protocol_radsec = TRISTATE_NO;
+	    r->allowed_protocol_radius_tls = TRISTATE_NO;
 	    r->allowed_protocol_radius_dtls = TRISTATE_NO;
-	    r->allowed_protocol_tacacs = TRISTATE_NO;
-	    r->allowed_protocol_tacacss = TRISTATE_NO;
+	    r->allowed_protocol_tacacs_tcp = TRISTATE_NO;
+	    r->allowed_protocol_tacacs_tls = TRISTATE_NO;
 	    do {
 		switch (sym->code) {
 		case S_radius:
-		    r->allowed_protocol_radius = TRISTATE_YES;
+		    r->allowed_protocol_radius_udp = TRISTATE_YES;
 		    r->allowed_protocol_radius_tcp = TRISTATE_YES;
-		    r->allowed_protocol_radsec = TRISTATE_YES;
+		    r->allowed_protocol_radius_tls = TRISTATE_YES;
 		    r->allowed_protocol_radius_dtls = TRISTATE_YES;
-		    r->allowed_protocol_radius = TRISTATE_YES;
+		    break;
+		case S_radius_udp:
+		    r->allowed_protocol_radius_udp = TRISTATE_YES;
 		    break;
 		case S_radius_tcp:
 		    r->allowed_protocol_radius_tcp = TRISTATE_YES;
 		    break;
 		case S_radius_tls:
-		    r->allowed_protocol_radsec = TRISTATE_YES;
+		    r->allowed_protocol_radius_tls = TRISTATE_YES;
 		    break;
 		case S_radius_dtls:
 		    r->allowed_protocol_radius_dtls = TRISTATE_YES;
 		    break;
 		case S_tacacs:
-		    r->allowed_protocol_tacacs = TRISTATE_YES;
-		    r->allowed_protocol_tacacss = TRISTATE_YES;
+		    r->allowed_protocol_tacacs_tcp = TRISTATE_YES;
+		    r->allowed_protocol_tacacs_tls = TRISTATE_YES;
 		    break;
 		case S_tacacs_tcp:
-		    r->allowed_protocol_tacacs = TRISTATE_YES;
+		    r->allowed_protocol_tacacs_tcp = TRISTATE_YES;
 		    break;
 		case S_tacacs_tls:
-		    r->allowed_protocol_tacacss = TRISTATE_YES;
+		    r->allowed_protocol_tacacs_tls = TRISTATE_YES;
 		    break;
 		default:
 		    parse_error_expect(sym, S_radius, S_radius_udp, S_radius_tcp, S_radius_tls, S_radius_dtls, S_tacacs, S_tacacs_tcp, S_tacacs_tls,

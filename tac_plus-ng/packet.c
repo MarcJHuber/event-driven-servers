@@ -510,13 +510,15 @@ void tac_read(struct context *ctx, int cur)
 	    if (ctx->udp) {
 		if (ctx->realm->allowed_protocol_radius_dtls != TRISTATE_YES
 		    && ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_dtls && ctx->aaa_protocol != S_radius) {
+		    ctx->reset_tcp = BISTATE_YES;
 		    cleanup(ctx, cur);
 		    return;
 		}
 		ctx->aaa_protocol = S_radius_dtls;
 	    } else {
-		if (ctx->realm->allowed_protocol_radsec != TRISTATE_YES
+		if (ctx->realm->allowed_protocol_radius_tls != TRISTATE_YES
 		    && ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_radius_tls && ctx->aaa_protocol != S_radius) {
+		    ctx->reset_tcp = BISTATE_YES;
 		    cleanup(ctx, cur);
 		    return;
 		}
@@ -577,7 +579,7 @@ void tac_read(struct context *ctx, int cur)
 
 #ifdef WITH_SSL
     if (ctx->tls) {
-	if (ctx->realm->allowed_protocol_tacacss != TRISTATE_YES
+	if (ctx->realm->allowed_protocol_tacacs_tls != TRISTATE_YES
 	    && ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_tacacs_tls && ctx->aaa_protocol != S_tacacs) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
@@ -596,7 +598,7 @@ void tac_read(struct context *ctx, int cur)
 	    ssl_version = 0;
 	    break;
 	}
-	if (!tls_ver_ok(ssl_version, ctx->tls_versions) || ssl_version != 0x03 || ctx->realm->allowed_protocol_tacacss != TRISTATE_YES) {
+	if (!tls_ver_ok(ssl_version, ctx->tls_versions) || ssl_version != 0x03) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
@@ -604,7 +606,7 @@ void tac_read(struct context *ctx, int cur)
     } else
 #endif
     {
-	if (ctx->realm->allowed_protocol_tacacs != TRISTATE_YES
+	if (ctx->realm->allowed_protocol_tacacs_tcp != TRISTATE_YES
 	    && ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_tacacs_tcp && ctx->aaa_protocol != S_tacacs) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);

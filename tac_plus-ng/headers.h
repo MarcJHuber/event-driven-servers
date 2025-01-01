@@ -370,12 +370,12 @@ struct realm {
 	TRISTATE(script_realm_parent_first);
 	TRISTATE(haproxy_autodetect);
 
-	TRISTATE(allowed_protocol_radius);
+	TRISTATE(allowed_protocol_radius_udp);
 	TRISTATE(allowed_protocol_radius_tcp);
-	TRISTATE(allowed_protocol_radsec);
+	TRISTATE(allowed_protocol_radius_tls);
 	TRISTATE(allowed_protocol_radius_dtls);
-	TRISTATE(allowed_protocol_tacacs);
-	TRISTATE(allowed_protocol_tacacss);
+	TRISTATE(allowed_protocol_tacacs_tcp);
+	TRISTATE(allowed_protocol_tacacs_tls);
 
 	BISTATE(use_tls_psk);
 	BISTATE(visited);
