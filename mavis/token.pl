@@ -543,6 +543,7 @@ radius.key			S_radius_key
 #
 string				S_string_keyword
 ipaddr				S_ipaddr
+ipv4addr			S_ipv4addr
 ipv6addr			S_ipv6addr
 integer				S_integer
 octets				S_octets

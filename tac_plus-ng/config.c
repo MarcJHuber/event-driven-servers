@@ -1276,6 +1276,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 	    return;
 	case S_address:
 	case S_ipaddr:
+	case S_ipv4addr:
 	    if (data[1] == 6) {
 		sockaddr_union from = { 0 };
 		from.sin.sin_family = AF_INET;
@@ -1416,6 +1417,7 @@ static void parse_radius_dictionary(struct sym *sym)
 	case S_octets:
 	case S_address:
 	case S_ipaddr:
+	case S_ipv4addr:
 	case S_ipv6addr:
 	case S_enum:
 	case S_integer:
@@ -1423,7 +1425,7 @@ static void parse_radius_dictionary(struct sym *sym)
 	case S_vsa:
 	    break;
 	default:
-	    parse_error_expect(sym, S_string_keyword, S_octets, S_address, S_ipaddr, S_ipv6addr, S_enum, S_integer, S_time, S_vsa, S_unknown);
+	    parse_error_expect(sym, S_string_keyword, S_octets, S_address, S_ipaddr, S_ipv4addr, S_ipv6addr, S_enum, S_integer, S_time, S_vsa, S_unknown);
 	}
 	sym_get(sym);
 	struct rad_dict_attr *attr = rad_dict_attr_add(sym, dict, name, id, type);
@@ -1456,6 +1458,7 @@ static int rad_get_helper(tac_session *session, enum token type, void *val, size
 	    }
 	case S_address:
 	case S_ipaddr:
+	case S_ipv4addr:
 	    if (data_len != 4)
 		return -1;
 	    memcpy(val, data, 4);
@@ -5103,7 +5106,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 		    int res = !rad_get(session, attr->dict->id, attr->id, attr->type, &i, NULL) && (i == id);
 		    return tac_script_cond_eval_res(session, m, res);
 		}
-		if (attr->type == S_ipaddr || attr->type == S_address) {
+		if (attr->type == S_ipv4addr || attr->type == S_ipaddr || attr->type == S_address) {
 		    char buf[256];
 		    sockaddr_union from = { 0 };
 		    from.sin.sin_family = AF_INET;
@@ -5200,6 +5203,7 @@ static void rad_attr_add(tac_session *session, struct rad_action *a, union rad_a
 	break;
     case S_address:
     case S_ipaddr:
+    case S_ipv4addr:
 	val = &u->ipv4;
 	val_len = 4;
 	break;
@@ -5298,6 +5302,7 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 		    break;
 		case S_address:
 		case S_ipaddr:
+		case S_ipv4addr:
 		    inet_pton(AF_INET, s, &u.ipv4);
 		    break;
 		case S_ipv6addr:
@@ -5450,7 +5455,7 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	    } else if (attr->type == S_integer || attr->type == S_time || attr->type == S_enum) {
 		u.u = htonl(parse_uint(sym));
 		m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
-	    } else if (attr->type == S_ipaddr || attr->type == S_address) {
+	    } else if (attr->type == S_ipv4addr || attr->type == S_ipaddr || attr->type == S_address) {
 		if (1 == inet_pton(AF_INET, sym->buf, &u.ipv4))
 		    m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
 	    } else if (attr->type == S_ipv6addr) {
