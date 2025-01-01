@@ -417,10 +417,12 @@ void cleanup(struct context *ctx, int cur __attribute__((unused)))
 {
 #ifdef WITH_SSL
     if (ctx->tls) {
-	update_bio(ctx);
-	int res = io_SSL_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
-	if (res < 0 && errno == EAGAIN)
-	    return;
+	if (!ctx->reset_tcp) {
+	    update_bio(ctx);
+	    int res = io_SSL_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
+	    if (res < 0 && errno == EAGAIN)
+		return;
+	}
 	SSL_free(ctx->tls);
 	ctx->tls = NULL;
     }
@@ -1239,7 +1241,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1306,7 +1308,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	if (ctx->udp && tmp[0] == 0x17 && tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2])) {
 	    // DTLS Application Data, but we haven't seen the handshake.
 	    char junk[128] = { 0 };
-	    write(ctx->sock, junk, sizeof(junk)); // send some junk data, the peer is likely to retry with a new handshake
+	    write(ctx->sock, junk, sizeof(junk));	// send some junk data, the peer is likely to retry with a new handshake
 	    cleanup(ctx, ctx->sock);
 	    return;
 	}
