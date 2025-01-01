@@ -843,6 +843,7 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 		return 0;
 	    }
 	}
+	report(NULL, LOG_INFO, ~0, "%s uses unknown radius key", ctx->device_addr_ascii.txt);
 	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, -1);
 	return -1;
