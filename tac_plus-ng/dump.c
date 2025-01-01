@@ -65,193 +65,87 @@ struct i2s {
     str_t str;
 };
 
+#define I2S(A,B) { A, { B, sizeof(B) - 1 } }
+
 static struct i2s map_authen_type[] = {
-#define S "AUTHEN/UNKNOWN"
-    { 0, { S, sizeof(S) - 1 } },
-#undef S
-#define S "AUTHEN/PASS"
-    { TAC_PLUS_AUTHEN_STATUS_PASS, { S, sizeof(S) - 1 } },
-#undef S
-#define S "AUTHEN/FAIL"
-    { TAC_PLUS_AUTHEN_STATUS_FAIL, { S, sizeof(S) - 1 } },
-#undef S
-#define S "AUTHEN/GETDATA"
-    { TAC_PLUS_AUTHEN_STATUS_GETDATA, { S, sizeof(S) - 1 } },
-#undef S
-#define S "AUTHEN/GETUSER"
-    { TAC_PLUS_AUTHEN_STATUS_GETUSER, { S, sizeof(S) - 1 } },
-#undef S
-#define S "AUTHEN/GETPASS"
-    { TAC_PLUS_AUTHEN_STATUS_GETPASS, { S, sizeof(S) - 1 } },
-#undef S
-#define S "AUTHEN/ERROR"
-    { TAC_PLUS_AUTHEN_STATUS_ERROR, { S, sizeof(S) - 1 } },
-#undef S
-#define S "AUTHEN/FOLLOW"
-    { TAC_PLUS_AUTHEN_STATUS_FOLLOW, { S, sizeof(S) - 1 } },
-#undef S
+    I2S(0, "AUTHEN/UNKNOWN"),
+    I2S(TAC_PLUS_AUTHEN_STATUS_PASS, "AUTHEN/PASS"),
+    I2S(TAC_PLUS_AUTHEN_STATUS_FAIL, "AUTHEN/FAIL"),
+    I2S(TAC_PLUS_AUTHEN_STATUS_GETDATA, "AUTHEN/GETDATA"),
+    I2S(TAC_PLUS_AUTHEN_STATUS_GETUSER, "AUTHEN/GETUSER"),
+    I2S(TAC_PLUS_AUTHEN_STATUS_GETPASS, "AUTHEN/GETPASS"),
+    I2S(TAC_PLUS_AUTHEN_STATUS_ERROR, "AUTHEN/ERROR"),
+    I2S(TAC_PLUS_AUTHEN_STATUS_FOLLOW, "AUTHEN/FOLLOW"),
     { 0 }
 };
 
 static struct i2s map_author_type[] = {
-#define S "AUTHOR/UNKNOWN"
-    { 0, { S, sizeof(S) - 1 } },
-#undef S
-#define S "AUTHOR/PASS_ADD"
-    { TAC_PLUS_AUTHOR_STATUS_PASS_ADD, { S, sizeof(S) - 1 } },
-#undef S
-#define S "AUTHOR/FAIL"
-    { TAC_PLUS_AUTHOR_STATUS_FAIL, { S, sizeof(S) - 1 } },
-#undef S
-#define S "AUTHOR/PASS_REPL"
-    { TAC_PLUS_AUTHOR_STATUS_PASS_REPL, { S, sizeof(S) - 1 } },
-#undef S
-#define S "AUTHOR/ERROR"
-    { TAC_PLUS_AUTHOR_STATUS_ERROR, { S, sizeof(S) - 1 } },
-#undef S
+    I2S(0, "AUTHOR/UNKNOWN"),
+    I2S(TAC_PLUS_AUTHOR_STATUS_PASS_ADD, "AUTHOR/PASS_ADD"),
+    I2S(TAC_PLUS_AUTHOR_STATUS_FAIL, "AUTHOR/FAIL"),
+    I2S(TAC_PLUS_AUTHOR_STATUS_PASS_REPL, "AUTHOR/PASS_REPL"),
+    I2S(TAC_PLUS_AUTHOR_STATUS_ERROR, "AUTHOR/ERROR"),
     { 0 }
 };
 
 static struct i2s map_acct_type[] = {
-#define S "ACCT/UNKNOWN"
-    { 0, { S, sizeof(S) - 1 } },
-#undef S
-#define S "ACCT/SUCCESS"
-    { TAC_PLUS_ACCT_STATUS_SUCCESS, { S, sizeof(S) - 1 } },
-#undef S
-#define S "ACCT/ERROR"
-    { TAC_PLUS_ACCT_STATUS_ERROR, { S, sizeof(S) - 1 } },
-#undef S
-#define S "ACCT/FOLLOW"
-    { TAC_PLUS_ACCT_STATUS_FOLLOW, { S, sizeof(S) - 1 } },
-#undef S
+    I2S(0, "ACCT/UNKNOWN"),
+    I2S(TAC_PLUS_ACCT_STATUS_SUCCESS, "ACCT/SUCCESS"),
+    I2S(TAC_PLUS_ACCT_STATUS_ERROR, "ACCT/ERROR"),
+    I2S(TAC_PLUS_ACCT_STATUS_FOLLOW, "ACCT/FOLLOW"),
     { 0 }
 };
 
 static struct i2s map_action[] = {
-#define S "unknown"
-    { 0, { S, sizeof(S) - 1 } },
-#undef S
-#define S "login"
-    { TAC_PLUS_AUTHEN_LOGIN, { S, sizeof(S) - 1 } },
-#undef S
-#define S "chpass"
-    { TAC_PLUS_AUTHEN_CHPASS, { S, sizeof(S) - 1 } },
-#undef S
-#define S "sendpass"
-    { TAC_PLUS_AUTHEN_SENDPASS, { S, sizeof(S) - 1 } },
-#undef S
-#define S "sendauth"
-    { TAC_PLUS_AUTHEN_SENDAUTH, { S, sizeof(S) - 1 } },
-#undef S
+    I2S(0, "unknown"),
+    I2S(TAC_PLUS_AUTHEN_LOGIN, "login"),
+    I2S(TAC_PLUS_AUTHEN_CHPASS, "chpass"),
+    I2S(TAC_PLUS_AUTHEN_SENDPASS, "sendpass"),
+    I2S(TAC_PLUS_AUTHEN_SENDAUTH, "sendauth"),
     { 0 }
 };
 
 static struct i2s map_type[] = {
-#define S "unknown"
-    { 0, { S, sizeof(S) - 1 } },
-#undef S
-#define S "ascii"
-    { TAC_PLUS_AUTHEN_TYPE_ASCII, { S, sizeof(S) - 1 } },
-#undef S
-#define S "pap"
-    { TAC_PLUS_AUTHEN_TYPE_PAP, { S, sizeof(S) - 1 } },
-#undef S
-#define S "chap"
-    { TAC_PLUS_AUTHEN_TYPE_CHAP, { S, sizeof(S) - 1 } },
-#undef S
-#define S "arap"
-    { TAC_PLUS_AUTHEN_TYPE_ARAP, { S, sizeof(S) - 1 } },
-#undef S
-#define S "mschap"
-    { TAC_PLUS_AUTHEN_TYPE_MSCHAP, { S, sizeof(S) - 1 } },
-#undef S
-#define S "mschapv2"
-    { TAC_PLUS_AUTHEN_TYPE_MSCHAPV2, { S, sizeof(S) - 1 } },
-#undef S
-#define S "sshkey"
-    { TAC_PLUS_AUTHEN_TYPE_SSHKEY, { S, sizeof(S) - 1 } },
-#undef S
-#define S "sshcert"
-    { TAC_PLUS_AUTHEN_TYPE_SSHCERT, { S, sizeof(S) - 1 } },
-#undef S
-#define S "eap"
-    { TAC_PLUS_AUTHEN_TYPE_EAP, { S, sizeof(S) - 1 } },
-#undef S
+    I2S(0, "unknown"),
+    I2S(TAC_PLUS_AUTHEN_TYPE_ASCII, "ascii"),
+    I2S(TAC_PLUS_AUTHEN_TYPE_PAP, "pap"),
+    I2S(TAC_PLUS_AUTHEN_TYPE_CHAP, "chap"),
+    I2S(TAC_PLUS_AUTHEN_TYPE_ARAP, "arap"),
+    I2S(TAC_PLUS_AUTHEN_TYPE_MSCHAP, "mschap"),
+    I2S(TAC_PLUS_AUTHEN_TYPE_MSCHAPV2, "mschapv2"),
+    I2S(TAC_PLUS_AUTHEN_TYPE_SSHKEY, "sshkey"),
+    I2S(TAC_PLUS_AUTHEN_TYPE_SSHCERT, "sshcert"),
+    I2S(TAC_PLUS_AUTHEN_TYPE_EAP, "eap"),
     { 0 }
 };
 
 static struct i2s map_service[] = {
-#define S "unknown"
-    { 0, { S, sizeof(S) - 1 } },
-#undef S
-#define S "login"
-    { TAC_PLUS_AUTHEN_SVC_LOGIN, { S, sizeof(S) - 1 } },
-#undef S
-#define S "enable"
-    { TAC_PLUS_AUTHEN_SVC_ENABLE, { S, sizeof(S) - 1 } },
-#undef S
-#define S "ppp"
-    { TAC_PLUS_AUTHEN_SVC_PPP, { S, sizeof(S) - 1 } },
-#undef S
-#define S "arap"
-    { TAC_PLUS_AUTHEN_SVC_ARAP, { S, sizeof(S) - 1 } },
-#undef S
-#define S "pt"
-    { TAC_PLUS_AUTHEN_SVC_PT, { S, sizeof(S) - 1 } },
-#undef S
-#define S "rcmd"
-    { TAC_PLUS_AUTHEN_SVC_RCMD, { S, sizeof(S) - 1 } },
-#undef S
-#define S "x25"
-    { TAC_PLUS_AUTHEN_SVC_X25, { S, sizeof(S) - 1 } },
-#undef S
-#define S "nasi"
-    { TAC_PLUS_AUTHEN_SVC_NASI, { S, sizeof(S) - 1 } },
-#undef S
-#define S "fwproxy"
-    { TAC_PLUS_AUTHEN_SVC_FWPROXY, { S, sizeof(S) - 1 } },
-#undef S
+    I2S(0, "unknown"),
+    I2S(TAC_PLUS_AUTHEN_SVC_LOGIN, "login"),
+    I2S(TAC_PLUS_AUTHEN_SVC_ENABLE, "enable"),
+    I2S(TAC_PLUS_AUTHEN_SVC_PPP, "ppp"),
+    I2S(TAC_PLUS_AUTHEN_SVC_ARAP, "arap"),
+    I2S(TAC_PLUS_AUTHEN_SVC_PT, "pt"),
+    I2S(TAC_PLUS_AUTHEN_SVC_RCMD, "rcmd"),
+    I2S(TAC_PLUS_AUTHEN_SVC_X25, "x25"),
+    I2S(TAC_PLUS_AUTHEN_SVC_NASI, "nasi"),
+    I2S(TAC_PLUS_AUTHEN_SVC_FWPROXY, "fwproxy"),
     { 0 }
 };
 
 static struct i2s map_method[] = {
-#define S "unknown"
-    { 0, { S, sizeof(S) - 1 } },
-#undef S
-#define S "not set"
-    { TAC_PLUS_AUTHEN_METH_NOT_SET, { S, sizeof(S) - 1 } },
-#undef S
-#define S "none"
-    { TAC_PLUS_AUTHEN_METH_NONE, { S, sizeof(S) - 1 } },
-#undef S
-#define S "krb5"
-    { TAC_PLUS_AUTHEN_METH_KRB5, { S, sizeof(S) - 1 } },
-#undef S
-#define S "line"
-    { TAC_PLUS_AUTHEN_METH_LINE, { S, sizeof(S) - 1 } },
-#undef S
-#define S "enable"
-    { TAC_PLUS_AUTHEN_METH_ENABLE, { S, sizeof(S) - 1 } },
-#undef S
-#define S "local"
-    { TAC_PLUS_AUTHEN_METH_LOCAL, { S, sizeof(S) - 1 } },
-#undef S
-#define S "tacacs+"
-    { TAC_PLUS_AUTHEN_METH_TACACSPLUS, { S, sizeof(S) - 1 } },
-#undef S
-#define S "guest"
-    { TAC_PLUS_AUTHEN_METH_GUEST, { S, sizeof(S) - 1 } },
-#undef S
-#define S "radius"
-    { TAC_PLUS_AUTHEN_METH_RADIUS, { S, sizeof(S) - 1 } },
-#undef S
-#define S "krb4"
-    { TAC_PLUS_AUTHEN_METH_KRB4, { S, sizeof(S) - 1 } },
-#undef S
-#define S "rcmd"
-    { TAC_PLUS_AUTHEN_METH_RCMD, { S, sizeof(S) - 1 } },
-#undef S
+    I2S(0, "unknown"),
+    I2S(TAC_PLUS_AUTHEN_METH_NOT_SET, "not set"),
+    I2S(TAC_PLUS_AUTHEN_METH_NONE, "none"),
+    I2S(TAC_PLUS_AUTHEN_METH_KRB5, "krb5"),
+    I2S(TAC_PLUS_AUTHEN_METH_LINE, "line"),
+    I2S(TAC_PLUS_AUTHEN_METH_ENABLE, "enable"),
+    I2S(TAC_PLUS_AUTHEN_METH_LOCAL, "local"),
+    I2S(TAC_PLUS_AUTHEN_METH_TACACSPLUS, "tacacs+"),
+    I2S(TAC_PLUS_AUTHEN_METH_GUEST, "guest"),
+    I2S(TAC_PLUS_AUTHEN_METH_RADIUS, "radius"),
+    I2S(TAC_PLUS_AUTHEN_METH_KRB4, "krb4"),
+    I2S(TAC_PLUS_AUTHEN_METH_RCMD, "rcmd"),
     { 0 }
 };
 
@@ -516,7 +410,8 @@ void dump_tacacs_pak(tac_session *session, tac_pak_hdr *hdr)
 	    struct acct_reply *acct = tac_payload(hdr, struct acct_reply *);
 
 	    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG,
-		   "ACCT/REPLY, status=%d (%s), msg_len=%d, data_len=%d", acct->status, summarise_outgoing_packet_type(hdr), ntohs(acct->msg_len), ntohs(acct->data_len));
+		   "ACCT/REPLY, status=%d (%s), msg_len=%d, data_len=%d", acct->status, summarise_outgoing_packet_type(hdr), ntohs(acct->msg_len),
+		   ntohs(acct->data_len));
 	    p = (char *) acct + TAC_ACCT_REPLY_FIXED_FIELDS_SIZE;
 	    report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "msg", p, ntohs(acct->msg_len));
 	    p += ntohs(acct->msg_len);
@@ -530,27 +425,13 @@ void dump_tacacs_pak(tac_session *session, tac_pak_hdr *hdr)
 }
 
 static struct i2s map_rad_code[] = {
-#define S "unknown"
-    { 0, { S, sizeof(S) - 1 } },
-#undef S
-#define S "ACCESS-REQUEST"
-    { RADIUS_CODE_ACCESS_REQUEST, { S, sizeof(S) - 1 } },
-#undef S
-#define S "ACCESS-ACCEPT"
-    { RADIUS_CODE_ACCESS_ACCEPT, { S, sizeof(S) - 1 } },
-#undef S
-#define S "ACCESS-REJECT"
-    { RADIUS_CODE_ACCESS_REJECT, { S, sizeof(S) - 1 } },
-#undef S
-#define S "ACCOUNTING-REQUEST"
-    { RADIUS_CODE_ACCOUNTING_REQUEST, { S, sizeof(S) - 1 } },
-#undef S
-#define S "ACCOUNTING-RESPONSE"
-    { RADIUS_CODE_ACCOUNTING_RESPONSE, { S, sizeof(S) - 1 } },
-#undef S
-#define S "STATUS-SERVER"
-    { RADIUS_CODE_STATUS_SERVER, { S, sizeof(S) - 1 } },
-#undef S
+    I2S(0, "unknown"),
+    I2S(RADIUS_CODE_ACCESS_REQUEST, "ACCESS-REQUEST"),
+    I2S(RADIUS_CODE_ACCESS_ACCEPT, "ACCESS-ACCEPT"),
+    I2S(RADIUS_CODE_ACCESS_REJECT, "ACCESS-REJECT"),
+    I2S(RADIUS_CODE_ACCOUNTING_REQUEST, "ACCOUNTING-REQUEST"),
+    I2S(RADIUS_CODE_ACCOUNTING_RESPONSE, "ACCOUNTING-RESPONSE"),
+    I2S(RADIUS_CODE_STATUS_SERVER, "STATUS-SERVER"),
     { 0 }
 };
 

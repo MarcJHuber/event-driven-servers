@@ -76,33 +76,19 @@ void accounting(tac_session *session, tac_pak_hdr *hdr)
     str_set(&session->priv_lvl_ascii, mem_strdup(session->mem, buf), len);
 
     if (acct->flags & TAC_PLUS_ACCT_FLAG_STOP) {
-#define S "stop"
-	str_set(&session->acct_type, S, sizeof(S) - 1);
-#undef S
-#define S "ACCT-STOP"
-	str_set(&session->msgid, S, sizeof(S) - 1);
-#undef S
+#define STRSET(A,B) str_set(&A, B, sizeof(B) - 1)
+	STRSET(session->acct_type, "stop");
+	STRSET(session->msgid, "ACCT-STOP");
     } else if (acct->flags & TAC_PLUS_ACCT_FLAG_START) {
-#define S "start"
-	str_set(&session->acct_type, S, sizeof(S) - 1);
-#undef S
-#define S "ACCT-START"
-	str_set(&session->msgid, S, sizeof(S) - 1);
-#undef S
+	STRSET(session->acct_type, "start");
+	STRSET(session->msgid, "ACCT-START");
     } else if (acct->flags & TAC_PLUS_ACCT_FLAG_WATCHDOG) {
-#define S "update"
-	str_set(&session->acct_type, S, sizeof(S) - 1);
-#undef S
-#define S "ACCT-UPDATE"
-	str_set(&session->msgid, S, sizeof(S) - 1);
-#undef S
+	STRSET(session->acct_type, "update");
+	STRSET(session->msgid, "ACCT-UPDATE");
     } else {
-#define S "unknown"
-	str_set(&session->acct_type, S, sizeof(S) - 1);
-#undef S
-#define S "ACCT-UNKNOWN"
-	str_set(&session->msgid, S, sizeof(S) - 1);
-#undef S
+	STRSET(session->acct_type, "unknown");
+	STRSET(session->msgid, "ACCT-UNKNOWN");
+#undef STRSET
     }
 
     str_set(&session->username, mem_strndup(session->mem, p, acct->user_len), acct->user_len);
@@ -163,50 +149,27 @@ void rad_acct(tac_session *session)
     if (!rad_get(session, -1, RADIUS_A_ACCT_STATUS_TYPE, S_integer, &type, NULL)) {
 	switch (type) {
 	case RADIUS_V_ACCT_STATUS_TYPE_START:
-#define S "start"
-	    str_set(&session->acct_type, S, sizeof(S) - 1);
-#undef S
-#define S "ACCT-START"
-	    str_set(&session->msgid, S, sizeof(S) - 1);
-#undef S
+#define STRSET(A,B) str_set(&A, B, sizeof(B) - 1)
+	    STRSET(session->acct_type, "start");
+	    STRSET(session->msgid, "ACCT-START");
 	    break;
 	case RADIUS_V_ACCT_STATUS_TYPE_STOP:
-#define S "stop"
-	    str_set(&session->acct_type, S, sizeof(S) - 1);
-#undef S
-#define S "ACCT-STOP"
-	    str_set(&session->msgid, S, sizeof(S) - 1);
-#undef S
+	    STRSET(session->acct_type, "stop");
+	    STRSET(session->msgid, "ACCT-STOP");
 	    break;
 	case RADIUS_V_ACCT_STATUS_TYPE_INTERIM_UPDATE:
-#define S "update"
-	    str_set(&session->acct_type, S, sizeof(S) - 1);
-#undef S
-#define S "ACCT-UPDATE"
-	    str_set(&session->msgid, S, sizeof(S) - 1);
-#undef S
+	    STRSET(session->acct_type, "update");
+	    STRSET(session->msgid, "ACCT-UPDATE");
 	    break;
 	case RADIUS_V_ACCT_STATUS_TYPE_ACCOUNTING_ON:
-#define S "on"
-	    str_set(&session->acct_type, S, sizeof(S) - 1);
-#undef S
-#define S "ACCT-ON"
-	    str_set(&session->msgid, S, sizeof(S) - 1);
-#undef S
+	    STRSET(session->acct_type, "on");
+	    STRSET(session->msgid, "ACCT-ON");
 	case RADIUS_V_ACCT_STATUS_TYPE_ACCOUNTING_OFF:
-#define S "off"
-	    str_set(&session->acct_type, S, sizeof(S) - 1);
-#undef S
-#define S "ACCT-OFF"
-	    str_set(&session->msgid, S, sizeof(S) - 1);
-#undef S
+	    STRSET(session->acct_type, "off");
+	    STRSET(session->msgid, "ACCT-OFF");
 	default:
-#define S "unknown"
-	    str_set(&session->acct_type, S, sizeof(S) - 1);
-#undef S
-#define S "ACCT-UNKNOWN"
-	    str_set(&session->msgid, S, sizeof(S) - 1);
-#undef S
+	    STRSET(session->acct_type, "unknown");
+	    STRSET(session->msgid, "ACCT-UNKNOWN");
 	}
     }
     // script-based user rewriting, current
