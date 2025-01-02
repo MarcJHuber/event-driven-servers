@@ -167,7 +167,9 @@ close $sock1;
 
 # create a socket pair for packet injection and send the second fd to tac_plus-ng:
 socketpair(my $conn0, my $conn1, AF_UNIX, SOCK_STREAM, PF_UNIX) or die "socketpair: $!";
-Scm::scm_sendmsg_accept(fileno $sock0, Scm::SCM_ACCEPT, fileno $conn1, 1, $realm);
+my $sd_flag = 1; # SCM_FLAG_HAPROXY
+$sd_flag |=2 if defined $radius && $mode eq "acct"; # SCM_FLAG_RADACCT
+Scm::scm_sendmsg_accept(fileno $sock0, Scm::SCM_ACCEPT, fileno $conn1, $sd_flag, $realm);
 
 # create a haproxy v2 header for NAD address simulation:
 my $src = new Net::IP($nad) or die Net::IP::Error();
@@ -192,7 +194,7 @@ if (defined $radius) {
 
 		my $dict = undef;
 		unless (defined $raddict) {
-			printf STDERR "No radius dictionary specified, using a limited built-in subset.\n";
+			#printf STDERR "No radius dictionary specified, using a limited built-in subset.\n";
 			use File::Temp;
 			$dict = File::Temp->new(DIR => '/tmp');
 			print $dict <<EOT
@@ -217,7 +219,6 @@ EOT
 		my $type = 1;
 		$type = 4 if $mode eq "acct";
 		my @av_list = (
-			{ Name => 'Message-Authenticator', Value => '' },
 			{ Name => 'User-Name', Value => $username},
 		);
 		foreach my $arg (@args) {
@@ -226,7 +227,7 @@ EOT
 		}
 		push(@av_list, { Name => $dictionary->attribute('Password') ? 'Password' : 'User-Password', Value => $password}) if ($mode ne "acct");
 
-		my ($request, $req_id, $authenticator) = $packet->build(
+		my ($request, $req_id, undef) = $packet->build(
 			type => $type,
 			av_list => \@av_list
 		);
