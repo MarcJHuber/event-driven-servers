@@ -24,17 +24,17 @@ scm_sendmsg (sock, type, count, fd)
 	RETVAL
 
 int
-scm_sendmsg_accept (sock, type, fd, haproxy, realm)
+scm_sendmsg_accept (sock, type, fd, flags, realm)
 	int sock
 	int type
 	int fd
-	int haproxy
+	int flags
 	char *realm
     CODE:
 	struct scm_data_accept sd;
 	memset(&sd, 0, sizeof(sd));
 	sd.type = type;
-	sd.haproxy = haproxy ? 1 : 0;
+	sd.flags = flags;
 	strncpy(sd.realm, realm, SCM_REALM_SIZE - 1);
 	RETVAL = scm_send_msg (sock, (struct scm_data *) &sd, fd);
     OUTPUT:
