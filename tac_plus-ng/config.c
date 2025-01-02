@@ -1272,7 +1272,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 	    }
 	    return;
 	case S_octets:
-	    rad_attr_val_dump_hex(data, data_len - 2, buf, buf_len);
+	    rad_attr_val_dump_hex(data + 2, data_len - 2, buf, buf_len);
 	    return;
 	case S_address:
 	case S_ipaddr:
@@ -1335,7 +1335,7 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 	    }
 	}
 
-	if (dict->id != -1 || (*d_start != RADIUS_A_MESSAGE_AUTHENTICATOR && *d_start != RADIUS_A_USER_PASSWORD)) {
+	if (dict->id != -1 || (/* *d_start != RADIUS_A_MESSAGE_AUTHENTICATOR && */ *d_start != RADIUS_A_USER_PASSWORD)) {
 	    if (add_separator) {
 		if (*buf_len > separator_len) {
 		    memcpy(*buf, separator, separator_len);
