@@ -309,7 +309,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 
 	sd = alloca(sizeof(struct scm_data_accept));
 	sd->type = SCM_ACCEPT;
-	sd_udp->flags = ctx->sd_flags;
+	sd->flags = ctx->sd_flags;
 	sd->tls_versions = ctx->tls_versions;
 	sd->aaa_protocol = ctx->aaa_protocol;
 	sd->protocol = ctx->protocol;
