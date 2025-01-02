@@ -111,8 +111,10 @@ static void set_response_authenticator(tac_session * session, rad_pak_hdr * pak)
 
 static tac_pak *new_rad_pak(tac_session *session, u_char code)
 {
+#ifdef WITH_SSL
     if (code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT)
 	session->radius_data->data_len += 18;
+#endif
     int len = session->radius_data->data_len + RADIUS_HDR_SIZE;
     tac_pak *pak = mem_alloc(session->ctx->mem, sizeof(struct tac_pak) + len);
     pak->length = len;
@@ -122,6 +124,7 @@ static tac_pak *new_rad_pak(tac_session *session, u_char code)
     u_char *data = RADIUS_DATA(&pak->pak.rad);
     memcpy(data, session->radius_data->data, session->radius_data->data_len);
 
+#ifdef WITH_SSL
     if (code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT) {
 	memcpy(pak->pak.rad.authenticator, session->radius_data->pak_in->authenticator, 16);
 	u_char *ma = data + session->radius_data->data_len - 18;
@@ -131,6 +134,7 @@ static tac_pak *new_rad_pak(tac_session *session, u_char code)
 	HMAC(EVP_md5(), session->ctx->key->key, session->ctx->key->len, (const unsigned char *) &pak->pak.rad, len, ma, &ma_len);
 	memset(pak->pak.rad.authenticator, 0, 16);
     }
+#endif
 
     set_response_authenticator(session, &pak->pak.rad);
     return pak;
