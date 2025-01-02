@@ -244,7 +244,10 @@ static void parse_listen(struct sym *sym)
 	case S_haproxy:
 	    sym_get(sym);
 	    parse(sym, S_equal);
-	    ctx->haproxy = parse_bool(sym) ? 1 : 0;
+	    if (parse_bool(sym))
+		ctx->sd_flags |= SCM_FLAG_HAPROXY;
+	    else
+		ctx->sd_flags &= ~SCM_FLAG_HAPROXY;
 	    break;
 	case S_mode:
 	    parse_umask(sym, &ctx->mode);
@@ -353,10 +356,10 @@ static void parse_listen(struct sym *sym)
 	    parse(sym, S_equal);
 	    switch (sym->code) {
 	    case S_access:
-		ctx->rad_acct = 0;
+		ctx->sd_flags &= ~SCM_FLAG_RADACCT;
 		break;
 	    case S_accounting:
-		ctx->rad_acct = 1;
+		ctx->sd_flags |= SCM_FLAG_RADACCT;
 		break;
 	    default:
 		parse_error_expect(sym, S_access, S_accounting, S_unknown);

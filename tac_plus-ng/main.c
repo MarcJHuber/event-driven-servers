@@ -564,7 +564,7 @@ static void accept_control_singleprocess(int s, struct scm_data_accept *sd)
     struct scm_data_accept_ext sd_ext = {.sd = *sd };
     tac_realm *r = set_sd_realm(-1, &sd_ext);
     users_inc();
-    if (sd->haproxy || r->haproxy_autodetect == TRISTATE_YES)
+    if ((sd->flags & SCM_FLAG_HAPROXY) || r->haproxy_autodetect == TRISTATE_YES)
 	accept_control_px(s, &sd_ext);
     else
 	accept_control_raw(s, &sd_ext);
@@ -1192,7 +1192,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	    }
 	}
     }
-
+    ctx->rad_acct = (sd_ext->sd.flags & SCM_FLAG_RADACCT) ? BISTATE_YES : BISTATE_NO;
     ctx->sock = s;
     io_register(ctx->io, ctx->sock, ctx);
 
@@ -1449,7 +1449,7 @@ static void accept_control(struct context *ctx, int cur)
 	setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (char *) &one, (socklen_t) sizeof(one));
 	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (char *) &one, (socklen_t) sizeof(one));
 	set_sd_realm(cur, &sd_ext);
-	if (sd_ext.sd.haproxy || (sd_ext.realm->haproxy_autodetect == TRISTATE_YES))
+	if ((sd_ext.sd.flags & SCM_FLAG_HAPROXY) || (sd_ext.realm->haproxy_autodetect == TRISTATE_YES))
 	    accept_control_px(s, &sd_ext);
 	else
 	    accept_control_raw(s, &sd_ext);

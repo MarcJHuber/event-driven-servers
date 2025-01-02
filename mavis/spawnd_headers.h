@@ -94,8 +94,7 @@ struct spawnd_context {
     u_int is_listener:1;	/* 0: server, 1: listener */
     u_int dying:1;		/* server only */
     u_int logged_retry:1;	/* server only */
-    u_int haproxy:1;		/* server only */
-    u_int rad_acct:1;		/* radius accounting */
+    uint32_t sd_flags;
     u_int tls_versions;
     u_int dtls_versions;
     int socktype;		/* SOCK_STREAM, SOCK_SEQPACKET */
