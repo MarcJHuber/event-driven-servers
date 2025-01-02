@@ -111,13 +111,27 @@ static void set_response_authenticator(tac_session * session, rad_pak_hdr * pak)
 
 static tac_pak *new_rad_pak(tac_session *session, u_char code)
 {
+    if (code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT)
+	session->radius_data->data_len += 18;
     int len = session->radius_data->data_len + RADIUS_HDR_SIZE;
     tac_pak *pak = mem_alloc(session->ctx->mem, sizeof(struct tac_pak) + len);
     pak->length = len;
     pak->pak.rad.code = code;
     pak->pak.rad.identifier = session->radius_data->pak_in->identifier;
     pak->pak.rad.length = htons((uint16_t) (session->radius_data->data_len + RADIUS_HDR_SIZE));
-    memcpy(RADIUS_DATA(&pak->pak), session->radius_data->data, session->radius_data->data_len);
+    u_char *data = RADIUS_DATA(&pak->pak.rad);
+    memcpy(data, session->radius_data->data, session->radius_data->data_len);
+
+    if (code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT) {
+	memcpy(pak->pak.rad.authenticator, session->radius_data->pak_in->authenticator, 16);
+	u_char *ma = data + session->radius_data->data_len - 18;
+	*ma++ = RADIUS_A_MESSAGE_AUTHENTICATOR;
+	*ma++ = 18;
+	u_int ma_len = 16;
+	HMAC(EVP_md5(), session->ctx->key->key, session->ctx->key->len, (const unsigned char *) &pak->pak.rad, len, ma, &ma_len);
+	memset(pak->pak.rad.authenticator, 0, 16);
+    }
+
     set_response_authenticator(session, &pak->pak.rad);
     return pak;
 }
@@ -308,7 +322,7 @@ static void set_response_authenticator(tac_session *session, rad_pak_hdr *pak)
     struct iovec iov[4] = {
 	{.iov_base = pak, 4 },
 	{.iov_base = session->radius_data->pak_in->authenticator,.iov_len = 16 },
-	{.iov_base = session->radius_data->data,.iov_len = session->radius_data->data_len },
+	{.iov_base = RADIUS_DATA(pak),.iov_len = RADIUS_DATA_LEN(pak) },
 	{.iov_base = session->ctx->key->key,.iov_len = session->ctx->key->len }
     };
     md5v(pak->authenticator, MD5_LEN, iov, 4);
