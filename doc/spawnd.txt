@@ -159,12 +159,12 @@ acl accept ::1
           + port = Port
             Port can be either numerical or a service name.
           + flag = ( access | accounting )
-            RADIUS/UDP supports Status Server queries. If you want
-            to use these reliably you should use a dedicated UDP
-            port for RADIUS accounting packets and set flag =
-            accounting. The accounting flag will be forwarded to
-            and evaluated by tac_plus-ng to choose the correct
-            Server Status response.
+            RADIUS supports Status Server queries. If you want to
+            use those reliably you should use dedicated ports for
+            both RADIUS access and accounting packets and set flag
+            = access of flag = accounting. The flag will be
+            forwarded to and evaluated by tac_plus-ng to choose
+            the correct Server Status response.
           + address = IPAddress
             This is optional; by default the daemon listens on all
             available IP addresses, both v4 and v6.

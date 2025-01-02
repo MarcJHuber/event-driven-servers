@@ -132,10 +132,9 @@ Marc Huber
 
 1. Introduction
 
-   tac_plus-ng is mostly a TACACS+ daemon, but comes with limited
-   RADIUS support, too.. It provides networking components like
-   routers and switches with authentication, authorisation and
-   accounting services.
+   tac_plus-ng is a TACACS+ daemon that supports RADIUS, too. It
+   provides networking components like routers and switches with
+   authentication, authorisation and accounting services.
 
    This version is a major rewrite of the original public Cisco
    source code and is in turn largely based on tac_plus, which
@@ -159,8 +158,9 @@ Marc Huber
      * Supports Linux VRFs
      * Supports (non-standard) SSH Public Key Authentication (see
        the Wiki for reference)
-     * Implements and auto-detects legacy RADIUS, RADSEC (TCP) and
-       RADIUS/DTLS (all with PAP authentication only).
+     * Implements and auto-detects legacy RADIUS (UDP and TCP),
+       RADSEC (TLS) and RADIUS/DTLS (all with PAP authentication
+       only).
      __________________________________________________________
 
 1.1. Download

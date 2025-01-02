@@ -136,7 +136,7 @@ acl accept ::1</pre></li>
 </li>
 <li>
 <p><tt class="literal">flag =</tt> ( <tt class="literal">access</tt> | <tt class="literal">accounting</tt> )</p>
-<p>RADIUS/UDP supports Status Server queries. If you want to use these reliably you should use a dedicated UDP port for RADIUS accounting packets and set <tt class="literal">flag = accounting</tt>. The <tt class="literal">accounting</tt> flag will be forwarded to and evaluated by <span class="bold"><b class="emphasis">tac_plus-ng</b></span> to choose the correct Server Status response.</p>
+<p>RADIUS supports Status Server queries. If you want to use those reliably you should use dedicated ports for both RADIUS access and accounting packets and set <tt class="literal">flag = access</tt> of <tt class="literal">flag = accounting</tt>. The flag will be forwarded to and evaluated by <span class="bold"><b class="emphasis">tac_plus-ng</b></span> to choose the correct Server Status response.</p>
 </li>
 <li>
 <p><tt class="literal">address =</tt> <span class="emphasis"><i class="emphasis">IPAddress</i></span></p>
