@@ -580,15 +580,16 @@ void parse_log(struct sym *sym, tac_realm *r)
     str_set(&lf->priority, strdup(buf), buf_len);
 
     if (!access_file) {
-#define DATE "${TIMESTAMP} "
+#define DATE "${TIMESTAMP}"
 #define SEP1 "\t"
 #define SEP2 "|"
-#define PR "\""			// prefix
-#define SP "<${priority}>" DATE "${hostname} "	// syslog prefix
+#define PR "\""			// parsing prefix
+#define SP "<${priority}>" DATE " ${hostname} "	// syslog prefix
 #define FS "\n\""		// file suffix
 #define SS "\""			// syslog suffix
 
-#define S1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${service}" SEP1 "${cmd}"
+// S1: file, S2: Syslog
+#define S1 " ${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${service}" SEP1 "${cmd}"
 #define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${accttype}" SEP2 "${service}" SEP2 "${cmd}"
 	acct_file = parse_log_format_inline(PR DATE S1 FS, __FILE__, __LINE__);
 	acct_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
@@ -596,7 +597,7 @@ void parse_log(struct sym *sym, tac_realm *r)
 #undef S1
 #undef S2
 
-#define S1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${profile}" SEP1 "${result}" SEP1 "${service}" SEP1 "${cmd}"
+#define S1 " ${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${profile}" SEP1 "${result}" SEP1 "${service}" SEP1 "${cmd}"
 #define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${profile}" SEP2 "${result}" SEP2 "${service}" SEP2 "${cmd}"
 	author_file = parse_log_format_inline(PR DATE S1 FS, __FILE__, __LINE__);
 	author_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
@@ -604,7 +605,7 @@ void parse_log(struct sym *sym, tac_realm *r)
 #undef S1
 #undef S2
 
-#define S1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${action} ${hint}"
+#define S1 " ${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${action} ${hint}"
 #define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${action} ${hint}"
 	access_file = parse_log_format_inline(PR DATE S1 FS, __FILE__, __LINE__);
 	access_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
@@ -612,7 +613,7 @@ void parse_log(struct sym *sym, tac_realm *r)
 #undef S1
 #undef S2
 
-#define S1 "${accttype}" SEP1 "${conn.protocol}" SEP1 "${peer.address}" SEP1 "${peer.port}" SEP1 "${server.address}" SEP1 "${server.port}" SEP1 "${tls.conn.version}" SEP1 "${tls.peer.cert.issuer}" SEP1 "${tls.peer.cert.subject}"
+#define S1 " ${accttype}" SEP1 "${conn.protocol}" SEP1 "${peer.address}" SEP1 "${peer.port}" SEP1 "${server.address}" SEP1 "${server.port}" SEP1 "${tls.conn.version}" SEP1 "${tls.peer.cert.issuer}" SEP1 "${tls.peer.cert.subject}"
 #define S2 "${accttype}" SEP2 "${conn.protocol}" SEP2 "${peer.address}" SEP2 "${peer.port}" SEP2 "${server.address}" SEP2 "${server.port}" SEP2 "${tls.conn.version}" SEP2 "${tls.peer.cert.issuer}" SEP2 "${tls.peer.cert.subject}"
 	conn_file = parse_log_format_inline(PR DATE S1 FS, __FILE__, __LINE__);
 	conn_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
@@ -620,7 +621,7 @@ void parse_log(struct sym *sym, tac_realm *r)
 #undef S1
 #undef S2
 
-#define S1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${action} ${hint}" SEP1 "${args, }" SEP1 "${rargs, }"
+#define S1 " ${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${action} ${hint}" SEP1 "${args, }" SEP1 "${rargs, }"
 #define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${accttype}" SEP2 "${action} ${hint}" SEP2 "${args, }" SEP2 "${rargs, }"
 	rad_access_file = parse_log_format_inline(PR DATE S1 FS, __FILE__, __LINE__);
 	rad_access_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
@@ -628,7 +629,7 @@ void parse_log(struct sym *sym, tac_realm *r)
 #undef S1
 #undef S2
 
-#define S1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${service}" SEP1 "${args, }"
+#define S1 " ${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${service}" SEP1 "${args, }"
 #define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${accttype}" SEP2 "${service}" SEP2 "${args, }"
 	rad_acct_file = parse_log_format_inline(PR DATE S1 FS, __FILE__, __LINE__);
 	rad_acct_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
@@ -1687,8 +1688,8 @@ static str_t *eval_log_format_TIMESTAMP(tac_session *session __attribute__((unus
 	buf[31] = buf[30];
 	buf[30] = buf[29];
 	buf[29] = ':';
+	l++;
     }
-    l++;
     str_set(&str, buf, l);
 
     return &str;
