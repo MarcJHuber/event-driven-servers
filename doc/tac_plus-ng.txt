@@ -873,56 +873,60 @@ syslog default = deny
    %H:%M:%S %z" else.
        The built-in defaults as of writing this are:
 # Accounting to file/pipe:
-"%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${
-service}\t${cmd}\n"
+"${TIMESTAMP}\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${service}
+\t${cmd}\n"
 # Accounting to UDP syslog:
-"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${nas}|${user}|${port}|${
-nac}|${accttype}|${service}|${cmd}"
+"<${priority}>${TIMESTAMP} ${hostname} ${nas}|${user}|${port}|${nac}|${a
+ccttype}|${service}|${cmd}"
 # Accounting to syslog(3):
 "${nas}|${user}|${port}|${nac}|${accttype}|${service}|${cmd}"
+#
 # Authorization to file/pipe:
-"%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${profile}\t${r
-esult}\t${service}\t${cmd}\n"
+"${TIMESTAMP}\t${nas}\t${user}\t${port}\t${nac}\t${profile}\t${result}\t
+${service}\t${cmd}\n"
 # Authorization to UDP syslog:
-"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${nas}|${user}|${port}|${
-nac}|${profile}|${result}|${service}|${cmd}"
+"<${priority}>${TIMESTAMP} ${hostname} ${nas}|${user}|${port}|${nac}|${p
+rofile}|${result}|${service}|${cmd}"
 # Authorization to syslog(3):
 "${nas}|${user}|${port}|${nac}|${profile}|${result}|${service}|${cmd}"
+#
 # Authentication to file/pipe:
-"%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${action} ${hin
-t}\n"
+"${TIMESTAMP}\t${nas}\t${user}\t${port}\t${nac}\t${action} ${hint}\n"
 # Authentication to UDP syslog:
-"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${nas}|${user}|${port}|${
-nac}|${action} ${hint}"
+"<${priority}>${TIMESTAMP} ${hostname} ${nas}|${user}|${port}|${nac}|${a
+ction} ${hint}"
 # Authentication to syslog(3):
 "${nas}|${user}|${port}|${nac}|${action} ${hint}"
+#
 # Connections to file/pipe:
-"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${tls.conn.version}\t${tls.p
-eer.cert.issuer}\t${tls.peer.cert.subject}\n"
+"${TIMESTAMP}\t${accttype}\t${nas}\t${tls.conn.version}\t${tls.peer.cert
+.issuer}\t${tls.peer.cert.subject}\n"
 # Connections to UDP syslog:
-"<${priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${tls.
-conn.version}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}"
+"<${priority}>TIMESTAMP} ${hostname} ${accttype}|${nas}|${tls.conn.versi
+on}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}"
 # Connections to syslog(3):
 "${accttype}|${nas}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.pe
 er.cert.subject}"
+#
+# RADIUS Accounting to file/pipe:
+"${TIMESTAMP}\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${accttype
+}\t${args, }\t${rargs, }\n"
 # RADIUS Accounting to UDP syslog:
-"<${priority}>Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|{nas}|${user}|
-${port}|${nac}|${accttype}|${args, }|${rargs, }"
+"<${priority}>${TIMESTAMP} ${hostname} ${accttype}|{nas}|${user}|${port}
+|${nac}|${accttype}|${args, }|${rargs, }"
 # RADIUS Accounting to syslog(3):
 "${accttype}|${nas}|${user}|${port}|${nac}|${accttype}|${args, }|${rargs
 , }"
-# RADIUS Accounting to file/pipe:
-"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${
-accttype}\t${args, }\t${rargs, }\n"
+#
+# RADIUS Authentication to file/pipe:
+"${TIMESTAMP}\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${accttype
+}\t${args, }\t${rargs, }\n"
 # RADIUS Authentication to UDP syslog:
-"<priority}>%Y-%m-%d %H:%M:%S %z ${hostname} ${accttype}|${nas}|${nas}|$
-{user}|${port}|${nac}|${accttype}|${args, }|${rargs, }"
+"<priority}>${TIMESTAMP} ${hostname} ${accttype}|${nas}|${nas}|${user}|$
+{port}|${nac}|${accttype}|${args, }|${rargs, }"
 # RADIUS Authentication to syslog(3):
 "${accttype}|${nas}|${nas}|${nas}|${user}|${port}|${nac}|${accttype}|${a
 rgs, }|${rargs, }\n"
-# RADIUS Authentication to file/pipe:
-"%Y-%m-%d %H:%M:%S %z\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${
-accttype}\t${args, }\t${rargs, }\n"
 
    Message ID Description
    AUTHZPASS authorization succeeded
