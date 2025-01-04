@@ -576,7 +576,8 @@ void parse_log(struct sym *sym, tac_realm *r)
 	sym_get(sym);
     }
     char buf[10];
-    str_set(&lf->priority, buf, snprintf(buf, sizeof(buf), "%d", lf->syslog_priority));
+    size_t buf_len = snprintf(buf, sizeof(buf), "%d", lf->syslog_priority);
+    str_set(&lf->priority, strdup(buf), buf_len);
 
     if (!access_file) {
 #define DATE "${TIMESTAMP} "
