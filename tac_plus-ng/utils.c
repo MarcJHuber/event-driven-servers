@@ -397,8 +397,11 @@ static void log_flush_syslog_udp(struct logfile *lf __attribute__((unused)))
 	int r = -1;
 	if (lf->syslog_destination.sa.sa_family == AF_UNIX)
 	    r = send(lf->sock, lf->ctx->buf->buf + lf->ctx->buf->offset, (int) len, 0);
-	else if (lf->syslog_source)
-	    r = sendto_spoof(lf->syslog_source, &lf->syslog_destination, lf->ctx->buf->buf + lf->ctx->buf->offset, (size_t) len);
+	else
+#ifdef __linux__
+	    if (lf->syslog_source)
+		r = sendto_spoof(lf->syslog_source, &lf->syslog_destination, lf->ctx->buf->buf + lf->ctx->buf->offset, (size_t) len);
+#endif
 	if (r)
 	    r = sendto(lf->sock, lf->ctx->buf->buf + lf->ctx->buf->offset, (int) len, 0, &lf->syslog_destination.sa, su_len(&lf->syslog_destination));
 	if (r < 0)

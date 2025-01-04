@@ -19,7 +19,11 @@ all: $(ALL)
 main.o: main.c $(BASE)/misc/version.h
 
 OBJ += acct.o authen.o author.o buffer.o config.o dump.o main.o mavis.o
-OBJ += packet.o report.o utils.o context.o udp-spoof.o
+OBJ += packet.o report.o utils.o context.o
+
+ifeq ($(OSTYPE),linux)
+OBJ += udp-spoof.o
+endif
 
 $(OBJ): headers.h ../mavis/mavis.h
 
