@@ -63,31 +63,43 @@ unsigned short checksum(void *b, int len)
     return result;
 }
 
-ssize_t sendto_spoof(sockaddr_union *src_addr, sockaddr_union *dest_addr, void *buf, size_t len)
+ssize_t sendto_spoof(sockaddr_union *src_addr, sockaddr_union *dest_addr, void *buf, size_t buf_len)
 {
     int sock = socket(src_addr->sa.sa_family, SOCK_RAW, IPPROTO_RAW);
     if (sock < 0)
 	return -1;
 
-    size_t buf_len = 0;
+    size_t buffer_len = 0;
     u_char *buffer = NULL;
     struct udphdr *udp = NULL;
 
     if (src_addr->sa.sa_family == AF_INET) {
-	buf_len = sizeof(struct iphdr) + sizeof(struct udphdr) + len;
-	char *buffer = alloca(buf_len);
-	memset(buffer, 0, buf_len);
+#ifdef __ANY_BSD__
+#define iphdr ip
+#define version ip_v
+#define ihl ip_hl
+#define tot_len ip_len
+#define id ip_id
+#define ttl ip_ttl
+#define protocol ip_p
+#define saddr ip_src.s_addr
+#define daddr ip_dst.s_addr
+#define check ip_sum
+#endif
+	buffer_len = sizeof(struct iphdr) + sizeof(struct udphdr) + buf_len;
+	char *buffer = alloca(buffer_len);
+	memset(buffer, 0, buffer_len);
 
 	struct iphdr *ip = (struct iphdr *) buffer;
 	udp = (struct udphdr *) (buffer + sizeof(struct iphdr));
 	char *data = buffer + sizeof(struct iphdr) + sizeof(struct udphdr);
 
-	memcpy(data, buf, len);
+	memcpy(data, buf, buf_len);
 
 	ip->version = 4;
 	ip->ihl = 5;
-	buf_len = sizeof(struct iphdr) + sizeof(struct udphdr) + len;
-	ip->tot_len = htons(buf_len);
+	buffer_len = sizeof(struct iphdr) + sizeof(struct udphdr) + buf_len;
+	ip->tot_len = htons(buffer_len);
 	ip->id = htons(rand());
 	ip->ttl = 64;
 	ip->protocol = IPPROTO_UDP;
@@ -96,30 +108,35 @@ ssize_t sendto_spoof(sockaddr_union *src_addr, sockaddr_union *dest_addr, void *
 	ip->check = checksum(ip, sizeof(struct iphdr));
 
     } else if (src_addr->sa.sa_family == AF_INET6) {
-	buf_len = sizeof(struct ip6_hdr) + sizeof(struct udphdr) + len;
-	char *buffer = alloca(buf_len);
-	memset(buffer, 0, buf_len);
+	buffer_len = sizeof(struct ip6_hdr) + sizeof(struct udphdr) + buf_len;
+	char *buffer = alloca(buffer_len);
+	memset(buffer, 0, buffer_len);
 
 	struct ip6_hdr *ip6 = (struct ip6_hdr *) buffer;
 	udp = (struct udphdr *) (buffer + sizeof(struct ip6_hdr));
 	char *data = buffer + sizeof(struct ip6_hdr) + sizeof(struct udphdr);
 
-	memcpy(data, buf, len);
+	memcpy(data, buf, buf_len);
 
 	ip6->ip6_flow = htonl((6 << 28));	// version
-	ip6->ip6_plen = htons(sizeof(struct udphdr) + len);
+	ip6->ip6_plen = htons(sizeof(struct udphdr) + buf_len);
 	ip6->ip6_nxt = IPPROTO_UDP;
 	ip6->ip6_hops = 64;
 	memcpy(&ip6->ip6_src, &src_addr->sin6.sin6_addr, 16);
 	memcpy(&ip6->ip6_dst, &dest_addr->sin6.sin6_addr, 16);
     }
 
+#ifdef __ANY_BSD__
+#define source uh_sport
+#define dest uh_dport
+#define len uh_ulen
+#endif
     while (!udp->source)
 	udp->source = htons((short) ((0x8000 | rand()) & 0xfff));
     udp->dest = htons(su_get_port(dest_addr));
-    udp->len = htons(sizeof(struct udphdr) + len);
+    udp->len = htons(sizeof(struct udphdr) + buf_len);
 
-    int res = sendto(sock, buffer, buf_len, 0, &dest_addr->sa, sizeof(dest_addr->sa));
+    int res = sendto(sock, buffer, buffer_len, 0, &dest_addr->sa, sizeof(dest_addr->sa));
     close(sock);
     return res;
 }
