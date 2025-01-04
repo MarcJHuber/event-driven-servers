@@ -19,7 +19,7 @@ my $cmdline = join (' ', @ARGV);
 
 getopts('l:f:i:', \%opts);
 
-my $prefix = '<' . int (eval "$opts{'f'} | $opts{'l'}") . ">" . $opts{'i'};
+my $prefix = '<' . int (eval "$opts{'f'} | $opts{'l'}") . '>' . $opts{'i'};
 
 die
 "Usage:   $0 [-f <facility>] [-l <level>] [-i <ident>] <dst-ip>\n" .

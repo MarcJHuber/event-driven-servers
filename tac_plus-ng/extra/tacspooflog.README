@@ -1,3 +1,7 @@
+*********************************************************
+Update: Recent Linux kernels no longer require this hack.
+*********************************************************
+
 On Linux, packets sent by tacspooflog.pl don't seem to make it to the input
 queue of the local Linux system.
 

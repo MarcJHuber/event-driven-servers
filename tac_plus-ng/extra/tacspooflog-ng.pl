@@ -28,7 +28,7 @@ my $cmdline = join (' ', @ARGV);
 
 getopts('l:f:i:I:R:D:4:6:d', \%opts);
 
-my $prefix = '<' . int (eval "$opts{'f'} | $opts{'l'}") . ">" . $opts{'i'};
+my $prefix = '<' . int (eval "$opts{'f'} | $opts{'l'}") . '>' . $opts{'i'};
 
 my ($daddr4, $daddr6) = @ARGV;
 $daddr4 = $opts{'4'} if exists $opts{'4'};
