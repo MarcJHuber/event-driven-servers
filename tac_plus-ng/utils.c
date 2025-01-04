@@ -1680,12 +1680,14 @@ static str_t *eval_log_format_TIMESTAMP(tac_session *session __attribute__((unus
 	    t[i] = '0' + (usec % 10);
 	    usec /= 10;
 	}
+	buf[34] = buf[33];
 	buf[33] = buf[32];
 	buf[32] = buf[31];
 	buf[31] = buf[30];
 	buf[30] = buf[29];
 	buf[29] = ':';
     }
+    l++;
     str_set(&str, buf, l);
 
     return &str;
