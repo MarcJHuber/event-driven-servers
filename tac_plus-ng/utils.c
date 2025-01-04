@@ -77,6 +77,7 @@ struct logfile {
     void (*log_write)(struct logfile *, char *, size_t);
     void (*log_flush)(struct logfile *);
     int syslog_priority;
+    sockaddr_union *syslog_source;
     sockaddr_union syslog_destination;
     int sock;
     time_t last;
@@ -93,6 +94,8 @@ struct logfile {
      BISTATE(flag_sync);
      BISTATE(flag_pipe);
      BISTATE(flag_staticpath);
+     BISTATE(flag_udp_spoof);
+    enum token timestamp_format;
 };
 
 static void log_start(struct logfile *, struct context_logfile *);
@@ -391,10 +394,12 @@ static void log_flush_syslog_udp(struct logfile *lf __attribute__((unused)))
 {
     if (lf->ctx && lf->ctx->buf) {
 	off_t len = (off_t) buffer_getlen(lf->ctx->buf);
-	int r;
+	int r = -1;
 	if (lf->syslog_destination.sa.sa_family == AF_UNIX)
 	    r = send(lf->sock, lf->ctx->buf->buf + lf->ctx->buf->offset, (int) len, 0);
-	else
+	else if (lf->syslog_source)
+	    r = sendto_spoof(lf->syslog_source, &lf->syslog_destination, lf->ctx->buf->buf + lf->ctx->buf->offset, (size_t) len);
+	if (r)
 	    r = sendto(lf->sock, lf->ctx->buf->buf + lf->ctx->buf->offset, (int) len, 0, &lf->syslog_destination.sa, su_len(&lf->syslog_destination));
 	if (r < 0)
 	    report(NULL, LOG_DEBUG, ~0, "send/sendto (%s:%d): %s", __FILE__, __LINE__, strerror(errno));
@@ -538,12 +543,31 @@ void parse_log(struct sym *sym, tac_realm *r)
 		    lf->syslog_ident = strdup(sym->buf);
 		    sym_get(sym);
 		    continue;
+		case S_source:
+		    sym_get(sym);
+		    parse(sym, S_spoofing);
+		    parse(sym, S_equal);
+		    lf->flag_udp_spoof = parse_bool(sym) ? 1 : 0;
+		    continue;
 		default:
-		    parse_error_expect(sym, S_facility, S_severity, S_ident, S_unknown);
+		    parse_error_expect(sym, S_facility, S_severity, S_ident, S_unknown, S_source);
 		}
+	    case S_timestamp:
+		sym_get(sym);
+		parse(sym, S_equal);
+		switch (sym->code) {
+		case S_RFC3164:
+		case S_RFC5424:
+		    lf->timestamp_format = sym->code;
+		    sym_get(sym);
+		    break;
+		default:
+		    parse_error_expect(sym, S_RFC3164, S_RFC5424, S_unknown);
+		}
+		continue;
 	    default:
 		parse_error_expect(sym, S_destination, S_syslog, S_access, S_authorization, S_accounting, S_connection, S_closebra,
-				   S_radius_access, S_radius_accounting, S_unknown);
+				   S_radius_access, S_radius_accounting, S_timestamp, S_unknown);
 	    }
 	}
 	sym_get(sym);
@@ -552,7 +576,7 @@ void parse_log(struct sym *sym, tac_realm *r)
     str_set(&lf->priority, buf, snprintf(buf, sizeof(buf), "%d", lf->syslog_priority));
 
     if (!access_file) {
-#define DATE "%Y-%m-%d %H:%M:%S %z "
+#define DATE "${TIMESTAMP} "
 #define SEP1 "\t"
 #define SEP2 "|"
 #define PR "\""			// prefix
@@ -672,6 +696,8 @@ void parse_log(struct sym *sym, tac_realm *r)
 	lf->log_flush = &log_flush_async;
 	break;
     default:
+	if (lf->timestamp_format == S_unknown)
+	    lf->timestamp_format = S_RFC3164;
 	if (!strcmp(lf->dest, codestring[S_syslog].txt)) {
 	    if (!lf->acct)
 		lf->acct = acct_syslog3;
@@ -885,6 +911,7 @@ struct log_item *parse_log_format(struct sym *sym, mem_t *mem)
 	    case S_USER_ACCESS_VERIFICATION:
 	    case S_DENIED_BY_ACL:
 	    case S_AUTHFAIL_BANNER:
+	    case S_TIMESTAMP:
 		break;
 	    case S_config_file:
 		(*li)->token = S_string;
@@ -1620,6 +1647,47 @@ static str_t *eval_log_format_conn_transport(tac_session *session __attribute__(
     return NULL;
 }
 
+static str_t *eval_log_format_TIMESTAMP(tac_session *session __attribute__((unused)), struct context *ctx __attribute__((unused)), struct logfile *lf)
+{
+    static char buf[64] = { 0 };
+    enum token timestamp_format = lf ? lf->timestamp_format : S_unknown;
+    const char *format = NULL;
+
+    switch (timestamp_format) {
+    case S_RFC3164:
+	format = "%b %e %H:%M:%S";
+	break;
+    case S_RFC5424:
+	//format = "%Y-%m-%dT%H:%M:%S.%06N%:z";
+	format = "%Y-%m-%dT%H:%M:%S.      %z";
+	break;
+    case S_none:
+	return NULL;
+    default:
+	format = "%Y-%m-%d %H:%M:%S %z";
+	break;
+    }
+
+    struct tm *tm = localtime(&io_now.tv_sec);
+    size_t l = strftime(buf, sizeof(buf), format, tm);
+    if (timestamp_format == S_RFC5424) {
+	char *t = buf + 20;
+	long int usec = io_now.tv_usec;
+	for (int i = 5; i > -1; i--) {
+	    t[i] = '0' + (usec % 10);
+	    usec /= 10;
+	}
+	buf[33] = buf[32];
+	buf[32] = buf[31];
+	buf[31] = buf[30];
+	buf[30] = buf[29];
+	buf[29] = ':';
+    }
+    str_set(&str, buf, l);
+
+    return &str;
+}
+
 #if defined(WITH_SSL)
 static str_t *eval_log_format_tls_conn_version(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
 {
@@ -1712,6 +1780,7 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 	efun[S_RESPONSE_INCORRECT] = &eval_log_format_RESPONSE_INCORRECT;
 	efun[S_USERNAME] = &eval_log_format_USERNAME;
 	efun[S_USER_ACCESS_VERIFICATION] = &eval_log_format_USER_ACCESS_VERIFICATION;
+	efun[S_TIMESTAMP] = &eval_log_format_TIMESTAMP;
 	efun[S_accttype] = &eval_log_format_accttype;
 	efun[S_action] = &eval_log_format_action;
 	efun[S_authen_action] = &eval_log_format_authen_action;
@@ -1981,8 +2050,15 @@ void log_exec(tac_session *session, struct context *ctx, enum token token, time_
 		    return;
 		}
 
+		sockaddr_union syslog_source;
 		char *s = eval_log_format(session, ctx, lf, li, sec, &len);
+		if (lf->flag_udp_spoof && !su_htop(&syslog_source, &ctx->device_addr, lf->syslog_destination.sa.sa_family))
+		    lf->syslog_source = &syslog_source;
+
 		log_start(lf, NULL);
+
+		lf->syslog_source = NULL;
+
 		lf->log_write(lf, s, len);
 		lf->log_flush(lf);
 	    }

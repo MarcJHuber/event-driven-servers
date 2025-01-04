@@ -1083,6 +1083,8 @@ void users_dec(void);
 
 void update_bio(struct context *);
 
+ssize_t sendto_spoof(sockaddr_union * from_addr, sockaddr_union * dest_addr, void *buf, size_t len);
+
 extern struct config config;
 extern int die_when_idle;
 
