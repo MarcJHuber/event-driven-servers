@@ -728,9 +728,9 @@ realm realmName { ... }
      * RADIUS Accounting
   radius.accounting log = log_destination
 
-   Logs may be written to multiple destinations:
+   Logs may be written to multiple destinations.
 
-   Valid log destinations are "named":
+   Valid log destinations are named:
   log mylog {
     destination = 169.254.0.23                     # UDP syslog
     # or one of the following:
@@ -745,6 +745,22 @@ ites
     #
     syslog facility = MAIL                         # sets log facility
     syslog level = DEBUG                           # sets log level
+    #
+    # source spoofing = yes                        # Enable source ip sp
+oofing for UDP syslog, just
+                                                   # like tacspooflog-ng
+.pl does. May require root
+                                                   # privileges, and may
+ not work on all systems.
+                                                   # Currently available
+ on Linux only.
+    #
+    # timestamp = RFC3164                          # default for syslog,
+ other options are
+                                                   # "RFC5424" or "none"
+, see the TIMESTAMP
+                                                   # log variable for de
+tails.
   }
   authentication log = mylog
   accounting log = mylog
@@ -851,6 +867,10 @@ syslog default = deny
    ${tls.peer.cn} TLS peer certificate Common Name (requires
    LibTLS or OpenSSL)
    ${tls.psk.identity} TLS PSK identity (requires OpenSSL)
+   ${TIMESTAMP} strftime(3) timestamp format, "%b %e %H:%M:%S" for
+   timestamp = RFC3164 (default for syslog)
+   "%Y-%m-%dT%H:%M:%S.%06N%:z" for timestamp = RFC5424, "%Y-%m-%d
+   %H:%M:%S %z" else.
        The built-in defaults as of writing this are:
 # Accounting to file/pipe:
 "%Y-%m-%d %H:%M:%S %z\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${
