@@ -294,6 +294,8 @@ clone				S_clone
 time				S_time
 timeout				S_timeout
 timespec			S_timespec
+timestamp			S_timestamp
+TIMESTAMP			S_TIMESTAMP
 tls				S_tls
 transfer			S_transfer
 transmission-mode		S_transmissionmode
@@ -567,6 +569,9 @@ conn.protocol			S_conn_protocol
 conn.transport			S_conn_transport
 #
 flag				S_flag
+#
+source				S_source
+spoofing			S_spoofing
 #
 TLSv1.2				S_TLS1_2
 TLSv1.3				S_TLS1_3
