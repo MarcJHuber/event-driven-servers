@@ -23,7 +23,7 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-uint16_t su_get_port(sockaddr_union * sa)
+uint16_t su_get_port(sockaddr_union *sa)
 {
     switch (sa->sa.sa_family) {
 #ifdef AF_INET
@@ -38,7 +38,7 @@ uint16_t su_get_port(sockaddr_union * sa)
     return 0;
 }
 
-int su_set_port(sockaddr_union * sa, uint16_t port)
+int su_set_port(sockaddr_union *sa, uint16_t port)
 {
     switch (sa->sa.sa_family) {
 #ifdef AF_INET
@@ -55,7 +55,7 @@ int su_set_port(sockaddr_union * sa, uint16_t port)
     return -1;
 }
 
-int su_convert(sockaddr_union * sa, u_int af)
+int su_convert(sockaddr_union *sa, u_int af)
 {
     if (sa->sa.sa_family == af)
 	return 0;
@@ -91,7 +91,7 @@ int su_convert(sockaddr_union * sa, u_int af)
     return -1;
 }
 
-int su_equal_addr(sockaddr_union * dst, sockaddr_union * src)
+int su_equal_addr(sockaddr_union *dst, sockaddr_union *src)
 {
     if (dst->sa.sa_family == src->sa.sa_family) {
 	switch (dst->sa.sa_family) {
@@ -120,13 +120,13 @@ int su_equal_addr(sockaddr_union * dst, sockaddr_union * src)
     return 0;
 }
 
-int su_equal(sockaddr_union * dst, sockaddr_union * src)
+int su_equal(sockaddr_union *dst, sockaddr_union *src)
 {
     return (su_equal_addr(dst, src)
 	    && su_get_port(dst) == su_get_port(src));
 }
 
-int su_cmp_addr(sockaddr_union * dst, sockaddr_union * src)
+int su_cmp_addr(sockaddr_union *dst, sockaddr_union *src)
 {
     if (dst->sa.sa_family == src->sa.sa_family) {
 	switch (dst->sa.sa_family) {
@@ -172,7 +172,7 @@ int su_cmp_addr(sockaddr_union * dst, sockaddr_union * src)
     return -1;
 }
 
-int su_cmp(sockaddr_union * dst, sockaddr_union * src)
+int su_cmp(sockaddr_union *dst, sockaddr_union *src)
 {
     int r = su_cmp_addr(dst, src);
     if (r)
@@ -184,7 +184,7 @@ int su_cmp(sockaddr_union * dst, sockaddr_union * src)
     return 0;
 }
 
-int su_copy_addr(sockaddr_union * dst, sockaddr_union * src)
+int su_copy_addr(sockaddr_union *dst, sockaddr_union *src)
 {
     if (dst->sa.sa_family == src->sa.sa_family)
 	switch (dst->sa.sa_family) {
@@ -230,7 +230,7 @@ int su_copy_addr(sockaddr_union * dst, sockaddr_union * src)
     return -1;
 }
 
-int service_to_port(uint16_t * p, char *service, int proto)
+int service_to_port(uint16_t *p, char *service, int proto)
 {
     int i;
     if (1 != sscanf(service, "%d", &i)) {
@@ -278,7 +278,7 @@ char *inet_any()
     return any;
 }
 
-socklen_t su_len(sockaddr_union * sa)
+socklen_t su_len(sockaddr_union *sa)
 {
     switch (sa->sa.sa_family) {
 #ifdef AF_UNIX
@@ -306,7 +306,7 @@ int su_socket(int domain, int type, int protocol)
     return s;
 }
 
-int su_bind(int s, sockaddr_union * sa)
+int su_bind(int s, sockaddr_union *sa)
 {
     int one = 1;
 
@@ -321,7 +321,7 @@ int su_bind(int s, sockaddr_union * sa)
 }
 
 
-char *su_ntop(sockaddr_union * sa, char *dst, size_t cnt)
+char *su_ntop(sockaddr_union *sa, char *dst, size_t cnt)
 {
     switch (sa->sa.sa_family) {
 #ifdef AF_UNIX
@@ -350,7 +350,7 @@ char *su_ntop(sockaddr_union * sa, char *dst, size_t cnt)
     return NULL;
 }
 
-int su_pton_p(sockaddr_union * su, char *src, uint16_t port)
+int su_pton_p(sockaddr_union *su, char *src, uint16_t port)
 {
     size_t l = strlen(src);
     char *s = alloca(l + 1);
@@ -383,7 +383,7 @@ int su_pton_p(sockaddr_union * su, char *src, uint16_t port)
     return 0;
 }
 
-int su_pton(sockaddr_union * su, char *src)
+int su_pton(sockaddr_union *su, char *src)
 {
     struct hints {
 	int family;
@@ -475,7 +475,7 @@ int su_addrinfo(char *address, char *port, int protocol, int family, int count, 
 	return 0;
     }
 #ifdef AF_INET6
-    struct addrinfo hints = { .ai_flags = AI_PASSIVE, .ai_protocol = protocol, .ai_family = family };
+    struct addrinfo hints = {.ai_flags = AI_PASSIVE,.ai_protocol = protocol,.ai_family = family };
 
     if (!getaddrinfo(address, NULL, &hints, &res)) {
 	int i;
@@ -509,7 +509,7 @@ int su_addrinfo(char *address, char *port, int protocol, int family, int count, 
     return -1;
 }
 
-int su_nameinfo(sockaddr_union * su, char *host, size_t hostlen, char *serv, size_t servlen, int flags)
+int su_nameinfo(sockaddr_union *su, char *host, size_t hostlen, char *serv, size_t servlen, int flags)
 {
     switch (su->sa.sa_family) {
 #ifdef AF_UNIX
@@ -557,7 +557,7 @@ int su_nameinfo(sockaddr_union * su, char *host, size_t hostlen, char *serv, siz
     return -1;
 }
 
-int su_ptoh(sockaddr_union * su, struct in6_addr *a)
+int su_ptoh(sockaddr_union *su, struct in6_addr *a)
 {
     switch (su->sa.sa_family) {
 #ifdef AF_INET
@@ -570,6 +570,27 @@ int su_ptoh(sockaddr_union * su, struct in6_addr *a)
 #ifdef AF_INET6
     case AF_INET6:
 	v6_ntoh(a, &su->sin6.sin6_addr);
+	return 0;
+#endif				/* AF_INET6 */
+    }
+    return -1;
+}
+
+int su_htop(sockaddr_union *su, struct in6_addr *a, int sa_family)
+{
+    memset(su, 0, sizeof(sockaddr_union));
+    su->sa.sa_family = sa_family;
+    switch (sa_family) {
+#ifdef AF_INET
+    case AF_INET:
+	if (a->s6_addr32[0] || a->s6_addr32[1] || a->s6_addr32[2] != 0x0000FFFF)
+	    return -1;
+	su->sin.sin_addr.s_addr = htonl(a->s6_addr32[3]);
+	return 0;
+#endif				/* AF_INET */
+#ifdef AF_INET6
+    case AF_INET6:
+	v6_ntoh(&su->sin6.sin6_addr, a);
 	return 0;
 #endif				/* AF_INET6 */
     }

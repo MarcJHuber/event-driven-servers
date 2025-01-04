@@ -262,8 +262,11 @@ struct in6_addr {
 #define v6_bitset(a,b) ((b > 0) && ((b) < 129) && \
         ((a).s6_addr32[(b-1)>>5] & (0x80000000 >> ((b-1)&0x1f))))
 
-/* extract IP address (in host byte order)  from sockaddr_union */
+/* extract IP address (in host byte order) from sockaddr_union */
 int su_ptoh(sockaddr_union *, struct in6_addr *);
+
+/* copy IP address (in host byte order) to sockaddr_union */
+int su_htop(sockaddr_union *, struct in6_addr *, int af_family);
 
 /* return CIDR size of smalles supernet */
 int v6_common_cidr(struct in6_addr *, struct in6_addr *, int);
