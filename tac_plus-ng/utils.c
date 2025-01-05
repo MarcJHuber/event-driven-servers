@@ -398,7 +398,7 @@ static void log_flush_syslog_udp(struct logfile *lf __attribute__((unused)))
 	if (lf->syslog_destination.sa.sa_family == AF_UNIX)
 	    r = send(lf->sock, lf->ctx->buf->buf + lf->ctx->buf->offset, (int) len, 0);
 	else
-#ifdef __linux__
+#if defined(__linux__) || defined(__ALL_BSD__)
 	    if (lf->syslog_source)
 		r = sendto_spoof(lf->syslog_source, &lf->syslog_destination, lf->ctx->buf->buf + lf->ctx->buf->offset, (size_t) len);
 #endif
@@ -2063,11 +2063,10 @@ void log_exec(tac_session *session, struct context *ctx, enum token token, time_
 		    lf->syslog_source = &syslog_source;
 
 		log_start(lf, NULL);
-
-		lf->syslog_source = NULL;
-
 		lf->log_write(lf, s, len);
 		lf->log_flush(lf);
+
+		lf->syslog_source = NULL;
 	    }
 	}
 	r = r->parent;
