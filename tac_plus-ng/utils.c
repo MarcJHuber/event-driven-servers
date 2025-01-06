@@ -400,10 +400,9 @@ static void log_flush_syslog_udp(struct logfile *lf __attribute__((unused)))
 	int r = -1;
 	if (lf->syslog_destination.sa.sa_family == AF_UNIX)
 	    r = send(lf->sock, lf->ctx->buf->buf + lf->ctx->buf->offset, (int) len, 0);
-	else if (lf->syslog_source) {
-	    if (lf->syslog_source->sa.sa_family == lf->syslog_destination.sa.sa_family)
-		r = sendto_spoof(lf->syslog_source, &lf->syslog_destination, lf->ctx->buf->buf + lf->ctx->buf->offset, (size_t) len);
-	    else if (lf->dest2 && lf->syslog_source->sa.sa_family == lf->syslog_destination2.sa.sa_family)
+	if (lf->syslog_source && r < 0) {
+	    r = sendto_spoof(lf->syslog_source, &lf->syslog_destination, lf->ctx->buf->buf + lf->ctx->buf->offset, (size_t) len);
+	    if (r < 0 && lf->dest2)
 		r = sendto_spoof(lf->syslog_source, &lf->syslog_destination2, lf->ctx->buf->buf + lf->ctx->buf->offset, (size_t) len);
 	}
 	if (r < 0)
@@ -2075,11 +2074,12 @@ void log_exec(tac_session *session, struct context *ctx, enum token token, time_
 
 		sockaddr_union syslog_source;
 		char *s = eval_log_format(session, ctx, lf, li, sec, &len);
-		if (lf->flag_udp_spoof &&
-		    (((lf->syslog_destination.sa.sa_family == AF_INET || lf->syslog_destination2.sa.sa_family == AF_INET)
-		      && !su_htop(&syslog_source, &ctx->device_addr, AF_INET)) || (lf->dest2 && (lf->syslog_destination.sa.sa_family == AF_INET6
-												 || lf->syslog_destination2.sa.sa_family == AF_INET6)
-										   && !su_htop(&syslog_source, &ctx->device_addr, AF_INET6))))
+		if (lf->flag_udp_spoof && (((lf->syslog_destination.sa.sa_family == AF_INET || lf->syslog_destination2.sa.sa_family == AF_INET)
+					    && !su_htop(&syslog_source, &ctx->device_addr, AF_INET))
+					   || (lf->dest2
+					       && (lf->syslog_destination.sa.sa_family == AF_INET6 || lf->syslog_destination2.sa.sa_family == AF_INET6)
+					       && !su_htop(&syslog_source, &ctx->device_addr, AF_INET6)))
+		    )
 		    lf->syslog_source = &syslog_source;
 
 		log_start(lf, NULL);
