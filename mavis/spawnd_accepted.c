@@ -209,6 +209,9 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 
 	for (struct cmsghdr * cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
 #ifdef IP_PKTINFO
+#ifndef SOL_IP
+#define SOL_IP IPPROTO_IP
+#endif
 	    if (cmsg->cmsg_level == SOL_IP && cmsg->cmsg_type == IP_PKTINFO) {
 		memcpy(&local_su.sin.sin_addr, &((struct in_pktinfo *) CMSG_DATA(cmsg))->ipi_addr, 4);
 		local_su.sa.sa_family = AF_INET;
