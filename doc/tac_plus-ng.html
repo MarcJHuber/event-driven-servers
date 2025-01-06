@@ -755,25 +755,30 @@ device router.example.com {
 <p>Logs may be written to multiple destinations.</p>
 <p>Valid log destinations are <span class="emphasis"><i class="emphasis">named</i></span>:</p>
 <pre class="screen">  log mylog {
-    destination = 169.254.0.23                     # UDP syslog
-    # or one of the following:
-    # destination = [fe80::123:4567:89ab:cdef]:514 # IPv6 UDP, with non-standard UDP port
-    # destination = "/tmp/x.log"                   # plain file, async writes
-    # destination = "&gt;/tmp/x.log"                  # plain file, sync writes
-    # destination = "|my_script.sh"                # script
-    # destination = syslog                         # syslog(3)
+    destination = 169.254.0.23       # UDP syslog, default port
+    # destination = 169.254.0.24:514 # UDP syslog, port specified
+    # destination = [fe80::123:4567:89ab:cdef]     # IPv6 UDP
+    # destination = [fe80::123:4567:89ab:cdef]:514 # IPv6 UDP, port specified
+    # destination = "/tmp/x.log"     # plain file, async writes
+    # destination = "&gt;/tmp/x.log" # plain file, sync writes
+    # destination = "|my_script.sh"  # script
+    # destination = syslog           # syslog(3)
     #
-    syslog facility = MAIL                         # sets log facility
-    syslog level = DEBUG                           # sets log level
+    syslog facility = MAIL           # sets log facility
+    syslog level = DEBUG             # sets log level
     #
-    # source spoofing = yes                        # Enable source ip spoofing for UDP syslog, just
-                                                   # like tacspooflog-ng.pl does. May require root
-                                                   # privileges, and may not work on all systems.
-                                                   # Currently available on Linux only.
+    # # IP source spoofing for UDP syslog. This will require root privileges, or
+    # # (on Linux) CAP_NET_RAW capabilities.
+    # # Requires a dedicated destination per protocol:
+    # destination = 169.254.0.24:514,[fe80::123:4567:89ab:cdef]:514
+    # source spoofing = yes
+    # # This is basically similar to tacspooflog-ng.pl funcctionality. Alas, this
+    # # comes with some restrictions also, e.g. on Linux it may not work via the
+    # # lo interface. Also, only a subset of the other platforms has been tested.
     #
-    # timestamp = RFC3164                          # default for syslog, other options are
-                                                   # "RFC5424" or "none", see the TIMESTAMP
-                                                   # log variable for details.
+    # timestamp = RFC3164 # default for syslog, other options are
+    #                     # "RFC5424" or "none", see the TIMESTAMP
+    #                     # log variable for details.
   }
   authentication log = mylog
   accounting log = mylog
