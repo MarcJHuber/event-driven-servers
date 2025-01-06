@@ -73,13 +73,16 @@ static int tac_unlockfd(int lockfd)
 struct logfile {
     TAC_NAME_ATTRIBUTES;
     char *dest;			/* log file dest specification */
+    char *dest2;		/* secondary dest specification for syslog */
     struct context_logfile *ctx;	/* current log context */
     void (*log_write)(struct logfile *, char *, size_t);
     void (*log_flush)(struct logfile *);
     int syslog_priority;
     sockaddr_union *syslog_source;
     sockaddr_union syslog_destination;
+    sockaddr_union syslog_destination2;
     int sock;
+    int sock2;
     time_t last;
     struct log_item *acct;
     struct log_item *access;
@@ -397,8 +400,12 @@ static void log_flush_syslog_udp(struct logfile *lf __attribute__((unused)))
 	int r = -1;
 	if (lf->syslog_destination.sa.sa_family == AF_UNIX)
 	    r = send(lf->sock, lf->ctx->buf->buf + lf->ctx->buf->offset, (int) len, 0);
-	else if (lf->syslog_source)
-	    r = sendto_spoof(lf->syslog_source, &lf->syslog_destination, lf->ctx->buf->buf + lf->ctx->buf->offset, (size_t) len);
+	else if (lf->syslog_source) {
+	    if (lf->syslog_source->sa.sa_family == lf->syslog_destination.sa.sa_family)
+		r = sendto_spoof(lf->syslog_source, &lf->syslog_destination, lf->ctx->buf->buf + lf->ctx->buf->offset, (size_t) len);
+	    else if (lf->dest2 && lf->syslog_source->sa.sa_family == lf->syslog_destination2.sa.sa_family)
+		r = sendto_spoof(lf->syslog_source, &lf->syslog_destination2, lf->ctx->buf->buf + lf->ctx->buf->offset, (size_t) len);
+	}
 	if (r < 0)
 	    r = sendto(lf->sock, lf->ctx->buf->buf + lf->ctx->buf->offset, (int) len, 0, &lf->syslog_destination.sa, su_len(&lf->syslog_destination));
 	if (r < 0)
@@ -518,6 +525,11 @@ void parse_log(struct sym *sym, tac_realm *r)
 		parse(sym, S_equal);
 		lf->dest = strdup(sym->buf);
 		sym_get(sym);
+		if (sym->code == S_comma) {
+		    sym_get(sym);
+		    lf->dest2 = strdup(sym->buf);
+		    sym_get(sym);
+		}
 		continue;
 	    case S_syslog:
 		sym_get(sym);
@@ -738,6 +750,13 @@ void parse_log(struct sym *sym, tac_realm *r)
 		return;
 	    }
 	    fcntl(lf->sock, F_SETFD, fcntl(lf->sock, F_GETFD, 0) | FD_CLOEXEC);
+	    if (lf->dest2 && !su_pton_p(&lf->syslog_destination2, lf->dest2, 514)) {
+		if ((lf->sock2 = su_socket(lf->syslog_destination2.sa.sa_family, SOCK_DGRAM, 0)) < 0) {
+		    report(NULL, LOG_DEBUG, ~0, "su_socket (%s:%d): %s", __FILE__, __LINE__, strerror(errno));
+		    free(lf);
+		    return;
+		}
+	    }
 	    if (lf->syslog_destination.sa.sa_family == AF_UNIX && su_connect(lf->sock, &lf->syslog_destination)) {
 		report(NULL, LOG_DEBUG, ~0, "su_connect (%s:%d): %s", __FILE__, __LINE__, strerror(errno));
 		close(lf->sock);
@@ -2056,7 +2075,11 @@ void log_exec(tac_session *session, struct context *ctx, enum token token, time_
 
 		sockaddr_union syslog_source;
 		char *s = eval_log_format(session, ctx, lf, li, sec, &len);
-		if (lf->flag_udp_spoof && !su_htop(&syslog_source, &ctx->device_addr, lf->syslog_destination.sa.sa_family))
+		if (lf->flag_udp_spoof &&
+		    (((lf->syslog_destination.sa.sa_family == AF_INET || lf->syslog_destination2.sa.sa_family == AF_INET)
+		      && !su_htop(&syslog_source, &ctx->device_addr, AF_INET)) || (lf->dest2 && (lf->syslog_destination.sa.sa_family == AF_INET6
+												 || lf->syslog_destination2.sa.sa_family == AF_INET6)
+										   && !su_htop(&syslog_source, &ctx->device_addr, AF_INET6))))
 		    lf->syslog_source = &syslog_source;
 
 		log_start(lf, NULL);
