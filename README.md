@@ -10,6 +10,10 @@ Discussions can be started via
 
   https://github.com/MarcJHuber/event-driven-servers/discussions
 
+Also, there's still the the legacy mailing list at
+
+   event-driven-servers@googlegroups.com
+
 Home site is https://www.pro-bono-publico.de/projects/
 
 Bugs
@@ -20,24 +24,15 @@ Be prepared for issues. This is work-in-progress, so be prepared for unexpected 
 Installation instructions
 =========================
 
-This software suite should compile quite fine on a variety of platforms,
-e.g. current versions of Sun Solaris, FreeBSD, NetBSD, OpenBSD, DragonFly
-BSD, Darwin, Linux and Cygwin. See the comments at the beginning of
-
-  misc/sysconf.h
-
-for a somewhat comprehensive list.
-
-Unless you're trying to install the software on an unsupported system,
-there shouldn't be any need to mess with the makefiles. If you do so,
-you're on your own, and you'll better know what you're doing.
+This software suite should compile quite fine on Linux, FreeBSD and OpenBSD.
+Other platforms might be fine, too, but weren't recently tested.
 
 Build environment
 -----------------
 
 Required tools:
 
-- A supported C compiler, plus linker. LLVM is fine, GCC will work too (but has issues with optimization, so that's disabled for now).
+- A supported C compiler, plus linker. LLVM is fine, GCC will work too (but might have issues with optimization, so that's disabled for now).
 - GNU make (version 3.79.1, unpatched,  recommended, others may or may
   not work).
 - Perl
@@ -85,8 +80,9 @@ Support
 While I really appreciate that you're using the software I'd
 very much prefer *not* to receive private support enquiries.
 
-As already mentioned on the top of this page: Please direct support queries to GitHub discussions or issues:
+Please direct support queries to GitHub discussions to one of those:
 
   https://github.com/MarcJHuber/event-driven-servers/discussions
   https://github.com/MarcJHuber/event-driven-servers/issues
+  https://groups.google.com/g/event-driven-servers
 
