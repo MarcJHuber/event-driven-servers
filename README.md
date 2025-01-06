@@ -80,7 +80,7 @@ Support
 While I really appreciate that you're using the software I'd
 very much prefer *not* to receive private support enquiries.
 
-Please direct support queries to GitHub discussions to one of those:
+Please direct support queries to GitHub discussions, GitHub issues or the Google Group:
 
   https://github.com/MarcJHuber/event-driven-servers/discussions
   https://github.com/MarcJHuber/event-driven-servers/issues
