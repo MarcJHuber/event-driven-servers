@@ -1302,9 +1302,10 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
     u_char tmp[6];
     if (recv_inject(ctx, tmp, sizeof(tmp), MSG_PEEK) == (ssize_t) sizeof(tmp)) {
 	if (ctx->udp && tmp[0] == 0x17 && tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2])) {
-	    // DTLS Application Data, but we haven't seen the handshake.
+	    // DTLS Application Data, but we haven't seen the handshake, possibly due to a daemon
+	    // restart. Just return some junk data back , the peer is likely to retry with a new handshake.
 	    char junk[128] = { 0 };
-	    write(ctx->sock, junk, sizeof(junk));	// send some junk data, the peer is likely to retry with a new handshake
+	    write(ctx->sock, junk, sizeof(junk));
 	    cleanup(ctx, ctx->sock);
 	    return;
 	}
@@ -1427,12 +1428,8 @@ static void accept_control(struct context *ctx, int cur)
     case SCM_MAY_DIE:
 	cleanup_spawnd(ctx, cur);
 	return;
-    case SCM_UDPDATA:{
-	    if (!config.rad_dict) {
-		users_inc();
-		users_dec();
-		return;
-	    }
+    case SCM_UDPDATA:
+	if (config.rad_dict) {
 	    rad_pak_hdr *hdr = (rad_pak_hdr *) (&u.sd_udp.data);
 	    if (u.sd_udp.data_len != ntohs(hdr->length))
 		return;
@@ -1442,6 +1439,9 @@ static void accept_control(struct context *ctx, int cur)
 	    accept_control_common(s, &sd_ext, NULL, u.sd_udp.data, u.sd_udp.data_len);
 	    return;
 	}
+	users_inc();
+	users_dec();
+	return;
     case SCM_ACCEPT:
 	memcpy(&sd_ext.sd, &u.sd, sizeof(struct scm_data_accept));
 	users_inc();
