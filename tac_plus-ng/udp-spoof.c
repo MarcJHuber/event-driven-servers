@@ -136,7 +136,7 @@ ssize_t sendto_spoof(sockaddr_union *src_su, sockaddr_union *dst_su, void *buf, 
 	memcpy(buffer + sizeof(struct ip6_hdr) + sizeof(struct udphdr), buf, buf_len);
 
 	struct udp_pseudo_header {
-	    struct in6_addr src_su;
+	    struct in6_addr src_addr;
 	    struct in6_addr dst_addr;
 	    uint32_t length;
 	    uint8_t zeros[3];
@@ -144,7 +144,7 @@ ssize_t sendto_spoof(sockaddr_union *src_su, sockaddr_union *dst_su, void *buf, 
 	} __attribute__((__packed__));
 
 	struct udp_pseudo_header pseudo_header = {
-	    .src_su = ip6->ip6_src,
+	    .src_addr = ip6->ip6_src,
 	    .dst_addr = ip6->ip6_dst,
 	    .length = udp->uh_ulen,
 	    .next_header = IPPROTO_UDP
