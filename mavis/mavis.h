@@ -467,7 +467,7 @@ struct mavis_cond {
     union {
 	struct mavis_cond_single s;
 	struct mavis_cond_multi m;
-    } u;
+    };
 };
 
 struct mavis_cond *mavis_cond_new(struct sym *, mem_t *, enum token);

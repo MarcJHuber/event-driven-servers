@@ -4337,9 +4337,9 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 	sym_get(sym);
 	parse(sym, S_equal);
 
-	m->u.s.rhs = tac_acl_lookup(sym->buf, realm);
+	m->s.rhs = tac_acl_lookup(sym->buf, realm);
 
-	if (!m->u.s.rhs)
+	if (!m->s.rhs)
 	    parse_error(sym, "ACL '%s' not found", sym->buf);
 	sym_get(sym);
 	return m;
@@ -4358,8 +4358,8 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 	sym_get(sym);
 	parse(sym, S_equal);
 
-	m->u.s.rhs = lookup_timespec(sym->buf, realm);
-	if (!m->u.s.rhs)
+	m->s.rhs = lookup_timespec(sym->buf, realm);
+	if (!m->s.rhs)
 	    parse_error(sym, "Timespec '%s' not found", sym->buf);
 	sym_get(sym);
 	return m;
@@ -4419,27 +4419,27 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
     case S_tls_psk_identity:
 #endif
 	m = mavis_cond_new(sym, mem, S_equal);
-	m->u.s.token = sym->code;
+	m->s.token = sym->code;
 
-	if (m->u.s.token == S_radius) {
+	if (m->s.token == S_radius) {
 	    sym_get(sym);
 	    parse(sym, S_leftsquarebra);
-	    m->type = m->u.s.token;
-	    m->u.s.lhs = rad_dict_attr_lookup(sym);
-	    m->u.s.lhs_txt = mem_strdup(mem, sym->buf);
+	    m->type = m->s.token;
+	    m->s.lhs = rad_dict_attr_lookup(sym);
+	    m->s.lhs_txt = mem_strdup(mem, sym->buf);
 	    sym_get(sym);
 	    parse(sym, S_rightsquarebra);
-	} else if (m->u.s.token == S_arg) {
+	} else if (m->s.token == S_arg) {
 	    sym_get(sym);
 	    parse(sym, S_leftsquarebra);
-	    m->u.s.lhs = mem_strdup(mem, sym->buf);
+	    m->s.lhs = mem_strdup(mem, sym->buf);
 	    sym_get(sym);
 	    parse(sym, S_rightsquarebra);
-	} else if (m->u.s.token == S_string) {
+	} else if (m->s.token == S_string) {
 	    if (!sym->quoted)
 		parse_error(sym, "token %s is not known, please put it in double-quotes if you really want to use it", sym->buf);
-	    m->u.s.lhs_txt = mem_strdup(mem, sym->buf);
-	    m->u.s.lhs = parse_log_format(sym, mem);
+	    m->s.lhs_txt = mem_strdup(mem, sym->buf);
+	    m->s.lhs = parse_log_format(sym, mem);
 	} else
 	    sym_get(sym);
 
@@ -4456,19 +4456,19 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 	case S_equal:
 	    m->type = S_equal;
 	    sym_get(sym);
-	    if (m->u.s.token == S_group)
-		m->u.s.token = S_member;
-	    if (m->u.s.token == S_member) {
+	    if (m->s.token == S_group)
+		m->s.token = S_member;
+	    if (m->s.token == S_member) {
 		tac_group *g = lookup_group(sym->buf, realm);
 		if (!g)
 		    parse_error(sym, "Group '%s' not found.", sym->buf);
-		m->u.s.rhs_txt = mem_strdup(mem, sym->buf);
+		m->s.rhs_txt = mem_strdup(mem, sym->buf);
 		sym_get(sym);
 		m->type = S_member;
-		m->u.s.rhs = g;
+		m->s.rhs = g;
 		return p ? p : m;
 	    }
-	    if (m->u.s.token == S_aaa_protocol) {
+	    if (m->s.token == S_aaa_protocol) {
 		m->type = S_aaa_protocol;
 		switch (sym->code) {
 		case S_radius:
@@ -4484,167 +4484,167 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		    parse_error_expect(sym, S_radius, S_radius_udp, S_radius_tcp, S_radius_dtls, S_radius_tls, S_tacacs, S_tacacs_tcp, S_tacacs_tls,
 				       S_unknown);
 		}
-		m->u.s.rhs = codestring[sym->code].txt;
-		m->u.s.rhs_txt = codestring[sym->code].txt;
+		m->s.rhs = codestring[sym->code].txt;
+		m->s.rhs_txt = codestring[sym->code].txt;
 		sym_get(sym);
 		return p ? p : m;
 	    }
-	    if (m->u.s.token == S_device || m->u.s.token == S_devicename || m->u.s.token == S_deviceaddress) {
+	    if (m->s.token == S_device || m->s.token == S_devicename || m->s.token == S_deviceaddress) {
 		tac_host *hp = NULL;
 		tac_net *np = NULL;
-		if (m->u.s.token == S_device || m->u.s.token == S_devicename) {
+		if (m->s.token == S_device || m->s.token == S_devicename) {
 		    hp = lookup_host(sym->buf, realm);
 		    if (!hp)
 			np = lookup_net(sym->buf, realm);
 		}
 		if (hp) {
 		    m->type = S_host;
-		    m->u.s.rhs = hp;
-		    m->u.s.rhs_txt = hp->name.txt;
+		    m->s.rhs = hp;
+		    m->s.rhs_txt = hp->name.txt;
 		} else if (np) {
 		    m->type = S_net;
-		    m->u.s.rhs = np;
-		    m->u.s.rhs_txt = np->name.txt;
-		} else if (m->u.s.token == S_device || m->u.s.token == S_deviceaddress) {
+		    m->s.rhs = np;
+		    m->s.rhs_txt = np->name.txt;
+		} else if (m->s.token == S_device || m->s.token == S_deviceaddress) {
 		    struct in6_cidr *c = mem_alloc(mem, sizeof(struct in6_cidr));
-		    m->u.s.rhs = c;
+		    m->s.rhs = c;
 		    if (v6_ptoh(&c->addr, &c->mask, sym->buf))
 			parse_error(sym, "Expected a %san IP address/network in CIDR notation, but got '%s'.",
-				    (m->u.s.token == S_device || m->u.s.token == S_devicename) ? "host or net name or " : "", sym->buf);
+				    (m->s.token == S_device || m->s.token == S_devicename) ? "host or net name or " : "", sym->buf);
 		    m->type = S_address;
-		    m->u.s.rhs_txt = mem_strdup(mem, sym->buf);
+		    m->s.rhs_txt = mem_strdup(mem, sym->buf);
 		} else
 		    parse_error(sym, "Expected a host or net name, but got '%s'.", sym->buf);
-		m->u.s.token = S_nas;
+		m->s.token = S_nas;
 		sym_get(sym);
 		return p ? p : m;
 	    }
-	    if (m->u.s.token == S_client || m->u.s.token == S_clientname || m->u.s.token == S_clientaddress) {
+	    if (m->s.token == S_client || m->s.token == S_clientname || m->s.token == S_clientaddress) {
 		tac_net *np = NULL;
-		if (m->u.s.token == S_client || m->u.s.token == S_clientname)
+		if (m->s.token == S_client || m->s.token == S_clientname)
 		    np = lookup_net(sym->buf, realm);
-		m->u.s.rhs_txt = np ? np->name.txt : mem_strdup(mem, sym->buf);
+		m->s.rhs_txt = np ? np->name.txt : mem_strdup(mem, sym->buf);
 		if (np) {
 		    m->type = S_net;
-		    m->u.s.rhs = np;
-		} else if (m->u.s.token == S_client || m->u.s.token == S_clientaddress) {
+		    m->s.rhs = np;
+		} else if (m->s.token == S_client || m->s.token == S_clientaddress) {
 		    struct in6_cidr *c = mem_alloc(mem, sizeof(struct in6_cidr));
-		    m->u.s.rhs = c;
+		    m->s.rhs = c;
 		    if (!v6_ptoh(&c->addr, &c->mask, sym->buf)) {
 			m->type = S_address;
 			sym_get(sym);
 			return p ? p : m;
 		    }
 		}
-		if (!m->u.s.rhs)
-		    m->u.s.rhs = m->u.s.rhs_txt;
+		if (!m->s.rhs)
+		    m->s.rhs = m->s.rhs_txt;
 		sym_get(sym);
 		return p ? p : m;
 	    }
-	    if (m->u.s.token == S_nac || m->u.s.token == S_nas || m->u.s.token == S_host) {
+	    if (m->s.token == S_nac || m->s.token == S_nas || m->s.token == S_host) {
 		tac_host *hp;
 		tac_net *np;
-		if (m->u.s.token == S_host) {
+		if (m->s.token == S_host) {
 		    hp = lookup_host(sym->buf, realm);
 		    if (!hp)
 			parse_error(sym, "host %s is not known", sym->buf);
 		    m->type = S_host;
-		    m->u.s.rhs = hp;
-		    m->u.s.rhs_txt = hp->name.txt;
-		} else if (m->u.s.token == S_nas && (hp = lookup_host(sym->buf, realm))) {
+		    m->s.rhs = hp;
+		    m->s.rhs_txt = hp->name.txt;
+		} else if (m->s.token == S_nas && (hp = lookup_host(sym->buf, realm))) {
 		    m->type = S_host;
-		    m->u.s.rhs = hp;
-		    m->u.s.rhs_txt = hp->name.txt;
-		} else if (m->u.s.token == S_nas && (np = lookup_net(sym->buf, realm))) {
+		    m->s.rhs = hp;
+		    m->s.rhs_txt = hp->name.txt;
+		} else if (m->s.token == S_nas && (np = lookup_net(sym->buf, realm))) {
 		    m->type = S_net;
-		    m->u.s.rhs = np;
-		    m->u.s.rhs_txt = np->name.txt;
-		} else if (m->u.s.token == S_nac && (np = lookup_net(sym->buf, realm))) {
+		    m->s.rhs = np;
+		    m->s.rhs_txt = np->name.txt;
+		} else if (m->s.token == S_nac && (np = lookup_net(sym->buf, realm))) {
 		    m->type = S_net;
-		    m->u.s.rhs = np;
-		    m->u.s.rhs_txt = np->name.txt;
+		    m->s.rhs = np;
+		    m->s.rhs_txt = np->name.txt;
 		} else {
 		    struct in6_cidr *c = mem_alloc(mem, sizeof(struct in6_cidr));
-		    m->u.s.rhs = c;
+		    m->s.rhs = c;
 		    if (v6_ptoh(&c->addr, &c->mask, sym->buf))
 			parse_error(sym,
 				    "Expected a net%s name or an IP address/network in CIDR notation, but got '%s'.",
-				    (m->u.s.token == S_nas) ? " or host" : "", sym->buf);
+				    (m->s.token == S_nas) ? " or host" : "", sym->buf);
 		    m->type = S_address;
-		    m->u.s.rhs_txt = mem_strdup(mem, sym->buf);
+		    m->s.rhs_txt = mem_strdup(mem, sym->buf);
 		}
 		sym_get(sym);
 		return p ? p : m;
 	    }
-	    if (m->u.s.token == S_realm) {
+	    if (m->s.token == S_realm) {
 		tac_realm *r = lookup_realm(sym->buf, config.default_realm);
 		if (!r)
 		    parse_error(sym, "Realm '%s' not found", sym->buf);
-		m->u.s.rhs = r;
-		m->u.s.rhs_txt = r->name.txt;
+		m->s.rhs = r;
+		m->s.rhs_txt = r->name.txt;
 		m->type = S_realm;
 		sym_get(sym);
 		return p ? p : m;
 	    }
-	    if (m->u.s.token == S_devicetag || m->u.s.token == S_usertag) {
-		m->type = m->u.s.token;
+	    if (m->s.token == S_devicetag || m->s.token == S_usertag) {
+		m->type = m->s.token;
 		if (sym->code == S_devicetag || sym->code == S_usertag) {
-		    m->u.s.rhs_token = sym->code;
-		    m->u.s.rhs_txt = codestring[sym->code].txt;
+		    m->s.rhs_token = sym->code;
+		    m->s.rhs_txt = codestring[sym->code].txt;
 		    sym_get(sym);
 		} else {
 		    tac_tag *tag = tac_tag_parse(sym);
-		    m->u.s.rhs = tag;
-		    m->u.s.rhs_txt = tag->name.txt;
-		    m->u.s.rhs_token = S_string;
+		    m->s.rhs = tag;
+		    m->s.rhs_txt = tag->name.txt;
+		    m->s.rhs_token = S_string;
 		}
 		return p ? p : m;
 	    }
-	    if (m->u.s.token == S_radius) {
-		m->type = m->u.s.token;
-		struct rad_dict_attr *attr = (struct rad_dict_attr *) m->u.s.lhs;
+	    if (m->s.token == S_radius) {
+		m->type = m->s.token;
+		struct rad_dict_attr *attr = (struct rad_dict_attr *) m->s.lhs;
 		if (attr->type == S_integer || S_type == S_time || S_type == S_enum) {
 		    if (isdigit((int) sym->buf[0])) {
-			m->u.s.rhs_txt = mem_strdup(mem, sym->buf);
-			m->u.s.rhs = (void *) (long) parse_int(sym);
+			m->s.rhs_txt = mem_strdup(mem, sym->buf);
+			m->s.rhs = (void *) (long) parse_int(sym);
 		    } else {	// non-numeric
 			struct rad_dict_val *val = rad_dict_val_lookup_by_name(attr, sym->buf);
 			if (attr->val && !val)
 			    parse_error(sym, "RADIUS value '$s' not found (attribute: %s)", sym->buf, attr->name);
 			sym_get(sym);
-			m->u.s.rhs_txt = val->name.txt;
-			m->u.s.rhs = (void *) (long) val->id;
+			m->s.rhs_txt = val->name.txt;
+			m->s.rhs = (void *) (long) val->id;
 		    }
 		    return p ? p : m;
 		}
 	    }
-	    m->u.s.rhs = mem_strdup(mem, sym->buf);
-	    m->u.s.rhs_txt = m->u.s.rhs;
+	    m->s.rhs = mem_strdup(mem, sym->buf);
+	    m->s.rhs_txt = m->s.rhs;
 	    sym_get(sym);
 	    return p ? p : m;
 	case S_tilde:
 	    {			//S_tilde
 		int errcode = 0;
 
-		if (m->u.s.token == S_clientname)
-		    parse_error(sym, "REGEX matching isn't supported for '%s'", codestring[m->u.s.token].txt);
+		if (m->s.token == S_clientname)
+		    parse_error(sym, "REGEX matching isn't supported for '%s'", codestring[m->s.token].txt);
 
-		if (m->u.s.token == S_group)
-		    m->u.s.token = S_member;
+		if (m->s.token == S_group)
+		    m->s.token = S_member;
 
 		m->type = S_regex;
 		sym->flag_parse_pcre = 1;
 		sym_get(sym);
-		m->u.s.rhs_txt = mem_strdup(mem, sym->buf);
+		m->s.rhs_txt = mem_strdup(mem, sym->buf);
 		if (sym->code == S_slash) {
 #ifdef WITH_PCRE2
 		    PCRE2_SIZE erroffset;
 		    m->type = S_slash;
-		    m->u.s.rhs =
+		    m->s.rhs =
 			pcre2_compile((PCRE2_SPTR8) sym->buf,
 				      PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
-		    mem_add_free(mem, pcre2_code_free, m->u.s.rhs);
-		    if (!m->u.s.rhs) {
+		    mem_add_free(mem, pcre2_code_free, m->s.rhs);
+		    if (!m->s.rhs) {
 			PCRE2_UCHAR buffer[256];
 			pcre2_get_error_message(errcode, buffer, sizeof(buffer));
 			parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
@@ -4656,12 +4656,12 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		    parse_error(sym, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
 #endif
 		}
-		m->u.s.rhs = mem_alloc(mem, sizeof(regex_t));
-		errcode = regcomp((regex_t *) m->u.s.rhs, sym->buf, REG_EXTENDED | REG_NOSUB | REG_NEWLINE | common_data.regex_posix_flags);
-		mem_add_free(mem, regfree, m->u.s.rhs);
+		m->s.rhs = mem_alloc(mem, sizeof(regex_t));
+		errcode = regcomp((regex_t *) m->s.rhs, sym->buf, REG_EXTENDED | REG_NOSUB | REG_NEWLINE | common_data.regex_posix_flags);
+		mem_add_free(mem, regfree, m->s.rhs);
 		if (errcode) {
 		    char e[160];
-		    regerror(errcode, (regex_t *) m->u.s.rhs, e, sizeof(e));
+		    regerror(errcode, (regex_t *) m->s.rhs, e, sizeof(e));
 		    parse_error(sym, "In regular expression '%s': %s", sym->buf, e);
 		}
 		sym_get(sym);
@@ -4714,8 +4714,8 @@ static int tac_script_cond_eval_res(tac_session *session, struct mavis_cond *m, 
     default:
 	report(session, LOG_DEBUG, DEBUG_ACL_FLAG,
 	       " line %u: [%s] %s%s%s '%s' => %s", m->line,
-	       codestring[m->u.s.token].txt, m->u.s.lhs_txt ? m->u.s.lhs_txt : "",
-	       m->u.s.lhs_txt ? " " : "", codestring[m->type].txt, m->u.s.rhs_txt ? m->u.s.rhs_txt : "", r);
+	       codestring[m->s.token].txt, m->s.lhs_txt ? m->s.lhs_txt : "",
+	       m->s.lhs_txt ? " " : "", codestring[m->type].txt, m->s.rhs_txt ? m->s.rhs_txt : "", r);
     }
 
     return res;
@@ -4726,21 +4726,21 @@ static int tac_mavis_cond_compare(tac_session *session, struct mavis_cond *m, ch
     char *hint = "regex";
     int res = 0;
     if (m->type == S_equal) {
-	res = !strcmp((char *) m->u.s.rhs, name);
+	res = !strcmp((char *) m->s.rhs, name);
 	hint = "cmp";
     } else if (m->type == S_slash) {
 #ifdef WITH_PCRE2
-	pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.rhs, NULL);
-	res = pcre2_match((pcre2_code *) m->u.s.rhs, (PCRE2_SPTR) name, (PCRE2_SIZE) name_len, 0, 0, match_data, NULL);
+	pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->s.rhs, NULL);
+	res = pcre2_match((pcre2_code *) m->s.rhs, (PCRE2_SPTR) name, (PCRE2_SIZE) name_len, 0, 0, match_data, NULL);
 	pcre2_match_data_free(match_data);
 	hint = "pcre2";
 #endif
 	res = -1 < res;
     } else
-	res = !regexec((regex_t *) m->u.s.rhs, name, 0, NULL, 0);
-    if (m->u.s.token == S_password && !(session->debug & DEBUG_USERINPUT_FLAG))
+	res = !regexec((regex_t *) m->s.rhs, name, 0, NULL, 0);
+    if (m->s.token == S_password && !(session->debug & DEBUG_USERINPUT_FLAG))
 	name = "<hidden>";
-    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, " %s: '%s' <=> '%s' = %d", hint, m->u.s.rhs_txt, name, res);
+    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, " %s: '%s' <=> '%s' = %d", hint, m->s.rhs_txt, name, res);
     return res;
 }
 
@@ -4753,32 +4753,32 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	return 0;
     switch (m->type) {
     case S_exclmark:
-	res = !tac_script_cond_eval(session, m->u.m.e[0]);
+	res = !tac_script_cond_eval(session, m->m.e[0]);
 	return tac_script_cond_eval_res(session, m, res);
     case S_and:
 	res = -1;
-	for (int i = 0; res && i < m->u.m.n; i++)
-	    res = tac_script_cond_eval(session, m->u.m.e[i]);
+	for (int i = 0; res && i < m->m.n; i++)
+	    res = tac_script_cond_eval(session, m->m.e[i]);
 	return tac_script_cond_eval_res(session, m, res);
     case S_or:
-	for (int i = 0; !res && i < m->u.m.n; i++)
-	    res = tac_script_cond_eval(session, m->u.m.e[i]);
+	for (int i = 0; !res && i < m->m.n; i++)
+	    res = tac_script_cond_eval(session, m->m.e[i]);
 	return tac_script_cond_eval_res(session, m, res);
     case S_aaa_protocol:
-	res = ((char *) m->u.s.rhs == codestring[session->ctx->aaa_protocol].txt);
+	res = ((char *) m->s.rhs == codestring[session->ctx->aaa_protocol].txt);
 	if (!res) {
-	    size_t len = strlen((char *) m->u.s.rhs);
-	    res = !strncmp((char *) m->u.s.rhs, codestring[session->ctx->aaa_protocol].txt, len) && codestring[session->ctx->aaa_protocol].txt[len] == '.';
+	    size_t len = strlen((char *) m->s.rhs);
+	    res = !strncmp((char *) m->s.rhs, codestring[session->ctx->aaa_protocol].txt, len) && codestring[session->ctx->aaa_protocol].txt[len] == '.';
 	}
 	return tac_script_cond_eval_res(session, m, res);
     case S_address:
-	switch (m->u.s.token) {
+	switch (m->s.token) {
 	case S_nac:
 	    if (session->nac_addr_valid)
-		res = v6_contains(&((struct in6_cidr *) (m->u.s.rhs))->addr, ((struct in6_cidr *) (m->u.s.rhs))->mask, &session->nac_address);
+		res = v6_contains(&((struct in6_cidr *) (m->s.rhs))->addr, ((struct in6_cidr *) (m->s.rhs))->mask, &session->nac_address);
 	    break;
 	case S_nas:
-	    res = v6_contains(&((struct in6_cidr *) (m->u.s.rhs))->addr, ((struct in6_cidr *) (m->u.s.rhs))->mask, &session->ctx->device_addr);
+	    res = v6_contains(&((struct in6_cidr *) (m->s.rhs))->addr, ((struct in6_cidr *) (m->s.rhs))->mask, &session->ctx->device_addr);
 	default:
 	    ;
 	}
@@ -4787,70 +4787,70 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	{
 	    tac_host *h = session->ctx->host;
 	    while (!res && h) {
-		res = (h == (tac_host *) (m->u.s.rhs));
+		res = (h == (tac_host *) (m->s.rhs));
 		h = h->parent;
 	    }
 	    return tac_script_cond_eval_res(session, m, res);
 	}
     case S_net:
-	if (m->u.s.token == S_nas) {
-	    tac_net *net = (tac_net *) (m->u.s.rhs);
+	if (m->s.token == S_nas) {
+	    tac_net *net = (tac_net *) (m->s.rhs);
 	    res = radix_lookup(net->nettree, &session->ctx->device_addr, NULL) ? -1 : 0;
 	} else if (session->nac_addr_valid) {
-	    tac_net *net = (tac_net *) (m->u.s.rhs);
+	    tac_net *net = (tac_net *) (m->s.rhs);
 	    res = radix_lookup(net->nettree, &session->nac_address, NULL) ? -1 : 0;
 	}
 	return tac_script_cond_eval_res(session, m, res);
     case S_time:
-	res = eval_timespec((struct mavis_timespec *) m->u.s.rhs, NULL);
+	res = eval_timespec((struct mavis_timespec *) m->s.rhs, NULL);
 	return tac_script_cond_eval_res(session, m, res);
     case S_member:
 	if (session->user)
-	    res = tac_group_check(m->u.s.rhs, session->user->groups, NULL);
+	    res = tac_group_check(m->s.rhs, session->user->groups, NULL);
 	return tac_script_cond_eval_res(session, m, res);
     case S_devicetag:
 	{
 	    tac_host *h = session->ctx->host;
-	    if (m->u.s.rhs_token == S_string) {
+	    if (m->s.rhs_token == S_string) {
 		while (!res && h) {
-		    res = tac_tag_check(session, m->u.s.rhs, h->tags);
+		    res = tac_tag_check(session, m->s.rhs, h->tags);
 		    h = h->parent;
 		}
-	    } else if (m->u.s.rhs_token == S_devicetag)
+	    } else if (m->s.rhs_token == S_devicetag)
 		res = -1;
-	    else if (m->u.s.rhs_token == S_usertag && session && session->user) {
+	    else if (m->s.rhs_token == S_usertag && session && session->user) {
 		res = tac_tag_list_check(session, h, session->user);
 	    }
 	    return tac_script_cond_eval_res(session, m, res);
 	}
     case S_usertag:
 	if (session && session->user) {
-	    if (m->u.s.rhs_token == S_string)
-		res = tac_tag_check(session, m->u.s.rhs, session->user->tags);
-	    else if (m->u.s.rhs_token == S_usertag)
+	    if (m->s.rhs_token == S_string)
+		res = tac_tag_check(session, m->s.rhs, session->user->tags);
+	    else if (m->s.rhs_token == S_usertag)
 		res = -1;
-	    else if (m->u.s.rhs_token == S_devicetag)
+	    else if (m->s.rhs_token == S_devicetag)
 		res = tac_tag_list_check(session, session->ctx->host, session->user);
 	}
 	return tac_script_cond_eval_res(session, m, res);
     case S_acl:
-	res = S_permit == eval_tac_acl(session, (struct tac_acl *) m->u.s.rhs);
+	res = S_permit == eval_tac_acl(session, (struct tac_acl *) m->s.rhs);
 	return tac_script_cond_eval_res(session, m, res);
     case S_realm:
 	{
 	    tac_realm *r = session->ctx->realm;
 	    while (!res && r) {
-		res = (r == (tac_realm *) m->u.s.rhs);
+		res = (r == (tac_realm *) m->s.rhs);
 		r = r->parent;
 	    }
 	    return tac_script_cond_eval_res(session, m, res);
 	}
     case S_radius:
 	{
-	    struct rad_dict_attr *attr = (struct rad_dict_attr *) m->u.s.lhs;
+	    struct rad_dict_attr *attr = (struct rad_dict_attr *) m->s.lhs;
 	    if (attr->type == S_integer || attr->type == S_time || S_type == S_enum) {
 		int i;
-		int id = (int) (long) m->u.s.rhs;
+		int id = (int) (long) m->s.rhs;
 		res = !rad_get(session, attr->dict->id, attr->id, attr->type, &i, NULL) && (i == id);
 	    }
 	    return tac_script_cond_eval_res(session, m, res);
@@ -4858,7 +4858,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
     case S_equal:
     case S_regex:
     case S_slash:
-	switch (m->u.s.token) {
+	switch (m->s.token) {
 	case S_authen_action:
 	    v = session->authen_action.txt;
 	    v_len = session->authen_action.len;
@@ -5027,7 +5027,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	    v_len = session->ctx->server_addr_ascii.len;
 	    break;
 	case S_string:
-	    v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->u.s.lhs, io_now.tv_sec, &v_len);
+	    v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->s.lhs, io_now.tv_sec, &v_len);
 	    break;
 	case S_member:
 	    if (session->user)
@@ -5099,10 +5099,10 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	    return 0;
 	case S_radius:
 	    if (session->radius_data) {
-		struct rad_dict_attr *attr = (struct rad_dict_attr *) m->u.s.lhs;
+		struct rad_dict_attr *attr = (struct rad_dict_attr *) m->s.lhs;
 		if (attr->type == S_integer || attr->type == S_time || S_type == S_enum) {
 		    int i;
-		    int id = (int) (long) m->u.s.rhs;
+		    int id = (int) (long) m->s.rhs;
 		    int res = !rad_get(session, attr->dict->id, attr->id, attr->type, &i, NULL) && (i == id);
 		    return tac_script_cond_eval_res(session, m, res);
 		}
@@ -5132,11 +5132,11 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 		u_char *arg_len = session->arg_len;
 		u_char *argp = session->argp;
 		for (u_char arg_cnt = session->arg_cnt; arg_cnt; arg_cnt--, arg_len++) {
-		    size_t len = strlen(m->u.s.lhs);
+		    size_t len = strlen(m->s.lhs);
 		    size_t l;
 		    char *s = (char *) argp;
 		    l = (size_t) *arg_len;
-		    if ((l > len) && !strncmp(s, m->u.s.lhs, len)
+		    if ((l > len) && !strncmp(s, m->s.lhs, len)
 			&& (*(argp + len) == '=' || *(argp + len) == '*')) {
 			v = mem_strndup(session->mem, argp + len + 1, l - len - 1);
 			break;

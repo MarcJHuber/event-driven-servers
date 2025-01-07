@@ -4790,12 +4790,12 @@ static struct mavis_cond *tac_script_cond_add(tac_user * u, struct mavis_cond
 					      *a, struct mavis_cond
 					      *b)
 {
-    if (a->u.m.n && !(a->u.m.n & 7)) {
-	size_t len = sizeof(struct mavis_cond) + a->u.m.n * sizeof(struct mavis_cond *);
+    if (a->m.n && !(a->m.n & 7)) {
+	size_t len = sizeof(struct mavis_cond) + a->m.n * sizeof(struct mavis_cond *);
 	if (u) {
 	    struct mavis_cond *n = mem_alloc(u->mem, len);
 	    if (a) {
-		if (a->u.m.n)
+		if (a->m.n)
 		    memcpy(n, a, len - 8);
 		mem_free(u->mem, a);
 	    }
@@ -4804,8 +4804,8 @@ static struct mavis_cond *tac_script_cond_add(tac_user * u, struct mavis_cond
 	    a = realloc(a, len);
     }
 
-    a->u.m.e[a->u.m.n] = b;
-    a->u.m.n++;
+    a->m.e[a->m.n] = b;
+    a->m.n++;
     return a;
 }
 
@@ -4855,9 +4855,9 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 	}
 	tac_sym_get(sym);
 
-	m->u.s.rhs = tac_acl_lookup(sym->buf);
+	m->s.rhs = tac_acl_lookup(sym->buf);
 
-	if (!m->u.s.rhs)
+	if (!m->s.rhs)
 	    parse_error(sym, "ACL '%s' not found", sym->buf);
 	tac_sym_get(sym);
 	return m;
@@ -4877,8 +4877,8 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 	}
 	tac_sym_get(sym);
 
-	m->u.s.rhs = find_timespec(timespectable, sym->buf);
-	if (!m->u.s.rhs)
+	m->s.rhs = find_timespec(timespectable, sym->buf);
+	if (!m->s.rhs)
 	    parse_error(sym, "timespec '%s' not found", sym->buf);
 	tac_sym_get(sym);
 	return m;
@@ -4896,7 +4896,7 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
     case S_user:
     case S_password:
 	m = tac_script_cond_new(u, S_equal);
-	m->u.s.token = sym->code;
+	m->s.token = sym->code;
 
 	tac_sym_get(sym);
 	switch (sym->code) {
@@ -4913,17 +4913,17 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 	switch (sym->code) {
 	case S_equal:
 	    m->type = S_equal;
-	    if (m->u.s.token == S_nac || m->u.s.token == S_nas) {
+	    if (m->s.token == S_nac || m->s.token == S_nas) {
 		tac_host h, *hp;
 		tac_sym_get(sym);
 		h.name = sym->buf;
 		hp = RB_lookup(hosttable, (void *) &h);
 		if (hp) {
 		    m->type = S_host;
-		    m->u.s.rhs = hp;
+		    m->s.rhs = hp;
 		} else {
 		    struct in6_cidr *c = mem_alloc(mem, sizeof(struct in6_cidr));
-		    m->u.s.rhs = c;
+		    m->s.rhs = c;
 		    if (v6_ptoh(&c->addr, &c->mask, sym->buf))
 			parse_error(sym, "Expected a hostname or an IP " "address/network in CIDR notation, " "but got '%s'.", sym->buf);
 		    m->type = S_address;
@@ -4944,7 +4944,7 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 
 	tac_sym_get(sym);
 	if (m->type == S_equal) {
-	    m->u.s.rhs = mem_strdup(mem, sym->buf);
+	    m->s.rhs = mem_strdup(mem, sym->buf);
 
 	    tac_sym_get(sym);
 	    return p ? p : m;
@@ -4954,14 +4954,14 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 #ifdef WITH_PCRE2
 		PCRE2_SIZE erroffset;
 		m->type = S_slash;
-		m->u.s.rhs =
+		m->s.rhs =
 		    pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
 		if (u) {
-		    mem_add_free(u->mem, pcre2_code_free, m->u.s.rhs);
-		    m->u.s.rhs_txt = mem_strdup(u->mem, sym->buf);
+		    mem_add_free(u->mem, pcre2_code_free, m->s.rhs);
+		    m->s.rhs_txt = mem_strdup(u->mem, sym->buf);
 		}
 
-		if (!m->u.s.rhs) {
+		if (!m->s.rhs) {
 		    PCRE2_UCHAR buffer[256];
 		    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
 		    parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
@@ -4973,14 +4973,14 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 		parse_error(sym, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
 #endif
 	    }
-	    m->u.s.rhs = mem_alloc(mem, sizeof(regex_t));
-	    errcode = regcomp((regex_t *) m->u.s.rhs, sym->buf, REG_EXTENDED | REG_NOSUB | REG_NEWLINE | common_data.regex_posix_flags);
+	    m->s.rhs = mem_alloc(mem, sizeof(regex_t));
+	    errcode = regcomp((regex_t *) m->s.rhs, sym->buf, REG_EXTENDED | REG_NOSUB | REG_NEWLINE | common_data.regex_posix_flags);
 	    if (errcode) {
 		char e[160];
-		regerror(errcode, (regex_t *) m->u.s.rhs, e, sizeof(e));
+		regerror(errcode, (regex_t *) m->s.rhs, e, sizeof(e));
 		parse_error(sym, "In regular expression '%s': %s", sym->buf, e);
 	    } else if (u)
-		mem_add_free(u->mem, regfree, m->u.s.rhs);
+		mem_add_free(u->mem, regfree, m->s.rhs);
 	    tac_sym_get(sym);
 	    return p ? p : m;
 	}
@@ -4996,15 +4996,15 @@ static void tac_script_cond_optimize(tac_user * u, struct mavis_cond **m)
     struct mavis_cond *p;
     mem_t *mem = u ? u->mem : NULL;
     int i;
-    while (*m && ((*m)->type == S_or || (*m)->type == S_and) && (*m)->u.m.n == 1) {
+    while (*m && ((*m)->type == S_or || (*m)->type == S_and) && (*m)->m.n == 1) {
 	p = *m;
-	*m = (*m)->u.m.e[0];
+	*m = (*m)->m.e[0];
 	mem_free(mem, &p);
     }
     if (*m)
-	for (i = 0; i < (*m)->u.m.n; i++)
+	for (i = 0; i < (*m)->m.n; i++)
 	    if ((*m)->type == S_or || (*m)->type == S_and || (*m)->type == S_exclmark)
-		tac_script_cond_optimize(u, &(*m)->u.m.e[i]);
+		tac_script_cond_optimize(u, &(*m)->m.e[i]);
 }
 
 static struct mavis_cond *tac_script_cond_parse(tac_user * u, struct sym *sym)
@@ -5027,19 +5027,19 @@ static int tac_script_cond_eval(tac_session * session, char *cmd, struct mavis_c
 	return 0;
     switch (m->type) {
     case S_exclmark:
-	return !tac_script_cond_eval(session, cmd, m->u.m.e[0]);
+	return !tac_script_cond_eval(session, cmd, m->m.e[0]);
     case S_and:
-	for (i = 0; i < m->u.m.n; i++)
-	    if (!tac_script_cond_eval(session, cmd, m->u.m.e[i]))
+	for (i = 0; i < m->m.n; i++)
+	    if (!tac_script_cond_eval(session, cmd, m->m.e[i]))
 		return 0;
 	return -1;
     case S_or:
-	for (i = 0; i < m->u.m.n; i++)
-	    if (tac_script_cond_eval(session, cmd, m->u.m.e[i]))
+	for (i = 0; i < m->m.n; i++)
+	    if (tac_script_cond_eval(session, cmd, m->m.e[i]))
 		return -1;
 	return 0;
     case S_equal:
-	switch (m->u.s.token) {
+	switch (m->s.token) {
 	case S_context:
 	    v = tac_script_get_exec_context(session, session->username, session->nas_port);
 	    break;
@@ -5051,43 +5051,43 @@ static int tac_script_cond_eval(tac_session * session, char *cmd, struct mavis_c
 	}
 	if (!v)
 	    return 0;
-	return !strcmp(v, m->u.s.rhs);
+	return !strcmp(v, m->s.rhs);
 
     case S_address:
-	switch (m->u.s.token) {
+	switch (m->s.token) {
 	case S_nac:
 	    if (session->nac_address_valid)
-		return v6_contains(&((struct in6_cidr *) (m->u.s.rhs))->addr, ((struct in6_cidr *) (m->u.s.rhs))->mask, &session->nac_address);
+		return v6_contains(&((struct in6_cidr *) (m->s.rhs))->addr, ((struct in6_cidr *) (m->s.rhs))->mask, &session->nac_address);
 	    return 0;
 	case S_nas:
-	    return v6_contains(&((struct in6_cidr *) (m->u.s.rhs))->addr, ((struct in6_cidr *) (m->u.s.rhs))->mask, &session->ctx->nas_address);
+	    return v6_contains(&((struct in6_cidr *) (m->s.rhs))->addr, ((struct in6_cidr *) (m->s.rhs))->mask, &session->ctx->nas_address);
 	default:
 	    return 0;
 	}
 
     case S_host:
-	switch (m->u.s.token) {
+	switch (m->s.token) {
 	case S_nas:
 	    {
 		tac_host **h;
 		for (h = (session->ctx->hostchain); *h; h++)
-		    if ((*h)->name && (*h == (tac_host *) (m->u.s.rhs)))
+		    if ((*h)->name && (*h == (tac_host *) (m->s.rhs)))
 			return -1;
 		return 0;
 	    }
 	case S_nac:
 	    if (session->nac_address_valid)
-		return radix_lookup(((tac_host *) (m->u.s.rhs))->addrtree, &session->nac_address, NULL) ? -1 : 0;
+		return radix_lookup(((tac_host *) (m->s.rhs))->addrtree, &session->nac_address, NULL) ? -1 : 0;
 	default:
 	    return 0;
 	}
     case S_time:
-	return eval_timespec((struct mavis_timespec *) m->u.s.rhs, NULL);
+	return eval_timespec((struct mavis_timespec *) m->s.rhs, NULL);
     case S_acl:
-	return S_permit == eval_tac_acl(session, cmd, (struct tac_acl *) m->u.s.rhs);
+	return S_permit == eval_tac_acl(session, cmd, (struct tac_acl *) m->s.rhs);
     case S_regex:
     case S_slash:
-	switch (m->u.s.token) {
+	switch (m->s.token) {
 	case S_context:
 	    v = tac_script_get_exec_context(session, session->username, session->nas_port);
 	    break;
@@ -5134,14 +5134,14 @@ static int tac_script_cond_eval(tac_session * session, char *cmd, struct mavis_c
 	if (m->type == S_slash) {
 	    int res = -1;
 #ifdef WITH_PCRE2
-	    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->u.s.rhs, NULL);
-	    res = pcre2_match((pcre2_code *) m->u.s.rhs, (PCRE2_SPTR) v, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
+	    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->s.rhs, NULL);
+	    res = pcre2_match((pcre2_code *) m->s.rhs, (PCRE2_SPTR) v, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
 	    pcre2_match_data_free(match_data);
-	    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", m->u.s.rhs_txt, v, res);
+	    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", m->s.rhs_txt, v, res);
 #endif
 	    return -1 < res;
 	}
-	return !regexec((regex_t *) m->u.s.rhs, v, 0, NULL, 0);
+	return !regexec((regex_t *) m->s.rhs, v, 0, NULL, 0);
     default:;
     }
     return 0;
