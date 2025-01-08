@@ -1019,9 +1019,9 @@ static str_t *eval_log_format_nac(tac_session *session, struct context *ctx __at
 static str_t *eval_log_format_msgid(tac_session *session, struct context *ctx, struct logfile *lf __attribute__((unused)))
 {
     if (session)
-	return &session->msgid;
+	return session->msgid;
     if (ctx)
-	return &ctx->msgid;
+	return ctx->msgid;
     return NULL;
 }
 
@@ -1037,7 +1037,7 @@ static str_t *eval_log_format_port(tac_session *session, struct context *ctx __a
 static str_t *eval_log_format_type(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
 {
     if (session)
-	return &session->type;
+	return session->type;
     return NULL;
 }
 
@@ -1051,28 +1051,28 @@ static str_t *eval_log_format_hint(tac_session *session, struct context *ctx __a
 static str_t *eval_log_format_authen_action(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
 {
     if (session)
-	return &session->authen_action;
+	return session->authen_action;
     return NULL;
 }
 
 static str_t *eval_log_format_authen_type(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
 {
     if (session)
-	return &session->authen_type;
+	return session->authen_type;
     return NULL;
 }
 
 static str_t *eval_log_format_authen_service(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
 {
     if (session)
-	return &session->authen_service;
+	return session->authen_service;
     return NULL;
 }
 
 static str_t *eval_log_format_authen_method(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
 {
     if (session)
-	return &session->authen_method;
+	return session->authen_method;
     return NULL;
 }
 
@@ -1100,7 +1100,7 @@ static str_t *eval_log_format_label(tac_session *session, struct context *ctx __
 static str_t *eval_log_format_result(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
 {
     if (session)
-	return &session->result;
+	return session->result;
     return NULL;
 }
 
@@ -1114,9 +1114,9 @@ static str_t *eval_log_format_action(tac_session *session, struct context *ctx _
 static str_t *eval_log_format_accttype(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
 {
     if (session)
-	return &session->acct_type;
+	return session->acct_type;
     if (ctx)
-	return &ctx->acct_type;
+	return ctx->acct_type;
     return NULL;
 }
 
@@ -1127,10 +1127,20 @@ static str_t *eval_log_format_service(tac_session *session, struct context *ctx 
     return NULL;
 }
 
-static str_t *eval_log_format_privlvl(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+str_t *eval_log_format_privlvl(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
 {
-    if (session)
-	return &session->priv_lvl_ascii;
+    if (session) {
+	static char buf[4];
+	static str_t s = {.txt = buf };
+	s.len = 0;
+	if (session->priv_lvl > 99)
+	    buf[s.len++] = '0' + session->priv_lvl / 100;
+	if (session->priv_lvl > 9)
+	    buf[s.len++] = '0' + (session->priv_lvl / 10) % 10;
+	buf[s.len++] = '0' + session->priv_lvl % 10;
+	buf[s.len] = 0;
+	return &s;
+    }
     return NULL;
 }
 
@@ -1157,7 +1167,7 @@ static str_t *eval_log_format_ssh_key_id(tac_session *session, struct context *c
 static str_t *eval_log_format_rule(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
 {
     if (session)
-	return &session->rule;
+	return session->rulename;
     return NULL;
 }
 

@@ -222,26 +222,37 @@ void send_author_reply(tac_session *session, u_char status, char *msg, char *dat
 	p += arglen[i];
     }
 
+#define STATICSTR_HINT(A) \
+static str_t hint_ ## A = { .txt = #A, .len = sizeof(#A) - 1 }
+
+#define STATICSTR_MSGID(A,B) \
+static str_t msgid_ ## A = { .txt = B, .len = sizeof(B) - 1 }
+
+    STATICSTR_HINT(added);
+    STATICSTR_HINT(replaced);
+    STATICSTR_MSGID(pass, "AUTHZPASS");
+    STATICSTR_MSGID(pass_add, "AUTHZPASS-ADD");
+    STATICSTR_MSGID(replaced, "AUTHZPASS-REPL");
+    STATICSTR_MSGID(fail, "AUTHZFAIL");
+
     switch (status) {
     case TAC_PLUS_AUTHOR_STATUS_PASS_ADD:
-	session->result = codestring[S_permit];
-#define STRSET(A,B) str_set(&A, B, sizeof(B) - 1)
-	STRSET(session->hint, "added");
+	session->result = &codestring[S_permit];
+	session->hint = hint_added;
 	if (arg_cnt) {
-	    STRSET(session->msgid, "AUTHZPASS-ADD");
+	    session->msgid = &msgid_pass_add;
 	} else {
-	    STRSET(session->msgid, "AUTHZPASS");
+	    session->msgid = &msgid_pass;
 	}
 	break;
     case TAC_PLUS_AUTHOR_STATUS_PASS_REPL:
-	session->result = codestring[S_permit];
-	STRSET(session->hint, "replaced");
-	STRSET(session->msgid, "AUTHZPASS-REPL");
+	session->result = &codestring[S_permit];
+	session->hint = hint_replaced;
+	session->msgid = &msgid_replaced;
 	break;
     default:
-	session->result = codestring[S_deny];
-	STRSET(session->msgid, "AUTHZFAIL");
-#undef STRSET
+	session->result = &codestring[S_deny];
+	session->msgid = &msgid_fail;
     }
 
     log_exec(session, session->ctx, S_authorization, io_now.tv_sec);
@@ -1058,13 +1069,13 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_p
     if (tac_hdr) {
 	session->version = tac_hdr->version;
 	session->session_id = tac_hdr->session_id;
-	session->type = types[tac_hdr->type & 3];
+	session->type = &types[tac_hdr->type & 3];
     } else {
 	session->session_id = RAD_PAK_SESSIONID(radhdr);
 	if (radhdr->code == RADIUS_CODE_ACCESS_REQUEST) {
-	    session->type = types[1];
+	    session->type = &types[1];
 	} else if (radhdr->code == RADIUS_CODE_ACCOUNTING_REQUEST) {
-	    session->type = types[3];
+	    session->type = &types[3];
 	}
     }
     session->seq_no = 1;

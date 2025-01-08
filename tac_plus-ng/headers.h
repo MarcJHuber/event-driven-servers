@@ -756,24 +756,23 @@ struct tac_session {
     str_t user_msg;
     str_t port;
     str_t nac_addr_ascii;
-    str_t type;
     str_t nac_dns_name;		/* DNS reverse mapping for NAC */
-    str_t acct_type;
     str_t action;
     str_t service;
     str_t protocol;
     str_t hint;
-    str_t msgid;
     str_t cmdline;
     str_t message;		// to the user
-    str_t authen_action;
-    str_t authen_type;
-    str_t authen_service;
-    str_t authen_method;
-    str_t rule;
     str_t label;
-    str_t result;
-    str_t priv_lvl_ascii;
+    str_t *rulename;
+    str_t *type;
+    str_t *authen_action;
+    str_t *authen_type;
+    str_t *authen_service;
+    str_t *authen_method;
+    str_t *msgid;
+    str_t *result;
+    str_t *acct_type;
     u_char arg_cnt;
     u_char *arg_len;
     u_char *argp;
@@ -894,8 +893,8 @@ struct context {
 #endif
     u_int tls_versions;
 
-    str_t msgid;
-    str_t acct_type;
+    str_t *msgid;
+    str_t *acct_type;
     str_t vrf;
 #define USER_PROFILE_CACHE_SIZE 8
     char *hint;
@@ -997,6 +996,7 @@ int parse_host_profile(struct sym *, tac_realm *, tac_host *);
 
 void parse_log(struct sym *, tac_realm *);
 char *eval_log_format(tac_session *, struct context *, struct logfile *, struct log_item *, time_t, size_t *);
+str_t *eval_log_format_privlvl(tac_session *, struct context *, struct logfile *);
 struct log_item *parse_log_format_inline(char *, char *, int);
 
 tac_user *new_user(char *, enum token, tac_realm *);

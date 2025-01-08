@@ -128,9 +128,6 @@ void author(tac_session *session, tac_pak_hdr *hdr)
     session->arg_cnt = pak->arg_cnt;
 
     session->priv_lvl = pak->priv_lvl;
-    char buf[10];
-    int len = snprintf(buf, sizeof(buf), "%u", session->priv_lvl);
-    str_set(&session->priv_lvl_ascii, mem_strdup(session->mem, buf), len);
 
     session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii.txt) ? 0 : 1;
     if (session->nac_addr_valid)
@@ -324,14 +321,15 @@ static void do_author(tac_session *session)
     switch (res) {
     case S_deny:
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG,
-	       "%s@%s: svcname=%s protocol=%s denied", session->username.txt, session->ctx->device_addr_ascii.txt, session->service.txt ? session->service.txt : "",
-	       session->protocol.txt ? session->protocol.txt : "");
+	       "%s@%s: svcname=%s protocol=%s denied", session->username.txt, session->ctx->device_addr_ascii.txt,
+	       session->service.txt ? session->service.txt : "", session->protocol.txt ? session->protocol.txt : "");
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt, NULL, 0, NULL);
 	return;
     default:
 	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG,
 	       "%s@%s: svcname=%s protocol=%s not found",
-	       session->username.txt, session->ctx->device_addr_ascii.txt, session->service.txt ? session->service.txt : "", session->protocol.txt ? session->protocol.txt : "");
+	       session->username.txt, session->ctx->device_addr_ascii.txt, session->service.txt ? session->service.txt : "",
+	       session->protocol.txt ? session->protocol.txt : "");
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt, NULL, 0, NULL);
 	return;
     case S_permit:

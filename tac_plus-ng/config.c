@@ -1335,7 +1335,7 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 	    }
 	}
 
-	if (dict->id != -1 || (/* *d_start != RADIUS_A_MESSAGE_AUTHENTICATOR && */ *d_start != RADIUS_A_USER_PASSWORD)) {
+	if (dict->id != -1 || ( /* *d_start != RADIUS_A_MESSAGE_AUTHENTICATOR && */ *d_start != RADIUS_A_USER_PASSWORD)) {
 	    if (add_separator) {
 		if (*buf_len > separator_len) {
 		    memcpy(*buf, separator, separator_len);
@@ -2541,7 +2541,7 @@ enum token eval_ruleset_r(tac_session *session, tac_realm *realm, int parent_fir
 	    case S_permit:
 	    case S_deny:
 		cache_user_profile(session, res);
-		session->rule = rule->acl.name;
+		session->rulename = &rule->acl.name;
 		return res;
 	    default:;
 	    }
@@ -4747,8 +4747,9 @@ static int tac_mavis_cond_compare(tac_session *session, struct mavis_cond *m, ch
 static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 {
     int res = 0;
-    char *v = NULL;
-    size_t v_len = 0;
+    str_t v_tmp = { 0 };
+    str_t *v = &v_tmp;
+
     if (!m)
 	return 0;
     switch (m->type) {
@@ -4860,174 +4861,135 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
     case S_slash:
 	switch (m->s.token) {
 	case S_authen_action:
-	    v = session->authen_action.txt;
-	    v_len = session->authen_action.len;
+	    if (session->authen_action)
+		v = session->authen_action;
 	    break;
 	case S_authen_type:
-	    v = session->authen_type.txt;
-	    v_len = session->authen_type.len;
+	    if (session->authen_type)
+		v = session->authen_type;
 	    break;
 	case S_authen_service:
-	    v = session->authen_service.txt;
-	    v_len = session->authen_service.len;
+	    if (session->authen_service)
+		v = session->authen_service;
 	    break;
 	case S_authen_method:
-	    v = session->authen_method.txt;
-	    v_len = session->authen_method.len;
+	    if (session->authen_method)
+		v = session->authen_method;
 	    break;
 	case S_privlvl:
-	    v = session->priv_lvl_ascii.txt;
-	    v_len = session->priv_lvl_ascii.len;
+	    v = eval_log_format_privlvl(session, NULL, NULL);
 	    break;
 	case S_vrf:
-	    v = session->ctx->vrf.txt;
-	    v_len = session->ctx->vrf.len;
+	    v = &session->ctx->vrf;
 	    break;
 #if defined(WITH_SSL)
 	case S_tls_conn_version:
-	    v = (char *) session->ctx->tls_conn_version.txt;
-	    v_len = session->ctx->tls_conn_version.len;
+	    v = &session->ctx->tls_conn_version;
 	    break;
 	case S_tls_conn_cipher:
-	    v = (char *) session->ctx->tls_conn_cipher.txt;
-	    v_len = session->ctx->tls_conn_cipher.len;
+	    v = &session->ctx->tls_conn_cipher;
 	    break;
 	case S_tls_peer_cert_issuer:
-	    v = (char *) session->ctx->tls_peer_cert_issuer.txt;
-	    v_len = session->ctx->tls_peer_cert_issuer.len;
+	    v = &session->ctx->tls_peer_cert_issuer;
 	    break;
 	case S_tls_peer_cert_subject:
-	    v = (char *) session->ctx->tls_peer_cert_subject.txt;
-	    v_len = session->ctx->tls_peer_cert_subject.len;
+	    v = &session->ctx->tls_peer_cert_subject;
 	    break;
 	case S_tls_conn_cipher_strength:
-	    v = session->ctx->tls_conn_cipher_strength.txt;
-	    v_len = session->ctx->tls_conn_cipher_strength.len;
+	    v = &session->ctx->tls_conn_cipher_strength;
 	    break;
 	case S_tls_peer_cn:
-	    v = session->ctx->tls_peer_cn.txt;
-	    v_len = session->ctx->tls_peer_cn.len;
+	    v = &session->ctx->tls_peer_cn;
 	    break;
 	case S_tls_psk_identity:
-	    v = session->ctx->tls_psk_identity.txt;
-	    v_len = session->ctx->tls_psk_identity.len;
+	    v = &session->ctx->tls_psk_identity;
 	    break;
 #endif
 	case S_conn_protocol:
-	    if (session->ctx->udp) {
-		v = codestring[S_udp].txt;
-		v_len = codestring[S_udp].len;
-	    } else {
-		v = codestring[S_tcp].txt;
-		v_len = codestring[S_tcp].len;
-	    }
+	    v = &codestring[session->ctx->udp ? S_udp : S_tcp];
 	    break;
 	case S_conn_transport:
 	    if (session->ctx->udp) {
 #ifdef WITH_SSL
-		if (session->ctx->tls) {
-		    v = codestring[S_dtls].txt;
-		    v_len = codestring[S_dtls].len;
-		} else
+		if (session->ctx->tls)
+		    v = &codestring[S_dtls];
+		else
 #endif
-		{
-		    v = codestring[S_udp].txt;
-		    v_len = codestring[S_udp].len;
-		}
+		    v = &codestring[S_udp];
 	    } else {
 #ifdef WITH_SSL
-		if (session->ctx->tls) {
-		    v = codestring[S_tls].txt;
-		    v_len = codestring[S_tls].len;
-		} else
+		if (session->ctx->tls)
+		    v = &codestring[S_tls];
+		else
 #endif
-		{
-		    v = codestring[S_tcp].txt;
-		    v_len = codestring[S_tcp].len;
-		}
+		    v = &codestring[S_tcp];
 	    }
 	    break;
 	case S_context:
-	    v = tac_script_get_exec_context(session);
+	    v->txt = tac_script_get_exec_context(session);
 	    break;
 	case S_cmd:
-	    v = session->cmdline.txt;
-	    v_len = session->cmdline.len;
+	    v = &session->cmdline;
 	    break;
 	case S_nac:
 	case S_clientaddress:
-	    v = session->nac_addr_ascii.txt;
-	    v_len = session->nac_addr_ascii.len;
+	    v = &session->nac_addr_ascii;
 	    break;
 	case S_nas:
 	case S_deviceaddress:
-	    v = session->ctx->device_addr_ascii.txt;
-	    v_len = session->ctx->device_addr_ascii.len;
+	    v = &session->ctx->device_addr_ascii;
 	    break;
 	case S_clientdns:
 	case S_nacname:
-	    if (session->nac_dns_name.txt && *session->nac_dns_name.txt) {
-		v = session->nac_dns_name.txt;
-		v_len = session->nac_dns_name.len;
-	    }
+	    if (session->nac_dns_name.txt && *session->nac_dns_name.txt)
+		v = &session->nac_dns_name;
 	    break;
 	case S_devicedns:
 	case S_nasname:
-	    if (session->ctx->device_dns_name.txt && *session->ctx->device_dns_name.txt) {
-		v = session->ctx->device_dns_name.txt;
-		v_len = session->ctx->device_dns_name.len;
-	    }
+	    if (session->ctx->device_dns_name.txt && *session->ctx->device_dns_name.txt)
+		v = &session->ctx->device_dns_name;
 	    break;
 	case S_deviceport:
 	case S_port:
-	    v = session->port.txt;
-	    v_len = session->port.len;
+	    v = &session->port;
 	    break;
 	case S_type:
-	    v = session->type.txt;
-	    v_len = session->type.len;
+	    v = session->type;
 	    break;
 	case S_user:
-	    v = session->username.txt;
-	    v_len = session->username.len;
+	    v = &session->username;
 	    break;
 	case S_user_original:
-	    v = session->username_orig.txt;
-	    v_len = session->username_orig.len;
+	    v = &session->username_orig;
 	    break;
 	case S_password:
-	    v = session->password_new ? session->password_new : session->password;
+	    v->txt = session->password_new ? session->password_new : session->password;
 	    break;
 	case S_service:
-	    v = session->service.txt;
-	    v_len = session->service.len;
+	    v = &session->service;
 	    break;
 	case S_protocol:
-	    v = session->protocol.txt;
-	    v_len = session->protocol.len;
+	    v = &session->protocol;
 	    break;
 	case S_dn:
 	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_DN])
-		v = session->user->avc->arr[AV_A_DN];
+		v->txt = session->user->avc->arr[AV_A_DN];
 	    break;
 	case S_identity_source:
 	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_IDENTITY_SOURCE])
-		v = session->user->avc->arr[AV_A_IDENTITY_SOURCE];
+		v->txt = session->user->avc->arr[AV_A_IDENTITY_SOURCE];
 	    break;
 	case S_server_name:
-	    v = config.hostname.txt;
-	    v_len = config.hostname.len;
+	    v = &config.hostname;
 	    break;
 	case S_server_port:
-	    v = session->ctx->server_port_ascii.txt;
-	    v_len = session->ctx->server_port_ascii.len;
+	    v = &session->ctx->server_port_ascii;
 	    break;
 	case S_server_address:
-	    v = session->ctx->server_addr_ascii.txt;
-	    v_len = session->ctx->server_addr_ascii.len;
+	    v = &session->ctx->server_addr_ascii;
 	    break;
 	case S_string:
-	    v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->s.lhs, io_now.tv_sec, &v_len);
+	    v->txt = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->s.lhs, io_now.tv_sec, &v->len);
 	    break;
 	case S_member:
 	    if (session->user)
@@ -5064,7 +5026,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	case S_memberof:
 	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_MEMBEROF]) {
 		size_t l = strlen(session->user->avc->arr[AV_A_MEMBEROF]) + 1;
-		v = alloca(l);
+		char *v = alloca(l);
 		memcpy(v, session->user->avc->arr[AV_A_MEMBEROF], l);
 		while (*v) {
 		    char *e;
@@ -5112,18 +5074,18 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 		    from.sin.sin_family = AF_INET;
 		    if (!rad_get(session, attr->dict->id, attr->id, attr->type, &from.sin.sin_addr, NULL)
 			&& su_ntop(&from, buf, sizeof(buf)))
-			v = mem_strdup(session->mem, buf);
+			v->txt = mem_strdup(session->mem, buf);
 		} else if (attr->type == S_ipv6addr) {
 		    char buf[256];
 		    sockaddr_union from = { 0 };
 		    from.sin.sin_family = AF_INET6;
 		    if (!rad_get(session, attr->dict->id, attr->id, S_ipv6addr, &from.sin6.sin6_addr, NULL)
 			&& su_ntop(&from, buf, sizeof(buf)))
-			v = mem_strdup(session->mem, buf);
+			v->txt = mem_strdup(session->mem, buf);
 		    if (!res)
-			v = mem_strdup(session->mem, su_ntop(&from, buf, sizeof(buf)) ? buf : "<unknown>");
+			v->txt = mem_strdup(session->mem, su_ntop(&from, buf, sizeof(buf)) ? buf : "<unknown>");
 		} else if (attr->type == S_string_keyword) {
-		    rad_get(session, attr->dict->id, attr->id, S_string_keyword, &v, &v_len);
+		    rad_get(session, attr->dict->id, attr->id, S_string_keyword, &v->txt, &v->len);
 		}
 	    }
 	    break;
@@ -5138,7 +5100,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 		    l = (size_t) *arg_len;
 		    if ((l > len) && !strncmp(s, m->s.lhs, len)
 			&& (*(argp + len) == '=' || *(argp + len) == '*')) {
-			v = mem_strndup(session->mem, argp + len + 1, l - len - 1);
+			v->txt = mem_strndup(session->mem, argp + len + 1, l - len - 1);
 			break;
 		    }
 		    argp += (size_t) *arg_len;
@@ -5147,11 +5109,11 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	    break;
 	default:;
 	}
-	if (!v)
+	if (!v || !v->txt)
 	    return 0;
-	if (!v_len)
-	    v_len = strlen(v);
-	res = tac_mavis_cond_compare(session, m, v, v_len);
+	if (!v->len)
+	    v->len = strlen(v->txt);
+	res = tac_mavis_cond_compare(session, m, v->txt, v->len);
 	return tac_script_cond_eval_res(session, m, res);
     default:;
     }

@@ -149,23 +149,6 @@ static struct i2s map_method[] = {
     { 0 }
 };
 
-static char *i2s(struct i2s *s, int i, size_t *len)
-{
-    struct i2s *r = s;
-
-    do
-	s++;
-    while (s->str.txt && i != s->key);
-
-    if (!s->str.txt)
-	s = r;
-
-    if (len)
-	*len = s->str.len;
-
-    return s->str.txt;
-}
-
 static str_t *i2str(struct i2s *s, int i)
 {
     struct i2s *r = s;
@@ -180,16 +163,24 @@ static str_t *i2str(struct i2s *s, int i)
     return &r->str;
 }
 
+static char *i2s(struct i2s *s, int i, size_t *len)
+{
+    str_t *r = i2str(s, i);
+    if (len)
+	*len = r->len;
+    return r->txt;
+}
+
 void get_pkt_data(tac_session *session, struct authen_start *start, struct author *author)
 {
     if (start) {
-	session->authen_action = *(i2str(map_action, start->action));
-	session->authen_type = *(i2str(map_type, start->type));
-	session->authen_service = *(i2str(map_service, start->service));
+	session->authen_action = i2str(map_action, start->action);
+	session->authen_type = i2str(map_type, start->type);
+	session->authen_service = i2str(map_service, start->service);
     } else if (author) {
-	session->authen_type = *(i2str(map_type, author->authen_type));
-	session->authen_service = *(i2str(map_service, author->service));
-	session->authen_method = *(i2str(map_method, author->authen_method));
+	session->authen_type = i2str(map_type, author->authen_type);
+	session->authen_service = i2str(map_service, author->service);
+	session->authen_method = i2str(map_method, author->authen_method);
     }
 }
 
@@ -207,20 +198,21 @@ char *summarise_outgoing_packet_type(tac_pak_hdr *hdr)
     }
 }
 
+#define DEBPACK session, LOG_DEBUG, DEBUG_PACKET_FLAG
+
 static void dump_header(tac_session *session, tac_pak_hdr *hdr, int bogus)
 {
     if (!(common_data.debug & DEBUG_TACTRACE_FLAG)) {
-	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "key used: %s", session->ctx->key ? session->ctx->key->key : "<NULL>");
+	report(DEBPACK, "key used: %s", session->ctx->key ? session->ctx->key->key : "<NULL>");
 
-	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG,
-	       "version: %d, type: %d, seq no: %d, flags: %s%sencrypted%s%s",
+	report(DEBPACK, "version: %d, type: %d, seq no: %d, flags: %s%sencrypted%s%s",
 	       hdr->version, hdr->type, hdr->seq_no,
 	       common_data.font_blue,
 	       hdr->flags & TAC_PLUS_UNENCRYPTED_FLAG ? "un" : "", hdr->flags & TAC_PLUS_SINGLE_CONNECT_FLAG ? " single-connect" : "",
 	       common_data.font_plain);
     }
 
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "session id: %.8x, data length: %d", (unsigned int) ntohl(hdr->session_id), (int) ntohl(hdr->datalength));
+    report(DEBPACK, "session id: %.8x, data length: %d", (unsigned int) ntohl(hdr->session_id), (int) ntohl(hdr->datalength));
 
     if (!bogus && (hdr->seq_no & 1) && !(session->debug & DEBUG_USERINPUT_FLAG) && (hdr->type == TAC_PLUS_AUTHEN)) {
 	size_t n = ntohl(hdr->datalength);
@@ -254,7 +246,7 @@ static void dump_args(tac_session *session, u_char arg_cnt, char *p, unsigned ch
     for (int i = 0; i < arg_cnt; i++) {
 	char a[20];
 	snprintf(a, sizeof(a), "arg[%d]", i);
-	report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, a, p, *sizep);
+	report_string(DEBPACK, a, p, *sizep);
 	p += *sizep;
 	sizep++;
     }
@@ -267,47 +259,45 @@ void dump_nas_pak(tac_session *session, int bogus)
     unsigned char *argsizep;
     tac_pak_hdr *hdr = &session->ctx->in->pak.tac;
 
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
+    report(DEBPACK, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
     dump_header(session, hdr, bogus);
 
     if (bogus) {
-	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "Packet malformed, skipping detailed dump.");
+	report(DEBPACK, "Packet malformed, skipping detailed dump.");
     } else {
 	switch (hdr->type) {
 	case TAC_PLUS_AUTHEN:
 	    if (hdr->seq_no == 1) {
 		struct authen_start *start = tac_payload(hdr, struct authen_start *);
 
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "AUTHEN/START, priv_lvl=%d", start->priv_lvl);
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "action=%s (%d)", i2s(map_action, start->action, NULL), start->action);
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "authen_type=%s (%d)", i2s(map_type, start->type, NULL), start->type);
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "service=%s (%d)", i2s(map_service, start->service, NULL), start->service);
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG,
-		       "user_len=%d port_len=%d rem_addr_len=%d", start->user_len, start->port_len, start->rem_addr_len);
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "data_len=%d", start->data_len);
+		report(DEBPACK, "AUTHEN/START, priv_lvl=%d", start->priv_lvl);
+		report(DEBPACK, "action=%s (%d)", i2s(map_action, start->action, NULL), start->action);
+		report(DEBPACK, "authen_type=%s (%d)", i2s(map_type, start->type, NULL), start->type);
+		report(DEBPACK, "service=%s (%d)", i2s(map_service, start->service, NULL), start->service);
+		report(DEBPACK, "user_len=%d port_len=%d rem_addr_len=%d", start->user_len, start->port_len, start->rem_addr_len);
+		report(DEBPACK, "data_len=%d", start->data_len);
 		p = (char *) start + TAC_AUTHEN_START_FIXED_FIELDS_SIZE;
-		report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "user", p, start->user_len);
+		report_string(DEBPACK, "user", p, start->user_len);
 		p += start->user_len;
-		report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "port", p, start->port_len);
+		report_string(DEBPACK, "port", p, start->port_len);
 		p += start->port_len;
-		report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "rem_addr", p, start->rem_addr_len);
+		report_string(DEBPACK, "rem_addr", p, start->rem_addr_len);
 		if ((session->debug & DEBUG_USERINPUT_FLAG)
 		    || (start->type == TAC_PLUS_AUTHEN_TYPE_SSHKEY)	// it's safe to show the key hash
 		    || (start->type == TAC_PLUS_AUTHEN_TYPE_SSHCERT)
 		    ) {
 		    p += start->rem_addr_len;
-		    report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "data", p, start->data_len);
+		    report_string(DEBPACK, "data", p, start->data_len);
 		}
 	    } else {
 		struct authen_cont *cont = tac_payload(hdr, struct authen_cont *);
 
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG,
-		       "AUTHEN/CONT user_msg_len=%d, user_data_len=%d", ntohs(cont->user_msg_len), ntohs(cont->user_data_len));
+		report(DEBPACK, "AUTHEN/CONT user_msg_len=%d, user_data_len=%d", ntohs(cont->user_msg_len), ntohs(cont->user_data_len));
 		if (session->debug & DEBUG_USERINPUT_FLAG) {
 		    p = (char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE;
-		    report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "user_msg", p, ntohs(cont->user_msg_len));
+		    report_string(DEBPACK, "user_msg", p, ntohs(cont->user_msg_len));
 		    p += cont->user_msg_len;
-		    report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "user_data", p, ntohs(cont->user_data_len));
+		    report_string(DEBPACK, "user_data", p, ntohs(cont->user_data_len));
 		}
 	    }
 	    break;
@@ -315,21 +305,21 @@ void dump_nas_pak(tac_session *session, int bogus)
 	    {
 		struct author *author = tac_payload(hdr, struct author *);
 
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "AUTHOR, priv_lvl=%d", author->priv_lvl);
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "authen_type=%s (%d)", i2s(map_type, author->authen_type, NULL), author->authen_type);
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "authen_method=%s (%d)", i2s(map_method, author->authen_method, NULL), author->authen_method);
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "service=%s (%d)", i2s(map_service, author->service, NULL), author->service);
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG,
+		report(DEBPACK, "AUTHOR, priv_lvl=%d", author->priv_lvl);
+		report(DEBPACK, "authen_type=%s (%d)", i2s(map_type, author->authen_type, NULL), author->authen_type);
+		report(DEBPACK, "authen_method=%s (%d)", i2s(map_method, author->authen_method, NULL), author->authen_method);
+		report(DEBPACK, "service=%s (%d)", i2s(map_service, author->service, NULL), author->service);
+		report(DEBPACK,
 		       "user_len=%d port_len=%d rem_addr_len=%d arg_cnt=%d", author->user_len, author->port_len, author->rem_addr_len, author->arg_cnt);
 
 		p = (char *) author + TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE;
 		argsizep = (unsigned char *) p;
 		p += author->arg_cnt;
-		report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "user", p, author->user_len);
+		report_string(DEBPACK, "user", p, author->user_len);
 		p += author->user_len;
-		report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "port", p, author->port_len);
+		report_string(DEBPACK, "port", p, author->port_len);
 		p += author->port_len;
-		report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "rem_addr", p, author->rem_addr_len);
+		report_string(DEBPACK, "rem_addr", p, author->rem_addr_len);
 		p += author->rem_addr_len;
 		dump_args(session, author->arg_cnt, p, argsizep);
 	    }
@@ -338,30 +328,29 @@ void dump_nas_pak(tac_session *session, int bogus)
 	    {
 		struct acct *acct = tac_payload(hdr, struct acct *);
 
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "ACCT, priv_lvl=%d flags=0x%x", acct->priv_lvl, acct->flags);
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "authen_type=%s (%d)", i2s(map_type, acct->authen_type, NULL), acct->authen_type);
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "authen_method=%s (%d)", i2s(map_method, acct->authen_method, NULL), acct->authen_method);
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "service=%s (%d)", i2s(map_service, acct->authen_service, NULL), acct->authen_service);
-		report(session, LOG_DEBUG, DEBUG_PACKET_FLAG,
-		       "user_len=%d port_len=%d rem_addr_len=%d arg_cnt=%d", acct->user_len, acct->port_len, acct->rem_addr_len, acct->arg_cnt);
+		report(DEBPACK, "ACCT, priv_lvl=%d flags=0x%x", acct->priv_lvl, acct->flags);
+		report(DEBPACK, "authen_type=%s (%d)", i2s(map_type, acct->authen_type, NULL), acct->authen_type);
+		report(DEBPACK, "authen_method=%s (%d)", i2s(map_method, acct->authen_method, NULL), acct->authen_method);
+		report(DEBPACK, "service=%s (%d)", i2s(map_service, acct->authen_service, NULL), acct->authen_service);
+		report(DEBPACK, "user_len=%d port_len=%d rem_addr_len=%d arg_cnt=%d", acct->user_len, acct->port_len, acct->rem_addr_len, acct->arg_cnt);
 
 		p = (char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
 		argsizep = (unsigned char *) p;
 		p += acct->arg_cnt;
-		report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "user", p, acct->user_len);
+		report_string(DEBPACK, "user", p, acct->user_len);
 		p += acct->user_len;
-		report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "port", p, acct->port_len);
+		report_string(DEBPACK, "port", p, acct->port_len);
 		p += acct->port_len;
-		report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "rem_addr", p, acct->rem_addr_len);
+		report_string(DEBPACK, "rem_addr", p, acct->rem_addr_len);
 		p += acct->rem_addr_len;
 		dump_args(session, acct->arg_cnt, p, argsizep);
 	    }
 	    break;
 	default:
-	    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s: unrecognized header type %d", __func__, hdr->type);
+	    report(DEBPACK, "%s: unrecognized header type %d", __func__, hdr->type);
 	}
     }
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<end packet>---%s", common_data.font_green, common_data.font_plain);
+    report(DEBPACK, "%s---<end packet>---%s", common_data.font_green, common_data.font_plain);
 }
 
 /* Dump packets originated by tac_plus */
@@ -369,7 +358,7 @@ void dump_tacacs_pak(tac_session *session, tac_pak_hdr *hdr)
 {
     char *p;
 
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
+    report(DEBPACK, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
     dump_header(session, hdr, 0);
 
     switch (hdr->type) {
@@ -377,14 +366,13 @@ void dump_tacacs_pak(tac_session *session, tac_pak_hdr *hdr)
 	{
 	    struct authen_reply *authen = tac_payload(hdr, struct authen_reply *);
 
-	    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG,
-		   "AUTHEN, status=%d (%s) flags=0x%x", authen->status, summarise_outgoing_packet_type(hdr), authen->flags);
-	    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "msg_len=%d, data_len=%d", ntohs(authen->msg_len), ntohs(authen->data_len));
+	    report(DEBPACK, "AUTHEN, status=%d (%s) flags=0x%x", authen->status, summarise_outgoing_packet_type(hdr), authen->flags);
+	    report(DEBPACK, "msg_len=%d, data_len=%d", ntohs(authen->msg_len), ntohs(authen->data_len));
 	    /* start of variable length data is here */
 	    p = (char *) authen + TAC_AUTHEN_REPLY_FIXED_FIELDS_SIZE;
-	    report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "msg", p, ntohs(authen->msg_len));
+	    report_string(DEBPACK, "msg", p, ntohs(authen->msg_len));
 	    p += ntohs(authen->msg_len);
-	    report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "data", p, ntohs(authen->data_len));
+	    report_string(DEBPACK, "data", p, ntohs(authen->data_len));
 	}
 	break;
     case TAC_PLUS_AUTHOR:
@@ -392,15 +380,14 @@ void dump_tacacs_pak(tac_session *session, tac_pak_hdr *hdr)
 	    struct author_reply *author = tac_payload(hdr, struct author_reply *);
 	    unsigned char *argsizep;
 
-	    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "AUTHOR/REPLY, status=%d (%s) ", author->status, summarise_outgoing_packet_type(hdr));
-	    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG,
-		   "msg_len=%d, data_len=%d, arg_cnt=%d", ntohs(author->msg_len), ntohs(author->data_len), author->arg_cnt);
+	    report(DEBPACK, "AUTHOR/REPLY, status=%d (%s) ", author->status, summarise_outgoing_packet_type(hdr));
+	    report(DEBPACK, "msg_len=%d, data_len=%d, arg_cnt=%d", ntohs(author->msg_len), ntohs(author->data_len), author->arg_cnt);
 	    p = (char *) author + TAC_AUTHOR_REPLY_FIXED_FIELDS_SIZE;
 	    argsizep = (unsigned char *) p;
 	    p += author->arg_cnt;
-	    report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "msg", p, ntohs(author->msg_len));
+	    report_string(DEBPACK, "msg", p, ntohs(author->msg_len));
 	    p += ntohs(author->msg_len);
-	    report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "data", p, ntohs(author->data_len));
+	    report_string(DEBPACK, "data", p, ntohs(author->data_len));
 	    p += ntohs(author->data_len);
 	    dump_args(session, author->arg_cnt, p, argsizep);
 	}
@@ -409,19 +396,18 @@ void dump_tacacs_pak(tac_session *session, tac_pak_hdr *hdr)
 	{
 	    struct acct_reply *acct = tac_payload(hdr, struct acct_reply *);
 
-	    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG,
-		   "ACCT/REPLY, status=%d (%s), msg_len=%d, data_len=%d", acct->status, summarise_outgoing_packet_type(hdr), ntohs(acct->msg_len),
+	    report(DEBPACK, "ACCT/REPLY, status=%d (%s), msg_len=%d, data_len=%d", acct->status, summarise_outgoing_packet_type(hdr), ntohs(acct->msg_len),
 		   ntohs(acct->data_len));
 	    p = (char *) acct + TAC_ACCT_REPLY_FIXED_FIELDS_SIZE;
-	    report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "msg", p, ntohs(acct->msg_len));
+	    report_string(DEBPACK, "msg", p, ntohs(acct->msg_len));
 	    p += ntohs(acct->msg_len);
-	    report_string(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "data", p, ntohs(acct->data_len));
+	    report_string(DEBPACK, "data", p, ntohs(acct->data_len));
 	}
 	break;
     default:
-	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s: unrecognized header type %d", __func__, hdr->type);
+	report(DEBPACK, "%s: unrecognized header type %d", __func__, hdr->type);
     }
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<end packet>---%s", common_data.font_green, common_data.font_plain);
+    report(DEBPACK, "%s---<end packet>---%s", common_data.font_green, common_data.font_plain);
 }
 
 static struct i2s map_rad_code[] = {
@@ -438,14 +424,14 @@ static struct i2s map_rad_code[] = {
 void dump_rad_pak(tac_session *session, rad_pak_hdr *pkt)
 {
     if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
-	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "key used: %s", session->ctx->key ? session->ctx->key->key : "<NULL>");
+	report(DEBPACK, "key used: %s", session->ctx->key ? session->ctx->key->key : "<NULL>");
 
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
+    report(DEBPACK, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
     report(session, LOG_DEBUG, DEBUG_HEX_FLAG, "%spacket%s (len: %d):%s", common_data.font_red, common_data.font_plain, (int) ntohs(pkt->length),
 	   common_data.font_plain);
     report_hex(session, LOG_DEBUG, DEBUG_HEX_FLAG, (u_char *) pkt, (int) ntohs(pkt->length));
 
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%scode=%s [%u] identifer=%u length=%u%s", common_data.font_blue, i2s(map_rad_code, pkt->code, NULL),
+    report(DEBPACK, "%scode=%s [%u] identifer=%u length=%u%s", common_data.font_blue, i2s(map_rad_code, pkt->code, NULL),
 	   pkt->code, pkt->identifier, ntohs(pkt->length), common_data.font_plain);
 
     char *buf = NULL;
@@ -453,9 +439,9 @@ void dump_rad_pak(tac_session *session, rad_pak_hdr *pkt)
     rad_attr_val_dump(session->mem, RADIUS_DATA(pkt), RADIUS_DATA_LEN(pkt), &buf, &buf_len, NULL, "\n\t", 2);
 
     if (*buf)
-	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "Attributes: \n\t%s%s%s", common_data.font_red, buf, common_data.font_plain);
+	report(DEBPACK, "Attributes: \n\t%s%s%s", common_data.font_red, buf, common_data.font_plain);
     else
-	report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "Attributes: None");
+	report(DEBPACK, "Attributes: None");
 
-    report(session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s---<end packet>---%s", common_data.font_green, common_data.font_plain);
+    report(DEBPACK, "%s---<end packet>---%s", common_data.font_green, common_data.font_plain);
 }

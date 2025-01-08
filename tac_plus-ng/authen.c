@@ -164,7 +164,7 @@ static void report_auth(tac_session *session, char *what, enum hint_enum hint, e
     char *realm = alloca(session->ctx->realm->name.len + 40);
     tac_realm *r = session->ctx->realm;
 
-    session->result = codestring[res];
+    session->result = &codestring[res];
 
     if (r == config.default_realm)
 	*realm = 0;
@@ -190,7 +190,7 @@ static void report_auth(tac_session *session, char *what, enum hint_enum hint, e
 	   session->profile ? " (profile=" : "", session->profile ? session->profile->name.txt : "", session->profile ? ")" : "");
 #undef IS_SET
 
-    session->msgid = hints[hint].msgid;
+    session->msgid = &hints[hint].msgid;
     str_set(&session->action, what, 0);
     str_set(&session->hint, hint_augmented, 0);
 
@@ -1841,9 +1841,6 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 		send_authen_error(session, "Invalid privilege level %d in packet.", session->priv_lvl);
 		return;
 	    }
-	    char buf[10];
-	    int len = snprintf(buf, sizeof(buf), "%u", session->priv_lvl);
-	    str_set(&session->priv_lvl_ascii, mem_strdup(session->mem, buf), len);
 	}
     } else if (cont->flags & TAC_PLUS_CONTINUE_FLAG_ABORT) {
 	char *t = hints[hint_abort].plain.txt;
