@@ -103,7 +103,9 @@ void author(tac_session *session, tac_pak_hdr *hdr)
     struct author *pak = tac_payload(hdr, struct author *);
     struct author_data *data;
 
-    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "Start authorization request");
+#define DEBAUTHZ session, LOG_DEBUG, DEBUG_AUTHOR_FLAG
+
+    report(DEBAUTHZ, "Start authorization request");
 
     get_pkt_data(session, NULL, pak);
 
@@ -271,7 +273,7 @@ static void do_author(tac_session *session)
 
     res = author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first);
     if (res == S_deny) {
-	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username.txt, session->ctx->realm->name.txt);
+	report(DEBAUTHZ, "user %s realm %s denied by ACL", session->username.txt, session->ctx->realm->name.txt);
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt,
 			  eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL), 0, NULL);
     }
@@ -287,7 +289,7 @@ static void do_author(tac_session *session)
     }
 
     if (session->mavisauth_res == TAC_PLUS_AUTHEN_STATUS_ERROR) {
-	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s': backend failure", session->username.txt);
+	report(DEBAUTHZ, "user '%s': backend failure", session->username.txt);
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_ERROR, session->message.txt, NULL, 0, NULL);
 	return;
     }
@@ -295,11 +297,11 @@ static void do_author(tac_session *session)
     if (!session->user) {
 	if ((session->ctx->host->authz_if_authc == TRISTATE_YES) && session->pak_authen_method != TAC_PLUS_AUTHEN_METH_TACACSPLUS
 	    && session->pak_authen_type == TAC_PLUS_AUTHEN_TYPE_ASCII) {
-	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s' not found but authenticated locally, permitted by default", session->username.txt);
+	    report(DEBAUTHZ, "user '%s' not found but authenticated locally, permitted by default", session->username.txt);
 	    send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_PASS_ADD, session->message.txt, NULL, 0, NULL);
 	    return;
 	}
-	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s' not found, denied by default", session->username.txt);
+	report(DEBAUTHZ, "user '%s' not found, denied by default", session->username.txt);
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt, NULL, 0, NULL);
 	return;
     }
@@ -308,7 +310,7 @@ static void do_author(tac_session *session)
     if (session->profile)
 	session->debug |= session->profile->debug;
 
-    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user '%s' found", session->username.txt);
+    report(DEBAUTHZ, "user '%s' found", session->username.txt);
 
     if (session->authorized)
 	res = S_permit;
@@ -320,13 +322,13 @@ static void do_author(tac_session *session)
 
     switch (res) {
     case S_deny:
-	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG,
+	report(DEBAUTHZ,
 	       "%s@%s: svcname=%s protocol=%s denied", session->username.txt, session->ctx->device_addr_ascii.txt,
 	       session->service.txt ? session->service.txt : "", session->protocol.txt ? session->protocol.txt : "");
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt, NULL, 0, NULL);
 	return;
     default:
-	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG,
+	report(DEBAUTHZ,
 	       "%s@%s: svcname=%s protocol=%s not found",
 	       session->username.txt, session->ctx->device_addr_ascii.txt, session->service.txt ? session->service.txt : "",
 	       session->protocol.txt ? session->protocol.txt : "");
@@ -391,7 +393,7 @@ static void do_author(tac_session *session)
 	/* always pass these pairs through unchanged */
 	if (!strcmp_a(na, "service=") || !strcmp_a(na, "protocol=") || !strcmp_a(na, "cmd=")) {
 
-	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "nas:%s (passed thru)", na);
+	    report(DEBAUTHZ, "nas:%s (passed thru)", na);
 	    *outp++ = na, out_cnt++;
 	    continue;
 	}
@@ -399,13 +401,13 @@ static void do_author(tac_session *session)
 	    /* NAS AV pair is mandatory */
 
 	    if ((da = lookup_attrval(session->attrs_m, session->cnt_m, na))) {
-		report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "nas:%s, svr:%s -> add %s (%c)", na, da, da, 'a');
+		report(DEBAUTHZ, "nas:%s, svr:%s -> add %s (%c)", na, da, da, 'a');
 		*outp++ = da, out_cnt++;
 		continue;
 	    }
 
 	    if ((da = lookup_attr(session->attrs_o, session->cnt_o, na))) {
-		report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "nas:%s, svr:%s -> add %s (%c)", na, da, na, 'b');
+		report(DEBAUTHZ, "nas:%s, svr:%s -> add %s (%c)", na, da, na, 'b');
 		*outp++ = na, out_cnt++;
 		continue;
 	    }
@@ -413,7 +415,7 @@ static void do_author(tac_session *session)
 	    /* If no attribute match exists, deny the attribute if the default
 	     * is to deny */
 	    if (session->attr_dflt != S_permit) {
-		report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "nas:%s svr:absent/deny -> denied (c)", na);
+		report(DEBAUTHZ, "nas:%s svr:absent/deny -> denied (c)", na);
 		send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt, NULL, 0, NULL);
 		return;
 	    }
@@ -426,21 +428,21 @@ static void do_author(tac_session *session)
 		(c = 'g', da = lookup_attrval(session->attrs_o, session->cnt_o, na)) ||	// exact match in optional list
 		(c = 'h', da = lookup_attr(session->attrs_o, session->cnt_o, na))	// attribute match in optional list
 		) {
-		report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "nas:%s svr:%s -> replace with %s (%c)", na, da, da, c);
+		report(DEBAUTHZ, "nas:%s svr:%s -> replace with %s (%c)", na, da, da, c);
 		*outp++ = da, out_cnt++, replaced++;
 		continue;
 	    }
 
 	    /* If no match is found, delete the AV pair if default is deny */
 	    if (session->attr_dflt != S_permit) {
-		report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "nas:%s svr:absent/deny -> delete %s (i)", na, na);
+		report(DEBAUTHZ, "nas:%s svr:absent/deny -> delete %s (i)", na, na);
 		replaced++;
 		continue;
 	    }
 	}
 
 	/* If the default is permit, add the NAS AV pair to the output */
-	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "nas:%s svr:absent/permit -> add %s (d/j)", na, na);
+	report(DEBAUTHZ, "nas:%s svr:absent/permit -> add %s (d/j)", na, na);
 	out_cnt++, *outp++ = na;
     }
 
@@ -457,7 +459,7 @@ static void do_author(tac_session *session)
     for (int i = 0; i < session->cnt_m; i++) {
 	if (session->attrs_m[i]) {
 	    /* Attr is required by daemon but not present. Add it */
-	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "nas:absent srv:%s -> add %s (k)", session->attrs_m[i], session->attrs_m[i]);
+	    report(DEBAUTHZ, "nas:absent srv:%s -> add %s (k)", session->attrs_m[i], session->attrs_m[i]);
 	    added++, *outp++ = session->attrs_m[i], out_cnt++;
 	}
     }
@@ -475,7 +477,7 @@ static void do_author(tac_session *session)
     for (int i = 0; i < session->cnt_a; i++)
 	if (session->attrs_a[i]) {
 	    /* Attr is required by daemon but not present. Add it */
-	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "nas:absent srv:%s -> add %s (l)", session->attrs_a[i], session->attrs_a[i]);
+	    report(DEBAUTHZ, "nas:absent srv:%s -> add %s (l)", session->attrs_a[i], session->attrs_a[i]);
 	    added++, *outp++ = session->attrs_a[i];
 	    out_cnt++;
 	}
@@ -485,7 +487,7 @@ static void do_author(tac_session *session)
 	 * If we replaced or deleted some pairs we must return the entire
 	 * list we've constructed.
 	 */
-	report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "replaced %d args", replaced);
+	report(DEBAUTHZ, "replaced %d args", replaced);
 	data->status = TAC_PLUS_AUTHOR_STATUS_PASS_REPL;
 	data->out_args = out_args;
 	data->out_cnt = out_cnt;
@@ -497,7 +499,7 @@ static void do_author(tac_session *session)
 	     * We added something not on the original nas list, but didn't
 	     * replace or delete anything. We should return only the additions.
 	     */
-	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "added %d args", added);
+	    report(DEBAUTHZ, "added %d args", added);
 	    /* skip output args which are just copies of the input args */
 	    data->out_args = out_args + data->in_cnt;
 	    data->out_cnt = out_cnt - data->in_cnt;

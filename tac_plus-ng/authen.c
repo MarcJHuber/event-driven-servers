@@ -82,6 +82,8 @@
 #endif
 #endif
 
+#define DEBAUTHC session, LOG_DEBUG, DEBUG_AUTHEN_FLAG
+
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
 static struct log_item *li_user_access_verification = NULL;
@@ -278,7 +280,7 @@ static enum token lookup_and_set_user(tac_session *session)
 	    res = tac_script_eval_r(session, h->action);
 	    switch (res) {
 	    case S_deny:
-		report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "user %s realm %s denied by ACL", session->username.txt, session->ctx->realm->name.txt);
+		report(DEBAUTHC, "user %s realm %s denied by ACL", session->username.txt, session->ctx->realm->name.txt);
 		report_auth(session, "session", hint_denied_by_acl, S_deny);
 		return S_deny;
 	    default:
@@ -288,7 +290,7 @@ static enum token lookup_and_set_user(tac_session *session)
 	h = h->parent;
     }
 
-    report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "looking for user %s realm %s", session->username.txt, session->ctx->realm->name.txt);
+    report(DEBAUTHC, "looking for user %s realm %s", session->username.txt, session->ctx->realm->name.txt);
 
     if (!session->user_is_session_specific)
 	lookup_user(session);
@@ -299,7 +301,7 @@ static enum token lookup_and_set_user(tac_session *session)
 	session->user = NULL;
 
     if (session->user && session->user->rewritten_only && !session->username_rewritten) {
-	report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Login for user %s is prohibited", session->user->name.txt);
+	report(DEBAUTHC, "Login for user %s is prohibited", session->user->name.txt);
 	if (session->user_is_session_specific)
 	    free_user(session->user);
 	session->user = NULL;
@@ -312,7 +314,7 @@ static enum token lookup_and_set_user(tac_session *session)
 	    session->debug |= session->profile->debug;
 	res = S_permit;
     }
-    report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "user lookup %s", (res == S_permit) ? "succeded" : "failed");
+    report(DEBAUTHC, "user lookup %s", (res == S_permit) ? "succeded" : "failed");
     return res;
 }
 
@@ -1744,7 +1746,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
     struct authen_start *start = tac_payload(hdr, struct authen_start *);
     struct authen_cont *cont = tac_payload(hdr, struct authen_cont *);
 
-    report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "%s: hdr->seq_no: %d", __func__, hdr->seq_no);
+    report(DEBAUTHC, "%s: hdr->seq_no: %d", __func__, hdr->seq_no);
 
     if (!session->authen_data)
 	session->authen_data = mem_alloc(session->mem, sizeof(struct authen_data));
