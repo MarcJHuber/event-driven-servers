@@ -199,6 +199,7 @@ char *summarise_outgoing_packet_type(tac_pak_hdr *hdr)
 }
 
 #define DEBPACK session, LOG_DEBUG, DEBUG_PACKET_FLAG
+#define DEBHEX session, LOG_DEBUG, DEBUG_HEX_FLAG
 
 static void dump_header(tac_session *session, tac_pak_hdr *hdr, int bogus)
 {
@@ -229,16 +230,15 @@ static void dump_header(tac_session *session, tac_pak_hdr *hdr, int bogus)
 	    if (t) {
 		memcpy(t, tac_payload(hdr, char *), n);
 		memset(t + n - l, '*', l);
-		report(session, LOG_DEBUG, DEBUG_HEX_FLAG, "%spacket body [partially masked]%s (len: %d):%s", common_data.font_red, common_data.font_plain,
+		report(DEBHEX, "%spacket body [partially masked]%s (len: %d):%s", common_data.font_red, common_data.font_plain,
 		       (int) l, common_data.font_plain);
-		report_hex(session, LOG_DEBUG, DEBUG_HEX_FLAG, (u_char *) t, n);
+		report_hex(DEBHEX, (u_char *) t, n);
 		return;
 	    }
 	}
     }
-    report(session, LOG_DEBUG, DEBUG_HEX_FLAG, "%spacket body%s (len: %d):%s", common_data.font_red, common_data.font_plain, (int) ntohl(hdr->datalength),
-	   common_data.font_plain);
-    report_hex(session, LOG_DEBUG, DEBUG_HEX_FLAG, tac_payload(hdr, u_char *), ntohl(hdr->datalength));
+    report(DEBHEX, "%spacket body%s (len: %d):%s", common_data.font_red, common_data.font_plain, (int) ntohl(hdr->datalength), common_data.font_plain);
+    report_hex(DEBHEX, tac_payload(hdr, u_char *), ntohl(hdr->datalength));
 }
 
 static void dump_args(tac_session *session, u_char arg_cnt, char *p, unsigned char *sizep)
@@ -427,9 +427,8 @@ void dump_rad_pak(tac_session *session, rad_pak_hdr *pkt)
 	report(DEBPACK, "key used: %s", session->ctx->key ? session->ctx->key->key : "<NULL>");
 
     report(DEBPACK, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
-    report(session, LOG_DEBUG, DEBUG_HEX_FLAG, "%spacket%s (len: %d):%s", common_data.font_red, common_data.font_plain, (int) ntohs(pkt->length),
-	   common_data.font_plain);
-    report_hex(session, LOG_DEBUG, DEBUG_HEX_FLAG, (u_char *) pkt, (int) ntohs(pkt->length));
+    report(DEBHEX, "%spacket%s (len: %d):%s", common_data.font_red, common_data.font_plain, (int) ntohs(pkt->length), common_data.font_plain);
+    report_hex(DEBHEX, (u_char *) pkt, (int) ntohs(pkt->length));
 
     report(DEBPACK, "%scode=%s [%u] identifer=%u length=%u%s", common_data.font_blue, i2s(map_rad_code, pkt->code, NULL),
 	   pkt->code, pkt->identifier, ntohs(pkt->length), common_data.font_plain);
