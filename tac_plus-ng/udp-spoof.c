@@ -74,7 +74,6 @@ unsigned short checksum(void *b, int len)
 ssize_t sendto_spoof(sockaddr_union *src_addr, sockaddr_union *dest_addr, void *buf, size_t buf_len)
 {
     int sock = socket(src_addr->sa.sa_family, SOCK_RAW, IPPROTO_RAW);
-fprintf(stderr ,"sock =%d\n", sock);
     if (sock < 0)
 	return -1;
 
@@ -146,7 +145,6 @@ fprintf(stderr ,"sock =%d\n", sock);
     }
 
     int res = sendto(sock, buffer, buffer_len, 0, &dest_addr->sa, sizeof(dest_addr->sa));
-fprintf(stderr ,"res =%d errno=%d err=%s\n", res, errno, strerror(errno));
     close(sock);
     return res;
 }
