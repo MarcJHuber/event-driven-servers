@@ -804,7 +804,7 @@ void tac_read(struct context *ctx, int cur)
     if (ctx->key && ctx->key->warn && !ctx->key_fixed && (ctx->key->warn <= io_now.tv_sec))
 	report(NULL, LOG_INFO, ~0, "%s uses deprecated key (line %d)", ctx->device_addr_ascii.txt, ctx->key->line);
 
-    ctx->key_fixed = 1;
+    ctx->key_fixed = BISTATE_YES;
     if (detached)
 	ctx->in = NULL;
     else
@@ -859,7 +859,13 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 	    if (!memcmp(ma_original, ma_calculated, 16)) {
 		if (ctx->key->warn && (ctx->key->warn <= io_now.tv_sec))
 		    report(NULL, LOG_INFO, ~0, "%s uses deprecated radius key (line %d)", ctx->device_addr_ascii.txt, ctx->key->line);
+		ctx->key_fixed = BISTATE_YES;
 		return 0;
+	    }
+	    // Check for key change within exising connection. This is unlikely to happen, and won't happen for (D)TLS.
+	    if (!ctx->tls && ctx->key_fixed && ctx->host->radius_key && ctx->host->radius_key->next) {
+		ctx->key_fixed = BISTATE_NO;
+		ctx->key = ctx->host->radius_key;
 	    }
 	}
 	report(NULL, LOG_INFO, ~0, "%s uses unknown radius key", ctx->device_addr_ascii.txt);

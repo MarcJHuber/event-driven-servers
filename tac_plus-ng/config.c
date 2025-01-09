@@ -1497,33 +1497,51 @@ static int rad_get_helper(tac_session *session, enum token type, void *val, size
     return -1;
 }
 
+inline int password_is_printable(char *s)
+{
+    // FIXME. We don't really know the character set, so checking for US ASCII is the best option right now.
+    for (char *t = s; *t; t++)
+	if (*t < 0x20 || *t == 0x7f)
+	    return 0;
+    return 1;
+}
+
 int rad_get_password(tac_session *session, char **val, size_t *val_len)
 {
+    int res = -1; // -1: not found, 0: ok, +1: found but bad key
     u_char *p = RADIUS_DATA(session->radius_data->pak_in);
     size_t len = RADIUS_DATA_LEN(session->radius_data->pak_in);
     u_char *e = p + len;
     while (p < e) {
 	if (p[0] == RADIUS_A_USER_PASSWORD) {
-	    u_char digest[16];
+	    res = 1;
+	    struct tac_key *key = session->ctx->key;
 	    char *pass = mem_alloc(session->mem, p[1] - 1);
-	    for (int i = 0; i < p[1] - 2; i++) {
-		if (!(i & 0xf)) {
-		    struct iovec iov[2] = {
-			{.iov_base = session->ctx->key->key,.iov_len = session->ctx->key->len },
-			{.iov_base = i ? (p + i + 2 - 16) : session->radius_data->pak_in->authenticator,.iov_len = 16 }
-		    };
-		    md5v(digest, 16, iov, 2);
+	    do {
+		memset(pass, 0, p[1] - 1);
+		u_char digest[16];
+		for (int i = 0; i < p[1] - 2; i++) {
+		    if (!(i & 0xf)) {
+			struct iovec iov[2] = {
+			    {.iov_base = key->key,.iov_len = key->len },
+			    {.iov_base = i ? (p + i + 2 - 16) : session->radius_data->pak_in->authenticator,.iov_len = 16 }
+			};
+			md5v(digest, 16, iov, 2);
+		    }
+		    pass[i] = digest[i % 16] ^ p[i + 2];
 		}
-		pass[i] = digest[i % 16] ^ p[i + 2];
-	    }
-	    *val = pass;
-	    if (val_len)
-		*val_len = strlen(pass);
-	    return 0;
+		if ((session->ctx->key_fixed == BISTATE_YES) || password_is_printable(pass)) {
+		    *val = pass;
+		    if (val_len)
+			*val_len = strlen(pass);
+		    return 0;
+		}
+		key = key->next;
+	    } while (key && (session->ctx->key_fixed == BISTATE_NO));
 	}
 	p += p[1];
     }
-    return -1;
+    return res;
 }
 
 int rad_get(tac_session *session, int vendorid, int id, enum token type, void *val, size_t *val_len)
@@ -5032,15 +5050,13 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 		while (*v) {
 		    char *e;
 		    if (*v != '"') {
-			report(DEBACL,
-			       " memberof attribute '%s' is malformed (missing '\"')", session->user->avc->arr[AV_A_MEMBEROF]);
+			report(DEBACL, " memberof attribute '%s' is malformed (missing '\"')", session->user->avc->arr[AV_A_MEMBEROF]);
 			return tac_script_cond_eval_res(session, m, 0);
 		    }
 		    v++;
 		    for (e = v; *e && *e != '"'; e++);
 		    if (*e != '"') {
-			report(DEBACL,
-			       " memberof attribute '%s' is malformed (missing '\"')", session->user->avc->arr[AV_A_MEMBEROF]);
+			report(DEBACL, " memberof attribute '%s' is malformed (missing '\"')", session->user->avc->arr[AV_A_MEMBEROF]);
 			return tac_script_cond_eval_res(session, m, 0);
 		    }
 		    *e++ = 0;
@@ -5052,8 +5068,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 		    if (!*v)
 			return tac_script_cond_eval_res(session, m, 0);
 		    if (*v != ',') {
-			report(DEBACL,
-			       " memberof attribute '%s' is malformed (expected a ',')", session->user->avc->arr[AV_A_MEMBEROF]);
+			report(DEBACL, " memberof attribute '%s' is malformed (expected a ',')", session->user->avc->arr[AV_A_MEMBEROF]);
 			return tac_script_cond_eval_res(session, m, 0);
 		    }
 		    v++;

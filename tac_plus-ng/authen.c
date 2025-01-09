@@ -136,6 +136,7 @@ static struct hint_struct hints[hint_max] = {
     HINT("denied by ACL", "AUTHCFAIL-ACL"),
     HINT("denied (invalid challenge length)", "AUTHCFAIL-BAD-CHALLENGE-LENGTH"),
     HINT("denied (minimum password requirements not met)", "AUTHCFAIL-WEAKPASSWORD"),
+    HINT("denied (bad RADIUS secret)", "AUTHCFAIL-BADSECRET"),
 };
 
 #undef HINT
@@ -1895,8 +1896,10 @@ static void do_radius_login(tac_session *session)
     enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
 
-    if (!session->username.txt || rad_get_password(session, &session->password, NULL)) {
-	report_auth(session, "radius login", hint_nopass, res);
+    int pw_res = -2;
+
+    if (!session->username.txt || (pw_res = rad_get_password(session, &session->password, NULL))) {
+	report_auth(session, "radius login", (pw_res < 0) ? hint_nopass : hint_badsecret, res);
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
     }
