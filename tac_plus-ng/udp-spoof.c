@@ -44,107 +44,129 @@
 #include <netinet/udp.h>
 #include "misc/net.h"
 
-#define BUFFER_SIZE 4096
+#if defined(__linux__) || defined(__ANY_BSD__)
 
-struct udp_pseudo_header {
-    struct in6_addr src_addr;
-    struct in6_addr dst_addr;
-    uint32_t length;
-    uint8_t zeros[3];
-    uint8_t next_header;
-} __attribute__((__packed__));;
-
-unsigned short checksum(void *b, int len)
+static unsigned short checksum(void *b, int len, void *ups, int ups_len)
 {
-    unsigned short *buf = b;
+    unsigned short *buf;
     unsigned int sum = 0;
-    unsigned short result;
 
-    for (sum = 0; len > 1; len -= 2)
+    if (ups)
+	for (buf = ups; ups_len > 1; ups_len -= 2)
+	    sum += *buf++;
+
+    for (buf = b; len > 1; len -= 2)
 	sum += *buf++;
     if (len == 1)
 	sum += *(unsigned char *) buf;
 
     sum = (sum >> 16) + (sum & 0xFFFF);
     sum += (sum >> 16);
-    result = ~sum;
-    return result;
+    return ~sum;
 }
 
-ssize_t sendto_spoof(sockaddr_union *src_addr, sockaddr_union *dest_addr, void *buf, size_t buf_len)
+ssize_t sendto_spoof(sockaddr_union *src_su, sockaddr_union *dst_su, void *buf, size_t buf_len)
 {
-    int sock = socket(src_addr->sa.sa_family, SOCK_RAW, IPPROTO_RAW);
-    if (sock < 0)
+    if (src_su->sa.sa_family != dst_su->sa.sa_family)
 	return -1;
 
-    size_t buffer_len = 0;
-    u_char *buffer = NULL;
-    struct udphdr *udp = NULL;
-
-    if (src_addr->sa.sa_family == AF_INET) {
-
+    if (src_su->sa.sa_family == AF_INET) {
+	int sock = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+	if (sock < 0)
+	    return -1;
 #ifdef IP_HDRINCL
-    int one = 1;
-    setsockopt(sock, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one));
+	int one = 1;
+	setsockopt(sock, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one));
 #endif
-
-	buffer_len = sizeof(struct ip) + sizeof(struct udphdr) + buf_len;
-	buffer = alloca(buffer_len);
+	size_t buffer_len = sizeof(struct ip) + sizeof(struct udphdr) + buf_len;
+	u_char *buffer = alloca(buffer_len);
 	memset(buffer, 0, buffer_len);
 
 	struct ip *ip = (struct ip *) buffer;
-	udp = (struct udphdr *) (buffer + sizeof(struct ip));
-	u_char *data = buffer + sizeof(struct ip) + sizeof(struct udphdr);
-
-	memcpy(data, buf, buf_len);
-
 	ip->ip_v = 4;
 	ip->ip_hl = 5;
-	buffer_len = sizeof(struct ip) + sizeof(struct udphdr) + buf_len;
 	ip->ip_len = htons(buffer_len);
 	ip->ip_id = rand();
 	ip->ip_ttl = 64;
 	ip->ip_p = IPPROTO_UDP;
-	ip->ip_src.s_addr = src_addr->sin.sin_addr.s_addr;
-	ip->ip_dst.s_addr = dest_addr->sin.sin_addr.s_addr;
-	ip->ip_sum = checksum(ip, sizeof(struct ip));
+	ip->ip_src.s_addr = src_su->sin.sin_addr.s_addr;
+	ip->ip_dst.s_addr = dst_su->sin.sin_addr.s_addr;
+	ip->ip_sum = checksum(ip, sizeof(struct ip), NULL, 0);
 
-    while (!udp->uh_sport)
+	struct udphdr *udp = (struct udphdr *) (buffer + sizeof(struct ip));
 	udp->uh_sport = htons((short) ((0x8000 | rand()) & 0x7fff));
-    udp->uh_dport = htons(su_get_port(dest_addr));
-    udp->uh_ulen = htons(sizeof(struct udphdr) + buf_len);
+	udp->uh_dport = dst_su->sin.sin_port;
+	udp->uh_ulen = htons(sizeof(struct udphdr) + buf_len);
 
-    } else if (src_addr->sa.sa_family == AF_INET6) {
-	buffer_len = sizeof(struct ip6_hdr) + sizeof(struct udphdr) + buf_len;
-	buffer = alloca(buffer_len);
+	memcpy(buffer + sizeof(struct ip) + sizeof(struct udphdr), buf, buf_len);
+
+	uint32_t port = dst_su->sin.sin_port;
+	dst_su->sin.sin_port = 0;
+	int res = sendto(sock, buffer, buffer_len, 0, &dst_su->sa, su_len(dst_su));
+	dst_su->sin.sin_port = port;
+	close(sock);
+	return res;
+    }
+
+    if (src_su->sa.sa_family == AF_INET6) {
+	int sock = socket(AF_INET6, SOCK_RAW, IPPROTO_RAW);
+	if (sock < 0)
+	    return -1;
+#ifdef IPV6_HDRINCL
+	int one = 1;
+	setsockopt(sock, IPPROTO_IPV6, IPV6_HDRINCL, &one, sizeof(one));
+#endif
+	size_t buffer_len = sizeof(struct ip6_hdr) + sizeof(struct udphdr) + buf_len;
+	u_char *buffer = alloca(buffer_len);
 	memset(buffer, 0, buffer_len);
 
 	struct ip6_hdr *ip6 = (struct ip6_hdr *) buffer;
-	udp = (struct udphdr *) (buffer + sizeof(struct ip6_hdr));
-	u_char *data = buffer + sizeof(struct ip6_hdr) + sizeof(struct udphdr);
-
-	memcpy(data, buf, buf_len);
-
-	ip6->ip6_flow = htonl((6 << 28));	// version
+	ip6->ip6_flow = htonl(6 << 28);	// version
 	ip6->ip6_plen = htons(sizeof(struct udphdr) + buf_len);
 	ip6->ip6_nxt = IPPROTO_UDP;
 	ip6->ip6_hops = 64;
-	ip6->ip6_src = src_addr->sin6.sin6_addr;
-	ip6->ip6_dst = dest_addr->sin6.sin6_addr;
+	ip6->ip6_src = src_su->sin6.sin6_addr;
+	ip6->ip6_dst = dst_su->sin6.sin6_addr;
 
-    struct udp_pseudo_header pseudo_header = {
-	.src_addr = ip6->ip6_src,
-	.dst_addr = ip6->ip6_dst,
-	.length = udp->uh_ulen,
-	.next_header = IPPROTO_UDP
-    };
-    char checksum_buffer[sizeof(struct udp_pseudo_header) + sizeof(struct udphdr) + buf_len];
-    memcpy(checksum_buffer, &pseudo_header, sizeof(struct udp_pseudo_header));
-    memcpy(checksum_buffer + sizeof(struct udp_pseudo_header), udp, sizeof(struct udphdr) + buf_len);
-    udp->uh_sum = checksum(checksum_buffer, sizeof(checksum_buffer));
+	struct udphdr *udp = (struct udphdr *) (buffer + sizeof(struct ip6_hdr));
+	udp->uh_sport = htons((short) ((0x8000 | rand()) & 0x7fff));
+	udp->uh_dport = dst_su->sin6.sin6_port;
+	udp->uh_ulen = htons(sizeof(struct udphdr) + buf_len);
+
+	memcpy(buffer + sizeof(struct ip6_hdr) + sizeof(struct udphdr), buf, buf_len);
+
+	struct udp_pseudo_header {
+	    struct in6_addr src_su;
+	    struct in6_addr dst_addr;
+	    uint32_t length;
+	    uint8_t zeros[3];
+	    uint8_t next_header;
+	} __attribute__((__packed__));
+
+	struct udp_pseudo_header pseudo_header = {
+	    .src_su = ip6->ip6_src,
+	    .dst_addr = ip6->ip6_dst,
+	    .length = udp->uh_ulen,
+	    .next_header = IPPROTO_UDP
+	};
+
+	udp->uh_sum = checksum(udp, sizeof(struct udphdr) + buf_len, &pseudo_header, sizeof(pseudo_header));
+
+	uint32_t port = dst_su->sin6.sin6_port;
+	dst_su->sin6.sin6_port = 0;
+	int res = sendto(sock, buffer, buffer_len, 0, &dst_su->sa, su_len(dst_su));
+	dst_su->sin6.sin6_port = port;
+	close(sock);
+	return res;
     }
 
-    int res = sendto(sock, buffer, buffer_len, 0, &dest_addr->sa, sizeof(dest_addr->sa));
-    close(sock);
-    return res;
+    return -1;
 }
+#else
+ssize_t
+sendto_spoof(sockaddr_union *src_su __attribute__((unused)), sockaddr_union *dst_su __attribute__((unused)), void *buf
+	     __attribute__((unused)), size_t buf_len __attribute__((unused)))
+{
+    return -1;
+}
+#endif
