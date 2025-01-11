@@ -552,6 +552,21 @@ void tac_read(struct context *ctx, int cur)
     if (config.rad_dict && ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
 #ifdef WITH_SSL
 	if (ctx->tls) {
+	    if (ctx->radius_1_1 == BISTATE_YES) {
+		int ssl_version = SSL_version(ctx->tls);
+		switch (ssl_version) {
+		case TLS1_3_VERSION:
+		case DTLS1_2_VERSION:	// FIXME, is that fine for radius/1.1?
+#ifdef DTLS1_3_VERSION
+		case DTLS1_3_VERSION:
+#endif
+		    break;
+		default:
+		    ctx->reset_tcp = BISTATE_YES;
+		    cleanup(ctx, cur);
+		    return;
+		}
+	    }
 	    if (ctx->udp) {
 		CHECK_PROTOCOL(radius_dtls, radius);
 		ctx->aaa_protocol = S_radius_dtls;
