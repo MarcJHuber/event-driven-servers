@@ -423,7 +423,7 @@ static struct i2s map_rad_code[] = {
 
 void dump_rad_pak(tac_session *session, rad_pak_hdr *pkt)
 {
-    if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
+    if (!(common_data.debug & DEBUG_TACTRACE_FLAG) && !session->ctx->radius_1_1)
 	report(DEBPACK, "key used: %s", session->ctx->key ? session->ctx->key->key : "<NULL>");
 
     report(DEBPACK, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
