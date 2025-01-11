@@ -577,6 +577,9 @@ void tac_read(struct context *ctx, int cur)
 #endif
 	    ctx->key = ctx->host->radius_key;
 
+	if (ctx->key && !ctx->key->next)
+	    ctx->key_fixed = BISTATE_YES;
+
 	io_set_cb_i(ctx->io, ctx->sock, (void *) rad_read);
 	rad_read(ctx, ctx->sock);
 	return;
