@@ -119,13 +119,16 @@ static tac_pak *new_rad_pak(tac_session *session, u_char code)
     tac_pak *pak = mem_alloc(session->ctx->mem, sizeof(struct tac_pak) + len);
     pak->length = len;
     pak->pak.rad.code = code;
-    pak->pak.rad.identifier = session->radius_data->pak_in->identifier;
+    if (session->ctx->radius_1_1 == BISTATE_YES)
+	pak->pak.rad.token = session->radius_data->pak_in->token;
+    else
+	pak->pak.rad.identifier = session->radius_data->pak_in->identifier;
     pak->pak.rad.length = htons((uint16_t) (session->radius_data->data_len + RADIUS_HDR_SIZE));
     u_char *data = RADIUS_DATA(&pak->pak.rad);
     memcpy(data, session->radius_data->data, session->radius_data->data_len);
 
 #ifdef WITH_SSL
-    if (code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT) {
+    if ((session->ctx->radius_1_1 == BISTATE_NO) && (code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT)) {
 	memcpy(pak->pak.rad.authenticator, session->radius_data->pak_in->authenticator, 16);
 	u_char *ma = data + session->radius_data->data_len - 18;
 	*ma++ = RADIUS_A_MESSAGE_AUTHENTICATOR;
@@ -136,7 +139,8 @@ static tac_pak *new_rad_pak(tac_session *session, u_char code)
     }
 #endif
 
-    set_response_authenticator(session, &pak->pak.rad);
+    if (session->ctx->radius_1_1 == TRISTATE_NO)
+	set_response_authenticator(session, &pak->pak.rad);
     return pak;
 }
 
@@ -863,7 +867,7 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
     }
 #ifdef WITH_SSL
 // Packet looks sane, check message authentiator, if present
-    if (message_authenticator) {
+    if ((ctx->radius_1_1 == BISTATE_NO) && message_authenticator) {
 	for (; ctx->key; ctx->key = ctx->key->next) {
 	    u_char ma_original[16];
 	    u_char ma_calculated[16];
@@ -930,7 +934,11 @@ void rad_read(struct context *ctx, int cur)
     case RADIUS_CODE_STATUS_SERVER:
 	break;
     default:
-	if (!ctx->tls || ctx->udp)
+	if (
+#ifdef WITH_SSL
+	       !ctx->tls ||
+#endif
+	       ctx->udp)
 	    cleanup(ctx, cur);
 	return;
     }
@@ -971,7 +979,7 @@ void rad_read(struct context *ctx, int cur)
 	return;
 
 #define RAD_PAK_SESSIONID(A) (((A)->code << 8) | (A)->identifier)
-    tac_session *session = RB_lookup_session(ctx->sessions, RAD_PAK_SESSIONID(&ctx->hdr.rad));
+    tac_session *session = RB_lookup_session(ctx->sessions, ctx->radius_1_1 ? ctx->hdr.rad.token : RAD_PAK_SESSIONID(&ctx->hdr.rad));
 
     if (session) {
 	// Currently, there's no support for multi-packet exchanges, so this is most likely
@@ -1007,7 +1015,11 @@ void rad_read(struct context *ctx, int cur)
 	break;
     default:
 	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->device_addr_ascii.txt, pak->code);
-	if (ctx->tls || !ctx->udp)
+	if (
+#ifdef WITH_SSL
+	       ctx->tls ||
+#endif
+	       !ctx->udp)
 	    rad_send_error(session, RADIUS_V_ERROR_CAUSE_UNSUPPORTED_SERVICE);
 	else
 	    cleanup_session(session);
@@ -1097,7 +1109,7 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_p
 	session->session_id = tac_hdr->session_id;
 	session->type = &types[tac_hdr->type & 3];
     } else {
-	session->session_id = RAD_PAK_SESSIONID(radhdr);
+	session->session_id = ctx->radius_1_1 ? radhdr->token : RAD_PAK_SESSIONID(radhdr);
 	if (radhdr->code == RADIUS_CODE_ACCESS_REQUEST) {
 	    session->type = &types[1];
 	} else if (radhdr->code == RADIUS_CODE_ACCOUNTING_REQUEST) {

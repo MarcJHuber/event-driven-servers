@@ -1508,6 +1508,9 @@ inline int password_is_printable(char *s)
 
 int rad_get_password(tac_session *session, char **val, size_t *val_len)
 {
+    if (session->ctx->radius_1_1)
+	return rad_get(session, -1, RADIUS_A_USER_PASSWORD, S_string_keyword, val, val_len);
+
     int res = -1; // -1: not found, 0: ok, +1: found but bad key
     u_char *p = RADIUS_DATA(session->radius_data->pak_in);
     size_t len = RADIUS_DATA_LEN(session->radius_data->pak_in);

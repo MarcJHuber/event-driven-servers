@@ -452,7 +452,10 @@ typedef struct {
     uint8_t code;
     uint8_t identifier;
     uint16_t length;
-    u_char authenticator[16];
+    union {
+	    u_char authenticator[16];
+	    uint32_t token;
+    };
 } __attribute__((__packed__)) rad_pak_hdr;
 #define RADIUS_HDR_SIZE sizeof(rad_pak_hdr)
 
@@ -891,7 +894,7 @@ struct context {
 #ifdef WITH_SSL
     SSL *tls;
     struct {
-	BISTATE(alpn_passed);
+	TRISTATE(alpn_passed);
 	BISTATE(sni_passed);
     } __attribute__((__packed__));
     str_t tls_conn_version;
@@ -931,6 +934,7 @@ struct context {
 	BISTATE(rad_acct);
 	BISTATE(reset_tcp);
 	BISTATE(udp);
+	BISTATE(radius_1_1);
     } __attribute__((__packed__));
     enum token mavis_result;
     enum token aaa_protocol;

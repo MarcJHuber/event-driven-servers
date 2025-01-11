@@ -752,7 +752,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	break;
     }
 
-    if (ctx->alpn_passed != BISTATE_YES) {
+    if (ctx->alpn_passed == TRISTATE_NO) {
 	reject_conn(ctx, "ALPN", "TLS ", __LINE__);
 	return;
     }
@@ -1024,12 +1024,16 @@ static int app_verify_cb(X509_STORE_CTX *ctx, void *app_ctx)
 static int alpn_cb(SSL *s __attribute__((unused)), const unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg)
 {
     struct context *ctx = (struct context *) arg;
-    if (SSL_select_next_proto((unsigned char **) out, outlen, ctx->realm->alpn_vec, ctx->realm->alpn_vec_len, in, inlen) != OPENSSL_NPN_NEGOTIATED) {
+    if (ctx->realm->alpn_vec && ctx->realm->alpn_vec_len > 1 && SSL_select_next_proto((unsigned char **) out, outlen, ctx->realm->alpn_vec, ctx->realm->alpn_vec_len, in, inlen) != OPENSSL_NPN_NEGOTIATED) {
 	ctx->hint = "ALPN verification";
+	ctx->alpn_passed = TRISTATE_NO;
 	return SSL_TLSEXT_ERR_ALERT_FATAL;
     }
+#define ALPN_RADIUS_1_1 "\012radius/1.1"
+    if (SSL_select_next_proto((unsigned char **) out, outlen, (const unsigned char *) ALPN_RADIUS_1_1, sizeof(ALPN_RADIUS_1_1) - 1, in, inlen) == OPENSSL_NPN_NEGOTIATED)
+	ctx->radius_1_1 = BISTATE_YES;
 
-    ctx->alpn_passed = BISTATE_YES;
+    ctx->alpn_passed = TRISTATE_YES;
 
     return SSL_TLSEXT_ERR_OK;
 }
@@ -1334,10 +1338,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	io_sched_add(ctx->io, ctx, (void *) periodics_ctx, 60, 0);
 	SSL_CTX_set_cert_verify_callback(ctx->realm->tls, app_verify_cb, ctx);
 
-	if (ctx->realm->alpn_vec && ctx->realm->alpn_vec_len > 1)
-	    SSL_CTX_set_alpn_select_cb(ctx->realm->tls, alpn_cb, ctx);
-	else
-	    ctx->alpn_passed = BISTATE_YES;
+	SSL_CTX_set_alpn_select_cb(ctx->realm->tls, alpn_cb, ctx);
 
 	if (ctx->realm->tls_sni_required == TRISTATE_YES) {
 	    SSL_CTX_set_tlsext_servername_callback(ctx->realm->tls, sni_cb);
