@@ -381,6 +381,20 @@ void rad_send_acct_reply(tac_session *session)
     rad_send_reply(session, RADIUS_CODE_ACCOUNTING_RESPONSE);
 }
 
+void rad_send_error(tac_session *session, uint32_t cause)
+{
+    if ((session->radius_data->data_len + 6 < sizeof(session->radius_data->data))) {
+	u_char *data = session->radius_data->data;
+	*data++ = RADIUS_A_ERROR_CAUSE;
+	*data++ = 6;
+	cause = htonl(cause);
+	memcpy(data, &cause, 4);
+	session->radius_data->data_len += 6;
+    }
+    rad_send_reply(session, RADIUS_CODE_PROTOCOL_ERROR);
+}
+
+
 static void write_delayed_packet(struct context *ctx, int cur __attribute__((unused)))
 {
     while (ctx->delayed && ctx->delayed->delay_until <= io_now.tv_sec) {

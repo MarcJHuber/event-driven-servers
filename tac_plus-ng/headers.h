@@ -492,7 +492,7 @@ typedef struct {
 #define RADIUS_V_ERROR_CAUSE_UNSUPPORTED_ATTRIBUTE		401
 #define RADIUS_V_ERROR_CAUSE_MISSING_ATTRIBUTE			402
 #define RADIUS_V_ERROR_CAUSE_NAS_IDENTIFICATION_MISMATCH	403
-#define RADIUS_V_ERROR_CAUSE_INVALID_REQUES>T			404
+#define RADIUS_V_ERROR_CAUSE_INVALID_REQUEST			404
 #define RADIUS_V_ERROR_CAUSE_UNSUPPORTED_SERVICE		405
 #define RADIUS_V_ERROR_CAUSE_UNSUPPORTED_EXTENSIION		406
 #define RADIUS_V_ERROR_CAUSE_INVALID_ATTRIBUTE_NAME		407
@@ -976,6 +976,7 @@ void send_acct_reply(tac_session *, u_char, char *, char *);
 void send_author_reply(tac_session *, u_char, char *, char *, int, char **);
 void rad_send_authen_reply(tac_session *, u_char, char *);
 void rad_send_acct_reply(tac_session * session);
+void rad_send_error(tac_session * session, uint32_t cause);
 
 int tac_exit(int) __attribute__((noreturn));
 
