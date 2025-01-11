@@ -930,8 +930,8 @@ void rad_read(struct context *ctx, int cur)
     case RADIUS_CODE_STATUS_SERVER:
 	break;
     default:
-	ctx->reset_tcp = BISTATE_YES;
-	cleanup(ctx, cur);
+	if (!ctx->tls || ctx->udp)
+	    cleanup(ctx, cur);
 	return;
     }
 
@@ -1007,7 +1007,10 @@ void rad_read(struct context *ctx, int cur)
 	break;
     default:
 	report(session, LOG_ERR, ~0, "%s: code %d is unsupported", ctx->device_addr_ascii.txt, pak->code);
-	cleanup_session(session);
+	if (ctx->tls || !ctx->udp)
+	    rad_send_error(session, RADIUS_V_ERROR_CAUSE_UNSUPPORTED_SERVICE);
+	else
+	    cleanup_session(session);
     }
 
     if (detached)

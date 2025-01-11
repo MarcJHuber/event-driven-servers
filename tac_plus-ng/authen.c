@@ -1926,9 +1926,9 @@ static void do_radius_login(tac_session *session)
     res = check_access(session, pwdat, session->password, &hint, &resp);
 
     if (res == S_error) {
-	// Backend failure. Don't send a reply.
+	// Backend failure.
 	report_auth(session, "radius login", hint, res);
-	cleanup_session(session);
+	rad_send_error(session, RADIUS_V_ERROR_CAUSE_RESOURCES_UNAVAILABLE);
 	return;
     }
 
