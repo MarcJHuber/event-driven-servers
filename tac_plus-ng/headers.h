@@ -446,7 +446,7 @@ typedef struct {
     /* datalength bytes of encrypted data */
 } __attribute__((__packed__)) tac_pak_hdr;
 
-///// RADIUS+ header format
+///// RADIUS header format
 
 typedef struct {
     uint8_t code;
@@ -842,7 +842,7 @@ struct tac_session {
     void (*resumefn)(tac_session *);
     char **attrs_m;		/* mandatory */
     char **attrs_o;		/* optional (from NAS) */
-    char **attrs_a;		/* add optinal (to NAS) */
+    char **attrs_a;		/* add optional (to NAS) */
     int cnt_m;
     int cnt_o;
     int cnt_a;

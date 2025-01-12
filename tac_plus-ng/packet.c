@@ -585,7 +585,7 @@ void tac_read(struct context *ctx, int cur)
 		    CHECK_PROTOCOL(radius_tcp, radius);
 		ctx->aaa_protocol = S_radius_tcp;
 	    }
-	    if (!ctx->host->radius_key) {
+	    if (!ctx->radius_1_1 && !ctx->host->radius_key) {
 		ctx->reset_tcp = BISTATE_YES;
 		cleanup(ctx, cur);
 		return;
