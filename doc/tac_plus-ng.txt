@@ -724,13 +724,13 @@ realm realmName { ... }
      * Connections
   connection log = log_destination
      * RADIUS Authentication
-  radius-acccess log = log_destination
+  radius.acccess log = log_destination
      * RADIUS Accounting
   radius.accounting log = log_destination
 
    Logs may be written to multiple destinations.
 
-   Valid log destinations are named:
+   Valid log destinations are named, e.g.:
   log mylog {
     destination = 169.254.0.23       # UDP syslog, default port
     # destination = 169.254.0.24:514 # UDP syslog, port specified
@@ -785,8 +785,8 @@ syslog default = deny
    A couple of other configuration options that may be useful in
    log context include:
 
-     * ( authentication | authorization | accounting ) format =
-       string
+     * ( authentication | authorization | accounting
+       radius.authorization | radius.accounting ) format = string
        This defines the logging format. strftime(3) conversions
        are recognized. The following variables are resolved:
 
@@ -867,90 +867,69 @@ syslog default = deny
    ${tls.peer.cn} TLS peer certificate Common Name (requires
    LibTLS or OpenSSL)
    ${tls.psk.identity} TLS PSK identity (requires OpenSSL)
+   ${FS} Field separator, default is | for syslog, \t else
    ${TIMESTAMP} strftime(3) timestamp format, "%b %e %H:%M:%S" for
    timestamp = RFC3164 (default for syslog)
    "%Y-%m-%dT%H:%M:%S.%06N%:z" for timestamp = RFC5424, "%Y-%m-%d
    %H:%M:%S %z" else.
-       The built-in defaults as of writing this are:
-# Accounting to file/pipe:
-"${TIMESTAMP}\t${nas}\t${user}\t${port}\t${nac}\t${accttype}\t${service}
-\t${cmd}\n"
-# Accounting to UDP syslog:
-"<${priority}>${TIMESTAMP} ${hostname} ${nas}|${user}|${port}|${nac}|${a
-ccttype}|${service}|${cmd}"
-# Accounting to syslog(3):
-"${nas}|${user}|${port}|${nac}|${accttype}|${service}|${cmd}"
-#
-# Authorization to file/pipe:
-"${TIMESTAMP}\t${nas}\t${user}\t${port}\t${nac}\t${profile}\t${result}\t
-${service}\t${cmd}\n"
-# Authorization to UDP syslog:
-"<${priority}>${TIMESTAMP} ${hostname} ${nas}|${user}|${port}|${nac}|${p
-rofile}|${result}|${service}|${cmd}"
-# Authorization to syslog(3):
-"${nas}|${user}|${port}|${nac}|${profile}|${result}|${service}|${cmd}"
-#
-# Authentication to file/pipe:
-"${TIMESTAMP}\t${nas}\t${user}\t${port}\t${nac}\t${action} ${hint}\n"
-# Authentication to UDP syslog:
-"<${priority}>${TIMESTAMP} ${hostname} ${nas}|${user}|${port}|${nac}|${a
-ction} ${hint}"
-# Authentication to syslog(3):
-"${nas}|${user}|${port}|${nac}|${action} ${hint}"
-#
-# Connections to file/pipe:
-"${TIMESTAMP}\t${accttype}\t${nas}\t${tls.conn.version}\t${tls.peer.cert
-.issuer}\t${tls.peer.cert.subject}\n"
-# Connections to UDP syslog:
-"<${priority}>TIMESTAMP} ${hostname} ${accttype}|${nas}|${tls.conn.versi
-on}|${tls.peer.cert.issuer}|${tls.peer.cert.subject}"
-# Connections to syslog(3):
-"${accttype}|${nas}|${tls.conn.version}|${tls.peer.cert.issuer}|${tls.pe
-er.cert.subject}"
-#
-# RADIUS Accounting to file/pipe:
-"${TIMESTAMP}\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${accttype
-}\t${args, }\t${rargs, }\n"
-# RADIUS Accounting to UDP syslog:
-"<${priority}>${TIMESTAMP} ${hostname} ${accttype}|{nas}|${user}|${port}
-|${nac}|${accttype}|${args, }|${rargs, }"
-# RADIUS Accounting to syslog(3):
-"${accttype}|${nas}|${user}|${port}|${nac}|${accttype}|${args, }|${rargs
-, }"
-#
-# RADIUS Authentication to file/pipe:
-"${TIMESTAMP}\t${accttype}\t${nas}\t${user}\t${port}\t${nac}\t${accttype
-}\t${args, }\t${rargs, }\n"
-# RADIUS Authentication to UDP syslog:
-"<priority}>${TIMESTAMP} ${hostname} ${accttype}|${nas}|${nas}|${user}|$
-{port}|${nac}|${accttype}|${args, }|${rargs, }"
-# RADIUS Authentication to syslog(3):
-"${accttype}|${nas}|${nas}|${nas}|${user}|${port}|${nac}|${accttype}|${a
-rgs, }|${rargs, }\n"
+       The pre-set defaults for logging are:
+accounting log format = "${nas}${FS}${user}${FS}${port}${FS}${nac}${FS}$
+{accttype}${FS}${service}${FS}${cmd}"
+authorization log format = "${nas}${FS}${user}${FS}${port}${FS}${nac}${F
+S}${profile}${FS}${result}${FS}${service}${FS}${cmd}"
+access log format = "${nas}${FS}${user}${FS}${port}${FS}${nac}${FS}${act
+ion} ${hint}"
+connection log format = "${accttype}${FS}${conn.protocol}${FS}${peer.add
+ress}${FS}${peer.port}${FS}${server.address}${FS}${server.port}${FS}${tl
+s.conn.version}${FS}${tls.peer.cert.issuer}${FS}${tls.peer.cert.subject}
+"
+radius.access log format = "${nas}${FS}${user}${FS}${port}${FS}${nac}${F
+S}${accttype}${FS}${action} ${hint}${FS}${args, }${FS}${rargs, }"
+radius.accounting log format = "${nas}${FS}${user}${FS}${port}${FS}${nac
+}${FS}${accttype}${FS}${service}${FS}${args, }"
+
+       Also, there are certain default prefix and postfix settings
+       for strings to prepend or append to the format:
+       Log destination is UDP syslog:
+separator = "|" # that's the ${FS} variable above
+prefix = "<${priority}>${TIMESTAMP} ${hostname} tac_plus-ng[${pid}]: ${m
+sgid}${FS}"
+postfix = ""
+
+       Log destination is syslog(3):
+separator = "|"
+prefix = "${msgid}${FS}"
+postfix = ""
+
+       Log destination is a file or a pipe:
+prefix = "${TIMESTAMP} "
+postfix = "\n"
+separator = "\t"
 
    Message ID Description
-   AUTHZPASS authorization succeeded
-   AUTHZPASS-ADD authorization succeeded, attribute-value-pairs
+   AUTHZ-PASS authorization succeeded
+   AUTHZ-PASS-ADD authorization succeeded, attribute-value-pairs
    were added
-   AUTHZPASS-REPL authorization succeeded, attribute-value-pairs
+   AUTHZ-PASS-REPL authorization succeeded, attribute-value-pairs
    were replaced
-   AUTHZFAIL authorization failed
-   AUTHCFAIL generic authentication failure
-   AUTHCFAIL-ABORT authentication was aborted
-   AUTHCFAIL-BACKEND the authentication backend failed
-   AUTHCFAIL-BUG authentication failed due some programming error
-   AUTHCFAIL-DENY authentication was denied
-   AUTHCFAIL-WEAKPASSWORD the password used didn't met minimum
+   AUTHZ-FAIL authorization failed
+   AUTHC-FAIL generic authentication failure
+   AUTHC-FAIL-ABORT authentication was aborted
+   AUTHC-FAIL-BACKEND the authentication backend failed
+   AUTHC-FAIL-BUG authentication failed due some programming error
+   AUTHC-FAIL-DENY authentication was denied
+   AUTHC-FAIL-WEAKPASSWORD the password used didn't met minimum
    criteria
-   AUTHCFAIL-ACL access was denied due to ruleset or acl
-   AUTHCFAIL-DENY-RETRY the user tried the same wrong password
+   AUTHC-FAIL-ACL access was denied due to ruleset or acl
+   AUTHC-FAIL-DENY-RETRY the user tried the same wrong password
    once more
-   AUTHCFAIL-PASSWORD-NOT_TEXT the password isn't specified as
+   AUTHC-FAIL-PASSWORD-NOT_TEXT the password isn't specified as
    clear-text
-   AUTHCFAIL-BAD-CHALLENGE-LENGTH the MSCHAP challenge length
+   AUTHC-FAIL-BAD-CHALLENGE-LENGTH the MSCHAP challenge length
    didn't match
-   AUTHCFAIL-NOPASS there's no passwort set for the user
-   AUTHCPASS authentication passed
+   AUTHC-FAIL-NOPASS there's no passwort set for the user
+   AUTHC-FAIL-BADSECRET the wrong RADIUS secret was used
+   AUTH-CPASS authentication passed
    ACCT-START accounting start
    ACCT-STOP accounting stop
    ACCT-UNKNOWN unknown (non-compliant) accounting data
@@ -974,7 +953,7 @@ umask = 0640
    command) specified with the accounting log directive.
 
    Accounting records are text lines containing tab-separated
-   fields. The first 6 fields are always the same. These are:
+   fields. The default for text files is:
 
      * timestamp
      * NAS address
