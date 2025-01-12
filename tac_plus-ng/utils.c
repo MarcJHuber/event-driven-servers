@@ -92,6 +92,9 @@ struct logfile {
     struct log_item *rad_acct;
     char *syslog_ident;
     str_t priority;
+    str_t *separator;		// ${FS}
+    struct log_item *prefix;
+    struct log_item *postfix;
     unsigned int logsequence;
      BISTATE(flag_syslog);
      BISTATE(flag_sync);
@@ -449,24 +452,22 @@ struct log_item *parse_log_format_inline(char *format, char *file, int line)
 
 void parse_log(struct sym *sym, tac_realm *r)
 {
-    static struct log_item *access_file = NULL;
-    static struct log_item *access_syslog = NULL;
-    static struct log_item *access_syslog3 = NULL;
-    static struct log_item *author_file = NULL;
-    static struct log_item *author_syslog = NULL;
-    static struct log_item *author_syslog3 = NULL;
-    static struct log_item *acct_file = NULL;
-    static struct log_item *acct_syslog = NULL;
-    static struct log_item *acct_syslog3 = NULL;
-    static struct log_item *conn_file = NULL;
-    static struct log_item *conn_syslog = NULL;
-    static struct log_item *conn_syslog3 = NULL;
-    static struct log_item *rad_access_file = NULL;
-    static struct log_item *rad_access_syslog = NULL;
-    static struct log_item *rad_access_syslog3 = NULL;
-    static struct log_item *rad_acct_file = NULL;
-    static struct log_item *rad_acct_syslog = NULL;
-    static struct log_item *rad_acct_syslog3 = NULL;
+    static struct log_item *access_log = NULL;
+    static struct log_item *author_log = NULL;
+    static struct log_item *acct_log = NULL;
+    static struct log_item *conn_log = NULL;
+    static struct log_item *rad_access_log = NULL;
+    static struct log_item *rad_acct_log = NULL;
+
+    static struct log_item *file_pre = NULL;
+    static struct log_item *file_post = NULL;
+    static struct log_item *syslog_pre = NULL;
+    static struct log_item *syslog_post = NULL;
+    static struct log_item *syslog3_pre = NULL;
+    static struct log_item *syslog3_post = NULL;
+
+    static str_t syslog_fs = { "|", 1 };
+    static str_t file_fs = { "\t", 1 };
 
     struct logfile *lf = calloc(1, sizeof(struct logfile));
     if (sym->code == S_equal)
@@ -478,6 +479,7 @@ void parse_log(struct sym *sym, tac_realm *r)
     lf->dest = "syslog";
     lf->syslog_ident = "tacplus";
     lf->syslog_priority = common_data.syslog_level | common_data.syslog_facility;
+
     if (sym->code == S_openbra) {
 	sym_get(sym);
 	while (sym->code != S_closebra) {
@@ -576,9 +578,29 @@ void parse_log(struct sym *sym, tac_realm *r)
 		    parse_error_expect(sym, S_RFC3164, S_RFC5424, S_unknown);
 		}
 		continue;
+	    case S_prefix:
+		sym_get(sym);
+		parse(sym, S_equal);
+		lf->prefix = parse_log_format(sym, NULL);
+		sym_get(sym);
+		continue;
+	    case S_postfix:
+		sym_get(sym);
+		parse(sym, S_equal);
+		lf->postfix = parse_log_format(sym, NULL);
+		continue;
+	    case S_FS:
+	    case S_separator:
+		sym_get(sym);
+		parse(sym, S_equal);
+		lf->separator = calloc(1, sizeof(str_t));
+		lf->separator->txt = strdup(sym->buf);
+		lf->separator->len = strlen(sym->buf);
+		sym_get(sym);
+		continue;
 	    default:
 		parse_error_expect(sym, S_destination, S_syslog, S_access, S_authorization, S_accounting, S_connection, S_closebra,
-				   S_radius_access, S_radius_accounting, S_timestamp, S_unknown);
+				   S_prefix, S_postfix, S_separator, S_radius_access, S_radius_accounting, S_timestamp, S_unknown);
 	    }
 	}
 	sym_get(sym);
@@ -587,85 +609,57 @@ void parse_log(struct sym *sym, tac_realm *r)
     size_t buf_len = snprintf(buf, sizeof(buf), "%d", lf->syslog_priority);
     str_set(&lf->priority, strdup(buf), buf_len);
 
-    if (!access_file) {
-#define DATE "${TIMESTAMP}"
-#define SEP1 "\t"
-#define SEP2 "|"
-#define PR "\""			// parsing prefix
-#define SP "<${priority}>" DATE " ${hostname} "	// syslog prefix
-#define FS "\n\""		// file suffix
-#define SS "\""			// syslog suffix
+    if (!access_log) {
+#define PR "\""			// inline parsing prefix/suffix
 
-// S1: file, S2: Syslog
-#define S1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${service}" SEP1 "${cmd}"
-#define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${accttype}" SEP2 "${service}" SEP2 "${cmd}"
-	acct_file = parse_log_format_inline(PR DATE " " S1 FS, __FILE__, __LINE__);
-	acct_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
-	acct_syslog3 = parse_log_format_inline(PR S2 SS, __FILE__, __LINE__);
-#undef S1
-#undef S2
+#define S "${nas}${FS}${user}${FS}${port}${FS}${nac}${FS}${accttype}${FS}${service}${FS}${cmd}"
+	acct_log = parse_log_format_inline(PR S PR, __FILE__, __LINE__);
+#undef S
 
-#define S1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${profile}" SEP1 "${result}" SEP1 "${service}" SEP1 "${cmd}"
-#define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${profile}" SEP2 "${result}" SEP2 "${service}" SEP2 "${cmd}"
-	author_file = parse_log_format_inline(PR DATE " " S1 FS, __FILE__, __LINE__);
-	author_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
-	author_syslog3 = parse_log_format_inline(PR S2 SS, __FILE__, __LINE__);
-#undef S1
-#undef S2
+#define S "${nas}${FS}${user}${FS}${port}${FS}${nac}${FS}${profile}${FS}${result}${FS}${service}${FS}${cmd}"
+	author_log = parse_log_format_inline(PR S PR, __FILE__, __LINE__);
+#undef S
 
-#define S1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${action} ${hint}"
-#define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${action} ${hint}"
-	access_file = parse_log_format_inline(PR DATE " " S1 FS, __FILE__, __LINE__);
-	access_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
-	access_syslog3 = parse_log_format_inline(PR S2 SS, __FILE__, __LINE__);
-#undef S1
-#undef S2
+#define S "${nas}${FS}${user}${FS}${port}${FS}${nac}${FS}${action} ${hint}"
+	access_log = parse_log_format_inline(PR S PR, __FILE__, __LINE__);
+#undef S
 
-#define S1 "${accttype}" SEP1 "${conn.protocol}" SEP1 "${peer.address}" SEP1 "${peer.port}" SEP1 "${server.address}" SEP1 "${server.port}" SEP1 "${tls.conn.version}" SEP1 "${tls.peer.cert.issuer}" SEP1 "${tls.peer.cert.subject}"
-#define S2 "${accttype}" SEP2 "${conn.protocol}" SEP2 "${peer.address}" SEP2 "${peer.port}" SEP2 "${server.address}" SEP2 "${server.port}" SEP2 "${tls.conn.version}" SEP2 "${tls.peer.cert.issuer}" SEP2 "${tls.peer.cert.subject}"
-	conn_file = parse_log_format_inline(PR DATE " " S1 FS, __FILE__, __LINE__);
-	conn_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
-	conn_syslog3 = parse_log_format_inline(PR S2 SS, __FILE__, __LINE__);
-#undef S1
-#undef S2
+#define S "${accttype}${FS}${conn.protocol}${FS}${peer.address}${FS}${peer.port}${FS}${server.address}${FS}${server.port}${FS}${tls.conn.version}${FS}${tls.peer.cert.issuer}${FS}${tls.peer.cert.subject}"
+	conn_log = parse_log_format_inline(PR S PR, __FILE__, __LINE__);
+#undef S
 
-#define S1 "${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${action} ${hint}" SEP1 "${args, }" SEP1 "${rargs, }"
-#define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${accttype}" SEP2 "${action} ${hint}" SEP2 "${args, }" SEP2 "${rargs, }"
-	rad_access_file = parse_log_format_inline(PR DATE " " S1 FS, __FILE__, __LINE__);
-	rad_access_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
-	rad_access_syslog3 = parse_log_format_inline(PR S2 SS, __FILE__, __LINE__);
-#undef S1
-#undef S2
+#define S "${nas}${FS}${user}${FS}${port}${FS}${nac}${FS}${accttype}${FS}${action} ${hint}${FS}${args, }${FS}${rargs, }"
+	rad_access_log = parse_log_format_inline(PR S PR, __FILE__, __LINE__);
+#undef S
 
-#define S1 " ${nas}" SEP1 "${user}" SEP1 "${port}" SEP1 "${nac}" SEP1 "${accttype}" SEP1 "${service}" SEP1 "${args, }"
-#define S2 "${nas}" SEP2 "${user}" SEP2 "${port}" SEP2 "${nac}" SEP2 "${accttype}" SEP2 "${service}" SEP2 "${args, }"
-	rad_acct_file = parse_log_format_inline(PR DATE " " S1 FS, __FILE__, __LINE__);
-	rad_acct_syslog = parse_log_format_inline(PR SP S2 SS, __FILE__, __LINE__);
-	rad_acct_syslog3 = parse_log_format_inline(PR S2 SS, __FILE__, __LINE__);
+#define S "${nas}${FS}${user}${FS}${port}${FS}${nac}${FS}${accttype}${FS}${service}${FS}${args, }"
+	rad_acct_log = parse_log_format_inline(PR S PR, __FILE__, __LINE__);
+#undef S
 
-#undef SEP1
-#undef SEP2
-#undef S1
-#undef S2
-#undef SP
+	file_pre = parse_log_format_inline(PR "${TIMESTAMP} " PR, __FILE__, __LINE__);
+	file_post = parse_log_format_inline(PR "\n" PR, __FILE__, __LINE__);
+	syslog_pre = parse_log_format_inline(PR "<${priority}>${TIMESTAMP} ${hostname} tac_plus-ng[${pid}]: ${msgid}${FS}" PR, __FILE__, __LINE__);
+	syslog_post = parse_log_format_inline(PR "" PR, __FILE__, __LINE__);
+	syslog3_post = parse_log_format_inline(PR "" PR, __FILE__, __LINE__);
+	syslog3_pre = parse_log_format_inline(PR "${msgid}${FS}" PR, __FILE__, __LINE__);
 #undef PR
-#undef FS
-#undef SS
     }
+
+    if (!lf->acct)
+	lf->acct = acct_log;
+    if (!lf->author)
+	lf->author = author_log;
+    if (!lf->access)
+	lf->access = access_log;
+    if (!lf->conn)
+	lf->conn = conn_log;
+    if (!lf->rad_access)
+	lf->rad_access = rad_access_log;
+    if (!lf->rad_acct)
+	lf->rad_acct = rad_acct_log;
+
     switch (lf->dest[0]) {
     case '/':
-	if (!lf->acct)
-	    lf->acct = acct_file;
-	if (!lf->author)
-	    lf->author = author_file;
-	if (!lf->access)
-	    lf->access = access_file;
-	if (!lf->conn)
-	    lf->conn = conn_file;
-	if (!lf->rad_access)
-	    lf->rad_access = rad_access_file;
-	if (!lf->rad_acct)
-	    lf->rad_acct = rad_acct_file;
 	lf->flag_staticpath = (strchr(lf->dest, '%') == NULL);
 	lf->flag_pipe = 0;
 	lf->flag_sync = 0;
@@ -673,76 +667,38 @@ void parse_log(struct sym *sym, tac_realm *r)
 	lf->log_flush = &log_flush_async;
 	break;
     case '>':
-	if (!lf->acct)
-	    lf->acct = acct_file;
-	if (!lf->author)
-	    lf->author = author_file;
-	if (!lf->access)
-	    lf->access = access_file;
-	if (!lf->conn)
-	    lf->conn = conn_file;
-	if (!lf->rad_access)
-	    lf->rad_access = rad_access_file;
-	if (!lf->rad_acct)
-	    lf->rad_acct = rad_acct_file;
 	lf->dest++;
 	lf->log_write = &log_write_common;
 	lf->log_flush = &log_flush_sync;
 	lf->flag_sync = BISTATE_YES;
 	break;
     case '|':
-	if (!lf->acct)
-	    lf->acct = acct_file;
-	if (!lf->author)
-	    lf->author = author_file;
-	if (!lf->access)
-	    lf->access = access_file;
-	if (!lf->conn)
-	    lf->conn = conn_file;
-	if (!lf->rad_access)
-	    lf->rad_access = rad_access_file;
-	if (!lf->rad_acct)
-	    lf->rad_acct = rad_acct_file;
 	lf->dest++;
 	lf->flag_pipe = BISTATE_YES;
 	lf->log_write = &log_write_async;
 	lf->log_flush = &log_flush_async;
 	break;
     default:
+	if (!lf->separator)
+	    lf->separator = &syslog_fs;
 	if (lf->timestamp_format == S_unknown)
 	    lf->timestamp_format = S_RFC3164;
 	if (!strcmp(lf->dest, codestring[S_syslog].txt)) {
-	    if (!lf->acct)
-		lf->acct = acct_syslog3;
-	    if (!lf->author)
-		lf->author = author_syslog3;
-	    if (!lf->access)
-		lf->access = access_syslog3;
-	    if (!lf->conn)
-		lf->conn = conn_syslog3;
-	    if (!lf->rad_access)
-		lf->rad_access = rad_access_syslog3;
-	    if (!lf->rad_acct)
-		lf->rad_acct = rad_acct_syslog3;
+	    if (!lf->prefix)
+		lf->prefix = syslog3_pre;
+	    if (!lf->postfix)
+		lf->postfix = syslog3_post;
 	    lf->flag_syslog = BISTATE_YES;
 	    lf->log_write = &log_write_common;
 	    lf->log_flush = &log_flush_syslog;
 	} else if (!su_pton_p(&lf->syslog_destination, lf->dest, 514)) {
+	    if (!lf->prefix)
+		lf->prefix = syslog_pre;
+	    if (!lf->postfix)
+		lf->postfix = syslog_post;
 	    lf->flag_syslog = BISTATE_YES;
 	    lf->log_write = &log_write_common;
 	    lf->log_flush = &log_flush_syslog_udp;
-	    if (!lf->acct)
-		lf->acct = acct_syslog;
-	    if (!lf->author)
-		lf->author = author_syslog;
-	    if (!lf->access)
-		lf->access = access_syslog;
-	    if (!lf->conn)
-		lf->conn = conn_syslog;
-	    if (!lf->rad_access)
-		lf->rad_access = rad_access_syslog;
-	    if (!lf->rad_acct)
-		lf->rad_acct = rad_acct_syslog;
 	    if ((lf->sock = su_socket(lf->syslog_destination.sa.sa_family, SOCK_DGRAM, 0)) < 0) {
 		report(NULL, LOG_DEBUG, ~0, "su_socket (%s:%d): %s", __FILE__, __LINE__, strerror(errno));
 		free(lf);
@@ -769,6 +725,12 @@ void parse_log(struct sym *sym, tac_realm *r)
 	    return;
 	}
     }
+    if (!lf->separator)
+	lf->separator = &file_fs;
+    if (!lf->prefix)
+	lf->prefix = file_pre;
+    if (!lf->postfix)
+	lf->postfix = file_post;
 
     if (!r->logdestinations)
 	r->logdestinations = RB_tree_new(compare_name, NULL);
@@ -932,6 +894,7 @@ struct log_item *parse_log_format(struct sym *sym, mem_t *mem)
 	    case S_DENIED_BY_ACL:
 	    case S_AUTHFAIL_BANNER:
 	    case S_TIMESTAMP:
+	    case S_FS:
 		break;
 	    case S_config_file:
 		(*li)->token = S_string;
@@ -957,6 +920,12 @@ struct log_item *parse_log_format(struct sym *sym, mem_t *mem)
 	li = &(*li)->next;
     }
     sym_get(sym);
+
+    if (!start) {
+	static struct log_item li = {.token = S_string,.text = "" };
+	start = &li;
+    }
+
     return start;
 }
 
@@ -1720,6 +1689,13 @@ static str_t *eval_log_format_TIMESTAMP(tac_session *session __attribute__((unus
     return &str;
 }
 
+static str_t *eval_log_format_FS(tac_session *session __attribute__((unused)), struct context *ctx __attribute__((unused)), struct logfile *lf)
+{
+    if (lf)
+	return lf->separator;
+    return NULL;
+}
+
 #if defined(WITH_SSL)
 static str_t *eval_log_format_tls_conn_version(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
 {
@@ -1813,6 +1789,7 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 	efun[S_USERNAME] = &eval_log_format_USERNAME;
 	efun[S_USER_ACCESS_VERIFICATION] = &eval_log_format_USER_ACCESS_VERIFICATION;
 	efun[S_TIMESTAMP] = &eval_log_format_TIMESTAMP;
+	efun[S_FS] = &eval_log_format_FS;
 	efun[S_accttype] = &eval_log_format_accttype;
 	efun[S_action] = &eval_log_format_action;
 	efun[S_authen_action] = &eval_log_format_authen_action;
@@ -2005,7 +1982,7 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 	    len = s->len;
 	    if (!len)
 		len = strlen(s->txt);
-	    if (li->token == S_umessage || li->token == S_AUTHFAIL_BANNER || (session && session->eval_log_raw)) {
+	    if (li->token == S_umessage || li->token == S_AUTHFAIL_BANNER || li->token == S_FS || (session && session->eval_log_raw)) {
 		if (sizeof(buf) - total_len > len + 20)
 		    memcpy(b, s->txt, s->len);
 	    } else
@@ -2083,7 +2060,6 @@ void log_exec(tac_session *session, struct context *ctx, enum token token, time_
 		}
 
 		sockaddr_union syslog_source;
-		char *s = eval_log_format(session, ctx, lf, li, sec, &len);
 		if (lf->flag_udp_spoof && (((lf->syslog_destination.sa.sa_family == AF_INET || lf->syslog_destination2.sa.sa_family == AF_INET)
 					    && !su_htop(&syslog_source, &ctx->device_addr, AF_INET))
 					   || (lf->dest2
@@ -2092,9 +2068,24 @@ void log_exec(tac_session *session, struct context *ctx, enum token token, time_
 		    )
 		    lf->syslog_source = &syslog_source;
 
+		char *pre = NULL, *post = NULL;
+		size_t pre_len = 0, post_len = 0;
+		if (lf) {
+		    if (lf->prefix)
+			pre = eval_log_format(session, ctx, lf, lf->prefix, sec, &pre_len);
+		    if (lf->postfix)
+			post = eval_log_format(session, ctx, lf, lf->postfix, sec, &post_len);
+		}
+		char *s = eval_log_format(session, ctx, lf, li, sec, &len);
 		log_start(lf, NULL);
+		if (pre && *pre)
+		    log_write_common(lf, pre, pre_len);
+		if (post && *post) {
+		    log_write_common(lf, s, len);
+		    lf->log_write(lf, post, post_len);
+		} else
+		    lf->log_write(lf, s, len);
 
-		lf->log_write(lf, s, len);
 		lf->log_flush(lf);
 
 		lf->syslog_source = NULL;

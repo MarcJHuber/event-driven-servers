@@ -234,10 +234,10 @@ static str_t msgid_ ## A = { .txt = B, .len = sizeof(B) - 1 }
 
     STATICSTR_HINT(added);
     STATICSTR_HINT(replaced);
-    STATICSTR_MSGID(pass, "AUTHZPASS");
-    STATICSTR_MSGID(pass_add, "AUTHZPASS-ADD");
-    STATICSTR_MSGID(replaced, "AUTHZPASS-REPL");
-    STATICSTR_MSGID(fail, "AUTHZFAIL");
+    STATICSTR_MSGID(pass, "AUTHZ-PASS");
+    STATICSTR_MSGID(pass_add, "AUTHZ-PASS-ADD");
+    STATICSTR_MSGID(replaced, "AUTHZ-PASS-REPL");
+    STATICSTR_MSGID(fail, "AUTHZ-FAIL");
 
     switch (status) {
     case TAC_PLUS_AUTHOR_STATUS_PASS_ADD:
