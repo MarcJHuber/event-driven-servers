@@ -90,7 +90,7 @@ struct logfile {
     struct log_item *conn;
     struct log_item *rad_access;
     struct log_item *rad_acct;
-    char *syslog_ident;
+    str_t syslog_ident;
     str_t priority;
     str_t *separator;		// ${FS}
     struct log_item *prefix;
@@ -312,7 +312,7 @@ static void log_start(struct logfile *lf, struct context_logfile *deadctx)
 	} else if (lf->flag_syslog) {
 	    lf->ctx = new_context_logfile(NULL);
 	    lf->flag_sync = 1;
-	    openlog(lf->syslog_ident, 0, lf->syslog_priority & ~7);
+	    openlog(lf->syslog_ident.txt, 0, lf->syslog_priority & ~7);
 	} else {
 	    cur = open(path, O_CREAT | O_WRONLY | O_APPEND, config.mask);
 	    if (cur < 0 && errno != EACCES) {
@@ -477,8 +477,10 @@ void parse_log(struct sym *sym, tac_realm *r)
     if (r->logdestinations && RB_search(r->logdestinations, lf))
 	parse_error(sym, "log destination '%s' already defined", lf->name);
     lf->dest = "syslog";
-    lf->syslog_ident = "tacplus";
+    str_set(&lf->syslog_ident, "tacplus", 0);
     lf->syslog_priority = common_data.syslog_level | common_data.syslog_facility;
+    lf->sock = -1;
+    lf->sock2 = -1;
 
     if (sym->code == S_openbra) {
 	sym_get(sym);
@@ -553,7 +555,7 @@ void parse_log(struct sym *sym, tac_realm *r)
 		case S_ident:
 		    sym_get(sym);
 		    parse(sym, S_equal);
-		    lf->syslog_ident = strdup(sym->buf);
+		    str_set(&lf->syslog_ident, strdup(sym->buf), 0);
 		    sym_get(sym);
 		    continue;
 		case S_source:
@@ -594,8 +596,7 @@ void parse_log(struct sym *sym, tac_realm *r)
 		sym_get(sym);
 		parse(sym, S_equal);
 		lf->separator = calloc(1, sizeof(str_t));
-		lf->separator->txt = strdup(sym->buf);
-		lf->separator->len = strlen(sym->buf);
+		str_set(lf->separator, strdup(sym->buf), 0);
 		sym_get(sym);
 		continue;
 	    default:
@@ -638,7 +639,7 @@ void parse_log(struct sym *sym, tac_realm *r)
 
 	file_pre = parse_log_format_inline(PR "${TIMESTAMP} " PR, __FILE__, __LINE__);
 	file_post = parse_log_format_inline(PR "\n" PR, __FILE__, __LINE__);
-	syslog_pre = parse_log_format_inline(PR "<${priority}>${TIMESTAMP} ${hostname} tac_plus-ng[${pid}]: ${msgid}${FS}" PR, __FILE__, __LINE__);
+	syslog_pre = parse_log_format_inline(PR "<${priority}>${TIMESTAMP} ${hostname} ${ident}[${pid}]: ${msgid}${FS}" PR, __FILE__, __LINE__);
 	syslog_post = parse_log_format_inline(PR "" PR, __FILE__, __LINE__);
 	syslog3_post = parse_log_format_inline(PR "" PR, __FILE__, __LINE__);
 	syslog3_pre = parse_log_format_inline(PR "${msgid}${FS}" PR, __FILE__, __LINE__);
@@ -712,6 +713,8 @@ void parse_log(struct sym *sym, tac_realm *r)
 		    return;
 		}
 	    }
+	    if (lf->sock2 > -1)
+		fcntl(lf->sock, F_SETFD, fcntl(lf->sock2, F_GETFD, 0) | FD_CLOEXEC);
 	    if (lf->syslog_destination.sa.sa_family == AF_UNIX && su_connect(lf->sock, &lf->syslog_destination)) {
 		report(NULL, LOG_DEBUG, ~0, "su_connect (%s:%d): %s", __FILE__, __LINE__, strerror(errno));
 		close(lf->sock);
@@ -870,6 +873,7 @@ struct log_item *parse_log_format(struct sym *sym, mem_t *mem)
 	    case S_session_id:
 	    case S_logsequence:
 	    case S_pid:
+	    case S_ident:
 	    case S_PASSWORD:
 	    case S_RESPONSE:
 	    case S_PASSWORD_OLD:
@@ -1627,6 +1631,13 @@ static str_t *eval_log_format_pid(tac_session *session __attribute__((unused)), 
     return &str;
 }
 
+static str_t *eval_log_format_ident(tac_session *session __attribute__((unused)), struct context *ctx __attribute__((unused)), struct logfile *lf)
+{
+	if (lf)
+		return &lf->syslog_ident;
+	return NULL;
+}
+
 static str_t *eval_log_format_conn_protocol(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
 {
     if (ctx)
@@ -1853,6 +1864,7 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 	efun[S_session_id] = &eval_log_format_session_id;
 	efun[S_logsequence] = &eval_log_format_logsequence;
 	efun[S_pid] = &eval_log_format_pid;
+	efun[S_ident] = &eval_log_format_ident;
 	efun[S_custom_0] = &eval_log_format_custom_0;
 	efun[S_custom_1] = &eval_log_format_custom_1;
 	efun[S_custom_2] = &eval_log_format_custom_2;
