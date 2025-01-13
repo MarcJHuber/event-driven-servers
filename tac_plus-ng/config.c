@@ -5244,7 +5244,7 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 	report(DEBACL, " line %u: [%s]", m->line, codestring[m->code].txt);
 	break;
     case S_message:
-	session->message.txt = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->message.len);
+	str_set(&session->message, eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->message.len), 0);
 	report(DEBACL, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, session->message.txt ? session->message.txt : "");
 	break;
 #ifdef WITH_PCRE2
@@ -5254,7 +5254,7 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 	break;
 #endif
     case S_label:
-	session->label.txt = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->label.len);
+	str_set(&session->label, eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->label.len), 0);
 	report(DEBACL, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, session->label.txt ? session->label.txt : "");
 	break;
     case S_profile:
