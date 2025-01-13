@@ -744,6 +744,7 @@ ified
     #
     syslog facility = MAIL           # sets log facility
     syslog level = DEBUG             # sets log level
+    # syslog ident = tacplus
     #
     # # IP source spoofing for UDP syslog. This will require root privil
 eges, or
@@ -841,6 +842,7 @@ syslog default = deny
    ${home} Home directory from PAM backend
    ${shell} Shell from PAM backend
    ${dn} Raw dn backend value, typically from LDAP
+   ${ident} The ident string from log context (default: tacplus)
    ${identity-source} The IDENTITY_SOURCE backend value (the
    identitySourceName of the originating MAVIS module)
    ${log-sequence} Log sequence number
@@ -892,8 +894,8 @@ radius.accounting log format = "${nas}${FS}${user}${FS}${port}${FS}${nac
        for strings to prepend or append to the format:
        Log destination is UDP syslog:
 separator = "|" # that's the ${FS} variable above
-prefix = "<${priority}>${TIMESTAMP} ${hostname} tac_plus-ng[${pid}]: ${m
-sgid}${FS}"
+prefix = "<${priority}>${TIMESTAMP} ${hostname} ${ident}[${pid}]: ${msgi
+d}${FS}"
 postfix = ""
 
        Log destination is syslog(3):
@@ -907,12 +909,10 @@ postfix = "\n"
 separator = "\t"
 
    Message ID Description
-   AUTHZ-PASS authorization succeeded
-   AUTHZ-PASS-ADD authorization succeeded, attribute-value-pairs
-   were added
-   AUTHZ-PASS-REPL authorization succeeded, attribute-value-pairs
-   were replaced
-   AUTHZ-FAIL authorization failed
+   ACCT-START accounting start
+   ACCT-STOP accounting stop
+   ACCT-UNKNOWN unknown (non-compliant) accounting data
+   ACCT-UPDATE accounting update/watchdog
    AUTHC-FAIL generic authentication failure
    AUTHC-FAIL-ABORT authentication was aborted
    AUTHC-FAIL-BACKEND the authentication backend failed
@@ -929,11 +929,13 @@ separator = "\t"
    didn't match
    AUTHC-FAIL-NOPASS there's no passwort set for the user
    AUTHC-FAIL-BADSECRET the wrong RADIUS secret was used
-   AUTH-CPASS authentication passed
-   ACCT-START accounting start
-   ACCT-STOP accounting stop
-   ACCT-UNKNOWN unknown (non-compliant) accounting data
-   ACCT-UPDATE accounting update/watchdog
+   AUTHC-PASS authentication passed
+   AUTHZ-PASS authorization succeeded
+   AUTHZ-PASS-ADD authorization succeeded, attribute-value-pairs
+   were added
+   AUTHZ-PASS-REPL authorization succeeded, attribute-value-pairs
+   were replaced
+   AUTHZ-FAIL authorization failed
    CONN-REJECT connection was rejected
    CONN-START connection was started
    CONN-STOP connection was terminated
@@ -2995,8 +2997,11 @@ ntly enabled.\n"
    configuration for both TACACS+ and RADIUS
 
    If you don't care about RADIUS: That functionality will not be
-   available unless a RADIUS dictionary (see below) is configured.
-   Plus, you can selectively disable the protocols you want to be
+   available unless a RADIUS dictionary (see below) is configured,
+   and TLS/DTLS/Message-Signing absolutely requires building with
+   OpenSSL support.
+
+   Also, you can selectively disable the protocols you want to be
    supported on a per-realm basis:
    aaa.protocol.allowed = tacacs,tacacs.tcp,tacacs.tls,radius,radius.udp
 ,radius.tls,radius.dtls
