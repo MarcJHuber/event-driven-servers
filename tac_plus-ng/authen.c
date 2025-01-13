@@ -120,16 +120,16 @@ struct hint_struct {
 #define HINT(A,B) { { A, sizeof(A) - 1 }, { B, sizeof(B) - 1} }
 
 static struct hint_struct hints[hint_max] = {
-    HINT("failed", "AUTHCFAIL"),
+    HINT("failed", "AUTHC-FAIL"),
     HINT("failed (denied)", "AUTHC-FAIL-DENY"),
     HINT("failed (password not set)", "AUTHC-FAIL-NOPASS"),
     HINT("failed (expired)", "AUTHC-FAIL-EXPIRED"),
     HINT("failed (no such user)", "AUTHC-FAIL-NOUSER"),
-    HINT("succeeded", "AUTHCPASS"),
+    HINT("succeeded", "AUTHC-PASS"),
     HINT("succeeded (permitted)", "AUTHC-PASS-PERMIT"),
     HINT("failed (no clear text password set)", "AUTHC-FAIL-PASSWORD-NOT-TEXT"),
-    HINT("failed (backend error)", "AUTH-CFAIL-BACKEND"),
-    HINT("denied by user profile", "AUTH-CFAIL-USERPROFILE"),
+    HINT("failed (backend error)", "AUTHC-FAIL-BACKEND"),
+    HINT("denied by user profile", "AUTHC-FAIL-USERPROFILE"),
     HINT("failed (retry with identical password)", "AUTHC-FAIL-DENY-RETRY"),
     HINT("failed (This might be a bug, consider reporting it!)", "AUTHC-FAIL-BUG"),
     HINT("aborted by request", "AUTHC-FAIL-ABORT"),
