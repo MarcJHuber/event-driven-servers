@@ -2067,7 +2067,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	case S_tls:
 	    sym_get(sym);
 	    switch (sym->code) {
-#if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
+#if !defined(OPENSSL_NO_PSK)
 	    case S_psk:
 		sym_get(sym);
 		switch (sym->code) {
@@ -2135,14 +2135,11 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    case S_alpn:
 		sym_get(sym);
 		parse(sym, S_equal);
-#ifdef WITH_SSL
 		r->alpn_vec = str2protocollist(sym->buf, &r->alpn_vec_len);
 		if (!r->alpn_vec)
 		    parse_error(sym, "TLS ALPN is malformed.");
-#endif
 		sym_get(sym);
 		continue;
-#ifdef WITH_SSL
 	    case S_sni:
 		sym_get(sym);
 		switch (sym->code) {
@@ -2158,7 +2155,6 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		default:
 		    parse_error_expect(sym, S_equal, S_required, S_unknown);
 		}
-#endif
 	    case S_autodetect:
 		sym_get(sym);
 		parse(sym, S_equal);
@@ -2166,10 +2162,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		continue;
 	    default:
 		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_passphrase, S_ciphers, S_peer, S_accept, S_verify_depth, S_alpn, S_autodetect,
-#ifdef WITH_SSL
-				   S_sni,
-#endif
-				   S_unknown);
+				   S_sni, S_unknown);
 	    }
 	    continue;
 #endif
