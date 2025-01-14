@@ -9,9 +9,10 @@ typedef struct {
     size_t len;
 } str_t;
 
-static inline void str_set(str_t *str, char *txt, size_t len)
+static inline str_t *str_set(str_t *str, char *txt, size_t len)
 {
 	str->txt = txt;
 	str->len = len ? len : (txt ? strlen(txt) : 0);
+	return str;
 }
 #endif
