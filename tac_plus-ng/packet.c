@@ -993,7 +993,7 @@ void rad_read(struct context *ctx, int cur)
     if (rad_check_failed(ctx, p, e))
 	return;
 
-#define RAD_PAK_SESSIONID(A) (((A)->code << 8) | (A)->identifier)
+#define RAD_PAK_SESSIONID(A) (((uint32_t) (A)->code << 8) | (uint32_t) (A)->identifier)
     tac_session *session = RB_lookup_session(ctx->sessions, ctx->radius_1_1 ? ctx->hdr.rad.token : RAD_PAK_SESSIONID(&ctx->hdr.rad));
 
     if (session) {
