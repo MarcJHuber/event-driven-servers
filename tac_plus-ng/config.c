@@ -1497,7 +1497,7 @@ static int rad_get_helper(tac_session *session, enum token type, void *val, size
     return -1;
 }
 
-inline int password_is_printable(char *s)
+static int password_is_printable(char *s)
 {
     // FIXME. We don't really know the character set, so checking for US ASCII is the best option right now.
     for (char *t = s; *t; t++)
