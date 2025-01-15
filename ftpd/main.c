@@ -141,7 +141,7 @@ int main(int argc, char **argv, char **envp)
     idc = io_dns_init(io);
 #endif				/* WITH_DNS */
 
-    mavis_init(mcx, MAVIS_API_VERSION);
+    mavis_init(mcx, MAVIS_API_VERSION, MAVIS_TOKEN_VERSION);
 
     setjmp(sigbus_jmpbuf);
 

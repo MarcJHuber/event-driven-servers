@@ -9,7 +9,7 @@
 
 #ifndef __MAVIS_H_
 #define __MAVIS_H_
-#define MAVIS_API_VERSION "5"
+#define MAVIS_API_VERSION "6"
 
 #include <sys/types.h>
 #include <unistd.h>
@@ -258,7 +258,7 @@ struct mavis_ctx {
 
 /* Module handling: */
 int mavis_method_add(mavis_ctx **, struct io_context *ctx, char *, char *);
-int mavis_init(mavis_ctx *, char *);
+int mavis_init(mavis_ctx *, char *, char *);
 int mavis_cancel(mavis_ctx *, void *);
 int mavis_drop(mavis_ctx *);
 int mavis_send(mavis_ctx *, av_ctx **);
@@ -481,7 +481,7 @@ int cfg_close(char *, char *, int);
 int ipc_create(char *, int);
 void ipc_delete(void);
 
-int mavis_check_version(char *);
+int mavis_check_version(char *, char *);
 
 void mavis_detach(void);
 

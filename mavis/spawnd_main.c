@@ -332,6 +332,8 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 
 int spawnd_main(int argc, char **argv, char **envp, char *id)
 {
+    mavis_check_version(MAVIS_API_VERSION, MAVIS_TOKEN_VERSION);
+
     extern char *optarg;
     extern int optind;
     pid_t pid;

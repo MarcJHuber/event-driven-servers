@@ -2,6 +2,7 @@
 # $Id$
 
 use strict;
+use Digest::MD5 qw(md5_hex);
 
 my @enum = ("S_unknown = 0");
 my @array = ('{.txt="<unknown>", .len=9 }');
@@ -27,11 +28,15 @@ push @array, '{ 0 }';
 open F, "> token.h" or die;
 print F <<EOF
 /* automatically generated, do not edit */
+#ifndef __MAVIS_TOKEN_H__
+#define __MAVIS_TOKEN_H__
 #include "misc/str.h"
 extern str_t codestring[];
 EOF
 ;
-print F "enum token {\n\t" . join(",\n\t", @enum), ",\n\tS_null\n};\n";
+my $out = "enum token {\n\t" . join(",\n\t", @enum) . ",\n\tS_null\n};\n";
+print F $out;
+print F "#define MAVIS_TOKEN_VERSION \"" .  md5_hex($out) . "\"\n#endif\n";
 close F;
 
 open F, "> token.c" or die;

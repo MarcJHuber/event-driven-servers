@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
     argv += 1;
     argc--;
 
-    mavis_init(mcx, MAVIS_API_VERSION);
+    mavis_init(mcx, MAVIS_API_VERSION, MAVIS_TOKEN_VERSION);
 
     start = time(NULL);
     while (loop-- > 0) {

@@ -474,7 +474,9 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
 void init_mcx(tac_realm *r)
 {
     if (r->mcx)
-	mavis_init(r->mcx, MAVIS_API_VERSION);
+	mavis_init(r->mcx, MAVIS_API_VERSION, MAVIS_TOKEN_VERSION);
+    else
+	mavis_check_version(MAVIS_API_VERSION, MAVIS_TOKEN_VERSION);
     if (r->realms)
 	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    init_mcx(RB_payload(rbn, tac_realm *));

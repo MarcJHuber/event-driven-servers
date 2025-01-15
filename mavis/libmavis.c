@@ -55,11 +55,11 @@ int mavis_method_add(mavis_ctx ** mcx, struct io_context *ioctx, char *path, cha
     return 0;
 }
 
-int mavis_init(mavis_ctx * mcx, char *version)
+int mavis_init(mavis_ctx * mcx, char *version, char *token_version)
 {
     DebugIn(DEBUG_MAVIS);
 
-    mavis_check_version(version);
+    mavis_check_version(version, token_version);
 
     if (!mcx) {
 	Debug((DEBUG_MAVIS, "- %s: FATAL: no modules configured\n", __func__));
@@ -427,10 +427,18 @@ void av_free_private(av_ctx * ac)
     }
 }
 
-int mavis_check_version(char *version)
+int mavis_check_version(char *version, char *token_version)
 {
     if (strcmp(version, MAVIS_API_VERSION)) {
-	logmsg("Warning: MAVIS library API version mismatch (%s vs. %s). Expect trouble.", version, MAVIS_API_VERSION);
+	char *format = "Warning: MAVIS library API version mismatch (%s vs. %s). Expect trouble.";
+	logmsg(format, version, MAVIS_API_VERSION);
+	fprintf(stderr, format, version, MAVIS_API_VERSION);
+	return -1;
+    }
+    if (strcmp(token_version, MAVIS_TOKEN_VERSION)) {
+	char *format = "Warning: MAVIS token hash mismatch (%s vs. %s). Expect trouble.";
+	logmsg(format, token_version, MAVIS_TOKEN_VERSION);
+	fprintf(stderr, format, token_version, MAVIS_TOKEN_VERSION);
 	return -1;
     }
     return 0;
