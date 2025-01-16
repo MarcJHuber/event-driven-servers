@@ -1283,7 +1283,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		sockaddr_union from = { 0 };
 		from.sin.sin_family = AF_INET;
 		memcpy(&from.sin.sin_addr, data + 2, 4);
-		if (su_ntop(&from, *buf, *buf_len)) {
+		if (su_ntoa(&from, *buf, *buf_len)) {
 		    int len = strlen(*buf);
 		    *buf += len;
 		    *buf_len -= len;
@@ -1295,7 +1295,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		sockaddr_union from = { 0 };
 		from.sin.sin_family = AF_INET6;
 		memcpy(&from.sin6.sin6_addr, data + 2, 16);
-		if (su_ntop(&from, *buf, *buf_len)) {
+		if (su_ntoa(&from, *buf, *buf_len)) {
 		    int len = strlen(*buf);
 		    *buf += len;
 		    *buf_len -= len;
@@ -4306,8 +4306,8 @@ int cfg_get_enable(tac_session *session, struct pwdat **p)
 	d[m++] = session->user->enable;
     if (session->profile && session->profile->enable)
 	d[m++] = session->profile->enable;
-    if (session->ctx->host->enable)
-	d[m++] = session->ctx->host->enable;
+    if (session->host->enable)
+	d[m++] = session->host->enable;
 
     for (int level = session->priv_lvl; level < TAC_PLUS_PRIV_LVL_MAX + 1; level++) {
 	for (int i = 0; i < m; i++)
@@ -4803,7 +4803,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	return tac_script_cond_eval_res(session, m, res);
     case S_host:
 	{
-	    tac_host *h = session->ctx->host;
+	    tac_host *h = session->host;
 	    while (!res && h) {
 		res = (h == (tac_host *) (m->s.rhs));
 		h = h->parent;
@@ -4828,7 +4828,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	return tac_script_cond_eval_res(session, m, res);
     case S_devicetag:
 	{
-	    tac_host *h = session->ctx->host;
+	    tac_host *h = session->host;
 	    if (m->s.rhs_token == S_string) {
 		while (!res && h) {
 		    res = tac_tag_check(session, m->s.rhs, h->tags);
@@ -4848,7 +4848,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	    else if (m->s.rhs_token == S_usertag)
 		res = -1;
 	    else if (m->s.rhs_token == S_devicetag)
-		res = tac_tag_list_check(session, session->ctx->host, session->user);
+		res = tac_tag_list_check(session, session->host, session->user);
 	}
 	return tac_script_cond_eval_res(session, m, res);
     case S_acl:
@@ -5014,7 +5014,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	    return tac_script_cond_eval_res(session, m, res);
 	case S_devicetag:
 	    {
-		tac_host *h = session->ctx->host;
+		tac_host *h = session->host;
 		while (!res && h) {
 		    res = tac_tag_regex_check(session, m, h->tags);
 		    h = h->parent;
@@ -5024,7 +5024,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	case S_devicename:
 	case S_host:
 	    {
-		tac_host *h = session->ctx->host;
+		tac_host *h = session->host;
 		while (!res && h) {
 		    res = tac_mavis_cond_compare(session, m, h->name.txt, h->name.len);
 		    h = h->parent;
@@ -5087,17 +5087,17 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 		    sockaddr_union from = { 0 };
 		    from.sin.sin_family = AF_INET;
 		    if (!rad_get(session, attr->dict->id, attr->id, attr->type, &from.sin.sin_addr, NULL)
-			&& su_ntop(&from, buf, sizeof(buf)))
+			&& su_ntoa(&from, buf, sizeof(buf)))
 			v->txt = mem_strdup(session->mem, buf);
 		} else if (attr->type == S_ipv6addr) {
 		    char buf[256];
 		    sockaddr_union from = { 0 };
 		    from.sin.sin_family = AF_INET6;
 		    if (!rad_get(session, attr->dict->id, attr->id, S_ipv6addr, &from.sin6.sin6_addr, NULL)
-			&& su_ntop(&from, buf, sizeof(buf)))
+			&& su_ntoa(&from, buf, sizeof(buf)))
 			v->txt = mem_strdup(session->mem, buf);
 		    if (!res)
-			v->txt = mem_strdup(session->mem, su_ntop(&from, buf, sizeof(buf)) ? buf : "<unknown>");
+			v->txt = mem_strdup(session->mem, su_ntoa(&from, buf, sizeof(buf)) ? buf : "<unknown>");
 		} else if (attr->type == S_string_keyword) {
 		    rad_get(session, attr->dict->id, attr->id, S_string_keyword, &v->txt, &v->len);
 		}

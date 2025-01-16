@@ -1140,7 +1140,7 @@ static void set_ctx_info(struct context *ctx, struct scm_data_accept_ext *sd_ext
 	su_convert(&me, AF_INET);
 	snprintf(buf, 10, "%u", su_get_port(&me));
 	str_set(&ctx->server_port_ascii, mem_strdup(ctx->mem, buf), 0);
-	if (su_ntop(&me, buf, sizeof(buf)))
+	if (su_ntoa(&me, buf, sizeof(buf)))
 	    str_set(&ctx->server_addr_ascii, mem_strdup(ctx->mem, buf), 0);
     }
     if (sd_ext->vrf_len)
@@ -1174,7 +1174,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
     size_t proxy_addr_ascii_len = 0;
     char buf[256];
     if (device_addr) {		// proxied
-	proxy_addr_ascii = mem_strdup(ctx->mem, su_ntop(&peer, buf, sizeof(buf)) ? buf : "<unknown>");
+	proxy_addr_ascii = mem_strdup(ctx->mem, su_ntoa(&peer, buf, sizeof(buf)) ? buf : "<unknown>");
 	proxy_addr_ascii_len = strlen(proxy_addr_ascii);
     } else			// not proxied
 	device_addr = &peer;
@@ -1222,7 +1222,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	    ctx->hint = "host unknown";
     }
 
-    str_set(&ctx->peer_addr_ascii, mem_strdup(ctx->mem, su_ntop(&peer, buf, sizeof(buf)) ? buf : "<unknown>"), 0);
+    str_set(&ctx->peer_addr_ascii, mem_strdup(ctx->mem, su_ntoa(&peer, buf, sizeof(buf)) ? buf : "<unknown>"), 0);
     snprintf(buf, sizeof(buf), "%u", su_get_port(&peer));
     str_set(&ctx->peer_port_ascii, mem_strdup(ctx->mem, buf), 0);
 
@@ -1232,7 +1232,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	ctx->device_addr_ascii = ctx->peer_addr_ascii;
 	ctx->device_port_ascii = ctx->peer_port_ascii;
     } else {
-	str_set(&ctx->device_addr_ascii, mem_strdup(ctx->mem, su_ntop(device_addr, buf, sizeof(buf)) ? buf : "<unknown>"), 0);
+	str_set(&ctx->device_addr_ascii, mem_strdup(ctx->mem, su_ntoa(device_addr, buf, sizeof(buf)) ? buf : "<unknown>"), 0);
 	snprintf(buf, sizeof(buf), "%u", (short) su_get_port(device_addr));
 	str_set(&ctx->device_port_ascii, mem_strdup(ctx->mem, buf), 0);
     }

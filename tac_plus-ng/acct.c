@@ -77,7 +77,7 @@ void accounting(tac_session *session, tac_pak_hdr *hdr)
 {
     struct acct *acct = tac_payload(hdr, struct acct *);
     u_char *p = (u_char *) acct + TAC_ACCT_REQ_FIXED_FIELDS_SIZE + acct->arg_cnt;
-    tac_host *h = session->ctx->host;
+    tac_host *h = session->host;
 
     report(session, LOG_DEBUG, DEBUG_ACCT_FLAG, "Start accounting request");
 
@@ -145,9 +145,7 @@ static void do_rad_acct(tac_session *);
 
 void rad_acct(tac_session *session)
 {
-    tac_host *h = session->ctx->host;
-
-    rad_set_fields(session);
+    tac_host *h = session->host;
 
     report(session, LOG_DEBUG, DEBUG_ACCT_FLAG, "Start accounting request");
 

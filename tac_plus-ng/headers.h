@@ -490,6 +490,7 @@ typedef struct {
 #define RADIUS_A_NAS_PORT_TYPE			61
 #define RADIUS_A_MESSAGE_AUTHENTICATOR		80
 #define RADIUS_A_NAS_PORT_ID			87
+#define RADIUS_A_NAS_IPV6_ADDRESS		95
 
 #define RADIUS_A_ERROR_CAUSE					101
 #define RADIUS_V_ERROR_CAUSE_UNSUPPORTED_ATTRIBUTE		401
@@ -767,7 +768,9 @@ struct tac_session {
     struct context *ctx;
     mem_t *mem;
     tac_user *user;
+    tac_host *host;
     struct in6_addr nac_address;	/* host byte order */
+    struct in6_addr device_addr;	/* host byte order */
     str_t username;
     str_t username_orig;
     str_t msg;
@@ -791,6 +794,8 @@ struct tac_session {
     str_t *msgid;
     str_t *result;
     str_t *acct_type;
+    str_t device_dns_name;
+    str_t device_addr_ascii;
     u_char arg_cnt;
     u_char *arg_len;
     u_char *argp;
@@ -997,7 +1002,6 @@ void dump_rad_pak(tac_session *, rad_pak_hdr *);
 /* authen.c */
 void authen(tac_session *, tac_pak_hdr *);
 void rad_authen(tac_session *);
-void rad_set_fields(tac_session * session);
 void authen_init(void);
 
 /* author.c */

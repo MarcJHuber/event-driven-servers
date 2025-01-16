@@ -1231,8 +1231,10 @@ static str_t *eval_log_format_peer(tac_session *session __attribute__((unused)),
     return NULL;
 }
 
-static str_t *eval_log_format_host(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+static str_t *eval_log_format_host(tac_session *session, struct context *ctx, struct logfile *lf __attribute__((unused)))
 {
+    if (session)
+	return &session->host->name;
     if (ctx)
 	return &ctx->host->name;
     return NULL;
