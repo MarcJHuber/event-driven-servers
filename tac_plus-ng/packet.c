@@ -139,7 +139,7 @@ static tac_pak *new_rad_pak(tac_session *session, u_char code)
     }
 #endif
 
-    if (session->ctx->radius_1_1 == TRISTATE_NO)
+    if (session->ctx->radius_1_1 == BISTATE_NO)
 	set_response_authenticator(session, &pak->pak.rad);
     return pak;
 }
