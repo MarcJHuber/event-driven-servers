@@ -372,7 +372,7 @@ char *rfc2428_str(sockaddr_union * sa, char *res, size_t reslen)
 	return "(NULL)";
     }
 
-    snprintf(s, (size_t) (res + reslen - s - 1), "%c%s%c%d%c", delimiter, su_ntop(sa, buf, (socklen_t) sizeof(buf)), delimiter, ntohs(p), delimiter);
+    snprintf(s, (size_t) (res + reslen - s - 1), "%c%s%c%d%c", delimiter, su_ntoa(sa, buf, (socklen_t) sizeof(buf)), delimiter, ntohs(p), delimiter);
 
     return res;
 }

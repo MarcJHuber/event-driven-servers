@@ -321,7 +321,7 @@ int su_bind(int s, sockaddr_union *sa)
 }
 
 
-char *su_ntop(sockaddr_union *sa, char *dst, size_t cnt)
+char *su_ntoa(sockaddr_union *sa, char *dst, size_t cnt)
 {
     switch (sa->sa.sa_family) {
 #ifdef AF_UNIX

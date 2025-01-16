@@ -84,7 +84,7 @@ static int udp_bind(sockaddr_union * sa)
     char buf[INET6_ADDRSTRLEN];
 #endif
 
-    Debug((DEBUG_MAVIS, "+ %s (%s:%u)\n", __func__, su_ntop(sa, buf, (int) sizeof(buf)), (unsigned) su_get_port(sa)));
+    Debug((DEBUG_MAVIS, "+ %s (%s:%u)\n", __func__, su_ntoa(sa, buf, (int) sizeof(buf)), (unsigned) su_get_port(sa)));
 
     if ((s = su_socket(sa->sa.sa_family, SOCK_DGRAM, 0)) < 0) {
 	Debug((DEBUG_MAVIS, "- %s: socket() failed\n", __func__));
@@ -447,7 +447,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	u_long backlog_max_p = 0;
 	for (rat = mcx->remote_addr; rat; rat = rat->next) {
 	    char buf[INET6_ADDRSTRLEN];
-	    su_ntop(&rat->sa, buf, (socklen_t) sizeof(buf));
+	    su_ntoa(&rat->sa, buf, (socklen_t) sizeof(buf));
 	    logmsg
 		("STAT %s: [%s]:%d O=%llu I=%llu B=%lu "
 		 "o=%llu i=%llu b=%lu", MAVIS_name, buf,
@@ -584,7 +584,7 @@ static void mavis_io(mavis_ctx * mcx, int cur __attribute__((unused)))
 	}
     } else {
 	char buf[INET6_ADDRSTRLEN];
-	logmsg("Alert: reply from unknown peer %s:%u", su_ntop(&sa, buf, (socklen_t) sizeof(buf)), (u_int) su_get_port(&sa));
+	logmsg("Alert: reply from unknown peer %s:%u", su_ntoa(&sa, buf, (socklen_t) sizeof(buf)), (u_int) su_get_port(&sa));
     }
     av_free(ac);
     DebugOut(DEBUG_MAVIS);

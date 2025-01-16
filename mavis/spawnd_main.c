@@ -275,9 +275,9 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 		if (ctx->retry_delay)
 		    logmsg
 			("bind to [%s]:%d failed. Will retry every %d seconds.",
-			 su_ntop(&ctx->sa, buf, (socklen_t) sizeof(buf)), su_get_port(&ctx->sa), ctx->retry_delay);
+			 su_ntoa(&ctx->sa, buf, (socklen_t) sizeof(buf)), su_get_port(&ctx->sa), ctx->retry_delay);
 		else
-		    logmsg("bind to [%s]:%d failed.", su_ntop(&ctx->sa, buf, (socklen_t) sizeof(buf)), su_get_port(&ctx->sa));
+		    logmsg("bind to [%s]:%d failed.", su_ntoa(&ctx->sa, buf, (socklen_t) sizeof(buf)), su_get_port(&ctx->sa));
 	    }
 	    if (ctx->retry_delay)
 		io_sched_add(common_data.io, ctx, (void *) spawnd_bind_listener, (time_t) ctx->retry_delay, (suseconds_t) 0);
@@ -309,7 +309,7 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 #endif				/* AF_UNIX */
     }
 
-    logmsg("bind to [%s]:%d succeeded%s", su_ntop(&ctx->sa, buf, (socklen_t) sizeof(buf)), su_get_port(&ctx->sa), ctx->fn ? "" : " (via inetd)");
+    logmsg("bind to [%s]:%d succeeded%s", su_ntoa(&ctx->sa, buf, (socklen_t) sizeof(buf)), su_get_port(&ctx->sa), ctx->fn ? "" : " (via inetd)");
 
     if (ctx->socktype != SOCK_DGRAM && listen(ctx->fn, ctx->listen_backlog)) {
 	logerr("listen (%s:%d)", __FILE__, __LINE__);

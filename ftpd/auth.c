@@ -90,8 +90,8 @@ void auth_mavis(struct context *ctx, char *pass)
 
     av_set(avc, AV_A_USER, ctx->user);
     av_set(avc, AV_A_PASSWORD, pass);
-    av_set(avc, AV_A_IPADDR, su_ntop(&ctx->sa_c_remote, buf, (socklen_t) sizeof(buf)));
-    av_set(avc, AV_A_SERVERIP, su_ntop(&ctx->sa_c_local, buf, (socklen_t) sizeof(buf)));
+    av_set(avc, AV_A_IPADDR, su_ntoa(&ctx->sa_c_remote, buf, (socklen_t) sizeof(buf)));
+    av_set(avc, AV_A_SERVERIP, su_ntoa(&ctx->sa_c_local, buf, (socklen_t) sizeof(buf)));
 
 #ifdef WITH_SSL
     if (ctx->certsubj)

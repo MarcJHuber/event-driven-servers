@@ -142,7 +142,7 @@ void client_io(struct context *ctx, int cur)
     res = acl_check(&sa);
     if (!res) {
 	char ibuf[INET6_ADDRSTRLEN];
-	logmsg("Ignoring query from %s", su_ntop(&sa, ibuf, (socklen_t) sizeof(ibuf)));
+	logmsg("Ignoring query from %s", su_ntoa(&sa, ibuf, (socklen_t) sizeof(ibuf)));
 	return;
     }
 
@@ -153,7 +153,7 @@ void client_io(struct context *ctx, int cur)
     serial = av_get(avc, AV_A_SERIAL);
     if (!serial) {
 	char ibuf[INET6_ADDRSTRLEN];
-	logmsg("query from %s lacks serial", su_ntop(&sa, ibuf, (socklen_t) sizeof(ibuf)));
+	logmsg("query from %s lacks serial", su_ntoa(&sa, ibuf, (socklen_t) sizeof(ibuf)));
 	counter_err++, counter_p_err++;
 	av_free(avc);
 	return;
@@ -165,7 +165,7 @@ void client_io(struct context *ctx, int cur)
     if (RB_search(deferred_by_serial, q)) {
 	char ibuf[INET6_ADDRSTRLEN];
 	Debug((DEBUG_PROC, "Duplicate detected\n"));
-	logmsg("Ignoring duplicate query from %s (backlog: %d)", su_ntop(&sa, ibuf, (socklen_t) sizeof(ibuf)), backlog);
+	logmsg("Ignoring duplicate query from %s (backlog: %d)", su_ntoa(&sa, ibuf, (socklen_t) sizeof(ibuf)), backlog);
 	counter_retry++, counter_p_retry++;
 	av_free(avc);
 	return;
@@ -174,7 +174,7 @@ void client_io(struct context *ctx, int cur)
     if (av_get(avc, AV_A_RESULT)) {
 	char ibuf[INET6_ADDRSTRLEN];
 	Debug((DEBUG_PROC, "AV_A_RESULT already set. Spoofing?\n"));
-	logmsg("Ignoring query with pre-set result code " "from %s (backlog: %d)", su_ntop(&sa, ibuf, (socklen_t) sizeof(ibuf)), backlog);
+	logmsg("Ignoring query with pre-set result code " "from %s (backlog: %d)", su_ntoa(&sa, ibuf, (socklen_t) sizeof(ibuf)), backlog);
 	counter_err++, counter_p_err++;
 	av_free(avc);
 	return;

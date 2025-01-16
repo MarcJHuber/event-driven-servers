@@ -279,7 +279,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	    char buf[INET6_ADDRSTRLEN];
 	    close(s);
 	    if (errno != EAGAIN)
-		logerr("connection attempt from [%s] rejected", su_ntop(&sa, buf, (socklen_t) sizeof(buf)));
+		logerr("connection attempt from [%s] rejected", su_ntoa(&sa, buf, (socklen_t) sizeof(buf)));
 	    DebugOut(DEBUG_NET);
 	    return;
 	}

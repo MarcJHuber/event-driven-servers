@@ -84,7 +84,7 @@ char *cook(struct context *ctx, char *format, char *direction, char *command, in
 		    t += snprintf(t, (size_t) (tmax - t), "%s", subst_delim(ctx->reverse, sub));
 		else
 #endif				/* WITH_DNS */
-		    t += snprintf(t, (size_t) (tmax - t), "[%s]", subst_delim(su_ntop(&ctx->sa_c_remote, buf, (socklen_t) sizeof(buf)), sub));
+		    t += snprintf(t, (size_t) (tmax - t), "[%s]", subst_delim(su_ntoa(&ctx->sa_c_remote, buf, (socklen_t) sizeof(buf)), sub));
 		break;
 	    case 'T':
 		{
@@ -121,7 +121,7 @@ char *cook(struct context *ctx, char *format, char *direction, char *command, in
 		t += snprintf(t, (size_t) (tmax - t), "%.8lx", ctx->id);
 		break;
 	    case 'l':
-		t += snprintf(t, (size_t) (tmax - t), "%s", subst_delim(su_ntop(&ctx->sa_c_local, buf, (socklen_t) sizeof(buf)), sub));
+		t += snprintf(t, (size_t) (tmax - t), "%s", subst_delim(su_ntoa(&ctx->sa_c_local, buf, (socklen_t) sizeof(buf)), sub));
 		break;
 	    case 'm':
 		if (t < tmax) {
@@ -132,7 +132,7 @@ char *cook(struct context *ctx, char *format, char *direction, char *command, in
 		}
 		break;
 	    case 'r':
-		t += snprintf(t, (size_t) (tmax - t), "%s", subst_delim((char *) su_ntop(&ctx->sa_c_remote, buf, (socklen_t) sizeof(buf)), sub));
+		t += snprintf(t, (size_t) (tmax - t), "%s", subst_delim((char *) su_ntoa(&ctx->sa_c_remote, buf, (socklen_t) sizeof(buf)), sub));
 		break;
 	    case 's':
 		t += snprintf(t, (size_t) (tmax - t), "%llu", (unsigned long long) ctx->filesize);

@@ -99,13 +99,13 @@ int su_set_port(sockaddr_union *, uint16_t);
 socklen_t su_len(sockaddr_union *);
 
 /*
- * int su_ntop (sockaddr_union * su, char *buf, size_t buflen)
+ * int su_ntoa (sockaddr_union * su, char *buf, size_t buflen)
  *
  * su_ntop converts the address portion of su to ASCII, storing it
  * in buf. 0 is returned on success, != 0 on error.
  *
  */
-char *su_ntop(sockaddr_union *, char *, size_t);
+char *su_ntoa(sockaddr_union *, char *, size_t);
 
 /*
  * int su_pton (sockaddr_union *su, char *address);

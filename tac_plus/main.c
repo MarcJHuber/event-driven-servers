@@ -515,7 +515,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
     }
 
     if (fromp)
-	p = su_ntop(fromp, pfrom, sizeof(pfrom)) ? pfrom : "<unknown>";
+	p = su_ntoa(fromp, pfrom, sizeof(pfrom)) ? pfrom : "<unknown>";
     else
 	fromp = &from;
 
@@ -560,7 +560,7 @@ static void accept_control_common(int s, struct scm_data_accept *sd, sockaddr_un
     } else
 	hint = ": host unknown";
 
-    f = su_ntop(fromp, afrom, sizeof(afrom)) ? afrom : "<unknown>";
+    f = su_ntoa(fromp, afrom, sizeof(afrom)) ? afrom : "<unknown>";
 
     if (h || r->key) {
 	int priv_lvl, enable_implied[TAC_PLUS_PRIV_LVL_MAX + 1];
