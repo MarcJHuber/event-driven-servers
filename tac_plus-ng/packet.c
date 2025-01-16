@@ -913,6 +913,53 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
     return 0;
 }
 
+static void rad_set_fields(tac_session *session)
+{
+    rad_get(session, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username.txt, &session->username.len);
+
+    if (!rad_get(session, -1, RADIUS_A_CALLING_STATION_ID, S_string_keyword, &session->nac_addr_ascii.txt, &session->nac_addr_ascii.len))
+	session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii.txt) ? 0 : 1;
+
+    if (rad_get(session, -1, RADIUS_A_NAS_PORT_ID, S_string_keyword, &session->port.txt, &session->port.len))
+	rad_get(session, -1, RADIUS_A_NAS_PORT, S_string_keyword, &session->port.txt, &session->port.len);
+
+    int service_type;
+    size_t service_type_len = sizeof(service_type);
+    if (!rad_get(session, -1, RADIUS_A_SERVICE_TYPE, S_integer, &service_type, &service_type_len))
+	rad_dict_get_val(-1, RADIUS_A_SERVICE_TYPE, service_type, &session->service.txt, &session->service.len);
+
+    session->device_addr = session->ctx->device_addr;
+
+    if (!rad_get(session, -1, RADIUS_A_NAS_IP_ADDRESS, S_ipv4addr, ((char *) &session->device_addr) + 12, NULL)) {
+	uint32_t *u32 = (uint32_t *) & session->device_addr;
+	u32[0] = 0;
+	u32[1] = 0;
+	u32[2] = 0xffff;
+	u32[3] = ntohl(u32[3]);
+    } else if (!rad_get(session, -1, RADIUS_A_NAS_IPV6_ADDRESS, S_ipv4addr, &session->device_addr, NULL)) {
+	uint32_t *u32 = (uint32_t *) & session->device_addr;
+	for (int i = 0; i < 4; i++)
+	    u32[i] = ntohl(u32[i]);
+    }
+
+    if (memcmp(&session->device_addr, &session->ctx->device_addr, sizeof(session->ctx->device_addr))) {
+	radixtree_t *rxt = lookup_hosttree(session->ctx->realm);
+	if (rxt) {
+	    tac_host *h = radix_lookup(rxt, &session->device_addr, NULL);
+	    if (h) {
+		complete_host(h);
+		session->host = h;
+	    }
+	}
+	str_set(&session->device_dns_name, NULL, 0);
+	sockaddr_union su;
+	if (!su_htop(&su, &session->device_addr, AF_INET) || !su_htop(&su, &session->device_addr, AF_INET6)) {
+	    char buf[256];
+	    str_set(&session->device_addr_ascii, mem_strdup(session->mem, su_ntoa(&su, buf, sizeof(buf)) ? buf : NULL), 0);
+	}
+    }
+}
+
 void rad_read(struct context *ctx, int cur)
 {
     ssize_t len;
@@ -1013,6 +1060,7 @@ void rad_read(struct context *ctx, int cur)
     if (!session->radius_data) {
 	session->radius_data = mem_alloc(session->mem, sizeof(struct radius_data));
 	session->radius_data->pak_in = pak;
+	rad_set_fields(session);
     }
 
     switch (pak->code) {
@@ -1111,12 +1159,18 @@ static str_t types[] = {
 #define S "acct"
     { S, sizeof(S) - 1 },
 #undef S
+#define S "status"
+    { S, sizeof(S) - 1 },
+#undef S
 };
 
 static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_pak_hdr *radhdr)
 {
     tac_session *session = mem_alloc(ctx->mem, sizeof(tac_session));
     session->ctx = ctx;
+    session->host = ctx->host;
+    session->device_dns_name = ctx->device_dns_name;
+    session->device_addr_ascii = ctx->device_addr_ascii;
     session->debug = ctx->debug;
     session->mem = mem_create(M_LIST);
     if (tac_hdr) {
@@ -1129,6 +1183,8 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_p
 	    session->type = &types[1];
 	} else if (radhdr->code == RADIUS_CODE_ACCOUNTING_REQUEST) {
 	    session->type = &types[3];
+	} else if (radhdr->code == RADIUS_CODE_STATUS_SERVER) {
+	    session->type = &types[4];
 	}
     }
     session->seq_no = 1;

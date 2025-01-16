@@ -1951,26 +1951,8 @@ static void do_radius_login(tac_session *session)
     rad_send_authen_reply(session, RAD_SYM_TO_CODE(res), resp);
 }
 
-void rad_set_fields(tac_session *session)
-{
-    rad_get(session, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username.txt, &session->username.len);
-
-    if (!rad_get(session, -1, RADIUS_A_CALLED_STATION_ID, S_string_keyword, &session->nac_addr_ascii.txt, &session->nac_addr_ascii.len))
-	session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii.txt) ? 0 : 1;
-
-    if (rad_get(session, -1, RADIUS_A_NAS_PORT_ID, S_string_keyword, &session->port.txt, &session->port.len))
-	rad_get(session, -1, RADIUS_A_NAS_PORT, S_string_keyword, &session->port.txt, &session->port.len);
-
-    int service_type;
-    size_t service_type_len = sizeof(service_type);
-    if (!rad_get(session, -1, RADIUS_A_SERVICE_TYPE, S_integer, &service_type, &service_type_len))
-	rad_dict_get_val(-1, RADIUS_A_SERVICE_TYPE, service_type, &session->service.txt, &session->service.len);
-}
-
 void rad_authen(tac_session *session)
 {
-    rad_set_fields(session);
-
     if (session->radius_data->pak_in->code == RADIUS_CODE_ACCESS_REQUEST) {
 	do_radius_login(session);
 	return;
