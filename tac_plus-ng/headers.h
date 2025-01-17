@@ -103,8 +103,16 @@
 #include "misc/io_dns_revmap.h"
 #endif
 
+#ifdef WITH_SSL
+#include <openssl/sha.h>
+#endif
+
+#ifndef MD5_LEN
 #define MD5_LEN           16
+#endif
+#ifndef MSCHAP_DIGEST_LEN
 #define MSCHAP_DIGEST_LEN 49
+#endif
 
 #if defined(WITH_SSL) && OPENSSL_VERSION_NUMBER < 0x30000000
 #undef WITH_SSL
@@ -913,6 +921,8 @@ struct context {
     char **tls_peer_cert_san;
     size_t tls_peer_cert_san_count;
     BIO *rbio;
+    u_char sha1_fingerprint[SHA_DIGEST_LENGTH];
+    u_char sha256_fingerprint[SHA256_DIGEST_LENGTH];
 #endif
     u_int tls_versions;
 

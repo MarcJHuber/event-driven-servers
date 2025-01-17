@@ -400,7 +400,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 	r->last_backend_failure = io_now.tv_sec;
 	while (r && session->mavisauth_res) {
 	    if (r->usertable) {
-		tac_user u = { .name = session->username };
+		tac_user u = {.name = session->username };
 		rb_node_t *rbn = RB_search(r->usertable, &u);
 		if (rbn) {
 		    tac_user *uf = RB_payload(rbn, tac_user *);
@@ -457,6 +457,20 @@ static void mavis_ctx_callback(struct context *ctx)
     mavis_ctx_switch(ctx, avc, rc);
 }
 
+#if defined(WITH_SSL)
+static void dump_hex(u_char *data, size_t data_len, char **buf)
+{
+    char hex[16] = "0123456789abcdef";
+    for (size_t i = 0; i < data_len; i++) {
+	if (i)
+	    *(*buf)++ = ':';
+
+	*(*buf)++ = hex[data[i] >> 4];
+	*(*buf)++ = hex[data[i] & 15];
+    }
+}
+#endif
+
 void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const char *const type)
 {
     mavis_ctx *mcx = lookup_mcx(ctx->realm);
@@ -486,24 +500,52 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 #if defined(WITH_SSL)
     if (ctx->tls_peer_cert_subject.txt)
 	av_set(avc, AV_A_CERTSUBJ, (char *) ctx->tls_peer_cert_subject.txt);
+
+#define SAN_PREFIX "san=\""
+#define SHA1_PREFIX "sha1=\""
+#define SHA256_PREFIX "sha256=\""
+#define SEQ_SUFFIX "\","
+    size_t len = sizeof(SHA1_PREFIX) + sizeof(SEQ_SUFFIX) + 3 * SHA_DIGEST_LENGTH;
+    len += sizeof(SHA256_PREFIX) + sizeof(SEQ_SUFFIX) + 3 * SHA256_DIGEST_LENGTH;
+    char *u = NULL;
+    char *t = NULL;
     if (ctx->tls_peer_cert_san_count) {
 	size_t *la = alloca(ctx->tls_peer_cert_san_count * sizeof(size_t));
-	size_t len = ctx->tls_peer_cert_san_count;
+	len += ctx->tls_peer_cert_san_count * (sizeof(SAN_PREFIX) + sizeof(SEQ_SUFFIX));
 	for (size_t i = 0; i < ctx->tls_peer_cert_san_count; i++) {
 	    la[i] = strlen(ctx->tls_peer_cert_san[i]);
 	    len += la[i];
 	}
-	char *t = alloca(len);
-	char *u = t;
+	t = alloca(len);
+	u = t;
 	for (size_t i = 0; i < ctx->tls_peer_cert_san_count; i++) {
-	    if (i)
-		*u++ = ',';
+	    memcpy(u, SAN_PREFIX, sizeof(SAN_PREFIX) - 1);
+	    u += sizeof(SAN_PREFIX) - 1;
 	    memcpy(u, ctx->tls_peer_cert_san[i], la[i]);
 	    u += la[i];
+	    memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+	    u += sizeof(SEQ_SUFFIX) - 1;
 	}
-	*u = 0;
-	av_set(avc, AV_A_CERTSAN, t);
     }
+    if (!t) {
+	t = alloca(len);
+	u = t;
+    }
+    memcpy(u, SHA1_PREFIX, sizeof(SHA1_PREFIX) - 1);
+    u += sizeof(SHA1_PREFIX) - 1;
+    dump_hex(ctx->sha1_fingerprint, SHA_DIGEST_LENGTH, &u);
+    memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+    u += sizeof(SEQ_SUFFIX) - 1;
+
+    memcpy(u, SHA256_PREFIX, sizeof(SHA256_PREFIX) - 1);
+    u += sizeof(SHA256_PREFIX) - 1;
+    dump_hex(ctx->sha256_fingerprint, SHA256_DIGEST_LENGTH, &u);
+    memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+    u += sizeof(SEQ_SUFFIX) - 2;
+    *u = 0;
+
+    if (t)
+	av_set(avc, AV_A_CERTDATA, t);
 #endif
 
     int result = mavis_send(mcx, &avc);

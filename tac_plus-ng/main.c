@@ -781,6 +781,9 @@ static void accept_control_tls(struct context *ctx, int cur)
 	snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
 	str_set(&ctx->tls_conn_cipher_strength, mem_strdup(ctx->mem, buf), 0);
 
+	X509_digest(cert, EVP_sha1(), ctx->sha1_fingerprint, NULL);
+	X509_digest(cert, EVP_sha256(), ctx->sha256_fingerprint, NULL);
+
 	{
 	    char buf[512];
 	    ASN1_TIME *notafter_asn1 = X509_get_notAfter(cert);
@@ -903,7 +906,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 
     if (ctx->host) {
 	complete_host(ctx->host);
-	if (ctx->host && (ctx->host != by_address) && (ctx->host->try_mavis == TRISTATE_YES) && ctx->tls_peer_cert_subject.txt) {
+	if (ctx->host && (ctx->host->try_mavis == TRISTATE_YES)) {
 	    ctx->mavis_tried = 0;
 	    complete_host_mavis_tls(ctx);
 	    return;
@@ -1025,10 +1028,12 @@ static int alpn_cb(SSL *s __attribute__((unused)), const unsigned char **out, un
 {
     struct context *ctx = (struct context *) arg;
 #define ALPN_RADIUS_1_1 "\012radius/1.1"
-    if (SSL_select_next_proto((unsigned char **) out, outlen, (const unsigned char *) ALPN_RADIUS_1_1, sizeof(ALPN_RADIUS_1_1) - 1, in, inlen) == OPENSSL_NPN_NEGOTIATED)
+    if (SSL_select_next_proto((unsigned char **) out, outlen, (const unsigned char *) ALPN_RADIUS_1_1, sizeof(ALPN_RADIUS_1_1) - 1, in, inlen) ==
+	OPENSSL_NPN_NEGOTIATED)
 	ctx->radius_1_1 = BISTATE_YES;
 
-    if (ctx->realm->alpn_vec && ctx->realm->alpn_vec_len > 1 && SSL_select_next_proto((unsigned char **) out, outlen, ctx->realm->alpn_vec, ctx->realm->alpn_vec_len, in, inlen) != OPENSSL_NPN_NEGOTIATED) {
+    if (ctx->realm->alpn_vec && ctx->realm->alpn_vec_len > 1
+	&& SSL_select_next_proto((unsigned char **) out, outlen, ctx->realm->alpn_vec, ctx->realm->alpn_vec_len, in, inlen) != OPENSSL_NPN_NEGOTIATED) {
 	ctx->hint = "ALPN verification";
 	ctx->alpn_passed = TRISTATE_NO;
 	return SSL_TLSEXT_ERR_ALERT_FATAL;
