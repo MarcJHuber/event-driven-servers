@@ -177,7 +177,7 @@ static void get_hash(av_ctx * ac, char *buf)
 	myMD5Update(&m, (u_char *) t, strlen(t));
     if ((t = av_get(ac, AV_A_CERTSUBJ)))
 	myMD5Update(&m, (u_char *) t, strlen(t));
-    if ((t = av_get(ac, AV_A_CERTSAN)))
+    if ((t = av_get(ac, AV_A_CERTDATA)))
 	myMD5Update(&m, (u_char *) t, strlen(t));
 
     myMD5Final(u, &m);

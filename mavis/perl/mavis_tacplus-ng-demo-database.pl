@@ -75,6 +75,7 @@ while ($in = <>) {
 	key = demo
 	tag = cust001,cust-ro # the "profile" rules from the user definition might use this
 	welcome banner = "Hi! :-)"
+	mavis backend = yes
 }
 EOT
 		;
