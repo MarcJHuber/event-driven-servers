@@ -55,7 +55,7 @@ Marc Huber
               4.12.3. Authorization
               4.12.4. Banners and Messages
               4.12.5. Workarounds for Client Bugs
-              4.12.6. Inheritance and Hosts
+              4.12.6. Inheritance and Devices
               4.12.7. Railroad Diagrams
               4.12.8. Example
 
@@ -1609,6 +1609,9 @@ aaa authentication enable default group tacacs+ enable
        default) or any of m, h, d, w will scale the number up as
        expeced.
        This configuration will be accepted at realm level, too.
+     * mavis backend = (yes|no)
+       Setting this to yes will enables MAVIS host lookups.
+       Defaults to no, and it's not inherited from parent hosts.
      __________________________________________________________
 
 4.12.3. Authorization
@@ -1715,7 +1718,7 @@ aaa authentication enable default group tacacs+ enable
    This configuration will be accepted at realm level, too.
      __________________________________________________________
 
-4.12.6. Inheritance and Hosts
+4.12.6. Inheritance and Devices
 
    For address based device lookups, the daemon looks for the most
    specific device definition. Values that aren't defined (if any)
