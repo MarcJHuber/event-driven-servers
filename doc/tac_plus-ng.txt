@@ -856,18 +856,20 @@ syslog default = deny
    ${server.address} Server address
    ${server.port} Server TCP or UDP port
    ${session.id} Session id
-   ${tls.conn.version} TLS Connection Version (requires LibTLS or
-   OpenSSL)
-   ${tls.conn.cipher} TLS Connection Cipher (requires LibTLS or
-   OpenSSL)
+   ${tls.conn.version} TLS Connection Version (requires OpenSSL)
+   ${tls.conn.cipher} TLS Connection Cipher (requires OpenSSL)
    ${tls.peer.cert.issuer} TLS Peer Certificate Issuer (requires
-   LibTLS or OpenSSL)
+   OpenSSL)
+   ${tls.peer.cert.sha1} TLS Peer Certificate SHA1 fingerprint
+   (requires OpenSSL)
+   ${tls.peer.cert.sha256} TLS Peer Certificate SHA256 fingerprint
+   (requires OpenSSL)
    ${tls.peer.cert.subject} TLS Peer Certificate Subject (requires
-   LibTLS or OpenSSL)
+   OpenSSL)
    ${tls.conn.cipher.strength} TLS Connection Cipher Strength
-   (requires LibTLS or OpenSSL)
+   (requires OpenSSL)
    ${tls.peer.cn} TLS peer certificate Common Name (requires
-   LibTLS or OpenSSL)
+   OpenSSL)
    ${tls.psk.identity} TLS PSK identity (requires OpenSSL)
    ${FS} Field separator, default is | for syslog, \t else
    ${TIMESTAMP} strftime(3) timestamp format, "%b %e %H:%M:%S" for
@@ -1273,8 +1275,8 @@ mavis user filter = __internal__username_acl__
    TACACS+-over-TLS is not a standard. These features are
    experimental.
 
-   If compiled with OpenSSL or LibTLS support the following
-   configuration options are available:
+   If compiled with OpenSSL support the following configuration
+   options are available:
 
      * tls cert-file = cert-file
        Specifies the public part of a TLS server certificate in
