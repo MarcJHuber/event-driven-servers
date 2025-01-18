@@ -452,6 +452,8 @@ tls.conn.cipher.strength	S_tls_conn_cipher_strength
 tls.peer.cert.issuer		S_tls_peer_cert_issuer
 tls.peer.cert.subject		S_tls_peer_cert_subject
 tls.peer.cert.san		S_tls_peer_cert_san
+tls.peer.cert.sha1		S_tls_peer_cert_sha1
+tls.peer.cert.sha256		S_tls_peer_cert_sha256
 tls.peer.cn			S_tls_peer_cn
 tls.psk.identity		S_tls_psk_identity
 tls.conn.sni			S_tls_conn_sni

@@ -867,6 +867,8 @@ struct log_item *parse_log_format(struct sym *sym, mem_t *mem)
 	    case S_ssh_key_hash:
 	    case S_ssh_key_id:
 	    case S_tls_conn_sni:
+	    case S_tls_peer_cert_sha1:
+	    case S_tls_peer_cert_sha256:
 	    case S_nacname:
 	    case S_nasname:
 	    case S_mavis_latency:
@@ -1687,6 +1689,30 @@ static str_t *eval_log_format_tls_conn_sni(tac_session *session __attribute__((u
 	return &ctx->tls_sni;
     return NULL;
 }
+
+static str_t *eval_log_format_tls_peer_cert_sha1(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+						 __attribute__((unused)))
+{
+    if (ctx->tls) {
+	static char buf[SHA_DIGEST_LENGTH * 3];
+	char *b = buf;
+	dump_hex(ctx->sha1_fingerprint, SHA_DIGEST_LENGTH, &b);
+	return str_set(&str, buf, 0);
+    }
+    return NULL;
+}
+
+static str_t *eval_log_format_tls_peer_cert_sha256(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+						   __attribute__((unused)))
+{
+    if (ctx->tls) {
+	static char buf[SHA256_DIGEST_LENGTH * 3];
+	char *b = buf;
+	dump_hex(ctx->sha256_fingerprint, SHA256_DIGEST_LENGTH, &b);
+	return str_set(&str, buf, 0);
+    }
+    return NULL;
+}
 #endif
 
 char *eval_log_format(tac_session *session, struct context *ctx, struct logfile *lf, struct log_item *start, time_t sec, size_t *outlen)
@@ -1799,6 +1825,8 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 	efun[S_tls_peer_cn] = &eval_log_format_tls_peer_cn;
 	efun[S_tls_psk_identity] = &eval_log_format_tls_psk_identity;
 	efun[S_tls_conn_sni] = &eval_log_format_tls_conn_sni;
+	efun[S_tls_peer_cert_sha1] = &eval_log_format_tls_peer_cert_sha1;
+	efun[S_tls_peer_cert_sha256] = &eval_log_format_tls_peer_cert_sha256;
 #endif
     }
 

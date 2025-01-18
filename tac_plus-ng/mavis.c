@@ -458,7 +458,7 @@ static void mavis_ctx_callback(struct context *ctx)
 }
 
 #if defined(WITH_SSL)
-static void dump_hex(u_char *data, size_t data_len, char **buf)
+void dump_hex(u_char *data, size_t data_len, char **buf)
 {
     char hex[16] = "0123456789abcdef";
     for (size_t i = 0; i < data_len; i++) {

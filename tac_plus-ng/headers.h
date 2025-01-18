@@ -1118,6 +1118,7 @@ void users_dec(void);
 void update_bio(struct context *);
 
 ssize_t sendto_spoof(sockaddr_union * from_addr, sockaddr_union * dest_addr, void *buf, size_t len);
+void dump_hex(u_char *data, size_t data_len, char **buf);
 
 extern struct config config;
 extern int die_when_idle;
