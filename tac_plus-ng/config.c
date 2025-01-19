@@ -287,23 +287,23 @@ void complete_realm(tac_realm *r)
 	    for (enum user_message_enum um = 0; um < UM_MAX; um++)
 		if (!r->default_host->user_messages[um])
 		    r->default_host->user_messages[um] = rp->default_host->user_messages[um];
-    }
 #ifdef WITH_SSL
-    if (r->tls_cert && r->tls_key) {
-	r->tls = ssl_init(r, 0);
-	r->dtls = ssl_init(r, 1);
-    }
-#ifndef OPENSSL_NO_PSK
-    if (r->use_tls_psk) {
-	if (!r->tls)
+	if (r->tls_cert && r->tls_key) {
 	    r->tls = ssl_init(r, 0);
-	if (!r->dtls)
 	    r->dtls = ssl_init(r, 1);
-	SSL_CTX_set_psk_find_session_callback(r->tls, psk_find_session_cb);
-	SSL_CTX_set_psk_find_session_callback(r->dtls, psk_find_session_cb);
+	}
+#ifndef OPENSSL_NO_PSK
+	if (r->use_tls_psk) {
+	    if (!r->tls)
+		r->tls = ssl_init(r, 0);
+	    if (!r->dtls)
+		r->dtls = ssl_init(r, 1);
+	    SSL_CTX_set_psk_find_session_callback(r->tls, psk_find_session_cb);
+	    SSL_CTX_set_psk_find_session_callback(r->dtls, psk_find_session_cb);
+	}
+#endif
+#endif
     }
-#endif
-#endif
     if (r->realms) {
 	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    complete_realm(RB_payload(rbn, tac_realm *));
@@ -1513,7 +1513,7 @@ int rad_get_password(tac_session *session, char **val, size_t *val_len)
     if (session->ctx->radius_1_1)
 	return rad_get(session, -1, RADIUS_A_USER_PASSWORD, S_string_keyword, val, val_len);
 
-    int res = -1; // -1: not found, 0: ok, +1: found but bad key
+    int res = -1;		// -1: not found, 0: ok, +1: found but bad key
     u_char *p = RADIUS_DATA(session->radius_data->pak_in);
     size_t len = RADIUS_DATA_LEN(session->radius_data->pak_in);
     u_char *e = p + len;
