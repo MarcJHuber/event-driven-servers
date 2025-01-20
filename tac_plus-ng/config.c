@@ -189,6 +189,7 @@ static rb_tree_t *tags_by_name = NULL;
 #ifdef WITH_SSL
 #ifndef OPENSSL_NO_PSK
 static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION ** sess);
+static unsigned int psk_server_cb(SSL * ssl, const char *identity, unsigned char *psk, unsigned int max_psk_len);
 #endif
 static SSL_CTX *ssl_init(struct realm *, int);
 #endif
@@ -214,10 +215,30 @@ static char *confdir_strdup(char *in)
 
 void complete_realm(tac_realm *r)
 {
-    if (r->parent && !r->complete) {
-	tac_realm *rp = r->parent;
-	r->complete = 1;
+    if (r->complete)
+	return;
 
+    r->complete = 1;
+    tac_realm *rp = r->parent;
+#ifdef WITH_SSL
+    if (r->tls_cert && r->tls_key) {
+	r->tls = ssl_init(r, 0);
+	r->dtls = ssl_init(r, 1);
+    }
+#ifndef OPENSSL_NO_PSK
+    if (r->use_tls_psk == BISTATE_YES) {
+	if (!r->tls)
+	    r->tls = ssl_init(r, 0);
+	if (!r->dtls)
+	    r->dtls = ssl_init(r, 1);
+	SSL_CTX_set_psk_find_session_callback(r->tls, psk_find_session_cb);	// tls1.3
+	SSL_CTX_set_psk_find_session_callback(r->dtls, psk_find_session_cb);	// dtls1.3, eventually
+	SSL_CTX_set_psk_server_callback(r->tls, psk_server_cb);	// tls1.2
+	SSL_CTX_set_psk_server_callback(r->dtls, psk_server_cb);	// dtls1.2
+    }
+#endif
+#endif
+    if (rp) {
 #define RS(A,B) if(r->A == B) r->A = rp->A
 	RS(chalresp, TRISTATE_DUNNO);
 	RS(chpass, TRISTATE_DUNNO);
@@ -242,6 +263,8 @@ void complete_realm(tac_realm *r)
 	RS(allowed_protocol_tacacs_tcp, TRISTATE_DUNNO);
 	RS(allowed_protocol_tacacs_tls, TRISTATE_DUNNO);
 #ifdef WITH_SSL
+	RS(tls, NULL);
+	RS(dtls, NULL);
 	RS(tls_sni_required, TRISTATE_DUNNO);
 	RS(tls_autodetect, TRISTATE_DUNNO);
 	RS(alpn_vec, NULL);
@@ -287,22 +310,6 @@ void complete_realm(tac_realm *r)
 	    for (enum user_message_enum um = 0; um < UM_MAX; um++)
 		if (!r->default_host->user_messages[um])
 		    r->default_host->user_messages[um] = rp->default_host->user_messages[um];
-#ifdef WITH_SSL
-	if (r->tls_cert && r->tls_key) {
-	    r->tls = ssl_init(r, 0);
-	    r->dtls = ssl_init(r, 1);
-	}
-#ifndef OPENSSL_NO_PSK
-	if (r->use_tls_psk) {
-	    if (!r->tls)
-		r->tls = ssl_init(r, 0);
-	    if (!r->dtls)
-		r->dtls = ssl_init(r, 1);
-	    SSL_CTX_set_psk_find_session_callback(r->tls, psk_find_session_cb);
-	    SSL_CTX_set_psk_find_session_callback(r->dtls, psk_find_session_cb);
-	}
-#endif
-#endif
     }
     if (r->realms) {
 	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
@@ -461,7 +468,6 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
 	r->allowed_protocol_tacacs_tcp = TRISTATE_YES;;
 	r->allowed_protocol_tacacs_tls = TRISTATE_YES;
 	config.default_realm = r;
-	r->complete = 1;
 	parse_inline(r, "acl __internal__username_acl__ { if (user =~ \"[]<>/()|=[*\\\"':$]+\") deny permit }\n", __FILE__, __LINE__);
 	r->mavis_user_acl = tac_acl_lookup("__internal__username_acl__", r);
 	parse_inline(r, "acl __internal__enable_user__ { if (user =~ \"^\\\\$enab..?\\\\$$\") permit deny }", __FILE__, __LINE__);
@@ -2086,7 +2092,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    break;
 		case S_equal:
 		    sym_get(sym);
-		    r->use_tls_psk = parse_bool(sym);
+		    r->use_tls_psk = parse_bool(sym) ? BISTATE_YES : BISTATE_NO;
 		    break;
 		default:
 		    parse_error_expect(sym, S_id, S_key, S_equal, S_unknown);
@@ -5674,12 +5680,6 @@ static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char **key, si
 
 static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION **sess)
 {
-    SSL_SESSION *nsession = NULL;
-    const SSL_CIPHER *cipher = NULL;
-    u_char *key;
-    size_t key_len;
-    struct context *ctx;
-
     // FIXME -- use SSL_CTX_get_app_data instead of SSL_get_fd/io_get_ctx?
 
     int fd = SSL_get_fd(ssl);
@@ -5689,7 +5689,7 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 	return 0;
     }
 
-    ctx = io_get_ctx(common_data.io, fd);
+    struct context *ctx = io_get_ctx(common_data.io, fd);
     if (!ctx) {
 	report(NULL, LOG_ERR, ~0, "%s:%d io_get_ctx()", __FILE__, __LINE__);
 	return 0;
@@ -5700,6 +5700,8 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 	return 0;
     }
 
+    u_char *key;
+    size_t key_len;
     if (cfg_get_tls_psk(ctx, (char *) identity, &key, &key_len)) {
 	report(NULL, LOG_ERR, ~0, "%s:%d psk not found", __FILE__, __LINE__);
 	return 0;
@@ -5710,19 +5712,25 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
     // Constants from https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml
     // and RFC8446, 8.4.
     // FIXME. There's probably a way to map some standard string to the iana values, somewhere.
-    const unsigned char TLS_AES_128_GCM_SHA256[] = { 0x13, 0x01 };	// that's what s_client uses
-    // const unsigned char TLS_AES_256_GCM_SHA384[] = { 0x13, 0x02 };
-    // const unsigned char TLS_CHACHA20_POLY1305_SHA256[] = { 0x13,0x03 };
-    // const unsigned char TLS_AES_128_CCM_SHA256[] = { 0x13,0x04 };
-    // const unsigned char TLS_AES_128_CCM_8_SHA256[] = { 0x13,0x05 };
+    struct ciphers {
+	unsigned char c[2];
+    };
+    struct ciphers cipherlist[] = {
+//      { 0x13, 0x02 },         // TLS_AES_256_GCM_SHA384
+//      { 0x13, 0x03 },         // TLS_CHACHA20_POLY1305_SHA256
+	{ 0x13, 0x01 },		// TLS_AES_128_GCM_SHA256
+	{ 0x00, 0xFF },		// TLS_EMPTY_RENEGOTIATION_INFO_SCSV
+    };
+    const SSL_CIPHER *cipher = NULL;
+    for (struct ciphers * i = cipherlist; !cipher && i->c[0]; i++)
+	cipher = SSL_CIPHER_find(ssl, i->c);
 
-    cipher = SSL_CIPHER_find(ssl, TLS_AES_128_GCM_SHA256);
     if (!cipher) {
 	report(NULL, LOG_ERR, ~0, "%s:%d SSL_CIPHER_find() failed", __FILE__, __LINE__);
 	return 0;
     }
 
-    nsession = SSL_SESSION_new();
+    SSL_SESSION *nsession = nsession = SSL_SESSION_new();
     if (!nsession) {
 	report(NULL, LOG_ERR, ~0, "%s:%d SSL_SESSION_new() failed", __FILE__, __LINE__);
 	return 0;
@@ -5740,8 +5748,11 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 	return 0;
     }
 
-    //if (!SSL_SESSION_set_protocol_version(nsession, TLS1_3_VERSION)) {
-    if (!SSL_SESSION_set_protocol_version(nsession, SSL_version(ssl))) {
+    if (!SSL_SESSION_set_protocol_version(nsession,
+#ifdef DTLS1_3_VERSION
+					  ctx->udp ? DTLS1_3_VERSION :
+#endif
+					  TLS1_3_VERSION)) {
 	report(NULL, LOG_ERR, ~0, "%s:%d SSL_SESSION_set_protocol_version() failed", __FILE__, __LINE__);
 	SSL_SESSION_free(nsession);
 	return 0;
@@ -5752,6 +5763,46 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
     str_set(&ctx->tls_psk_identity, mem_strdup(ctx->mem, (char *) identity), 0);
 
     return 1;
+}
+
+static unsigned int psk_server_cb(SSL *ssl, const char *identity, unsigned char *psk, unsigned int max_psk_len)
+{
+
+    // FIXME -- use SSL_CTX_get_app_data instead of SSL_get_fd/io_get_ctx?
+
+    if (SSL_version(ssl) > TLS1_2_VERSION)
+	return 0;
+
+    int fd = SSL_get_fd(ssl);
+
+    if (fd < -1) {
+	report(NULL, LOG_ERR, ~0, "%s:%d SSL_get_fd() = %d", __FILE__, __LINE__, fd);
+	return 0;
+    }
+
+    struct context *ctx = io_get_ctx(common_data.io, fd);
+    if (!ctx) {
+	report(NULL, LOG_ERR, ~0, "%s:%d io_get_ctx()", __FILE__, __LINE__);
+	return 0;
+    }
+
+    u_char *key;
+    size_t key_len;
+    if (cfg_get_tls_psk(ctx, (char *) identity, &key, &key_len)) {
+	report(NULL, LOG_ERR, ~0, "%s:%d psk not found", __FILE__, __LINE__);
+	return 0;
+    }
+
+    if (key_len > max_psk_len) {
+	report(NULL, LOG_ERR, ~0, "%s:%d psk key length exceeds maximum", __FILE__, __LINE__);
+	return 0;
+    }
+
+    memcpy(psk, key, key_len);
+
+    str_set(&ctx->tls_psk_identity, mem_strdup(ctx->mem, (char *) identity), 0);
+
+    return key_len;
 }
 #endif
 
@@ -5774,8 +5825,6 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls)
 	report(NULL, LOG_ERR, ~0, "SSL_CTX_new");
 	return ctx;
     }
-    if (!SSL_CTX_set_min_proto_version(ctx, dtls ? DTLS1_2_VERSION : TLS1_2_VERSION /* due to radsec */ ))
-	report(NULL, LOG_ERR, ~0, "SSL_CTX_set_min_proto_version");
     if (r->tls_ciphers && !SSL_CTX_set_cipher_list(ctx, r->tls_ciphers))
 	report(NULL, LOG_ERR, ~0, "SSL_CTX_set_cipher_list");
     if (r->tls_pass) {

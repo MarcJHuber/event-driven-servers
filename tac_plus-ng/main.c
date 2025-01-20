@@ -1330,7 +1330,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	}
     }
     if (ctx->host && (ctx->use_tls || ctx->use_dtls)) {
-	if ((ctx->use_tls && !ctx->realm->tls) || (ctx->use_dtls && !ctx->realm->dtls)) {
+	if ((ctx->use_tls && !ctx->realm->tls && !ctx->realm->use_tls_psk) || (ctx->use_dtls && !ctx->realm->dtls && !ctx->realm->use_tls_psk)) {
 	    report(NULL, LOG_ERR, ~0, "%s but realm %s isn't configured suitably",
 		   (ctx->realm->tls_autodetect == TRISTATE_YES) ? "TLS detected" : "spawnd set TLS flag", ctx->realm->name.txt);
 	    cleanup(ctx, ctx->sock);
@@ -1341,8 +1341,8 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	io_set_cb_h(ctx->io, ctx->sock, (void *) cleanup);
 	io_set_cb_e(ctx->io, ctx->sock, (void *) cleanup);
 	io_sched_add(ctx->io, ctx, (void *) periodics_ctx, 60, 0);
-	SSL_CTX_set_cert_verify_callback(ctx->realm->tls, app_verify_cb, ctx);
 
+	SSL_CTX_set_cert_verify_callback(ctx->realm->tls, app_verify_cb, ctx);
 	SSL_CTX_set_alpn_select_cb(ctx->realm->tls, alpn_cb, ctx);
 
 	if (ctx->realm->tls_sni_required == TRISTATE_YES) {
@@ -1359,8 +1359,37 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	}
 
 	ctx->tls = SSL_new(ctx->use_tls ? ctx->realm->tls : (ctx->use_dtls ? ctx->realm->dtls : NULL));
+
 	if (ctx->tls) {
+	    u_int versions = ctx->tls_versions;
+	    int ver = 0;
+	    if (ctx->udp) {
+#ifdef DTLS1_3_VERSION
+		ver = DTLS1_3_VERSION & 0xff;
+#else
+		ver = DTLS1_2_VERSION & 0xff;
+#endif
+		while (versions) {
+		    int tmp = versions & 0xFF;
+		    if (ver && tmp > ver)
+			ver = tmp;
+		    versions >>= 8;
+		}
+		ver |= 0xFE00;
+	    } else {
+		ver = TLS1_3_VERSION & 0xff;
+		while (versions) {
+		    int tmp = versions & 0xFF;
+		    if (ver && tmp < ver)
+			ver = tmp;
+		    versions >>= 8;
+		}
+		ver |= 0x0300;
+	    }
+	    SSL_set_min_proto_version(ctx->tls, ver);
 	    SSL_set_fd(ctx->tls, ctx->sock);
+	    SSL_set_session_id_context(ctx->tls, (const unsigned char *) &ctx, sizeof(ctx));
+
 	    if (ctx->udp) {
 		//ctx->rbio = BIO_new(BIO_s_dgram_mem());
 		ctx->rbio = BIO_new(BIO_s_mem());

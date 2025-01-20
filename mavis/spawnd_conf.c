@@ -17,7 +17,10 @@
 #include <grp.h>
 #include <netdb.h>
 #include "misc/radix.h"
-
+#ifdef WITH_SSL
+#include <openssl/tls1.h>
+#include <openssl/dtls1.h>
+#endif
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
 struct acl {
@@ -158,6 +161,7 @@ static void parse_listen(struct sym *sym)
 #endif
 	    sym_get(sym);
 	    break;
+#ifdef WITH_SSL
 	case S_ssl:
 	case S_tls:
 	    sym_get(sym);
@@ -166,8 +170,14 @@ static void parse_listen(struct sym *sym)
 	    case S_yes:
 	    case S_permit:
 	    case S_true:
-		ctx->tls_versions = 0x0203;
-		ctx->dtls_versions = 0xfdfc;
+		ctx->tls_versions = (TLS1_2_VERSION & 0xff)
+		    | ((TLS1_3_VERSION & 0xff) << 8);
+		ctx->dtls_versions = (DTLS1_VERSION & 0xff)
+		    | ((DTLS1_2_VERSION & 0xff) << 16)
+#ifdef DTLS1_3_VERSION
+		    | ((DTLS1_3_VERSION & 0xff) << 24)
+#endif
+		    ;
 		sym_get(sym);
 		break;
 	    case S_no:
@@ -184,11 +194,11 @@ static void parse_listen(struct sym *sym)
 		    switch (sym->code) {
 		    case S_TLS1_2:
 			ctx->tls_versions <<= 8;
-			ctx->tls_versions |= 0x02;
+			ctx->tls_versions |= TLS1_2_VERSION & 0xff;
 			break;
 		    case S_TLS1_3:
 			ctx->tls_versions <<= 8;
-			ctx->tls_versions |= 0x03;
+			ctx->tls_versions |= TLS1_3_VERSION & 0xff;
 			break;
 		    default:
 			parse_error_expect(sym, S_TLS1_2, S_TLS1_3, S_unknown);
@@ -204,26 +214,37 @@ static void parse_listen(struct sym *sym)
 		    switch (sym->code) {
 		    case S_DTLS1_0:
 			ctx->dtls_versions <<= 8;
-			ctx->dtls_versions |= 0xFF;	// ~0
+			ctx->dtls_versions |= DTLS1_VERSION & 0xff;	// ~0
 			break;
 		    case S_DTLS1_2:
 			ctx->dtls_versions <<= 8;
-			ctx->dtls_versions |= 0xFE;	// ~2
+			ctx->dtls_versions |= DTLS1_2_VERSION & 0xff;	// ~2
 			break;
+#ifdef DTLS1_2_VERSION
 		    case S_DTLS1_3:
 			ctx->dtls_versions <<= 8;
-			ctx->dtls_versions |= 0xFD;	// ~3
+			ctx->dtls_versions |= DTLS1_2_VERSION & 0xff;	// ~3
 			break;
+#endif
 		    default:
-			parse_error_expect(sym, S_DTLS1_0, S_DTLS1_2, S_DTLS1_3, S_unknown);
+			parse_error_expect(sym, S_DTLS1_0, S_DTLS1_2,
+#ifdef DTLS1_2_VERSION
+					   S_DTLS1_3,
+#endif
+					   S_unknown);
 		    }
 		    sym_get(sym);
 		} while (parse_comma(sym));
 		break;
 	    default:
-		parse_error_expect(sym, S_TLS1_2, S_TLS1_3, S_DTLS1_0, S_DTLS1_2, S_DTLS1_3, S_yes, S_permit, S_true, S_no, S_deny, S_false, S_unknown);
+		parse_error_expect(sym, S_TLS1_2, S_TLS1_3, S_DTLS1_0, S_DTLS1_2,
+#ifdef DTLS1_2_VERSION
+				   S_DTLS1_3,
+#endif
+				   S_yes, S_permit, S_true, S_no, S_deny, S_false, S_unknown);
 	    }
 	    break;
+#endif
 	case S_aaa_protocol:
 	    sym_get(sym);
 	    parse(sym, S_equal);
