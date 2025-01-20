@@ -1430,7 +1430,12 @@ int parse_mavismodule(mavis_ctx **mcx, struct io_context *ioctx, struct sym *sym
 		    break;
 		sp = sp->next;
 	    }
-	} else {
+	}
+#ifdef MAVIS_DIR
+	if (res)
+	    res = mavis_method_addf(mcx, ioctx, id, MAVIS_DIR "/libmavis_%s.so", sym->buf);
+#endif
+	if (res) {
 	    static char *bp = NULL;
 	    if (!bp) {
 		get_exec_path(&bp, "");
@@ -1448,10 +1453,6 @@ int parse_mavismodule(mavis_ctx **mcx, struct io_context *ioctx, struct sym *sym
 			res = mavis_method_addf(mcx, ioctx, id, "%s/lib/mavis/libmavis_%s.so", bp, sym->buf);
 		}
 	    }
-#ifdef MAVIS_DIR
-	    if (res)
-		res = mavis_method_addf(mcx, ioctx, id, MAVIS_DIR "/libmavis_%s.so", sym->buf);
-#endif
 	}
     }
 
