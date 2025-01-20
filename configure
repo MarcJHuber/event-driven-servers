@@ -79,7 +79,7 @@ $release = lc $release;
 
 my $LIBARCH = undef;
 
-$LIBARCH = "64" if $sysname =~ /linux/i && $machine =~ /64/ && -d "/usr/lib64";
+# $LIBARCH = "64" if $sysname =~ /linux/i && $machine =~ /64/ && -d "/usr/lib64";
 
 my $aux = "";
 
