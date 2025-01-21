@@ -177,6 +177,17 @@ typedef struct tac_tag tac_tag;
 struct mem;
 typedef struct mem mem_t;
 
+#ifdef WITH_SSL
+struct fingerprint {
+    enum token type;
+    u_char hash[SHA256_DIGEST_LENGTH];
+    union {
+	tac_host *host;
+	struct fingerprint *next;
+    };
+};
+#endif
+
 struct tac_host {
     TAC_NAME_ATTRIBUTES;
     u_int line;			/* configuration file line number */
@@ -224,6 +235,7 @@ struct tac_host {
     char *tls_psk_id;
     u_char *tls_psk_key;
     size_t tls_psk_key_len;
+    struct fingerprint *fingerprint;	// set via MAVIS
 #endif
 };
 
@@ -416,6 +428,7 @@ struct realm {
     struct sni_list *sni_list;
     u_char *alpn_vec;
     size_t alpn_vec_len;
+    rb_tree_t *fingerprints;
 #endif
     u_int debug;
     int rulecount;
@@ -461,8 +474,8 @@ typedef struct {
     uint8_t identifier;
     uint16_t length;
     union {
-	    u_char authenticator[16];
-	    uint32_t token;
+	u_char authenticator[16];
+	uint32_t token;
     };
 } __attribute__((__packed__)) rad_pak_hdr;
 #define RADIUS_HDR_SIZE sizeof(rad_pak_hdr)
@@ -921,8 +934,7 @@ struct context {
     char **tls_peer_cert_san;
     size_t tls_peer_cert_san_count;
     BIO *rbio;
-    u_char sha1_fingerprint[SHA_DIGEST_LENGTH];
-    u_char sha256_fingerprint[SHA256_DIGEST_LENGTH];
+    struct fingerprint *fingerprint;
 #endif
     u_int tls_versions;
 
@@ -1118,7 +1130,10 @@ void users_dec(void);
 void update_bio(struct context *);
 
 ssize_t sendto_spoof(sockaddr_union * from_addr, sockaddr_union * dest_addr, void *buf, size_t len);
-void dump_hex(u_char *data, size_t data_len, char **buf);
+void dump_hex(u_char * data, size_t data_len, char **buf);
+
+int compare_fingerprint(const void *a, const void *b);
+tac_host *lookup_fingerprint(struct context *ctx);
 
 extern struct config config;
 extern int die_when_idle;

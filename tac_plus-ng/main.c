@@ -781,9 +781,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 	snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
 	str_set(&ctx->tls_conn_cipher_strength, mem_strdup(ctx->mem, buf), 0);
 
-	X509_digest(cert, EVP_sha1(), ctx->sha1_fingerprint, NULL);
-	X509_digest(cert, EVP_sha256(), ctx->sha256_fingerprint, NULL);
-
 	{
 	    char buf[512];
 	    ASN1_TIME *notafter_asn1 = X509_get_notAfter(cert);
@@ -1015,13 +1012,39 @@ void complete_host(tac_host *h)
 }
 
 #ifdef WITH_SSL
-static int app_verify_cb(X509_STORE_CTX *ctx, void *app_ctx)
+static int app_verify_cb(X509_STORE_CTX *sctx, void *app_ctx)
 {
-    X509 *cert = X509_STORE_CTX_get0_cert(ctx);
-    int res = (cert && (X509_check_purpose(cert, X509_PURPOSE_SSL_CLIENT, 0) == 1) && (X509_verify_cert(ctx) == 1)) ? 1 : 0;
+    struct context *ctx = (struct context *) app_ctx;
+    X509 *cert = X509_STORE_CTX_get0_cert(sctx);
+
+    struct fingerprint *fp_sha1 = mem_alloc(ctx->mem, sizeof(struct fingerprint));
+    fp_sha1->type = S_tls_peer_cert_sha1;
+    struct fingerprint *fp_sha256 = mem_alloc(ctx->mem, sizeof(struct fingerprint));
+    fp_sha256->type = S_tls_peer_cert_sha256;
+
+    X509_digest(cert, EVP_sha1(), fp_sha1->hash, NULL);
+    X509_digest(cert, EVP_sha256(), fp_sha256->hash, NULL);
+
+    ctx->fingerprint = fp_sha1;
+    fp_sha1->next = fp_sha256;
+
+    int res = (cert && (X509_check_purpose(cert, X509_PURPOSE_SSL_CLIENT, 0) == 1) && (X509_verify_cert(sctx) == 1)) ? 1 : 0;
+    if (!res) {
+	if (ctx->host->mem) {	// dynamic host, compare cert fingerprint to the one supplied by the MAVIS
+	    for (struct fingerprint * fp = ctx->host->fingerprint; fp && !res; fp = fp->next)
+		if (!compare_fingerprint(fp, ctx->fingerprint))
+		    res = 1;
+	} else {		// static host, lookup fingerprint
+	    tac_host *h = lookup_fingerprint(ctx);
+	    if (h) {
+		ctx->host = h;
+		res = 1;
+	    }
+	}
+    }
     if (!res)
-	((struct context *) app_ctx)->hint = "Certificate verification";
-    return res;
+	ctx->hint = "Certificate verification";
+    return res;			// 0: failure, 1: success
 }
 
 static int alpn_cb(SSL *s __attribute__((unused)), const unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg)

@@ -1694,10 +1694,15 @@ static str_t *eval_log_format_tls_peer_cert_sha1(tac_session *session __attribut
 						 __attribute__((unused)))
 {
     if (ctx->tls) {
-	static char buf[SHA_DIGEST_LENGTH * 3];
-	char *b = buf;
-	dump_hex(ctx->sha1_fingerprint, SHA_DIGEST_LENGTH, &b);
-	return str_set(&str, buf, 0);
+	struct fingerprint *fp = ctx->fingerprint;
+	while (fp && fp->type != S_tls_peer_cert_sha1)
+	    fp = fp->next;
+	if (fp) {
+	    static char buf[SHA_DIGEST_LENGTH * 3];
+	    char *b = buf;
+	    dump_hex(fp->hash, SHA_DIGEST_LENGTH, &b);
+	    return str_set(&str, buf, 0);
+	}
     }
     return NULL;
 }
@@ -1706,10 +1711,15 @@ static str_t *eval_log_format_tls_peer_cert_sha256(tac_session *session __attrib
 						   __attribute__((unused)))
 {
     if (ctx->tls) {
-	static char buf[SHA256_DIGEST_LENGTH * 3];
-	char *b = buf;
-	dump_hex(ctx->sha256_fingerprint, SHA256_DIGEST_LENGTH, &b);
-	return str_set(&str, buf, 0);
+	struct fingerprint *fp = ctx->fingerprint;
+	while (fp && fp->type != S_tls_peer_cert_sha256)
+	    fp = fp->next;
+	if (fp) {
+	    static char buf[SHA256_DIGEST_LENGTH * 3];
+	    char *b = buf;
+	    dump_hex(fp->hash, SHA256_DIGEST_LENGTH, &b);
+	    return str_set(&str, buf, 0);
+	}
     }
     return NULL;
 }

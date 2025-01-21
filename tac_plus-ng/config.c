@@ -152,6 +152,20 @@ int compare_name(const void *a, const void *b)
     return strcmp(((struct tac_name *) a)->name.txt, ((struct tac_name *) b)->name.txt);
 }
 
+#ifdef WITH_SSL
+int compare_fingerprint(const void *a, const void *b)
+{
+    struct fingerprint *fpa = (struct fingerprint *) a;
+    struct fingerprint *fpb = (struct fingerprint *) b;
+    if (fpa->type != fpb->type)
+	return -1;
+    int len = SHA_DIGEST_LENGTH;
+    if (fpa->type == S_tls_peer_cert_sha256)
+	len = SHA256_DIGEST_LENGTH;
+    return memcmp(fpa->hash, fpb->hash, len);
+}
+#endif
+
 static struct tac_acl *tac_acl_lookup(char *, tac_realm *);
 
 struct tac_groups {
@@ -605,6 +619,21 @@ static struct mavis_timespec *lookup_timespec(char *name, tac_realm *r)
     }
     return NULL;
 }
+
+#ifdef WITH_SSL
+tac_host *lookup_fingerprint(struct context *ctx)
+{
+    for (tac_realm * r = ctx->realm; r; r = r->parent)
+	if (r->fingerprints) {
+	    for (struct fingerprint * fp = ctx->fingerprint; fp; fp = fp->next) {
+		tac_host *res = RB_lookup(r->fingerprints, fp);
+		if (res)
+		    return res;
+	    }
+	}
+    return NULL;
+}
+#endif
 
 static struct sym *globerror_sym = NULL;
 
@@ -3603,6 +3632,10 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 	case S_tls:
 #endif
+#if defined(WITH_SSL)
+	case S_tls_peer_cert_sha1:
+	case S_tls_peer_cert_sha256:
+#endif
 	    break;
 	default:
 	    parse_error_expect(sym,
@@ -3614,6 +3647,9 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 #endif
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 			       S_tls,
+#endif
+#if defined(WITH_SSL)
+			       S_tls_peer_cert_sha1, S_tls_peer_cert_sha256,
 #endif
 			       S_unknown);
 	}
@@ -3984,6 +4020,49 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	}
 	sym_get(sym);
 	break;
+#endif
+#ifdef WITH_SSL
+    case S_tls_peer_cert_sha1:
+    case S_tls_peer_cert_sha256:{
+	    struct fingerprint *fp = mem_alloc(host->mem, sizeof(struct fingerprint));
+	    fp->type = sym->code;
+	    sym_get(sym);
+	    parse(sym, S_equal);
+
+	    int len = SHA256_DIGEST_LENGTH;
+	    if (fp->type == S_tls_peer_cert_sha1)
+		len = SHA_DIGEST_LENGTH;
+
+	    char *t = sym->buf;
+	    for (int i = 0; i < len;) {
+		char k[2];
+		if (!*t || !isxdigit(*t) || !isxdigit(*(t + 1)))
+		    parse_error(sym, "Expected a cert fingerprint in \"00:01:02:03...\" format\n");
+		k[0] = toupper(*t++);
+		k[1] = toupper(*t++);
+		fp->hash[i] = hexbyte(k);
+		i++;
+		if (((i == len) && *t) || ((i < len) && *t != ':'))
+		    parse_error(sym, "Expected a cert fingerprint in \"00:01:02:03...\" format\n");
+		t++;
+	    }
+
+	    if (mem) {		// dynamic
+		fp->next = host->fingerprint;
+		host->fingerprint = fp;
+	    } else {		// static
+		fp->host = host;
+		if (!r->fingerprints)
+		    r->fingerprints = RB_tree_new(compare_fingerprint, NULL);
+		tac_host *h = RB_lookup(r->fingerprints, (void *) fp);
+		if (h)
+		    parse_error(sym, "Duplicate cert fingerprint detected\n");
+		RB_insert(r->fingerprints, fp);
+	    }
+
+	    sym_get(sym);
+	    break;
+	}
 #endif
     default:
 	parse_error_expect(sym, S_host, S_device, S_parent, S_authentication, S_permit,
@@ -5770,7 +5849,7 @@ static unsigned int psk_server_cb(SSL *ssl, const char *identity, unsigned char 
 
     // FIXME -- use SSL_CTX_get_app_data instead of SSL_get_fd/io_get_ctx?
 
-    if (SSL_version(ssl) > TLS1_2_VERSION)
+    if (SSL_version(ssl) > TLS1_2_VERSION)	// FIXME -- check whether that check makes sense at all
 	return 0;
 
     int fd = SSL_get_fd(ssl);

@@ -532,17 +532,23 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 	    t = alloca(len);
 	    u = t;
 	}
-	memcpy(u, SHA1_PREFIX, sizeof(SHA1_PREFIX) - 1);
-	u += sizeof(SHA1_PREFIX) - 1;
-	dump_hex(ctx->sha1_fingerprint, SHA_DIGEST_LENGTH, &u);
-	memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
-	u += sizeof(SEQ_SUFFIX) - 1;
 
-	memcpy(u, SHA256_PREFIX, sizeof(SHA256_PREFIX) - 1);
-	u += sizeof(SHA256_PREFIX) - 1;
-	dump_hex(ctx->sha256_fingerprint, SHA256_DIGEST_LENGTH, &u);
-	memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
-	u += sizeof(SEQ_SUFFIX) - 2;
+	for (struct fingerprint * fp = ctx->fingerprint; fp; fp = fp->next)
+	    if (fp->type == S_tls_peer_cert_sha1) {
+		memcpy(u, SHA1_PREFIX, sizeof(SHA1_PREFIX) - 1);
+		u += sizeof(SHA1_PREFIX) - 1;
+		dump_hex(fp->hash, SHA_DIGEST_LENGTH, &u);
+		memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+		u += sizeof(SEQ_SUFFIX) - 1;
+	    } else if (fp->type == S_tls_peer_cert_sha256) {
+		memcpy(u, SHA256_PREFIX, sizeof(SHA256_PREFIX) - 1);
+		u += sizeof(SHA256_PREFIX) - 1;
+		dump_hex(fp->hash, SHA256_DIGEST_LENGTH, &u);
+		memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+		u += sizeof(SEQ_SUFFIX) - 1;
+	    }
+
+	u--;			// comma
 	*u = 0;
 
 	if (t)
