@@ -855,43 +855,45 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    }
 
 	}
-	// check SANs -- cycle through all DNS SANs and find the best host match
+	if (ctx->fingerprint_matched == BISTATE_NO) {
+	    // check SANs -- cycle through all DNS SANs and find the best host match
 
-	STACK_OF(GENERAL_NAME) * san;
-	if (cert && (san = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL))) {
-	    int skipped_max = 1024;
-	    int san_count = sk_GENERAL_NAME_num(san);
-	    ctx->tls_peer_cert_san = mem_alloc(ctx->mem, san_count);
-	    tac_host *h = NULL;
-	    for (int i = 0; i < san_count; i++) {
-		GENERAL_NAME *val = sk_GENERAL_NAME_value(san, i);
-		if (val->type == GEN_DNS) {
-		    char *t = (char *) ASN1_STRING_get0_data(val->d.dNSName);
-		    ctx->tls_peer_cert_san[ctx->tls_peer_cert_san_count++] = mem_strdup(ctx->mem, t);
-		    for (int skipped = 0; skipped < skipped_max && t; skipped++) {
-			h = lookup_host(t, ctx->realm);
-			if (h && skipped_max > skipped) {
-			    skipped_max = skipped;
-			    ctx->host = h;
-			    break;
+	    STACK_OF(GENERAL_NAME) * san;
+	    if (cert && (san = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL))) {
+		int skipped_max = 1024;
+		int san_count = sk_GENERAL_NAME_num(san);
+		ctx->tls_peer_cert_san = mem_alloc(ctx->mem, san_count);
+		tac_host *h = NULL;
+		for (int i = 0; i < san_count; i++) {
+		    GENERAL_NAME *val = sk_GENERAL_NAME_value(san, i);
+		    if (val->type == GEN_DNS) {
+			char *t = (char *) ASN1_STRING_get0_data(val->d.dNSName);
+			ctx->tls_peer_cert_san[ctx->tls_peer_cert_san_count++] = mem_strdup(ctx->mem, t);
+			for (int skipped = 0; skipped < skipped_max && t; skipped++) {
+			    h = lookup_host(t, ctx->realm);
+			    if (h && skipped_max > skipped) {
+				skipped_max = skipped;
+				ctx->host = h;
+				break;
+			    }
+			    t = strchr(t, '.');
+			    if (t)
+				t++;
 			}
-			t = strchr(t, '.');
-			if (t)
-			    t++;
 		    }
 		}
+		GENERAL_NAMES_free(san);
 	    }
-	    GENERAL_NAMES_free(san);
+	    X509_free(cert);
+
+	    // check for dn match:
+	    if (!ctx->host)
+		set_host_by_dn(ctx, (char *) ctx->tls_peer_cert_subject.txt);
+
+	    // check for cn match:
+	    if (!ctx->host)
+		set_host_by_dn(ctx, ctx->tls_peer_cn.txt);
 	}
-	X509_free(cert);
-
-	// check for dn match:
-	if (!ctx->host)
-	    set_host_by_dn(ctx, (char *) ctx->tls_peer_cert_subject.txt);
-
-	// check for cn match:
-	if (!ctx->host)
-	    set_host_by_dn(ctx, ctx->tls_peer_cn.txt);
     }
 #ifndef OPENSSL_NO_PSK
   done:
@@ -1032,12 +1034,15 @@ static int app_verify_cb(X509_STORE_CTX *sctx, void *app_ctx)
     if (!res) {
 	if (ctx->host->mem) {	// dynamic host, compare cert fingerprint to the one supplied by the MAVIS
 	    for (struct fingerprint * fp = ctx->host->fingerprint; fp && !res; fp = fp->next)
-		if (!compare_fingerprint(fp, ctx->fingerprint))
+		if (!compare_fingerprint(fp, ctx->fingerprint)) {
+		    ctx->fingerprint_matched = BISTATE_YES;
 		    res = 1;
+		}
 	} else {		// static host, lookup fingerprint
 	    tac_host *h = lookup_fingerprint(ctx);
 	    if (h) {
 		ctx->host = h;
+		ctx->fingerprint_matched = BISTATE_YES;
 		res = 1;
 	    }
 	}

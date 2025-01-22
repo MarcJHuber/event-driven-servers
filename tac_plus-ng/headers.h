@@ -922,6 +922,7 @@ struct context {
     struct {
 	TRISTATE(alpn_passed);
 	BISTATE(sni_passed);
+	BISTATE(fingerprint_matched);
     } __attribute__((__packed__));
     str_t tls_conn_version;
     str_t tls_conn_cipher;
