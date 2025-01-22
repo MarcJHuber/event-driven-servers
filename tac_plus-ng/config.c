@@ -4037,14 +4037,15 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    for (int i = 0; i < len;) {
 		char k[2];
 		if (!*t || !isxdigit(*t) || !isxdigit(*(t + 1)))
-		    parse_error(sym, "Expected a cert fingerprint in \"00:01:02:03...\" format\n");
+		    parse_error(sym, "Expected a %d byte cert fingerprint in hex format but got '%s'", len, sym->buf);
 		k[0] = toupper(*t++);
 		k[1] = toupper(*t++);
 		fp->hash[i] = hexbyte(k);
 		i++;
-		if (((i == len) && *t) || ((i < len) && *t != ':'))
-		    parse_error(sym, "Expected a cert fingerprint in \"00:01:02:03...\" format\n");
-		t++;
+		if ((i == len) && *t)
+		    parse_error(sym, "Cert fingerprint '%s' is longer than %d bytes", sym->buf, len);
+		if (*t == ':')
+		    t++;
 	    }
 
 	    if (mem) {		// dynamic
@@ -4056,7 +4057,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 		    r->fingerprints = RB_tree_new(compare_fingerprint, NULL);
 		tac_host *h = RB_lookup(r->fingerprints, (void *) fp);
 		if (h)
-		    parse_error(sym, "Duplicate cert fingerprint detected\n");
+		    parse_error(sym, "Duplicate cert fingerprint detected");
 		RB_insert(r->fingerprints, fp);
 	    }
 
