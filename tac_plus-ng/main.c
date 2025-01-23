@@ -1039,9 +1039,9 @@ static int app_verify_cb(X509_STORE_CTX *sctx, void *app_ctx)
 		    res = 1;
 		}
 	} else {		// static host, lookup fingerprint
-	    tac_host *h = lookup_fingerprint(ctx);
-	    if (h) {
-		ctx->host = h;
+	    struct fingerprint *fp = lookup_fingerprint(ctx);
+	    if (fp) {
+		ctx->host = fp->host;
 		ctx->fingerprint_matched = BISTATE_YES;
 		res = 1;
 	    }

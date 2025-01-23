@@ -1129,7 +1129,7 @@ ssize_t sendto_spoof(sockaddr_union * from_addr, sockaddr_union * dest_addr, voi
 void dump_hex(u_char * data, size_t data_len, char **buf);
 
 int compare_fingerprint(const void *a, const void *b);
-tac_host *lookup_fingerprint(struct context *ctx);
+struct fingerprint *lookup_fingerprint(struct context *ctx);
 
 extern struct config config;
 extern int die_when_idle;

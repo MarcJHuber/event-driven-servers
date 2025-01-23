@@ -621,12 +621,12 @@ static struct mavis_timespec *lookup_timespec(char *name, tac_realm *r)
 }
 
 #ifdef WITH_SSL
-tac_host *lookup_fingerprint(struct context *ctx)
+struct fingerprint *lookup_fingerprint(struct context *ctx)
 {
     for (tac_realm * r = ctx->realm; r; r = r->parent)
 	if (r->fingerprints) {
 	    for (struct fingerprint * fp = ctx->fingerprint; fp; fp = fp->next) {
-		tac_host *res = RB_lookup(r->fingerprints, fp);
+		struct fingerprint *res = RB_lookup(r->fingerprints, fp);
 		if (res)
 		    return res;
 	    }
@@ -4055,8 +4055,8 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 		fp->host = host;
 		if (!r->fingerprints)
 		    r->fingerprints = RB_tree_new(compare_fingerprint, NULL);
-		tac_host *h = RB_lookup(r->fingerprints, (void *) fp);
-		if (h)
+		tac_host *fp_exists = RB_lookup(r->fingerprints, (void *) fp);
+		if (fp_exists)
 		    parse_error(sym, "Duplicate cert fingerprint detected");
 		RB_insert(r->fingerprints, fp);
 	    }
@@ -4072,6 +4072,9 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 			   S_singleconnection, S_debug, S_connection, S_context, S_script, S_target_realm,
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 			   S_tls,
+#endif
+#if defined(WITH_SSL)
+			   S_tls_peer_cert_sha1, S_tls_peer_cert_sha256,
 #endif
 			   S_mavis, S_unknown);
     }
