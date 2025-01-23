@@ -727,7 +727,8 @@ void sym_get(struct sym *sym)
     if (sym->code == S_include && !sym->flag_prohibit_include) {
 
 	sym_get(sym);
-	parse(sym, S_equal);
+	if (sym->code == S_equal)
+	    sym_get(sym);
 	char *sb = NULL;
 #define S "$CONFDIR/"
 	if (!strncmp(sym->buf, S, sizeof(S) - 1) && common_data.conffile) {
