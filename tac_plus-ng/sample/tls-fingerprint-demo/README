@@ -1,0 +1,11 @@
+Demo setup for certificate fingerprint evaluation
+
+Step 1: generate certificate and fingerprint files:
+        ./mkcert.sh
+
+Step 2: start the daemon:
+        tac_plus-ng -d 2 -1 -f tac_plus-ng-fingerprint.cfg
+
+Step 3: in another terminal session, run
+        ./client.sh
+
