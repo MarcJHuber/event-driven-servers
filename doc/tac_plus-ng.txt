@@ -1298,9 +1298,18 @@ mavis user filter = __internal__username_acl__
        Application-Layer Protocol Negotiation (ALPN) Protocol IDs.
      * tls auto-detect = ( yes | no )
        Enable TLS auto-detection. Defaults to no.
+     * tls.peer.cert.sha1 = SHA1 certificate fingerprint
+       tls.peer.cert.sha256 = SHA256 certificate fingerprint
+       Certificate fingerprints can be used for certificate-based
+       device identification without a certification authority.
+       Fingerprints need to be unique. Example:
+    host demo {
+        tls.peer.cert.sha256 = 00:01:02:03:04...
+        tls.peer.cert.1 = 0001020304... # the colons are optional
+    }
 
-   If compiled with OpenSSL support, TLSv1.3 Preshared Keys and
-   SNIs are supported:
+   If compiled with OpenSSL support, TLSv1.2 and TLSv1.3 Preshared
+   Keys and SNIs are supported:
 
      * tls psk = ( yes | no )
        This enables PSK support at realm level.
