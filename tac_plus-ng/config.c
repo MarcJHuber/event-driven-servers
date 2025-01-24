@@ -2092,6 +2092,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	case S_maxrounds:
 	case S_host:
 	case S_device:
+	case S_tls_peer_cert_validation:
 	    parse_host_attr(sym, r, r->default_host);
 	    continue;
 	case S_haproxy:
@@ -3635,6 +3636,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 #if defined(WITH_SSL)
 	case S_tls_peer_cert_sha1:
 	case S_tls_peer_cert_sha256:
+	case S_tls_peer_cert_validation:
 #endif
 	    break;
 	default:
@@ -4022,6 +4024,21 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	break;
 #endif
 #ifdef WITH_SSL
+    case S_tls_peer_cert_validation:
+	sym_get(sym);
+	parse(sym, S_equal);
+	switch (sym->code) {
+	case S_any:
+	case S_none:
+	case S_cert:
+	case S_hash:
+	    host->tls_peer_cert_validation = sym->code;
+	    sym_get(sym);
+	    break;
+	default:
+	    parse_error_expect(sym, S_any, S_none, S_cert, S_hash);
+	}
+	break;
     case S_tls_peer_cert_sha1:
     case S_tls_peer_cert_sha256:{
 	    struct fingerprint *fp = mem_alloc(host->mem, sizeof(struct fingerprint));

@@ -979,6 +979,7 @@ void complete_host(tac_host *h)
 	    h->tls_psk_key_len = hp->tls_psk_key_len;
 	}
 #endif
+	HS(tls_peer_cert_validation, S_unknown);
 #endif
 
 #undef HS
@@ -1017,7 +1018,12 @@ void complete_host(tac_host *h)
 static int app_verify_cb(X509_STORE_CTX *sctx, void *app_ctx)
 {
     struct context *ctx = (struct context *) app_ctx;
+    if (ctx->host->tls_peer_cert_validation == S_none)
+	return 1;
+
     X509 *cert = X509_STORE_CTX_get0_cert(sctx);
+    if (!cert)
+	return 0;
 
     struct fingerprint *fp_sha1 = mem_alloc(ctx->mem, sizeof(struct fingerprint));
     fp_sha1->type = S_tls_peer_cert_sha1;
@@ -1030,26 +1036,30 @@ static int app_verify_cb(X509_STORE_CTX *sctx, void *app_ctx)
     ctx->fingerprint = fp_sha1;
     fp_sha1->next = fp_sha256;
 
-    int res = (cert && (X509_check_purpose(cert, X509_PURPOSE_SSL_CLIENT, 0) == 1) && (X509_verify_cert(sctx) == 1)) ? 1 : 0;
-    if (!res) {
+    if ((ctx->host->tls_peer_cert_validation != S_hash) &&	//
+	(X509_check_purpose(cert, X509_PURPOSE_SSL_CLIENT, 0) == 1) &&	//
+	(X509_verify_cert(sctx) == 1))
+	return 1;
+
+    if (ctx->host->tls_peer_cert_validation != S_cert) {
 	if (ctx->host->mem) {	// dynamic host, compare cert fingerprint to the one supplied by the MAVIS
-	    for (struct fingerprint * fp = ctx->host->fingerprint; fp && !res; fp = fp->next)
+	    for (struct fingerprint * fp = ctx->host->fingerprint; fp; fp = fp->next)
 		if (!compare_fingerprint(fp, ctx->fingerprint)) {
 		    ctx->fingerprint_matched = BISTATE_YES;
-		    res = 1;
+		    return 1;
 		}
 	} else {		// static host, lookup fingerprint
 	    struct fingerprint *fp = lookup_fingerprint(ctx);
 	    if (fp) {
 		ctx->host = fp->host;
 		ctx->fingerprint_matched = BISTATE_YES;
-		res = 1;
+		return 1;
 	    }
 	}
     }
-    if (!res)
-	ctx->hint = "Certificate verification";
-    return res;			// 0: failure, 1: success
+
+    ctx->hint = "Certificate verification";
+    return 0;			// 0: failure, 1: success
 }
 
 static int alpn_cb(SSL *s __attribute__((unused)), const unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg)
@@ -1278,7 +1288,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;

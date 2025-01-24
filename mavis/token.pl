@@ -454,6 +454,7 @@ tls.peer.cert.subject		S_tls_peer_cert_subject
 tls.peer.cert.san		S_tls_peer_cert_san
 tls.peer.cert.sha1		S_tls_peer_cert_sha1
 tls.peer.cert.sha256		S_tls_peer_cert_sha256
+tls.peer.cert.validation	S_tls_peer_cert_validation
 tls.peer.cn			S_tls_peer_cn
 tls.psk.identity		S_tls_psk_identity
 tls.conn.sni			S_tls_conn_sni
