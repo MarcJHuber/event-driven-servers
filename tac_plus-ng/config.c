@@ -285,6 +285,7 @@ void complete_realm(tac_realm *r)
 	if (!r->alpn_vec_len)
 	    r->alpn_vec_len = rp->alpn_vec_len;
 	RS(tls_accept_expired, TRISTATE_DUNNO);
+	RS(default_host->tls_peer_cert_validation, S_unknown);
 #endif
 #undef RS
 #define RS(A) if(r->A < 0) r->A = rp->A;
@@ -435,6 +436,9 @@ information:\n\
         User:   ${user}\n\
         Date:   %Y-%m-%d %H:%M:%S %z\n\
 \"";
+#ifdef WITH_TLS
+	host->tls_peer_cert_validation = S_any;
+#endif
     }
 }
 
