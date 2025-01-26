@@ -781,6 +781,9 @@ static void accept_control_tls(struct context *ctx, int cur)
 	snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
 	str_set(&ctx->tls_conn_cipher_strength, mem_strdup(ctx->mem, buf), 0);
 
+#if OPENSSL_VERSION_NUMBER >= 0x30200000
+	if (SSL_get_negotiated_server_cert_type(ctx->tls) == TLSEXT_cert_type_x509)
+#endif
 	{
 	    char buf[512];
 	    ASN1_TIME *notafter_asn1 = X509_get_notAfter(cert);
@@ -805,96 +808,103 @@ static void accept_control_tls(struct context *ctx, int cur)
 		    notbefore = mktime(&notbefore_tm);
 		}
 	    }
-	}
 
-	if (ctx->tls_peer_cert_subject.txt) {
-	    while (*ctx->tls_peer_cert_subject.txt == '/')
-		ctx->tls_peer_cert_subject.txt++;
-	    ctx->tls_peer_cert_subject.len = strlen(ctx->tls_peer_cert_subject.txt);
-	}
-	if (ctx->tls_peer_cert_issuer.txt) {
-	    while (*ctx->tls_peer_cert_issuer.txt == '/')
-		ctx->tls_peer_cert_issuer.txt++;
-	    ctx->tls_peer_cert_issuer.len = strlen(ctx->tls_peer_cert_issuer.txt);
-	}
-	if (notafter > -1 && notbefore > -1 && ctx->realm->tls_accept_expired != TRISTATE_YES && notafter < io_now.tv_sec + 30 * 86400)
-	    report(NULL, LOG_INFO, ~0, "peer certificate for %s will expire in %lld days", ctx->peer_addr_ascii.txt,
-		   (long long) (notafter - io_now.tv_sec) / 86400);
+	    if (ctx->tls_peer_cert_subject.txt) {
+		while (*ctx->tls_peer_cert_subject.txt == '/')
+		    ctx->tls_peer_cert_subject.txt++;
+		ctx->tls_peer_cert_subject.len = strlen(ctx->tls_peer_cert_subject.txt);
+	    }
+	    if (ctx->tls_peer_cert_issuer.txt) {
+		while (*ctx->tls_peer_cert_issuer.txt == '/')
+		    ctx->tls_peer_cert_issuer.txt++;
+		ctx->tls_peer_cert_issuer.len = strlen(ctx->tls_peer_cert_issuer.txt);
+	    }
+	    if (notafter > -1 && notbefore > -1 && ctx->realm->tls_accept_expired != TRISTATE_YES && notafter < io_now.tv_sec + 30 * 86400)
+		report(NULL, LOG_INFO, ~0, "peer certificate for %s will expire in %lld days", ctx->peer_addr_ascii.txt,
+		       (long long) (notafter - io_now.tv_sec) / 86400);
 
-	if (ctx->tls_peer_cert_subject.txt) {
-	    char *cn = alloca(ctx->tls_peer_cert_subject.len + 1);
+	    if (ctx->tls_peer_cert_subject.txt) {
+		char *cn = alloca(ctx->tls_peer_cert_subject.len + 1);
 
-	    // normalize subject
-	    cn[ctx->tls_peer_cert_subject.len] = 0;
-	    for (size_t i = 0; i < ctx->tls_peer_cert_subject.len; i++)
-		cn[i] = tolower(ctx->tls_peer_cert_subject.txt[i]);
+		// normalize subject
+		cn[ctx->tls_peer_cert_subject.len] = 0;
+		for (size_t i = 0; i < ctx->tls_peer_cert_subject.len; i++)
+		    cn[i] = tolower(ctx->tls_peer_cert_subject.txt[i]);
 
-	    // set cn
-	    while (cn) {
-		char *e = strchr(cn, ',');
-		if (e)
-		    *e = 0;
-		while (isspace(*cn))
-		    cn++;
-		if (cn[0] == 'c' && cn[1] == 'n' && cn[2] == '=') {
-		    cn += 3;
-		    while (*cn && isspace(*cn))
+		// set cn
+		while (cn) {
+		    char *e = strchr(cn, ',');
+		    if (e)
+			*e = 0;
+		    while (isspace(*cn))
 			cn++;
-		    e = cn;
-		    while (*e && !isspace(*e))
-			e++;
-		    *e = 0;
-		    str_set(&ctx->tls_peer_cn, mem_strdup(ctx->mem, cn), 0);
-		    break;
+		    if (cn[0] == 'c' && cn[1] == 'n' && cn[2] == '=') {
+			cn += 3;
+			while (*cn && isspace(*cn))
+			    cn++;
+			e = cn;
+			while (*e && !isspace(*e))
+			    e++;
+			*e = 0;
+			str_set(&ctx->tls_peer_cn, mem_strdup(ctx->mem, cn), 0);
+			break;
+		    }
+
+		    if (e)
+			cn = e + 1;
+		    else
+			break;
 		}
 
-		if (e)
-		    cn = e + 1;
-		else
-		    break;
 	    }
+	    if (ctx->fingerprint_matched == BISTATE_NO) {
+		// check SANs -- cycle through all DNS SANs and find the best host match
 
-	}
-	if (ctx->fingerprint_matched == BISTATE_NO) {
-	    // check SANs -- cycle through all DNS SANs and find the best host match
-
-	    STACK_OF(GENERAL_NAME) * san;
-	    if (cert && (san = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL))) {
-		int skipped_max = 1024;
-		int san_count = sk_GENERAL_NAME_num(san);
-		ctx->tls_peer_cert_san = mem_alloc(ctx->mem, san_count);
-		tac_host *h = NULL;
-		for (int i = 0; i < san_count; i++) {
-		    GENERAL_NAME *val = sk_GENERAL_NAME_value(san, i);
-		    if (val->type == GEN_DNS) {
-			char *t = (char *) ASN1_STRING_get0_data(val->d.dNSName);
-			ctx->tls_peer_cert_san[ctx->tls_peer_cert_san_count++] = mem_strdup(ctx->mem, t);
-			for (int skipped = 0; skipped < skipped_max && t; skipped++) {
-			    h = lookup_host(t, ctx->realm);
-			    if (h && skipped_max > skipped) {
-				skipped_max = skipped;
-				ctx->host = h;
-				break;
+		STACK_OF(GENERAL_NAME) * san;
+		if (cert && (san = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL))) {
+		    int skipped_max = 1024;
+		    int san_count = sk_GENERAL_NAME_num(san);
+		    ctx->tls_peer_cert_san = mem_alloc(ctx->mem, san_count);
+		    tac_host *h = NULL;
+		    for (int i = 0; i < san_count; i++) {
+			GENERAL_NAME *val = sk_GENERAL_NAME_value(san, i);
+			if (val->type == GEN_DNS) {
+			    char *t = (char *) ASN1_STRING_get0_data(val->d.dNSName);
+			    ctx->tls_peer_cert_san[ctx->tls_peer_cert_san_count++] = mem_strdup(ctx->mem, t);
+			    for (int skipped = 0; skipped < skipped_max && t; skipped++) {
+				h = lookup_host(t, ctx->realm);
+				if (h && skipped_max > skipped) {
+				    skipped_max = skipped;
+				    ctx->host = h;
+				    break;
+				}
+				t = strchr(t, '.');
+				if (t)
+				    t++;
 			    }
-			    t = strchr(t, '.');
-			    if (t)
-				t++;
 			}
 		    }
+		    GENERAL_NAMES_free(san);
 		}
-		GENERAL_NAMES_free(san);
+		X509_free(cert);
+
+		// check for dn match:
+		if (!ctx->host)
+		    set_host_by_dn(ctx, (char *) ctx->tls_peer_cert_subject.txt);
+
+		// check for cn match:
+		if (!ctx->host)
+		    set_host_by_dn(ctx, ctx->tls_peer_cn.txt);
 	    }
-	    X509_free(cert);
-
-	    // check for dn match:
-	    if (!ctx->host)
-		set_host_by_dn(ctx, (char *) ctx->tls_peer_cert_subject.txt);
-
-	    // check for cn match:
-	    if (!ctx->host)
-		set_host_by_dn(ctx, ctx->tls_peer_cn.txt);
 	}
-    }
+#if OPENSSL_VERSION_NUMBER >= 0x30200000
+	else if (SSL_get_negotiated_server_cert_type(ctx->tls) == TLSEXT_cert_type_rpk) {
+	    // add a fingerprint for mavis.c
+	    ctx->fingerprint = mem_alloc(ctx->mem, sizeof(struct fingerprint));
+	    ctx->fingerprint->type = S_tls_peer_cert_rpk;
+	}
+#endif
+    }				// !cert
 #ifndef OPENSSL_NO_PSK
   done:
 #endif
