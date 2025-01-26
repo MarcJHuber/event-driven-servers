@@ -180,7 +180,13 @@ typedef struct mem mem_t;
 #ifdef WITH_SSL
 struct fingerprint {
     enum token type;
-    u_char hash[SHA256_DIGEST_LENGTH];
+    union {
+	u_char hash[SHA256_DIGEST_LENGTH];
+	struct {
+	    u_char *rpk;
+	    size_t rpk_len;
+	};
+    };
     union {
 	tac_host *host;
 	struct fingerprint *next;

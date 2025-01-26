@@ -159,6 +159,11 @@ int compare_fingerprint(const void *a, const void *b)
     struct fingerprint *fpb = (struct fingerprint *) b;
     if (fpa->type != fpb->type)
 	return -1;
+    if (fpa->type == S_tls_peer_cert_rpk) {
+	if (fpa->rpk_len != fpb->rpk_len)
+	    return -1;
+	return memcmp(fpa->rpk, fpb->rpk, fpa->rpk_len);
+    }
     int len = SHA_DIGEST_LENGTH;
     if (fpa->type == S_tls_peer_cert_sha256)
 	len = SHA256_DIGEST_LENGTH;
@@ -3641,6 +3646,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	case S_tls_peer_cert_sha1:
 	case S_tls_peer_cert_sha256:
 	case S_tls_peer_cert_validation:
+	case S_tls_peer_cert_rpk:
 #endif
 	    break;
 	default:
@@ -3655,7 +3661,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 			       S_tls,
 #endif
 #if defined(WITH_SSL)
-			       S_tls_peer_cert_sha1, S_tls_peer_cert_sha256,
+			       S_tls_peer_cert_sha1, S_tls_peer_cert_sha256, S_tls_peer_cert_rpk,
 #endif
 			       S_unknown);
 	}
@@ -4044,15 +4050,27 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	}
 	break;
     case S_tls_peer_cert_sha1:
-    case S_tls_peer_cert_sha256:{
+    case S_tls_peer_cert_sha256:
+    case S_tls_peer_cert_rpk:{
 	    struct fingerprint *fp = mem_alloc(host->mem, sizeof(struct fingerprint));
 	    fp->type = sym->code;
 	    sym_get(sym);
 	    parse(sym, S_equal);
 
+	    u_char *data = fp->hash;
 	    int len = SHA256_DIGEST_LENGTH;
 	    if (fp->type == S_tls_peer_cert_sha1)
 		len = SHA_DIGEST_LENGTH;
+	    else if (fp->type == S_tls_peer_cert_rpk) {
+		len = 0;
+		for (char *t = sym->buf; *t; t++)
+		    if (isxdigit(*t))
+			len++;
+		if (len & 1)	// bail out later
+		    len++;
+		len >>= 1;
+		fp->rpk = data = mem_alloc(host->mem, len);
+	    }
 
 	    char *t = sym->buf;
 	    for (int i = 0; i < len;) {
@@ -4061,7 +4079,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 		    parse_error(sym, "Expected a %d byte cert fingerprint in hex format but got '%s'", len, sym->buf);
 		k[0] = toupper(*t++);
 		k[1] = toupper(*t++);
-		fp->hash[i] = hexbyte(k);
+		data[i] = hexbyte(k);
 		i++;
 		if ((i == len) && *t)
 		    parse_error(sym, "Cert fingerprint '%s' is longer than %d bytes", sym->buf, len);
