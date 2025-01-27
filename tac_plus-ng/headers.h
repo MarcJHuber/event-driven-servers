@@ -116,7 +116,7 @@
 
 #if defined(WITH_SSL) && OPENSSL_VERSION_NUMBER < 0x30000000
 #undef WITH_SSL
-#warning Disabling OpenSSL support. Please upgrade to version 3.0
+#warning Disabling OpenSSL support. Please upgrade to version 3.x
 #endif
 
 struct context;
