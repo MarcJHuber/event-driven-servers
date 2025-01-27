@@ -4062,14 +4062,39 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    if (fp->type == S_tls_peer_cert_sha1)
 		len = SHA_DIGEST_LENGTH;
 	    else if (fp->type == S_tls_peer_cert_rpk) {
-		len = 0;
-		for (char *t = sym->buf; *t; t++)
-		    if (isxdigit(*t))
-			len++;
-		if (len & 1)	// bail out later
-		    len++;
-		len >>= 1;
-		fp->rpk = data = mem_alloc(host->mem, len);
+		EVP_PKEY *pubkey = NULL;
+		if (sym->code == S_file) {
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    char *path = confdir_strdup(sym->buf);
+		    FILE *f = fopen(path, "r");
+		    free(path);
+		    if (!f)
+			parse_error(sym, "%s: %s [%d]", sym->buf, strerror(errno), __LINE__);
+		    pubkey = PEM_read_PUBKEY(f, NULL, NULL, NULL);
+		    fclose(f);
+		} else {
+		    parse(sym, S_equal);
+		    BIO *bio = BIO_new_mem_buf(sym->buf, strlen(sym->buf));
+		    if (!bio)
+			parse_error(sym, "%s: [%d]", sym->buf, __LINE__);
+		    pubkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL);
+		    BIO_free(bio);
+		}
+		if (!pubkey)
+		    parse_error(sym, "%s [%d]", sym->buf, __LINE__);
+		fp->rpk_len = i2d_PublicKey(pubkey, NULL) * 3;
+		if ((int) fp->rpk_len < -1) {
+		    EVP_PKEY_free(pubkey);
+		    parse_error(sym, "%s [%d]", sym->buf, __LINE__);
+		}
+		fp->rpk = mem_alloc(host->mem, fp->rpk_len);
+		if (1 != EVP_PKEY_get_raw_public_key(pubkey, fp->rpk, &fp->rpk_len)) {
+		    EVP_PKEY_free(pubkey);
+		    parse_error(sym, "%s [%d]", sym->buf, __LINE__);
+		}
+		EVP_PKEY_free(pubkey);
+		sym_get(sym);
 	    }
 
 	    char *t = sym->buf;
