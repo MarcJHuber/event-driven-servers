@@ -29,7 +29,11 @@ static void usage(void)
 	    "Usage: radmavis <options>\n"	//
 	    "\n"		//
 	    "Options:\n"	//
+#ifdef WITH_RADCLI
 	    "  -c <configfile>          Path to freeradius-client configuration file\n"	//
+#else
+	    "  -c <configfile>          Path to radcli configuration file\n"	//
+#endif
 	    "  group_attribute=<attr>   Use attribute <attr> to determine user groups\n"	//
 	    "  <option>=<value>         Set freeradius-client option <option> to <value>\n"	//
 	    "\n"		//
