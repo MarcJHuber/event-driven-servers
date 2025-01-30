@@ -990,6 +990,16 @@ void complete_host(tac_host *h)
 	}
 #endif
 	HS(tls_peer_cert_validation, S_unknown);
+	if (!h->tls_client_cert_type_len) {
+	    h->tls_client_cert_type[0] = h->parent->tls_client_cert_type[0];
+	    h->tls_client_cert_type[1] = h->parent->tls_client_cert_type[1];
+	    h->tls_client_cert_type_len = h->parent->tls_client_cert_type_len;
+	}
+	if (!h->tls_server_cert_type_len) {
+	    h->tls_server_cert_type[0] = h->parent->tls_server_cert_type[0];
+	    h->tls_server_cert_type[1] = h->parent->tls_server_cert_type[1];
+	    h->tls_server_cert_type_len = h->parent->tls_server_cert_type_len;
+	}
 #endif
 
 #undef HS
@@ -1298,7 +1308,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1437,6 +1447,13 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    SSL_set_min_proto_version(ctx->tls, ver);
 	    SSL_set_fd(ctx->tls, ctx->sock);
 	    SSL_set_session_id_context(ctx->tls, (const unsigned char *) &ctx, sizeof(ctx));
+
+#if OPENSSL_VERSION_NUMBER >= 0x30200000
+	    if (ctx->host->tls_client_cert_type_len)
+		SSL_set1_client_cert_type(ctx->tls, ctx->host->tls_client_cert_type, ctx->host->tls_client_cert_type_len);
+	    if (ctx->host->tls_server_cert_type_len)
+		SSL_set1_server_cert_type(ctx->tls, ctx->host->tls_server_cert_type, ctx->host->tls_server_cert_type_len);
+#endif
 
 	    if (ctx->udp) {
 		//ctx->rbio = BIO_new(BIO_s_dgram_mem());

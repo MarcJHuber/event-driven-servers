@@ -243,6 +243,10 @@ struct tac_host {
     size_t tls_psk_key_len;
     struct fingerprint *fingerprint;	// set via MAVIS
     enum token tls_peer_cert_validation;
+    u_char tls_client_cert_type[2];
+    u_char tls_server_cert_type[2];
+    size_t tls_client_cert_type_len;
+    size_t tls_server_cert_type_len;
 #endif
 };
 

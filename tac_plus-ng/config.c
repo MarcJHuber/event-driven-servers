@@ -291,6 +291,17 @@ void complete_realm(tac_realm *r)
 	    r->alpn_vec_len = rp->alpn_vec_len;
 	RS(tls_accept_expired, TRISTATE_DUNNO);
 	RS(default_host->tls_peer_cert_validation, S_unknown);
+
+	if (!r->default_host->tls_client_cert_type_len) {
+	    r->default_host->tls_client_cert_type[0] = r->parent->default_host->tls_client_cert_type[0];
+	    r->default_host->tls_client_cert_type[1] = r->parent->default_host->tls_client_cert_type[1];
+	    r->default_host->tls_client_cert_type_len = r->default_host->parent->tls_client_cert_type_len;
+	}
+	if (!r->default_host->tls_server_cert_type_len) {
+	    r->default_host->tls_server_cert_type[0] = r->parent->default_host->tls_server_cert_type[0];
+	    r->default_host->tls_server_cert_type[1] = r->parent->default_host->tls_server_cert_type[1];
+	    r->default_host->tls_server_cert_type_len = r->parent->default_host->tls_server_cert_type_len;
+	}
 #endif
 #undef RS
 #define RS(A) if(r->A < 0) r->A = rp->A;
@@ -2102,6 +2113,10 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	case S_host:
 	case S_device:
 	case S_tls_peer_cert_validation:
+#if OPENSSL_VERSION_NUMBER >= 0x30200000
+	case S_tls_client_cert_type:
+	case S_tls_server_cert_type:
+#endif
 	    parse_host_attr(sym, r, r->default_host);
 	    continue;
 	case S_haproxy:
@@ -3629,6 +3644,10 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	case S_tls_peer_cert_sha256:
 	case S_tls_peer_cert_validation:
 	case S_tls_peer_cert_rpk:
+#if OPENSSL_VERSION_NUMBER >= 0x30200000
+	case S_tls_client_cert_type:
+	case S_tls_server_cert_type:
+#endif
 #endif
 	    break;
 	default:
@@ -3643,7 +3662,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 			       S_tls,
 #endif
 #if defined(WITH_SSL)
-			       S_tls_peer_cert_sha1, S_tls_peer_cert_sha256, S_tls_peer_cert_rpk,
+			       S_tls_peer_cert_sha1, S_tls_peer_cert_sha256, S_tls_peer_cert_rpk, S_tls_client_cert_type, S_tls_server_cert_type,
 #endif
 			       S_unknown);
 	}
@@ -4109,6 +4128,44 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    sym_get(sym);
 	    break;
 	}
+#if OPENSSL_VERSION_NUMBER >= 0x30200000
+    case S_tls_client_cert_type:
+	sym_get(sym);
+	parse(sym, S_equal);
+	do {
+	    u_char cert_type = 0;
+	    if (sym->code == S_x509)
+		cert_type = TLSEXT_cert_type_x509;
+	    else if (sym->code == S_rpk)
+		cert_type = TLSEXT_cert_type_rpk;
+	    else
+		parse_error_expect(sym, S_x509, S_rpk, S_unknown);
+	    sym_get(sym);
+	    host->tls_client_cert_type[1] = host->tls_client_cert_type[0];
+	    host->tls_client_cert_type[0] = cert_type;
+	    if (host->tls_client_cert_type_len < 2)
+		host->tls_client_cert_type_len++;
+	} while (parse_comma(sym));
+	break;
+    case S_tls_server_cert_type:
+	sym_get(sym);
+	parse(sym, S_equal);
+	do {
+	    u_char cert_type = 0;
+	    if (sym->code == S_x509)
+		cert_type = TLSEXT_cert_type_x509;
+	    else if (sym->code == S_rpk)
+		cert_type = TLSEXT_cert_type_rpk;
+	    else
+		parse_error_expect(sym, S_x509, S_rpk, S_unknown);
+	    sym_get(sym);
+	    host->tls_server_cert_type[1] = host->tls_server_cert_type[0];
+	    host->tls_server_cert_type[0] = cert_type;
+	    if (host->tls_server_cert_type_len < 2)
+		host->tls_server_cert_type_len++;
+	} while (parse_comma(sym));
+	break;
+#endif
 #endif
     default:
 	parse_error_expect(sym, S_host, S_device, S_parent, S_authentication, S_permit,
@@ -4117,6 +4174,9 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 			   S_singleconnection, S_debug, S_connection, S_context, S_script, S_target_realm,
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 			   S_tls,
+#if OPENSSL_VERSION_NUMBER >= 0x30200000
+			   S_tls_client_cert_type, S_tls_server_cert_type,
+#endif
 #endif
 #if defined(WITH_SSL)
 			   S_tls_peer_cert_sha1, S_tls_peer_cert_sha256,
