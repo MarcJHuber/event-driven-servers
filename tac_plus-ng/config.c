@@ -4037,7 +4037,6 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    struct fingerprint *fp = mem_alloc(host->mem, sizeof(struct fingerprint));
 	    fp->type = sym->code;
 	    sym_get(sym);
-	    parse(sym, S_equal);
 
 	    u_char *data = fp->hash;
 	    int len = SHA256_DIGEST_LENGTH;
@@ -4064,34 +4063,34 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 		    BIO_free(bio);
 		}
 		if (!pubkey)
-		    parse_error(sym, "%s [%d]", sym->buf, __LINE__);
-		fp->rpk_len = i2d_PublicKey(pubkey, NULL) * 3;
-		if ((int) fp->rpk_len < -1) {
+		    parse_error(sym, "%s [%d]: public key is undefined", sym->buf, __LINE__);
+		if (1 != EVP_PKEY_get_raw_public_key(pubkey, NULL, &fp->rpk_len)) {
 		    EVP_PKEY_free(pubkey);
 		    parse_error(sym, "%s [%d]", sym->buf, __LINE__);
 		}
 		fp->rpk = mem_alloc(host->mem, fp->rpk_len);
 		if (1 != EVP_PKEY_get_raw_public_key(pubkey, fp->rpk, &fp->rpk_len)) {
 		    EVP_PKEY_free(pubkey);
-		    parse_error(sym, "%s [%d]", sym->buf, __LINE__);
+		    parse_error(sym, "%s [%d] EVP_PKEY_get_raw_public_key failed", sym->buf, __LINE__);
 		}
 		EVP_PKEY_free(pubkey);
-		sym_get(sym);
 	    }
 
-	    char *t = sym->buf;
-	    for (int i = 0; i < len;) {
-		char k[2];
-		if (!*t || !isxdigit(*t) || !isxdigit(*(t + 1)))
-		    parse_error(sym, "Expected a %d byte cert fingerprint in hex format but got '%s'", len, sym->buf);
-		k[0] = toupper(*t++);
-		k[1] = toupper(*t++);
-		data[i] = hexbyte(k);
-		i++;
-		if ((i == len) && *t)
-		    parse_error(sym, "Cert fingerprint '%s' is longer than %d bytes", sym->buf, len);
-		if (*t == ':')
-		    t++;
+	    if (fp->type == S_tls_peer_cert_sha1 || fp->type == S_tls_peer_cert_sha256) {
+		char *t = sym->buf;
+		for (int i = 0; i < len;) {
+		    char k[2];
+		    if (!*t || !isxdigit(*t) || !isxdigit(*(t + 1)))
+			parse_error(sym, "Expected a %d byte cert fingerprint in hex format but got '%s'", len, sym->buf);
+		    k[0] = toupper(*t++);
+		    k[1] = toupper(*t++);
+		    data[i] = hexbyte(k);
+		    i++;
+		    if ((i == len) && *t)
+			parse_error(sym, "Cert fingerprint '%s' is longer than %d bytes", sym->buf, len);
+		    if (*t == ':')
+			t++;
+		}
 	    }
 
 	    if (mem) {		// dynamic
