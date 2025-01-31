@@ -285,7 +285,7 @@ void send_authen_error(tac_session *session, char *fmt, ...)
 	va_end(ap);
     }
 
-    report(session, LOG_ERR, ~0, "%s %s: %s", session->ctx->device_addr_ascii.txt, session->port.txt, msg);
+    report(session, LOG_ERR, ~0, "port %s: %s", session->port.txt ? session->port.txt : "(unknown)", msg);
     send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_ERROR, msg, 0, NULL, 0, 0);
 }
 
