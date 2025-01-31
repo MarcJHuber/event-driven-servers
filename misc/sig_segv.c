@@ -50,13 +50,10 @@ void catchsegv(int sig __attribute__((unused)))
 
     logmsg("Catched SIGSEGV");
     logmsg("Apologies ... this shouldn't have happened. Please verify that");
-    logmsg("you are running the most current version, downloadable from");
-    logmsg("    http://www.pro-bono-publico.de/projects/");
-    logmsg("If the version on that site doesn't equal");
-    logmsg("    " VERSION);
-    logmsg("please download, compile, install and check if you're");
-    logmsg("still seeing the crash. After all, this bug may be already fixed.");
-    logmsg("If the issue persists even with the most recent version:");
+    logmsg("you are running the most current version from");
+    logmsg("    https://github.com/MarcJHuber/event-driven-servers/");
+    logmsg("The version you're currently running is " VERSION);
+    logmsg("If this issue persists even with the most recent version:");
     logmsg("Reconfigure with --debug, recompile and reinstall. Then send");
     logmsg("a bug report via GitHub issues at");
     logmsg("    https://github.com/MarcJHuber/event-driven-servers/issues");
