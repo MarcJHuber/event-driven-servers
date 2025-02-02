@@ -517,22 +517,10 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 		len += sizeof(SHA256_PREFIX) + sizeof(SEQ_SUFFIX) + 3 * SHA256_DIGEST_LENGTH;
 		continue;
 	    }
-#if OPENSSL_VERSION_NUMBER >= 0x30200000
-	    // untested code
 	    if (fp->type == S_tls_peer_cert_rpk) {
-		len += sizeof(RPK_PREFIX) + sizeof(SEQ_SUFFIX);
-		EVP_PKEY *client_rpk = SSL_get0_peer_rpk(ctx->tls);
-		if (client_rpk) {
-		    int pub_len = i2d_PublicKey(client_rpk, NULL) * 3;
-		    if (pub_len < 0)
-			fp->type = S_none;
-		    else
-			len += 3 * pub_len;
-		} else
-		    fp->type = S_none;
+		len += sizeof(RPK_PREFIX) + sizeof(SEQ_SUFFIX) + 3 * fp->rpk_len;
 		continue;
 	    }
-#endif
 	}
 
 
@@ -578,24 +566,14 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 		u += sizeof(SEQ_SUFFIX) - 1;
 		continue;
 	    }
-#if OPENSSL_VERSION_NUMBER >= 0x30200000
-	    // untested code
 	    if (fp->type == S_tls_peer_cert_rpk) {
-		EVP_PKEY *client_rpk = SSL_get0_peer_rpk(ctx->tls);
-		if (client_rpk) {
-		    size_t pub_len = i2d_PublicKey(client_rpk, NULL);
-		    u_char pub[pub_len];
-		    if (1 == EVP_PKEY_get_raw_public_key(client_rpk, pub, &pub_len)) {
-			memcpy(u, RPK_PREFIX, sizeof(RPK_PREFIX) - 1);
-			u += sizeof(RPK_PREFIX) - 1;
-			dump_hex(pub, pub_len, &u);
-			memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
-			u += sizeof(SEQ_SUFFIX) - 1;
-		    }
-		}
+		memcpy(u, RPK_PREFIX, sizeof(RPK_PREFIX) - 1);
+		u += sizeof(RPK_PREFIX) - 1;
+		dump_hex(fp->rpk, fp->rpk_len, &u);
+		memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+		u += sizeof(SEQ_SUFFIX) - 1;
 		continue;
 	    }
-#endif
 	}
 	u--;			// trailing comma
 	*u = 0;

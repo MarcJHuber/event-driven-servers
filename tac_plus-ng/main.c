@@ -716,6 +716,8 @@ static void set_host_by_psk_identity(struct context *ctx, char *t)
 }
 #endif
 
+static int check_rpk(struct context *ctx, tac_host * h);
+
 static void accept_control_tls(struct context *ctx, int cur)
 {
     const char *hint = "";
@@ -782,7 +784,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	str_set(&ctx->tls_conn_cipher_strength, mem_strdup(ctx->mem, buf), 0);
 
 #if OPENSSL_VERSION_NUMBER >= 0x30200000
-	if (SSL_get_negotiated_server_cert_type(ctx->tls) == TLSEXT_cert_type_x509)
+	if (SSL_get_negotiated_client_cert_type(ctx->tls) == TLSEXT_cert_type_x509)
 #endif
 	{
 	    char buf[512];
@@ -897,14 +899,13 @@ static void accept_control_tls(struct context *ctx, int cur)
 		    set_host_by_dn(ctx, ctx->tls_peer_cn.txt);
 	    }
 	}
+    }
 #if OPENSSL_VERSION_NUMBER >= 0x30200000
-	else if (SSL_get_negotiated_server_cert_type(ctx->tls) == TLSEXT_cert_type_rpk) {
-	    // add a fingerprint for mavis.c
-	    ctx->fingerprint = mem_alloc(ctx->mem, sizeof(struct fingerprint));
-	    ctx->fingerprint->type = S_tls_peer_cert_rpk;
-	}
+    else if (0 == check_rpk(ctx, by_address)) {
+	reject_conn(ctx, "rpk unknown", "TLS ", __LINE__);
+	return;
+    }
 #endif
-    }				// !cert
 #ifndef OPENSSL_NO_PSK
   done:
 #endif
@@ -1062,7 +1063,7 @@ static int app_verify_cb(X509_STORE_CTX *sctx, void *app_ctx)
 	return 1;
 
     if (ctx->host->tls_peer_cert_validation != S_cert) {
-	if (ctx->host->mem) {	// dynamic host, compare cert fingerprint to the one supplied by the MAVIS
+	if (ctx->host->mem) {	// dynamic host, compare cert fingerprint to the one supplied by MAVIS
 	    for (struct fingerprint * fp = ctx->host->fingerprint; fp; fp = fp->next)
 		if (!compare_fingerprint(fp, ctx->fingerprint)) {
 		    ctx->fingerprint_matched = BISTATE_YES;
@@ -1081,6 +1082,47 @@ static int app_verify_cb(X509_STORE_CTX *sctx, void *app_ctx)
     ctx->hint = "Certificate verification";
     return 0;			// 0: failure, 1: success
 }
+
+#if OPENSSL_VERSION_NUMBER >= 0x30200000
+// -1: error, 0: failure, 1: success
+static int check_rpk(struct context *ctx, tac_host *h)
+{
+    if (SSL_get_negotiated_client_cert_type(ctx->tls) != TLSEXT_cert_type_rpk)
+	return -1;
+
+    EVP_PKEY *rpk = SSL_get0_peer_rpk(ctx->tls);
+// FIXME. This return NULL, and looking at s_client that
+    if (!rpk)
+	return 0;
+    struct fingerprint *fp = mem_alloc(ctx->mem, sizeof(struct fingerprint));
+    fp->type = S_tls_peer_cert_rpk;
+    fp->next = ctx->fingerprint;
+    ctx->fingerprint = fp;
+    if (1 == EVP_PKEY_get_raw_public_key(rpk, NULL, &fp->rpk_len)) {
+	fp->rpk = mem_alloc(ctx->mem, fp->rpk_len);
+	if (1 != EVP_PKEY_get_raw_public_key(rpk, fp->rpk, &fp->rpk_len)) {
+	    mem_free(ctx->mem, &fp->rpk);
+	    mem_free(ctx->mem, &fp);
+	    return 0;
+	}
+    }
+    if (h->mem) {		// dynamic host, compare rpk to the one supplied by MAVIS
+	for (struct fingerprint * fp = ctx->host->fingerprint; fp; fp = fp->next)
+	    if (!compare_fingerprint(fp, ctx->fingerprint)) {
+		ctx->fingerprint_matched = BISTATE_YES;
+		return 1;
+	    }
+    } else {			// static host, lookup fingerprint
+	struct fingerprint *fp = lookup_fingerprint(ctx);
+	if (fp) {
+	    ctx->host = fp->host;
+	    ctx->fingerprint_matched = BISTATE_YES;
+	    return 1;
+	}
+    }
+    return 0;
+}
+#endif
 
 static int alpn_cb(SSL *s __attribute__((unused)), const unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg)
 {
@@ -1137,7 +1179,7 @@ static void keylog_cb(const SSL *ssl __attribute__((unused)), const char *line)
 
 	lseek(SSLKEYLOGFILE, 0, SEEK_END);
 	write(SSLKEYLOGFILE, line, strlen(line));
-	write(SSLKEYLOGFILE, line, strlen(line));
+	write(SSLKEYLOGFILE, "\n", 1);
 
 	struct flock funlock = {.l_type = F_UNLCK,.l_whence = SEEK_SET };
 	fcntl(SSLKEYLOGFILE, F_SETLK, &funlock);
@@ -1308,7 +1350,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1400,12 +1442,24 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	io_set_cb_e(ctx->io, ctx->sock, (void *) cleanup);
 	io_sched_add(ctx->io, ctx, (void *) periodics_ctx, 60, 0);
 
-	SSL_CTX_set_cert_verify_callback(ctx->realm->tls, app_verify_cb, ctx);
-	SSL_CTX_set_alpn_select_cb(ctx->realm->tls, alpn_cb, ctx);
+	if (ctx->realm->tls) {
+	    SSL_CTX_set_cert_verify_callback(ctx->realm->tls, app_verify_cb, ctx);
+	    SSL_CTX_set_alpn_select_cb(ctx->realm->tls, alpn_cb, ctx);
+	}
+	if (ctx->realm->dtls) {
+	    SSL_CTX_set_cert_verify_callback(ctx->realm->dtls, app_verify_cb, ctx);
+	    SSL_CTX_set_alpn_select_cb(ctx->realm->dtls, alpn_cb, ctx);
+	}
 
 	if (ctx->realm->tls_sni_required == TRISTATE_YES) {
-	    SSL_CTX_set_tlsext_servername_callback(ctx->realm->tls, sni_cb);
-	    SSL_CTX_set_tlsext_servername_arg(ctx->realm->tls, ctx);
+	    if (ctx->realm->tls) {
+		SSL_CTX_set_tlsext_servername_callback(ctx->realm->tls, sni_cb);
+		SSL_CTX_set_tlsext_servername_arg(ctx->realm->tls, ctx);
+	    }
+	    if (ctx->realm->dtls) {
+		SSL_CTX_set_tlsext_servername_callback(ctx->realm->dtls, sni_cb);
+		SSL_CTX_set_tlsext_servername_arg(ctx->realm->dtls, ctx);
+	    }
 	} else
 	    ctx->sni_passed = BISTATE_YES;
 
@@ -1413,7 +1467,10 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	if (sslkeylogfile) {
 	    SSLKEYLOGFILE = open(sslkeylogfile, O_CREAT | O_APPEND, 0644);
 	    if (SSLKEYLOGFILE > -1)
-		SSL_CTX_set_keylog_callback(ctx->realm->tls, keylog_cb);
+		if (ctx->realm->tls)
+		    SSL_CTX_set_keylog_callback(ctx->realm->tls, keylog_cb);
+	    if (ctx->realm->dtls)
+		SSL_CTX_set_keylog_callback(ctx->realm->dtls, keylog_cb);
 	}
 
 	ctx->tls = SSL_new(ctx->use_tls ? ctx->realm->tls : (ctx->use_dtls ? ctx->realm->dtls : NULL));
@@ -1454,6 +1511,13 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    if (ctx->host->tls_server_cert_type_len)
 		SSL_set1_server_cert_type(ctx->tls, ctx->host->tls_server_cert_type, ctx->host->tls_server_cert_type_len);
 #endif
+	    int mode = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
+#if OPENSSL_VERSION_NUMBER >= 0x30200000
+	    if (!ctx->host->tls_client_cert_type_len ||
+		(ctx->host->tls_client_cert_type[0] != TLSEXT_cert_type_rpk && ctx->host->tls_client_cert_type[1] != TLSEXT_cert_type_rpk))
+#endif
+		mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+	    SSL_set_verify(ctx->tls, mode, NULL);
 
 	    if (ctx->udp) {
 		//ctx->rbio = BIO_new(BIO_s_dgram_mem());

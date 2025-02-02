@@ -6048,7 +6048,6 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls)
     }
     if (r->tls_verify_depth > -1)
 	SSL_CTX_set_verify_depth(ctx, r->tls_verify_depth);
-    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
     return ctx;
 }
 #endif
