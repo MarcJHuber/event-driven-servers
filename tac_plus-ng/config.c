@@ -240,7 +240,7 @@ void complete_realm(tac_realm *r)
     r->complete = 1;
     tac_realm *rp = r->parent;
 #ifdef WITH_SSL
-    if (r->tls_cert && r->tls_key) {
+    if (r->tls_cert || r->tls_key) {
 	r->tls = ssl_init(r, 0);
 	r->dtls = ssl_init(r, 1);
     }
@@ -2157,6 +2157,8 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		sym_get(sym);
 		parse(sym, S_equal);
 		r->tls_cert = confdir_strdup(sym->buf);
+		if (!r->tls_key)
+		    r->tls_key = r->tls_cert;
 		sym_get(sym);
 		continue;
 	    case S_key_file:
@@ -4084,15 +4086,22 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 		if (!pubkey)
 		    parse_error(sym, "%s [%d]: public key is undefined", sym->buf, __LINE__);
 		if (1 != EVP_PKEY_get_raw_public_key(pubkey, NULL, &fp->rpk_len)) {
-		    EVP_PKEY_free(pubkey);
-		    parse_error(sym, "%s [%d]", sym->buf, __LINE__);
+		    fp->rpk_len = (size_t) i2d_PUBKEY(pubkey, NULL);
+		    if ((int) fp->rpk_len < 1)
+			parse_error(sym, "%s [%d] i2d_PUBKEY() failed", sym->buf, __LINE__);
+		    fp->rpk = mem_alloc(host->mem, fp->rpk_len);
+		    if (i2d_PUBKEY(pubkey, &fp->rpk) < 1)
+			parse_error(sym, "%s [%d] i2d_PUBKEY() failed", sym->buf, __LINE__);
 		}
-		fp->rpk = mem_alloc(host->mem, fp->rpk_len);
-		if (1 != EVP_PKEY_get_raw_public_key(pubkey, fp->rpk, &fp->rpk_len)) {
-		    EVP_PKEY_free(pubkey);
-		    parse_error(sym, "%s [%d] EVP_PKEY_get_raw_public_key failed", sym->buf, __LINE__);
+		if (!fp->rpk) {
+		    fp->rpk = mem_alloc(host->mem, fp->rpk_len);
+		    if (1 != EVP_PKEY_get_raw_public_key(pubkey, fp->rpk, &fp->rpk_len)) {
+			EVP_PKEY_free(pubkey);
+			parse_error(sym, "%s [%d] EVP_PKEY_get_raw_public_key failed", sym->buf, __LINE__);
+		    }
 		}
-		EVP_PKEY_free(pubkey);
+		if (pubkey)
+		    EVP_PKEY_free(pubkey);
 	    }
 
 	    if (fp->type == S_tls_peer_cert_sha1 || fp->type == S_tls_peer_cert_sha256) {
@@ -6010,29 +6019,30 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls)
 {
     SSL_CTX *ctx = SSL_CTX_new(dtls ? DTLS_server_method() : TLS_server_method());
     if (!ctx) {
-	report(NULL, LOG_ERR, ~0, "SSL_CTX_new");
+	report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_new", __func__, __LINE__);
 	return ctx;
     }
     if (r->tls_ciphers && !SSL_CTX_set_cipher_list(ctx, r->tls_ciphers))
-	report(NULL, LOG_ERR, ~0, "SSL_CTX_set_cipher_list");
+	report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_set_cipher_list", __func__, __LINE__);
     if (r->tls_pass) {
 	SSL_CTX_set_default_passwd_cb(ctx, ssl_pem_phrase_cb);
 	SSL_CTX_set_default_passwd_cb_userdata(ctx, r->tls_pass);
     }
     if (r->tls_cert && !SSL_CTX_use_certificate_chain_file(ctx, r->tls_cert))
-	report(NULL, LOG_ERR, ~0, "SSL_CTX_use_certificate_chain_file");
+	report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_use_certificate_chain_file", __func__, __LINE__);
     if ((r->tls_key || r->tls_cert)
 	&& !SSL_CTX_use_PrivateKey_file(ctx, r->tls_key ? r->tls_key : r->tls_cert, SSL_FILETYPE_PEM))
-	report(NULL, LOG_ERR, ~0, "SSL_CTX_use_PrivateKey_file");
-    if ((r->tls_key || r->tls_cert) && !SSL_CTX_check_private_key(ctx))
-	report(NULL, LOG_ERR, ~0, "SSL_CTX_check_private_key");
+	report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_use_PrivateKey_file", __func__, __LINE__);
+    if (r->tls_key && r->tls_cert && !SSL_CTX_check_private_key(ctx))
+	report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_check_private_key", __func__, __LINE__);
     SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
 
     if (r->tls_cafile && !SSL_CTX_load_verify_locations(ctx, r->tls_cafile, NULL)) {
 	char buf[256];
 	const char *terr = ERR_error_string(ERR_get_error(), buf);
 	report(NULL, LOG_ERR, ~0,
-	       "realm %s: SSL_CTX_load_verify_locations(\"%s\") failed%s%s", r->name.txt, r->tls_cafile, terr ? ": " : "", terr ? terr : "");
+	       "%s %d: realm %s: SSL_CTX_load_verify_locations(\"%s\") failed%s%s", __func__, __LINE__, r->name.txt, r->tls_cafile, terr ? ": " : "",
+	       terr ? terr : "");
 	exit(EX_CONFIG);
     }
 
