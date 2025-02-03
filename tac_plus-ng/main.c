@@ -1090,8 +1090,11 @@ static int check_rpk(struct context *ctx, tac_host *h)
     if (SSL_get_negotiated_client_cert_type(ctx->tls) != TLSEXT_cert_type_rpk)
 	return -1;
 
+// I actually don't have a TLS client supporting RPK. Either that, or I don't see what
+// options to use for "openssl s_client" to actually usa a RPK. The code below may or
+// may not work.
     EVP_PKEY *rpk = SSL_get0_peer_rpk(ctx->tls);
-// FIXME. This return NULL, and looking at s_client that
+    report(NULL, LOG_ERR, ~0, "%s %d: SSL_get0_peer_rpk() returned %p", __FILE__, __LINE__, rpk);	// FIXME
     if (!rpk)
 	return 0;
     struct fingerprint *fp = mem_alloc(ctx->mem, sizeof(struct fingerprint));
