@@ -149,7 +149,7 @@ $use_starttls		= $ENV{'USE_STARTTLS'} if exists $ENV{'USE_STARTTLS'};
 $LDAP_MEMBEROF_REGEX	= $ENV{'LDAP_MEMBEROF_REGEX'} if exists $ENV{'LDAP_MEMBEROF_REGEX'};
 $LDAP_TACMEMBER		= $ENV{'LDAP_TACMEMBER'} if exists $ENV{'LDAP_TACMEMBER'};
 $LDAP_TACMEMBER_MAP_OU	= $ENV{'LDAP_TACMEMBER_MAP_OU'} if exists $ENV{'LDAP_TACMEMBER_MAP_OU'};
-$LDAP_NESTED_GROUP_DEPTH	= $ENV{'LDAP_NESTED_GROUP_DEPTH'} + 1 if exists $ENV{'LDAP_NESTED_GROUP_DEPTH'};
+$LDAP_NESTED_GROUP_DEPTH	= $ENV{'LDAP_NESTED_GROUP_DEPTH'} if exists $ENV{'LDAP_NESTED_GROUP_DEPTH'};
 
 use Net::LDAP qw(LDAP_INVALID_CREDENTIALS LDAP_CONSTRAINT_VIOLATION);
 use Net::LDAP::Constant qw(LDAP_EXTENSION_PASSWORD_MODIFY LDAP_CAP_ACTIVE_DIRECTORY);
@@ -206,7 +206,6 @@ sub expand_groupOfNames($) {
 sub expand_memberof($) {
 	sub expand_memberof_sub($$$) {
 		my $depth = $_[2];
-		return if defined($LDAP_NESTED_GROUP_DEPTH) && $LDAP_NESTED_GROUP_DEPTH <= $depth;
 		sub get_memberof($) {
 			my $mesg = $ldap->search(base => $_[0], scope=>'base', filter=>'(objectclass=*)', attrs=>['memberOf']);
 			if ($mesg->code){
@@ -223,8 +222,10 @@ sub expand_memberof($) {
 		foreach my $m (@$a) {
 			unless (exists $H->{$m}) {
 				$H->{$m} = 1;
-				my $g = get_memberof($m);
-				expand_memberof_sub($g, $H, $depth + 1);
+				if (!defined($LDAP_NESTED_GROUP_DEPTH) || $LDAP_NESTED_GROUP_DEPTH > $depth) {
+					my $g = get_memberof($m);
+					expand_memberof_sub($g, $H, $depth + 1);
+				}
 			}
 		}
 	}
