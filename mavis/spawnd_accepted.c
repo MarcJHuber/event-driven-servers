@@ -383,7 +383,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	u_char digest[MD5_DIGEST_SIZE];
 	md5v(digest, sizeof(digest), iov, iov_len);
 
-	min_i = tracking_lookup(&ctx->track_data, digest);
+	min_i = tracking_lookup(track_data, digest);
 	do {
 	    min = common_data.users_max;
 	    if (min_i > -1 && spawnd_data.server_arr[min_i]->use >= common_data.users_max)
@@ -429,6 +429,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 		    logmsg("Giving up. Spawned server processes are probably broken." "(%s:%d)", __FILE__, __LINE__);
 		    exit(EX_TEMPFAIL);
 		}
+		min_i = -1;
 	    } else if (track_data->tracking_period > 0)
 		tracking_register(track_data, digest, min_i);
 	}
