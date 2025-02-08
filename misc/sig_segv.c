@@ -54,7 +54,7 @@ void catchsegv(int sig __attribute__((unused)))
     logmsg("    https://github.com/MarcJHuber/event-driven-servers/");
     logmsg("The version you're currently running is " VERSION);
     logmsg("If this issue persists even with the most recent version:");
-    logmsg("Reconfigure with --debug, recompile and reinstall. Then send");
+    logmsg("Reconfigure with --ggdb, recompile and reinstall. Then send");
     logmsg("a bug report via GitHub issues at");
     logmsg("    https://github.com/MarcJHuber/event-driven-servers/issues");
     logmsg("and include the backtraces.");
