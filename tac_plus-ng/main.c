@@ -1039,6 +1039,10 @@ void complete_host(tac_host *h)
 static int app_verify_cb(X509_STORE_CTX *sctx, void *app_ctx)
 {
     struct context *ctx = (struct context *) app_ctx;
+#if OPENSSL_VERSION_NUMBER >= 0x30200000
+    if (SSL_get_negotiated_client_cert_type(ctx->tls) == TLSEXT_cert_type_rpk)
+	return 1;
+#endif
     if (ctx->host->tls_peer_cert_validation == S_none)
 	return 1;
 
@@ -1109,6 +1113,10 @@ static int check_rpk(struct context *ctx, tac_host *h)
 	    return 0;
 	}
     }
+
+    if (!fp->rpk_len)
+	return 0;
+
     if (h->mem) {		// dynamic host, compare rpk to the one supplied by MAVIS
 	for (struct fingerprint * fp = ctx->host->fingerprint; fp; fp = fp->next)
 	    if (!compare_fingerprint(fp, ctx->fingerprint)) {
@@ -1514,12 +1522,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    if (ctx->host->tls_server_cert_type_len)
 		SSL_set1_server_cert_type(ctx->tls, ctx->host->tls_server_cert_type, ctx->host->tls_server_cert_type_len);
 #endif
-	    int mode = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
-#if OPENSSL_VERSION_NUMBER >= 0x30200000
-	    if (!ctx->host->tls_client_cert_type_len ||
-		(ctx->host->tls_client_cert_type[0] != TLSEXT_cert_type_rpk && ctx->host->tls_client_cert_type[1] != TLSEXT_cert_type_rpk))
-#endif
-		mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+	    int mode = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
 	    SSL_set_verify(ctx->tls, mode, NULL);
 
 	    if (ctx->udp) {
