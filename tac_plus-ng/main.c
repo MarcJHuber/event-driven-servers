@@ -716,7 +716,9 @@ static void set_host_by_psk_identity(struct context *ctx, char *t)
 }
 #endif
 
+#if OPENSSL_VERSION_NUMBER >= 0x30200000
 static int check_rpk(struct context *ctx, tac_host * h);
+#endif
 
 static void accept_control_tls(struct context *ctx, int cur)
 {
