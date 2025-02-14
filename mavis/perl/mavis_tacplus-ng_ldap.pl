@@ -80,6 +80,10 @@ LDAP_MEMBEROF_REGEX
 	Regular expression to derive group names from memberOf
 	Default: "^cn=([^,]+),.*"
 
+LDAP_MEMBEROF_FILTER
+	Regular expression to limit memberOf lookups.
+	Default: unset
+
 LDAP_TACMEMBER
 	LDAP attribute to use for group membership (fallback only).
 	Default: "tacMember"
@@ -126,6 +130,7 @@ my $LDAP_CONNECT_TIMEOUT = 1;
 my $LDAP_SCOPE		= 'sub';
 my $LDAP_SCOPE_GROUP	= undef;
 my $LDAP_MEMBEROF_REGEX = "^cn=([^,]+),.*";
+my $LDAP_MEMBEROF_FILTER = undef;
 my $LDAP_TACMEMBER	= "tacMember";
 my $LDAP_TACMEMBER_MAP_OU	= undef;
 my $LDAP_NESTED_GROUP_DEPTH	= undef;
@@ -147,6 +152,7 @@ $LDAP_CONNECT_TIMEOUT	= $ENV{'LDAP_CONNECT_TIMEOUT'} if exists $ENV{'LDAP_CONNEC
 @LDAP_BIND		= ($ENV{'LDAP_USER'}, password => $ENV{'LDAP_PASSWD'}) if (exists $ENV{'LDAP_USER'} && exists $ENV{'LDAP_PASSWD'});
 $use_starttls		= $ENV{'USE_STARTTLS'} if exists $ENV{'USE_STARTTLS'};
 $LDAP_MEMBEROF_REGEX	= $ENV{'LDAP_MEMBEROF_REGEX'} if exists $ENV{'LDAP_MEMBEROF_REGEX'};
+$LDAP_MEMBEROF_FILTER	= $ENV{'LDAP_MEMBEROF_FILTER'} if exists $ENV{'LDAP_MEMBEROF_FILTER'};
 $LDAP_TACMEMBER		= $ENV{'LDAP_TACMEMBER'} if exists $ENV{'LDAP_TACMEMBER'};
 $LDAP_TACMEMBER_MAP_OU	= $ENV{'LDAP_TACMEMBER_MAP_OU'} if exists $ENV{'LDAP_TACMEMBER_MAP_OU'};
 $LDAP_NESTED_GROUP_DEPTH	= $ENV{'LDAP_NESTED_GROUP_DEPTH'} if exists $ENV{'LDAP_NESTED_GROUP_DEPTH'};
@@ -220,6 +226,7 @@ sub expand_memberof($) {
 
 		my ($a, $H) = @_;
 		foreach my $m (@$a) {
+			next if defined $LDAP_MEMBEROF_FILTER && $m !~ /$LDAP_MEMBEROF_FILTER/i;
 			unless (exists $H->{$m}) {
 				$H->{$m} = 1;
 				if (!defined($LDAP_NESTED_GROUP_DEPTH) || $LDAP_NESTED_GROUP_DEPTH > $depth) {

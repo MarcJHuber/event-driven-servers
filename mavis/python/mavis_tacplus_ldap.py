@@ -84,6 +84,10 @@ LDAP_MEMBEROF_REGEX
 	Regular expression to derive group names from memberOf
 	Default: "^cn=([^,]+),.*"
 
+LDAP_MEMBEROF_FILTER
+	Regular expression to limit membership lookups.
+	Default: unset
+
 LDAP_TACMEMBER
 	LDAP attribute to use for group membership (fallback only).
 	Default: "tacMember"
@@ -126,6 +130,7 @@ eval_env('LDAP_SCOPE', 'SUBTREE')
 eval_env('LDAP_SCOPE_GROUP', LDAP_SCOPE)
 eval_env('LDAP_CONNECT_TIMEOUT', 5)
 memberof_regex = re.compile('(?i)' + eval_env('LDAP_MEMBEROF_REGEX', '^cn=([^,]+),.*'))
+memberof_filter = re.compile('(?i)' + eval_env('LDAP_MEMBEROF_FILTER', '.'))
 eval_env('LDAP_TACMEMBER', 'tacMember')
 ou_regex = re.compile('(?i)^ou=(.+)$')
 eval_env('LDAP_TACMEMBER_MAP_OU', None)
@@ -166,13 +171,14 @@ def expand_memberof(g):
 	H = { }
 	def expand_memberof_sub(m, depth):
 		if not m in H and memberof_regex.match(m):
-			H[m] = True
-			if LDAP_NESTED_GROUP_DEPTH is not None and int(LDAP_NESTED_GROUP_DEPTH) > depth:
-				conn.search(search_base = m, search_filter = '(objectclass=*)',
-					search_scope=ldap3.BASE, attributes = ['memberOf'])
-				for e in conn.entries:
-					for m in e.memberOf:
-						expand_memberof_sub(m, depth + 1)
+			if memberof_filter == None or memberof_filter.match(m):
+				H[m] = True
+				if LDAP_NESTED_GROUP_DEPTH is not None and int(LDAP_NESTED_GROUP_DEPTH) > depth:
+					conn.search(search_base = m, search_filter = '(objectclass=*)',
+						search_scope=ldap3.BASE, attributes = ['memberOf'])
+					for e in conn.entries:
+						for m in e.memberOf:
+							expand_memberof_sub(m, depth + 1)
 	for m in g:
 		if memberof_regex.match(m):
 			expand_memberof_sub(m, 0)

@@ -47,6 +47,7 @@ static size_t ldap_filter_len = 0;
 static size_t ldap_filter_group_len = 0;
 static int ldap_group_depth = -2;
 static pcre2_code *ldap_memberof_regex = NULL;
+static pcre2_code *ldap_memberof_filter = NULL;
 static pcre2_code *ad_result_regex = NULL;
 static pcre2_code *ad_dsid_regex = NULL;
 static int ldap_sizelimit = 100;
@@ -62,7 +63,8 @@ Important environment variables and ther defaults:\n\
  LDAP_PASSWD                   unset (LDAP bind user password)\n\
  LDAP_BASE                     unset (LDAP search base)\n\
  LDAP_SIZELIMIT                100 (maximum number of LDAP search results)\n\
- LDAB_MEMBEROF_REGEX           ^cn=([^,]+),.* (please adjust this)\n\
+ LDAP_MEMBEROF_FILTER          unset (regex, please adjust if needed)\n\
+ LDAP_MEMBEROF_REGEX           ^cn=([^,]+),.* (please adjust this)\n\
 \n\
 Leaving the ones below as-is is likely safe:\n\
  LDAP_BASE_GROUP               same as LDAP_BASE\n\
@@ -87,7 +89,7 @@ Copyright (C) 2023 by Marc Huber <Marc.Huber@web.de>\n\
     exit(-1);
 }
 
-static int LDAP_eval_rootdse(LDAP * ldap, LDAPMessage * res)
+static int LDAP_eval_rootdse(LDAP *ldap, LDAPMessage *res)
 {
 #define LDAP_CAP_ACTIVE_DIRECTORY_OID "1.2.840.113556.1.4.800"	// supportedCapabilities
 #define LDAP_CAP_ACTIVE_DIRECTORY_ADAM_OID "1.2.840.113556.1.4.1851"	// supportedCapabilities
@@ -150,7 +152,7 @@ static int LDAP_eval_rootdse(LDAP * ldap, LDAPMessage * res)
 
 static int LDAP_bind(LDAP *, const char *, const char *);
 
-static int LDAP_init(LDAP ** ldap, int *capabilities)
+static int LDAP_init(LDAP **ldap, int *capabilities)
 {
     int rc = ldap_initialize(ldap, ldap_url);
     if (rc != LDAP_SUCCESS)
@@ -227,7 +229,7 @@ static int LDAP_init(LDAP ** ldap, int *capabilities)
     return rc;
 }
 
-static int LDAP_bind(LDAP * ldap, const char *ldap_dn, const char *ldap_password)
+static int LDAP_bind(LDAP *ldap, const char *ldap_dn, const char *ldap_password)
 {
     struct berval *ber = NULL;
     if (ldap_dn && ldap_password) {
@@ -238,7 +240,7 @@ static int LDAP_bind(LDAP * ldap, const char *ldap_dn, const char *ldap_password
     return ldap_sasl_bind_s(ldap, ldap_dn, LDAP_SASL_SIMPLE, ber, NULL, NULL, NULL);
 }
 
-static int LDAP_bind_user(LDAP * ldap, const char *ldap_dn, const char *ldap_password)
+static int LDAP_bind_user(LDAP *ldap, const char *ldap_dn, const char *ldap_password)
 {
     struct berval ber = {.bv_len = strlen(ldap_password), ber.bv_val = (char *) ldap_password };
     return ldap_sasl_bind_s(ldap, ldap_dn, LDAP_SASL_SIMPLE, &ber, NULL, NULL, NULL);
@@ -249,6 +251,7 @@ struct dnhash {
     size_t len;
     size_t match_start;
     size_t match_len;
+    int add;
     char name[1];
 };
 
@@ -268,7 +271,7 @@ static void dnhash_drop(struct dnhash **h)
     free(h);
 }
 
-static int dnhash_add(struct dnhash **ha, char *dn, size_t match_start, size_t match_len)
+static int dnhash_add(struct dnhash **ha, char *dn, size_t match_start, size_t match_len, int matched)
 {
     u_char hash = 0;
     size_t len = 0;
@@ -286,22 +289,38 @@ static int dnhash_add(struct dnhash **ha, char *dn, size_t match_start, size_t m
     h->len = len;
     h->match_start = match_start;
     h->match_len = match_len;
+    h->add = matched;
     strncpy(h->name, dn, len);
     h->next = ha[hash];
     ha[hash] = h;
     return 0;
 }
 
-static int dnhash_add_entry(LDAP * ldap, struct dnhash **h, char *dn, int level)
+static int dnhash_add_entry(LDAP *ldap, struct dnhash **h, char *dn, int level)
 {
+
+    if (ldap_memberof_filter) {
+	pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(ldap_memberof_filter, NULL);
+	int pcre_res = pcre2_match((pcre2_code *) ldap_memberof_filter, (PCRE2_SPTR8) dn, (PCRE2_SIZE) strlen(dn), 0, 0, match_data, NULL);
+
+	pcre2_match_data_free(match_data);
+	match_data = NULL;
+
+	if (pcre_res < 0 && pcre_res != PCRE2_ERROR_NOMATCH) {
+	    fprintf(stderr, "PCRE2 matching error: %d [%d]\n", pcre_res, __LINE__);
+	    return -1;
+	}
+	if (pcre_res == PCRE2_ERROR_NOMATCH)
+	    return -1;
+    }
+
     pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(ldap_memberof_regex, NULL);
     int pcre_res = pcre2_match((pcre2_code *) ldap_memberof_regex, (PCRE2_SPTR8) dn, (PCRE2_SIZE) strlen(dn), 0, 0, match_data, NULL);
     if (pcre_res < 0 && pcre_res != PCRE2_ERROR_NOMATCH) {
-	fprintf(stderr, "PCRE2 matching error: %d", pcre_res);
+	fprintf(stderr, "PCRE2 matching error: %d [%d]\n", pcre_res, __LINE__);
 	return -1;
     }
-    if (pcre_res == PCRE2_ERROR_NOMATCH)
-	return -1;
+    int matched = (pcre_res > -1);
 
     PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(match_data);
     uint32_t ovector_count = pcre2_get_ovector_count(match_data);
@@ -316,7 +335,7 @@ static int dnhash_add_entry(LDAP * ldap, struct dnhash **h, char *dn, int level)
 	match_len = ovector[3] - ovector[2];
     }
 
-    int rc = dnhash_add(h, dn, match_start, match_len);
+    int rc = dnhash_add(h, dn, match_start, match_len, matched);
     if (match_data)
 	pcre2_match_data_free(match_data);
     if (rc)
@@ -353,7 +372,7 @@ static int dnhash_add_entry(LDAP * ldap, struct dnhash **h, char *dn, int level)
     return 0;
 }
 
-static int dnhash_add_entry_groupOfNames(LDAP * ldap, struct dnhash **h, char *dn, int level)
+static int dnhash_add_entry_groupOfNames(LDAP *ldap, struct dnhash **h, char *dn, int level)
 {
     if (level < 1 && ldap_group_depth > -2)
 	return 0;
@@ -375,7 +394,7 @@ static int dnhash_add_entry_groupOfNames(LDAP * ldap, struct dnhash **h, char *d
 	    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(ldap_memberof_regex, NULL);
 	    int pcre_res = pcre2_match((pcre2_code *) ldap_memberof_regex, (PCRE2_SPTR8) gdn, (PCRE2_SIZE) strlen(gdn), 0, 0, match_data, NULL);
 	    if (pcre_res < 0 && pcre_res != PCRE2_ERROR_NOMATCH) {
-		fprintf(stderr, "PCRE2 matching error: %d", pcre_res);
+		fprintf(stderr, "PCRE2 matching error: %d [%d]\n", pcre_res, __LINE__);
 		return -1;
 	    }
 	    if (pcre_res != PCRE2_ERROR_NOMATCH) {
@@ -392,7 +411,7 @@ static int dnhash_add_entry_groupOfNames(LDAP * ldap, struct dnhash **h, char *d
 		    match_len = ovector[3] - ovector[2];
 		}
 
-		int rc = dnhash_add(h, gdn, match_start, match_len);
+		int rc = dnhash_add(h, gdn, match_start, match_len, 1 /* FIXME? */ );
 		if (!rc)
 		    dnhash_add_entry_groupOfNames(ldap, h, gdn, level - 1);
 	    }
@@ -469,7 +488,7 @@ static char *translate_ldap_error(char *err /* from ldap_err2string() */ , char 
 
 static pthread_mutex_t mutex_lock;
 
-static void av_write(av_ctx * ac, uint32_t result)
+static void av_write(av_ctx *ac, uint32_t result)
 {
     size_t len = av_array_to_char_len(ac);
     char *buf = alloca(len + sizeof(struct mavis_ext_hdr_v1));
@@ -650,6 +669,8 @@ static void *run_thread(void *arg)
 		for (i = 0; i < 256; i++) {
 		    struct dnhash *h = hash[i];
 		    for (; h; h = h->next) {
+			if (!h->add)
+			    continue;
 			if (b != t)
 			    *b++ = ',';
 			*b++ = '"';
@@ -668,6 +689,8 @@ static void *run_thread(void *arg)
 		for (i = 0; i < 256; i++) {
 		    struct dnhash *h = hash[i];
 		    for (; h; h = h->next) {
+			if (!h->add)
+			    continue;
 			if (b != t)
 			    *b++ = ',';
 			*b++ = '"';
@@ -904,6 +927,17 @@ int main(int argc, char **argv __attribute__((unused)))
 	PCRE2_UCHAR buffer[256];
 	pcre2_get_error_message(errcode, buffer, sizeof(buffer));
 	fprintf(stderr, "In PCRE2 expression \"%s\" at offset %d: %s", tmp, (int) erroffset, buffer);
+    }
+
+    tmp = getenv("LDAP_MEMBEROF_FILTER");
+    errcode = 0;
+    if (tmp) {
+	ldap_memberof_filter = pcre2_compile((PCRE2_SPTR8) tmp, PCRE2_ZERO_TERMINATED, PCRE2_CASELESS | PCRE2_UTF, &errcode, &erroffset, NULL);
+	if (!ldap_memberof_filter) {
+	    PCRE2_UCHAR buffer[256];
+	    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
+	    fprintf(stderr, "In PCRE2 expression \"%s\" at offset %d: %s", tmp, (int) erroffset, buffer);
+	}
     }
 
     ldap_tacmember_attr = getenv("LDAP_TACMEMBER");
