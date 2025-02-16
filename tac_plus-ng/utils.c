@@ -355,8 +355,11 @@ static void log_write_async(struct logfile *lf, char *buf, size_t len)
 
 static void log_write_common(struct logfile *lf, char *buf, size_t len)
 {
-    if (lf->ctx)
+    if (lf->ctx) {
+	if (buffer_getlen(lf->ctx->buf) > 64000)	/* FIXME? */
+	    lf->ctx->buf = buffer_free_all(lf->ctx->buf);
 	lf->ctx->buf = buffer_write(lf->ctx->buf, buf, len);
+    }
 }
 
 static int is_print(char *text, size_t len, size_t *wlen)
