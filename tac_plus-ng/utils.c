@@ -608,9 +608,15 @@ void parse_log(struct sym *sym, tac_realm *r)
 		str_set(lf->separator, strdup(sym->buf), 0);
 		sym_get(sym);
 		continue;
+	    case S_buffer:
+		sym_get(sym);
+		parse(sym, S_limit);
+		parse(sym, S_equal);
+		lf->buf_limit = parse_int(sym);
+		continue;
 	    default:
 		parse_error_expect(sym, S_destination, S_syslog, S_access, S_authorization, S_accounting, S_connection, S_closebra,
-				   S_prefix, S_postfix, S_separator, S_radius_access, S_radius_accounting, S_timestamp, S_unknown);
+				   S_prefix, S_postfix, S_separator, S_radius_access, S_radius_accounting, S_timestamp, S_buffer, S_unknown);
 	    }
 	}
 	sym_get(sym);
