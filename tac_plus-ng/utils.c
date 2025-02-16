@@ -101,6 +101,7 @@ struct logfile {
      BISTATE(flag_pipe);
      BISTATE(flag_staticpath);
      BISTATE(flag_udp_spoof);
+     BISTATE(warned);
     enum token timestamp_format;
 };
 
@@ -260,10 +261,13 @@ static void log_start(struct logfile *lf, struct context_logfile *deadctx)
     if (!lf->ctx) {
 
 	if (lf->last + 5 > io_now.tv_sec) {
-	    report(NULL, LOG_INFO, ~0, "\"%s\" respawning too fast", lf->dest);
+	    if (lf->warned == BISTATE_NO)
+		report(NULL, LOG_INFO, ~0, "\"%s\" respawning too fast", lf->dest);
+	    lf->warned = BISTATE_YES;
 	    return;
 	}
 
+	lf->warned = BISTATE_NO;
 	lf->last = io_now.tv_sec;
 
 	if (lf->flag_pipe) {
