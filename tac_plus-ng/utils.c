@@ -103,6 +103,7 @@ struct logfile {
      BISTATE(flag_udp_spoof);
      BISTATE(warned);
     enum token timestamp_format;
+    size_t buf_limit;
 };
 
 static void log_start(struct logfile *, struct context_logfile *);
@@ -346,7 +347,7 @@ static void log_start(struct logfile *lf, struct context_logfile *deadctx)
 static void log_write_async(struct logfile *lf, char *buf, size_t len)
 {
     if (lf->ctx) {
-	if (buffer_getlen(lf->ctx->buf) > 64000)	/* FIXME? */
+	if (lf->buf_limit > 0 && buffer_getlen(lf->ctx->buf) > lf->buf_limit)
 	    lf->ctx->buf = buffer_free_all(lf->ctx->buf);
 	lf->ctx->buf = buffer_write(lf->ctx->buf, buf, len);
 	io_set_o(common_data.io, lf->ctx->fd);
@@ -356,7 +357,7 @@ static void log_write_async(struct logfile *lf, char *buf, size_t len)
 static void log_write_common(struct logfile *lf, char *buf, size_t len)
 {
     if (lf->ctx) {
-	if (buffer_getlen(lf->ctx->buf) > 64000)	/* FIXME? */
+	if (lf->buf_limit > 0 && buffer_getlen(lf->ctx->buf) > lf->buf_limit)
 	    lf->ctx->buf = buffer_free_all(lf->ctx->buf);
 	lf->ctx->buf = buffer_write(lf->ctx->buf, buf, len);
     }
@@ -488,6 +489,7 @@ void parse_log(struct sym *sym, tac_realm *r)
     lf->syslog_priority = common_data.syslog_level | common_data.syslog_facility;
     lf->sock = -1;
     lf->sock2 = -1;
+    lf->buf_limit = 64000;
 
     if (sym->code == S_openbra) {
 	sym_get(sym);
