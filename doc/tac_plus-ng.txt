@@ -762,6 +762,9 @@ n tested.
     # timestamp = RFC3164 # default for syslog, other options are
     #                     # "RFC5424" or "none", see the TIMESTAMP
     #                     # log variable for details.
+    #
+    # buffer size = 64000 # default upper limit for log buffer, use 0 to
+ unlimit
   }
   authentication log = mylog
   accounting log = mylog
@@ -1307,7 +1310,7 @@ mavis user filter = __internal__username_acl__
         tls.peer.cert.sha256 = 00:01:02:03:04...
         tls.peer.cert.1 = 0001020304... # the colons are optional
     }
-     * tls.peer.cert.validation = (none|any|hash|cert
+     * tls.peer.cert.validation = (none|any|hash|cert)
        You can choose whether to skip certificate validation
        (none), to check the fingerprint only (hash), to validate
        the full chain (cert) or to allow both of the latter (any,

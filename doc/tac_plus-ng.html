@@ -780,6 +780,8 @@ device router.example.com {
     # timestamp = RFC3164 # default for syslog, other options are
     #                     # "RFC5424" or "none", see the TIMESTAMP
     #                     # log variable for details.
+    #
+    # buffer size = 64000 # default upper limit for log buffer, use 0 to unlimit
   }
   authentication log = mylog
   accounting log = mylog
@@ -1605,7 +1607,7 @@ mavis user filter = __internal__username_acl__ </pre></li>
         tls.peer.cert.1 = 0001020304... # the colons are optional
     }</pre></li>
 <li>
-<p><tt class="literal">tls.peer.cert.validation =</tt> (<tt class="literal">none</tt>|<tt class="literal">any</tt>|<tt class="literal">hash</tt>|<tt class="literal">cert</tt></p>
+<p><tt class="literal">tls.peer.cert.validation =</tt> (<tt class="literal">none</tt>|<tt class="literal">any</tt>|<tt class="literal">hash</tt>|<tt class="literal">cert</tt>)</p>
 <p>You can choose whether to skip certificate validation (<tt class="literal">none</tt>), to check the fingerprint only (<tt class="literal">hash</tt>), to validate the full chain (<tt class="literal">cert</tt>) or to allow both of the latter (<tt class="literal">any</tt>, that's the default).</p>
 </li>
 </ul>
