@@ -94,7 +94,8 @@ static int mavis_init_in(mavis_ctx * mcx)
 	    mcx->hashdir = NULL;
 	    free(mcx->hashfile_tmp);
 	    mcx->hashfile_tmp = NULL;
-
+	    DebugOut(DEBUG_MAVIS);
+	    return MAVIS_INIT_ERR;
 	}
 
 	UNUSED_RESULT(setegid(mcx->egid));
