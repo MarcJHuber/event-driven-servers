@@ -84,6 +84,22 @@ Leaving the ones below as-is is likely safe:\n\
                                (uid=%%s) else\n\
  LDAP_FILTER_GROUP             (&(objectclass=groupOfNames)(member=%%s))\n\
 \n\
+Plese have a look at the \"ldap_set_option\" manual page for explanations on:\n\
+ LDAP_OPT_X_TLS_CACERTDIR\n\
+ LDAP_OPT_X_TLS_CACERTFILE\n\
+ LDAP_OPT_X_TLS_CERTFILE\n\
+ LDAP_OPT_X_TLS_CIPHER_SUITE\n\
+ LDAP_OPT_X_TLS_CRLCHECK\n\
+ LDAP_OPT_X_TLS_CRLFILE\n\
+ LDAP_OPT_X_TLS_DHFILE\n\
+ LDAP_OPT_X_TLS_ECNAME\n\
+ LDAP_OPT_X_TLS_KEYFILE\n\
+ LDAP_OPT_X_TLS_PROTOCOL_MAX\n\
+ LDAP_OPT_X_TLS_PROTOCOL_MIN\n\
+ LDAP_OPT_X_TLS_REQUIRE_CERT\n\
+ LDAP_OPT_X_TLS_REQUIRE_SAN\n\
+ LDAP_OPT_X_TLS_PEERKEY_HASH\n\
+\n\
 Copyright (C) 2023 by Marc Huber <Marc.Huber@web.de>\n\
 ");
     exit(-1);
@@ -194,6 +210,128 @@ static int LDAP_init(LDAP **ldap, int *capabilities)
     rc = ldap_set_option(*ldap, LDAP_OPT_NETWORK_TIMEOUT, &tv);
     if (rc != LDAP_SUCCESS)
 	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
+
+    char *tmp = NULL;
+#ifdef LDAP_OPT_X_TLS_CACERTDIR
+    tmp = getenv("LDAP_OPT_X_TLS_CACERTDIR");
+    if (tmp)
+	ldap_set_option(*ldap, LDAP_OPT_X_TLS_CACERTDIR, tmp);
+#endif
+
+#ifdef LDAP_OPT_X_TLS_CACERTFILE
+    tmp = getenv("LDAP_OPT_X_TLS_CACERTFILE");
+    if (tmp)
+	ldap_set_option(*ldap, LDAP_OPT_X_TLS_CACERTFILE, tmp);
+#endif
+
+#ifdef LDAP_OPT_X_TLS_CERTFILE
+    tmp = getenv("LDAP_OPT_X_TLS_CERTFILE");
+    if (tmp)
+	ldap_set_option(*ldap, LDAP_OPT_X_TLS_CACERTFILE, tmp);
+#endif
+
+#ifdef LDAP_OPT_X_TLS_CIPHER_SUITE
+    tmp = getenv("LDAP_OPT_X_TLS_CIPHER_SUITE");
+    if (tmp)
+	ldap_set_option(*ldap, LDAP_OPT_X_TLS_CIPHER_SUITE, tmp);
+#endif
+
+#ifdef LDAP_OPT_X_TLS_CRLCHECK
+    tmp = getenv("LDAP_OPT_X_TLS_CRLCHECK");
+    if (tmp) {
+	int val = LDAP_OPT_X_TLS_CRL_NONE;
+	if (!strcmp(tmp, "LDAP_OPT_X_TLS_CRL_PEER"))
+	    val = LDAP_OPT_X_TLS_CRL_PEER;
+	else if (!strcmp(tmp, "LDAP_OPT_X_TLS_CRL_ALL"))
+	    val = LDAP_OPT_X_TLS_CRL_ALL;
+	else if (!strcmp(tmp, "LDAP_OPT_X_TLS_CRL_NONE"))
+	    fprintf(stderr, "LDAP_OPT_X_TLS_CRLCHECK: '%s' is not recognized\n", tmp);
+	ldap_set_option(*ldap, LDAP_OPT_X_TLS_CRLCHECK, &val);
+    }
+#endif
+
+#ifdef LDAP_OPT_X_TLS_CRLFILE
+    tmp = getenv("LDAP_OPT_X_TLS_CRLFILE");
+    if (tmp)
+	ldap_set_option(*ldap, LDAP_OPT_X_TLS_CRLFILE, tmp);
+#endif
+
+#ifdef LDAP_OPT_X_TLS_DHFILE
+    tmp = getenv("LDAP_OPT_X_TLS_DHFILE");
+    if (tmp)
+	ldap_set_option(*ldap, LDAP_OPT_X_TLS_DHFILE, tmp);
+#endif
+
+#ifdef LDAP_OPT_X_TLS_ECNAME
+    tmp = getenv("LDAP_OPT_X_TLS_ECNAME");
+    if (tmp)
+	ldap_set_option(*ldap, LDAP_OPT_X_TLS_ECNAME, tmp);
+#endif
+
+#ifdef LDAP_OPT_X_TLS_KEYFILE
+    tmp = getenv("LDAP_OPT_X_TLS_KEYFILE");
+    if (tmp)
+	ldap_set_option(*ldap, LDAP_OPT_X_TLS_KEYFILE, tmp);
+#endif
+
+#ifdef LDAP_OPT_X_TLS_PROTOCOL_MAX
+    tmp = getenv("LDAP_OPT_X_TLS_PROTOCOL_MAX");
+    if (tmp) {
+	int val = atoi(tmp);
+	ldap_set_option(*ldap, LDAP_OPT_X_TLS_KEYFILE, &val);
+    }
+#endif
+
+#ifdef LDAP_OPT_X_TLS_PROTOCOL_MIN
+    tmp = getenv("LDAP_OPT_X_TLS_PROTOCOL_MIN");
+    if (tmp) {
+	int val = atoi(tmp);
+	ldap_set_option(*ldap, LDAP_OPT_X_TLS_KEYFILE, &val);
+    }
+#endif
+
+#ifdef LDAP_OPT_X_TLS_REQUIRE_CERT
+    tmp = getenv("LDAP_OPT_X_TLS_REQUIRE_CERT");
+    if (tmp) {
+	int val = LDAP_OPT_X_TLS_NEVER;
+	if (!strcmp(tmp, "LDAP_OPT_X_TLS_HARD"))
+	    val = LDAP_OPT_X_TLS_HARD;
+	else if (!strcmp(tmp, "LDAP_OPT_X_TLS_DEMAND"))
+	    val = LDAP_OPT_X_TLS_DEMAND;
+	else if (!strcmp(tmp, "LDAP_OPT_X_TLS_ALLOW"))
+	    val = LDAP_OPT_X_TLS_ALLOW;
+	else if (!strcmp(tmp, "LDAP_OPT_X_TLS_TRY"))
+	    val = LDAP_OPT_X_TLS_TRY;
+	else if (strcmp(tmp, "LDAP_OPT_X_TLS_NEVER"))
+	    fprintf(stderr, "LDAP_OPT_X_TLS_REQUIRE_CERT: '%s' is not recognized\n", tmp);
+	ldap_set_option(*ldap, LDAP_OPT_X_TLS_REQUIRE_CERT, &val);
+    }
+#endif
+
+#ifdef LDAP_OPT_X_TLS_REQUIRE_SAN
+    tmp = getenv("LDAP_OPT_X_TLS_REQUIRE_SAN");
+    if (tmp) {
+	int val = LDAP_OPT_X_TLS_NEVER;
+	if (!strcmp(tmp, "LDAP_OPT_X_TLS_HARD"))
+	    val = LDAP_OPT_X_TLS_HARD;
+	else if (!strcmp(tmp, "LDAP_OPT_X_TLS_DEMAND"))
+	    val = LDAP_OPT_X_TLS_DEMAND;
+	else if (!strcmp(tmp, "LDAP_OPT_X_TLS_ALLOW"))
+	    val = LDAP_OPT_X_TLS_ALLOW;
+	else if (!strcmp(tmp, "LDAP_OPT_X_TLS_TRY"))
+	    val = LDAP_OPT_X_TLS_TRY;
+	else if (strcmp(tmp, "LDAP_OPT_X_TLS_NEVER"))
+	    fprintf(stderr, "LDAP_OPT_X_TLS_REQUIRE_SAN: '%s' is not recognized\n", tmp);
+	ldap_set_option(*ldap, LDAP_OPT_X_TLS_REQUIRE_SAN, &val);
+    }
+#endif
+
+#ifdef LDAP_OPT_X_TLS_PEERKEY_HASH
+    tmp = getenv("LDAP_OPT_X_TLS_PEERKEY_HASH");
+    if (tmp)
+	ldap_set_option(*ldap, LDAP_OPT_X_TLS_KEYFILE, tmp);
+#endif
+
 
     rc = LDAP_bind(*ldap, ldap_dn, ldap_pw);
     if (rc != LDAP_SUCCESS)
