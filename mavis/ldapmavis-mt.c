@@ -380,8 +380,11 @@ static int LDAP_bind(LDAP *ldap, const char *ldap_dn, const char *ldap_password)
 
 static int LDAP_bind_user(LDAP *ldap, const char *ldap_dn, const char *ldap_password)
 {
-    struct berval ber = {.bv_len = strlen(ldap_password), ber.bv_val = (char *) ldap_password };
-    return ldap_sasl_bind_s(ldap, ldap_dn, LDAP_SASL_SIMPLE, &ber, NULL, NULL, NULL);
+    if (ldap_password && *ldap_password) {
+	struct berval ber = {.bv_len = strlen(ldap_password), ber.bv_val = (char *) ldap_password };
+	return ldap_sasl_bind_s(ldap, ldap_dn, LDAP_SASL_SIMPLE, &ber, NULL, NULL, NULL);
+    }
+    return LDAP_INVALID_CREDENTIALS;
 }
 
 struct dnhash {
