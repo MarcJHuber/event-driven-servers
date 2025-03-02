@@ -2143,14 +2143,14 @@ tacacs-server host 192.168.0.1 single-connection key your key here</pre>
 <div class="section">
 <hr>
 <h4 class="section"><a name="AEN1902" id="AEN1902">4.12.8. Example</a></h4>
-<pre class="screen">device = customer1 {
+<pre class="screen">device customer1 {
     address = 10.0.0.0/8
     key = "your key here"
     welcome banner = "\nHitherto shalt thou come, but no further. (Job 38.11)\n\n"
     enable 15 = clear whatever
 }
 
-device = test123 {
+device test123 {
     address = 10.1.2.0/28
     address = 10.12.1.30/28
     address = 10.1.1.2
@@ -3408,7 +3408,7 @@ id = tac_plus {
   }
   user backend = mavis
   login backend = mavis
-  device = global { address = 0.0.0.0/0 key = demo }
+  device global { address = 0.0.0.0/0 key = demo }
 
   profile staff {
     service shell {
@@ -3537,7 +3537,7 @@ mavis module external {
         ...
     }</pre>
 <p>To indicate that fallback mode is actually active, you may a display a different login prompt to your users:</p>
-<pre class="screen">    device = ... {
+<pre class="screen">    device ... {
         ...
         welcome banner = "Welcome\n"
         welcome banner fallback = "Welcome\nEmergency accounts are currently enabled.\n"
