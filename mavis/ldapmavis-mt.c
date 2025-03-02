@@ -1236,12 +1236,20 @@ int main(int argc, char **argv __attribute__((unused)))
 	}
 
 	char *tactype = av_get(ac, AV_A_TACTYPE);
+
+	char *password = av_get(ac, AV_A_PASSWORD);
+	if (password && !*password)
+	    password = NULL;
+	char *password_new = av_get(ac, AV_A_PASSWORD_NEW);
+	if (password_new && !*password_new)
+	    password_new = NULL;
+
 	if (!tactype) {
 	    av_write(ac, MAVIS_DOWN);
-	} else if (!av_get(ac, AV_A_PASSWORD) && !strcmp(tactype, AV_V_TACTYPE_AUTH)) {
+	} else if (!password && !strcmp(tactype, AV_V_TACTYPE_AUTH)) {
 	    av_set(ac, AV_A_RESULT, AV_V_RESULT_FAIL);
 	    av_write(ac, MAVIS_FINAL);
-	} else if ((!av_get(ac, AV_A_PASSWORD) || !av_get(ac, AV_A_PASSWORD_NEW)) && !strcmp(tactype, AV_V_TACTYPE_CHPW)) {
+	} else if ((!password || !password_new) && !strcmp(tactype, AV_V_TACTYPE_CHPW)) {
 	    av_set(ac, AV_A_RESULT, AV_V_RESULT_FAIL);
 	    av_write(ac, MAVIS_FINAL);
 	} else if (is_mt == TRISTATE_YES) {
