@@ -295,7 +295,7 @@ void complete_realm(tac_realm *r)
 	if (!r->default_host->tls_client_cert_type_len) {
 	    r->default_host->tls_client_cert_type[0] = r->parent->default_host->tls_client_cert_type[0];
 	    r->default_host->tls_client_cert_type[1] = r->parent->default_host->tls_client_cert_type[1];
-	    r->default_host->tls_client_cert_type_len = r->default_host->parent->tls_client_cert_type_len;
+	    r->default_host->tls_client_cert_type_len = r->parent->default_host->tls_client_cert_type_len;
 	}
 	if (!r->default_host->tls_server_cert_type_len) {
 	    r->default_host->tls_server_cert_type[0] = r->parent->default_host->tls_server_cert_type[0];
