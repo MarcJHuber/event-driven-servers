@@ -350,7 +350,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 	    }
 	}
 
-	if (u->dynamic)
+	if (u && u->dynamic)
 	    u->dynamic = io_now.tv_sec + r->caching_period;
 
 	session->passwd_mustchange = av_get(avc, AV_A_PASSWORD_MUSTCHANGE) ? 1 : 0;
