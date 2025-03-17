@@ -2633,6 +2633,20 @@ enum token eval_ruleset_r(tac_session *session, tac_realm *realm, int parent_fir
     return res;
 }
 
+static enum token eval_profile_acl(tac_session *session, tac_profile *p, int parent_first)
+{
+    enum token res = S_unknown;
+    if (!p)
+	return res;
+    if (parent_first == TRISTATE_YES && p->skip_parent_script != BISTATE_YES)
+	res = eval_profile_acl(session, p->parent, parent_first);
+    if (res != S_permit && res != S_deny && p->acl)
+	res = tac_script_eval_r(session, p->acl);
+    if (parent_first != TRISTATE_YES && res != S_permit && res != S_deny && p->skip_parent_script != BISTATE_YES)
+	res = eval_profile_acl(session, p->parent, parent_first);
+    return res;
+}
+
 enum token eval_ruleset(tac_session *session, tac_realm *realm)
 {
     enum token res = lookup_user_profile(session);
@@ -2643,6 +2657,8 @@ enum token eval_ruleset(tac_session *session, tac_realm *realm)
 	return res;
     }
     res = eval_ruleset_r(session, realm, session->ctx->realm->script_realm_parent_first);
+    if (res == S_permit && session->profile && session->profile->acl)
+	res = eval_profile_acl(session, session->profile, session->ctx->realm->script_realm_parent_first);
     if (res == S_permit)
 	return res;
     return S_deny;
@@ -2952,6 +2968,13 @@ static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm 
 		p = &(*p)->n;
 	    *p = tac_script_parse_r(sym, mem, 0, r);
 	    continue;
+	case S_acl:
+	    sym_get(sym);
+	    p = &profile->acl;
+	    while (*p)
+		p = &(*p)->n;
+	    *p = tac_script_parse_r(sym, mem, 0, r);
+	    continue;
 	case S_debug:
 	    sym_get(sym);
 	    parse(sym, S_equal);
@@ -2995,7 +3018,7 @@ static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm 
 	    profile->skip_parent_script = parse_bistate(sym);
 	    continue;
 	default:
-	    parse_error_expect(sym, S_script, S_debug, S_hushlogin, S_enable, S_profile, S_skip, S_closebra, S_unknown);
+	    parse_error_expect(sym, S_script, S_acl, S_debug, S_hushlogin, S_enable, S_profile, S_skip, S_closebra, S_unknown);
 	}
     sym_get(sym);
 }
@@ -4995,10 +5018,12 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
     case S_address:
 	switch (m->s.token) {
 	case S_nac:
+	case S_clientaddress:
 	    if (session->nac_addr_valid)
 		res = v6_contains(&((struct in6_cidr *) (m->s.rhs))->addr, ((struct in6_cidr *) (m->s.rhs))->mask, &session->nac_address);
 	    break;
 	case S_nas:
+	case S_deviceaddress:
 	    res = v6_contains(&((struct in6_cidr *) (m->s.rhs))->addr, ((struct in6_cidr *) (m->s.rhs))->mask, &session->ctx->device_addr);
 	default:
 	    ;

@@ -279,6 +279,7 @@ struct tac_profile {
     mem_t *mem;
     struct tac_profile *parent;
     struct pwdat **enable;
+    struct mavis_action *acl;
     struct mavis_action *action;
     tac_realm *realm;
     struct {
