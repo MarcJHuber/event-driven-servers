@@ -2249,6 +2249,9 @@ script {
     if (cmd =~ /^configure /) deny
     permit
 }
+     * acl { tacAction }
+       A acl allows for defining a script that's being evaluated
+       for both authentication and authorization.
      * profile SubProfileName { ... }
        This defines a new profile that inherits most values from
        its parent profile.
