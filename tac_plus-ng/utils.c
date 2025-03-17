@@ -236,9 +236,9 @@ static void log_start(struct logfile *lf, struct context_logfile *deadctx)
 			size_t len = buffer_getlen(lf->ctx->buf);
 			buffer_setv(lf->ctx->buf, v, &count, len);
 			if (count) {
-			    off_t o = (off_t) len;
-			    count = writev(lf->ctx->fd, v, count);
-			    lf->ctx->buf = buffer_release(lf->ctx->buf, &o);
+			    off_t o = writev(lf->ctx->fd, v, count);
+			    if (o > 0)
+				lf->ctx->buf = buffer_release(lf->ctx->buf, &o);
 			}
 		    }
 		    close(lf->ctx->fd);
