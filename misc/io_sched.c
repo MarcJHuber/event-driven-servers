@@ -318,6 +318,8 @@ int io_poll(struct io_context *io, int poll_timeout)
 {
     int cax = 0;
     int res = mech_io_poll(io, poll_timeout, &cax);
+    int unreg[cax];
+    int unreg_count = 0;
 
     for (int i = 0; i < cax; i++) {
 	int fd = io->rcache[i].fd;
@@ -340,6 +342,8 @@ int io_poll(struct io_context *io, int poll_timeout)
 		Debug((DEBUG_PROC, "fd %d cb = %p\n", fd, cb));
 		if (cb)
 		    cb(ctx, fd);
+		else
+		    unreg[unreg_count++] = fd;
 	    }
 	    io->rcache_map[fd] = -1;
 	}
@@ -350,6 +354,9 @@ int io_poll(struct io_context *io, int poll_timeout)
 
     if (mech_io_poll_finish)
 	mech_io_poll_finish(io, res);
+
+    for (int i = 0; i < unreg_count; i++)
+	io_unregister(io, unreg[i]);
 
     return res;
 }
