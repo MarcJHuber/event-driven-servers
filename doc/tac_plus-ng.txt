@@ -777,6 +777,27 @@ n tested.
    disabled using
 syslog default = deny
 
+   Also, a log filter can be set using syslog filter = number,
+   where number is a binary OR of message class values:
+
+   Bit Value Class (and sample message)
+   0 1 Authentication (shell login for ... 1 2 Certificates (peer
+   certificat ... will expire...) 2 4 Connections (connection
+   request from ...) 3 8 Keys/secrets (... uses deprecated key 4
+   16 MAVIS (looking for ... in MAVIS backend 5 32
+   Single-connection (Possibly no single-conn...
+
+   The default is a binary OR of all of those values, so no log
+   messages are being suppressed.
+
+   So, if you wouldn't want authentication or mavis logs to show
+   up in syslog you could just sum up and set the remaining
+   values:
+syslog filter = 46 # 2 + 4 + 8 + 32
+
+   Please note that filtering actual error messages is not
+   supported.
+
    Log destinations may contain strftime(3)-style character
    sequences, e.g.:
       destination = /var/log/tac_plus/%Y/%m/%d.auth
