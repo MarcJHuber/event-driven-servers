@@ -56,6 +56,13 @@ void report(tac_session *session, int priority, int level, char *fmt, ...)
     char *msg = alloca(len);
     va_list ap;
     int nlen;
+
+    int msgclass = priority >> 3;
+    if (msgclass > 0 && msgclass < LOGID_MAX && !((common_data.syslog_filter >> (msgclass - 1)) & 1))
+	return;
+
+    priority &= 7;
+
     if (!report_flag_set(session, priority, level))
 	return;
 

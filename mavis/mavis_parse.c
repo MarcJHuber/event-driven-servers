@@ -145,6 +145,7 @@ void init_common_data(void)
 #endif
     common_data.regex_posix_flags = REG_ICASE;
     common_data.cleanup_interval = 2;	/* seconds, used to be 60 */
+    common_data.syslog_filter = 0xffff;
     logopen();
 }
 
@@ -343,8 +344,8 @@ static void substitute_envvar(struct sym *sym)
 			 "file=%s line=%u sym=[%s%s%s] buf='%s%s%s' => buf='%s%s%s'",
 			 sym->filename ? sym->filename : "(unset)",
 			 sym->line, common_data.font_red,
-			 codestring[sym->code].txt, common_data.font_plain, common_data.font_blue, sym->buf, common_data.font_plain, common_data.font_blue, buf,
-			 common_data.font_plain);
+			 codestring[sym->code].txt, common_data.font_plain, common_data.font_blue, sym->buf, common_data.font_plain, common_data.font_blue,
+			 buf, common_data.font_plain);
 	memcpy(sym->buf, buf, b - buf);
     }
 }
@@ -583,7 +584,8 @@ static void buf_add(struct sym *sym, char c)
     if (sym->pos >= (int) sizeof(sym->buf)) {
 	sym->buf[sizeof(sym->buf) - 1] = '\0';
 	parse_error(sym, "Line too long: sym=[%s%s%s] buf='%s%.*s%s'",
-		    common_data.font_red, codestring[sym->code].txt, common_data.font_plain, sym->pos, common_data.font_blue, sym->buf, common_data.font_plain);
+		    common_data.font_red, codestring[sym->code].txt, common_data.font_plain, sym->pos, common_data.font_blue, sym->buf,
+		    common_data.font_plain);
     }
     sym->buf[sym->pos++] = c;
 }
@@ -654,7 +656,8 @@ void sym_get(struct sym *sym)
 	report_cfg_error(LOG_DEBUG, DEBUG_PARSE_FLAG,
 			 "file=%s line=%u sym=[%s%s%s] buf='%s%s%s' (alias)",
 			 token_list->filename ? token_list->filename : "(unset)", token_list->line,
-			 common_data.font_red, codestring[sym->code].txt, common_data.font_plain, common_data.font_blue, token_list->buf, common_data.font_plain);
+			 common_data.font_red, codestring[sym->code].txt, common_data.font_plain, common_data.font_blue, token_list->buf,
+			 common_data.font_plain);
 	sym->token_chain->list = sym->token_chain->list->next;
 	if (!sym->token_chain->list) {
 	    struct token_chain *chain = sym->token_chain->next;
@@ -1664,6 +1667,11 @@ static void parse_syslog(struct sym *sym)
 	sym_get(sym);
 	parse(sym, S_equal);
 	common_data.syslog_dflt = parse_bool(sym) ? 1 : 0;
+	break;
+    case S_filter:
+	sym_get(sym);
+	parse(sym, S_equal);
+	common_data.syslog_filter = parse_uint(sym);
 	break;
     default:
 	parse_error_expect(sym, S_severity, S_facility, S_ident, S_default, S_unknown);

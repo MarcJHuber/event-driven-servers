@@ -86,7 +86,7 @@ static void mavis_switch(tac_session *session, av_ctx *avc, int result)
 	session->mavis_data->mavisfn(session);
 	break;
     case MAVIS_TIMEOUT:
-	report(session, LOG_INFO, ~0, "auth_mavis: giving up (%s)", session->username.txt);
+	report(session, LOG_INFO_MAVIS, ~0, "auth_mavis: giving up (%s)", session->username.txt);
 	io_sched_pop(session->ctx->io, session);
 	session->mavis_pending = 0;
 	av_free(avc);
@@ -137,7 +137,7 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
 	return;
     }
 
-    report(session, LOG_INFO, ~0, "looking for user %s in MAVIS backend", session->username.txt);
+    report(session, LOG_INFO_MAVIS, ~0, "looking for user %s in MAVIS backend", session->username.txt);
 
     if (!session->mavis_data)
 	session->mavis_data = mem_alloc(session->mem, sizeof(struct mavis_data));
@@ -344,7 +344,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 
 		if (strcmp(result, AV_V_RESULT_OK)) {
 		    session->mavis_latency = timediff(&session->mavis_data->start);
-		    report(session, LOG_INFO, ~0, "result for user %s is %s [%lu ms]", session->username.txt, result, session->mavis_latency);
+		    report(session, LOG_INFO_MAVIS, ~0, "result for user %s is %s [%lu ms]", session->username.txt, result, session->mavis_latency);
 		    return;
 		}
 	    }
@@ -418,7 +418,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
     }
     if (result) {
 	session->mavis_latency = timediff(&session->mavis_data->start);
-	report(session, LOG_INFO, ~0, "result for user %s is %s [%lu ms]", session->username.txt, result, session->mavis_latency);
+	report(session, LOG_INFO_MAVIS, ~0, "result for user %s is %s [%lu ms]", session->username.txt, result, session->mavis_latency);
     }
 }
 
@@ -433,7 +433,7 @@ static void mavis_ctx_switch(struct context *ctx, av_ctx *avc, int result)
 	ctx->mavis_data->mavisfn(ctx);
 	break;
     case MAVIS_TIMEOUT:
-	// report(session, LOG_INFO, ~0, "auth_mavis: giving up (%s)", session->username);
+	// report(session, LOG_INFO_MAVIS, ~0, "auth_mavis: giving up (%s)", session->username);
 	io_sched_pop(ctx->io, ctx);
 	ctx->mavis_pending = 0;
 	av_free(avc);
@@ -482,7 +482,7 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 	return;
 
     tac_session session = {.ctx = ctx };
-    report(&session, LOG_INFO, ~0, "looking for host %s in MAVIS backend", ctx->device_addr_ascii.txt);
+    report(&session, LOG_INFO_MAVIS, ~0, "looking for host %s in MAVIS backend", ctx->device_addr_ascii.txt);
 
     if (!ctx->mavis_data)
 	ctx->mavis_data = mem_alloc(ctx->mem, sizeof(struct mavis_data));
@@ -631,6 +631,6 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx *avc)
     }
     if (result) {
 	ctx->mavis_latency = timediff(&ctx->mavis_data->start);
-	report(&session, LOG_INFO, ~0, "result for host %s is %s [%lu ms]", ctx->device_addr_ascii.txt, result, ctx->mavis_latency);
+	report(&session, LOG_INFO_MAVIS, ~0, "result for host %s is %s [%lu ms]", ctx->device_addr_ascii.txt, result, ctx->mavis_latency);
     }
 }

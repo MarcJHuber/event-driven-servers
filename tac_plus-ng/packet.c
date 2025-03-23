@@ -838,7 +838,7 @@ void tac_read(struct context *ctx, int cur)
     } while (more_keys);
 
     if (ctx->key && ctx->key->warn && !ctx->key_fixed && (ctx->key->warn <= io_now.tv_sec))
-	report(NULL, LOG_INFO, ~0, "%s uses deprecated key (line %d)", ctx->device_addr_ascii.txt, ctx->key->line);
+	report(NULL, LOG_INFO_KEY, ~0, "%s uses deprecated key (line %d)", ctx->device_addr_ascii.txt, ctx->key->line);
 
     ctx->key_fixed = BISTATE_YES;
     if (detached)
@@ -894,7 +894,7 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 	    memcpy(message_authenticator, ma_original, 16);
 	    if (!memcmp(ma_original, ma_calculated, 16)) {
 		if (ctx->key->warn && (ctx->key->warn <= io_now.tv_sec))
-		    report(NULL, LOG_INFO, ~0, "%s uses deprecated radius key (line %d)", ctx->device_addr_ascii.txt, ctx->key->line);
+		    report(NULL, LOG_INFO_KEY, ~0, "%s uses deprecated radius key (line %d)", ctx->device_addr_ascii.txt, ctx->key->line);
 		ctx->key_fixed = BISTATE_YES;
 		return 0;
 	    }
@@ -904,7 +904,7 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 		ctx->key = ctx->host->radius_key;
 	    }
 	}
-	report(NULL, LOG_INFO, ~0, "%s uses unknown radius key", ctx->device_addr_ascii.txt);
+	report(NULL, LOG_INFO_KEY, ~0, "%s uses unknown radius key", ctx->device_addr_ascii.txt);
 	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, -1);
 	return -1;

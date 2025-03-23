@@ -344,6 +344,7 @@ struct config {
     time_t suicide;		/* when to commit suicide */
     tac_realm *default_realm;	/* actually the one called "default" */
     struct rad_dict *rad_dict;
+    uint32_t syslog_filter;
 };
 
 struct tac_acl {
@@ -1003,6 +1004,19 @@ void accounting(tac_session *, tac_pak_hdr *);
 void rad_acct(tac_session *);
 
 /* report.c */
+#define LOGID_AUTH	1
+#define LOG_INFO_AUTH	(LOG_INFO | (LOGID_AUTH << 3))
+#define LOGID_CERT	2
+#define LOG_INFO_CERT	(LOG_INFO | (LOGID_CERT << 3))
+#define LOGID_CONN	3
+#define LOG_INFO_CONN	(LOG_INFO | (LOGID_CONN << 3))
+#define LOGID_KEY	4
+#define LOG_INFO_KEY	(LOG_INFO | (LOGID_KEY << 3))
+#define LOGID_MAVIS	5
+#define LOG_INFO_MAVIS	(LOG_INFO | (LOGID_MAVIS << 3))
+#define LOGID_SINGLECONNECT	6
+#define LOG_INFO_SINGLECONNECT	(LOG_INFO | (LOGID_SINGLECONNECT << 3))
+#define LOGID_MAX	7
 void report_string(tac_session *, int, int, char *, char *, int);
 void report_hex(tac_session *, int, int, u_char *, int);
 void report(tac_session *, int, int, char *, ...)

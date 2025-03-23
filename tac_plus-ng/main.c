@@ -652,12 +652,12 @@ static void reject_conn(struct context *ctx, const char *hint, char *tls, int li
 
     if (ctx->proxy_addr_ascii.txt) {
 	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
-	    report(NULL, LOG_INFO, ~0, "proxied %sconnection request from %s for %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%d]",
+	    report(NULL, LOG_INFO_CONN, ~0, "proxied %sconnection request from %s for %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%d]",
 		   tls, ctx->proxy_addr_ascii.txt, ctx->peer_addr_ascii.txt,
 		   ctx->server_addr_ascii.txt, ctx->server_port_ascii.txt, ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "",
 		   ctx->vrf.txt ? ctx->vrf.txt : "", prehint, hint, posthint, line);
     } else
-	report(NULL, LOG_INFO, ~0, "%sconnection request from %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%d]",
+	report(NULL, LOG_INFO_CONN, ~0, "%sconnection request from %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%d]",
 	       tls, ctx->peer_addr_ascii.txt,
 	       ctx->server_addr_ascii.txt, ctx->server_port_ascii.txt, ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "", ctx->vrf.txt ? ctx->vrf.txt : "",
 	       prehint, hint, posthint, line);
@@ -824,7 +824,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 		ctx->tls_peer_cert_issuer.len = strlen(ctx->tls_peer_cert_issuer.txt);
 	    }
 	    if (notafter > -1 && notbefore > -1 && ctx->realm->tls_accept_expired != TRISTATE_YES && notafter < io_now.tv_sec + 30 * 86400)
-		report(NULL, LOG_INFO, ~0, "peer certificate for %s will expire in %lld days", ctx->peer_addr_ascii.txt,
+		report(NULL, LOG_INFO_CERT, ~0, "peer certificate for %s will expire in %lld days", ctx->peer_addr_ascii.txt,
 		       (long long) (notafter - io_now.tv_sec) / 86400);
 
 	    if (ctx->tls_peer_cert_subject.txt) {
@@ -1363,7 +1363,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;

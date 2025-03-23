@@ -86,7 +86,7 @@ void tac_script_set_exec_context(tac_session *session, char *ctxname)
     if (!session->ctx->single_connection_flag) {
 	if (!session->ctx->single_connection_did_warn) {
 	    session->ctx->single_connection_did_warn = BISTATE_YES;
-	    report(session, LOG_INFO, ~0,
+	    report(session, LOG_INFO_SINGLECONNECT, ~0,
 		   "%s: Possibly no single-connection support. " "Context feature may or may not work.", session->ctx->device_addr_ascii.txt);
 	}
     }
