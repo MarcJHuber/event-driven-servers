@@ -780,13 +780,13 @@ syslog default = deny
    Also, a log filter can be set using syslog filter = number,
    where number is a binary OR of message class values:
 
-   Bit Value            Class (and sample message)
-   0   1     Authentication (shell login for ...
-   1   2     Certificates (peer certificat ... will expire...)
-   2   4     Connections (connection request from ...)
-   3   8     Keys/secrets (... uses deprecated key
-   4   16    MAVIS (looking for ... in MAVIS backend
-   5   32    Single-connection (Possibly no single-conn...
+   Bit Value                Class (and sample message)
+   0   1     Authentication (... shell login for ...)
+   1   2     Certificates (... peer certificate ... will expire...)
+   2   4     Connections (... connection request from ...)
+   3   8     Keys/secrets (... uses deprecated key)
+   4   16    MAVIS (... looking for ... in MAVIS backend... )
+   5   32    Single-connection (... possibly no single-connection ...)
 
    The default is a binary OR of all of those values, so no log
    messages are being suppressed.
