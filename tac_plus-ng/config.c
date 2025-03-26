@@ -2813,6 +2813,9 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
     case S_crypt:
 	if (cry)
 	    break;
+#ifdef WITH_SSL
+    case S_pbkdf2:
+#endif
     case S_clear:
 	break;
     case S_7:
@@ -2820,7 +2823,11 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
 	c7++;
 	break;
     default:
-	parse_error_expect(sym, S_clear, S_permit, S_deny, S_login, cry ? S_crypt : S_unknown, S_unknown);
+	parse_error_expect(sym, S_clear, S_permit, S_deny, S_login,
+#ifdef WITH_SSL
+			   S_pbkdf2,
+#endif
+			   cry ? S_crypt : S_unknown, S_unknown);
     }
 
     enum token sc = sym->code;

@@ -244,6 +244,7 @@ passphrase			S_passphrase
 passwd				S_passwd
 password			S_password
 path				S_path
+pbkdf2				S_pbkdf2
 period				S_period
 permit				S_permit
 pidfile				S_pidfile

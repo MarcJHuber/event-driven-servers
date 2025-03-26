@@ -227,6 +227,64 @@ static int user_invalid(tac_user *user, enum hint_enum *hint)
     return res ? S_deny : S_permit;
 }
 
+#ifdef WITH_SSL
+static size_t base64_decode(const char *base64, size_t len, unsigned char *output)
+{
+    BIO *bio = BIO_new_mem_buf(base64, len);
+    BIO *b64 = BIO_new(BIO_f_base64());
+    BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+    bio = BIO_push(b64, bio);
+    size_t decoded_len = BIO_read(bio, output, len);
+    BIO_free_all(bio);
+    return decoded_len;
+}
+
+static int verify_cisco_asa_pbkdf2(char *password, char *p)
+{
+    if (strncmp(p, "$sha512$", 8) != 0)
+	return -1;
+    p += 8;
+    int iterations = 0;
+    while (*p && *p >= '0' && *p <= '9') {
+	iterations *= 10;
+	iterations += *p++ - '0';
+    }
+    if (!iterations || *p++ != '$')
+	return -1;
+
+    char *salt_base64 = p;
+    while (*p && *p != '$')
+	p++;
+    if (*p != '$')
+	return -1;
+    size_t salt_base64_len = p++ - salt_base64;
+    if (!salt_base64_len)
+	return -1;
+
+    char *hash_base64 = p;
+    while (*p)
+	p++;
+    size_t hash_base64_len = p - hash_base64;
+    if (!hash_base64_len)
+	return -1;
+
+    unsigned char salt[salt_base64_len];
+    size_t salt_len = base64_decode(salt_base64, salt_base64_len, salt);
+    if (salt_len != 16)
+	return -1;
+
+    unsigned char stored_hash[hash_base64_len];
+    size_t hash_len = base64_decode(hash_base64, hash_base64_len, stored_hash);
+    if (hash_len != 16)
+	return -1;
+
+    unsigned char computed_hash[64];
+    PKCS5_PBKDF2_HMAC(password, strlen(password), salt, salt_len, iterations, EVP_sha512(), 64, computed_hash);
+
+    return memcmp(computed_hash, stored_hash, 16);
+}
+#endif
+
 static enum token compare_pwdat(struct pwdat *a, char *b, enum hint_enum *hint)
 {
     int res = -1;
@@ -244,6 +302,12 @@ static enum token compare_pwdat(struct pwdat *a, char *b, enum hint_enum *hint)
 		res = strcmp(a->value, crypt(b, a->value));
 	}
 	break;
+#ifdef WITH_SSL
+    case S_pbkdf2:
+	if (b)
+	    res = verify_cisco_asa_pbkdf2(b, a->value);
+	break;
+#endif
     case S_permit:
 	*hint = hint_permitted;
 	return S_permit;
@@ -317,8 +381,8 @@ static enum token lookup_and_set_user(tac_session *session)
 static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&&( (!session->user &&(session->ctx->realm->mavis_login == TRISTATE_YES) &&(session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
-	   ||(session->user && pw_ix == PW_MAVIS));
+	&& ((!session->user && (session->ctx->realm->mavis_login == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
+	    || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -344,7 +408,7 @@ static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *)
 
 static int query_mavis_info_login(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->user &&(session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
+    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_LOGIN);
@@ -363,8 +427,8 @@ int query_mavis_info(tac_session *session, void (*f)(tac_session *), enum pw_ix 
 static int query_mavis_auth_pap(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
-	( (!session->user &&(session->ctx->realm->mavis_pap == TRISTATE_YES) &&(session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
-	 ||(session->user && pw_ix == PW_MAVIS));
+	((!session->user && (session->ctx->realm->mavis_pap == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
+	 || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_PAP);
@@ -373,7 +437,7 @@ static int query_mavis_auth_pap(tac_session *session, void (*f)(tac_session *), 
 
 static int query_mavis_info_pap(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->user &&(session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
+    int res = !session->user && (session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_PAP);
@@ -647,8 +711,8 @@ static void do_chpass(tac_session *session)
 
 static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*f)(tac_session *))
 {
-    if( (session->ctx->realm->chalresp == TRISTATE_YES) &&(!session->user ||( (pw_ix == PW_MAVIS) &&(TRISTATE_NO != session->user->chalresp)))) {
-	if(!session->flag_chalresp) {
+    if ((session->ctx->realm->chalresp == TRISTATE_YES) && (!session->user || ((pw_ix == PW_MAVIS) && (TRISTATE_NO != session->user->chalresp)))) {
+	if (!session->flag_chalresp) {
 	    session->flag_chalresp = 1;
 	    mavis_lookup(session, f, AV_V_TACTYPE_CHAL, PW_LOGIN);
 	    return;
