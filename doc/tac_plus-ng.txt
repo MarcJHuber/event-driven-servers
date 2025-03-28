@@ -1608,7 +1608,7 @@ key = ""
        mapped to ASCII Login requests. You may wish to uses this
        for NEXUS devices.
      * enable [ level ] = ( permit | deny | login | ( clear |
-       crypt) password )
+       crypt | pbkdf2 | asa) password )
        This directive may be used to set device specific enable
        passwords, to use the login password, or to permit (without
        password) or refuse any enable attempt. level defaults to
