@@ -105,6 +105,7 @@ arg				S_arg
 ascii-size-limit		S_asciisizelimit
 attribute			S_attr
 aaa				S_aaa
+asa				S_asa
 auth				S_auth
 authenticated			S_authenticated
 authentication			S_authentication

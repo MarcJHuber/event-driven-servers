@@ -285,7 +285,40 @@ static int verify_cisco_asa_pbkdf2(char *password, char *p)
 }
 #endif
 
-static enum token compare_pwdat(struct pwdat *a, char *b, enum hint_enum *hint)
+int verify_cisco_asa_md5(const char *username, const char *password, const char *hash_in)
+{
+    char buf[33] = { 0 };
+    char *bufp = stpncpy(buf, password, sizeof(buf));
+    if (username && *username && (bufp - buf < 28)) {
+	char *e = bufp + 4;
+	while (bufp < e)
+	    bufp = stpncpy(bufp, username, e - bufp);
+    }
+    u_char digest[MD5_LEN];
+    struct iovec iov = {.iov_base = buf,.iov_len = (bufp - buf > 16) ? 32 : 16 };
+    md5v(digest, MD5_LEN, &iov, 1);
+
+    char *h64 = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    char hash64[32];
+    char *h = hash64;
+    for (int i = 0; i < 4; i++) {
+	int o = 4 * i;
+	uint32_t v = 0;
+	for (int j = 3; j > -1; j--) {
+	    v <<= 8;
+	    v |= digest[o + j];
+	}
+	for (int j = 0; j < 4; j++) {
+	    *h++ = h64[v & 0x3f];
+	    v >>= 6;
+	}
+    }
+    *h = 0;
+
+    return strcmp(hash64, hash_in);
+}
+
+static enum token compare_pwdat(struct pwdat *a, char *username __attribute__((unused)), char *b, enum hint_enum *hint)
 {
     int res = -1;
 
@@ -308,6 +341,10 @@ static enum token compare_pwdat(struct pwdat *a, char *b, enum hint_enum *hint)
 	    res = verify_cisco_asa_pbkdf2(b, a->value);
 	break;
 #endif
+    case S_asa:
+	if (b)
+	    res = verify_cisco_asa_md5(username, b, a->value);
+	break;
     case S_permit:
 	*hint = hint_permitted;
 	return S_permit;
@@ -502,7 +539,7 @@ static enum token check_access(tac_session *session, struct pwdat *pwdat, char *
 	if (res == S_error && session->ctx->host->authfallback != TRISTATE_YES)
 	    res = S_deny;
     } else if (pwdat)
-	res = compare_pwdat(pwdat, passwd, hint);
+	res = compare_pwdat(pwdat, session->username.txt, passwd, hint);
 
     switch (res) {
     case S_permit:
@@ -913,7 +950,7 @@ static void do_enable(tac_session *session)
 	}
 
 	if (session->enable)
-	    res = compare_pwdat(session->enable, session->authen_data->msg, &hint);
+	    res = compare_pwdat(session->enable, session->username.txt, session->authen_data->msg, &hint);
     }
 
     snprintf(buf, sizeof(buf), "enable %d", session->priv_lvl);

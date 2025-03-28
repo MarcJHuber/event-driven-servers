@@ -2816,6 +2816,7 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
 #ifdef WITH_SSL
     case S_pbkdf2:
 #endif
+    case S_asa:
     case S_clear:
 	break;
     case S_7:
