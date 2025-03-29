@@ -285,7 +285,7 @@ static int verify_cisco_asa_pbkdf2(char *password, char *p)
 }
 #endif
 
-int verify_cisco_asa_md5(const char *username, const char *password, const char *hash_in)
+static int verify_cisco_asa_md5(const char *username, const char *password, const char *hash_in)
 {
     char buf[33] = { 0 };
     char *bufp = stpncpy(buf, password, sizeof(buf));
