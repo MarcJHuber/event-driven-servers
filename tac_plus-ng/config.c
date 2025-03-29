@@ -2824,7 +2824,7 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
 	c7++;
 	break;
     default:
-	parse_error_expect(sym, S_clear, S_permit, S_deny, S_login,
+	parse_error_expect(sym, S_clear, S_permit, S_deny, S_login, S_asa,
 #ifdef WITH_SSL
 			   S_pbkdf2,
 #endif
