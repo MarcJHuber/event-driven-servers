@@ -241,7 +241,7 @@ static size_t base64_decode(const char *base64, size_t len, unsigned char *outpu
 
 static int verify_cisco_asa_pbkdf2(char *password, char *p)
 {
-    if (strncmp(p, "$sha512$", 8) != 0)
+    if (strncmp(p, "$sha512$", 8))
 	return -1;
     p += 8;
     int iterations = 0;
