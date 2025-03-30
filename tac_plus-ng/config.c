@@ -2810,13 +2810,17 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
     case S_deny:
 	sym_get(sym);
 	return &passwd_deny;
+    case S_asa:
     case S_crypt:
-	if (cry)
-	    break;
 #ifdef WITH_SSL
     case S_pbkdf2:
 #endif
-    case S_asa:
+	if (cry)
+	    break;
+	// hashed passwords aren't possible for CHAP/MSCHAP
+	sym_get(sym);
+	sym_get(sym);
+	return &passwd_deny;
     case S_clear:
 	break;
     case S_7:
