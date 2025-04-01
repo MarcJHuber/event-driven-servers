@@ -1608,7 +1608,7 @@ key = ""
        mapped to ASCII Login requests. You may wish to uses this
        for NEXUS devices.
      * enable [ level ] = ( permit | deny | login | ( clear |
-       crypt | pbkdf2 | asa) password )
+       crypt | pbkdf2 | asa ) password )
        This directive may be used to set device specific enable
        passwords, to use the login password, or to permit (without
        password) or refuse any enable attempt. level defaults to
@@ -1621,6 +1621,9 @@ key = ""
 
    You can use the openssl passwd utility to compute password
    hashes.
+   The pbkdf2 and asa hashes can't be created using OpenSSL, but
+   you can copy these from your Ciaco ASA plain text
+   configuration.
        You can enable via TACACS+ by configuring on the NAS:
 aaa authentication enable default group tacacs+ enable
      * anonymous-enable = ( permit | deny )
@@ -1748,6 +1751,9 @@ aaa authentication enable default group tacacs+ enable
    draft-ietf-opsawg-tacacs-tls13-03.txt).
    3 8 Accept TACACS+ payloads lower than advertized in the
    TACACS+ header.
+   4 16 Check for a space in the remote address field of a packet
+   and strip everything after before attempting an IP address
+   conversion.
 
    Example:
   device ... {
