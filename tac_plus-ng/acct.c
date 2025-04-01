@@ -118,7 +118,9 @@ void accounting(tac_session *session, tac_pak_hdr *hdr)
 
     eval_args(session, p, session->arg_len, session->arg_cnt);
 
-    session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii.txt) ? 0 : 1;
+    char *nac_addr_ascii = check_client_bug_invalid_remote_address(session);
+
+    session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, nac_addr_ascii) ? 0 : 1;
     if (session->nac_addr_valid)
 	get_revmap_nac(session);
 

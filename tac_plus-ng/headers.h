@@ -1164,6 +1164,9 @@ extern int die_when_idle;
 #define CLIENT_BUG_BAD_VERSION		0x02
 #define CLIENT_BUG_TLS_OBFUSCATED	0x04
 #define CLIENT_BUG_HEADER_LENGTH	0x08
+#define CLIENT_BUG_INVALID_REMOTE_ADDRESS	0x10
+
+char *check_client_bug_invalid_remote_address(tac_session *);
 
 #endif				/* __HEADERS_H_ */
 /*

@@ -1820,6 +1820,20 @@ void authen_init(void)
     li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
 }
 
+char *check_client_bug_invalid_remote_address(tac_session *session)
+{
+    char *res = session->nac_addr_ascii.txt;
+    if (session->ctx->bug_compatibility & CLIENT_BUG_INVALID_REMOTE_ADDRESS) {
+	char *t = strchr(res, ' ');
+	if (t) {
+	    *t = 0;
+	    res = mem_strdup(session->mem, res);
+	    *t = ' ';
+	}
+    }
+    return res;
+}
+
 void authen(tac_session *session, tac_pak_hdr *hdr)
 {
     int username_required = 1;
@@ -1911,7 +1925,8 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	    str_set(&session->port, mem_strndup(session->mem, p, start->port_len), start->port_len);
 	    p += start->port_len;
 	    str_set(&session->nac_addr_ascii, mem_strndup(session->mem, p, start->rem_addr_len), start->rem_addr_len);
-	    session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii.txt) ? 0 : 1;
+	    char *nac_addr_ascii = check_client_bug_invalid_remote_address(session);
+	    session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, nac_addr_ascii) ? 0 : 1;
 	    if (session->nac_addr_valid)
 		get_revmap_nac(session);
 	    p += start->rem_addr_len;
