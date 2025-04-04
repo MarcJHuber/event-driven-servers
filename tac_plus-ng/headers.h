@@ -384,6 +384,7 @@ struct realm {
     radixtree_t *hosttree;
     tac_realm *parent;
     mavis_ctx *mcx;
+    struct log_item *mavis_custom_attr[S_custom_3 - S_custom_0 + 1];
     struct tac_rule *rules;
     tac_host *default_host;
     struct {

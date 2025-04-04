@@ -1981,8 +1981,24 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    parse_error(sym, "ACL '%s' not found.", sym->buf);
 		sym_get(sym);
 		continue;
+	    case S_format:
+		sym_get(sym);
+		switch (sym->code) {
+		case S_custom_0:
+		case S_custom_1:
+		case S_custom_2:
+		case S_custom_3:
+		    break;
+		default:
+		    parse_error_expect(sym, S_custom_0, S_custom_1, S_custom_2, S_custom_3, S_unknown);
+		}
+		int i = sym->code - S_custom_0;
+		sym_get(sym);
+		parse(sym, S_equal);
+		r->mavis_custom_attr[i] = parse_log_format(sym, NULL);
+		continue;
 	    default:
-		parse_error_expect(sym, S_module, S_path, S_cache, S_unknown);
+		parse_error_expect(sym, S_module, S_path, S_cache, S_format, S_unknown);
 	    }
 	case S_enable:
 	    sym_get(sym);
@@ -5689,7 +5705,8 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	((struct log_item *) m->b.v)->next = parse_log_format(sym, mem);
 	break;
     default:
-	parse_error_expect(sym, S_openbra, S_closebra, S_return, S_permit, S_deny, S_context, S_message, S_if, S_unknown);
+	parse_error_expect(sym, S_openbra, S_closebra, S_return, S_permit, S_deny, S_context, S_message, S_if,
+			   S_profile, S_rewrite, S_add, S_set, S_optional, S_unknown);
     }
     if (section && sym->code != S_closebra && sym->code != S_eof)
 	m->n = tac_script_parse_r(sym, mem, section, realm);

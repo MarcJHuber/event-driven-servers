@@ -183,6 +183,14 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
 	av_set(avc, AV_A_ARGS, args);
     }
 
+    int custom_attrs[4] = { AV_A_CUSTOM_0, AV_A_CUSTOM_1, AV_A_CUSTOM_2, AV_A_CUSTOM_3 };
+
+    session->eval_log_raw = 1;
+    for (int i = 0; i < 4; i++)
+	if (session->ctx->realm->mavis_custom_attr[i])
+	    av_set(avc, custom_attrs[i], eval_log_format(session, session->ctx, NULL, session->ctx->realm->mavis_custom_attr[i], io_now.tv_sec, NULL));
+    session->eval_log_raw = 0;
+
     int result = mavis_send(mcx, &avc);
 
     switch (result) {
