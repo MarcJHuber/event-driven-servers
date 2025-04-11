@@ -1458,10 +1458,12 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	if (ctx->realm->tls) {
 	    SSL_CTX_set_cert_verify_callback(ctx->realm->tls, app_verify_cb, ctx);
 	    SSL_CTX_set_alpn_select_cb(ctx->realm->tls, alpn_cb, ctx);
+	    SSL_CTX_set_session_cache_mode(ctx->realm->tls, SSL_SESS_CACHE_OFF);
 	}
 	if (ctx->realm->dtls) {
 	    SSL_CTX_set_cert_verify_callback(ctx->realm->dtls, app_verify_cb, ctx);
 	    SSL_CTX_set_alpn_select_cb(ctx->realm->dtls, alpn_cb, ctx);
+	    SSL_CTX_set_session_cache_mode(ctx->realm->dtls, SSL_SESS_CACHE_OFF);
 	}
 
 	if (ctx->realm->tls_sni_required == TRISTATE_YES) {
