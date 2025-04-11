@@ -1293,6 +1293,12 @@ login backend = mavis chalresp noecho
 acl __internal__username_acl__ { if (user =~ "[]<>/()|=[]+") deny permit
  }
 mavis user filter = __internal__username_acl__
+     * mavis format attribute = string
+       Valid attributes are custom_0 to custom_3. The
+       corresponding MAVIS attributes will be set for MAVIS
+       requests. Log variable substitution applies. For example,
+mavis format custom_0 = "${server.address} ${server.port}"
+       will set the AV_A_CUSTOM_0 MAVIS attribute.
      __________________________________________________________
 
 4.7.3. TLS
