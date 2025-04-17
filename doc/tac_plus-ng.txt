@@ -902,20 +902,19 @@ syslog filter = 46 # 2 + 4 + 8 + 32
    "%Y-%m-%dT%H:%M:%S.%06N%:z" for timestamp = RFC5424, "%Y-%m-%d
    %H:%M:%S %z" else.
        The pre-set defaults for logging are:
-accounting log format = "${nas}${FS}${user}${FS}${port}${FS}${nac}${FS}$
-{accttype}${FS}${service}${FS}${cmd}"
-authorization log format = "${nas}${FS}${user}${FS}${port}${FS}${nac}${F
-S}${profile}${FS}${result}${FS}${service}${FS}${cmd}"
-access log format = "${nas}${FS}${user}${FS}${port}${FS}${nac}${FS}${act
-ion} ${hint}"
-connection log format = "${accttype}${FS}${conn.protocol}${FS}${peer.add
-ress}${FS}${peer.port}${FS}${server.address}${FS}${server.port}${FS}${tl
-s.conn.version}${FS}${tls.peer.cert.issuer}${FS}${tls.peer.cert.subject}
-"
-radius.access log format = "${nas}${FS}${user}${FS}${port}${FS}${nac}${F
-S}${accttype}${FS}${action} ${hint}${FS}${args, }${FS}${rargs, }"
-radius.accounting log format = "${nas}${FS}${user}${FS}${port}${FS}${nac
-}${FS}${accttype}${FS}${service}${FS}${args, }"
+accounting format = "${nas}${FS}${user}${FS}${port}${FS}${nac}${FS}${acc
+ttype}${FS}${service}${FS}${cmd}"
+authorization format = "${nas}${FS}${user}${FS}${port}${FS}${nac}${FS}${
+profile}${FS}${result}${FS}${service}${FS}${cmd}"
+access format = "${nas}${FS}${user}${FS}${port}${FS}${nac}${FS}${action}
+ ${hint}"
+connection format = "${accttype}${FS}${conn.protocol}${FS}${peer.address
+}${FS}${peer.port}${FS}${server.address}${FS}${server.port}${FS}${tls.co
+nn.version}${FS}${tls.peer.cert.issuer}${FS}${tls.peer.cert.subject}"
+radius.access format = "${nas}${FS}${user}${FS}${port}${FS}${nac}${FS}${
+accttype}${FS}${action} ${hint}${FS}${args, }${FS}${rargs, }"
+radius.accounting format = "${nas}${FS}${user}${FS}${port}${FS}${nac}${F
+S}${accttype}${FS}${service}${FS}${args, }"
 
        Also, there are certain default prefix and postfix settings
        for strings to prepend or append to the format:
