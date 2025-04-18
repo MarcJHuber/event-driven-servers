@@ -1613,7 +1613,7 @@ key = ""
        mapped to ASCII Login requests. You may wish to uses this
        for NEXUS devices.
      * enable [ level ] = ( permit | deny | login | ( clear |
-       crypt | pbkdf2 | asa ) password )
+       crypt | pbkdf2 | asa | 7 | 8 | 9 ) password )
        This directive may be used to set device specific enable
        passwords, to use the login password, or to permit (without
        password) or refuse any enable attempt. level defaults to
@@ -1624,11 +1624,11 @@ key = ""
        Note Password Hashes
 
 
-   You can use the openssl passwd utility to compute password
-   hashes.
-   The pbkdf2 and asa hashes can't be created using OpenSSL, but
-   you can copy these from your Ciaco ASA plain text
-   configuration.
+   You can use the openssl passwd utility to compute crypt type
+   password hashes.
+   The pbkdf2 and asa hashes can be copied from a Cisco ASA plain
+   text configuration. Also, the 7, 8 and 9 password types can be
+   copied from IOS.
        You can enable via TACACS+ by configuring on the NAS:
 aaa authentication enable default group tacacs+ enable
      * anonymous-enable = ( permit | deny )
@@ -2123,8 +2123,8 @@ user username { ...  }
      * alias = alternateUserName
        Implement an alternate user name. This may be used multiple
        times.
-     * password login [ fallback ] = ( ( clear | crypt ) password
-       | mavis | permit | deny )
+     * password login [ fallback ] = ( ( clear | crypt | pbkdf2 |
+       asa | 7 | 8 | 9 ) password | mavis | permit | deny )
        The login password authenticates shell log-ins to the
        server.
 password login = crypt aFtFBT4e5muQE
@@ -2138,8 +2138,8 @@ password login = clear Ci5c0
        declarations in the configuration file.
        If you're using password login = mavis, thefallback
        password will be used if there's a MAVIS backend error.
-     * password pap [ fallback ] = ( ( clear | crypt ) password |
-       login|mavis | permit | deny )
+     * password pap [ fallback ] = ( ( clear | crypt | pbkdf2 |
+       asa | 7 | 8 | 9 ) password | login|mavis | permit | deny )
        The pap authenticates PAP log-ins to the server. Just like
        with login, the password doesn't need to be in clear text,
        but may be hashed, or may be looked up via the MAVIS
@@ -2162,7 +2162,7 @@ user marc {
     }
 }
      * enable [ level ] = ( permit | deny | login | ( clear |
-       crypt ) password )
+       crypt | pbkdf2 | asa | 7 | 8 | 9 ) password )
        This directive may be used to set user specific enable
        passwords, to use the login password, or to permit (without
        password) or refuse any enable attempt. Enable secrets
