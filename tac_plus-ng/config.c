@@ -2830,6 +2830,8 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
     case S_crypt:
 #ifdef WITH_SSL
     case S_pbkdf2:
+    case S_8:
+    case S_9:
 #endif
 	if (cry)
 	    break;
@@ -2846,7 +2848,7 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
     default:
 	parse_error_expect(sym, S_clear, S_permit, S_deny, S_login, S_asa,
 #ifdef WITH_SSL
-			   S_pbkdf2,
+			   S_pbkdf2, S_8, S_9,
 #endif
 			   cry ? S_crypt : S_unknown, S_unknown);
     }

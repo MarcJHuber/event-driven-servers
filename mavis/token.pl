@@ -55,6 +55,8 @@ close F;
 
 __DATA__
 7				S_7
+8				S_8
+9				S_9
 <end-of-file>			S_eof
 <pcre-regex>			S_slash
 <string>			S_string
