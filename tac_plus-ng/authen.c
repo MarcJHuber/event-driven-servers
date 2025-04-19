@@ -307,9 +307,9 @@ static void cisco64_enc(const unsigned char *in, size_t in_len, char *out)
     *outp = 0;
 }
 
-static int verify_cisco_type8(char *password, char *p)
+static int verify_cisco_type89(char *password, char *p, char type)
 {
-    if (p[0] != '$' || p[1] != '8' || p[2] != '$')
+    if (p[0] != '$' || p[1] != type || p[2] != '$')
 	return -1;
     p += 3;
     unsigned char *salt = (unsigned char *) p;
@@ -323,37 +323,16 @@ static int verify_cisco_type8(char *password, char *p)
     size_t hash_in_len = 0;
     while (*p)
 	p++, hash_in_len++;
-#define TYPE8_KEY_LENGTH 32
-    unsigned char hash[TYPE8_KEY_LENGTH];
-    if (!PKCS5_PBKDF2_HMAC(password, strlen(password), salt, salt_len, 20000, EVP_sha256(), TYPE8_KEY_LENGTH, hash))
-	return -1;
+    unsigned char hash[32];
+    if (type == '8') {
+	if (!PKCS5_PBKDF2_HMAC(password, strlen(password), salt, salt_len, 20000, EVP_sha256(), 32, hash))
+	    return -1;
+    } else if (type == '9') {
+	if (!EVP_PBE_scrypt(password, strlen(password), salt, salt_len, 16384, 1, 1, 0, hash, 32))
+	    return -1;
+    }
     char hash64[128];
-    cisco64_enc(hash, TYPE8_KEY_LENGTH, hash64);
-    return strcmp(hash64, hash_in);
-}
-
-static int verify_cisco_type9(char *password, char *p)
-{
-    if (p[0] != '$' || p[1] != '9' || p[2] != '$')
-	return -1;
-    p += 3;
-    unsigned char *salt = (unsigned char *) p;
-    size_t salt_len = 0;
-    while (*p && *p != '$')
-	p++, salt_len++;
-    if (!*p)
-	return -1;
-    p++;
-    char *hash_in = p;
-    size_t hash_in_len = 0;
-    while (*p)
-	p++, hash_in_len++;
-#define TYPE9_KEY_LENGTH 32
-    unsigned char hash[TYPE9_KEY_LENGTH];
-    if (!EVP_PBE_scrypt(password, strlen(password), salt, salt_len, 16384, 1, 1, 0, hash, TYPE9_KEY_LENGTH))
-	return -1;
-    char hash64[128];
-    cisco64_enc(hash, TYPE9_KEY_LENGTH, hash64);
+    cisco64_enc(hash, 32, hash64);
     return strcmp(hash64, hash_in);
 }
 #endif
@@ -415,11 +394,11 @@ static enum token compare_pwdat(struct pwdat *a, char *username __attribute__((u
 	break;
     case S_8:
 	if (b)
-	    res = verify_cisco_type8(b, a->value);
+	    res = verify_cisco_type89(b, a->value, '8');
 	break;
     case S_9:
 	if (b)
-	    res = verify_cisco_type9(b, a->value);
+	    res = verify_cisco_type89(b, a->value, '9');
 	break;
 #endif
     case S_asa:
@@ -499,8 +478,8 @@ static enum token lookup_and_set_user(tac_session *session)
 static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&&( (!session->user &&(session->ctx->realm->mavis_login == TRISTATE_YES) &&(session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
-	   ||(session->user && pw_ix == PW_MAVIS));
+	&& ((!session->user && (session->ctx->realm->mavis_login == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
+	    || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -526,7 +505,7 @@ static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *)
 
 static int query_mavis_info_login(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->user &&(session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
+    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_LOGIN);
@@ -545,8 +524,8 @@ int query_mavis_info(tac_session *session, void (*f)(tac_session *), enum pw_ix 
 static int query_mavis_auth_pap(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
-	( (!session->user &&(session->ctx->realm->mavis_pap == TRISTATE_YES) &&(session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
-	 ||(session->user && pw_ix == PW_MAVIS));
+	((!session->user && (session->ctx->realm->mavis_pap == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
+	 || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_PAP);
@@ -555,7 +534,7 @@ static int query_mavis_auth_pap(tac_session *session, void (*f)(tac_session *), 
 
 static int query_mavis_info_pap(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->user &&(session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
+    int res = !session->user && (session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_PAP);
@@ -829,8 +808,8 @@ static void do_chpass(tac_session *session)
 
 static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*f)(tac_session *))
 {
-    if( (session->ctx->realm->chalresp == TRISTATE_YES) &&(!session->user ||( (pw_ix == PW_MAVIS) &&(TRISTATE_NO != session->user->chalresp)))) {
-	if(!session->flag_chalresp) {
+    if ((session->ctx->realm->chalresp == TRISTATE_YES) && (!session->user || ((pw_ix == PW_MAVIS) && (TRISTATE_NO != session->user->chalresp)))) {
+	if (!session->flag_chalresp) {
 	    session->flag_chalresp = 1;
 	    mavis_lookup(session, f, AV_V_TACTYPE_CHAL, PW_LOGIN);
 	    return;
