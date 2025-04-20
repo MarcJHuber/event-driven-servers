@@ -353,13 +353,8 @@ static int verify_cisco_asa_md5(const char *username, const char *password, cons
     char *h64 = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     char hash64[32];
     char *h = hash64;
-    for (int i = 0; i < 4; i++) {
-	int o = 4 * i;
-	uint32_t v = 0;
-	for (int j = 3; j > -1; j--) {
-	    v <<= 8;
-	    v |= digest[o + j];
-	}
+    for (int i = 0; i < 16; i += 4) {
+	uint32_t v = digest[i] | (digest[i + 1] << 8) | (digest[i + 2] << 16);
 	for (int j = 0; j < 4; j++) {
 	    *h++ = h64[v & 0x3f];
 	    v >>= 6;
