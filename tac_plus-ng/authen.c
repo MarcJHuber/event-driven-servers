@@ -307,7 +307,7 @@ static void cisco64_enc(const unsigned char *in, size_t in_len, char *out)
     *outp = 0;
 }
 
-int verify_cisco_type4(char *hash_in, char *password)
+static int verify_cisco_type4(char *hash_in, char *password)
 {
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256((unsigned char *) password, strlen(password), hash);
