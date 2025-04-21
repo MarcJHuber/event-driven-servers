@@ -2826,10 +2826,13 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
     case S_deny:
 	sym_get(sym);
 	return &passwd_deny;
+    case S_5:
+	sym->code = S_crypt;
     case S_asa:
     case S_crypt:
 #ifdef WITH_SSL
     case S_pbkdf2:
+    case S_4:
     case S_8:
     case S_9:
 #endif
@@ -2846,9 +2849,9 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
 	c7++;
 	break;
     default:
-	parse_error_expect(sym, S_clear, S_permit, S_deny, S_login, S_asa,
+	parse_error_expect(sym, S_clear, S_permit, S_deny, S_login, S_asa, S_5, S_7,
 #ifdef WITH_SSL
-			   S_pbkdf2, S_8, S_9,
+			   S_pbkdf2, S_4, S_8, S_9,
 #endif
 			   cry ? S_crypt : S_unknown, S_unknown);
     }

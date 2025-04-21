@@ -307,6 +307,15 @@ static void cisco64_enc(const unsigned char *in, size_t in_len, char *out)
     *outp = 0;
 }
 
+int verify_cisco_type4(char *hash_in, char *password)
+{
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256((unsigned char *) password, strlen(password), hash);
+    char hash64[128];
+    cisco64_enc(hash, SHA256_DIGEST_LENGTH, hash64);
+    return strcmp(hash64, hash_in);
+}
+
 static int verify_cisco_type89(char *password, char *p, char type)
 {
     if (p[0] != '$' || p[1] != type || p[2] != '$')
@@ -386,6 +395,10 @@ static enum token compare_pwdat(struct pwdat *a, char *username __attribute__((u
     case S_pbkdf2:
 	if (b)
 	    res = verify_cisco_asa_pbkdf2(b, a->value);
+	break;
+    case S_4:
+	if (b)
+	    res = verify_cisco_type4(b, a->value);
 	break;
     case S_8:
 	if (b)
