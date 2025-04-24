@@ -4440,6 +4440,42 @@ static void parse_tac_acl(struct sym *sym, tac_realm *realm)
     parse(sym, S_closebra);
 }
 
+struct autonumber {
+    int i;
+    size_t attr_len;
+    struct autonumber *next;
+    char attr[1];
+};
+
+static char *autonumber_attr(tac_session *session, char *av, size_t av_len)
+{
+    char *sep = av;
+    while (*sep && *sep != '=' && *sep != '*')
+	sep++;
+    if (*sep && (sep - av > 2)) {
+	char *pd = sep - 2;
+	if (*pd == '%' && (*(pd + 1) == 'd' || *(pd + 1) == 'n')) {
+	    size_t attr_len = sep - av;
+	    struct autonumber **p = &session->autonumber;
+	    while (*p && (*p)->attr_len != attr_len && memcmp((*p)->attr, av, attr_len))
+		p = &(*p)->next;
+	    if (!*p) {
+		*p = mem_alloc(session->mem, sizeof(struct autonumber) + attr_len);
+		memcpy((*p)->attr, av, attr_len);
+		(*p)->attr[attr_len] = 0;
+		(*p)->attr_len = attr_len;
+		if (av[attr_len - 1] == 'd')
+		    (*p)->i = 1;
+	    }
+	    av_len += 20;
+	    char *res = mem_alloc(session->mem, av_len);
+	    snprintf(res, av_len, "%.*s%d%s", (int) attr_len - 2, av, (*p)->i++, sep);
+	    return res;
+	}
+    }
+    return NULL;
+}
+
 static void attr_add_single(tac_session *session, char ***v, int *i, char *attr, size_t attr_len)
 {
     if (!*v) {
@@ -4447,52 +4483,8 @@ static void attr_add_single(tac_session *session, char ***v, int *i, char *attr,
 	*i = 0;
     }
     if (*i < 256) {
-	char *sep = attr;
-	while (*sep && *sep != '=' && *sep != '*')
-	    sep++;
-	// auto-numbered attribute support
-	if (*sep && (sep - attr > 2)) {
-	    char *pd = sep - 2;
-	    if (*pd == '%' && (*(pd + 1) == 'd' || *(pd + 1) == 'n')) {
-		int d = (*(pd + 1) == 'n') ? 0 : 1;
-		size_t len = pd - attr;
-		for (int j = 0; j < *i; j++) {
-		    if (!strncmp(attr, (*v)[j], len) && isdigit((*v)[j][len])) {
-			int k = 0;
-			char *t = (*v)[j] + len;
-			while (isdigit(*t)) {
-			    k *= 10;
-			    k += *t++ - '0';
-			}
-			if (d <= k)
-			    d = k + 1;
-		    }
-		}
-
-		size_t dlen = 1;
-		int d_tmp = d / 10;
-		while (d_tmp) {
-		    dlen++;
-		    d_tmp /= 10;
-		}
-		size_t a_tmp_len = attr_len - 2 + dlen;
-		char *a_tmp = alloca(a_tmp_len);
-		char *t = a_tmp;
-		memcpy(t, attr, pd - attr);
-		t += pd - attr;
-		size_t dlen_tmp = dlen;
-		while (dlen_tmp) {
-		    dlen_tmp--;
-		    t[dlen_tmp] = (d % 10) + '0';
-		    d /= 10;
-		}
-		t += dlen;
-		memcpy(t, sep, attr + attr_len - sep);
-		attr = a_tmp;
-		attr_len = a_tmp_len;
-	    }
-	}
-	(*v)[(*i)++] = mem_strndup(session->mem, (u_char *) attr, attr_len);
+	char *a = autonumber_attr(session, attr, attr_len);
+	(*v)[(*i)++] = a ? a : mem_strdup(session->mem, attr);
     }
 }
 
@@ -5546,7 +5538,9 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 		    inet_pton(AF_INET6, s, &u.ipv6);
 		    break;
 		case S_string_keyword:
-		    u.s = s;
+		    u.s = autonumber_attr(session, s, strlen(s));
+		    if (!u.s)
+			u.s = s;
 		    break;
 		default:	// unsupported type
 		    break;

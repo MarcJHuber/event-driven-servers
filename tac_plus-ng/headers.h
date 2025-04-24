@@ -791,6 +791,7 @@ struct authen_data {
 
 struct mavis_data;
 struct mavis_ctx_data;
+struct autonumber;
 
 typedef struct tac_profile tac_profile;
 
@@ -848,6 +849,7 @@ struct tac_session {
     struct mavis_data *mavis_data;
     struct radius_data *radius_data;
     struct pwdat *enable;
+    struct autonumber *autonumber;
     tac_profile *profile;
     struct {
 	BISTATE(nac_addr_valid);
