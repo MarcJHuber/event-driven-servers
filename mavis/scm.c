@@ -105,7 +105,7 @@ int scm_recv_msg(int sock, struct scm_data_accept *sd, size_t sd_len, int *fd)
 	}
 	return 0;
     }
-    if (res < 1) // 0: EoF, -1: Error
+    if (res < 0)
 	logmsg("scm_recv_msg: recvmsg: %s", strerror(errno));
     return -1;
 }
