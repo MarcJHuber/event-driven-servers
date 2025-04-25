@@ -75,6 +75,11 @@ int scm_recv_msg(int sock, struct scm_data_accept *sd, size_t sd_len, int *fd)
     size_t len = 0;
 
     int res = recvmsg(sock, &msg, MSG_PEEK);
+    if (res < 1) {
+	logmsg("scm_recv_msg: recvmsg: EoF");
+	return -1;
+    }
+	
     int fd_peek = -1;
     if (sd->type == SCM_UDPDATA) {
 	len = sizeof(struct scm_data_udp) + ((struct scm_data_udp *) sd)->data_len;
