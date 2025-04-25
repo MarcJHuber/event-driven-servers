@@ -949,6 +949,10 @@ static int epoll_io_poll(struct io_context *io, int poll_timeout, int *cax)
     io->Epoll.nchanges = 0;
 
     int res = epoll_wait(io->Epoll.fd, io->Epoll.eventlist, io->nfds_max, io->Epoll.ndiskfile ? 0 : poll_timeout);
+    if (res < 0) {
+	logerr("epoll_wait (%s:%d)", __FILE__, __LINE__);
+	exit(EX_SOFTWARE);
+    }
 
     gettimeofday(&io_now, NULL);
 
