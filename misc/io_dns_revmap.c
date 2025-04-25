@@ -165,9 +165,7 @@ static ares_socket_t asocket(int domain, int type, int protocol, void *opaque)
 static int aclose(ares_socket_t fd, void *opaque)
 {
     struct io_dns_ctx *idc = (struct io_dns_ctx *) opaque;
-    int res = close(fd);
-    io_unregister(idc->io, fd);
-    return res;
+    return io_close(idc->io, fd);
 }
 
 static int aconnect(ares_socket_t fd, const struct sockaddr *addr, ares_socklen_t addrlen, void *opaque __attribute__((unused)))
