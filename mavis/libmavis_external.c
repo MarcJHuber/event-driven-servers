@@ -410,7 +410,8 @@ static void child_died(struct context *ctx, int cur __attribute__((unused)))
 
 	ctx->index = -1;
 
-	RB_insert(ctx->mcx->junkcontexts, ctx);
+	if (ctx->fd_err > -1)
+	    RB_insert(ctx->mcx->junkcontexts, ctx);
 
 #ifdef DEBUG_RB
 	fprintf(stderr, "EXT insert junkcontexts %p\n", ctx);
@@ -429,6 +430,9 @@ static void child_died(struct context *ctx, int cur __attribute__((unused)))
 	    ctx->mcx->cx_stat[i].counter_p++;
 	    start_query(ctx->mcx->cx[i]);
 	}
+
+	if (ctx->fd_err < 0)
+	    free(ctx);
 
 	DebugOut(DEBUG_PROC);
     }
