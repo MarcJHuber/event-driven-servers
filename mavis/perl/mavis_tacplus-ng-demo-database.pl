@@ -16,10 +16,11 @@
 
 id = spawnd {
 	background = no
-	listen { port = 49 }
+	listen { port = 4949 }
 }
 
 id = tac_plus-ng {
+	include "$CONFDIR/radius-dict.cfg"
 	mavis module = external {
 		exec = ../../mavis/perl/mavis_tacplus-ng-demo-database.pl
 	}
@@ -98,7 +99,7 @@ EOT
 		script {
 			if (device.tag != user.tag)
 				deny
-			if (aaa.protocol == tacacs || aaa.protocol == tacacss) {
+			if (aaa.protocol == tacacs) {
 				if (service == shell) {
 					if (cmd == "") {
 						set priv-lvl = 15
@@ -115,8 +116,8 @@ EOT
 				}
 				deny
 			}
-			if (aaa.protocol == radius || aaa.protocol == radsec) {
-				set radius[cisco:Cisco-AVPair] = "shell:priv-lvl=15"
+			if (aaa.protocol == radius) {
+				set radius[Cisco:Cisco-AVPair] = "shell:priv-lvl=15"
 				permit
 			}
 			deny
