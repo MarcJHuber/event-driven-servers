@@ -2016,7 +2016,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		{
 		    int dummy;
 		    if (!r->default_host->enable)
-			r->default_host->enable = calloc(sizeof(struct pwdat *), TAC_PLUS_PRIV_LVL_MAX + 1);
+			r->default_host->enable = calloc(TAC_PLUS_PRIV_LVL_MAX + 1, sizeof(struct pwdat *));
 		    if (sym->code != S_equal || 1 != sscanf(sym->buf, "%d", &dummy))
 			parse_error(sym, "Expected '=', 'user' or a privilege level, but got '%s'", sym->buf);
 		    parse_enable(sym, NULL, r->default_host->enable);
