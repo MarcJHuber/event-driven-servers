@@ -5966,10 +5966,10 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 	unsigned char c[2];
     };
     struct ciphers cipherlist[] = {
-//      { 0x13, 0x02 },         // TLS_AES_256_GCM_SHA384
-//      { 0x13, 0x03 },         // TLS_CHACHA20_POLY1305_SHA256
-	{ 0x13, 0x01 },		// TLS_AES_128_GCM_SHA256
-	{ 0x00, 0xFF },		// TLS_EMPTY_RENEGOTIATION_INFO_SCSV
+//      { { 0x13, 0x02 } }, // TLS_AES_256_GCM_SHA384
+//      { { 0x13, 0x03 } }, // TLS_CHACHA20_POLY1305_SHA256
+	{ { 0x13, 0x01} },	// TLS_AES_128_GCM_SHA256
+	{ { 0x00, 0xFF} },	// TLS_EMPTY_RENEGOTIATION_INFO_SCSV
     };
     const SSL_CIPHER *cipher = NULL;
     for (struct ciphers * i = cipherlist; !cipher && i->c[0]; i++)
