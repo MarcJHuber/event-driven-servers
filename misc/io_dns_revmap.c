@@ -168,21 +168,37 @@ static int aclose(ares_socket_t fd, void *opaque)
     return io_close(idc->io, fd);
 }
 
+#if ARES_VERSION < 0x012200
 static int aconnect(ares_socket_t fd, const struct sockaddr *addr, ares_socklen_t addrlen, void *opaque __attribute__((unused)))
 {
     return connect(fd, addr, addrlen);
 }
+#else
+static int aconnect(ares_socket_t fd, const struct sockaddr *addr, ares_socklen_t addrlen, unsigned int flags __attribute__((unused)), void *opaque
+		    __attribute__((unused)))
+{
+    return connect(fd, addr, addrlen);
+}
+#endif
 
-static ares_ssize_t arecvfrom(ares_socket_t fd, void *buf, size_t len, int flags, struct sockaddr *src_addr, ares_socklen_t * addrlen, void *opaque
+static ares_ssize_t arecvfrom(ares_socket_t fd, void *buf, size_t len, int flags, struct sockaddr *src_addr, ares_socklen_t *addrlen, void *opaque
 			      __attribute__((unused)))
 {
     return recvfrom(fd, buf, len, flags, src_addr, addrlen);
 }
 
+#if ARES_VERSION < 0x012200
 static ares_ssize_t asendv(ares_socket_t fd, const struct iovec *iov, int iovcnt, void *opaque __attribute__((unused)))
 {
     return writev(fd, iov, iovcnt);
 }
+#else
+static ares_ssize_t asendto(ares_socket_t sock, const void *buffer, size_t length,
+			    int flags, const struct sockaddr *address, ares_socklen_t address_len, void *user_data __attribute__((unused)))
+{
+    return sendto(sock, buffer, length, flags, address, address_len);
+}
+#endif
 #endif
 
 struct io_dns_ctx *io_dns_init(struct io_context *io)
@@ -202,6 +218,7 @@ struct io_dns_ctx *io_dns_init(struct io_context *io)
 #endif
 	);
     if (res == ARES_SUCCESS) {
+#if ARES_VERSION < 0x012200
 	static struct ares_socket_functions a_socket_functions;
 	a_socket_functions.asocket = asocket;
 	a_socket_functions.aclose = aclose;
@@ -209,6 +226,15 @@ struct io_dns_ctx *io_dns_init(struct io_context *io)
 	a_socket_functions.arecvfrom = arecvfrom;
 	a_socket_functions.asendv = asendv;
 	ares_set_socket_functions(idc->channel, &a_socket_functions, idc);
+#else
+	static struct ares_socket_functions_ex a_socket_functions;
+	a_socket_functions.asocket = asocket;
+	a_socket_functions.aclose = aclose;
+	a_socket_functions.aconnect = aconnect;
+	a_socket_functions.arecvfrom = arecvfrom;
+	a_socket_functions.asendto = asendto;
+	ares_set_socket_functions_ex(idc->channel, &a_socket_functions, idc);
+#endif
 	idc->io = io;
 	idc->by_addr = RB_tree_new(idi_cmp_addr, NULL);
 	idc->by_app_ctx = RB_tree_new(idi_cmp_app_ctx, NULL);
@@ -284,7 +310,7 @@ static void a_callback(void *arg, int status, int timeouts, unsigned char *abuf,
 static void a_callback(void *arg, ares_status_t status, size_t timeouts, const ares_dns_record_t * dnsrec);
 #endif
 
-void io_dns_add(struct io_dns_ctx *idc, sockaddr_union * su, void *app_cb, void *app_ctx)
+void io_dns_add(struct io_dns_ctx *idc, sockaddr_union *su, void *app_cb, void *app_ctx)
 {
     char hex[] = "0123456789abcdef";
     char query[100];
@@ -361,7 +387,7 @@ static void a_callback(void *arg, int status, int timeouts __attribute__((unused
     free(idi);
 }
 #else
-static void a_callback(void *arg, ares_status_t status, size_t timeouts __attribute__((unused)), const ares_dns_record_t * dnsrec)
+static void a_callback(void *arg, ares_status_t status, size_t timeouts __attribute__((unused)), const ares_dns_record_t *dnsrec)
 {
     struct io_dns_item *idi = (struct io_dns_item *) arg;
     int ttl = -1;
