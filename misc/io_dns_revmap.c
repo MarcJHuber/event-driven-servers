@@ -227,7 +227,7 @@ struct io_dns_ctx *io_dns_init(struct io_context *io)
 	a_socket_functions.asendv = asendv;
 	ares_set_socket_functions(idc->channel, &a_socket_functions, idc);
 #else
-	static struct ares_socket_functions_ex a_socket_functions;
+	struct ares_socket_functions_ex a_socket_functions;
 	a_socket_functions.asocket = asocket;
 	a_socket_functions.aclose = aclose;
 	a_socket_functions.aconnect = aconnect;
