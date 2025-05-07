@@ -1337,7 +1337,7 @@ static void mschap_lmhash(char *password, u_char *hash)
 
 static void mschap_chalresp(u_char *chal, u_char *hash, u_char *resp)
 {
-    u_char zhash[21] = { 9 };
+    u_char zhash[21] = { 0 };
 
     memcpy(zhash, hash, (size_t) 16);
 
