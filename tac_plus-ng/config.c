@@ -1614,10 +1614,10 @@ int rad_get(tac_session *session, int vendorid, int id, enum token type, void *v
 	while (p < e) {
 	    if (vendorid == -1 && p[0] == id)
 		return rad_get_helper(session, type, val, val_len, p + 2, p[1] - 2);
-	    if (vendorid > -1 && p[0] == RADIUS_A_VENDOR_SPECIFIC && p[2] == ((id >> 24) & 0xff)
-		&& p[3] == ((id >> 16) & 0xff)
-		&& p[4] == ((id >> 8) & 0xff)
-		&& p[5] == ((id >> 0) & 0xff)) {
+	    if (vendorid > -1 && p[0] == RADIUS_A_VENDOR_SPECIFIC && p[2] == ((vendorid >> 24) & 0xff)
+		&& p[3] == ((vendorid >> 16) & 0xff)
+		&& p[4] == ((vendorid >> 8) & 0xff)
+		&& p[5] == ((vendorid >> 0) & 0xff)) {
 		u_char *ve = p + p[1];
 		u_char *vp = p + 6;
 		while (vp < ve && vp[1] > 1) {
