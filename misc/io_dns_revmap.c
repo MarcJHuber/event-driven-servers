@@ -129,8 +129,12 @@ static void io_ares_state_cb(void *data, ares_socket_t socket_fd, int readable, 
 {
     if (writable)
 	io_set_o(((struct io_dns_ctx *) data)->io, socket_fd);
+    else
+	io_clr_o(((struct io_dns_ctx *) data)->io, socket_fd);
     if (readable)
 	io_set_i(((struct io_dns_ctx *) data)->io, socket_fd);
+    else
+	io_clr_i(((struct io_dns_ctx *) data)->io, socket_fd);
 }
 #endif
 #endif
