@@ -112,7 +112,7 @@ static void set_response_authenticator(tac_session * session, rad_pak_hdr * pak)
 static tac_pak *new_rad_pak(tac_session *session, u_char code)
 {
 #ifdef WITH_SSL
-    if (code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT)
+    if (code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT || code == RADIUS_CODE_ACCESS_CHALLENGE)
 	session->radius_data->data_len += 18;
 #endif
     int len = session->radius_data->data_len + RADIUS_HDR_SIZE;
@@ -128,7 +128,8 @@ static tac_pak *new_rad_pak(tac_session *session, u_char code)
     memcpy(data, session->radius_data->data, session->radius_data->data_len);
 
 #ifdef WITH_SSL
-    if ((session->ctx->radius_1_1 == BISTATE_NO) && (code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT)) {
+    if ((session->ctx->radius_1_1 == BISTATE_NO)
+	&& (code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT || code == RADIUS_CODE_ACCESS_CHALLENGE)) {
 	memcpy(pak->pak.rad.authenticator, session->radius_data->pak_in->authenticator, 16);
 	u_char *ma = data + session->radius_data->data_len - 18;
 	*ma++ = RADIUS_A_MESSAGE_AUTHENTICATOR;
@@ -362,7 +363,8 @@ static void rad_send_reply(tac_session *session, u_char status)
 	*pp = (tac_pak *) pak;
 	io_set_o(session->ctx->io, session->ctx->sock);
     }
-    cleanup_session(session);
+    if (status != RADIUS_CODE_ACCESS_CHALLENGE)
+	cleanup_session(session);
 }
 
 void rad_send_authen_reply(tac_session *session, u_char status, char *msg)

@@ -93,6 +93,7 @@ reject				S_reject
 access				S_access
 accounting			S_accounting
 acl				S_acl
+dacl				S_dacl
 address				S_address
 address-mismatch		S_addressmismatch
 alias				S_alias
@@ -601,4 +602,7 @@ DTLSv1.3			S_DTLS1_3
 prefix				S_prefix
 postfix				S_postfix
 FS				S_FS
+#
+data				S_data
+version				S_version
 #

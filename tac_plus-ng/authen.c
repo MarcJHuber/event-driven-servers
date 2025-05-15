@@ -549,6 +549,15 @@ static int query_mavis_info_pap(tac_session *session, void (*f)(tac_session *))
     return res;
 }
 
+int query_mavis_dacl(tac_session *session, void (*f)(tac_session *))
+{
+    int res = !session->flag_mavis_info && !session->dacl;
+    session->flag_mavis_info = 1;
+    if (res)
+	mavis_dacl_lookup(session, f, AV_V_TACTYPE_DACL);
+    return res;
+}
+
 static void do_chap(tac_session *session)
 {
     enum token res = S_deny;
@@ -2113,10 +2122,63 @@ static void do_radius_login(tac_session *session)
     rad_send_authen_reply(session, RAD_SYM_TO_CODE(res), resp);
 }
 
+static void do_radius_dacl(tac_session *session)
+{
+    int first = 0;
+    if (!session->dacl) {
+	first = 1;
+	enum token res = S_deny;
+	if (!session->username.txt) {
+	    report_auth(session, "dacl request", hint_failed, res);
+	    rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
+	    return;
+	}
+	char *u = session->username.txt;
+	if (!strncmp(u, ACSACL, sizeof(ACSACL) - 1))
+	    u += sizeof(ACSACL) - 1;
+	char *h = strrchr(u, '-');
+	if (h)
+	    *h = 0;
+	if (query_mavis_dacl(session, do_radius_dacl))
+	    return;
+	session->dacl = lookup_dacl(u, session->ctx->realm);
+	if (!session->dacl) {
+	    report_auth(session, "dacl request", hint_failed, res);
+	    rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
+	    return;
+	}
+    }
+
+    void *val = NULL;
+    size_t val_len = 0;
+    if (!rad_get(session, -1, RADIUS_A_STATE, S_octets, &val, &val_len)) {
+	if (val && val_len == sizeof(uint32_t)) {
+	} else {
+	    rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
+	    return;
+	}
+	memcpy(&session->nace, val, sizeof(uint32_t));
+	session->nace = ntohl(session->nace);
+    }
+
+    if (rad_attr_add_dacl(session, session->dacl, &session->nace))
+	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
+    else if (session->nace == session->dacl->nace)
+	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_ACCEPT, NULL);
+    else {
+	if (first)
+	    dacl_copy(session);
+	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_CHALLENGE, NULL);
+    }
+}
+
 void rad_authen(tac_session *session)
 {
     if (session->radius_data->pak_in->code == RADIUS_CODE_ACCESS_REQUEST) {
-	do_radius_login(session);
+	if (rad_check_dacl(session))
+	    do_radius_dacl(session);
+	else
+	    do_radius_login(session);
 	return;
     }
     cleanup_session(session);

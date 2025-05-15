@@ -77,6 +77,7 @@ BEGIN {
 		AV_V_TACTYPE_AUTH
 		AV_V_TACTYPE_CHAL
 		AV_V_TACTYPE_CHPW
+		AV_V_TACTYPE_DACL
 		AV_V_TACTYPE_HOST
 		AV_V_TACTYPE_INFO
 		AV_V_TYPE_FTP
@@ -166,6 +167,7 @@ use constant AV_V_RESULT_OK => "ACK";
 use constant AV_V_TACTYPE_AUTH => "AUTH";
 use constant AV_V_TACTYPE_CHAL => "CHAL";
 use constant AV_V_TACTYPE_CHPW => "CHPW";
+use constant AV_V_TACTYPE_DACL => "DACL";
 use constant AV_V_TACTYPE_HOST => "HOST";
 use constant AV_V_TACTYPE_INFO => "INFO";
 use constant AV_V_TYPE_FTP => "FTP";

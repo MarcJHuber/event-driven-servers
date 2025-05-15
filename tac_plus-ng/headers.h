@@ -287,7 +287,7 @@ struct tac_profile {
 	BISTATE(complete);
 	BISTATE(visited);
 	BISTATE(skip_parent_script);
-	BISTATE(dynamie);
+	BISTATE(dynamic);
     } __attribute__((__packed__));
     u_int line;			/* configuration file line number */
     u_int debug;		/* debug flags */
@@ -332,6 +332,19 @@ struct tac_alias {
     u_int line;
     tac_user *user;
     tac_alias *next;
+};
+
+struct rad_dacl {
+    TAC_NAME_ATTRIBUTES;
+    u_int line;			/* configuration file line number */
+    time_t dynamic;		/* caching timeout. Always 0 for static users */
+    tac_realm *realm;
+    str_t prefix;
+    mem_t *mem;
+    char *data;
+    uint32_t version;
+    uint32_t nace;
+    struct iovec ace[1];
 };
 
 struct rad_dict;
@@ -380,6 +393,7 @@ struct realm {
     rb_tree_t *nettable;
     rb_tree_t *timespectable;
     rb_tree_t *realms;
+    rb_tree_t *dacls;
     rb_tree_t *dns_tree_a;
     radixtree_t *hosttree;
     tac_realm *parent;
@@ -499,6 +513,7 @@ typedef struct {
 #define RADIUS_CODE_ACCESS_REQUEST		1
 #define RADIUS_CODE_ACCESS_ACCEPT		2
 #define RADIUS_CODE_ACCESS_REJECT		3
+#define RADIUS_CODE_ACCESS_CHALLENGE		11
 #define RADIUS_CODE_ACCOUNTING_REQUEST		4
 #define RADIUS_CODE_ACCOUNTING_RESPONSE		5
 #define RADIUS_CODE_STATUS_SERVER		12
@@ -565,6 +580,9 @@ typedef struct {
 #define RADIUS_A_ACCT_MULTI_SESSION_ID	50
 #define RADIUS_A_ACCT_LINK_COUNT	51
 #define RADIUS_A_ACCT_INTERIM_INTERVAL	85
+
+#define RADIUS_VID_CISCO		"\0\0\0\011" // 0x0009
+#define RADIUS_A_CISCO_AVPAIR		1
 
 struct radius_data {
     rad_pak_hdr *pak_in;
@@ -802,6 +820,7 @@ struct tac_session {
     tac_host *host;
     struct in6_addr nac_address;	/* host byte order */
     struct in6_addr device_addr;	/* host byte order */
+    struct rad_dacl *dacl;
     str_t username;
     str_t username_orig;
     str_t msg;
@@ -883,6 +902,7 @@ struct tac_session {
     int cnt_m;
     int cnt_o;
     int cnt_a;
+    uint32_t nace;
     enum token attr_dflt;
     time_t password_expiry;
     u_long mavis_latency;
@@ -981,6 +1001,7 @@ struct context {
     u_int bug_compatibility;
     u_int debug;
     u_long mavis_latency;
+#define INJECT_BUF_SIZE 5000
     u_char *inject_buf;
     size_t inject_len;
     size_t inject_off;
@@ -1064,6 +1085,7 @@ void parse_decls(struct sym *);
 void parse_user_final(tac_user *);
 int parse_user_profile_fmt(struct sym *, tac_user *, char *, ...);
 int parse_host_profile(struct sym *, tac_realm *, tac_host *);
+int parse_dacl_fmt(struct sym *sym, tac_session *session, tac_realm *r, char *s);
 
 void parse_log(struct sym *, tac_realm *);
 char *eval_log_format(tac_session *, struct context *, struct logfile *, struct log_item *, time_t, size_t *);
@@ -1103,6 +1125,7 @@ void cleanup_session(tac_session *);
 struct log_item *parse_log_format(struct sym *, mem_t *);
 
 void mavis_lookup(tac_session *, void (*)(tac_session *), const char *const, enum pw_ix);
+void mavis_dacl_lookup(tac_session *, void (*)(tac_session *), const char *const);
 void mavis_ctx_lookup(struct context *, void (*)(struct context *), const char *const);
 tac_user *lookup_user(tac_session *);
 mavis_ctx *lookup_mcx(tac_realm *);
@@ -1130,8 +1153,15 @@ char *tac_script_get_exec_context(tac_session *);
 enum token eval_tac_acl(tac_session *, struct tac_acl *);
 tac_host *lookup_host(char *, tac_realm *);
 
+#define ACSACL "#ACSACL#"
+struct rad_dacl *lookup_dacl(char *, tac_realm *);
+int rad_check_dacl(tac_session *);
+int rad_attr_add_dacl(tac_session *session, struct rad_dacl *dacl, uint32_t *i);
+void dacl_copy(tac_session *);
+
 int query_mavis_info(tac_session *, void (*)(tac_session *), enum pw_ix);
 void expire_dynamic_users(tac_realm *);
+void expire_dynamic_acls(tac_realm *);
 void drop_mcx(tac_realm *);
 void init_mcx(tac_realm *);
 void complete_host(tac_host *);

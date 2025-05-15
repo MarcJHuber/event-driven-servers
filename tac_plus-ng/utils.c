@@ -805,7 +805,14 @@ struct log_item *parse_log_format(struct sym *sym, mem_t *mem)
 		*sep++ = 0;
 		str_set(&(*li)->separator, sep, 0);
 	    }
+	    char *m = strchr(in, ':');
+	    if (m) {
+		*m = 0;
+		(*li)->text = m + 1;
+	    }
 	    (*li)->token = keycode(in);
+	    if (m)
+		*m = ':';
 	    switch ((*li)->token) {
 	    case S_cmd:
 	    case S_args:
@@ -916,6 +923,7 @@ struct log_item *parse_log_format(struct sym *sym, mem_t *mem)
 	    case S_AUTHFAIL_BANNER:
 	    case S_TIMESTAMP:
 	    case S_FS:
+	    case S_dacl:
 		break;
 	    case S_config_file:
 		(*li)->token = S_string;
@@ -1862,6 +1870,16 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
     for (struct log_item * li = start; li; li = li->next) {
 	size_t len = 0;
 	str_t *s = NULL;
+	if (session && li->token == S_dacl) {
+	    tac_realm *r = session->ctx->realm;
+	    struct rad_dacl *dacl = lookup_dacl(li->text, r);
+	    if (sizeof(buf) - total_len > 40 + strlen(li->text)) {
+		len += snprintf(b, sizeof(buf) - total_len, ACSACL "%s-%.8x", li->text, dacl ? dacl->version : (uint32_t) io_now.tv_sec);
+		b += len;
+		total_len += len;
+	    }
+	    continue;
+	}
 	if (li->text) {
 	    struct tm *tm = localtime(&sec);
 	    len = strftime(b, sizeof(buf) - total_len, li->text, tm);

@@ -74,9 +74,27 @@ while ($in = <>) {
 		$V[AV_A_TACPROFILE] = <<EOT
 {
 	key = demo
+	radius.key = demo
 	tag = cust001,cust-ro # the "profile" rules from the user definition might use this
 	welcome banner = "Hi! :-)"
 	mavis backend = yes
+}
+EOT
+		;
+		$V[AV_A_RESULT] = AV_V_RESULT_OK;
+		$result = MAVIS_FINAL;
+		goto bye;
+	}
+	if ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_DACL) {
+		# return a downloadble acl
+# XXX Add your DACL lookup code here.
+		$V[AV_A_TACPROFILE] = <<EOT
+{
+	data = "
+		permit host 1.2.3.4 host 4.5.6.7
+		permit tcp any any eq 443
+		deny ip any any
+	"
 }
 EOT
 		;
@@ -118,6 +136,7 @@ EOT
 			}
 			if (aaa.protocol == radius) {
 				set radius[Cisco:Cisco-AVPair] = "shell:priv-lvl=15"
+				set radius[Cisco:Cisco-AVPair] = "\${dacl:demoacl}"
 				permit
 			}
 			deny

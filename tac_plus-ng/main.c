@@ -289,6 +289,7 @@ static void periodics(struct context *ctx, int cur __attribute__((unused)))
 	cleanup_spawnd(ctx, -1 /* unused */ );
 
     expire_dynamic_users(config.default_realm);
+    expire_dynamic_acls(config.default_realm);
 
 #ifdef WITH_DNS
     expire_dns(config.default_realm);
@@ -1328,7 +1329,8 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
     ctx->use_dtls = (sd_ext->sd.tls_versions && sd_ext->sd.type == SCM_UDPDATA) ? BISTATE_YES : BISTATE_NO;
     if (inject_buf) {
 	ctx->udp = BISTATE_YES;
-	ctx->inject_buf = mem_copy(ctx->mem, inject_buf, inject_len);
+	ctx->inject_buf = mem_alloc(ctx->mem, INJECT_BUF_SIZE);
+	memcpy(ctx->inject_buf, inject_buf, inject_len);
 	ctx->inject_len = inject_len;
     }
 
@@ -1398,6 +1400,12 @@ static void complete_host_mavis(struct context *ctx)
 
 ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags)
 {
+    if (ctx->inject_buf && !ctx->inject_len) {
+	ssize_t l = recv(ctx->sock, ctx->inject_buf, INJECT_BUF_SIZE, 0);
+	if (l > -1)
+	    ctx->inject_len = l;
+	ctx->inject_off = 0;
+    }
     if (ctx->inject_buf && ctx->inject_len > ctx->inject_off) {
 	if (ctx->inject_len - ctx->inject_off < len)
 	    len = ctx->inject_len - ctx->inject_off;
@@ -1405,10 +1413,10 @@ ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags)
 	if (!(flags & MSG_PEEK))
 	    ctx->inject_off += len;
 	if (ctx->inject_off == ctx->inject_len)
-	    mem_free(ctx->mem, &ctx->inject_buf);
+	    ctx->inject_len = 0;
 	return len;
     }
-    ssize_t res = recv(ctx->sock, buf, len, flags);
+    ssize_t res = read(ctx->sock, buf, len);
     return (!res && len) ? -1 : res;
 }
 

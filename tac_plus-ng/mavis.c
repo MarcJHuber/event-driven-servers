@@ -261,7 +261,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
     if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&	//
 	(t = av_get(avc, AV_A_TACTYPE)) && !strcmp(t, session->mavis_data->mavistype) &&	//
 	(t = av_get(avc, AV_A_USER)) && !strcmp(t, session->username.txt) &&	//
-	(t = av_get(avc, AV_A_TIMESTAMP)) && (atoi(t) == session->session_id) &&	//#
+	(t = av_get(avc, AV_A_TIMESTAMP)) && (atoi(t) == session->session_id) &&	//
 	(result = av_get(avc, AV_A_RESULT)) && !strcmp(result, AV_V_RESULT_OK)) {
 
 	tac_user *u = lookup_user(session);
@@ -640,5 +640,142 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx *avc)
     if (result) {
 	ctx->mavis_latency = timediff(&ctx->mavis_data->start);
 	report(&session, LOG_INFO_MAVIS, ~0, "result for host %s is %s [%lu ms]", ctx->device_addr_ascii.txt, result, ctx->mavis_latency);
+    }
+}
+
+static void mavis_dacl_lookup_final(tac_session *, av_ctx *);
+
+static void mavis_dacl_switch(tac_session *session, av_ctx *avc, int result)
+{
+    switch (result) {
+    case MAVIS_FINAL:
+	session->mavis_pending = 0;
+	mavis_dacl_lookup_final(session, avc);
+	av_free_private(avc);
+	if (session->user) {
+	    if (session->user->avc)
+		av_free(session->user->avc);
+	    session->user->avc = avc;
+	}
+	session->mavis_data->mavisfn(session);
+	break;
+    case MAVIS_TIMEOUT:
+	report(session, LOG_INFO_MAVIS, ~0, "auth_mavis: giving up (%s)", session->username.txt);
+	io_sched_pop(session->ctx->io, session);
+	session->mavis_pending = 0;
+	av_free(avc);
+	session->mavis_data->mavisfn(session);
+	break;
+    case MAVIS_DEFERRED:
+	session->mavis_pending = 1;
+    case MAVIS_IGNORE:
+	break;
+    default:
+	session->mavis_pending = 0;
+	av_free(avc);
+	session->mavis_data->mavisfn(session);
+    }
+}
+
+static void mavis_dacl_callback(tac_session *session)
+{
+    av_ctx *avc = NULL;
+    int rc = mavis_recv(lookup_mcx(session->ctx->realm), &avc, session);
+    mavis_dacl_switch(session, avc, rc);
+}
+
+void mavis_dacl_lookup(tac_session *session, void (*f)(tac_session *), const char *const type)
+{
+    tac_realm *r = session->ctx->realm;
+    mavis_ctx *mcx = lookup_mcx(r);
+
+    if (!mcx) {
+	f(session);
+	return;
+    }
+
+    if (session->mavis_pending)
+	return;
+
+    if ((r->mavis_userdb != TRISTATE_YES) && !session->user) {
+	f(session);
+	return;
+    }
+
+    report(session, LOG_INFO_MAVIS, ~0, "looking for dacl %s in MAVIS backend", session->username.txt);
+
+    if (!session->mavis_data)
+	session->mavis_data = mem_alloc(session->mem, sizeof(struct mavis_data));
+
+    session->mavis_data->mavisfn = f;
+    session->mavis_data->mavistype = type;
+    session->mavis_data->start = io_now;
+
+    av_ctx *avc = av_new((void *) mavis_dacl_callback, (void *) session);
+    av_set(avc, AV_A_TYPE, AV_V_TYPE_TACPLUS);
+    av_set(avc, AV_A_USER, session->username.txt);
+    av_setf(avc, AV_A_TIMESTAMP, "%d", session->session_id);
+    av_set(avc, AV_A_TACTYPE, (char *) type);
+    if (r->name.txt)
+	av_set(avc, AV_A_REALM, r->name.txt);
+
+    int result = mavis_send(mcx, &avc);
+
+    switch (result) {
+    case MAVIS_DEFERRED:
+	session->mavis_pending = 1;
+    case MAVIS_IGNORE:
+	break;
+    default:
+	mavis_switch(session, avc, result);
+    }
+}
+
+static void mavis_dacl_lookup_final(tac_session *session, av_ctx *avc)
+{
+    char *t, *result = NULL;
+    tac_realm *r = session->ctx->realm;
+
+    session->mavisauth_res = S_unknown;
+
+    dump_av_pairs(session, avc, "user");
+    if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&	//
+	(t = av_get(avc, AV_A_TACTYPE)) && !strcmp(t, AV_V_TACTYPE_DACL) &&	//
+	(t = av_get(avc, AV_A_USER)) && !strcmp(t, session->username.txt) &&	//
+	(t = av_get(avc, AV_A_TIMESTAMP)) && (atoi(t) == session->session_id) &&	//
+	(result = av_get(avc, AV_A_RESULT)) && !strcmp(result, AV_V_RESULT_OK)) {
+
+	struct rad_dacl *dacl = lookup_dacl(session->username.txt, r);
+	if (dacl) {
+	    r = dacl->realm;
+	    RB_search_and_delete(r->dacls, dacl);
+	}
+
+	struct sym sym = {.filename = session->username.txt,.line = 1,.flag_prohibit_include = 1 };
+
+	if (!r->caching_period && session->user) {
+	    free_user(session->user);
+	    session->user = NULL;
+	}
+
+	char *p = av_get(avc, AV_A_TACPROFILE);
+	if (!p || parse_dacl_fmt(&sym, session, r, p)) {
+	    session->dacl = NULL;
+	    session->mavisauth_res = S_deny;
+	}
+
+	if (strcmp(result, AV_V_RESULT_OK)) {
+	    session->mavis_latency = timediff(&session->mavis_data->start);
+	    report(session, LOG_INFO_MAVIS, ~0, "result for dacl %s is %s [%lu ms]", session->username.txt, result, session->mavis_latency);
+	    return;
+	}
+    } else if (result && !strcmp(result, AV_V_RESULT_ERROR)) {
+	session->mavisauth_res = S_deny;
+    } else if (result && !strcmp(result, AV_V_RESULT_FAIL)) {
+	session->mavisauth_res = S_deny;
+    }
+    if (result) {
+	session->mavis_latency = timediff(&session->mavis_data->start);
+	report(session, LOG_INFO_MAVIS, ~0, "result for dacl %s is %s [%lu ms]", session->username.txt, result, session->mavis_latency);
     }
 }

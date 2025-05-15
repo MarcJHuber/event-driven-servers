@@ -55,7 +55,7 @@
 #define MAVIS_INIT_OK	0	/* initialization succeeded */
 #define MAVIS_INIT_ERR	1	/* initialization failed */
 
-#define BUFSIZE_MAVIS 65000
+#define BUFSIZE_MAVIS 0xffff
 
 struct av_char {
 	char *name;
@@ -203,6 +203,7 @@ extern struct av_char av_char[];
 #define AV_V_TACTYPE_CHPW		"CHPW"
 #define AV_V_TACTYPE_CHAL		"CHAL"
 #define AV_V_TACTYPE_HOST		"HOST"
+#define AV_V_TACTYPE_DACL		"DACL"
 typedef struct av_ctx av_ctx;
 
 struct av_ctx {
@@ -291,7 +292,7 @@ int av_attr_token_to_i(struct sym *);
 
 char *av_addserial(av_ctx *);
 
-#define MAX_INPUT_LINE_LEN 16384
+#define MAX_INPUT_LINE_LEN 0xffff
 
 struct token_chain;
 

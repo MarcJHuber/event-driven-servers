@@ -126,6 +126,7 @@ static void parse_user_attr(struct sym *, tac_user *);
 static void parse_tac_acl(struct sym *, tac_realm *);
 static void parse_rewrite(struct sym *, tac_realm *);
 static void parse_member(struct sym *, tac_groups **, mem_t *, tac_realm *);
+static void parse_dacl(struct sym *, tac_realm *);
 
 static tac_group *lookup_group(char *, tac_realm *);	/* get id from tree */
 static tac_group *tac_group_new(struct sym *, char *, tac_realm *);	/* add name to tree, return id (globally unique) */
@@ -547,6 +548,22 @@ void expire_dynamic_users(tac_realm *r)
 	    expire_dynamic_users(RB_payload(rbn, tac_realm *));
 }
 
+void expire_dynamic_acls(tac_realm *r)
+{
+    if (r->dacls) {
+	for (rb_node_t * rbnext, *rbn = RB_first(r->dacls); rbn; rbn = rbnext) {
+	    time_t v = RB_payload(rbn, struct rad_dacl *)->dynamic;
+	    rbnext = RB_next(rbn);
+
+	    if (v && v < io_now.tv_sec)
+		RB_delete(r->dacls, rbn);
+	}
+    }
+    if (r->realms)
+	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
+	    expire_dynamic_acls(RB_payload(rbn, tac_realm *));
+}
+
 tac_user *lookup_user(tac_session *session)
 {
     session->user = NULL;
@@ -621,6 +638,23 @@ static tac_net *lookup_net(char *name, tac_realm *r)
 	    tac_net *res;
 	    if ((res = RB_lookup(r->nettable, &net)))
 		return res;
+	}
+	r = r->parent;
+    }
+    return NULL;
+}
+
+struct rad_dacl *lookup_dacl(char *name, tac_realm *r)
+{
+    struct rad_dacl dacl = {.name.txt = name,.name.len = strlen(name) };
+    while (r) {
+	if (r->dacls) {
+	    struct rad_dacl *res = RB_lookup(r->dacls, &dacl);
+	    if (res && res->dynamic && res->dynamic < io_now.tv_sec) {
+		RB_search_and_delete(r->dacls, res);
+		res = 0;
+	    }
+	    return res;
 	}
 	r = r->parent;
     }
@@ -1308,7 +1342,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		    *buf_len -= data[1] - 2;
 		}
 	    }
-	    return;
+	    break;
 	case S_enum:
 	case S_time:
 	case S_integer:
@@ -1327,7 +1361,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		    }
 		}
 	    }
-	    return;
+	    break;
 	case S_octets:
 	    rad_attr_val_dump_hex(data + 2, data_len - 2, buf, buf_len);
 	    return;
@@ -1344,7 +1378,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		    *buf_len -= len;
 		}
 	    }
-	    return;
+	    break;
 	case S_ipv6addr:
 	    if (data[1] == 18) {
 		sockaddr_union from = { 0 };
@@ -1356,7 +1390,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		    *buf_len -= len;
 		}
 	    }
-	    return;
+	    break;
 	default:
 	    ;
 	}
@@ -1393,18 +1427,31 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 	}
 
 	if (dict->id != -1 || ( /* *d_start != RADIUS_A_MESSAGE_AUTHENTICATOR && */ *d_start != RADIUS_A_USER_PASSWORD)) {
-	    if (add_separator) {
-		if (*buf_len > separator_len) {
-		    memcpy(*buf, separator, separator_len);
-		    *buf += separator_len;
-		    *buf_len -= separator_len;
+	    if (cur_dict) {
+		while (d_len > 0) {
+		    if (add_separator) {
+			if (*buf_len > separator_len) {
+			    memcpy(*buf, separator, separator_len);
+			    *buf += separator_len;
+			    *buf_len -= separator_len;
+			}
+		    }
+		    rad_attr_val_dump_helper(d_start, d_len, buf, buf_len, cur_dict);
+		    d_len -= d_start[1];
+		    d_start += d_start[1];
+		    add_separator = 1;
 		}
-	    }
-	    if (cur_dict)
-		rad_attr_val_dump_helper(d_start, d_len, buf, buf_len, cur_dict);
-	    else
+	    } else {
+		if (add_separator) {
+		    if (*buf_len > separator_len) {
+			memcpy(*buf, separator, separator_len);
+			*buf += separator_len;
+			*buf_len -= separator_len;
+		    }
+		}
 		rad_attr_val_dump_hex(d_start, d_len, buf, buf_len);
-	    add_separator = 1;
+		add_separator = 1;
+	    }
 	}
 	data += data[1];
 
@@ -1630,6 +1677,41 @@ int rad_get(tac_session *session, int vendorid, int id, enum token type, void *v
 	}
     }
     return -1;
+}
+
+int rad_check_dacl(tac_session *session)
+{
+    if (session->radius_data) {
+	u_char *p = RADIUS_DATA(session->radius_data->pak_in);
+	size_t len = RADIUS_DATA_LEN(session->radius_data->pak_in);
+	u_char *e = p + len;
+	u_int found = 0;
+	while (p < e) {
+	    if (p[0] == RADIUS_A_MESSAGE_AUTHENTICATOR) {
+		if (p[1] != 18)
+		    return 0;
+		found |= 1;
+	    } else if (p[0] == RADIUS_A_VENDOR_SPECIFIC && p[2] == RADIUS_VID_CISCO[0]
+		       && p[3] == RADIUS_VID_CISCO[1] && p[4] == RADIUS_VID_CISCO[2]
+		       && p[5] == RADIUS_VID_CISCO[3]) {
+		u_char *ve = p + p[1];
+		u_char *vp = p + 6;
+		while (vp < ve && vp[1] > 1) {
+		    if (vp[0] == RADIUS_A_CISCO_AVPAIR) {
+#define A "aaa:event=acl-download"
+			if (vp[1] - 1 == sizeof(A) && !strncasecmp((char *) vp + 2, A, sizeof(A) - 1))
+#undef A
+			    found |= 2;
+			vp += vp[1];
+		    }
+		}
+	    }
+	    if (found == 3)
+		return -1;
+	    p += p[1];
+	}
+    }
+    return 0;
 }
 
 void parse_decls_real(struct sym *sym, tac_realm *r)
@@ -1951,6 +2033,9 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    continue;
 	case S_acl:
 	    parse_tac_acl(sym, r);
+	    continue;
+	case S_dacl:
+	    parse_dacl(sym, r);
 	    continue;
 	case S_mavis:
 	    sym_get(sym);
@@ -2320,7 +2405,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	default:
 	    parse_error_expect(sym, S_password, S_pap, S_login, S_accounting, S_authentication, S_access, S_authorization, S_warning,
 			       S_connection, S_dns, S_cache, S_log, S_umask, S_retire, S_user, S_group, S_profile, S_acl, S_mavis,
-			       S_enable, S_net, S_parent, S_ruleset, S_timespec, S_time, S_realm, S_trace, S_debug,
+			       S_enable, S_net, S_parent, S_ruleset, S_timespec, S_time, S_realm, S_trace, S_debug, S_dacl,
 			       S_anonenable,
 			       S_key, S_motd, S_welcome, S_reject, S_permit, S_bug, S_augmented_enable, S_singleconnection, S_context,
 			       S_script, S_message, S_session, S_maxrounds, S_host, S_device, S_syslog, S_proctitle, S_coredump, S_alias,
@@ -2373,6 +2458,11 @@ void free_user(tac_user *user)
     if (user->avc)
 	av_free(user->avc);
     mem_destroy(user->mem);
+}
+
+static void free_dacl(struct rad_dacl *dacl)
+{
+    mem_destroy(dacl->mem);
 }
 
 static struct pwdat passwd_deny = {.type = S_deny };
@@ -2763,7 +2853,6 @@ int parse_user_profile_fmt(struct sym *sym, tac_user *user, char *fmt, ...)
     sym->len = sym->tlen = l;
     return parse_user_profile(sym, user);
 }
-
 
 static char hexbyte(char *s)
 {
@@ -3504,9 +3593,9 @@ static void parse_user_attr(struct sym *sym, tac_user *user)
 	    case S_openbra:
 		if (!user->profile) {
 		    user->profile = new_profile(user->mem, user->name.txt, r);
-		    user->profile->dynamie = 1;
+		    user->profile->dynamic = 1;
 		}
-		if (!user->profile->dynamie)
+		if (!user->profile->dynamic)
 		    parse_error(sym, "Profile is already set to '%s'", user->profile->name.txt);
 		parse_profile_attr(sym, user->profile, user->realm);
 		break;
@@ -3670,6 +3759,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	case S_bug:
 	case S_pap:
 	case S_key:
+	case S_radius_key:
 	case S_anonenable:
 	case S_augmented_enable:
 	case S_singleconnection:
@@ -3712,7 +3802,8 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    parse_error_expect(sym,
 			       S_parent, S_authentication, S_permit, S_bug, S_pap, S_key, S_anonenable, S_augmented_enable,
 			       S_singleconnection, S_debug, S_connection, S_password, S_context, S_session, S_target_realm,
-			       S_maxrounds, S_skip, S_tag, S_devicetag, S_name, S_welcome, S_reject, S_failed, S_enable, S_motd, S_script, S_message, S_mavis,
+			       S_maxrounds, S_skip, S_tag, S_devicetag, S_name, S_welcome, S_reject, S_failed, S_enable, S_motd,
+			       S_script, S_message, S_mavis, S_radius_key,
 #ifdef WITH_DNS
 			       S_dns,
 #endif
@@ -4290,6 +4381,160 @@ static void parse_host(struct sym *sym, tac_realm *r, tac_host *parent)
 	parse_host_attr(sym, r, host);
     sym_get(sym);
     RB_insert(r->hosttable, host);
+}
+
+
+/*
+dacl test {
+	prefix = "ip:inacl"
+	data = "
+	permit tcp host 1.2.3.4 host 1.2.4.5 eq 80
+	! Comment
+	deny ip any any
+"
+*/
+
+static struct rad_dacl *add_dacl(char *name, size_t name_len, struct sym *sym, tac_realm *r, int dynamic)
+{
+    struct rad_dacl *dacl = alloca(sizeof(struct rad_dacl));
+    str_set(&dacl->name, name, name_len);
+    char *prefix = "ip:inacl";
+    mem_t *mem = NULL;		// for now
+
+    if (!r->dacls)
+	r->dacls = RB_tree_new(compare_name, (void (*)(void *)) free_dacl);
+
+    struct rad_dacl *n = (struct rad_dacl *) RB_lookup(r->dacls, (void *) dacl);
+    if (n)
+	parse_error(sym, "DACL '%s' already defined at line %u", dacl->name, n->line);
+
+    parse(sym, S_openbra);
+    int data_seen = 0;
+    while (sym->code != S_closebra) {
+	switch (sym->code) {
+	case S_prefix:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    prefix = mem_strdup(mem, sym->buf);
+	    sym_get(sym);
+	    break;
+	case S_data:
+	    sym_get(sym);
+	    if (data_seen)
+		parse_error(sym, "data portion already defined");
+	    data_seen = 1;
+	    parse(sym, S_equal);
+	    int count = 0;
+	    for (char *s = sym->buf; *s; s++)
+		if (*s == '\n' || *s == '\r')
+		    count++;
+	    dacl = mem_alloc(mem, sizeof(struct rad_dacl) + count * sizeof(struct iovec));
+	    str_set(&dacl->name, mem_strdup(mem, name), name_len);
+	    dacl->data = mem_strdup(mem, sym->buf);
+	    sym_get(sym);
+	    str_set(&dacl->prefix, prefix, 0);
+	    dacl->realm = r;
+	    break;
+	case S_version:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    dacl->version = parse_uint(sym);
+	    break;
+	default:
+	    parse_error_expect(sym, S_prefix, S_data, S_closebra, S_unknown);
+	}
+    }
+
+    if (!data_seen)
+	parse_error(sym, "dacl data portion not defined");
+
+    sym_get(sym);
+
+    char *s = dacl->data;
+    while (*s) {
+	char *e = s;
+	while (*e && *e != '\n' && *e != '\r')
+	    e++;
+	while (*s && isspace(*s))
+	    s++;
+	if (*s == '!') {
+	    s = e;
+	    if (*e)
+		s++;
+	    continue;
+	}
+	char *t = s;
+	while (t < e && *t != '!')
+	    t++;
+	while (t > s && isspace(*(t - 1)))
+	    t--;
+	if (s != t) {
+	    dacl->ace[dacl->nace].iov_base = s;
+	    dacl->ace[dacl->nace].iov_len = t - s;
+	    dacl->nace++;
+	}
+	s = e;
+	if (*e)
+	    s++;
+    }
+
+    if (!dacl->version) {
+	u_char digest[16];
+	md5v(digest, 16, dacl->ace, dacl->nace);
+	memcpy(&dacl->version, digest, sizeof(dacl->version));
+    }
+
+    if (dynamic)
+	dacl->dynamic = io_now.tv_sec + r->caching_period;
+
+    if (r->caching_period)
+	RB_insert(r->dacls, dacl);
+    return dacl;
+}
+
+int parse_dacl_fmt(struct sym *sym, tac_session *session, tac_realm *r, char *s)
+{
+    sym->env_valid = 1;
+    if (setjmp(sym->env))
+	return -1;
+    sym->in = sym->tin = s;
+    sym->len = sym->tlen = strlen(s);
+    sym_init(sym);
+    session->dacl = add_dacl(session->username.txt, session->username.len, sym, r, 1);
+    return 0;
+}
+
+void dacl_copy(tac_session *session)
+{
+    struct rad_dacl *dacl = mem_alloc(session->mem, sizeof(struct rad_dacl) + session->dacl->nace * sizeof(struct iovec));
+    str_set(&dacl->name, mem_strdup(session->mem, session->dacl->name.txt), session->dacl->name.len);
+    dacl->nace = session->dacl->nace;
+    dacl->data = mem_strdup(session->mem, session->dacl->data);
+    dacl->realm = session->dacl->realm;
+    off_t off;
+    if (dacl->data > session->dacl->data)
+	off = dacl->data - session->dacl->data;
+    else
+	off = -(off_t) (session->dacl->data - dacl->data);
+    for (uint32_t i = 0; i < dacl->nace; i++) {
+	dacl->ace[i].iov_base = session->dacl->ace[i].iov_base + off;
+	dacl->ace[i].iov_len = session->dacl->ace[i].iov_len;
+    }
+    session->dacl = dacl;
+}
+
+static void parse_dacl(struct sym *sym, tac_realm *r)
+{
+    if (!r->dacls)
+	r->dacls = RB_tree_new(compare_name, (void (*)(void *)) free_dacl);
+
+    sym_get(sym);
+
+    size_t name_len = strlen(sym->buf);
+    char *name = alloca(name_len + 1);
+    strncpy(name, sym->buf, name_len);
+    sym_get(sym);
+    add_dacl(name, name_len, sym, r, 0);
 }
 
 static void radix_copy_func(struct in6_addr *addr, int mask, void *payload, void *data)
@@ -5473,6 +5718,50 @@ static void rad_attr_add(tac_session *session, struct rad_action *a, union rad_a
     size_t buf_len = 0;
     rad_attr_val_dump(session->mem, data_orig, data_len - data_len_orig, &buf, &buf_len, NULL, NULL, 0);
     report(DEBACL, " line %u: [%s] set '%s'", line, code, buf ? buf : "<empty>");
+}
+
+int rad_attr_add_dacl(tac_session *session, struct rad_dacl *dacl, uint32_t *i)
+{
+    if (!dacl)
+	return -1;
+    if (!session->radius_data)
+	return -1;
+    u_char *data = session->radius_data->data + session->radius_data->data_len;
+    u_char *data_end = session->radius_data->data + sizeof(session->radius_data->data) - 18 /* Message Authenticator */  - 6 /* State */ ;
+
+    while (*i < dacl->nace && data + 6 + 2 + dacl->ace[*i].iov_len + dacl->prefix.len + 16 < data_end) {
+	if (*i < dacl->nace && data + 2 + dacl->ace[*i].iov_len < data_end && 6 + 2 + dacl->ace[*i].iov_len + dacl->prefix.len + 16 /* #<digit>= */  < 255) {
+	    *data++ = RADIUS_A_VENDOR_SPECIFIC;
+	    u_char *len = data++;
+	    *data++ = RADIUS_VID_CISCO[0];
+	    *data++ = RADIUS_VID_CISCO[1];
+	    *data++ = RADIUS_VID_CISCO[2];
+	    *data++ = RADIUS_VID_CISCO[3];
+	    *len = 6;
+	    char dbuf[32];
+	    int dlen = snprintf(dbuf, sizeof(dbuf), "#%u=", (*i) + 1);
+	    *data++ = RADIUS_A_CISCO_AVPAIR;
+	    *data = 2 + dacl->prefix.len + dlen + dacl->ace[*i].iov_len;
+	    *len += *data;
+	    data++;
+	    memcpy(data, dacl->prefix.txt, dacl->prefix.len);
+	    data += dacl->prefix.len;
+	    memcpy(data, dbuf, dlen);
+	    data += dlen;
+	    memcpy(data, dacl->ace[*i].iov_base, dacl->ace[*i].iov_len);
+	    data += dacl->ace[*i].iov_len;
+	}
+	(*i)++;
+    }
+    if (*i < dacl->nace) {
+	uint32_t u = htonl(*i);
+	*data++ = RADIUS_A_STATE;
+	*data++ = 6;
+	memcpy(data, &u, sizeof(uint32_t));
+	data += 4;
+    }
+    session->radius_data->data_len = data - session->radius_data->data;
+    return 0;
 }
 
 enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
