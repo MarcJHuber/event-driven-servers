@@ -38,6 +38,7 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 		off_t hashfile_offset;	\
 		int skip_recv_out;	\
 		int device_cache_timeout;	\
+		int dacl_cache_timeout;	\
 		uid_t uid;		\
 		gid_t gid;		\
 		uid_t euid;		\
@@ -115,6 +116,7 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 {
     DebugIn(DEBUG_MAVIS);
     mcx->device_cache_timeout = 60;
+    mcx->dacl_cache_timeout = 60;
     while (1) {
 	switch (sym->code) {
 	case S_script:
@@ -145,6 +147,13 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 	    parse(sym, S_timeout);
 	    parse(sym, S_equal);
 	    mcx->device_cache_timeout = parse_int(sym);
+	    continue;
+	case S_dacl:
+	    sym_get(sym);
+	    parse(sym, S_cache);
+	    parse(sym, S_timeout);
+	    parse(sym, S_equal);
+	    mcx->dacl_cache_timeout = parse_int(sym);
 	    continue;
 	default:
 	    parse_error_expect(sym, S_script, S_userid, S_groupid, S_directory, S_action, S_closebra, S_unknown);
@@ -219,6 +228,10 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 	av_ctx *a = av_new(NULL, NULL);
 	fstat(fn, &st);
 	if (!strcmp(t, AV_V_TACTYPE_HOST) && (st.st_mtime + mcx->device_cache_timeout < io_now.tv_sec)) {
+		DebugOut(DEBUG_MAVIS);
+		return MAVIS_DOWN;
+	}
+	if (!strcmp(t, AV_V_TACTYPE_DACL) && (st.st_mtime + mcx->dacl_cache_timeout < io_now.tv_sec)) {
 		DebugOut(DEBUG_MAVIS);
 		return MAVIS_DOWN;
 	}
