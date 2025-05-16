@@ -337,7 +337,7 @@ struct tac_alias {
 struct rad_dacl {
     TAC_NAME_ATTRIBUTES;
     u_int line;			/* configuration file line number */
-    time_t dynamic;		/* caching timeout. Always 0 for static users */
+    time_t dynamic;		/* caching timeout. Always 0 for static dacls */
     tac_realm *realm;
     str_t prefix;
     mem_t *mem;
