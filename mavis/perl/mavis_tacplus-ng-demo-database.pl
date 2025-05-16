@@ -91,7 +91,7 @@ EOT
 		$V[AV_A_TACPROFILE] = <<EOT
 {
 	data = "
-		permit host 1.2.3.4 host 4.5.6.7
+		permit ip host 1.2.3.4 host 4.5.6.7
 		permit tcp any any eq 443
 		deny ip any any
 	"
@@ -136,7 +136,7 @@ EOT
 			}
 			if (aaa.protocol == radius) {
 				set radius[Cisco:Cisco-AVPair] = "shell:priv-lvl=15"
-				set radius[Cisco:Cisco-AVPair] = "\${dacl:demoacl}"
+				set radius[Cisco:Cisco-AVPair] = "ACS:CiscoSecure-Defined-ACL=\${dacl:demoacl}"
 				permit
 			}
 			deny

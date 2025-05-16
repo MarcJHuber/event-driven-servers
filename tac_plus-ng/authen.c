@@ -2139,6 +2139,7 @@ static void do_radius_dacl(tac_session *session)
 	char *h = strrchr(u, '-');
 	if (h)
 	    *h = 0;
+	str_set(&session->username, u, h - u);
 	if (query_mavis_dacl(session, do_radius_dacl))
 	    return;
 	session->dacl = lookup_dacl(u, session->ctx->realm);
