@@ -48,18 +48,18 @@
 <dt>5.2.11. <a class="lk" href="#AEN720">The <span class="emphasis"><i class="emphasis">remote</i></span> module</a></dt>
 <dt>5.2.12. <a class="lk" href="#AEN792">The <span class="emphasis"><i class="emphasis">tacauth_limit</i></span> module</a></dt>
 <dt>5.2.13. <a class="lk" href="#AEN823">The <span class="emphasis"><i class="emphasis">tacinfo_cache</i></span> module</a></dt>
-<dt>5.2.14. <a class="lk" href="#AEN858">The <span class="emphasis"><i class="emphasis">system</i></span> module</a></dt>
-<dt>5.2.15. <a class="lk" href="#AEN932">The <span class="emphasis"><i class="emphasis">userdb</i></span> module</a></dt>
-<dt>5.2.16. <a class="lk" href="#AEN1002">The <span class="emphasis"><i class="emphasis">tee</i></span> module</a></dt>
-<dt>5.2.17. <a class="lk" href="#AEN1039">The <span class="emphasis"><i class="emphasis">null</i></span> module</a></dt>
+<dt>5.2.14. <a class="lk" href="#AEN863">The <span class="emphasis"><i class="emphasis">system</i></span> module</a></dt>
+<dt>5.2.15. <a class="lk" href="#AEN937">The <span class="emphasis"><i class="emphasis">userdb</i></span> module</a></dt>
+<dt>5.2.16. <a class="lk" href="#AEN1007">The <span class="emphasis"><i class="emphasis">tee</i></span> module</a></dt>
+<dt>5.2.17. <a class="lk" href="#AEN1044">The <span class="emphasis"><i class="emphasis">null</i></span> module</a></dt>
 </dl>
 </dd>
-<dt>5.3. <a class="lk" href="#AEN1043">MAVIS Scripting Language</a></dt>
+<dt>5.3. <a class="lk" href="#AEN1048">MAVIS Scripting Language</a></dt>
 </dl>
 </dd>
-<dt>6. <a class="lk" href="#AEN1238">Testing your MAVIS configuration</a></dt>
-<dt>7. <a class="lk" href="#AEN1247">Environmental Variables</a></dt>
-<dt>8. <a class="lk" href="#AEN1252">Copyrights and Acknowledgements</a></dt>
+<dt>6. <a class="lk" href="#AEN1243">Testing your MAVIS configuration</a></dt>
+<dt>7. <a class="lk" href="#AEN1252">Environmental Variables</a></dt>
+<dt>8. <a class="lk" href="#AEN1257">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -845,6 +845,10 @@ session  required       pam_opendirectory.so</pre>
 <p>Specifies the directory to use for caching. Please consider that the daemon will not clean up the files/directories in there. This configuration is mandatory, there is no default. Example: <tt class="literal">directory = /tmp/tacauth</tt></p>
 </li>
 <li>
+<p><tt class="literal">dacl cache timeout =</tt> <span class="emphasis"><i class="emphasis">seconds</i></span></p>
+<p>Sets the number of seconds dacl info should be cached. Default: 60s.</p>
+</li>
+<li>
 <p><tt class="literal">device cache timeout =</tt> <span class="emphasis"><i class="emphasis">seconds</i></span></p>
 <p>Sets the number of seconds device info should be cached. Default: 60s.</p>
 </li>
@@ -852,7 +856,7 @@ session  required       pam_opendirectory.so</pre>
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN854" id="AEN854">5.2.13.2. Example</a></h5>
+<h5 class="section"><a name="AEN859" id="AEN859">5.2.13.2. Example</a></h5>
 <pre class="screen">mavis module = tacinfo_cache {
   directory = /tmp/tacinfo
 }
@@ -862,12 +866,12 @@ mavis module = external {
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN858" id="AEN858">5.2.14. The <span class="emphasis"><i class="emphasis">system</i></span> module</a></h4>
+<h4 class="section"><a name="AEN863" id="AEN863">5.2.14. The <span class="emphasis"><i class="emphasis">system</i></span> module</a></h4>
 <p>This module implements FTP authentication via UNIX system accounts or accounts defined in UNIX password-style files. Optionally, certificate based authentication is available. Please note that the <tt class="literal">pam</tt> module may be a better choice for most installations.</p>
 <p>Programs utilizing this module will most likely have to run under the user id of root if access to the shadow password file is required.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN864" id="AEN864">5.2.14.1. Configuration directives</a></h5>
+<h5 class="section"><a name="AEN869" id="AEN869">5.2.14.1. Configuration directives</a></h5>
 <ul>
 <li>
 <p><tt class="literal">chroot =</tt> ( <tt class="literal">yes</tt> | <tt class="literal">no</tt> )</p>
@@ -901,7 +905,7 @@ mavis module = external {
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN922" id="AEN922">5.2.14.2. Railroad Diagram</a></h5>
+<h5 class="section"><a name="AEN927" id="AEN927">5.2.14.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
 <p><img alt="" src="railroad/mavis/SystemConf.svg"></p>
 <div class="caption">
@@ -912,11 +916,11 @@ mavis module = external {
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN932" id="AEN932">5.2.15. The <span class="emphasis"><i class="emphasis">userdb</i></span> module</a></h4>
+<h4 class="section"><a name="AEN937" id="AEN937">5.2.15. The <span class="emphasis"><i class="emphasis">userdb</i></span> module</a></h4>
 <p>This module can be used to define static users, e.g. for FTP. It requires the <tt class="literal">auth</tt> module for user authentication.</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN937" id="AEN937">5.2.15.1. Configuration directives</a></h5>
+<h5 class="section"><a name="AEN942" id="AEN942">5.2.15.1. Configuration directives</a></h5>
 <p>Syntax for defining users is <tt class="literal">user =</tt> <span class="emphasis"><i class="emphasis">UserName</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt>. The following configuration directives inside the curly brackets are mandatory for FTP, but not enforced:</p>
 <ul>
 <li>
@@ -951,7 +955,7 @@ mavis module = external {
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN987" id="AEN987">5.2.15.2. Railroad Diagram</a></h5>
+<h5 class="section"><a name="AEN992" id="AEN992">5.2.15.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
 <p><img alt="" src="railroad/mavis/UserDBConf.svg"></p>
 <div class="caption">
@@ -961,7 +965,7 @@ mavis module = external {
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN997" id="AEN997">5.2.15.3. Example</a></h5>
+<h5 class="section"><a name="AEN1002" id="AEN1002">5.2.15.3. Example</a></h5>
 <p>The following is a valid configuration for <span class="bold"><b class="emphasis">ftpd</b></span> which utilizes various MAVIS backends:</p>
 <pre class="screen">id = spawnd {
     listen = { port = 21 }
@@ -999,11 +1003,11 @@ id = ftpd {
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN1002" id="AEN1002">5.2.16. The <span class="emphasis"><i class="emphasis">tee</i></span> module</a></h4>
+<h4 class="section"><a name="AEN1007" id="AEN1007">5.2.16. The <span class="emphasis"><i class="emphasis">tee</i></span> module</a></h4>
 <p>This module is used for development only. It writes sent and received attribute-value pairs to disk in a format which may, for example, be used to test external authenticators (see the description of the <span class="emphasis"><i class="emphasis">external</i></span> module).</p>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN1007" id="AEN1007">5.2.16.1. Configuration directives</a></h5>
+<h5 class="section"><a name="AEN1012" id="AEN1012">5.2.16.1. Configuration directives</a></h5>
 <p>Available configuration options are:</p>
 <ul>
 <li>
@@ -1022,7 +1026,7 @@ id = ftpd {
 </div>
 <div class="section">
 <hr>
-<h5 class="section"><a name="AEN1029" id="AEN1029">5.2.16.2. Railroad Diagram</a></h5>
+<h5 class="section"><a name="AEN1034" id="AEN1034">5.2.16.2. Railroad Diagram</a></h5>
 <div class="mediaobject">
 <p><img alt="" src="railroad/mavis/TeeConf.svg"></p>
 <div class="caption">
@@ -1033,13 +1037,13 @@ id = ftpd {
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN1039" id="AEN1039">5.2.17. The <span class="emphasis"><i class="emphasis">null</i></span> module</a></h4>
+<h4 class="section"><a name="AEN1044" id="AEN1044">5.2.17. The <span class="emphasis"><i class="emphasis">null</i></span> module</a></h4>
 <p>This module comes without any functionality on its own. It may however be used in conjunction with the scripting feature described below.</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN1043" id="AEN1043">5.3. MAVIS Scripting Language</a></h3>
+<h3 class="section"><a name="AEN1048" id="AEN1048">5.3. MAVIS Scripting Language</a></h3>
 <p>All MAVIS modules in the distribution come with some basic scripting language support for modifying AV pair and/or module behavior. Scripts can be called when entering or leaving a module and are defined using the <tt class="literal">script</tt> keyword.</p>
 <p>Generic syntax for the scripting feature is:</p>
 <p><tt class="literal">script</tt> ( <tt class="literal">in</tt> | <tt class="literal">out</tt> | <tt class="literal">interim</tt>) <tt class="literal">= {</tt> <span class="emphasis"><i class="emphasis">action</i></span>+ <tt class="literal">}</tt></p>
@@ -1282,7 +1286,7 @@ id = tac_plus {
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1238" id="AEN1238">6. Testing your MAVIS configuration</a></h2>
+<h2 class="section"><a name="AEN1243" id="AEN1243">6. Testing your MAVIS configuration</a></h2>
 <p>You'll almost certainly want to validate that your backend configuration behaves as expected. You can do so using the <tt class="literal">mavistest</tt> binary. Syntax is:</p>
 <pre class="screen">mavistest [options] &lt;config&gt; &lt;id&gt; &lt;type&gt; &lt;user&gt; [&lt;password&gt;]
 
@@ -1307,14 +1311,14 @@ Sample usage: mavistest -d -1  /usr/local/etc/tac_plus.cfg tac_plus TACPLUS joe 
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1247" id="AEN1247">7. Environmental Variables</a></h2>
+<h2 class="section"><a name="AEN1252" id="AEN1252">7. Environmental Variables</a></h2>
 <p>Text enclosed in double quotes may make use of environment variables, e.g.:</p>
 <pre class="screen">filename = "${HOME}/log.txt"</pre>
 <p>The braces are required.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1252" id="AEN1252">8. Copyrights and Acknowledgements</a></h2>
+<h2 class="section"><a name="AEN1257" id="AEN1257">8. Copyrights and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of individual files.</p>
 <ul>
 <li>
@@ -1362,7 +1366,7 @@ this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 </li>
 <li>
 <p>The end-user documentation included with the redistribution, if any, must include the following acknowledgment:</p>
-<a name="AEN1301" id="AEN1301"></a>
+<a name="AEN1306" id="AEN1306"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber (<code class="email">&lt;<a class="lk" href="mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>).</p>
 </blockquote>

@@ -110,10 +110,11 @@ Marc Huber
    6. RADIUS
 
         6.1. Accepting RADIUS Queries
-        6.2. RADIUS Dictionary
-        6.3. RADIUS Rule Set
-        6.4. RADIUS Logging
-        6.5. RADIUS Example Configurations
+        6.2. RADIUS DACLs
+        6.3. RADIUS Dictionary
+        6.4. RADIUS Rule Set
+        6.5. RADIUS Logging
+        6.6. RADIUS Example Configurations
 
    7. Debugging
 
@@ -3061,10 +3062,11 @@ ntly enabled.\n"
 6. RADIUS
 
    tac_plus-ng comes with limited RADIUS support: Only PAP
-   authentications and accounting are supported. This should be
-   sufficient for handling administrative access, and the main
-   reason for this feature is actually to provide a common
-   configuration for both TACACS+ and RADIUS
+   authentications and accounting and Downloadable ACLs are
+   supported. This should be sufficient for handling
+   administrative access, and the main reason for this feature is
+   actually to provide a common configuration for both TACACS+ and
+   RADIUS
 
    If you don't care about RADIUS: That functionality will not be
    available unless a RADIUS dictionary (see below) is configured,
@@ -3109,7 +3111,13 @@ id = spawnd {
    RADSEC doesn't need this key definition.
      __________________________________________________________
 
-6.2. RADIUS Dictionary
+6.2. RADIUS DACLs
+
+   DACLs are currently documented in in the Wiki, but
+   documentation will eventually move here.
+     __________________________________________________________
+
+6.3. RADIUS Dictionary
 
    There's no file format standard for RADIUS dictionaries, so
    tac_plus-ng comes with its own, too. Here's an exceprt from
@@ -3181,7 +3189,7 @@ radius.dictionary cisco 9 {
    which is recommended.
      __________________________________________________________
 
-6.3. RADIUS Rule Set
+6.4. RADIUS Rule Set
 
    RADIUS attributes are accessible via radius[AttributeName] and
    can be used both in conditions and set clauses:
@@ -3195,7 +3203,7 @@ radius.dictionary cisco 9 {
     }
      __________________________________________________________
 
-6.4. RADIUS Logging
+6.5. RADIUS Logging
 
    TACACS+ and RADIUS share the connection log. Dedicated RADIUS
    logs for authentication and acounting can be enabled:
@@ -3217,7 +3225,7 @@ radius.dictionary cisco 9 {
         connection log = connlog
      __________________________________________________________
 
-6.5. RADIUS Example Configurations
+6.6. RADIUS Example Configurations
 
    Sample configurations are available in the tac_plus-ng/samples/
    directory.

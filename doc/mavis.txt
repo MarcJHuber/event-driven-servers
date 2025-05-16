@@ -805,6 +805,9 @@ session  required       pam_opendirectory.so
        that the daemon will not clean up the files/directories in
        there. This configuration is mandatory, there is no
        default. Example: directory = /tmp/tacauth
+     * dacl cache timeout = seconds
+       Sets the number of seconds dacl info should be cached.
+       Default: 60s.
      * device cache timeout = seconds
        Sets the number of seconds device info should be cached.
        Default: 60s.
