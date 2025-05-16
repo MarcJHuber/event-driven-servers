@@ -2125,14 +2125,11 @@ static void do_radius_login(tac_session *session)
 static void do_radius_dacl(tac_session *session)
 {
     int first = 0;
+    enum token res = S_deny;
     if (!session->dacl) {
 	first = 1;
-	enum token res = S_deny;
-	if (!session->username.txt) {
-	    report_auth(session, "dacl request", hint_failed, res);
-	    rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
-	    return;
-	}
+	if (!session->username.txt)
+	    goto fail;
 	char *u = session->username.txt;
 	if (!strncmp(u, ACSACL, sizeof(ACSACL) - 1))
 	    u += sizeof(ACSACL) - 1;
@@ -2143,21 +2140,15 @@ static void do_radius_dacl(tac_session *session)
 	if (query_mavis_dacl(session, do_radius_dacl))
 	    return;
 	session->dacl = lookup_dacl(u, session->ctx->realm);
-	if (!session->dacl) {
-	    report_auth(session, "dacl request", hint_failed, res);
-	    rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
-	    return;
-	}
+	if (!session->dacl)
+	    goto fail;
     }
 
     void *val = NULL;
     size_t val_len = 0;
     if (!rad_get(session, -1, RADIUS_A_STATE, S_octets, &val, &val_len)) {
-	if (val && val_len == sizeof(uint32_t)) {
-	} else {
-	    rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
-	    return;
-	}
+	if (!val || val_len != sizeof(uint32_t))
+	    goto fail;
 	memcpy(&session->nace, val, sizeof(uint32_t));
 	session->nace = ntohl(session->nace);
     }
@@ -2171,6 +2162,11 @@ static void do_radius_dacl(tac_session *session)
 	    dacl_copy(session);
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_CHALLENGE, NULL);
     }
+    return;
+
+  fail:
+    report_auth(session, "dacl request", hint_failed, res);
+    rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 }
 
 void rad_authen(tac_session *session)
