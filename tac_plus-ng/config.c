@@ -5722,10 +5722,9 @@ static void rad_attr_add(tac_session *session, struct rad_action *a, union rad_a
 
 int rad_attr_add_dacl(tac_session *session, struct rad_dacl *dacl, uint32_t *i)
 {
-    if (!dacl)
+    if (!dacl || !session->radius_data)
 	return -1;
-    if (!session->radius_data)
-	return -1;
+
     u_char *data = session->radius_data->data + session->radius_data->data_len;
     u_char *data_end = session->radius_data->data + sizeof(session->radius_data->data) - 18 /* Message Authenticator */  - 6 /* State */ ;
 
