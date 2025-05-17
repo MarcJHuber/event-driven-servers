@@ -1416,7 +1416,7 @@ ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags)
 	    ctx->inject_len = 0;
 	return len;
     }
-    ssize_t res = read(ctx->sock, buf, len);
+    ssize_t res = recv(ctx->sock, buf, len, flags);
     return (!res && len) ? -1 : res;
 }
 
