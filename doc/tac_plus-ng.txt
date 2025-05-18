@@ -3113,8 +3113,34 @@ id = spawnd {
 
 6.2. RADIUS DACLs
 
-   DACLs are currently documented in in the Wiki, but
-   documentation will eventually move here.
+   CISCO downloadalbe DACLs are supported for RADIUS. Downloadable
+   ACL sample definition:
+    dacl demoacl {
+        # prefix = "ip:inacl" # This is the default.
+        # version = 12345678  # This is explained somewhere below.
+        data = "
+            deny ip host 10.0.0.0 any
+            permit ip any any
+        "
+    }
+
+   In user profile context, you can then
+    set radius[Cisco:Cisco-AVPair] = "ACS:CiscoSecure-Defined-ACL=${dacl
+:demoacl}"
+
+   which will instruct the device to query for that ACL via
+   RADIUS.
+
+   The device will see the demoacl portion as something like
+   #ACSACL#demoacl-12345678, with 12345678 being the manually set
+   version number (version = 12345678) or the first 4 bytes of the
+   ACL MD5 checksum in hex.
+
+   MAVIS support is there, too. One of the demo scripts
+   (mavis_tacplus-ng-demo-database.pl) shows how to handle that.
+
+   No syntax checking is done for the data argument. If you mess
+   up on that then the device will likely reject the connection.
      __________________________________________________________
 
 6.3. RADIUS Dictionary

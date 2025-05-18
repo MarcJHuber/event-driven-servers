@@ -90,6 +90,8 @@ EOT
 # XXX Add your DACL lookup code here.
 		$V[AV_A_TACPROFILE] = <<EOT
 {
+	#prefix = "ip:inacl" # the default, actually
+	#version = 423 # internal version number from database
 	data = "
 		permit ip host 1.2.3.4 host 4.5.6.7
 		permit tcp any any eq 443
