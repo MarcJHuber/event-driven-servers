@@ -566,26 +566,26 @@ void expire_dynamic_acls(tac_realm *r)
 
 tac_user *lookup_user(tac_session *session)
 {
-    session->user = NULL;
+    tac_user *res = NULL;
     if (!session->username.len)
 	return NULL;
     tac_user user = {.name = session->username };
     tac_realm *r = session->ctx->realm;
-    while (r && !session->user) {
+    while (r && !res) {
 	if (r->usertable)
-	    session->user = RB_lookup(r->usertable, &user);
-	if (!session->user && r->aliastable) {
+	    res = RB_lookup(r->usertable, &user);
+	if (!res && r->aliastable) {
 	    tac_alias *a = RB_lookup(r->aliastable, &user);
 	    if (a)
-		session->user = a->user;
+		res = a->user;
 	}
-	if (session->user && session->user->dynamic && (session->user->dynamic < io_now.tv_sec)) {
-	    RB_search_and_delete(r->usertable, session->user);
-	    session->user = NULL;
+	if (res && res->dynamic && (res->dynamic < io_now.tv_sec)) {
+	    RB_search_and_delete(r->usertable, res);
+	    res = NULL;
 	}
 	r = r->parent;
     }
-    return session->user;
+    return res;
 }
 
 static tac_profile *lookup_profile(char *name, tac_realm *r)

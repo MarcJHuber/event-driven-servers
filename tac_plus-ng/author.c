@@ -280,7 +280,7 @@ static void do_author(tac_session *session)
     }
 
     if (!session->user && session->username.len) {
-	if (lookup_user(session)) {
+	if ((session->user = lookup_user(session))) {
 	    session->debug |= session->user->debug;
 	    if (session->profile)
 		session->debug |= session->profile->debug;

@@ -458,7 +458,7 @@ static enum token lookup_and_set_user(tac_session *session)
     report(DEBAUTHC, "looking for user %s realm %s", session->username.txt, session->ctx->realm->name.txt);
 
     if (!session->user_is_session_specific)
-	lookup_user(session);
+	session->user = lookup_user(session);
 
     if (session->user && session->user->fallback_only
 	&& ((session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period < io_now.tv_sec)
