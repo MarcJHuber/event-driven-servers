@@ -132,6 +132,7 @@ static struct hint_struct hints[hint_max] = {
     HINT("denied (invalid challenge length)", "AUTHC-FAIL-BAD-CHALLENGE-LENGTH"),
     HINT("denied (minimum password requirements not met)", "AUTHC-FAIL-WEAKPASSWORD"),
     HINT("denied (bad RADIUS secret)", "AUTHC-FAIL-BADSECRET"),
+    HINT("error (rejected)", "AUTHC-ERROR"),
 };
 
 #undef HINT
@@ -419,6 +420,9 @@ static enum token compare_pwdat(struct pwdat *a, char *username __attribute__((u
     case S_deny:
 	*hint = hint_denied;
 	return S_deny;
+    case S_error:
+	*hint = hint_error;
+	return S_error;
     case S_unknown:
 	*hint = hint_nopass;
 	return S_deny;
@@ -623,14 +627,17 @@ static enum token check_access(tac_session *session, struct pwdat *pwdat, char *
 	*hint = hint_succeeded;
 	break;
     case S_error:
-	*hint = hint_backend_error;
+	if (pwdat && pwdat->type == S_error)
+	    *hint = hint_error;
+	else
+	    *hint = hint_backend_error;
 	break;
     default:
 	*hint = hint_failed;
 	break;
     }
 
-    if (session->user) {
+    if (session->user && (!pwdat || pwdat->type != S_error)) {
 	if (res == S_permit && !session->authorized &&
 	    (S_deny == author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first) ||
 	     S_permit != eval_ruleset(session, session->ctx->realm))) {
@@ -870,6 +877,11 @@ static void do_enable_login(tac_session *session)
 	return;
     }
 
+    if (session->user && session->user->passwd[PW_LOGIN] && session->user->passwd[PW_LOGIN]->type == S_error) {
+	send_authen_error(session, "Handling refused.");
+	return;
+    }
+
     if (query_mavis_info_login(session, do_enable_login))
 	return;
 
@@ -920,6 +932,11 @@ static void do_enable_augmented(tac_session *session)
     if (res == S_deny) {
 	report_auth(session, "enable login", hint_denied_by_acl, res);
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+	return;
+    }
+
+    if (session->user && session->user->passwd[PW_LOGIN] && session->user->passwd[PW_LOGIN]->type == S_error) {
+	send_authen_error(session, "Handling refused.");
 	return;
     }
 
@@ -1003,6 +1020,12 @@ static void do_enable(tac_session *session)
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return;
     }
+
+    if (session->user && session->user->passwd[PW_LOGIN] && session->user->passwd[PW_LOGIN]->type == S_error) {
+	send_authen_error(session, "Handling refused.");
+	return;
+    }
+
     if (query_mavis_info(session, do_enable, PW_LOGIN))
 	return;
 
@@ -1063,6 +1086,12 @@ static void do_ascii_login(tac_session *session)
 	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
 	return;
     }
+
+    if (session->user && session->user->passwd[PW_LOGIN] && session->user->passwd[PW_LOGIN]->type == S_error) {
+	send_authen_error(session, "Handling refused.");
+	return;
+    }
+
     if (query_mavis_info_login(session, do_ascii_login))
 	return;
 
@@ -1254,6 +1283,12 @@ static void do_enable_getuser(tac_session *session)
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return;
     }
+
+    if (session->user && session->user->passwd[PW_LOGIN] && session->user->passwd[PW_LOGIN]->type == S_error) {
+	send_authen_error(session, "Handling refused.");
+	return;
+    }
+
     if (query_mavis_info_login(session, do_enable_getuser))
 	return;
 
@@ -1997,6 +2032,12 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	if (session->authen_data->authfn) {
 	    u_char *p = (u_char *) start + TAC_AUTHEN_START_FIXED_FIELDS_SIZE;
 	    str_set(&session->username, mem_strndup(session->mem, p, start->user_len), start->user_len);
+	    tac_user *u = lookup_user(session);
+
+	    if (u && u->passwd[PW_LOGIN] && u->passwd[PW_LOGIN]->type == S_error) {
+		send_authen_error(session, "Handling refused.");
+		return;
+	    }
 
 	    p += start->user_len;
 	    str_set(&session->port, mem_strndup(session->mem, p, start->port_len), start->port_len);
@@ -2083,6 +2124,12 @@ static void do_radius_login(tac_session *session)
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
     }
+
+    if (session->user && session->user->passwd[PW_LOGIN] && session->user->passwd[PW_LOGIN]->type == S_error) {
+	cleanup_session(session);
+	return;
+    }
+
     if (query_mavis_info_login(session, do_radius_login))
 	return;
 

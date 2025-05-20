@@ -307,6 +307,11 @@ static void do_author(tac_session *session)
 	return;
     }
 
+    if (session->user && session->user->passwd[PW_LOGIN] && session->user->passwd[PW_LOGIN]->type == S_error) {
+	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_ERROR, NULL, NULL, 0, NULL);
+	return;
+    }
+
     session->debug |= session->user->debug;
     if (session->profile)
 	session->debug |= session->profile->debug;

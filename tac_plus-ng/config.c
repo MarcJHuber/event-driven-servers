@@ -2472,6 +2472,7 @@ static struct pwdat passwd_deny_dflt = {.type = S_deny };
 static struct pwdat passwd_mavis_dflt = {.type = S_mavis };
 static struct pwdat passwd_login_dflt = {.type = S_login };
 static struct pwdat passwd_permit = {.type = S_permit };
+static struct pwdat passwd_error = {.type = S_error };
 
 tac_user *new_user(char *name, enum token type, tac_realm *r)
 {
@@ -2915,6 +2916,9 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
     case S_deny:
 	sym_get(sym);
 	return &passwd_deny;
+    case S_error:
+	sym_get(sym);
+	return &passwd_error;
     case S_5:
 	sym->code = S_crypt;
     case S_asa:
