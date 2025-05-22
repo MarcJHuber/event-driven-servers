@@ -38,9 +38,9 @@ static void usage(void)
 	    "\n"		//
 	    "Options:\n"	//
 #ifdef WITH_RADCLI
-	    "  -c <configfile>          Path to freeradius-client configuration file\n"	//
+	    "  -c <configfile>          Path to radcli configuration file (mandatory)\n"	//
 #else
-	    "  -c <configfile>          Path to radcli configuration file\n"	//
+	    "  -c <configfile>          Path to freeradius-client configuration file\n"	//
 #endif
 	    "  group_attribute=<attr>   Use attribute <attr> to determine user groups\n"	//
 	    "  <option>=<value>         Set freeradius-client option <option> to <value>\n"	//
@@ -64,7 +64,7 @@ static void usage(void)
     exit(-1);
 }
 
-static void set_rc(rc_handle * rh, char *a, char *v)
+static void set_rc(rc_handle *rh, char *a, char *v)
 {
     if (!rc_add_config(rh, a, v, "config", 0))
 	return;
@@ -74,7 +74,7 @@ static void set_rc(rc_handle * rh, char *a, char *v)
 
 static pthread_mutex_t mutex_lock;
 
-static void av_write(av_ctx * ac, uint32_t result)
+static void av_write(av_ctx *ac, uint32_t result)
 {
     size_t len = av_array_to_char_len(ac);
     char *buf = alloca(len + sizeof(struct mavis_ext_hdr_v1));
@@ -189,10 +189,29 @@ int main(int argc, char **argv)
 	a++;
     if (*a)
 	a++;
-    if (*a) {
-	rh = rc_read_config(*a);
+
+    char *cfg = *a;
+#if defined(WITH_RADCLI)
+    if (!cfg) {
+	cfg = "/etc/radcli/radiusclient.conf";
+	if (access(cfg, R_OK)) {
+	    cfg = "/usr/local/etc/radcli/radiusclient.conf";
+	    if (access(cfg, R_OK))
+		cfg = NULL;
+	}
+	if (cfg)
+	    fprintf(stderr, "Configuration file found: %s\n", cfg);
+	else {
+	    fprintf(stderr, "Configuration not found, expect trouble.\n");
+	    exit(-1);
+	}
+    }
+#endif
+
+    if (cfg) {
+	rh = rc_read_config(cfg);
 	if (!rh) {
-	    fprintf(stderr, "Parsing %s failed.\n", *a);
+	    fprintf(stderr, "Parsing %s failed.\n", cfg);
 	    exit(-1);
 	}
     }
@@ -204,12 +223,15 @@ int main(int argc, char **argv)
 
 	set_rc(rh, "auth_order", "radius");
 	set_rc(rh, "login_tries", "4");
+#ifdef WITH_RADCLI
+	set_rc(rh, "dictionary", "/etc/radcli/dictionary");
+#else
 	set_rc(rh, "dictionary", "/usr/local/etc/radiusclient/dictionary");
+#endif
 	set_rc(rh, "radius_retries", "3");
 	set_rc(rh, "radius_timeout", "5");
 	set_rc(rh, "radius_deadtime", "10");
     }
-
 #if defined(WITH_RADCLI) && (RADCLI_VERSION_NUMBER > 0x010209)
     rc_apply_config(rh);
 #endif
@@ -231,7 +253,7 @@ int main(int argc, char **argv)
 	} else if (!strcmp(*a, "-c")) {	// skip argument, processed before
 	    a++;
 	} else {
-	    rc_log(LOG_CRIT, "Unable to parse '%s'\n", *a);
+	    fprintf(stderr, "Unable to parse '%s'\n", *a);
 	    usage();
 	}
 	a++;
@@ -292,7 +314,7 @@ int main(int argc, char **argv)
 		    fcntl(0, F_SETFL, O_NONBLOCK);
 		    is_mt = TRISTATE_NO;
 		}
-		struct pollfd pfd = { .events = POLLIN };
+		struct pollfd pfd = {.events = POLLIN };
 		char *end = strstr(buf, "\n=\n");
 		while (end || (1 == poll(&pfd, 1, -1) && off < BUFSIZE)) {
 		    if (!end) {

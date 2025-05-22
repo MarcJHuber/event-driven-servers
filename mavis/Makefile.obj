@@ -26,36 +26,44 @@ MAVIS_LIB = $(SHLIB_PRE)mavis$(SHLIB_EXT)
 
 M = $(INSTALLROOT)$(LIBARCHDIR_DEST)/mavis
 
+INSTALL_MAVIS_PRG = install_mavistest
+
 ifeq ($(WITH_PAM),1)
 	MAVIS_LIBNAMES += pam
 	MAVIS_PRG += pammavis
-	MAVIS_PAMMAVIS_INSTALL = install_pammavis
+	INSTALL_MAVIS_PRG += install_pammavis
 	ifeq ($(WITH_PTHREAD),1)
 		MAVIS_PRG += pammavis-mt
 		MAVIS_PAMMAVIS_INSTALL += install_pammavis-mt
 	endif
 endif
 
+WITH_RADMAVIS=0
 ifeq ($(WITH_FREERADIUS_CLIENT),1)
-	MAVIS_PRG += radmavis
-	MAVIS_RADMAVIS_INSTALL = install_radmavis
 	LIB_RADCLI=
 	INC_RADCLI=
+	WITH_RADMAVIS=1
+endif
+
+ifeq ($(WITH_RADCLI),1)
+	LIB_FREERADIUS_CLIENT=
+	INC_FREERADIUS_CLIENT=
+	WITH_RADMAVIS=1
+endif
+
+ifeq ($(WITH_RADMAVIS),1)
+	MAVIS_PRG += radmavis
+	INSTALL_MAVIS_PRG += install_radmavis
 	ifeq ($(WITH_PTHREAD),1)
 		MAVIS_PRG += radmavis-mt
-		MAVIS_PAMMAVIS_INSTALL += install_radmavis-mt
-	endif
-else
-	ifeq ($(WITH_RADCLI),1)
-		MAVIS_PRG += radmavis
-		MAVIS_RADMAVIS_INSTALL = install_radmavis
+		INSTALL_MAVIS_PRG += install_radmavis-mt
 	endif
 endif
 
 ifeq ($(WITH_LDAP),1)
 	ifeq ($(WITH_PTHREAD),1)
 		MAVIS_PRG += ldapmavis-mt
-		MAVIS_RADMAVIS_INSTALL = install_ldapmavis-mt
+		INSTALL_MAVIS_PRG += install_ldapmavis-mt
 	endif
 endif
 
@@ -81,10 +89,10 @@ all:	$(ALL) install_stage
 mavistest$(EXEC_EXT): mavistest.o $(MAVIS_LIB)
 	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_NET)
 
-radmavis-mt.o: INC += $(INC_FREERADIUS_CLIENT) $(INC_RADCLI) $(MAVIS_LIB)
+radmavis-mt.o: INC += $(INC_FREERADIUS_CLIENT) $(INC_RADCLI)
 
 radmavis-mt$(EXEC_EXT): radmavis-mt.o $(MAVIS_LIB)
-	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PTHREAD) $(LIB_FREERADIUS_CLIENT) $(LIB_NET)
+	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_PTHREAD) $(LIB_FREERADIUS_CLIENT) $(LIB_RADCLI) $(LIB_NET)
 
 ldapavis-mt.o: INC += $(INC_LDAP)
 
@@ -308,7 +316,7 @@ install_radmavis-mt: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)
 
 install_ldapmavis-mt: $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/ldapmavis-mt$(EXEC_EXT)
 
-install_prg: install_mavistest $(MAVIS_RADMAVIS_INSTALL) $(MAVIS_PAMMAVIS_INSTALL)
+install_prg: $(INSTALL_MAVIS_PRG)
 
 install_perl:
 	@$(MAKE) -C $(BASE)/mavis/perl install

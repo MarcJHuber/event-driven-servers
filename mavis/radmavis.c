@@ -30,9 +30,9 @@ static void usage(void)
 	    "\n"		//
 	    "Options:\n"	//
 #ifdef WITH_RADCLI
-	    "  -c <configfile>          Path to freeradius-client configuration file\n"	//
+	    "  -c <configfile>          Path to radcli configuration file (mandatory)\n"	//
 #else
-	    "  -c <configfile>          Path to radcli configuration file\n"	//
+	    "  -c <configfile>          Path to freeradius-client configuration file\n"	//
 #endif
 	    "  group_attribute=<attr>   Use attribute <attr> to determine user groups\n"	//
 	    "  <option>=<value>         Set freeradius-client option <option> to <value>\n"	//
@@ -56,7 +56,7 @@ static void usage(void)
     exit(-1);
 }
 
-static void set_rc(rc_handle * rh, char *a, char *v)
+static void set_rc(rc_handle *rh, char *a, char *v)
 {
     if (!rc_add_config(rh, a, v, "config", 0))
 	return;
@@ -82,10 +82,29 @@ int main(int argc, char **argv)
 	a++;
     if (*a)
 	a++;
-    if (*a) {
-	rh = rc_read_config(*a);
+
+    char *cfg = *a;
+#if defined(WITH_RADCLI)
+    if (!cfg) {
+	cfg = "/etc/radcli/radiusclient.conf";
+	if (access(cfg, R_OK)) {
+	    cfg = "/usr/local/etc/radcli/radiusclient.conf";
+	    if (access(*a, R_OK))
+		cfg = NULL;
+	}
+	if (cfg)
+	    fprintf(stderr, "Configuration file found: %s\n", cfg);
+	else {
+	    fprintf(stderr, "No configuration file found, exiting.\n");
+	    exit(-1);
+	}
+    }
+#endif
+
+    if (cfg) {
+	rh = rc_read_config(cfg);
 	if (!rh) {
-	    fprintf(stderr, "Parsing %s failed.\n", *a);
+	    fprintf(stderr, "Parsing %s failed.\n", cfg);
 	    exit(-1);
 	}
     }
@@ -106,7 +125,6 @@ int main(int argc, char **argv)
 	set_rc(rh, "radius_timeout", "5");
 	set_rc(rh, "radius_deadtime", "10");
     }
-
 #if defined(WITH_RADCLI) && (RADCLI_VERSION_NUMBER > 0x010209)
     rc_apply_config(rh);
 #endif
@@ -125,10 +143,10 @@ int main(int argc, char **argv)
 	    *eq = '=';
 	} else if (!strcmp(*a, "-h")) {
 	    usage();
-	} else if (!strcmp(*a, "-c")) {
+	} else if (!strcmp(*a, "-c")) {	// skip argument, processed before
 	    a++;
 	} else {
-	    rc_log(LOG_CRIT, "Unable to parse '%s'\n", *a);
+	    fprintf(stderr, "Unable to parse '%s'\n", *a);
 	    usage();
 	}
 	a++;
