@@ -86,12 +86,10 @@ int main(int argc, char **argv)
     char *cfg = *a;
 #if defined(WITH_RADCLI)
     if (!cfg) {
-	cfg = "/etc/radcli/radiusclient.conf";
-	if (access(cfg, R_OK)) {
-	    cfg = "/usr/local/etc/radcli/radiusclient.conf";
-	    if (access(*a, R_OK))
-		cfg = NULL;
-	}
+	char *cfgs[] = { "/etc/radcli/radiusclient.conf", "/usr/local/etc/radcli/radiusclient.conf", NULL };
+	for (char **c = cfgs; *c && !cfg; c++)
+	    if (!access(*c, R_OK))
+		cfg = *c;
 	if (cfg)
 	    fprintf(stderr, "Configuration file found: %s\n", cfg);
 	else {
@@ -108,7 +106,7 @@ int main(int argc, char **argv)
 	    exit(-1);
 	}
     }
-
+#ifndef WITH_RADCLI
     if (!rh) {
 	// set some defaults
 	rh = rc_new();
@@ -116,15 +114,18 @@ int main(int argc, char **argv)
 
 	set_rc(rh, "auth_order", "radius");
 	set_rc(rh, "login_tries", "4");
-#ifdef WITH_RADCLI
-	set_rc(rh, "dictionary", "/etc/radcli/dictionary");
-#else
-	set_rc(rh, "dictionary", "/usr/local/etc/radiusclient/dictionary");
-#endif
 	set_rc(rh, "radius_retries", "3");
 	set_rc(rh, "radius_timeout", "5");
 	set_rc(rh, "radius_deadtime", "10");
+
+	char *dicts[] = { "/etc/radiusclient/dictionary", "/usr/local/etc/radiusclient/dictionary", NULL };
+	for (char **d = dicts; *d; d++)
+	    if (!access(*d, R_OK)) {
+		set_rc(rh, "dictionary", *d);
+		break;
+	    }
     }
+#endif
 #if defined(WITH_RADCLI) && (RADCLI_VERSION_NUMBER > 0x010209)
     rc_apply_config(rh);
 #endif
