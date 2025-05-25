@@ -1172,7 +1172,7 @@ u_int parse_uint(struct sym *sym)
 	return i;
     default:
       bye:
-	parse_error(sym, "expected an integer, but got '%s'", sym->buf);
+	parse_error(sym, "expected an unsigned integer, but got '%s'", sym->buf);
 	return -1;
     }
 }
