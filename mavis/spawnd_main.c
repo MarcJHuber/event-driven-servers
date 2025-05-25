@@ -586,7 +586,6 @@ void scm_main(int argc, char **argv, char **envp)
 
     init_common_data();
     common_data.progname = strdup(basename(argv[0]));
-
     common_data.version = VERSION
 #ifdef WITH_PCRE2
 	"/PCRE2"
@@ -605,6 +604,9 @@ void scm_main(int argc, char **argv, char **envp)
 #endif
 #ifdef WITH_SSL
 	"/SSL"
+#endif
+#ifdef DEBUG
+	"/DEBUG"
 #endif
 	;
     logopen();
