@@ -75,10 +75,6 @@
 #define GLOB_NOESCAPE 0
 #endif
 
-#ifdef WITH_CURL
-#include <curl/curl.h>
-#endif
-
 #ifdef WITH_PCRE2
 #include <pcre2.h>
 #endif
