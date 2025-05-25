@@ -17,7 +17,11 @@
 #define MAVISDEBUG 1
 #undef DEBUG
 #endif
+#ifdef WITH_RADCLI
+#include <radcli/radcli.h>
+#else
 #include <freeradius-client.h>
+#endif
 #undef DEBUG
 #ifdef MAVISDEBUG
 #undef MAVISDEBUG
