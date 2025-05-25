@@ -1149,7 +1149,10 @@ u_int parse_uint(struct sym *sym)
     int i;
     char c;
 
-    switch (sscanf(sym->buf, "%u%c", &i, &c)) {
+    int r = sscanf(sym->buf, "%u%c", &i, &c);
+    if (r == 2 && i == 0 && (c == 'x' || c == 'X'))
+	r = sscanf(sym->buf, "%x%c", &i, &c);
+    switch (r) {
     case 2:
 	switch (c) {
 	default:
