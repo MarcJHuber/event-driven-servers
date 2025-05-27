@@ -1311,6 +1311,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 	if (h->target_realm && r != h->target_realm) {
 	    r = h->target_realm;
+	    ctx->realm = r;
 	    rxt = lookup_hosttree(r);
 	    if (rxt) {
 		h = radix_lookup(rxt, &ctx->device_addr, NULL);
