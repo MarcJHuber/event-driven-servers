@@ -2,7 +2,7 @@ TACACS+ NG
 
 Marc Huber
 
-   $Id: e62fd047856c8419d9ba6872a73cabc95d83ce89 $
+   $Id: manual.xml,v 1.2 2025/05/27 16:06:19 ubuntu Exp ubuntu $
      __________________________________________________________
 
    Table of Contents
@@ -487,6 +487,10 @@ ob 38.11)\n\n"
     user demo2 {
         password login = clear demo
         profile {
+            # Inline script definition. Alternatively, defining an ACL w
+ith the scripts
+            # content and refering to that using "script = aclName" work
+s too.
             script {
                 if (service == shell) {
                     if (cmd == "") {
@@ -1587,7 +1591,7 @@ key = ""
        the current device will be looked up there, recursively.
      * device deviceName { DeviceAttr }
        Devices can be defined in device context, too.
-     * script { tacAction }
+     * script ( = aclName | { tacAction } )
        Scripts can be used in device context. These are run before
        AAA and mey be used to permit or deny access, or to rewrite
        usernames.
@@ -1613,8 +1617,9 @@ key = ""
        When set to login, PAP authentication requests will be
        mapped to ASCII Login requests. You may wish to uses this
        for NEXUS devices.
-     * enable [ level ] = ( permit | deny | login | ( clear |
-       crypt | pbkdf2 | asa | 4 | 5 | 7 | 8 | 9 ) password )
+     * enable [ level ] = ( permit | deny | error | login | (
+       clear | crypt | pbkdf2 | asa | 4 | 5 | 7 | 8 | 9 ) password
+       )
        This directive may be used to set device specific enable
        passwords, to use the login password, or to permit (without
        password) or refuse any enable attempt. level defaults to
@@ -1893,13 +1898,13 @@ profile A {
 
    Scripting examples:
 
-     * acl acl_name { tac_action ... }
+     * acl aclName { tac_action ... }
        Example:
     acl myacl123 {
         if (nas == 1.2.3.4 || nac = SomeHostName || nac-dns =~ /\\.examp
 le\\.com$/) deny
     }
-     * script = { tac_action ... }
+     * script ( = aclName | { tacAction } )
        Example:
     profile tunnelAdmin {
         script {
@@ -2136,7 +2141,7 @@ user username { ...  }
        times.
      * password login [ fallback ] = ( ( clear | crypt | pbkdf2 |
        asa | 4 | 5 | 7 | 8 | 9 ) password | mavis | permit | deny
-       )
+       | error )
        The login password authenticates shell log-ins to the
        server.
 password login = crypt aFtFBT4e5muQE
@@ -2150,6 +2155,13 @@ password login = clear Ci5c0
        declarations in the configuration file.
        If you're using password login = mavis, thefallback
        password will be used if there's a MAVIS backend error.
+
+       Tip Fallback to LOCAL
+
+
+   Setting the login password to error will cause the session to
+   be rejected with a TACACS+ error status. This will likely
+   instruct your device to fall back to local authentication.
      * password pap [ fallback ] = ( ( clear | crypt | pbkdf2 |
        asa | 4 | 5 | 7 | 8 | 9 ) password | login|mavis | permit |
        deny )
@@ -2286,7 +2298,7 @@ script {
    defined. Valid configuration directive within the curly
    brackets are:
 
-     * script { tacAction }
+     * script ( = aclName | { tacAction } )
        Commands can be permitted or denied using script syntax:
 script {
     if (service == "shell" && cmd == "")
@@ -2295,8 +2307,8 @@ script {
     if (cmd =~ /^configure /) deny
     permit
 }
-     * acl { tacAction }
-       A acl allows for defining a script that's being evaluated
+     * acl ( = aclName | { tacAction } )
+       A acl allows for refering a script that's being evaluated
        for both authentication and authorization.
      * profile SubProfileName { ... }
        This defines a new profile that inherits most values from
@@ -3587,7 +3599,7 @@ erAccount }
    Net::TacacsPlus::Packet, so check for this first. For
    unavailable packages, you can do a manual install using cpan.
    Example for Ubuntu:
-sudu apt install libnet-ip-perl
+sudo apt install libnet-ip-perl
 sudo cpan install Net::TacacsPlus::Packet
 
    Then cd to tac_plus-ng/perl and run make. tactrace.pl should
