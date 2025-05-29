@@ -2578,6 +2578,32 @@ static void parse_profile(struct sym *sym, tac_realm *r, tac_profile *parent)
 
 static struct mavis_action *tac_script_parse_r(struct sym *, mem_t *, int, tac_realm *);
 
+void tac_script_parse(struct sym *sym, struct mavis_action **p, mem_t *mem, tac_realm *realm)
+{
+    sym_get(sym);
+    while (*p)
+	p = &(*p)->n;
+
+    switch (sym->code) {
+    case S_openbra:
+	sym_get(sym);
+	*p = tac_script_parse_r(sym, NULL, 1, realm);
+	parse(sym, S_closebra);
+	break;
+    case S_equal:
+	sym->code = S_acl;
+	struct mavis_action *m = mavis_action_new(sym, mem);
+	m->b.v = (char *) tac_acl_lookup(sym->buf, realm);
+	if (!m->b.v)
+	    parse_error(sym, "ACL '%s' not found.", sym->buf);
+	*p = m;
+	sym_get(sym);
+	break;
+    default:
+	parse_error_expect(sym, S_openbra, S_equal, S_unknown);
+    }
+}
+
 static void parse_ruleset(struct sym *sym, tac_realm *realm)
 {
     struct tac_rule **r = &(realm->rules);
@@ -2616,18 +2642,7 @@ static void parse_ruleset(struct sym *sym, tac_realm *realm)
 		(*r)->enabled = parse_bool(sym);
 		continue;
 	    case S_script:
-		sym_get(sym);
-		parse(sym, S_openbra);
-
-		struct mavis_action **p = &(*r)->acl.action;
-
-		while (*p)
-		    p = &(*p)->n;
-
-		*p = tac_script_parse_r(sym, NULL, 1, realm);
-
-		parse(sym, S_closebra);
-
+		tac_script_parse(sym, &(*r)->acl.action, NULL, realm);
 		continue;
 	    default:
 		parse_error_expect(sym, S_enabled, S_script, S_closebra, S_unknown);
@@ -3076,7 +3091,6 @@ static void parse_enable(struct sym *sym, mem_t *mem, struct pwdat **enable)
 
 static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm *r)
 {
-    struct mavis_action **p;
     mem_t *mem = profile->mem;
 
     parse(sym, S_openbra);
@@ -3084,18 +3098,10 @@ static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm 
     while (sym->code != S_closebra)
 	switch (sym->code) {
 	case S_script:
-	    sym_get(sym);
-	    p = &profile->action;
-	    while (*p)
-		p = &(*p)->n;
-	    *p = tac_script_parse_r(sym, mem, 0, r);
+	    tac_script_parse(sym, &profile->action, profile->mem, r);
 	    continue;
 	case S_acl:
-	    sym_get(sym);
-	    p = &profile->acl;
-	    while (*p)
-		p = &(*p)->n;
-	    *p = tac_script_parse_r(sym, mem, 0, r);
+	    tac_script_parse(sym, &profile->acl, profile->mem, r);
 	    continue;
 	case S_debug:
 	    sym_get(sym);
@@ -4031,14 +4037,8 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	sym_get(sym);
 	return;
     case S_script:
-	{
-	    struct mavis_action **p = &host->action;
-	    sym_get(sym);
-	    while (*p)
-		p = &(*p)->n;
-	    *p = tac_script_parse_r(sym, mem, 0, r);
-	    return;
-	}
+	tac_script_parse(sym, &host->action, host->mem, r);
+	return;
     case S_maxrounds:
 	sym_get(sym);
 	parse(sym, S_equal);
@@ -4635,11 +4635,15 @@ static void parse_net(struct sym *sym, tac_realm *r, tac_net *parent)
 enum token eval_tac_acl(tac_session *session, struct tac_acl *acl)
 {
     if (acl) {
+	if (acl->visited == BISTATE_YES)
+	    return S_unknown;
+	acl->visited = BISTATE_YES;
 	char *hint = "";
-	enum token res = S_unknown;
 	struct mavis_action *action = acl->action;
 	report(DEBACL, "evaluating ACL %s", acl->name.txt);
-	switch ((res = tac_script_eval_r(session, action))) {
+	enum token res = tac_script_eval_r(session, action);
+	acl->visited = BISTATE_NO;
+	switch (res) {
 	case S_permit:
 	case S_deny:
 	    report(DEBACL | DEBUG_REGEX_FLAG, "ACL %s: %smatch%s", acl->name.txt, res == S_permit ? "" : "no ", hint);
@@ -5863,6 +5867,11 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 		return r;
 	}
 	break;
+    case S_acl:
+	r = eval_tac_acl(session, (struct tac_acl *) (m->b.v));
+	if (r != S_unknown)
+	    return r;
+	break;
     default:
 	return S_unknown;
     }
@@ -5947,6 +5956,13 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	    sym_get(sym);
 	    m->c.a = tac_script_parse_r(sym, mem, 0, realm);
 	}
+	break;
+    case S_acl:
+	m = mavis_action_new(sym, mem);
+	m->b.v = (char *) tac_acl_lookup(sym->buf, realm);
+	if (!m->b.v)
+	    parse_error(sym, "ACL '%s' not found.", sym->buf);
+	sym_get(sym);
 	break;
     case S_add:
     case S_optional:

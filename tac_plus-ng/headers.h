@@ -363,6 +363,7 @@ struct config {
 struct tac_acl {
     TAC_NAME_ATTRIBUTES;
     struct mavis_action *action;
+     BISTATE(visited);
 };
 
 struct tac_rule {
