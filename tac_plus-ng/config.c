@@ -3667,7 +3667,7 @@ static void parse_file(char *url, radixtree_t *ht, tac_host *host, tac_net *net)
     if (cfg_open_and_read(url, &buf, &bufsize)) {
 	report_cfg_error(LOG_ERR, ~0, "Couldn't open %s: %s", url, strerror(errno));
 	report_cfg_error(LOG_ERR, ~0, "Exiting.");
-	exit(EX_NOINPUT);
+	tac_exit(EX_NOINPUT);
     }
 
     sym.tlen = sym.len = bufsize;
@@ -6400,7 +6400,7 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls)
 	report(NULL, LOG_ERR, ~0,
 	       "%s %d: realm %s: SSL_CTX_load_verify_locations(\"%s\") failed%s%s", __func__, __LINE__, r->name.txt, r->tls_cafile, terr ? ": " : "",
 	       terr ? terr : "");
-	exit(EX_CONFIG);
+	tac_exit(EX_CONFIG);
     }
 
     unsigned long flags = 0;

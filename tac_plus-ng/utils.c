@@ -296,7 +296,7 @@ static void log_start(struct logfile *lf, struct context_logfile *deadctx)
 		execl("/usr/bin/sh", "sh", "-c", path, (char *) NULL);
 
 		report(NULL, LOG_DEBUG, ~0, "execl (%s, ...) (%s:%d)", path, __FILE__, __LINE__);
-		exit(EX_OSERR);
+		tac_exit(EX_OSERR);
 	    case -1:
 		report(NULL, LOG_DEBUG, ~0, "fork (%s:%d): %s", __FILE__, __LINE__, strerror(errno));
 		break;

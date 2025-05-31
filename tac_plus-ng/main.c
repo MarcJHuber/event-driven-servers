@@ -82,7 +82,7 @@ static void cleanup_spawnd(struct context *ctx __attribute__((unused)), int cur 
 	drop_mcx(config.default_realm);
 	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
 	    report(NULL, LOG_INFO, ~0, "Exiting.");
-	exit(EX_OK);
+	tac_exit(EX_OK);
     }
 
     die_when_idle = -1;
