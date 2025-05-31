@@ -4,23 +4,27 @@
  * $Id$
  */
 
+#include "misc/sysconf.h"
+#include "mavis.h"
+#include <stdlib.h>
+#include <string.h>
 #ifdef DEBUG
 #define MAVISDEBUG 1
 #undef DEBUG
 #endif
 #ifdef WITH_RADCLI
 #include <radcli/radcli.h>
+#define RADLIB "radcli"
 #else
 #include <freeradius-client.h>
+#define RADLIB "freeradius-client"
 #endif
 #undef DEBUG
 #ifdef MAVISDEBUG
 #undef MAVISDEBUG
 #define DEBUG
 #endif
-#include <string.h>
-#include <stdlib.h>
-#include "mavis.h"
+#include "misc/version.h"
 
 static void usage(void)
 {
@@ -30,28 +34,32 @@ static void usage(void)
 	    "\n"		//
 	    "Options:\n"	//
 #ifdef WITH_RADCLI
-	    "  -c <configfile>          Path to radcli configuration file (mandatory)\n"	//
+	    "  -c <configfile>          Path to " RADLIB " configuration file (mandatory)\n"
 #else
-	    "  -c <configfile>          Path to freeradius-client configuration file\n"	//
+	    "  -c <configfile>          Path to " RADLIB " configuration file\n"
 #endif
+	    "  <option>=<value>         Set " RADLIB " option <option> to <value>\n"	//
 	    "  group_attribute=<attr>   Use attribute <attr> to determine user groups\n"	//
-	    "  <option>=<value>         Set freeradius-client option <option> to <value>\n"	//
 	    "\n"		//
+	    "This program uses the " RADLIB " library from\n"	//
 #ifdef WITH_RADCLI
-	    "This program uses the radcli library from\n"	//
-	    "  https://github.com/radcli/radcli\n"	//
-	    "\n"		//
-	    "Please have a look there about radcli configuration syntax.\n"	//
+	    "  https://github.com/radcli/radcli\n"
 #else
-	    "This program uses the freeradius-client library from\n"	//
-	    "  https://github.com/FreeRADIUS/freeradius-client\n"	//
-	    "\n"		//
-	    "Please have a look there about freeradius-client configuration syntax.\n"	//
+	    "  https://github.com/FreeRADIUS/freeradius-client\n"
 #endif
+	    "\n"		//
+	    "Please have a look there about " RADLIB " configuration syntax.\n"	//
 	    "The RADIUS settings section in etc/radiusclient.conf.in might be a good\n"	//
 	    "starting point.\n"	//
-	    "\n" "Sample usage:\n"	//
-	    "  radmavis authserver=localhost:1812:mysecret dictionary=/path/to/dictionary\n"	//
+	    "\n"		//
+	    "Version: " VERSION "/" RADLIB "\n"	//
+	    "\n"		//
+	    "Sample usage:\n"
+#ifdef WITH_RADCLI
+	    "  radmavis -c /etc/radcli/radiusclient.conf\n"
+#else
+	    "  radmavis authserver=localhost:1812:mysecret dictionary=/path/to/dictionary\n"
+#endif
 	    "\n");
     exit(-1);
 }

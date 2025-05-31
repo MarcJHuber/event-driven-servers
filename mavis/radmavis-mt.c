@@ -19,8 +19,10 @@
 #endif
 #ifdef WITH_RADCLI
 #include <radcli/radcli.h>
+#define RADLIB "radcli"
 #else
 #include <freeradius-client.h>
+#define RADLIB "freeradius-client"
 #endif
 #undef DEBUG
 #ifdef MAVISDEBUG
@@ -42,28 +44,32 @@ static void usage(void)
 	    "\n"		//
 	    "Options:\n"	//
 #ifdef WITH_RADCLI
-	    "  -c <configfile>          Path to radcli configuration file (mandatory)\n"	//
+	    "  -c <configfile>          Path to " RADLIB " configuration file (mandatory)\n"
 #else
-	    "  -c <configfile>          Path to freeradius-client configuration file\n"	//
+	    "  -c <configfile>          Path to " RADLIB " configuration file\n"
 #endif
+	    "  <option>=<value>         Set " RADLIB " option <option> to <value>\n"	//
 	    "  group_attribute=<attr>   Use attribute <attr> to determine user groups\n"	//
-	    "  <option>=<value>         Set freeradius-client option <option> to <value>\n"	//
 	    "\n"		//
+	    "This program uses the " RADLIB " library from\n"	//
 #ifdef WITH_RADCLI
-	    "This program uses the radcli library from\n"	//
-	    "  https://github.com/radcli/radcli\n"	//
-	    "\n"		//
-	    "Please have a look there about radcli configuration syntax.\n"	//
+	    "  https://github.com/radcli/radcli\n"
 #else
-	    "This program uses the freeradius-client library from\n"	//
-	    "  https://github.com/FreeRADIUS/freeradius-client\n"	//
-	    "\n"		//
-	    "Please have a look there about freeradius-client configuration syntax.\n"	//
+	    "  https://github.com/FreeRADIUS/freeradius-client\n"
 #endif
+	    "\n"		//
+	    "Please have a look there about " RADLIB " configuration syntax.\n"	//
 	    "The RADIUS settings section in etc/radiusclient.conf.in might be a good\n"	//
 	    "starting point.\n"	//
-	    "\n" "Sample usage:\n"	//
-	    "  radmavis-mt authserver=localhost:1812:mysecret dictionary=/path/to/dictionary\n"	//
+	    "\n"		//
+	    "Version: " VERSION "/" RADLIB "\n"	//
+	    "\n"		//
+	    "Sample usage:\n"
+#ifdef WITH_RADCLI
+	    "  radmavis-mt -c /etc/radcli/radiusclient.conf\n"
+#else
+	    "  radmavis-mt authserver=localhost:1812:mysecret dictionary=/path/to/dictionary\n"
+#endif
 	    "\n");
     exit(-1);
 }
@@ -309,7 +315,7 @@ int main(int argc, char **argv)
 		exit(-1);
 	    } else {
 		static char *buf = NULL;
-#define BUFSIZE 4095
+#define BUFSIZE 8191
 		if (!buf)
 		    buf = calloc(1, BUFSIZE + 1);
 		static size_t off = 0;
