@@ -1855,7 +1855,7 @@ void common_usage(void)
 	    "\n"
 	    "%sVersion:%s %s%s%s\n"
 	    "\n"
-	    "%sCopyright (C) 1996-2023 by Marc Huber <Marc.Huber@web.de>\n"
+	    "%sCopyright (C) 1996-2025 by Marc Huber <Marc.Huber@web.de>\n"
 	    "Portions Copyright (C) 1995-1998 by Cisco Systems, Inc.%s\n"
 	    "\n"
 	    "%sHome site:%s  %shttps://www.pro-bono-publico.de/projects/%s\n"
