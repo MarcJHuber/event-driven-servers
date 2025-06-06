@@ -56,7 +56,7 @@ attributes are the autorization or accounting AV pairs, default is:
 Options:
   --help		show this text
   --defaults=<file>	read default settings from <file>
-  --mode=<mode>		authc, authz or acct [$mode]
+  --mode=<mode>		authc, authz, acct or dacl [$mode]
   --username=<username> username [$username]
   --password=<password>	user password [\$TACTRACEPASSWORD]
   --port=<port>		port [$port]
@@ -139,7 +139,7 @@ die "Can't access $conf" unless -r "$conf";
 
 my %Mode = ( "authc" => 1, "authz" => 2, "acct" => 3 );
 my %RMode = ( "authc" => 1, "authz" => 2, "acct" => 3 );
-die "--mode=$mode unknown, supported args are " . join(", ", keys %Mode) unless exists $Mode{$mode};
+die "--mode=$mode unknown, supported args are " . join(", ", keys %Mode) unless exists $Mode{$mode} || defined $radius;
 my %Authentype = ( "ascii" => 1, "pap" => 2 );
 die "--authentype=$authentype unknown, supported args are " . join(", ", keys %Authentype) unless exists $Authentype{$authentype};
 my %Authenmethod = ( "none" => 1, "krb5" => 2, "line" => 3, "enable" => 4, "local" => 5, "tacacsplus" => 6, "guest" => 8, "radius" => 0x10, "krb4" => 0x11, "rcmd" => 0x20 );
@@ -221,6 +221,10 @@ EOT
 		my @av_list = (
 			{ Name => 'User-Name', Value => $username},
 		);
+		if ($mode eq "dacl") {
+			push(@av_list, { Name => 'Cisco-AVPair', Value => 'aaa:event=acl-download'});
+			$password = '';
+		}
 		foreach my $arg (@args) {
 			my ($n, $v) = split(/=/, $arg, 2);
 			push(@av_list, { Name => $n, Value => $v });
