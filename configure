@@ -748,6 +748,7 @@ wprint $hint . "\n" if $hint ne "";;
 
 wprint "Development files were not found for: " . join(", ", sort keys %NOT_FOUND) . "\n\n" if 0 < int keys %NOT_FOUND;
 wprint "Development files were found for: " . join(", ", sort keys %FOUND) . "\n\n" if 0 < int keys %FOUND;
+die "Building without PCRE2 is no longer supported. Exiting.\n" unless exists $FOUND{'LIB-PCRE2'};
 
 wprint "The file
 
