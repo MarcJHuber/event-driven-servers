@@ -325,6 +325,7 @@ typedef struct {
     } __attribute__((__packed__));
     av_ctx *avc;
     struct tac_profile *profile;
+    rb_tree_t *nettable;
 } tac_user;
 
 struct tac_alias {
