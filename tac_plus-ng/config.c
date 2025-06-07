@@ -4537,11 +4537,6 @@ static void parse_dacl(struct sym *sym, tac_realm *r)
     add_dacl(name, name_len, sym, r, 0);
 }
 
-static void radix_copy_func(struct in6_addr *addr, int mask, void *payload, void *data)
-{
-    radix_add((radixtree_t *) data, addr, mask, payload);
-}
-
 static void parse_net(struct sym *sym, tac_realm *r, tac_net *parent)
 {
     tac_net *net = (tac_net *) calloc(1, sizeof(tac_net)), *np;
