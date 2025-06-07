@@ -326,6 +326,7 @@ typedef struct {
     av_ctx *avc;
     struct tac_profile *profile;
     rb_tree_t *nettable;
+    rb_tree_t *timespectable;
 } tac_user;
 
 struct tac_alias {

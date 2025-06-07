@@ -662,8 +662,13 @@ struct rad_dacl *lookup_dacl(char *name, tac_realm *r)
     return NULL;
 }
 
-static struct mavis_timespec *lookup_timespec(char *name, tac_realm *r)
+static struct mavis_timespec *lookup_timespec(char *name, tac_realm *r, tac_user *user)
 {
+    if (user && user->timespectable) {
+	struct mavis_timespec *res;
+	if ((res = find_timespec(user->timespectable, name)))
+	    return res;
+    }
     while (r) {
 	if (r->timespectable) {
 	    struct mavis_timespec *res;
@@ -3626,6 +3631,12 @@ static void parse_user_attr(struct sym *sym, tac_user *user)
 	case S_net:
 	    parse_net(sym, r, user, NULL);
 	    continue;
+	case S_timespec:
+	    if (!user->timespectable)
+		user->timespectable = init_timespec();
+	    parse_timespec(user->timespectable, sym);
+	    mem_add_free(user->mem, RB_tree_delete, user->timespectable);
+	    continue;
 	default:
 	    parse_error_expect(sym, S_member, S_valid, S_debug, S_message, S_password, S_enable, S_fallback_only, S_hushlogin, S_ssh_key_id,
 #ifdef WITH_PCRE2
@@ -4547,7 +4558,7 @@ static void parse_dacl(struct sym *sym, tac_realm *r)
 
 static void radix_drop1(radixtree_t *t)
 {
-	radix_drop(&t, NULL);
+    radix_drop(&t, NULL);
 }
 
 static void parse_net(struct sym *sym, tac_realm *r, tac_user *user, tac_net *parent)
@@ -4889,7 +4900,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 	sym_get(sym);
 	parse(sym, S_equal);
 
-	m->s.rhs = lookup_timespec(sym->buf, realm);
+	m->s.rhs = lookup_timespec(sym->buf, realm, user);
 	if (!m->s.rhs)
 	    parse_error(sym, "Timespec '%s' not found", sym->buf);
 	sym_get(sym);
