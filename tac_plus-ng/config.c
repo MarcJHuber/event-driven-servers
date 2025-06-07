@@ -112,12 +112,12 @@ typedef struct {
 } tac_rewrite;
 
 static void parse_host(struct sym *, tac_realm *, tac_host *);
-static void parse_net(struct sym *, tac_realm *, tac_net *);
+static void parse_net(struct sym *, tac_realm *, tac_user *, tac_net *);
 static void parse_user(struct sym *, tac_realm *);
 static void parse_group(struct sym *, tac_realm *, tac_group *);
 static void parse_ruleset(struct sym *, tac_realm *);
-static void parse_profile(struct sym *, tac_realm *, tac_profile *);
-static void parse_profile_attr(struct sym *, tac_profile *, tac_realm *);
+static void parse_profile(struct sym *, tac_realm *, tac_profile *, tac_user *);
+static void parse_profile_attr(struct sym *, tac_profile *, tac_realm *, tac_user *);
 static void parse_user_attr(struct sym *, tac_user *);
 static void parse_tac_acl(struct sym *, tac_realm *);
 static void parse_rewrite(struct sym *, tac_realm *);
@@ -626,9 +626,14 @@ tac_host *lookup_host(char *name, tac_realm *r)
     return NULL;
 }
 
-static tac_net *lookup_net(char *name, tac_realm *r)
+static tac_net *lookup_net(char *name, tac_realm *r, tac_user *user)
 {
     tac_net net = {.name.txt = name,.name.len = strlen(name) };
+    if (user && user->nettable) {
+	tac_net *res;
+	if ((res = RB_lookup(user->nettable, &net)))
+	    return res;
+    }
     while (r) {
 	if (r->nettable) {
 	    tac_net *res;
@@ -2025,7 +2030,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    parse_group(sym, r, 0);
 	    continue;
 	case S_profile:
-	    parse_profile(sym, r, NULL);
+	    parse_profile(sym, r, NULL, NULL);
 	    continue;
 	case S_acl:
 	    parse_tac_acl(sym, r);
@@ -2105,7 +2110,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    }
 	    continue;
 	case S_net:
-	    parse_net(sym, r, NULL);
+	    parse_net(sym, r, NULL, NULL);
 	    continue;
 	case S_parent:
 	    sym_get(sym);
@@ -2554,7 +2559,7 @@ static void parse_group(struct sym *sym, tac_realm *r, tac_group *parent)
     }
 }
 
-static void parse_profile(struct sym *sym, tac_realm *r, tac_profile *parent)
+static void parse_profile(struct sym *sym, tac_realm *r, tac_profile *parent, tac_user *user)
 {
     if (!r->profiletable)
 	r->profiletable = RB_tree_new(compare_name, NULL);
@@ -2571,14 +2576,14 @@ static void parse_profile(struct sym *sym, tac_realm *r, tac_profile *parent)
     profile->parent = parent;
     profile->line = sym->line;
     sym_get(sym);
-    parse_profile_attr(sym, profile, r);
+    parse_profile_attr(sym, profile, r, user);
     RB_insert(r->profiletable, profile);
 }
 
 
-static struct mavis_action *tac_script_parse_r(struct sym *, mem_t *, int, tac_realm *);
+static struct mavis_action *tac_script_parse_r(struct sym *, mem_t *, int, tac_realm *, tac_user *);
 
-void tac_script_parse(struct sym *sym, struct mavis_action **p, mem_t *mem, tac_realm *realm)
+void tac_script_parse(struct sym *sym, struct mavis_action **p, mem_t *mem, tac_realm *realm, tac_user *user)
 {
     sym_get(sym);
     while (*p)
@@ -2587,7 +2592,7 @@ void tac_script_parse(struct sym *sym, struct mavis_action **p, mem_t *mem, tac_
     switch (sym->code) {
     case S_openbra:
 	sym_get(sym);
-	*p = tac_script_parse_r(sym, NULL, 1, realm);
+	*p = tac_script_parse_r(sym, NULL, 1, realm, user);
 	parse(sym, S_closebra);
 	break;
     case S_equal:
@@ -2642,7 +2647,7 @@ static void parse_ruleset(struct sym *sym, tac_realm *realm)
 		(*r)->enabled = parse_bool(sym);
 		continue;
 	    case S_script:
-		tac_script_parse(sym, &(*r)->acl.action, NULL, realm);
+		tac_script_parse(sym, &(*r)->acl.action, NULL, realm, NULL);
 		continue;
 	    default:
 		parse_error_expect(sym, S_enabled, S_script, S_closebra, S_unknown);
@@ -3089,7 +3094,7 @@ static void parse_enable(struct sym *sym, mem_t *mem, struct pwdat **enable)
     enable[level] = parse_pw(sym, mem, 1);
 }
 
-static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm *r)
+static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm *r, tac_user *user)
 {
     mem_t *mem = profile->mem;
 
@@ -3098,10 +3103,10 @@ static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm 
     while (sym->code != S_closebra)
 	switch (sym->code) {
 	case S_script:
-	    tac_script_parse(sym, &profile->action, profile->mem, r);
+	    tac_script_parse(sym, &profile->action, profile->mem, r, user);
 	    continue;
 	case S_acl:
-	    tac_script_parse(sym, &profile->acl, profile->mem, r);
+	    tac_script_parse(sym, &profile->acl, profile->mem, r, user);
 	    continue;
 	case S_debug:
 	    sym_get(sym);
@@ -3122,7 +3127,7 @@ static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm 
 	case S_profile:
 	    if (profile->mem)
 		parse_error(sym, "User profiles may not contain sub profiles", sym->buf);
-	    parse_profile(sym, r, profile);
+	    parse_profile(sym, r, profile, user);
 	    continue;
 	case S_parent:
 	    sym_get(sym);
@@ -3603,7 +3608,7 @@ static void parse_user_attr(struct sym *sym, tac_user *user)
 		}
 		if (!user->profile->dynamic)
 		    parse_error(sym, "Profile is already set to '%s'", user->profile->name.txt);
-		parse_profile_attr(sym, user->profile, user->realm);
+		parse_profile_attr(sym, user->profile, user->realm, user);
 		break;
 	    case S_equal:
 		if (user->profile)
@@ -3618,6 +3623,9 @@ static void parse_user_attr(struct sym *sym, tac_user *user)
 		parse_error_expect(sym, S_openbra, S_equal, S_unknown);
 	    }
 	    continue;
+	case S_net:
+	    parse_net(sym, r, user, NULL);
+	    continue;
 	default:
 	    parse_error_expect(sym, S_member, S_valid, S_debug, S_message, S_password, S_enable, S_fallback_only, S_hushlogin, S_ssh_key_id,
 #ifdef WITH_PCRE2
@@ -3626,7 +3634,7 @@ static void parse_user_attr(struct sym *sym, tac_user *user)
 #ifdef WITH_CRYPTO
 			       S_ssh_key,
 #endif
-			       S_alias, S_usertag, S_tag, S_profile, S_unknown);
+			       S_alias, S_usertag, S_tag, S_profile, S_net, S_unknown);
 	}
     }
     sym_get(sym);
@@ -4037,7 +4045,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	sym_get(sym);
 	return;
     case S_script:
-	tac_script_parse(sym, &host->action, host->mem, r);
+	tac_script_parse(sym, &host->action, host->mem, r, NULL);
 	return;
     case S_maxrounds:
 	sym_get(sym);
@@ -4537,21 +4545,35 @@ static void parse_dacl(struct sym *sym, tac_realm *r)
     add_dacl(name, name_len, sym, r, 0);
 }
 
-static void parse_net(struct sym *sym, tac_realm *r, tac_net *parent)
+static void radix_drop1(radixtree_t *t)
 {
-    tac_net *net = (tac_net *) calloc(1, sizeof(tac_net)), *np;
+	radix_drop(&t, NULL);
+}
+
+static void parse_net(struct sym *sym, tac_realm *r, tac_user *user, tac_net *parent)
+{
+    mem_t *mem = NULL;
+    rb_tree_t **nettable = &r->nettable;
+    if (user) {
+	mem = user->mem;
+	nettable = &user->nettable;
+    }
+    tac_net *net = mem_alloc(mem, sizeof(tac_net)), *np;
     struct dns_forward_mapping *d;
 
-    if (!r->nettable)
-	r->nettable = RB_tree_new(compare_name, NULL);
+    if (!*nettable) {
+	*nettable = RB_tree_new(compare_name, NULL);
+	mem_add_free(mem, RB_tree_delete, *nettable);
+    }
 
     net->line = sym->line;
 
     sym_get(sym);
 
-    str_set(&net->name, strdup(sym->buf), 0);
+    str_set(&net->name, mem_strdup(mem, sym->buf), 0);
     net->nettree = radix_new(NULL, NULL);
-    if ((np = RB_lookup(r->nettable, (void *) net)))
+    mem_add_free(mem, radix_drop1, net->nettree);
+    if ((np = RB_lookup(*nettable, (void *) net)))
 	parse_error(sym, "Net '%s' already defined at line %u", sym->buf, np->line);
     net->line = sym->line;
     net->parent = parent;
@@ -4574,7 +4596,7 @@ static void parse_net(struct sym *sym, tac_realm *r, tac_net *parent)
 	    continue;
 	case S_address:
 	    sym_get(sym);
-	    if (sym->code == S_file) {
+	    if (sym->code == S_file && !sym->flag_prohibit_include) {
 		glob_t globbuf = { 0 };
 		sym_get(sym);
 		parse(sym, S_equal);
@@ -4606,12 +4628,12 @@ static void parse_net(struct sym *sym, tac_realm *r, tac_net *parent)
 	    }
 	    continue;
 	case S_net:
-	    parse_net(sym, r, net);
+	    parse_net(sym, r, user, net);
 	    break;
 	case S_parent:
 	    sym_get(sym);
 	    parse(sym, S_equal);
-	    net->parent = lookup_net(sym->buf, r);
+	    net->parent = lookup_net(sym->buf, r, user);
 	    if (!net->parent)
 		parse_error(sym, "Net '%s' not found.", sym->buf);
 	    if (loopcheck_net(net))
@@ -4622,7 +4644,7 @@ static void parse_net(struct sym *sym, tac_realm *r, tac_net *parent)
 	    parse_error_expect(sym, S_permit, S_deny, S_address, S_net, S_unknown);
 	}
     sym_get(sym);
-    RB_insert(r->nettable, net);
+    RB_insert(*nettable, net);
 }
 
 enum token eval_tac_acl(tac_session *session, struct tac_acl *acl)
@@ -4677,7 +4699,7 @@ static void parse_tac_acl(struct sym *sym, tac_realm *realm)
     while (*p)
 	p = &(*p)->n;
 
-    *p = tac_script_parse_r(sym, NULL, 1, realm);
+    *p = tac_script_parse_r(sym, NULL, 1, realm, NULL);
 
     parse(sym, S_closebra);
 }
@@ -4812,25 +4834,25 @@ int cfg_get_enable(tac_session *session, struct pwdat **p)
     return -1;
 }
 
-static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, tac_realm *realm)
+static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, tac_realm *realm, tac_user *user)
 {
     struct mavis_cond *m, *p = NULL;
 
     switch (sym->code) {
     case S_leftbra:
 	sym_get(sym);
-	m = mavis_cond_add(mavis_cond_new(sym, mem, S_or), mem, tac_script_cond_parse_r(sym, mem, realm));
+	m = mavis_cond_add(mavis_cond_new(sym, mem, S_or), mem, tac_script_cond_parse_r(sym, mem, realm, user));
 	if (sym->code == S_and)
 	    m->type = S_and;
 	while (sym->code == S_and || sym->code == S_or) {
 	    sym_get(sym);
-	    m = mavis_cond_add(m, mem, tac_script_cond_parse_r(sym, mem, realm));
+	    m = mavis_cond_add(m, mem, tac_script_cond_parse_r(sym, mem, realm, user));
 	}
 	parse(sym, S_rightbra);
 	return m;
     case S_exclmark:
 	sym_get(sym);
-	m = mavis_cond_add(mavis_cond_new(sym, mem, S_exclmark), mem, tac_script_cond_parse_r(sym, mem, realm));
+	m = mavis_cond_add(mavis_cond_new(sym, mem, S_exclmark), mem, tac_script_cond_parse_r(sym, mem, realm, user));
 	return m;
     case S_acl:
 	m = mavis_cond_new(sym, mem, S_acl);
@@ -5005,7 +5027,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		if (m->s.token == S_device || m->s.token == S_devicename) {
 		    hp = lookup_host(sym->buf, realm);
 		    if (!hp)
-			np = lookup_net(sym->buf, realm);
+			np = lookup_net(sym->buf, realm, user);
 		}
 		if (hp) {
 		    m->type = S_host;
@@ -5032,7 +5054,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 	    if (m->s.token == S_client || m->s.token == S_clientname || m->s.token == S_clientaddress) {
 		tac_net *np = NULL;
 		if (m->s.token == S_client || m->s.token == S_clientname)
-		    np = lookup_net(sym->buf, realm);
+		    np = lookup_net(sym->buf, realm, user);
 		m->s.rhs_txt = np ? np->name.txt : mem_strdup(mem, sym->buf);
 		if (np) {
 		    m->type = S_net;
@@ -5065,11 +5087,11 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		    m->type = S_host;
 		    m->s.rhs = hp;
 		    m->s.rhs_txt = hp->name.txt;
-		} else if (m->s.token == S_nas && (np = lookup_net(sym->buf, realm))) {
+		} else if (m->s.token == S_nas && (np = lookup_net(sym->buf, realm, user))) {
 		    m->type = S_net;
 		    m->s.rhs = np;
 		    m->s.rhs_txt = np->name.txt;
-		} else if (m->s.token == S_nac && (np = lookup_net(sym->buf, realm))) {
+		} else if (m->s.token == S_nac && (np = lookup_net(sym->buf, realm, user))) {
 		    m->type = S_net;
 		    m->s.rhs = np;
 		    m->s.rhs_txt = np->name.txt;
@@ -5199,17 +5221,17 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
     return NULL;
 }
 
-static struct mavis_cond *tac_script_cond_parse(struct sym *sym, mem_t *mem, tac_realm *realm)
+static struct mavis_cond *tac_script_cond_parse(struct sym *sym, mem_t *mem, tac_realm *realm, tac_user *user)
 {
     struct sym *cond_sym = NULL;
     if (sym_normalize_cond_start(sym, mem, &cond_sym)) {
-	struct mavis_cond *m = tac_script_cond_parse_r(cond_sym, mem, realm);
+	struct mavis_cond *m = tac_script_cond_parse_r(cond_sym, mem, realm, user);
 	report(NULL, LOG_DEBUG, DEBUG_PARSE_FLAG, "normalized condition: %s", cond_sym->in);
 	sym_normalize_cond_end(&cond_sym, mem);
 	mavis_cond_optimize(&m, mem);	//FIXME
 	return m;
     }
-    return tac_script_cond_parse_r(sym, mem, realm);
+    return tac_script_cond_parse_r(sym, mem, realm, user);
 }
 
 static int tac_script_cond_eval_res(tac_session *session, struct mavis_cond *m, int res)
@@ -5886,7 +5908,7 @@ struct rad_action *new_rad_action(mem_t *mem, struct rad_dict_attr *attr, union 
     return a;
 }
 
-static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int section, tac_realm *realm)
+static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int section, tac_realm *realm, tac_user *user)
 {
     struct mavis_action *m = NULL;
     char *sep = "=";
@@ -5897,7 +5919,7 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	return m;
     case S_openbra:
 	sym_get(sym);
-	m = tac_script_parse_r(sym, mem, 1, realm);
+	m = tac_script_parse_r(sym, mem, 1, realm, user);
 	parse(sym, S_closebra);
 	break;
     case S_return:
@@ -5949,11 +5971,11 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	break;
     case S_if:
 	m = mavis_action_new(sym, mem);
-	m->a.c = tac_script_cond_parse(sym, mem, realm);
-	m->b.a = tac_script_parse_r(sym, mem, 0, realm);
+	m->a.c = tac_script_cond_parse(sym, mem, realm, user);
+	m->b.a = tac_script_parse_r(sym, mem, 0, realm, user);
 	if (sym->code == S_else) {
 	    sym_get(sym);
-	    m->c.a = tac_script_parse_r(sym, mem, 0, realm);
+	    m->c.a = tac_script_parse_r(sym, mem, 0, realm, user);
 	}
 	break;
     case S_acl:
@@ -6011,7 +6033,7 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 			   S_profile, S_rewrite, S_add, S_set, S_optional, S_unknown);
     }
     if (section && sym->code != S_closebra && sym->code != S_eof)
-	m->n = tac_script_parse_r(sym, mem, section, realm);
+	m->n = tac_script_parse_r(sym, mem, section, realm, user);
     return m;
 }
 
