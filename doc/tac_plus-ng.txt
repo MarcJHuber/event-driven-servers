@@ -162,6 +162,7 @@ Marc Huber
      * Implements and auto-detects legacy RADIUS (UDP and TCP),
        RADSEC (TLS) and RADIUS/DTLS (all with PAP authentication
        only).
+     * Supports RADIUS Downloadable ACLs.
      __________________________________________________________
 
 1.1. Download
@@ -1593,7 +1594,7 @@ key = ""
        Devices can be defined in device context, too.
      * script ( = aclName | { tacAction } )
        Scripts can be used in device context. These are run before
-       AAA and mey be used to permit or deny access, or to rewrite
+       AAA and may be used to permit or deny access, or to rewrite
        usernames.
        This configuration will be accepted at realm level (for the
        default host, too.
@@ -2131,10 +2132,7 @@ device ... {
    The basic form of a user declarations is
 user username { ...  }
 
-   A user or group declaration may contain key-value pairs and
-   service declarations.
-
-   The following declarations are valid in user context only:
+   The following declarations are valid in user context:
 
      * alias = alternateUserName
        Implement an alternate user name. This may be used multiple
@@ -2204,15 +2202,42 @@ user marc {
        Setting hushlogin to yes keeps the daemon from displaying
        motd and user messages upon login.
      * valid from = ( YYYY-MM-DD | s )
-       The user profile will be valid starting at the given date,
-       which can be specified either in ISO8601 date format or as
-       in seconds since January 1, 1970, UTC.
+       The user will be valid starting at the given date, which
+       can be specified either in ISO8601 date format or as in
+       seconds since January 1, 1970, UTC.
      * valid until = ( YYYY-MM-DD | s )
        The user profile will be invalid after the given date.
      * member = groupOne[,groupTwo]*
        This specifies group membership. A user can be a member of
        multiple groups and groups can be members of a parent
        group.
+     * profile = profileName
+       profile { profileAttr }
+       net netName {netAttr }
+       A profile may be assigned to a user directly, the main
+       ruleset will be then skipped.
+       Also, a profile definition can be part of the user context,
+       and may refer to net definitions defined there:
+    user demo {
+        password login = clear demo
+        password pap = login
+        net localhost { address = 127.0.0.1 }
+        profile {
+            acl {
+                if (client.name != localhost)
+                    deny
+            }
+            script {
+                if (client.name == localhost)
+                    add demoattribute = ignore
+                if (service == shell) {
+                    if (cmd == "")
+                        set priv-lvl = 15
+                        permit
+                }
+            }
+         }
+    }
      __________________________________________________________
 
 4.16.1. Railroad Diagrams
@@ -2299,7 +2324,8 @@ script {
    brackets are:
 
      * script ( = aclName | { tacAction } )
-       Commands can be permitted or denied using script syntax:
+       Service and command authorization is handled using script
+       syntax:
 script {
     if (service == "shell" && cmd == "")
         permit
@@ -2307,6 +2333,8 @@ script {
     if (cmd =~ /^configure /) deny
     permit
 }
+       As indicated before, script will evaluated for
+       authorization requests only.
      * acl ( = aclName | { tacAction } )
        A acl allows for refering a script that's being evaluated
        for both authentication and authorization.
@@ -3125,8 +3153,8 @@ id = spawnd {
 
 6.2. RADIUS DACLs
 
-   CISCO downloadalbe DACLs are supported for RADIUS. Downloadable
-   ACL sample definition:
+   CISCO downloadable ACLs (dACLs, DACLs) are supported for
+   RADIUS. Downloadable ACL sample definition:
     dacl demoacl {
         # prefix = "ip:inacl" # This is the default.
         # version = 12345678  # This is explained somewhere below.
@@ -3158,7 +3186,7 @@ id = spawnd {
 6.3. RADIUS Dictionary
 
    There's no file format standard for RADIUS dictionaries, so
-   tac_plus-ng comes with its own, too. Here's an exceprt from
+   tac_plus-ng comes with its own, too. Here's an excerpt from
    tac_ls-ng/sample/radius-dict.cfg which demonstrates the syntax:
 radius.dictionary {
         attribute User-Name             1       string
@@ -3223,8 +3251,8 @@ radius.dictionary cisco 9 {
 }
 
    You can put this dictionary data directly into your main
-   configuration file or put it somewhere else and jut include it,
-   which is recommended.
+   configuration file or put it somewhere else and just include
+   it, which is recommended.
      __________________________________________________________
 
 6.4. RADIUS Rule Set
