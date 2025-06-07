@@ -4799,7 +4799,6 @@ void attr_add(tac_session *session, char ***v, int *i, char *attr, size_t attr_l
 
 void cfg_init(void)
 {
-    init_timespec();
     config.mask = 0644;
 
     struct utsname utsname = { 0 };
