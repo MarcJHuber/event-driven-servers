@@ -2214,17 +2214,22 @@ user marc {
      * profile = profileName
        profile { profileAttr }
        net netName {netAttr }
+       timespec timespecName {timespecAttr }
        A profile may be assigned to a user directly, the main
        ruleset will be then skipped.
        Also, a profile definition can be part of the user context,
-       and may refer to net definitions defined there:
+       and the profile may refer to net and timespec definitions
+       defined there:
     user demo {
         password login = clear demo
         password pap = login
         net localhost { address = 127.0.0.1 }
+        timespec sunday { "* * * * 0" }
         profile {
             acl {
                 if (client.name != localhost)
+                    deny
+                if (time == sunday)
                     deny
             }
             script {
