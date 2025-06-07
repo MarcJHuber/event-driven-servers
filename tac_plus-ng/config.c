@@ -4628,8 +4628,6 @@ static void parse_net(struct sym *sym, tac_realm *r, tac_net *parent)
 	}
     sym_get(sym);
     RB_insert(r->nettable, net);
-    if (net->parent)
-	radix_walk(net->nettree, radix_copy_func, net->parent->nettree);
 }
 
 enum token eval_tac_acl(tac_session *session, struct tac_acl *acl)
