@@ -2692,9 +2692,21 @@ static int compare_timespec(const void *a, const void *b)
     return strcmp(((struct mavis_timespec *) a)->name, ((struct mavis_timespec *) b)->name);
 }
 
+static void free_timespec(struct mavis_timespec *ts)
+{
+    struct mavis_tm *tm = ts->tm;
+    while (tm) {
+	struct mavis_tm *tm_next = tm->next;
+	free(tm->string);
+	free(tm);
+	tm = tm_next;
+    }
+    free(ts);
+}
+
 rb_tree_t *init_timespec(void)
 {
-    return RB_tree_new(compare_timespec, NULL);
+    return RB_tree_new(compare_timespec, (void (*)(void *)) free_timespec);
 }
 
 static int parse_uucptime(struct mavis_tm *, char *in);
