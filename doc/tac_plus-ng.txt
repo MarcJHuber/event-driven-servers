@@ -2,7 +2,7 @@ TACACS+ NG
 
 Marc Huber
 
-   $Id: manual.xml,v 1.2 2025/05/27 16:06:19 ubuntu Exp ubuntu $
+   $Id$
      __________________________________________________________
 
    Table of Contents
@@ -2231,6 +2231,7 @@ user marc {
                     deny
                 if (time == sunday)
                     deny
+                permit
             }
             script {
                 if (client.name == localhost)

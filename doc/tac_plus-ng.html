@@ -14,7 +14,7 @@
 <div class="TITLEPAGE">
 <h1 class="title"><a name="AEN2" id="AEN2">TACACS+ NG</a></h1>
 <h3 class="author"><a name="AEN4" id="AEN4">Marc Huber</a></h3>
-<span class="releaseinfo">$Id: manual.xml,v 1.2 2025/05/27 16:06:19 ubuntu Exp ubuntu $<br></span>
+<span class="releaseinfo">$Id$<br></span>
 <hr></div>
 <div class="TOC">
 <dl>
@@ -2874,6 +2874,7 @@ user marc {
                     deny
                 if (time == sunday)
                     deny
+                permit
             }
             script {
                 if (client.name == localhost)
