@@ -259,7 +259,10 @@ struct tac_net {
     enum token res;		/* permit or deny */
     tac_net *parent;
     radixtree_t *nettree;
-     BISTATE(visited);
+    struct {
+	BISTATE(user_local);
+	BISTATE(visited);
+    } __attribute__((__packed__));
 };
 
 enum pw_ix { PW_LOGIN = 0, PW_PAP, PW_CHAP, PW_MSCHAP, PW_LOGIN_FALLBACK, PW_PAP_FALLBACK, PW_MAVIS };
@@ -584,7 +587,7 @@ typedef struct {
 #define RADIUS_A_ACCT_LINK_COUNT	51
 #define RADIUS_A_ACCT_INTERIM_INTERVAL	85
 
-#define RADIUS_VID_CISCO		"\0\0\0\011" // 0x0009
+#define RADIUS_VID_CISCO		"\0\0\0\011"	// 0x0009
 #define RADIUS_A_CISCO_AVPAIR		1
 
 struct radius_data {
@@ -1088,7 +1091,7 @@ void parse_decls(struct sym *);
 void parse_user_final(tac_user *);
 int parse_user_profile_fmt(struct sym *, tac_user *, char *, ...);
 int parse_host_profile(struct sym *, tac_realm *, tac_host *);
-int parse_dacl_fmt(struct sym *sym, tac_session *session, tac_realm *r, char *s);
+int parse_dacl_fmt(struct sym *sym, tac_session * session, tac_realm * r, char *s);
 
 void parse_log(struct sym *, tac_realm *);
 char *eval_log_format(tac_session *, struct context *, struct logfile *, struct log_item *, time_t, size_t *);
@@ -1159,7 +1162,7 @@ tac_host *lookup_host(char *, tac_realm *);
 #define ACSACL "#ACSACL#"
 struct rad_dacl *lookup_dacl(char *, tac_realm *);
 int rad_check_dacl(tac_session *);
-int rad_attr_add_dacl(tac_session *session, struct rad_dacl *dacl, uint32_t *i);
+int rad_attr_add_dacl(tac_session * session, struct rad_dacl *dacl, uint32_t * i);
 void dacl_copy(tac_session *);
 
 int query_mavis_info(tac_session *, void (*)(tac_session *), enum pw_ix);

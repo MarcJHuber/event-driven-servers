@@ -4561,6 +4561,11 @@ static void radix_drop1(radixtree_t *t)
     radix_drop(&t, NULL);
 }
 
+static void radix_copy_func(struct in6_addr *addr, int mask, void *payload, void *data)
+{
+    radix_add((radixtree_t *) data, addr, mask, payload);
+}
+
 static void parse_net(struct sym *sym, tac_realm *r, tac_user *user, tac_net *parent)
 {
     mem_t *mem = NULL;
@@ -4589,6 +4594,7 @@ static void parse_net(struct sym *sym, tac_realm *r, tac_user *user, tac_net *pa
     net->line = sym->line;
     net->parent = parent;
     net->res = S_permit;
+    net->user_local = user ? BISTATE_YES : BISTATE_NO;
 
     d = dns_lookup_a(r, sym->buf, 1);
     while (d) {
@@ -4656,6 +4662,9 @@ static void parse_net(struct sym *sym, tac_realm *r, tac_user *user, tac_net *pa
 	}
     sym_get(sym);
     RB_insert(*nettable, net);
+    // only propagate addresses to parent if defined in same scope (realm vs. user)
+    if (net->parent && (net->user_local == net->parent->user_local))
+	radix_walk(net->nettree, radix_copy_func, net->parent->nettree);
 }
 
 enum token eval_tac_acl(tac_session *session, struct tac_acl *acl)
