@@ -5340,16 +5340,10 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
     case S_net:
 	if (m->s.token == S_nas) {
 	    tac_net *net = (tac_net *) (m->s.rhs);
-	    do {
-		res = radix_lookup(net->nettree, &session->ctx->device_addr, NULL) ? -1 : 0;
-		net = net->parent;
-	    } while (!res && net);
+	    res = radix_lookup(net->nettree, &session->ctx->device_addr, NULL) ? -1 : 0;
 	} else if (session->nac_addr_valid) {
 	    tac_net *net = (tac_net *) (m->s.rhs);
-	    do {
-		res = radix_lookup(net->nettree, &session->nac_address, NULL) ? -1 : 0;
-		net = net->parent;
-	    } while (!res && net);
+	    res = radix_lookup(net->nettree, &session->nac_address, NULL) ? -1 : 0;
 	}
 	return tac_script_cond_eval_res(session, m, res);
     case S_time:
