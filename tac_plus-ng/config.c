@@ -4655,6 +4655,8 @@ static void parse_net(struct sym *sym, tac_realm *r, tac_user *user, tac_net *pa
 		parse_error(sym, "Net '%s' not found.", sym->buf);
 	    if (loopcheck_net(net))
 		parse_error(sym, "'%s': circular reference rejected", sym->buf);
+	    if (net->user_local != net->parent->user_local)
+		parse_error(sym, "'%s': reference to realm parent rejected", sym->buf);
 	    sym_get(sym);
 	    continue;
 	default:
