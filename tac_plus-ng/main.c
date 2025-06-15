@@ -791,6 +791,20 @@ static void accept_control_tls(struct context *ctx, int cur)
 #endif
 	{
 	    char buf[512];
+
+	    ASN1_INTEGER *serial_asn1 = X509_get_serialNumber(cert);
+	    if (serial_asn1) {
+		char *hex = "0123456789ABCDEF";
+		char *t = mem_alloc(ctx->mem, 3 * serial_asn1->length);
+		for (int i = 0; i < serial_asn1->length; i++) {
+		    t[i * 3] = hex[(serial_asn1->data[i] & 0xF0) >> 4];
+		    t[i * 3 + 1] = hex[serial_asn1->data[i] & 0xf];
+		    if (i + 1 != serial_asn1->length)
+			t[i * 3 + 2] = ':';
+		}
+		str_set(&ctx->tls_peer_serial, t, 0);
+	    }
+
 	    ASN1_TIME *notafter_asn1 = X509_get_notAfter(cert);
 	    ASN1_TIME *notbefore_asn1 = X509_get_notBefore(cert);
 	    X509_NAME *x;

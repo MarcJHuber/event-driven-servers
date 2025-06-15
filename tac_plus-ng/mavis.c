@@ -514,8 +514,16 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 #define SHA1_PREFIX "sha1=\""
 #define SHA256_PREFIX "sha256=\""
 #define RPK_PREFIX "rpk=\""
+#define ISSUER_PREFIX "issuer=\""
+#define SERIAL_PREFIX "serial=\""
 #define SEQ_SUFFIX "\","
 	size_t len = 0;
+
+	if (ctx->tls_peer_cert_issuer.txt)
+	    len += sizeof(ISSUER_PREFIX) + sizeof(SEQ_SUFFIX) + ctx->tls_peer_cert_issuer.len;
+	if (ctx->tls_peer_serial.txt)
+	    len += sizeof(SERIAL_PREFIX) + sizeof(SEQ_SUFFIX) + ctx->tls_peer_serial.len;
+
 	for (struct fingerprint * fp = ctx->fingerprint; fp; fp = fp->next) {
 	    if (fp->type == S_tls_peer_cert_sha1) {
 		len += sizeof(SHA1_PREFIX) + sizeof(SEQ_SUFFIX) + 3 * SHA_DIGEST_LENGTH;
@@ -552,9 +560,28 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 		u += sizeof(SEQ_SUFFIX) - 1;
 	    }
 	}
+
 	if (!t) {
 	    t = alloca(len);
 	    u = t;
+	}
+
+	if (ctx->tls_peer_cert_issuer.txt) {
+	    memcpy(u, ISSUER_PREFIX, sizeof(ISSUER_PREFIX) - 1);
+	    u += sizeof(ISSUER_PREFIX) - 1;
+	    memcpy(u, ctx->tls_peer_cert_issuer.txt, ctx->tls_peer_cert_issuer.len);
+	    u += ctx->tls_peer_cert_issuer.len;
+	    memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+	    u += sizeof(SEQ_SUFFIX) - 1;
+	}
+
+	if (ctx->tls_peer_serial.txt) {
+	    memcpy(u, SERIAL_PREFIX, sizeof(SERIAL_PREFIX) - 1);
+	    u += sizeof(SERIAL_PREFIX) - 1;
+	    memcpy(u, ctx->tls_peer_serial.txt, ctx->tls_peer_serial.len);
+	    u += ctx->tls_peer_serial.len;
+	    memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+	    u += sizeof(SEQ_SUFFIX) - 1;
 	}
 
 	for (struct fingerprint * fp = ctx->fingerprint; fp; fp = fp->next) {

@@ -967,6 +967,7 @@ struct context {
     str_t tls_peer_cert_subject;
     str_t tls_conn_cipher_strength;
     str_t tls_peer_cn;
+    str_t tls_peer_serial;
     str_t tls_psk_identity;
     str_t tls_sni;
     char **tls_peer_cert_san;
