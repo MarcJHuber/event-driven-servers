@@ -2193,16 +2193,17 @@ static void do_radius_dacl(tac_session *session)
 
     void *val = NULL;
     size_t val_len = 0;
+    uint32_t nace = 0;
     if (!rad_get(session, -1, RADIUS_A_STATE, S_octets, &val, &val_len)) {
 	if (!val || val_len != sizeof(uint32_t))
 	    goto fail;
-	memcpy(&session->nace, val, sizeof(uint32_t));
-	session->nace = ntohl(session->nace);
+	memcpy(&nace, val, sizeof(uint32_t));
+	nace = ntohl(nace);
     }
 
-    if (rad_attr_add_dacl(session, session->dacl, &session->nace))
+    if (rad_attr_add_dacl(session, session->dacl, &nace))
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
-    else if (session->nace == session->dacl->nace)
+    else if (nace == session->dacl->nace)
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_ACCEPT, NULL);
     else {
 	if (first)

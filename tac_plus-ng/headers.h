@@ -456,9 +456,11 @@ struct realm {
     char *tls_ciphers;
     char *tls_cafile;
     int tls_verify_depth;
+    struct {
      TRISTATE(tls_accept_expired);
      TRISTATE(tls_autodetect);
      TRISTATE(tls_sni_required);
+    } __attribute__((__packed__));
     struct sni_list *sni_list;
     u_char *alpn_vec;
     size_t alpn_vec_len;
@@ -519,9 +521,9 @@ typedef struct {
 #define RADIUS_CODE_ACCESS_REQUEST		1
 #define RADIUS_CODE_ACCESS_ACCEPT		2
 #define RADIUS_CODE_ACCESS_REJECT		3
-#define RADIUS_CODE_ACCESS_CHALLENGE		11
 #define RADIUS_CODE_ACCOUNTING_REQUEST		4
 #define RADIUS_CODE_ACCOUNTING_RESPONSE		5
+#define RADIUS_CODE_ACCESS_CHALLENGE		11
 #define RADIUS_CODE_STATUS_SERVER		12
 #define RADIUS_CODE_STATUS_CLIENT		13
 #define RADIUS_CODE_PROTOCOL_ERROR		52
@@ -825,7 +827,6 @@ struct tac_session {
     tac_user *user;
     tac_host *host;
     struct in6_addr nac_address;	/* host byte order */
-    struct in6_addr device_addr;	/* host byte order */
     struct rad_dacl *dacl;
     str_t username;
     str_t username_orig;
@@ -850,8 +851,12 @@ struct tac_session {
     str_t *msgid;
     str_t *result;
     str_t *acct_type;
-    str_t device_dns_name;
-    str_t device_addr_ascii;
+
+    // For RADIUS, the client can set RADIUS_A_NAS_IP(6)_ADDRESS so context data may or may not match.
+    str_t device_dns_name;	// For RADIUS, the client can set RADIUS_A_NAS_IP(6)_ADDRESS;
+    str_t device_addr_ascii;	// so context data may or may not match.
+    struct in6_addr device_addr;	/* host byte order */
+
     u_char arg_cnt;
     u_char *arg_len;
     u_char *argp;
@@ -908,7 +913,6 @@ struct tac_session {
     int cnt_m;
     int cnt_o;
     int cnt_a;
-    uint32_t nace;
     enum token attr_dflt;
     time_t password_expiry;
     u_long mavis_latency;
