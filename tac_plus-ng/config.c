@@ -2131,18 +2131,30 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    parse_ruleset(sym, r);
 	    continue;
 	case S_timespec:
+	    sym->code = S_time;
 	    if (!r->timespectable)
 		r->timespectable = init_timespec();
 	    parse_timespec(r->timespectable, sym);
 	    continue;
-	case S_time:
-	    sym_get(sym);
-	    parse(sym, S_zone);
-	    parse(sym, S_equal);
-	    setenv("TZ", sym->buf, 1);
-	    tzset();
-	    sym_get(sym);
-	    continue;
+	case S_time:{
+		struct sym sym_bak;
+		memcpy(&sym_bak, sym, sizeof(struct sym));
+		sym_get(sym);
+		if (sym->code != S_zone) {
+		  try_timespec:
+		    memcpy(sym, &sym_bak, sizeof(struct sym));
+		    sym->code = S_timespec;
+		    continue;
+		}
+		parse(sym, S_zone);
+		if (sym->code != S_equal)
+		    goto try_timespec;
+		parse(sym, S_equal);
+		setenv("TZ", sym->buf, 1);
+		tzset();
+		sym_get(sym);
+		continue;
+	    }
 	case S_realm:
 	    {
 		tac_realm *newrealm, *rp;
@@ -2411,7 +2423,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	default:
 	    parse_error_expect(sym, S_password, S_pap, S_login, S_accounting, S_authentication, S_access, S_authorization, S_warning,
 			       S_connection, S_dns, S_cache, S_log, S_umask, S_retire, S_user, S_group, S_profile, S_acl, S_mavis,
-			       S_enable, S_net, S_parent, S_ruleset, S_timespec, S_time, S_realm, S_trace, S_debug, S_dacl,
+			       S_enable, S_net, S_parent, S_ruleset, S_time, S_realm, S_trace, S_debug, S_dacl,
 			       S_anonenable,
 			       S_key, S_motd, S_welcome, S_reject, S_permit, S_bug, S_augmented_enable, S_singleconnection, S_context,
 			       S_script, S_message, S_session, S_maxrounds, S_host, S_device, S_syslog, S_proctitle, S_coredump, S_alias,
@@ -3632,6 +3644,8 @@ static void parse_user_attr(struct sym *sym, tac_user *user)
 	    parse_net(sym, r, user, NULL);
 	    continue;
 	case S_timespec:
+	    sym->code = S_time;
+	case S_time:
 	    if (!user->timespectable)
 		user->timespectable = init_timespec();
 	    parse_timespec(user->timespectable, sym);
@@ -3645,7 +3659,7 @@ static void parse_user_attr(struct sym *sym, tac_user *user)
 #ifdef WITH_CRYPTO
 			       S_ssh_key,
 #endif
-			       S_alias, S_usertag, S_tag, S_profile, S_net, S_unknown);
+			       S_alias, S_usertag, S_tag, S_profile, S_net, S_time, S_unknown);
 	}
     }
     sym_get(sym);
