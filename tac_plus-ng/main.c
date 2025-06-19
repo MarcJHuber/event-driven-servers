@@ -1613,7 +1613,7 @@ static void accept_control(struct context *ctx, int cur)
     union {
 	struct scm_data_accept sd;
 	struct scm_data_udp sd_udp;
-	u_char buf[1024];	// radius packets are usually < 100
+	u_char buf[4096 + sizeof(struct scm_data_udp)];
     } u;
 
     if (common_data.scm_recv_msg(cur, &u.sd, sizeof(u), &s)) {
