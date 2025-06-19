@@ -1235,8 +1235,10 @@ static str_t *eval_log_format_identity_source(tac_session *session, struct conte
     return NULL;
 }
 
-static str_t *eval_log_format_nas(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+static str_t *eval_log_format_nas(tac_session *session, struct context *ctx, struct logfile *lf __attribute__((unused)))
 {
+    if (session && ctx->device_addr_ascii.len)
+	return &session->device_addr_ascii;
     if (ctx)
 	return &ctx->device_addr_ascii;
     return NULL;
@@ -1483,8 +1485,10 @@ static str_t *eval_log_format_server_address(tac_session *session __attribute__(
     return NULL;
 }
 
-static str_t *eval_log_format_nasname(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+static str_t *eval_log_format_nasname(tac_session *session, struct context *ctx, struct logfile *lf __attribute__((unused)))
 {
+    if (session && ctx->device_dns_name.len)
+	return &session->device_dns_name;
     if (ctx && ctx->device_dns_name.txt && *ctx->device_dns_name.txt)
 	return &ctx->device_dns_name;
     return NULL;
