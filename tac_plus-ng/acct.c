@@ -169,9 +169,11 @@ void rad_acct(tac_session *session)
 	case RADIUS_V_ACCT_STATUS_TYPE_ACCOUNTING_ON:
 	    session->acct_type = &acct_type_on;
 	    session->msgid = &msgid_on;
+	    break;
 	case RADIUS_V_ACCT_STATUS_TYPE_ACCOUNTING_OFF:
 	    session->acct_type = &acct_type_off;
 	    session->msgid = &msgid_off;
+	    break;
 	default:
 	    session->acct_type = &acct_type_unknown;
 	    session->msgid = &msgid_unknown;
