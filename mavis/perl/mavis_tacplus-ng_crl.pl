@@ -127,11 +127,11 @@ while ($in = <>) {
 	goto bye if (!defined($V[AV_A_CERTDATA]));
 
 	my $issuer = $V[AV_A_CERTDATA];
-	$issuer =~ s/^(.*,|)issuer="([^"]+)".*$/$2/;
+	$issuer =~ s/^(.*,|)issuer="([^"]+)".*$/$2/ or goto bye;
 	$issuer = md5_hex($issuer);
 
 	my $serial = $V[AV_A_CERTDATA];
-	$serial =~ s/^(.*,|)serial="([^"]+)".*$/$2/;
+	$serial =~ s/^(.*,|)serial="([^"]+)".*$/$2/ or goto bye;
 	$serial =~ s/://g;
 
 	if (-f "$BASEDIR/$issuer/$serial") {
