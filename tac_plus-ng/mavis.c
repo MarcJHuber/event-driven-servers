@@ -787,7 +787,7 @@ static void mavis_dacl_lookup_final(tac_session *session, av_ctx *avc)
 
 	char *p = av_get(avc, AV_A_TACPROFILE);
 	if (!p || parse_dacl_fmt(&sym, session, r, p)) {
-	    session->dacl = NULL;
+	    session->radius_data->dacl = NULL;
 	    session->mavisauth_res = S_deny;
 	}
 

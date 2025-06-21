@@ -555,7 +555,7 @@ static int query_mavis_info_pap(tac_session *session, void (*f)(tac_session *))
 
 int query_mavis_dacl(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->dacl;
+    int res = !session->flag_mavis_info && !session->radius_data->dacl;
     session->flag_mavis_info = 1;
     if (res)
 	mavis_dacl_lookup(session, f, AV_V_TACTYPE_DACL);
@@ -2173,7 +2173,7 @@ static void do_radius_dacl(tac_session *session)
 {
     int first = 0;
     enum token res = S_deny;
-    if (!session->dacl) {
+    if (!session->radius_data->dacl) {
 	first = 1;
 	if (!session->username.txt)
 	    goto fail;
@@ -2186,8 +2186,8 @@ static void do_radius_dacl(tac_session *session)
 	str_set(&session->username, u, h - u);
 	if (query_mavis_dacl(session, do_radius_dacl))
 	    return;
-	session->dacl = lookup_dacl(u, session->ctx->realm);
-	if (!session->dacl)
+	session->radius_data->dacl = lookup_dacl(u, session->ctx->realm);
+	if (!session->radius_data->dacl)
 	    goto fail;
     }
 
@@ -2201,9 +2201,9 @@ static void do_radius_dacl(tac_session *session)
 	nace = ntohl(nace);
     }
 
-    if (rad_attr_add_dacl(session, session->dacl, &nace))
+    if (rad_attr_add_dacl(session, session->radius_data->dacl, &nace))
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
-    else if (nace == session->dacl->nace)
+    else if (nace == session->radius_data->dacl->nace)
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_ACCEPT, NULL);
     else {
 	if (first)

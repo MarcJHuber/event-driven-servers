@@ -596,6 +596,7 @@ struct radius_data {
     str_t device_dns_name;
     str_t device_addr_ascii;
     struct in6_addr device_addr;
+    struct rad_dacl *dacl;
     rad_pak_hdr *pak_in;
     size_t pak_in_len;
     size_t data_len;
@@ -830,7 +831,6 @@ struct tac_session {
     tac_user *user;
     tac_host *host;
     struct in6_addr nac_address;	/* host byte order */
-    struct rad_dacl *dacl;
     str_t username;
     str_t username_orig;
     str_t msg;
