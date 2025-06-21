@@ -917,6 +917,8 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 
 static void rad_set_fields(tac_session *session)
 {
+    session->radius_data->device_dns_name = session->ctx->device_dns_name;
+    session->radius_data->device_addr_ascii = session->ctx->device_addr_ascii;
     rad_get(session, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username.txt, &session->username.len);
 
     if (!rad_get(session, -1, RADIUS_A_CALLING_STATION_ID, S_string_keyword, &session->nac_addr_ascii.txt, &session->nac_addr_ascii.len))
@@ -930,34 +932,34 @@ static void rad_set_fields(tac_session *session)
     if (!rad_get(session, -1, RADIUS_A_SERVICE_TYPE, S_integer, &service_type, &service_type_len))
 	rad_dict_get_val(-1, RADIUS_A_SERVICE_TYPE, service_type, &session->service.txt, &session->service.len);
 
-    session->device_addr = session->ctx->device_addr;
+    session->radius_data->device_addr = session->ctx->device_addr;
 
-    if (!rad_get(session, -1, RADIUS_A_NAS_IP_ADDRESS, S_ipv4addr, ((char *) &session->device_addr) + 12, NULL)) {
-	uint32_t *u32 = (uint32_t *) & session->device_addr;
+    if (!rad_get(session, -1, RADIUS_A_NAS_IP_ADDRESS, S_ipv4addr, ((char *) &session->radius_data->device_addr) + 12, NULL)) {
+	uint32_t *u32 = (uint32_t *) & session->radius_data->device_addr;
 	u32[0] = 0;
 	u32[1] = 0;
 	u32[2] = 0xffff;
 	u32[3] = ntohl(u32[3]);
-    } else if (!rad_get(session, -1, RADIUS_A_NAS_IPV6_ADDRESS, S_ipv4addr, &session->device_addr, NULL)) {
-	uint32_t *u32 = (uint32_t *) & session->device_addr;
+    } else if (!rad_get(session, -1, RADIUS_A_NAS_IPV6_ADDRESS, S_ipv4addr, &session->radius_data->device_addr, NULL)) {
+	uint32_t *u32 = (uint32_t *) & session->radius_data->device_addr;
 	for (int i = 0; i < 4; i++)
 	    u32[i] = ntohl(u32[i]);
     }
 
-    if (memcmp(&session->device_addr, &session->ctx->device_addr, sizeof(session->ctx->device_addr))) {
+    if (memcmp(&session->radius_data->device_addr, &session->ctx->device_addr, sizeof(session->ctx->device_addr))) {
 	radixtree_t *rxt = lookup_hosttree(session->ctx->realm);
 	if (rxt) {
-	    tac_host *h = radix_lookup(rxt, &session->device_addr, NULL);
+	    tac_host *h = radix_lookup(rxt, &session->radius_data->device_addr, NULL);
 	    if (h) {
 		complete_host(h);
 		session->host = h;
 	    }
 	}
-	str_set(&session->device_dns_name, NULL, 0);
+	str_set(&session->radius_data->device_dns_name, NULL, 0);
 	sockaddr_union su;
-	if (!su_htop(&su, &session->device_addr, AF_INET) || !su_htop(&su, &session->device_addr, AF_INET6)) {
+	if (!su_htop(&su, &session->radius_data->device_addr, AF_INET) || !su_htop(&su, &session->radius_data->device_addr, AF_INET6)) {
 	    char buf[256];
-	    str_set(&session->device_addr_ascii, mem_strdup(session->mem, su_ntoa(&su, buf, sizeof(buf)) ? buf : NULL), 0);
+	    str_set(&session->radius_data->device_addr_ascii, mem_strdup(session->mem, su_ntoa(&su, buf, sizeof(buf)) ? buf : NULL), 0);
 	}
     }
 }
@@ -1171,8 +1173,6 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_p
     tac_session *session = mem_alloc(ctx->mem, sizeof(tac_session));
     session->ctx = ctx;
     session->host = ctx->host;
-    session->device_dns_name = ctx->device_dns_name;
-    session->device_addr_ascii = ctx->device_addr_ascii;
     session->debug = ctx->debug;
     session->mem = mem_create(M_LIST);
     if (tac_hdr) {

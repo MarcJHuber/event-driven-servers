@@ -593,6 +593,9 @@ typedef struct {
 #define RADIUS_A_CISCO_AVPAIR		1
 
 struct radius_data {
+    str_t device_dns_name;
+    str_t device_addr_ascii;
+    struct in6_addr device_addr;
     rad_pak_hdr *pak_in;
     size_t pak_in_len;
     size_t data_len;
@@ -852,10 +855,7 @@ struct tac_session {
     str_t *result;
     str_t *acct_type;
 
-    // For RADIUS, the client can set RADIUS_A_NAS_IP(6)_ADDRESS so context data may or may not match.
-    str_t device_dns_name;	// For RADIUS, the client can set RADIUS_A_NAS_IP(6)_ADDRESS;
-    str_t device_addr_ascii;	// so context data may or may not match.
-    struct in6_addr device_addr;	/* host byte order */
+    struct radius_data *radius_data;
 
     u_char arg_cnt;
     u_char *arg_len;
@@ -877,7 +877,6 @@ struct tac_session {
     struct author_data *author_data;
     struct authen_data *authen_data;
     struct mavis_data *mavis_data;
-    struct radius_data *radius_data;
     struct pwdat *enable;
     struct autonumber *autonumber;
     tac_profile *profile;
@@ -1142,8 +1141,6 @@ tac_user *lookup_user(tac_session *);
 mavis_ctx *lookup_mcx(tac_realm *);
 tac_realm *lookup_realm(char *, tac_realm *);
 radixtree_t *lookup_hosttree(tac_realm *);
-
-#define LOG_ACCESS 0x80000000
 
 struct revmap {
     time_t ttl;
