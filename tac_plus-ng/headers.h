@@ -959,11 +959,6 @@ struct context {
     struct radius_data *radius_data;
 #ifdef WITH_SSL
     SSL *tls;
-    struct {
-	TRISTATE(alpn_passed);
-	BISTATE(sni_passed);
-	BISTATE(fingerprint_matched);
-    } __attribute__((__packed__));
     str_t tls_conn_version;
     str_t tls_conn_cipher;
     str_t tls_peer_cert_issuer;
@@ -987,6 +982,11 @@ struct context {
     char *hint;
     struct user_profile_cache user_profile_cache[USER_PROFILE_CACHE_SIZE];
     struct {
+#ifdef WITH_SSL
+	TRISTATE(alpn_passed);
+	BISTATE(sni_passed);
+	BISTATE(fingerprint_matched);
+#endif
 	TRISTATE(cleanup_when_idle);	/* cleanup context when idle */
 	BISTATE(unencrypted_flag);	/* not MD5 encrypted? */
 	BISTATE(single_connection_flag);	/* single-connection enabled? */
