@@ -434,6 +434,11 @@ struct realm {
 	BISTATE(use_tls_psk);
 	BISTATE(visited);
 	BISTATE(skip_parent_script);
+#ifdef WITH_SSL
+	TRISTATE(tls_accept_expired);
+	TRISTATE(tls_autodetect);
+	TRISTATE(tls_sni_required);
+#endif
     } __attribute__((__packed__));
     int dns_caching_period;	/* dns caching period */
     time_t dnspurge_last;
@@ -456,11 +461,6 @@ struct realm {
     char *tls_ciphers;
     char *tls_cafile;
     int tls_verify_depth;
-    struct {
-     TRISTATE(tls_accept_expired);
-     TRISTATE(tls_autodetect);
-     TRISTATE(tls_sni_required);
-    } __attribute__((__packed__));
     struct sni_list *sni_list;
     u_char *alpn_vec;
     size_t alpn_vec_len;
