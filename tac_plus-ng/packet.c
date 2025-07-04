@@ -883,6 +883,13 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 	return -1;
     }
 #ifdef WITH_SSL
+// The Message-Authenticator attribute is mandatory for RADIUS BLAST mitigation
+    if ((ctx->radius_1_1 == BISTATE_NO) && !message_authenticator && !(ctx->bug_compatibility & CLIENT_BUG_NO_MESSAGE_AUTHENTICATOR)) {
+	report(NULL, LOG_INFO_CONN, ~0, "%s did not set Message-Authenticator attribute", ctx->device_addr_ascii.txt);
+	ctx->reset_tcp = BISTATE_YES;
+	cleanup(ctx, -1);
+	return -1;
+    }
 // Packet looks sane, check message authentiator, if present
     if ((ctx->radius_1_1 == BISTATE_NO) && message_authenticator) {
 	for (; ctx->key; ctx->key = ctx->key->next) {
