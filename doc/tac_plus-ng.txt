@@ -2,7 +2,7 @@ TACACS+ NG
 
 Marc Huber
 
-   $Id$
+   $Id: bc33bf3c64cd2db1dd6a573c81ce80ac331f9907 $
      __________________________________________________________
 
    Table of Contents
@@ -698,8 +698,8 @@ device myDevices { address = 10.1.23.0/24 target-realm = realmOne }
 realm realmName { ... }
 
    at top configuration level. Realms cover devices, users,
-   groups, profiles, rulesets, timespecs, MAVIS configurations
-   other configuration options.
+   groups, profiles, rulesets, times, MAVIS configurations other
+   configuration options.
      __________________________________________________________
 
 4.3.1. Railroad Diagrams
@@ -1437,7 +1437,7 @@ id = spawnd {
    network              if not found in current realm
    profile              if not found in current realm
    ruleset              if not set or undefined result in current realm
-   timespec             if not found in current realm
+   time                 if not found in current realm
    user                 if not found in current realm
      __________________________________________________________
 
@@ -1766,6 +1766,8 @@ aaa authentication enable default group tacacs+ enable
    4 16 Check for a space in the remote address field of a packet
    and strip everything after before attempting an IP address
    conversion.
+   5 32 Accept RADIUS packets if no Message-Authenticator
+   attribute is set. This disables RADIUS BLAST attack migigation.
 
    Example:
   device ... {
@@ -1824,24 +1826,23 @@ device test123 {
 
 4.13. Time Ranges
 
-   timespec objects may be used for time based profile
-   assignments. Both cron and Taylor-UUCP syntax are supported;
-   see you local crontab(5) and/or UUCP man pages for details.
-   Syntax:
+   time objects may be used for time based profile assignments.
+   Both cron and Taylor-UUCP syntax are supported; see you local
+   crontab(5) and/or UUCP man pages for details. Syntax:
 
-   timespec = timespec_name { "entry" [ ... ] }
+   time = time_name { "entry" [ ... ] }
 
    Example:
 # Working hours are from Mo-Fr from 9 to 16:59, and
 # on Saturdays from 9 to 12:59:
-timespec workinghours {
+time workinghours {
     "* 9-16 * * 1-5"   # or: "* 9-16 * * Mon-Fri"
     "* 9-12 * * 6"     # or: "* 9-12 * * Sat"
 }
 
-timespec sunday { "* * * * 0" }
+time sunday { "* * * * 0" }
 
-timespec example {
+time example {
     Wk2305-0855,Sa,Su2305-1655
     Wk0905-2255,Su1705-2255
     Any
@@ -1850,9 +1851,9 @@ timespec example {
 
 4.13.1. Railroad Diagrams
 
-   [TimespecDecl.eps]
+   [TimeDecl.eps]
 
-   Railroad diagram: TimespecDecl
+   Railroad diagram: TimeDecl
      __________________________________________________________
 
 4.14. Access Control Lists
@@ -2070,7 +2071,7 @@ set radius[Cisco:Cisco-AVPair] = "ip:inacl#2=permit ip any any"
    server.port == != =~ !~ Server TCP port
    service == != =~ !~ String or REGEX TACACA+ session service
    (shell, ...) or RADIUS Service-Type
-   time == != Timespec object name
+   time == != Time object name
    tls.conn.cipher == != =~ !~ String or REGEX TLS specific data
    tls.conn.cipher.strength == != =~ !~ String or REGEX TLS
    specific data
@@ -2214,17 +2215,17 @@ user marc {
      * profile = profileName
        profile { profileAttr }
        net netName {netAttr }
-       timespec timespecName {timespecAttr }
+       time timeName {timeAttr }
        A profile may be assigned to a user directly, the main
        ruleset will be then skipped.
        Also, a profile definition can be part of the user context,
-       and the profile may refer to net and timespec definitions
+       and the profile may refer to net and time definitions
        defined there:
     user demo {
         password login = clear demo
         password pap = login
         net localhost { address = 127.0.0.1 }
-        timespec sunday { "* * * * 0" }
+        time sunday { "* * * * 0" }
         profile {
             acl {
                 if (client.name != localhost)
