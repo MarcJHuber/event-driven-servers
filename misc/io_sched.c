@@ -939,9 +939,9 @@ static int epoll_io_poll(struct io_context *io, int poll_timeout, int *cax)
 	    e.events = (io->handler[fd].want_read ? EPOLLIN : 0) | (io->handler[fd].want_write ? EPOLLOUT : 0);
 	    if (epoll_ctl(io->Epoll.fd, EPOLL_CTL_MOD, fd, &e) < 0) {
 #ifndef DEBUG
-		logerr("epoll_ctl (%s:%d)", __FILE__, __LINE__)
+		logerr("epoll_ctl (%s:%d)", __FILE__, __LINE__);
 #endif
-		    ;
+		io_close(io, fd);
 	    }
 	    io->Epoll.changemap[fd] = -1;
 	}
