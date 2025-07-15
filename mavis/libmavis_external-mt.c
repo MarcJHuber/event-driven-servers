@@ -315,8 +315,8 @@ static void child_died(struct context *ctx, int cur __attribute__((unused)))
 }
 
 
-// assuption here is that the ctx's answer can be fully read and
-// we don't need to care for blocking read() calls
+// assuption here was that the ctx's answer can be fully read and
+// we don't really need to care for blocking read() calls
 static void read_from_child(struct context *ctx, int cur __attribute__((unused)))
 {
     int len = 0;
@@ -342,9 +342,11 @@ static void read_from_child(struct context *ctx, int cur __attribute__((unused))
     }
 
     size_t hbl = ntohl(ctx->hdr.body_len);
-    ctx->b_in = calloc(1, sizeof(struct iobuf));
-    ctx->b_in->buf = calloc(1, hbl + 1);
-    if (ctx->b_in->len < ctx->hdr.body_len) {
+    if (!ctx->b_in) {
+	ctx->b_in = calloc(1, sizeof(struct iobuf));
+	ctx->b_in->buf = calloc(1, hbl + 1);
+    }
+    if (ctx->b_in->len < hbl) {
 	len = Read(ctx->fd_in, ctx->b_in->buf + ctx->b_in->len, hbl - ctx->b_in->len);
 	if (len < 0)
 	    goto bye;
