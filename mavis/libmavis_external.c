@@ -517,7 +517,7 @@ static void read_from_child(struct context *ctx, int cur)
 			    av_set(ctx->ac, AV_A_IDENTITY_SOURCE, ctx->mcx->identity_source_name);
 		    }
 
-		    q = Xcalloc(1, sizeof(struct context));
+		    q = Xcalloc(1, sizeof(struct query));
 		    q->ac = ctx->ac;
 		    ctx->ac = NULL;
 
