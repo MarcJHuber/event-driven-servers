@@ -1690,8 +1690,8 @@ tls psk key = 0123456789abcdef # in hex</pre></li>
 </ul>
 <p>Example:</p>
 <pre class="screen">id = spawnd {
-    listen { port = 4949 realm = heck }
-    listen { port = 4950 realm = heck tls = yes }
+    listen { port = 49 realm = heck }
+    listen { port = 300 realm = heck tls = yes }
     spawn { instances min = 1 instances max = 32 }
     id = tac_plus-ng {
             ...
@@ -1892,7 +1892,7 @@ backend backendtacplus
 </table>
 </div>
 <p>Any CIDR range within a device definition needs to to be unique, and the most specific definition will match. The requirement for unambiguousness is quite simply based on the fact that certain device object attributes (key, prompt, enable passwords) may only exist once.</p>
-<p>If compiled with TLS support, primary criteria for device object selection with TLS is no longer the NAS IP address but the certificate DNS SANs (OpenSSL only), the subject and/or the common name. E.g., <tt class="literal">CN=server.tacacstest.demo,OU=org,OU=local</tt> will check for device objects named <tt class="literal">CN=server.tacacstest.demo,OU=org,OU=local</tt>, <tt class="literal">OU=org,OU=local</tt>, <tt class="literal">OU=local</tt> and then for <tt class="literal">server.tacacstest.demo</tt>, <tt class="literal">tacacstest.demo</tt> and <tt class="literal">demo</tt> before falling back to IP based selection.</p>
+<p>If compiled with TLS support, primary criteria for device object selection with TLS is no longer the NAS IP address but the certificate DNS SANs (OpenSSL only), the subject and/or the common name. E.g., <tt class="literal">/CN=server.tacacstest.demo/OU=org/OU=local</tt> will check for device objects named <tt class="literal">/CN=server.tacacstest.demo/OU=org/OU=local</tt>, <tt class="literal">/OU=org,OU=local</tt>, <tt class="literal">/OU=local</tt> and then for <tt class="literal">server.tacacstest.demo</tt>, <tt class="literal">tacacstest.demo</tt> and <tt class="literal">demo</tt> before falling back to IP based selection.</p>
 <p>On the NAS, you also need to configure the <span class="emphasis"><i class="emphasis">same</i></span> key. Do this by issuing the current variant of:</p>
 <pre class="screen">aaa new-model
 tacacs-server host 192.168.0.1 single-connection key your key here</pre>
