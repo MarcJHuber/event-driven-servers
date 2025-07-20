@@ -829,13 +829,9 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    }
 
 	    if (ctx->tls_peer_cert_subject.txt) {
-		while (*ctx->tls_peer_cert_subject.txt == '/')
-		    ctx->tls_peer_cert_subject.txt++;
 		ctx->tls_peer_cert_subject.len = strlen(ctx->tls_peer_cert_subject.txt);
 	    }
 	    if (ctx->tls_peer_cert_issuer.txt) {
-		while (*ctx->tls_peer_cert_issuer.txt == '/')
-		    ctx->tls_peer_cert_issuer.txt++;
 		ctx->tls_peer_cert_issuer.len = strlen(ctx->tls_peer_cert_issuer.txt);
 	    }
 	    if (notafter > -1 && notbefore > -1 && ctx->realm->tls_accept_expired != TRISTATE_YES && notafter < io_now.tv_sec + 30 * 86400)
