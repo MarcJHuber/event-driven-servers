@@ -697,7 +697,7 @@ static void set_host_by_dn(struct context *ctx, char *t)
 	    ctx->host = h;
 	    return;
 	}
-	t = strchr(t, '/');
+	t = strchr(t + 1, '/');
     }
 }
 
