@@ -847,30 +847,14 @@ static void accept_control_tls(struct context *ctx, int cur)
 		    cn[i] = tolower(ctx->tls_peer_cert_subject.txt[i]);
 
 		// set cn
-		while (cn) {
-		    char *e = strchr(cn, ',');
+		cn = strstr(cn, "/cn=");
+		if (cn) {
+		    cn += 4;
+		    char *e = strchr(cn, '/');
 		    if (e)
 			*e = 0;
-		    while (isspace(*cn))
-			cn++;
-		    if (cn[0] == 'c' && cn[1] == 'n' && cn[2] == '=') {
-			cn += 3;
-			while (*cn && isspace(*cn))
-			    cn++;
-			e = cn;
-			while (*e && !isspace(*e))
-			    e++;
-			*e = 0;
-			str_set(&ctx->tls_peer_cn, mem_strdup(ctx->mem, cn), 0);
-			break;
-		    }
-
-		    if (e)
-			cn = e + 1;
-		    else
-			break;
+		    str_set(&ctx->tls_peer_cn, mem_strdup(ctx->mem, cn), 0);
 		}
-
 	    }
 	    if (ctx->fingerprint_matched == BISTATE_NO) {
 		// check SANs -- cycle through all DNS SANs and find the best host match
