@@ -697,6 +697,18 @@ static void set_host_by_dn(struct context *ctx, char *t)
 	    ctx->host = h;
 	    return;
 	}
+	t = strchr(t, '/');
+    }
+}
+
+static void set_host_by_cn(struct context *ctx, char *t)
+{
+    while (t) {
+	tac_host *h = lookup_host(t, ctx->realm);
+	if (h) {
+	    ctx->host = h;
+	    return;
+	}
 	t = strchr(t, '.');
 	if (t)
 	    t++;
@@ -713,7 +725,7 @@ static void set_host_by_psk_identity(struct context *ctx, char *t)
 	    return;
 	t = at + 1;
     }
-    set_host_by_dn(ctx, t);
+    set_host_by_cn(ctx, t);
 }
 #endif
 
@@ -893,7 +905,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 
 		// check for cn match:
 		if (!ctx->host)
-		    set_host_by_dn(ctx, ctx->tls_peer_cn.txt);
+		    set_host_by_cn(ctx, ctx->tls_peer_cn.txt);
 	    }
 	}
     }
