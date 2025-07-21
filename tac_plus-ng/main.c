@@ -689,15 +689,29 @@ static void complete_host_mavis_tls(struct context *ctx)
     accept_control_final(ctx);
 }
 
-static void set_host_by_dn(struct context *ctx, char *t)
+static void set_host_by_dn(struct context *ctx, char *in)
 {
-    while (t) {
+// Sample DN: /C=US/ST=California/L=San Francisco/O=Example Corp/OU=IT Department/CN=www.example.com/emailAddress=admin@example.com
+    if (!in)
+	return;
+    size_t in_len = strlen(in) + 1;
+    char t[in_len];
+    memcpy(t, in, in_len);
+    char *d = t;
+    for (;;) {
 	tac_host *h = lookup_host(t, ctx->realm);
 	if (h) {
 	    ctx->host = h;
 	    return;
 	}
-	t = strchr(t + 1, '/');
+	do {
+	    d = strrchr(t, '/');
+	    if (!d)
+		return;
+	    *d = 0;
+	    if (d > t)
+		d--;
+	} while (*d != '\\');
     }
 }
 
@@ -1372,7 +1386,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
