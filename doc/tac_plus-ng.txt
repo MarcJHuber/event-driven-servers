@@ -154,7 +154,7 @@ Marc Huber
      * CLI context aware.
      * Full support for both IPv4 and IPv6
      * Implements and auto-detects HAProxy protocol 2.
-     * Supports TLS
+     * Supports TACACS+ over TLS1.3
      * Compliant to RFC8907
      * Supports Linux VRFs
      * Supports (non-standard) SSH Public Key Authentication (see
@@ -1348,6 +1348,11 @@ mavis format custom_0 = "${server.address} ${server.port}"
        (none), to check the fingerprint only (hash), to validate
        the full chain (cert) or to allow both of the latter (any,
        that's the default).
+     * tls.peer.cert.san.validation = (yes|no
+       This option enables SAN IP validation. Defaults to no, but
+       enabling it will skip device object selection based on the
+       SAN IP if the latter doesn't equal the peer IP. Not sure
+       whether there's a use case for this at all.
 
    If compiled with OpenSSL support, TLSv1.2 and TLSv1.3 Preshared
    Keys and SNIs are supported:
@@ -1526,10 +1531,11 @@ quo\te me".
 
    If compiled with TLS support, primary criteria for device
    object selection with TLS is no longer the NAS IP address but
-   the certificate DNS SANs (OpenSSL only), the subject and/or the
-   common name. E.g., /C=US/ST=California/L=San
-   Francisco/O=Example Corp/OU=IT Department/CN=www.example.com
-   will check for device objects named
+   the certificate DNS SAN (order: IP, directory name, common
+   name), followed by the DN and, common name. Sample DN matching
+   sequence for /C=US/ST=California/L=San Francisco/O=Example
+   Corp/OU=IT Department/CN=www.example.com: The daemon will check
+   for device objects named
 
      * /C=US/ST=California/L=San Francisco/O=Example Corp/OU=IT
        Department/CN=www.example.com,
@@ -1544,6 +1550,9 @@ quo\te me".
      * com
 
    before falling back to IP based selection.
+
+   If your DN fields are in reverse order field stripping starts
+   at the beginning of the DN, not at the end.
 
    On the NAS, you also need to configure the same key. Do this by
    issuing the current variant of:
