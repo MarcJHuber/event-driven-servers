@@ -689,43 +689,81 @@ static void complete_host_mavis_tls(struct context *ctx)
     accept_control_final(ctx);
 }
 
-static void set_host_by_dn(struct context *ctx, char *in)
+static void set_host_by_dn(struct context *ctx, char *in, int *m)
 {
-// Sample DN: /C=US/ST=California/L=San Francisco/O=Example Corp/OU=IT Department/CN=www.example.com/emailAddress=admin@example.com
-    if (!in)
+    if (!in || !*in)
 	return;
-    size_t in_len = strlen(in) + 1;
-    char t[in_len];
-    memcpy(t, in, in_len);
-    char *d = t;
-    for (;;) {
-	tac_host *h = lookup_host(t, ctx->realm);
-	if (h) {
-	    ctx->host = h;
-	    return;
-	}
-	do {
-	    d = strrchr(t, '/');
-	    if (!d)
+    int m_dflt = 0;
+    if (!m)
+	m = &m_dflt;
+
+    int c = 1;
+    for (int i = 0; in[i]; i++)
+	if ((in[i] == '/') && (!i || in[i - 1] != '\\'))
+	    c++;
+
+    if (in[0] == '/' && tolower(in[1]) == 'c' && tolower(in[2]) == 'n' && in[3] == '=') {
+	// /CN=www.example.com/OU=IT Department/O=Example.corp/L=San Francisco/ST=California/C=US
+	char *t = in;
+	for (; c > *m; c--) {
+	    tac_host *h = lookup_host(t, ctx->realm);
+	    if (h) {
+		ctx->host = h;
+		*m = c;
 		return;
-	    *d = 0;
-	    if (d > t)
-		d--;
-	} while (*d != '\\');
+	    }
+	    t++;
+	    while (*t && (*t != '/' || *(t - 1) == '\\'))
+		t++;
+	    if (!*t)
+		return;
+	}
+    } else {
+	// /C=US/ST=California/L=San Francisco/O=Example Corp/OU=IT Department/CN=www.example.com
+	size_t in_len = strlen(in) + 1;
+	char t[in_len];
+	memcpy(t, in, in_len);
+	char *e = t;
+	while (*e)
+	    e++;
+	for (; c > *m; c--) {
+	    tac_host *h = lookup_host(t, ctx->realm);
+	    if (h) {
+		ctx->host = h;
+		*m = c;
+		return;
+	    }
+	    while (e > t && (*e != '/' || *(e - 1) == '\\'))
+		e--;
+	    *e = 0;
+	    if (e == t)
+		return;
+	}
     }
 }
 
-static void set_host_by_cn(struct context *ctx, char *t)
+static void set_host_by_cn(struct context *ctx, char *t, int *m)
 {
-    while (t) {
+    if (!t)
+	return;
+    int m_dflt = 0;
+    if (!m)
+	m = &m_dflt;
+    int c = 1;
+    for (int i = 0; t[i]; i++)
+	if (t[i] == '.')
+	    c++;
+    for (; c > *m; c--) {
 	tac_host *h = lookup_host(t, ctx->realm);
 	if (h) {
 	    ctx->host = h;
+	    *m = c;
 	    return;
 	}
 	t = strchr(t, '.');
-	if (t)
-	    t++;
+	if (!t)
+	    return;
+	t++;
     }
 }
 
@@ -739,7 +777,7 @@ static void set_host_by_psk_identity(struct context *ctx, char *t)
 	    return;
 	t = at + 1;
     }
-    set_host_by_cn(ctx, t);
+    set_host_by_cn(ctx, t, NULL);
 }
 #endif
 
@@ -885,28 +923,74 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    if (ctx->fingerprint_matched == BISTATE_NO) {
 		// check SANs -- cycle through all DNS SANs and find the best host match
 
+		int prio = 0;
+
 		STACK_OF(GENERAL_NAME) * san;
 		if (cert && (san = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL))) {
-		    int skipped_max = 1024;
+		    int current_dn_len = 0;
+		    int current_cn_len = 0;
 		    int san_count = sk_GENERAL_NAME_num(san);
 		    ctx->tls_peer_cert_san = mem_alloc(ctx->mem, san_count);
-		    tac_host *h = NULL;
 		    for (int i = 0; i < san_count; i++) {
 			GENERAL_NAME *val = sk_GENERAL_NAME_value(san, i);
-			if (val->type == GEN_DNS) {
-			    char *t = (char *) ASN1_STRING_get0_data(val->d.dNSName);
-			    ctx->tls_peer_cert_san[ctx->tls_peer_cert_san_count++] = mem_strdup(ctx->mem, t);
-			    for (int skipped = 0; skipped < skipped_max && t; skipped++) {
-				h = lookup_host(t, ctx->realm);
-				if (h && skipped_max > skipped) {
-				    skipped_max = skipped;
-				    ctx->host = h;
+			switch (val->type) {
+			case GEN_IPADD:
+#define CERT_SAN_PRIO 8
+			    if (prio < CERT_SAN_PRIO /* just once, so no <= */ ) {
+				u_char *data = val->d.iPAddress->data;
+				int data_len = val->d.iPAddress->length;
+				sockaddr_union su = { 0 };
+				switch (data_len) {
+				case 4:
+				    su.sin.sin_family = AF_INET;
+				    memcpy(&su.sin.sin_addr.s_addr, data, 4);
 				    break;
+				case 16:
+				    su.sin6.sin6_family = AF_INET6;
+				    memcpy(&su.sin6.sin6_addr.s6_addr, data, 16);
+				    break;
+				default:
+				    continue;
 				}
-				t = strchr(t, '.');
-				if (t)
-				    t++;
+				su_convert(&su, AF_INET);
+				struct in6_addr addr = { };
+				su_ptoh(&su, &addr);
+				if (by_address->tls_peer_cert_san_validation == TRISTATE_YES && memcmp(&addr, &ctx->device_addr, data_len))
+				    continue;
+				radixtree_t *rxt = lookup_hosttree(ctx->realm);
+				if (rxt) {
+				    tac_host *h = radix_lookup(rxt, &addr, NULL);
+				    if (h) {
+					ctx->host = h;
+					prio = CERT_SAN_PRIO;
+				    }
+				}
 			    }
+#undef CERT_SAN_PRIO
+			    continue;
+			case GEN_DNS:
+#define CERT_SAN_PRIO 4
+			    if (prio <= CERT_SAN_PRIO) {
+				char *t = (char *) ASN1_STRING_get0_data(val->d.dNSName);
+				ctx->tls_peer_cert_san[ctx->tls_peer_cert_san_count++] = mem_strdup(ctx->mem, t);
+				set_host_by_cn(ctx, t, &current_cn_len);
+				if (ctx->host)
+				    prio = CERT_SAN_PRIO;
+			    }
+#undef CERT_SAN_PRIO
+			    continue;
+			case GEN_DIRNAME:
+#define CERT_SAN_PRIO 2
+			    if (prio <= CERT_SAN_PRIO) {
+				char *t = X509_NAME_oneline(val->d.directoryName, buf, sizeof(buf));
+				set_host_by_dn(ctx, t, &current_dn_len);
+				if (ctx->host)
+				    prio = CERT_SAN_PRIO;
+			    }
+			    continue;
+#undef CERT_SAN_PRIO
+			default:
+			    continue;
 			}
 		    }
 		    GENERAL_NAMES_free(san);
@@ -915,11 +999,11 @@ static void accept_control_tls(struct context *ctx, int cur)
 
 		// check for dn match:
 		if (!ctx->host)
-		    set_host_by_dn(ctx, (char *) ctx->tls_peer_cert_subject.txt);
+		    set_host_by_dn(ctx, (char *) ctx->tls_peer_cert_subject.txt, NULL);
 
 		// check for cn match:
 		if (!ctx->host)
-		    set_host_by_cn(ctx, ctx->tls_peer_cn.txt);
+		    set_host_by_cn(ctx, ctx->tls_peer_cn.txt, NULL);
 	    }
 	}
     }
@@ -1006,6 +1090,7 @@ void complete_host(tac_host *h)
 	HS(radius_key, NULL);
 	HS(target_realm, NULL);
 #ifdef WITH_SSL
+	HS(tls_peer_cert_san_validation, TRISTATE_DUNNO);
 #ifndef OPENSSL_NO_PSK
 	HS(tls_psk_id, NULL);
 	if (!h->tls_psk_key) {

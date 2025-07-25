@@ -4232,6 +4232,11 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    parse_error_expect(sym, S_any, S_none, S_cert, S_hash);
 	}
 	break;
+    case S_tls_peer_cert_san_validation:
+	sym_get(sym);
+	parse(sym, S_equal);
+	host->tls_peer_cert_san_validation = parse_tristate(sym);
+	break;
     case S_tls_peer_cert_sha1:
     case S_tls_peer_cert_sha256:
     case S_tls_peer_cert_rpk:{

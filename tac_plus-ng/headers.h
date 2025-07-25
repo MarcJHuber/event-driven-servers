@@ -211,6 +211,9 @@ struct tac_host {
 	BISTATE(complete);
 	BISTATE(visited);
 	BISTATE(skip_parent_script);
+#ifdef WITH_SSL
+	TRISTATE(tls_peer_cert_san_validation);
+#endif
 	u_char bug_compatibility;
     } __attribute__((__packed__));
     tac_host *parent;
