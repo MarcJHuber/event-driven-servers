@@ -1471,7 +1471,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1699,7 +1699,7 @@ static void accept_control_final(struct context *ctx)
 
 static void accept_control(struct context *ctx, int cur)
 {
-    int s;
+    int s = -1;
 
     union {
 	struct scm_data_accept sd;
@@ -1711,6 +1711,17 @@ static void accept_control(struct context *ctx, int cur)
 	cleanup_spawnd(ctx, cur);
 	return;
     }
+
+    if (config.dscp && (s > -1)) {
+	// One of those will fail, but never mind ...
+#if defined(IPPROTO_IP) && defined(IP_TOS)
+	setsockopt(s, IPPROTO_IP, IP_TOS, &config.dscp, sizeof(config.dscp));
+#endif
+#if defined(IPPROTO_IPV6) && defined(IPV6_TCLASS)
+	setsockopt(s, IPPROTO_IPV6, IPV6_TCLASS, &config.dscp, sizeof(config.dscp));
+#endif
+    }
+
     struct scm_data_accept_ext sd_ext = { 0 };
 
     switch (u.sd.type) {

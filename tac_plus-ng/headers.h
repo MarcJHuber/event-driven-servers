@@ -366,6 +366,7 @@ struct config {
     tac_realm *default_realm;	/* actually the one called "default" */
     struct rad_dict *rad_dict;
     uint32_t syslog_filter;
+    int dscp;
 };
 
 struct tac_acl {

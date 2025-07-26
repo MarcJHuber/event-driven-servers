@@ -1999,6 +1999,13 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    top_only(sym, r);
 	    parse_umask(sym, &config.mask);
 	    continue;
+	case S_dscp:
+	    top_only(sym, r);
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    config.dscp = parse_uint(sym);
+	    config.dscp <<= 2;
+	    continue;
 	case S_retire:
 	    top_only(sym, r);
 	    sym_get(sym);
@@ -2427,7 +2434,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 			       S_anonenable,
 			       S_key, S_motd, S_welcome, S_reject, S_permit, S_bug, S_augmented_enable, S_singleconnection, S_context,
 			       S_script, S_message, S_session, S_maxrounds, S_host, S_device, S_syslog, S_proctitle, S_coredump, S_alias,
-			       S_script_order, S_skip, S_aaa_protocol_allowed,
+			       S_script_order, S_skip, S_aaa_protocol_allowed, S_dscp,
 #ifdef WITH_PCRE2
 			       S_rewrite,
 #endif
