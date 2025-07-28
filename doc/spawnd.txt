@@ -2,7 +2,7 @@ spawnd
 
 Marc Huber
 
-   $Id: 4b77e36e5e8ae73d306dce48db920566ca708e74 $
+   $Id: 552f87df1819eb15b1bbd6166bb89bdc731921d9 $
      __________________________________________________________
 
    Table of Contents
@@ -250,6 +250,9 @@ acl accept ::1
           + sticky cache size = Number
             This option sets the maximum number of entries in the
             "sticky" cache. Defaults to 1024.
+          + dscp = dscpValue
+            Sets the IPv4/IPv6 DSCP value to dscpValue. Example:
+            dscp = 0x38.
        The listen directive is mandatory unless the daemon is
        started via an inetd(8) (or compatible) process, in which
        case
