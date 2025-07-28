@@ -121,6 +121,7 @@ struct spawnd_context {
     int keepcnt;
     int keepidle;
     int keepintvl;
+    int dscp;
     enum token aaa_protocol;
     sockaddr_union sa;
     struct track_data track_data;

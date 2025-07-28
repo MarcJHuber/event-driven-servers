@@ -288,6 +288,22 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	fcntl(s, F_SETFD, flags);
 
 	setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (char *) &one, (socklen_t) sizeof(one));
+	switch (sa.sa.sa_family) {
+#if defined(AF_INET) && defined(IPPROTO_IP) && defined(IP_TOS)
+	case AF_INET:
+	    if (ctx->dscp)
+		setsockopt(s, IPPROTO_IP, IP_TOS, &ctx->dscp, sizeof(ctx->dscp));
+	    break;
+#endif
+#if defined(AF_INET6) && defined(IPPROTO_IPV6) && defined(IPV6_TCLASS)
+	case AF_INET6:
+	    if (ctx->dscp)
+		setsockopt(s, IPPROTO_IPV6, IPV6_TCLASS, &ctx->dscp, sizeof(ctx->dscp));
+	    break;
+#endif
+	default:
+	    ;
+	}
 
 #ifdef TCP_KEEPCNT		/* __linux__ */
 	if ((ctx->keepcnt > -1)

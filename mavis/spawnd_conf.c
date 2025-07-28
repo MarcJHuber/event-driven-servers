@@ -149,6 +149,12 @@ static void parse_listen(struct sym *sym)
 	    ctx->tag_len = strlen(ctx->tag);
 	    sym_get(sym);
 	    break;
+	case S_dscp:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    ctx->dscp = parse_uint(sym);
+	    ctx->dscp <<= 2;
+	    break;
 	case S_vrf:
 	    sym_get(sym);
 	    parse(sym, S_equal);
@@ -241,7 +247,7 @@ static void parse_listen(struct sym *sym)
 #ifdef DTLS1_2_VERSION
 				   S_DTLS1_3,
 #endif
-				   S_yes, S_permit, S_true, S_no, S_deny, S_false, S_unknown);
+				   S_yes, S_permit, S_true, S_no, S_deny, S_false, S_dscp, S_unknown);
 	    }
 	    break;
 #endif
