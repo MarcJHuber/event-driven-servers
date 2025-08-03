@@ -388,8 +388,11 @@ static enum token compare_pwdat(struct pwdat *a, char *username __attribute__((u
 	if (b) {
 	    if (a->value[0] == '$' && a->value[1] == '1' && a->value[2] == '$')
 		res = strcmp(a->value, md5crypt(b, a->value));
-	    else
-		res = strcmp(a->value, crypt(b, a->value));
+	    else {
+		char *c = crypt(b, a->value);
+		if (c)
+			res = strcmp(a->value, c);
+	    }
 	}
 	break;
 #ifdef WITH_SSL
