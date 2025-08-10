@@ -214,7 +214,6 @@ struct tac_host {
 #ifdef WITH_SSL
 	TRISTATE(tls_peer_cert_san_validation);
 #endif
-	u_char bug_compatibility;
     } __attribute__((__packed__));
     tac_host *parent;
     tac_realm *target_realm;
@@ -239,6 +238,7 @@ struct tac_host {
     struct mavis_action *action;
     char **user_messages;
     time_t password_expiry_warning;
+    u_int bug_compatibility;
     u_int debug;
 #ifdef WITH_SSL
     char *tls_psk_id;
@@ -1012,7 +1012,6 @@ struct context {
     enum token mavis_result;
     enum token aaa_protocol;
     u_int id;
-    u_int bug_compatibility;
     u_int debug;
     u_long mavis_latency;
 #define INJECT_BUF_SIZE 5000

@@ -1938,7 +1938,7 @@ void authen_init(void)
 char *check_client_bug_invalid_remote_address(tac_session *session)
 {
     char *res = session->nac_addr_ascii.txt;
-    if (session->ctx->bug_compatibility & CLIENT_BUG_INVALID_REMOTE_ADDRESS) {
+    if (session->ctx->host->bug_compatibility & CLIENT_BUG_INVALID_REMOTE_ADDRESS) {
 	char *t = strchr(res, ' ');
 	if (t) {
 	    *t = 0;
@@ -1973,7 +1973,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	    default:
 		switch (start->type) {
 		case TAC_PLUS_AUTHEN_TYPE_ASCII:
-		    if (((session->ctx->bug_compatibility & CLIENT_BUG_INVALID_START_DATA) || (common_data.debug & DEBUG_TACTRACE_FLAG)) && start->user_len
+		    if (((session->ctx->host->bug_compatibility & CLIENT_BUG_INVALID_START_DATA) || (common_data.debug & DEBUG_TACTRACE_FLAG)) && start->user_len
 			&& start->data_len) {
 			/* PAP-like inbound login. Not in rfc8907, but used by IOS-XR. */
 			session->authen_data->authfn = do_login;

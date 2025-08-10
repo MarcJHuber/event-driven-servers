@@ -464,7 +464,7 @@ static int authen_pak_looks_bogus(struct context *ctx)
 	? (TAC_AUTHEN_START_FIXED_FIELDS_SIZE + start->user_len + start->port_len + start->rem_addr_len + start->data_len)
 	: (TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + ntohs(cont->user_msg_len) + ntohs(cont->user_data_len));
 
-    return (ctx->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
+    return (ctx->host->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
 }
 
 static int author_pak_looks_bogus(struct context *ctx)
@@ -479,7 +479,7 @@ static int author_pak_looks_bogus(struct context *ctx)
     for (i = 0; i < (int) pak->arg_cnt && len < datalength; i++)
 	len += p[i];
 
-    return (i != pak->arg_cnt) || (ctx->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
+    return (i != pak->arg_cnt) || (ctx->host->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
 }
 
 static int accounting_pak_looks_bogus(struct context *ctx)
@@ -494,7 +494,7 @@ static int accounting_pak_looks_bogus(struct context *ctx)
     for (i = 0; i < (int) pak->arg_cnt && len < datalength; i++)
 	len += p[i];
 
-    return (i != pak->arg_cnt) || (ctx->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
+    return (i != pak->arg_cnt) || (ctx->host->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
 }
 
 static __inline__ tac_session *RB_lookup_session(rb_tree_t *rbt, int session_id)
@@ -729,7 +729,7 @@ void tac_read(struct context *ctx, int cur)
 
     if (
 #ifdef WITH_SSL
-	   (ctx->tls && !(ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG) && !(session->ctx->bug_compatibility & CLIENT_BUG_TLS_OBFUSCATED))
+	   (ctx->tls && !(ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG) && !(session->ctx->host->bug_compatibility & CLIENT_BUG_TLS_OBFUSCATED))
 	   || (!ctx->tls && (ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG))
 #else
 	   (ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG)
@@ -820,14 +820,14 @@ void tac_read(struct context *ctx, int cur)
 	    break;
 
 	case TAC_PLUS_AUTHOR:
-	    if (!bogus && (ctx->in->pak.tac.version == TAC_PLUS_VER_DEFAULT || (session->ctx->bug_compatibility & CLIENT_BUG_BAD_VERSION)))
+	    if (!bogus && (ctx->in->pak.tac.version == TAC_PLUS_VER_DEFAULT || (session->ctx->host->bug_compatibility & CLIENT_BUG_BAD_VERSION)))
 		author(session, &ctx->in->pak.tac);
 	    else
 		send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_ERROR, msg, NULL, 0, NULL);
 	    break;
 
 	case TAC_PLUS_ACCT:
-	    if (!bogus && (ctx->in->pak.tac.version == TAC_PLUS_VER_DEFAULT || (session->ctx->bug_compatibility & CLIENT_BUG_BAD_VERSION)))
+	    if (!bogus && (ctx->in->pak.tac.version == TAC_PLUS_VER_DEFAULT || (session->ctx->host->bug_compatibility & CLIENT_BUG_BAD_VERSION)))
 		accounting(session, &ctx->in->pak.tac);
 	    else
 		send_acct_reply(session, TAC_PLUS_ACCT_STATUS_ERROR, msg, NULL);
@@ -884,7 +884,7 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
     }
 #ifdef WITH_SSL
 // The Message-Authenticator attribute is mandatory for RADIUS BLAST mitigation
-    if ((ctx->radius_1_1 == BISTATE_NO) && !message_authenticator && !(ctx->bug_compatibility & CLIENT_BUG_NO_MESSAGE_AUTHENTICATOR)) {
+    if ((ctx->radius_1_1 == BISTATE_NO) && !message_authenticator && !(ctx->host->bug_compatibility & CLIENT_BUG_NO_MESSAGE_AUTHENTICATOR)) {
 	report(NULL, LOG_INFO_CONN, ~0, "%s did not set Message-Authenticator attribute", ctx->device_addr_ascii.txt);
 	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, -1);
