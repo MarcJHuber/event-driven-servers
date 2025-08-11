@@ -630,16 +630,13 @@ void tac_read(struct context *ctx, int cur)
 	int ssl_version = SSL_version(ctx->tls);
 	switch (ssl_version) {
 	case TLS1_2_VERSION:
-	    ssl_version = 0x02;
-	    break;
 	case TLS1_3_VERSION:
-	    ssl_version = 0x03;
-	    break;
+	break;
 	default:
 	    ssl_version = 0;
 	    break;
 	}
-	if (!tls_ver_ok(ssl_version, ctx->tls_versions) || ssl_version != 0x03) {
+	if (!tls_ver_ok(ssl_version & 0xff, ctx->tls_versions) || ssl_version != TLS1_3_VERSION) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
