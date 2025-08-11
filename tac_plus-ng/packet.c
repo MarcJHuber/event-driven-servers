@@ -764,7 +764,7 @@ void tac_read(struct context *ctx, int cur)
     }
 
     if (ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG)
-	ctx->unencrypted_flag = 1;
+	ctx->unencrypted_flag = 1, ctx->key = NULL;
 
 
     if ((ctx->in->pak.tac.flags & TAC_PLUS_SINGLE_CONNECT_FLAG) && (ctx->host->single_connection == TRISTATE_YES)) {
