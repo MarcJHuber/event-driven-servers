@@ -148,7 +148,7 @@ static void logwrite(struct context_logfile *ctx, int cur)
 	while (b) {
 	    ssize_t len = write(cur, b->buf + b->offset,
 				b->length - b->offset);
-	    if (len < 0 && errno == EAGAIN) {
+	    if (len < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
 		if (!ctx->lf->flag_pipe)
 		    tac_unlockfd(cur);
 		io_clr_o(common_data.io, cur);

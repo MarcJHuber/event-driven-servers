@@ -56,6 +56,7 @@ int scm_send_msg(int sock, struct scm_data *sd, int fd)
 #define MSG_NOSIGNAL 0
 #endif				/* MSG_NOSIGNAL */
 
+    errno = 0;
     int res = sendmsg(sock, &msg, MSG_NOSIGNAL);
     if (res < 0)
 	logmsg("scm_send_msg: sendmsg: %s", strerror(errno));
@@ -79,7 +80,7 @@ int scm_recv_msg(int sock, struct scm_data_accept *sd, size_t sd_len, int *fd)
 	logmsg("scm_recv_msg: recvmsg: EoF");
 	return -1;
     }
-	
+
     int fd_peek = -1;
     if (sd->type == SCM_UDPDATA) {
 	len = sizeof(struct scm_data_udp) + ((struct scm_data_udp *) sd)->data_len;
@@ -92,6 +93,7 @@ int scm_recv_msg(int sock, struct scm_data_accept *sd, size_t sd_len, int *fd)
 	memcpy(&fd_peek, CMSG_DATA(chdr), sizeof(int));
     }
 
+    errno = 0;
     res = recvmsg(sock, &msg, 0);
 
     if (len && len > sd_len) {

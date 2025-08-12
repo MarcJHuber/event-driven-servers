@@ -513,6 +513,20 @@ static int tls_ver_ok(u_int ver, u_char v)
 }
 #endif
 
+static int check_status(struct context *ctx, enum io_status status)
+{
+    switch (status) {
+    case io_status_ok:
+	return 0;
+    default:
+	ctx->reset_tcp = BISTATE_YES;
+    case io_status_close:
+	cleanup(ctx, ctx->sock);
+    case io_status_retry:
+	return -1;
+    }
+}
+
 void tac_read(struct context *ctx, int cur)
 {
     ssize_t len;
@@ -522,21 +536,17 @@ void tac_read(struct context *ctx, int cur)
     context_lru_append(ctx);
 
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE) {
+	enum io_status status = io_status_ok;
 #ifdef WITH_SSL
 	update_bio(ctx);
 	if (ctx->tls)
-	    len = io_SSL_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) tac_read);
+	    len = io_SSL_read_ex(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) tac_read, &status);
 	else
 #endif
-	    len = recv_inject(ctx, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, 0);
+	    len = recv_inject(ctx, &ctx->hdr.uchar + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff, 0, &status);
 
-	if (len < 0) {
-	    if (errno != EAGAIN) {
-		ctx->reset_tcp = BISTATE_YES;
-		cleanup(ctx, cur);
-	    }
+	if (check_status(ctx, status))
 	    return;
-	}
 
 	ctx->hdroff += len;
 	if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
@@ -631,7 +641,7 @@ void tac_read(struct context *ctx, int cur)
 	switch (ssl_version) {
 	case TLS1_2_VERSION:
 	case TLS1_3_VERSION:
-	break;
+	    break;
 	default:
 	    ssl_version = 0;
 	    break;
@@ -669,21 +679,17 @@ void tac_read(struct context *ctx, int cur)
 	ctx->in->length = TAC_PLUS_HDR_SIZE + data_len;
 	memcpy(&ctx->in->pak.tac, &ctx->hdr, TAC_PLUS_HDR_SIZE);
     }
+    enum io_status status = io_status_ok;
 #ifdef WITH_SSL
     update_bio(ctx);
     if (ctx->tls)
-	len = io_SSL_read(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) tac_read);
+	len = io_SSL_read_ex(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) tac_read, &status);
     else
 #endif
-	len = recv_inject(ctx, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, 0);
+	len = recv_inject(ctx, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, 0, &status);
 
-    if (len < 0) {
-	if (errno != EAGAIN) {
-	    ctx->reset_tcp = BISTATE_YES;
-	    cleanup(ctx, cur);
-	}
+    if (check_status(ctx, status))
 	return;
-    }
 
     ctx->in->offset += len;
     if (ctx->in->offset != ctx->in->length)
@@ -729,7 +735,7 @@ void tac_read(struct context *ctx, int cur)
 	   (ctx->tls && !(ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG) && !(session->ctx->host->bug_compatibility & CLIENT_BUG_TLS_OBFUSCATED))
 	   || (!ctx->tls &&
 #endif
-	   (ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG) && !(session->ctx->host->bug_compatibility & CLIENT_BUG_NOT_OBFUSCATED)
+	       (ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG) && !(session->ctx->host->bug_compatibility & CLIENT_BUG_NOT_OBFUSCATED)
 #ifdef WITH_SSL
 	   )
 #endif
@@ -979,21 +985,17 @@ void rad_read(struct context *ctx, int cur)
     context_lru_append(ctx);
 
     if (ctx->hdroff != RADIUS_HDR_SIZE) {
+	enum io_status status = io_status_ok;
 #ifdef WITH_SSL
 	update_bio(ctx);
 	if (ctx->tls)
-	    len = io_SSL_read(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) rad_read);
+	    len = io_SSL_read_ex(ctx->tls, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, ctx->io, cur, (void *) rad_read, &status);
 	else
 #endif
-	    len = recv_inject(ctx, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, 0);
+	    len = recv_inject(ctx, &ctx->hdr.uchar + ctx->hdroff, RADIUS_HDR_SIZE - ctx->hdroff, 0, &status);
 
-	if (len < 0) {
-	    if (errno != EAGAIN) {
-		ctx->reset_tcp = BISTATE_YES;
-		cleanup(ctx, cur);
-	    }
+	if (check_status(ctx, status))
 	    return;
-	}
 
 	ctx->hdroff += len;
 	if (ctx->hdroff != RADIUS_HDR_SIZE)
@@ -1023,21 +1025,17 @@ void rad_read(struct context *ctx, int cur)
 	ctx->in->length = RADIUS_HDR_SIZE + data_len;
 	memcpy(&ctx->in->pak.rad, &ctx->hdr, RADIUS_HDR_SIZE);
     }
+    enum io_status status = io_status_ok;
 #ifdef WITH_SSL
     update_bio(ctx);
     if (ctx->tls)
-	len = io_SSL_read(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) rad_read);
+	len = io_SSL_read_ex(ctx->tls, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, ctx->io, cur, (void *) rad_read, &status);
     else
 #endif
-	len = recv_inject(ctx, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, 0);
+	len = recv_inject(ctx, &ctx->in->pak.uchar + ctx->in->offset, ctx->in->length - ctx->in->offset, 0, &status);
 
-    if (len < 0) {
-	if (errno != EAGAIN) {
-	    ctx->reset_tcp = BISTATE_YES;
-	    cleanup(ctx, cur);
-	}
+    if (check_status(ctx, status))
 	return;
-    }
 
     ctx->in->offset += len;
     if (ctx->in->offset != ctx->in->length)
@@ -1109,7 +1107,7 @@ void rad_read(struct context *ctx, int cur)
 static void ssl_shutdown_sock(struct context *ctx, int cur)
 {
     int res = io_SSL_shutdown(ctx->tls, ctx->io, cur, ssl_shutdown_sock);
-    if (res < 0 && errno == EAGAIN)
+    if (res < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
 	return;
     SSL_free(ctx->tls);
     ctx->tls = NULL;
@@ -1118,24 +1116,40 @@ static void ssl_shutdown_sock(struct context *ctx, int cur)
 }
 #endif
 
+static ssize_t write_ex(int fd, const void *buf, size_t count, enum io_status *status)
+{
+    ssize_t len = write(fd, buf, count);
+    if (len == 0)
+	*status = io_status_close;
+    else if (len < -1) {
+	if (errno == EAGAIN || errno == EWOULDBLOCK) {
+	    len = 0;
+	    *status = io_status_retry;
+	} else
+	    *status = io_status_error;
+    } else
+	*status = io_status_ok;
+    return len;
+}
+
 void tac_write(struct context *ctx, int cur)
 {
     ctx->last_io = io_now.tv_sec;
     context_lru_append(ctx);
     while (ctx->out) {
 	ssize_t len;
+	enum io_status status = io_status_ok;
 #ifdef WITH_SSL
 	if (ctx->tls)
-	    len = io_SSL_write(ctx->tls, &ctx->out->pak.uchar + ctx->out->offset, ctx->out->length - ctx->out->offset, ctx->io, cur, (void *) tac_write);
+	    len =
+		io_SSL_write_ex(ctx->tls, &ctx->out->pak.uchar + ctx->out->offset, ctx->out->length - ctx->out->offset, ctx->io, cur, (void *) tac_write,
+				&status);
 	else
 #endif
-	    len = write(cur, &ctx->out->pak.uchar + ctx->out->offset, ctx->out->length - ctx->out->offset);
+	    len = write_ex(cur, &ctx->out->pak.uchar + ctx->out->offset, ctx->out->length - ctx->out->offset, &status);
 
-	if (len < 0) {
-	    if (errno != EAGAIN)
-		cleanup(ctx, cur);
+	if (check_status(ctx, status))
 	    return;
-	}
 
 	ctx->out->offset += len;
 	if (ctx->out->offset == ctx->out->length) {

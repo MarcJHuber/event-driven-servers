@@ -263,7 +263,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
     } else {
 	s = accept(cur, &sa.sa, &sa_len);
 	if (s < 0) {
-	    if (errno != EAGAIN)
+	    if (errno != EAGAIN && errno != EWOULDBLOCK)
 		logerr("accept (%s:%d)", __FILE__, __LINE__);
 	    DebugOut(DEBUG_NET);
 	    return;
@@ -278,7 +278,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	if (!spawnd_acl_check(&sa)) {
 	    char buf[INET6_ADDRSTRLEN];
 	    close(s);
-	    if (errno != EAGAIN)
+	    if (errno != EAGAIN && errno != EWOULDBLOCK)
 		logerr("connection attempt from [%s] rejected", su_ntoa(&sa, buf, (socklen_t) sizeof(buf)));
 	    DebugOut(DEBUG_NET);
 	    return;

@@ -1132,7 +1132,7 @@ struct rad_dict_attr *rad_dict_attr_lookup_by_id(struct rad_dict *dict, int id);
 struct rad_dict_val *rad_dict_val_lookup_by_id(struct rad_dict_attr *attr, int id);
 
 void rad_udp_inject(struct context *);
-ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags);
+ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags, enum io_status *status);
 
 void cleanup_session(tac_session *);
 struct log_item *parse_log_format(struct sym *, mem_t *);

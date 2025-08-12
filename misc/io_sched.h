@@ -74,9 +74,13 @@ int io_close(io_context_t *, int);
 void io_clone(io_context_t *, int, int);
 int io_get_nfds_limit(struct io_context *);
 
+enum io_status { io_status_ok = 0, io_status_retry, io_status_error, io_status_close };
+
 #ifdef WITH_SSL
 ssize_t io_SSL_read(SSL *, void *, size_t, io_context_t *, int, void *);
 ssize_t io_SSL_write(SSL *, void *, size_t, io_context_t *, int, void *);
+ssize_t io_SSL_read_ex(SSL *, void *, size_t, io_context_t *, int, void *, enum io_status *);
+ssize_t io_SSL_write_ex(SSL *, void *, size_t, io_context_t *, int, void *, enum io_status *);
 int io_SSL_shutdown(SSL *, io_context_t *, int, void *);
 #endif				/* WITH_SSL */
 #ifdef WITH_TLS

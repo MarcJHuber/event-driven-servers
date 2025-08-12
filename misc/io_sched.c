@@ -363,7 +363,7 @@ int io_poll(struct io_context *io, int poll_timeout)
 
 struct io_context *io_destroy(struct io_context *io, void (*freeproc)(void *))
 {
-    if(io) {
+    if (io) {
 	RB_tree_delete(io->events_by_data);
 	RB_tree_delete(io->events_by_time);
 
@@ -2206,8 +2206,11 @@ int io_TLS_shutdown(struct tls *ssl, struct io_context *io, int fd, void *cb)
 #ifdef WITH_SSL
 #include <openssl/ssl.h>
 
-static ssize_t io_SSL_rw(SSL *ssl __attribute__((unused)), struct io_context *io, int fd, void *cb, int res)
+static ssize_t io_SSL_rw(SSL *ssl __attribute__((unused)), struct io_context *io, int fd, void *cb, int res, enum io_status *status)
 {
+    if (status)
+	*status = io_status_ok;
+
     DebugIn(DEBUG_PROC | DEBUG_NET);
     if (io->handler[fd].reneg && !SSL_want_read(ssl)
 	&& !SSL_want_write(ssl)) {
@@ -2230,7 +2233,10 @@ static ssize_t io_SSL_rw(SSL *ssl __attribute__((unused)), struct io_context *io
 	    io_SSL_set_o(io, fd);
 	}
 
-	errno = EAGAIN;
+	if (status)
+	    *status = io_status_retry;
+	else
+	    errno = EAGAIN;
     }
     DebugOut(DEBUG_PROC | DEBUG_NET);
     return res;
@@ -2252,7 +2258,7 @@ ssize_t io_SSL_read(SSL *ssl, void *buf, size_t num, struct io_context *io, int 
 	    res = -1;
     } else
 	res = readbytes;
-    return io_SSL_rw(ssl, io, fd, cb, res);
+    return io_SSL_rw(ssl, io, fd, cb, res, NULL);
 }
 
 ssize_t io_SSL_write(SSL *ssl, void *buf, size_t num, struct io_context *io, int fd, void *cb)
@@ -2271,7 +2277,49 @@ ssize_t io_SSL_write(SSL *ssl, void *buf, size_t num, struct io_context *io, int
 	    res = -1;
     } else
 	res = writebytes;
-    return io_SSL_rw(ssl, io, fd, cb, res);
+    return io_SSL_rw(ssl, io, fd, cb, res, NULL);
+}
+
+ssize_t io_SSL_read_ex(SSL *ssl, void *buf, size_t num, struct io_context *io, int fd, void *cb, enum io_status *status)
+{
+    *status = io_status_ok;
+    size_t readbytes = 0;
+    int res = SSL_read_ex(ssl, buf, (int) num, &readbytes);
+    if (!res)
+	switch (SSL_get_error(ssl, res)) {
+	case SSL_ERROR_ZERO_RETURN:
+	    *status = io_status_close;
+	    break;
+	case SSL_ERROR_WANT_READ:
+	case SSL_ERROR_WANT_WRITE:
+	    *status = io_status_retry;
+	    break;
+	default:
+	    *status = io_status_error;
+    } else
+	res = readbytes;
+    return io_SSL_rw(ssl, io, fd, cb, res, status);
+}
+
+ssize_t io_SSL_write_ex(SSL *ssl, void *buf, size_t num, struct io_context *io, int fd, void *cb, enum io_status *status)
+{
+    *status = 0;
+    size_t writebytes = 0;
+    int res = SSL_write_ex(ssl, buf, (int) num, &writebytes);
+    if (!res)
+	switch (SSL_get_error(ssl, res)) {
+	case SSL_ERROR_ZERO_RETURN:
+	    *status = io_status_close;
+	    break;
+	case SSL_ERROR_WANT_READ:
+	case SSL_ERROR_WANT_WRITE:
+	    *status = io_status_retry;
+	    break;
+	default:
+	    *status = io_status_error;
+    } else
+	res = writebytes;
+    return io_SSL_rw(ssl, io, fd, cb, res, status);
 }
 
 int io_SSL_shutdown(SSL *ssl, struct io_context *io, int fd, void *cb)
@@ -2281,7 +2329,7 @@ int io_SSL_shutdown(SSL *ssl, struct io_context *io, int fd, void *cb)
     Debug((DEBUG_PROC | DEBUG_NET, "SSL_shutdown = %d\n", res));
     if (res < 1)
 	res = -1;
-    return (int) io_SSL_rw(ssl, io, fd, cb, res);
+    return (int) io_SSL_rw(ssl, io, fd, cb, res, NULL);
 }
 #endif				/* WITH_SSL */
 

@@ -421,7 +421,7 @@ void cleanup(struct context *ctx, int cur __attribute__((unused)))
 	if (!ctx->reset_tcp) {
 	    update_bio(ctx);
 	    int res = io_SSL_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
-	    if (res < 0 && errno == EAGAIN)
+	    if (res < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
 		return;
 	}
 	SSL_free(ctx->tls);
@@ -1471,7 +1471,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1504,7 +1504,7 @@ static void complete_host_mavis(struct context *ctx)
 	accept_control_check_tls(ctx, ctx->sock);
 }
 
-ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags)
+ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags, enum io_status *status)
 {
     if (ctx->inject_buf && !ctx->inject_len) {
 	ssize_t l = recv(ctx->sock, ctx->inject_buf, INJECT_BUF_SIZE, 0);
@@ -1523,7 +1523,19 @@ ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags)
 	return len;
     }
     ssize_t res = recv(ctx->sock, buf, len, flags);
-    return (!res && len) ? -1 : res;
+    if (status) {
+	if (res < 0) {
+	    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+		res = 0;
+		*status = io_status_retry;
+	    } else
+		*status = io_status_error;
+	} else if (!res) {
+	    *status = io_status_close;
+	} else
+	    *status = io_status_ok;
+    }
+    return res;
 }
 
 #ifdef WITH_SSL
@@ -1540,7 +1552,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 {
 #ifdef WITH_SSL
     u_char tmp[6];
-    if (recv_inject(ctx, tmp, sizeof(tmp), MSG_PEEK) == (ssize_t) sizeof(tmp)) {
+    if (recv_inject(ctx, tmp, sizeof(tmp), MSG_PEEK, NULL) == (ssize_t) sizeof(tmp)) {
 	if (ctx->udp && tmp[0] == 0x17 && tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2])) {
 	    // DTLS Application Data, but we haven't seen the handshake, possibly due to a daemon
 	    // restart. Just return some junk data back , the peer is likely to retry with a new handshake.
