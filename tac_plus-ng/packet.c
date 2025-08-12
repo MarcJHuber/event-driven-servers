@@ -727,9 +727,11 @@ void tac_read(struct context *ctx, int cur)
     if (
 #ifdef WITH_SSL
 	   (ctx->tls && !(ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG) && !(session->ctx->host->bug_compatibility & CLIENT_BUG_TLS_OBFUSCATED))
-	   || (!ctx->tls && (ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG))
-#else
-	   (ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG)
+	   || (!ctx->tls &&
+#endif
+	   (ctx->in->pak.tac.flags & TAC_PLUS_UNENCRYPTED_FLAG) && !(session->ctx->host->bug_compatibility & CLIENT_BUG_NOT_OBFUSCATED)
+#ifdef WITH_SSL
+	   )
 #endif
 	) {
 	char *msg =
