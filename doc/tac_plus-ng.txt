@@ -1781,7 +1781,7 @@ aaa authentication enable default group tacacs+ enable
    1 2 Accept version 1 for authorization and accounting packets,
    seen with Palo Alto systems.
    2 4 Accept key-based packet obfuscation for TLS (this violates
-   draft-ietf-opsawg-tacacs-tls13-03.txt).
+   draft-ietf-opsawg-tacacs-tls13-24.txt).
    3 8 Accept TACACS+ payloads lower than advertized in the
    TACACS+ header.
    4 16 Check for a space in the remote address field of a packet
@@ -1789,6 +1789,8 @@ aaa authentication enable default group tacacs+ enable
    conversion.
    5 32 Accept RADIUS packets if no Message-Authenticator
    attribute is set. This disables RADIUS BLAST attack migigation.
+   6 64 Don't require key-based packet obfuscation for non-TLS
+   (this violates draft-ietf-opsawg-tacacs-tls13-24.txt).
 
    Example:
   device ... {
