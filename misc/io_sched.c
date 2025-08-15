@@ -2208,9 +2208,6 @@ int io_TLS_shutdown(struct tls *ssl, struct io_context *io, int fd, void *cb)
 
 static ssize_t io_SSL_rw(SSL *ssl __attribute__((unused)), struct io_context *io, int fd, void *cb, int res, enum io_status *status)
 {
-    if (status)
-	*status = io_status_ok;
-
     DebugIn(DEBUG_PROC | DEBUG_NET);
     if (io->handler[fd].reneg && !SSL_want_read(ssl)
 	&& !SSL_want_write(ssl)) {
@@ -2303,7 +2300,7 @@ ssize_t io_SSL_read_ex(SSL *ssl, void *buf, size_t num, struct io_context *io, i
 
 ssize_t io_SSL_write_ex(SSL *ssl, void *buf, size_t num, struct io_context *io, int fd, void *cb, enum io_status *status)
 {
-    *status = 0;
+    *status = io_status_ok;
     size_t writebytes = 0;
     int res = SSL_write_ex(ssl, buf, (int) num, &writebytes);
     if (!res)
