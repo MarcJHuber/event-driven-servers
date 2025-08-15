@@ -1645,6 +1645,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    SSL_set_min_proto_version(ctx->tls, ver);
 	    SSL_set_fd(ctx->tls, ctx->sock);
 	    SSL_set_session_id_context(ctx->tls, (const unsigned char *) &ctx, sizeof(ctx));
+	    SSL_set_num_tickets(ctx->tls, 0);
 
 #if OPENSSL_VERSION_NUMBER >= 0x30200000
 	    if (ctx->host->tls_client_cert_type_len)
