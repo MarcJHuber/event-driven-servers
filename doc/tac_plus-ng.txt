@@ -39,7 +39,7 @@ Marc Huber
 
               4.7.1. Authentication
               4.7.2. User back-end options
-              4.7.3. TLS
+              4.7.3. TLS and DTLS
 
         4.8. Miscellaneous
         4.9. Realm Inheritance
@@ -1306,13 +1306,13 @@ mavis format custom_0 = "${server.address} ${server.port}"
        will set the AV_A_CUSTOM_0 MAVIS attribute.
      __________________________________________________________
 
-4.7.3. TLS
+4.7.3. TLS and DTLS
 
-   TACACS+-over-TLS is not a standard. These features are
-   experimental.
+   TACACS+ over TLS1.3 is supported, as are RADIUS over both TLS
+   and DTLS. These features require OpenSSL version 3.
 
-   If compiled with OpenSSL support the following configuration
-   options are available:
+   The following configuration options are available if and only
+   if the software was compiled with OpenSSL 3.x support:
 
      * tls cert-file = cert-file
        Specifies the public part of a TLS server certificate in

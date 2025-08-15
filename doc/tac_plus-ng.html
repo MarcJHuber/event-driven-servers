@@ -64,7 +64,7 @@
 <dl>
 <dt>4.7.1. <a class="lk" href="#AEN1171">Authentication</a></dt>
 <dt>4.7.2. <a class="lk" href="#AEN1268">User back-end options</a></dt>
-<dt>4.7.3. <a class="lk" href="#AEN1370">TLS</a></dt>
+<dt>4.7.3. <a class="lk" href="#AEN1370">TLS and DTLS</a></dt>
 </dl>
 </dd>
 <dt>4.8. <a class="lk" href="#AEN1466">Miscellaneous</a></dt>
@@ -1626,9 +1626,9 @@ mavis user filter = __internal__username_acl__ </pre></li>
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN1370" id="AEN1370">4.7.3. TLS</a></h4>
-<p>TACACS+-over-TLS is not a standard. These features are experimental.</p>
-<p>If compiled with OpenSSL support the following configuration options are available:</p>
+<h4 class="section"><a name="AEN1370" id="AEN1370">4.7.3. TLS and DTLS</a></h4>
+<p>TACACS+ over TLS1.3 is supported, as are RADIUS over both TLS and DTLS. These features require OpenSSL version 3.</p>
+<p>The following configuration options are available if and only if the software was compiled with OpenSSL 3.x support:</p>
 <ul>
 <li>
 <p><tt class="literal">tls cert-file =</tt> <span class="emphasis"><i class="emphasis">cert-file</i></span></p>
