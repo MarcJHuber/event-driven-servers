@@ -1576,8 +1576,11 @@ static str_t *eval_log_format_pid(tac_session *session __attribute__((unused)), 
 {
     static char buf[32] = { 0 };
     static size_t l = 0;
+    static pid_t pid = 0;
+    if (!pid)
+	pid = getpid();
     if (!*buf)
-	l = snprintf(buf, sizeof(buf), "%lu", (unsigned long) getpid());
+	l = snprintf(buf, sizeof(buf), "%lu", (unsigned long) pid);
     return str_set(&str, buf, l);
 }
 
