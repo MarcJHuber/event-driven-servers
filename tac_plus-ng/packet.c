@@ -1147,17 +1147,8 @@ void tac_write(struct context *ctx, int cur)
     }
     io_clr_o(ctx->io, cur);
 
-#ifdef WITH_SSL
-    if (ctx->tls && ctx->dying && !ctx->delayed) {
-	SSL_shutdown(ctx->tls);
-	SSL_free(ctx->tls);
-	ctx->tls = NULL;
-    }
-#endif
-    // Call shutdown(2) on the socket. This will trigger cleanup() being called via
-    // the event loop.
-    if (ctx->dying && !ctx->delayed && shutdown(cur, SHUT_WR))
-	cleanup(ctx, cur);	// We only get here if shutdown(2) failed.
+    if (ctx->dying && !ctx->delayed)
+	cleanup(ctx, cur);
 }
 
 #define STR_TYPE(A) { A, sizeof(A) - 1}
