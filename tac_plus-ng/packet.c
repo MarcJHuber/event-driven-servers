@@ -1172,21 +1172,15 @@ void tac_write(struct context *ctx, int cur)
 	cleanup(ctx, cur);	// We only get here if shutdown(2) failed.
 }
 
+#define STR_TYPE(A) { A, sizeof(A) - 1}
 static str_t types[] = {
-    { "", 0 },
-#define S "authen"
-    { S, sizeof(S) - 1 },
-#undef S
-#define S "author"
-    { S, sizeof(S) - 1 },
-#undef S
-#define S "acct"
-    { S, sizeof(S) - 1 },
-#undef S
-#define S "status"
-    { S, sizeof(S) - 1 },
-#undef S
+    STR_TYPE(""),	// 0
+    STR_TYPE("authen"),	// 1, TAC_PLUS_AUTHEN
+    STR_TYPE("author"),	// 2, TAC_PLUS_AUTHOR
+    STR_TYPE("acct"),	// 3, TAC_PLUS_ACCT
+    STR_TYPE("status"),	// 4
 };
+#undef STR_TYPE
 
 static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_pak_hdr *radhdr)
 {
