@@ -646,7 +646,7 @@ void tac_read(struct context *ctx, int cur)
 	    ssl_version = 0;
 	    break;
 	}
-	if (!tls_ver_ok(ssl_version & 0xff, ctx->tls_versions) || ssl_version != TLS1_3_VERSION) {
+	if (!tls_ver_ok(ctx->tls_versions, ssl_version & 0xff) || ssl_version != TLS1_3_VERSION) {
 	    ctx->reset_tcp = BISTATE_YES;
 	    cleanup(ctx, cur);
 	    return;
