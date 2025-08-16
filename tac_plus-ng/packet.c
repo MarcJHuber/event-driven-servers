@@ -1103,19 +1103,6 @@ void rad_read(struct context *ctx, int cur)
     ctx->hdroff = 0;
 }
 
-#ifdef WITH_SSL
-static void ssl_shutdown_sock(struct context *ctx, int cur)
-{
-    int res = io_SSL_shutdown(ctx->tls, ctx->io, cur, ssl_shutdown_sock);
-    if (res < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
-	return;
-    SSL_free(ctx->tls);
-    ctx->tls = NULL;
-    if (shutdown(cur, SHUT_WR))
-	cleanup(ctx, cur);	// We only get here if shutdown(2) failed.
-}
-#endif
-
 static ssize_t write_ex(int fd, const void *buf, size_t count, enum io_status *status)
 {
     ssize_t len = write(fd, buf, count);
@@ -1162,8 +1149,9 @@ void tac_write(struct context *ctx, int cur)
 
 #ifdef WITH_SSL
     if (ctx->tls && ctx->dying && !ctx->delayed) {
-	if (io_SSL_shutdown(ctx->tls, ctx->io, cur, ssl_shutdown_sock))
-	    return;
+	SSL_shutdown(ctx->tls);
+	SSL_free(ctx->tls);
+	ctx->tls = NULL;
     }
 #endif
     // Call shutdown(2) on the socket. This will trigger cleanup() being called via

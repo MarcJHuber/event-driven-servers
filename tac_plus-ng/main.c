@@ -418,12 +418,8 @@ void cleanup(struct context *ctx, int cur __attribute__((unused)))
 {
 #ifdef WITH_SSL
     if (ctx->tls) {
-	if (!ctx->reset_tcp) {
-	    update_bio(ctx);
-	    int res = io_SSL_shutdown(ctx->tls, ctx->io, ctx->sock, cleanup);
-	    if (res < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
-		return;
-	}
+	update_bio(ctx);
+	SSL_shutdown(ctx->tls);
 	SSL_free(ctx->tls);
 	ctx->tls = NULL;
     }
