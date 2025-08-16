@@ -1211,6 +1211,7 @@ extern int die_when_idle;
 #define CLIENT_BUG_INVALID_REMOTE_ADDRESS	0x10
 #define CLIENT_BUG_NO_MESSAGE_AUTHENTICATOR	0x20
 #define CLIENT_BUG_NOT_OBFUSCATED	0x40
+#define CLIENT_BUG_BAD_TLS_VERSION	0x80
 
 char *check_client_bug_invalid_remote_address(tac_session *);
 
