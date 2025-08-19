@@ -583,7 +583,7 @@ sub check_for($$$$$) {
 				} else {
 					next;
 				}
-				my @g = glob("$prefix/$DEFS{'LIBARCH'}/lib$lib$DEFS{'SHLIB_EXT'}*");
+				my @g = glob("$prefix/$libarch/lib$lib$DEFS{'SHLIB_EXT'}*");
 				if ($#g > -1) {
 					$DEFS{"WITH_$PKG"} = 1;
 					$DEFS{"INCDIR_$PKG"} = $inc;
