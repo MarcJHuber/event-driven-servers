@@ -146,7 +146,7 @@ struct tac_key {
     int len;
     u_int line;			/* configuration file line number */
     time_t warn;
-    char key[1];
+    char *key;
 };
 
 struct tac_host;

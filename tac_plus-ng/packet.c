@@ -604,21 +604,17 @@ void tac_read(struct context *ctx, int cur)
 	    }
 	}
 #ifdef WITH_SSL
-	static struct tac_key *key_radsec = NULL;
-	static struct tac_key *key_radius_dtls = NULL;
-	if (!key_radsec) {
-	    key_radsec = calloc(1, sizeof(struct tac_key) + 6);
-	    key_radsec->len = 6;
-	    strcpy(key_radsec->key, "radsec");
-	    key_radius_dtls = calloc(1, sizeof(struct tac_key) + 11);
-	    key_radius_dtls->len = 11;
-	    strcpy(key_radius_dtls->key, "radius/dtls");
-	}
-	if (ctx->tls && ctx->use_tls)
-	    ctx->key = key_radsec;
-	else if (ctx->tls && ctx->use_dtls)
-	    ctx->key = key_radius_dtls;
-	else
+	if (ctx->tls && ctx->use_tls) {
+#define S "radsec"
+	    static struct tac_key key = { .len = sizeof(S) - 1, .key = S };
+#undef S
+	    ctx->key = &key;
+	} else if (ctx->tls && ctx->use_dtls) {
+#define S "radius/dtls"
+	    static struct tac_key key = { .len = sizeof(S) - 1, .key = S };
+#undef S
+	    ctx->key = &key;
+	} else
 #endif
 	    ctx->key = ctx->host->radius_key;
 

@@ -708,7 +708,6 @@ static time_t parse_date(struct sym *sym, time_t offset);
 static void parse_key(struct sym *sym, tac_host *host)
 {
     struct tac_key **tk;
-    int keylen;
     time_t warn = 0;
 
     if (sym->code == S_key)
@@ -728,13 +727,14 @@ static void parse_key(struct sym *sym, tac_host *host)
 	tk = &(*tk)->next;
 
     parse(sym, S_equal);
-    keylen = strlen(sym->buf);
 
-    *tk = mem_alloc(host->mem, sizeof(struct tac_key) + keylen);
+    size_t len = strlen(sym->buf);
+    *tk = mem_alloc(host->mem, sizeof(struct tac_key) + len + 1);
     (*tk)->warn = warn;
-    (*tk)->len = keylen;
     (*tk)->line = sym->line;
-    strncpy((*tk)->key, sym->buf, keylen);
+    (*tk)->len = len;
+    (*tk)->key = ((char *) (*tk)) + sizeof(struct tac_key);
+    memcpy((*tk)->key, sym->buf, len);
 
     sym_get(sym);
 }
