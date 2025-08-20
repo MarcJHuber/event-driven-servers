@@ -1,6 +1,23 @@
 This is a collection of high-performance and scalable event-driven servers
-(notably tac_plus-ng, tac_plus, ftpd, tcprelay). Please have a look at the
-documentation for configuration details.
+(notably tac_plus-ng, but the legacy daemons tac_plus, ftpd and tcprelay
+are still part of the GIT).
+
+tac_plus-ng
+===========
+
+tac_plus-ng implements both TACACS+ (TCP, TLS) and RADIUS (UDP, TCP, DTLS, TLS),
+with RADIUS support for PAP authentication and Downloadable ACLs.
+
+Documentation:
+
+  https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus-ng.html
+
+Sample configurations:
+
+  https://github.com/MarcJHuber/event-driven-servers/tree/master/tac_plus-ng/sample
+
+Support
+=======
 
 Issues can be reported via
 
