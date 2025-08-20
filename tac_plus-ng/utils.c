@@ -1723,7 +1723,7 @@ static str_t *eval_log_format_tls_conn_sni(tac_session *session __attribute__((u
 static str_t *eval_log_format_tls_peer_cert_sha1(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
 						 __attribute__((unused)))
 {
-    if (ctx->tls) {
+    if (ctx && ctx->tls) {
 	struct fingerprint *fp = ctx->fingerprint;
 	while (fp && fp->type != S_tls_peer_cert_sha1)
 	    fp = fp->next;
@@ -1740,7 +1740,7 @@ static str_t *eval_log_format_tls_peer_cert_sha1(tac_session *session __attribut
 static str_t *eval_log_format_tls_peer_cert_sha256(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
 						   __attribute__((unused)))
 {
-    if (ctx->tls) {
+    if (ctx && ctx->tls) {
 	struct fingerprint *fp = ctx->fingerprint;
 	while (fp && fp->type != S_tls_peer_cert_sha256)
 	    fp = fp->next;
