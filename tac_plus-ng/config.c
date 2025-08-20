@@ -449,7 +449,7 @@ information:\n\
         User:   ${user}\n\
         Date:   %Y-%m-%d %H:%M:%S %z\n\
 \"";
-#ifdef WITH_TLS
+#ifdef WITH_SSL
 	host->tls_peer_cert_validation = S_any;
 #endif
     }
