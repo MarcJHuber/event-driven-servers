@@ -1035,6 +1035,7 @@ struct context_logfile {
 };
 
 void cleanup(struct context *, int);
+void reject_conn(struct context *ctx, const char *hint, char *tls, int line);
 
 /* acct.c */
 void accounting(tac_session *, tac_pak_hdr *);

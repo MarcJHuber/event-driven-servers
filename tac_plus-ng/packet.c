@@ -564,8 +564,13 @@ void tac_read(struct context *ctx, int cur)
     if (config.rad_dict && ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
 #ifdef WITH_SSL
 	if (ctx->tls) {
+	    int ssl_version = SSL_version(ctx->tls);
+	    if (!(ctx->host->bug_compatibility & CLIENT_BUG_BAD_TLS_VERSION) && (!tls_ver_ok(ctx->tls_versions, ssl_version & 0xff))) {
+		ctx->reset_tcp = BISTATE_YES;
+		reject_conn(ctx, NULL, (char *) SSL_get_version(ctx->tls), __LINE__);
+		return;
+	    }
 	    if (ctx->radius_1_1 == BISTATE_YES) {
-		int ssl_version = SSL_version(ctx->tls);
 		switch (ssl_version) {
 		case TLS1_3_VERSION:
 		case DTLS1_2_VERSION:	// FIXME, is that fine for radius/1.1?
@@ -575,7 +580,7 @@ void tac_read(struct context *ctx, int cur)
 		    break;
 		default:
 		    ctx->reset_tcp = BISTATE_YES;
-		    cleanup(ctx, cur);
+		    reject_conn(ctx, NULL, (char *) SSL_get_version(ctx->tls), __LINE__);
 		    return;
 		}
 	    }
@@ -606,12 +611,12 @@ void tac_read(struct context *ctx, int cur)
 #ifdef WITH_SSL
 	if (ctx->tls && ctx->use_tls) {
 #define S "radsec"
-	    static struct tac_key key = { .len = sizeof(S) - 1, .key = S };
+	    static struct tac_key key = {.len = sizeof(S) - 1,.key = S };
 #undef S
 	    ctx->key = &key;
 	} else if (ctx->tls && ctx->use_dtls) {
 #define S "radius/dtls"
-	    static struct tac_key key = { .len = sizeof(S) - 1, .key = S };
+	    static struct tac_key key = {.len = sizeof(S) - 1,.key = S };
 #undef S
 	    ctx->key = &key;
 	} else
@@ -634,6 +639,12 @@ void tac_read(struct context *ctx, int cur)
 	CHECK_PROTOCOL(tacacs_tls, tacacs);
 	ctx->aaa_protocol = S_tacacs_tls;
 	int ssl_version = SSL_version(ctx->tls);
+	if (!(ctx->host->bug_compatibility & CLIENT_BUG_BAD_TLS_VERSION)
+	    && (!tls_ver_ok(ctx->tls_versions, ssl_version & 0xff) || ssl_version != TLS1_3_VERSION)) {
+	    ctx->reset_tcp = BISTATE_YES;
+	    reject_conn(ctx, NULL, (char *) SSL_get_version(ctx->tls), __LINE__);
+	    return;
+	}
 	switch (ssl_version) {
 	case TLS1_2_VERSION:
 	case TLS1_3_VERSION:
@@ -641,11 +652,6 @@ void tac_read(struct context *ctx, int cur)
 	default:
 	    ssl_version = 0;
 	    break;
-	}
-	if (!(ctx->host->bug_compatibility & CLIENT_BUG_BAD_TLS_VERSION) && (!tls_ver_ok(ctx->tls_versions, ssl_version & 0xff) || ssl_version != TLS1_3_VERSION)) {
-	    ctx->reset_tcp = BISTATE_YES;
-	    cleanup(ctx, cur);
-	    return;
 	}
     } else
 #endif
@@ -1149,12 +1155,13 @@ void tac_write(struct context *ctx, int cur)
 
 #define STR_TYPE(A) { A, sizeof(A) - 1}
 static str_t types[] = {
-    STR_TYPE(""),	// 0
-    STR_TYPE("authen"),	// 1, TAC_PLUS_AUTHEN
-    STR_TYPE("author"),	// 2, TAC_PLUS_AUTHOR
-    STR_TYPE("acct"),	// 3, TAC_PLUS_ACCT
-    STR_TYPE("status"),	// 4
+    STR_TYPE(""),		// 0
+    STR_TYPE("authen"),		// 1, TAC_PLUS_AUTHEN
+    STR_TYPE("author"),		// 2, TAC_PLUS_AUTHOR
+    STR_TYPE("acct"),		// 3, TAC_PLUS_ACCT
+    STR_TYPE("status"),		// 4
 };
+
 #undef STR_TYPE
 
 static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_pak_hdr *radhdr)
