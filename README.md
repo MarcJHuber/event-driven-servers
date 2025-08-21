@@ -2,11 +2,11 @@ This is a collection of high-performance and scalable event-driven servers
 (notably tac_plus-ng, but the legacy daemons tac_plus, ftpd and tcprelay
 are still part of the GIT).
 
-tac_plus-ng
+TAC_PLUS-NG
 ===========
 
-tac_plus-ng implements both TACACS+ (TCP, TLS) and RADIUS (UDP, TCP, DTLS, TLS),
-with RADIUS support for PAP authentication and Downloadable ACLs.
+tac_plus-ng implements both TACACS+ (TCP, TLS) and RADIUS (UDP, TCP, DTLS,
+TLS), with RADIUS support for PAP authentication and Downloadable ACLs.
 
 Documentation:
 
@@ -16,40 +16,28 @@ Sample configurations:
 
   https://github.com/MarcJHuber/event-driven-servers/tree/master/tac_plus-ng/sample
 
-Support
-=======
-
-Issues can be reported via
-
-  https://github.com/MarcJHuber/event-driven-servers/issues
-
-Discussions can be started via
-
-  https://github.com/MarcJHuber/event-driven-servers/discussions
-
-Also, there's still the the legacy mailing list at
-
-   event-driven-servers@googlegroups.com
-
-Home site is https://www.pro-bono-publico.de/projects/
-
 Bugs
 ====
 
-Be prepared for issues. This is work-in-progress, so be prepared for unexpected bahavior. Don't use this in a production environment without testing. If it breaks, please file an issue. The non-helpful alternative would be to just keep the broken pieces, so please don't do that. 
+Be prepared for issues. This is work-in-progress, so be prepared for
+unexpected bahavior. Don't use this in a production environment without
+testing. If it breaks, please file an issue. The non-helpful alternative
+would be to just keep the broken pieces, so please don't do that. 
 
 Installation instructions
 =========================
 
-This software suite should compile quite fine on Linux, FreeBSD and OpenBSD.
-Other platforms might be fine, too, but weren't recently tested.
+This software suite should compile quite fine on current version of Linux, FreeBSD
+and OpenBSD.  Other platforms might be ok, too, but weren't recently tested.
 
 Build environment
 -----------------
 
 Required tools:
 
-- A supported C compiler, plus linker. LLVM is fine, GCC should work too (but I don't check this regulary, and it might have issues with optimization, so that's disabled for now).
+- A supported C compiler, plus linker. LLVM is fine, GCC should work too
+  (but I don't check this regulary, and it might have issues with
+  optimization, so that's disabled for now).
 - GNU make (version 3.79.1, unpatched,  recommended, others may or may
   not work).
 - Perl
@@ -95,11 +83,50 @@ Support
 =======
 
 While I really appreciate that you're using the software I'd
-very much prefer *not* to receive private support enquiries.
+very much prefer *not* to receive private support enquiries,
+so don't expect a reply if you send me a direct mail.
 
-Please direct support queries to GitHub discussions, GitHub issues or the Google Group:
+Instead, please direct support queries to GitHub discussions,
+GitHub issues or the Google Group:
+
+Issues can be reported via
+
+  https://github.com/MarcJHuber/event-driven-servers/issues
+
+Discussions can be started via
 
   https://github.com/MarcJHuber/event-driven-servers/discussions
-  https://github.com/MarcJHuber/event-driven-servers/issues
-  https://groups.google.com/g/event-driven-servers
+
+Also, there's still the the legacy mailing list at
+
+   https://groups.google.com/g/event-driven-servers
+
+   event-driven-servers@googlegroups.com
+
+Related links
+=============
+
+Original GIT:
+
+  https://github.com/MarcJHuber/event-driven-servers
+
+Project page:
+
+  https://www.pro-bono-publico.de/projects
+
+Author
+======
+
+Principal author:
+
+  Marc Huber
+
+Authors home page:
+
+  https://www.pro-bono-publico.de/
+
+
+Email (don't use for private support requests!):
+
+  Marc.Huber@web.de or Marc.J.Huber@gmail.com
 
