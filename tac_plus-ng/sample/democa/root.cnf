@@ -1,0 +1,51 @@
+[ ca ]
+default_ca			= CA_default
+
+[ CA_default ]
+dir				= .
+certs				= $dir/certs
+database			= $dir/index-root.txt
+serial				= $dir/serial-root
+
+private_key			= $dir/root.key
+certificate			= $dir/root.crt
+
+default_md			= sha256
+name_opt			= ca_default
+cert_opt			= ca_default
+default_days			= 3650
+preserve			= no
+policy				= policy_loose
+
+[ policy_loose ]
+countryName			= optional
+stateOrProvinceName		= optional
+localityName			= optional
+organizationName		= optional
+organizationalUnitName		= optional
+commonName			= supplied
+emailAddress			= optional
+
+[ req ]
+default_bits			= 2048
+distinguished_name		= req_distinguished_name
+string_mask			= utf8only
+default_md			= sha256
+x509_extensions			= v3_ca
+
+[ req_distinguished_name ]
+commonName			= Demo Root CA
+commonName_default		= Demo Root CA
+
+[ v3_ca ]
+subjectKeyIdentifier		= hash
+authorityKeyIdentifier		= keyid:always,issuer
+basicConstraints		= critical, CA:true
+keyUsage			= critical, digitalSignature, cRLSign, keyCertSign
+
+[ v3_intermediate_ca ]
+subjectKeyIdentifier		= hash
+authorityKeyIdentifier		= keyid:always,issuer
+basicConstraints		= critical, CA:true, pathlen:0
+keyUsage			= critical, digitalSignature, cRLSign, keyCertSign
+

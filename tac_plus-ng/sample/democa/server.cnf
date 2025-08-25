@@ -1,0 +1,21 @@
+[ req ]
+default_bits		= 2048
+prompt			= no
+default_md		= sha256
+distinguished_name	= dn
+x509_extensions		= server_cert
+
+[ dn ]
+commonName		= server.demo.local
+
+[ alt_names ]
+DNS.1			= server.demo.local
+
+[ server_cert ]
+basicConstraints	= CA:FALSE
+subjectKeyIdentifier	= hash
+authorityKeyIdentifier	= keyid,issuer:always
+keyUsage		= critical, digitalSignature, keyEncipherment
+extendedKeyUsage	= serverAuth
+subjectAltName		= @alt_names
+
