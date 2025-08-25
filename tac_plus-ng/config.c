@@ -4236,7 +4236,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    sym_get(sym);
 	    break;
 	default:
-	    parse_error_expect(sym, S_any, S_none, S_cert, S_hash);
+	    parse_error_expect(sym, S_any, S_none, S_cert, S_hash, S_unknown);
 	}
 	break;
     case S_tls_peer_cert_san_validation:
