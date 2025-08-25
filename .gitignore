@@ -17,3 +17,9 @@ spawnd/perl/Scm.o
 spawnd/perl/blib/
 spawnd/perl/pm_to_blib
 .gitignore
+*.crt
+*.key
+*.pem
+*.csr
+*.p12
+*.srl
