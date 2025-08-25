@@ -41,7 +41,7 @@ Required tools:
 - GNU make (version 3.79.1, unpatched,  recommended, others may or may
   not work).
 - Perl
-- Various development header files and libraries
+- Various development header files and libraries (see [PREREQUISITES.txt](PREREQUISITES.txt))
 
 Compile & Install
 -----------------
