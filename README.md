@@ -38,8 +38,7 @@ Required tools:
 - A supported C compiler, plus linker. LLVM is fine, GCC should work too
   (but I don't check this regulary, and it might have issues with
   optimization, so that's disabled for now).
-- GNU make (version 3.79.1, unpatched,  recommended, others may or may
-  not work).
+- GNU make
 - Perl
 - Various development header files and libraries (see [PREREQUISITES.txt](PREREQUISITES.txt))
 
