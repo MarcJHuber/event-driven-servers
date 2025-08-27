@@ -370,12 +370,12 @@ int main(int argc, char **argv, char **envp)
 
     setup_sig_segv(common_data.coredumpdir, common_data.gcorepath, common_data.debug_cmd);
 
+    setup_signals();
     if (common_data.singleprocess) {
 	common_data.scm_accept = accept_control_singleprocess;
 	common_data.scm_udpdata = accept_control_udp_singleprocess;
     } else {
 	setproctitle_init(argv, envp);
-	setup_signals();
 	ctx_spawnd = new_context(common_data.io, NULL);
 	ctx_spawnd->sock = dup(0);
 	dup2(2, 0);
