@@ -1766,8 +1766,14 @@ void parse_common(struct sym *sym)
 	case S_redirect:
 	    sym_get(sym);
 	    parse(sym, S_equal);
-	    if (freopen(sym->buf, "w+", stderr)) {
+	    if (sym->code == S_syslog) {
+		common_data.debug_redirected = 0;
+		common_data.debugtty = 0;
+	    } else if (freopen(sym->buf, "w+", stderr)) {
 		common_data.debug_redirected = 1;
+		common_data.debugtty = 0;
+	    }
+	    if (!common_data.debugtty) {
 		common_data.font_blue = "";
 		common_data.font_red = "";
 		common_data.font_plain = "";
