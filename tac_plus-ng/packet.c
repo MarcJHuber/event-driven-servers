@@ -567,7 +567,7 @@ void tac_read(struct context *ctx, int cur)
 	    int ssl_version = SSL_version(ctx->tls);
 	    if (!(ctx->host->bug_compatibility & CLIENT_BUG_BAD_TLS_VERSION) && (!tls_ver_ok(ctx->tls_versions, ssl_version & 0xff))) {
 		ctx->reset_tcp = BISTATE_YES;
-		reject_conn(ctx, NULL, (char *) SSL_get_version(ctx->tls), __LINE__);
+		reject_conn(ctx, NULL, __func__, __LINE__);
 		return;
 	    }
 	    if (ctx->radius_1_1 == BISTATE_YES) {
@@ -580,7 +580,7 @@ void tac_read(struct context *ctx, int cur)
 		    break;
 		default:
 		    ctx->reset_tcp = BISTATE_YES;
-		    reject_conn(ctx, NULL, (char *) SSL_get_version(ctx->tls), __LINE__);
+		    reject_conn(ctx, NULL, __func__, __LINE__);
 		    return;
 		}
 	    }
@@ -642,7 +642,7 @@ void tac_read(struct context *ctx, int cur)
 	if (!(ctx->host->bug_compatibility & CLIENT_BUG_BAD_TLS_VERSION)
 	    && (!tls_ver_ok(ctx->tls_versions, ssl_version & 0xff) || ssl_version != TLS1_3_VERSION)) {
 	    ctx->reset_tcp = BISTATE_YES;
-	    reject_conn(ctx, NULL, (char *) SSL_get_version(ctx->tls), __LINE__);
+	    reject_conn(ctx, NULL, __func__, __LINE__);
 	    return;
 	}
 	switch (ssl_version) {

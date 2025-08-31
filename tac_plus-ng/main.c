@@ -639,8 +639,20 @@ static void read_px(struct context_px *ctx, int cur)
     free(ctx);
 }
 
-void reject_conn(struct context *ctx, const char *hint, char *tls, int line)
+void reject_conn(struct context *ctx, const char *hint, const char *func, int line)
 {
+    char *tls = "";
+    char *tls_space = "";
+#ifdef WITH_SSL
+    if (ctx->tls) {
+	tls = (char *) SSL_get_version(ctx->tls);
+	if (tls)
+	    tls_space = " ";
+	else
+	    tls = "";
+    }
+#endif
+
     if (!hint)
 	hint = "";
     char *prehint = "", *posthint = "";
@@ -649,15 +661,15 @@ void reject_conn(struct context *ctx, const char *hint, char *tls, int line)
 
     if (ctx->proxy_addr_ascii.txt) {
 	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
-	    report(NULL, LOG_INFO_CONN, ~0, "proxied %sconnection request from %s for %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%d]",
-		   tls, ctx->proxy_addr_ascii.txt, ctx->peer_addr_ascii.txt,
+	    report(NULL, LOG_INFO_CONN, ~0, "proxied %s%sconnection request from %s for %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%s:%d]",
+		   tls, tls_space, ctx->proxy_addr_ascii.txt, ctx->peer_addr_ascii.txt,
 		   ctx->server_addr_ascii.txt, ctx->server_port_ascii.txt, ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "",
-		   ctx->vrf.txt ? ctx->vrf.txt : "", prehint, hint, posthint, line);
+		   ctx->vrf.txt ? ctx->vrf.txt : "", prehint, hint, posthint, func, line);
     } else
-	report(NULL, LOG_INFO_CONN, ~0, "%sconnection request from %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%d]",
-	       tls, ctx->peer_addr_ascii.txt,
+	report(NULL, LOG_INFO_CONN, ~0, "%s%sconnection request from %s to %s port %s (realm: %s%s%s) rejected%s%s%s [%s:%d]",
+	       tls, tls_space, ctx->peer_addr_ascii.txt,
 	       ctx->server_addr_ascii.txt, ctx->server_port_ascii.txt, ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "", ctx->vrf.txt ? ctx->vrf.txt : "",
-	       prehint, hint, posthint, line);
+	       prehint, hint, posthint, func, line);
 
     STATICSTR(reject, "CONN-REJECT");
 
@@ -679,7 +691,8 @@ static void complete_host_mavis_tls(struct context *ctx)
 	return;
 
     if (ctx->mavis_result == S_deny) {
-	reject_conn(ctx, ctx->hint, "by MAVIS backend", __LINE__);
+	ctx->hint = "by MAVIS backend";
+	reject_conn(ctx, ctx->hint, __func__, __LINE__);
 	return;
     }
     accept_control_final(ctx);
@@ -802,23 +815,23 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    return;
 	default:
 	    hint = (ctx->hint && *ctx->hint) ? ctx->hint : ERR_error_string(ERR_get_error(), NULL);
-	    reject_conn(ctx, hint, "TLS ", __LINE__);
+	    reject_conn(ctx, hint, __func__, __LINE__);
 	    return;
 	}
     case 0:
 	hint = ERR_error_string(ERR_get_error(), NULL);
-	reject_conn(ctx, hint, "TLS ", __LINE__);
+	reject_conn(ctx, hint, __func__, __LINE__);
 	return;
     case 1:
 	break;
     }
 
     if (ctx->alpn_passed == TRISTATE_NO) {
-	reject_conn(ctx, "ALPN", "TLS ", __LINE__);
+	reject_conn(ctx, "ALPN", __func__, __LINE__);
 	return;
     }
     if (ctx->sni_passed != BISTATE_YES) {
-	reject_conn(ctx, "SNI", "TLS ", __LINE__);
+	reject_conn(ctx, "SNI", __func__, __LINE__);
 	return;
     }
 
@@ -833,14 +846,14 @@ static void accept_control_tls(struct context *ctx, int cur)
 #endif
     X509 *cert = SSL_get_peer_certificate(ctx->tls);
 
-    if (cert) {
-	char buf[40];
-	time_t notafter = -1, notbefore = -1;
+    char buf[40];
+    str_set(&ctx->tls_conn_version, (char *) SSL_get_version(ctx->tls), 0);
+    str_set(&ctx->tls_conn_cipher, (char *) SSL_get_cipher(ctx->tls), 0);
+    snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
+    str_set(&ctx->tls_conn_cipher_strength, mem_strdup(ctx->mem, buf), 0);
 
-	str_set(&ctx->tls_conn_version, (char *) SSL_get_version(ctx->tls), 0);
-	str_set(&ctx->tls_conn_cipher, (char *) SSL_get_cipher(ctx->tls), 0);
-	snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
-	str_set(&ctx->tls_conn_cipher_strength, mem_strdup(ctx->mem, buf), 0);
+    if (cert) {
+	time_t notafter = -1, notbefore = -1;
 
 #if OPENSSL_VERSION_NUMBER >= 0x30200000
 	if (SSL_get_negotiated_client_cert_type(ctx->tls) == TLSEXT_cert_type_x509)
@@ -1001,7 +1014,7 @@ static void accept_control_tls(struct context *ctx, int cur)
     }
 #if OPENSSL_VERSION_NUMBER >= 0x30200000
     else if (0 == check_rpk(ctx, by_address)) {
-	reject_conn(ctx, "rpk unknown", "TLS ", __LINE__);
+	reject_conn(ctx, "rpk unknown", __func__, __LINE__);
 	return;
     }
 #endif
@@ -1023,7 +1036,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	accept_control_final(ctx);
 	return;
     }
-    reject_conn(ctx, hint, "TLS ", __LINE__);
+    reject_conn(ctx, hint, __func__, __LINE__);
 }
 #endif
 
@@ -1463,7 +1476,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1479,7 +1492,8 @@ static void complete_host_mavis(struct context *ctx)
 	return;
 
     if (ctx->mavis_result == S_deny) {
-	reject_conn(ctx, ctx->hint, "by MAVIS backend", __LINE__);
+	ctx->hint = "by MAVIS backend";
+	reject_conn(ctx, ctx->hint, __func__, __LINE__);
 	return;
     }
 
@@ -1661,7 +1675,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
     }
 #endif
     if (!ctx->host)
-	reject_conn(ctx, ctx->hint, "", __LINE__);
+	reject_conn(ctx, ctx->hint, __func__, __LINE__);
     else
 	accept_control_final(ctx);
 }
@@ -1671,13 +1685,26 @@ static void accept_control_final(struct context *ctx)
     static int count = 0;
     tac_session session = {.ctx = ctx };
 
+    char *tls = "";
+    char *tls_space = "";
+#ifdef WITH_SSL
+    if (ctx->tls) {
+	tls = (char *) SSL_get_version(ctx->tls);
+	if (tls)
+	    tls_space = " ";
+	else
+	    tls = "";
+    }
+#endif
+
     if (ctx->proxy_addr_ascii.txt) {
 	if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
-	    report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "proxied connection request from %s for %s (realm: %s%s%s)", ctx->proxy_addr_ascii.txt,
-		   ctx->peer_addr_ascii.txt, ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "", ctx->vrf.txt ? ctx->vrf.txt : "");
+	    report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "proxied %s%sconnection request from %s for %s (realm: %s%s%s)", tls, tls_space,
+		   ctx->proxy_addr_ascii.txt, ctx->peer_addr_ascii.txt, ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "",
+		   ctx->vrf.txt ? ctx->vrf.txt : "");
     } else
-	report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "connection request from %s (realm: %s%s%s)", ctx->peer_addr_ascii.txt, ctx->realm->name.txt,
-	       ctx->vrf.txt ? ", vrf: " : "", ctx->vrf.txt ? ctx->vrf.txt : "");
+	report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s%sconnection request from %s (realm: %s%s%s)", tls, tls_space, ctx->peer_addr_ascii.txt,
+	       ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "", ctx->vrf.txt ? ctx->vrf.txt : "");
 
     get_revmap_nas(&session);
 
