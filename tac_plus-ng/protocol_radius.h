@@ -50,6 +50,8 @@ typedef struct {
     };
 } __attribute__((__packed__)) rad_pak_hdr;
 #define RADIUS_HDR_SIZE sizeof(rad_pak_hdr)
+#define RADIUS_DATA(A) (((u_char *)(A)) + RADIUS_HDR_SIZE)
+#define RADIUS_DATA_LEN(A) (ntohs(((rad_pak_hdr *)A)->length) - RADIUS_HDR_SIZE)
 
 // various #defines, mostly derived from RFC2856/RFC2866. 
 

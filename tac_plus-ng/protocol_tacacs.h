@@ -87,9 +87,6 @@ typedef struct {
     /* datalength bytes of encrypted data */
 } __attribute__((__packed__)) tac_pak_hdr;
 
-#define RADIUS_DATA(A) (((u_char *)(A)) + RADIUS_HDR_SIZE)
-#define RADIUS_DATA_LEN(A) (ntohs(((rad_pak_hdr *)A)->length) - RADIUS_HDR_SIZE)
-
 /* Authentication packet NAS sends to us */
 
 struct authen_start {
