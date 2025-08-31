@@ -21,7 +21,7 @@ main.o: main.c $(BASE)/misc/version.h
 OBJ += acct.o authen.o author.o buffer.o config.o dump.o main.o mavis.o
 OBJ += packet.o report.o utils.o context.o udp-spoof.o
 
-$(OBJ): headers.h ../mavis/mavis.h
+$(OBJ): headers.h ../mavis/mavis.h protocol_tacacs.h protocol_radius.h
 
 $(PROG)$(EXEC_EXT): $(OBJ)
 	$(CC) -o $@ $^ $(LIB)
