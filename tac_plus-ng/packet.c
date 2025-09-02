@@ -914,7 +914,7 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
 		ctx->key_fixed = BISTATE_YES;
 		return 0;
 	    }
-	    // Check for key change within exising connection. This is unlikely to happen, and won't happen for (D)TLS.
+	    // Check for key change within existing connection. This is unlikely to happen, and won't happen for (D)TLS.
 	    if (!ctx->tls && ctx->key_fixed && ctx->host->radius_key && ctx->host->radius_key->next) {
 		ctx->key_fixed = BISTATE_NO;
 		ctx->key = ctx->host->radius_key;
