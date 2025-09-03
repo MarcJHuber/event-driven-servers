@@ -1705,6 +1705,10 @@ static void accept_control_final(struct context *ctx)
     } else
 	report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "%s%sconnection request from %s (realm: %s%s%s)", tls, tls_space, ctx->peer_addr_ascii.txt,
 	       ctx->realm->name.txt, ctx->vrf.txt ? ", vrf: " : "", ctx->vrf.txt ? ctx->vrf.txt : "");
+#ifdef WITH_SSL
+    if (ctx->alpn_passed == TRISTATE_YES)
+	report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "ALPN check succeeded");
+#endif
 
     get_revmap_nas(&session);
 
