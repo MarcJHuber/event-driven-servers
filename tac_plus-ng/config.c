@@ -1681,6 +1681,8 @@ int rad_get(tac_session *session, int vendorid, int id, enum token type, void *v
 		    vp += vp[1];
 		}
 	    }
+	    if (!p[1]) // packet malformed, attribut length zero
+		return -1;
 	    p += p[1];
 	}
     }
