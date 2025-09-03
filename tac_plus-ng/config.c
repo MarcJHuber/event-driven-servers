@@ -493,7 +493,7 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
 	r->warning_period = 14 * 86400;
 	r->backend_failure_period = 60;
 	r->allowed_protocol_radius_udp = TRISTATE_YES;
-	r->allowed_protocol_radius_tcp = TRISTATE_NO;
+	r->allowed_protocol_radius_tcp = TRISTATE_YES;
 	r->allowed_protocol_radius_tls = TRISTATE_YES;
 	r->allowed_protocol_radius_dtls = TRISTATE_YES;
 	r->allowed_protocol_tacacs_tcp = TRISTATE_YES;;
