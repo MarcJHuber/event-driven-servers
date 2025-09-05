@@ -391,7 +391,7 @@ static enum token compare_pwdat(struct pwdat *a, char *username __attribute__((u
 	    else {
 		char *c = crypt(b, a->value);
 		if (c)
-			res = strcmp(a->value, c);
+		    res = strcmp(a->value, c);
 	    }
 	}
 	break;
@@ -1973,8 +1973,8 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	    default:
 		switch (start->type) {
 		case TAC_PLUS_AUTHEN_TYPE_ASCII:
-		    if (((session->ctx->host->bug_compatibility & CLIENT_BUG_INVALID_START_DATA) || (common_data.debug & DEBUG_TACTRACE_FLAG)) && start->user_len
-			&& start->data_len) {
+		    if (((session->ctx->host->bug_compatibility & CLIENT_BUG_INVALID_START_DATA) || (common_data.debug & DEBUG_TACTRACE_FLAG))
+			&& start->user_len && start->data_len) {
 			/* PAP-like inbound login. Not in rfc8907, but used by IOS-XR. */
 			session->authen_data->authfn = do_login;
 		    } else {
@@ -2113,7 +2113,10 @@ static void do_radius_login(tac_session *session)
 
     int pw_res = -2;
 
-    if (!session->username.txt || (pw_res = rad_get_password(session, &session->password, NULL))) {
+    if (!session->username.txt
+	|| (pw_res =
+	    (session->ctx->radius_1_1 ? rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_USER_PASSWORD, S_string_keyword, &session->password,
+						NULL) : rad_get_password(session, &session->password, NULL)))) {
 	report_auth(session, "radius login", (pw_res < 0) ? hint_nopass : hint_badsecret, res);
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
@@ -2197,7 +2200,7 @@ static void do_radius_dacl(tac_session *session)
     void *val = NULL;
     size_t val_len = 0;
     uint32_t nace = 0;
-    if (!rad_get(session, -1, RADIUS_A_STATE, S_octets, &val, &val_len)) {
+    if (!rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_STATE, S_octets, &val, &val_len)) {
 	if (!val || val_len != sizeof(uint32_t))
 	    goto fail;
 	memcpy(&nace, val, sizeof(uint32_t));

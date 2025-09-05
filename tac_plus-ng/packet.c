@@ -561,7 +561,7 @@ void tac_read(struct context *ctx, int cur)
 	}
 
     // auto-detect radius
-    if (config.rad_dict && ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
+    if (rad_dict_initialized() && ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
 #ifdef WITH_SSL
 	if (ctx->tls) {
 	    int ssl_version = SSL_version(ctx->tls);
@@ -933,28 +933,31 @@ static void rad_set_fields(tac_session *session)
 {
     session->radius_data->device_dns_name = session->ctx->device_dns_name;
     session->radius_data->device_addr_ascii = session->ctx->device_addr_ascii;
-    rad_get(session, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username.txt, &session->username.len);
+    rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_USER_NAME, S_string_keyword, &session->username.txt, &session->username.len);
 
-    if (!rad_get(session, -1, RADIUS_A_CALLING_STATION_ID, S_string_keyword, &session->nac_addr_ascii.txt, &session->nac_addr_ascii.len))
+    if (!rad_get
+	(session->radius_data->pak_in, session->mem, -1, RADIUS_A_CALLING_STATION_ID, S_string_keyword, &session->nac_addr_ascii.txt,
+	 &session->nac_addr_ascii.len))
 	session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii.txt) ? 0 : 1;
 
-    if (rad_get(session, -1, RADIUS_A_NAS_PORT_ID, S_string_keyword, &session->port.txt, &session->port.len))
-	rad_get(session, -1, RADIUS_A_NAS_PORT, S_string_keyword, &session->port.txt, &session->port.len);
+    if (rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_NAS_PORT_ID, S_string_keyword, &session->port.txt, &session->port.len))
+	rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_NAS_PORT, S_string_keyword, &session->port.txt, &session->port.len);
 
     int service_type;
     size_t service_type_len = sizeof(service_type);
-    if (!rad_get(session, -1, RADIUS_A_SERVICE_TYPE, S_integer, &service_type, &service_type_len))
+    if (!rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_SERVICE_TYPE, S_integer, &service_type, &service_type_len))
 	rad_dict_get_val(-1, RADIUS_A_SERVICE_TYPE, service_type, &session->service.txt, &session->service.len);
 
     session->radius_data->device_addr = session->ctx->device_addr;
 
-    if (!rad_get(session, -1, RADIUS_A_NAS_IP_ADDRESS, S_ipv4addr, ((char *) &session->radius_data->device_addr) + 12, NULL)) {
+    if (!rad_get
+	(session->radius_data->pak_in, session->mem, -1, RADIUS_A_NAS_IP_ADDRESS, S_ipv4addr, ((char *) &session->radius_data->device_addr) + 12, NULL)) {
 	uint32_t *u32 = (uint32_t *) & session->radius_data->device_addr;
 	u32[0] = 0;
 	u32[1] = 0;
 	u32[2] = 0xffff;
 	u32[3] = ntohl(u32[3]);
-    } else if (!rad_get(session, -1, RADIUS_A_NAS_IPV6_ADDRESS, S_ipv4addr, &session->radius_data->device_addr, NULL)) {
+    } else if (!rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_NAS_IPV6_ADDRESS, S_ipv4addr, &session->radius_data->device_addr, NULL)) {
 	uint32_t *u32 = (uint32_t *) & session->radius_data->device_addr;
 	for (int i = 0; i < 4; i++)
 	    u32[i] = ntohl(u32[i]);

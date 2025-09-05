@@ -1765,7 +1765,7 @@ static void accept_control(struct context *ctx, int cur)
 	cleanup_spawnd(ctx, cur);
 	return;
     case SCM_UDPDATA:
-	if (config.rad_dict) {
+	if (rad_dict_initialized()) {
 	    rad_pak_hdr *hdr = (rad_pak_hdr *) (&u.sd_udp.data);
 	    if (u.sd_udp.data_len != ntohs(hdr->length))
 		return;

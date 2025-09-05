@@ -364,7 +364,6 @@ struct config {
     int ctx_lru_threshold;	/* purge lru context if number reached */
     time_t suicide;		/* when to commit suicide */
     tac_realm *default_realm;	/* actually the one called "default" */
-    struct rad_dict *rad_dict;
     uint32_t syslog_filter;
     int dscp;
 };
@@ -829,10 +828,12 @@ static __inline__ int minimum(int a, int b)
 void tac_read(struct context *, int);
 void tac_write(struct context *, int);
 void rad_read(struct context *, int);
-int rad_get(tac_session * session, int vendorid, int id, enum token, void *, size_t *);
+int rad_get(rad_pak_hdr * pak_in, mem_t * mem, int vendorid, int id, enum token, void *, size_t *);
 int rad_get_password(tac_session * session, char **val, size_t *val_len);
 void rad_attr_val_dump(mem_t * mem, u_char * data, size_t data_len, char **buf, size_t *buf_len, struct rad_dict *dict, char *separator,
 		       size_t separator_len);
+
+int rad_dict_initialized(void);
 
 void rad_dict_get_val(int dict_id, int attr_id, int val_id, char **s, size_t *s_len);
 

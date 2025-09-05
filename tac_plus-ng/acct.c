@@ -152,7 +152,7 @@ void rad_acct(tac_session *session)
     report(session, LOG_DEBUG, DEBUG_ACCT_FLAG, "Start accounting request");
 
     int type = 0;
-    if (!rad_get(session, -1, RADIUS_A_ACCT_STATUS_TYPE, S_integer, &type, NULL)) {
+    if (!rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_ACCT_STATUS_TYPE, S_integer, &type, NULL)) {
 	switch (type) {
 	case RADIUS_V_ACCT_STATUS_TYPE_START:
 	    session->acct_type = &acct_type_start;
