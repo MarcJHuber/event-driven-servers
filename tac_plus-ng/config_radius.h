@@ -49,6 +49,7 @@
 #include "misc/str.h"
 #include "mavis/mavis.h"
 #include "mavis/token.h"
+#include "protocol_radius.h"
 
 struct rad_dict_val {
     RAD_NAME_ATTRIBUTES;
@@ -90,6 +91,8 @@ struct rad_dict_val *rad_dict_val_lookup_by_id(struct rad_dict_attr *attr, int i
 struct rad_dict_attr *rad_dict_attr_lookup_by_id(struct rad_dict *dict, int id);
 struct rad_dict_attr *rad_dict_attr_lookup(struct sym *sym);
 struct rad_dict_val *rad_dict_val_lookup_by_name(struct rad_dict_attr *attr, char *name);
+struct rad_dict *rad_dict_lookup_by_name(char *vendorname);
+struct rad_dict_attr *rad_dict_attr_lookup_by_name(struct rad_dict *dict, char *name);
 
 #endif				/* __CONFIG_RADIUS_H_ */
 /*

@@ -37,10 +37,11 @@
    POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "headers.h"
+#include <stdio.h>
+#include "config_radius.h"
 #include "misc/version.h"
 #include "misc/strops.h"
-#include "misc/crc32.h"
+#include "misc/net.h"
 #include "misc/mymd5.h"
 #include <setjmp.h>
 
@@ -85,7 +86,7 @@ struct rad_dict *rad_dict_lookup_by_id(int vendorid)
     return NULL;
 }
 
-static struct rad_dict *rad_dict_lookup_by_name(char *vendorname)
+struct rad_dict *rad_dict_lookup_by_name(char *vendorname)
 {
     size_t vendorname_len = strlen(vendorname);
     for (struct rad_dict * dict = global_rad_dict; dict; dict = dict->next)
@@ -102,7 +103,7 @@ struct rad_dict_attr *rad_dict_attr_lookup_by_id(struct rad_dict *dict, int id)
     return NULL;
 }
 
-static struct rad_dict_attr *rad_dict_attr_lookup_by_name(struct rad_dict *dict, char *name)
+struct rad_dict_attr *rad_dict_attr_lookup_by_name(struct rad_dict *dict, char *name)
 {
     size_t name_len = strlen(name);
     for (struct rad_dict_attr * attr = dict->attr; attr; attr = attr->next)
