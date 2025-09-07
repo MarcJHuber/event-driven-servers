@@ -305,7 +305,7 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 	u_char *d_start = data;
 	size_t d_len = data[1];
 	struct rad_dict *cur_dict = dict;
-	if (dict->id == -1 && data[0] == RADIUS_A_VENDOR_SPECIFIC) {
+	if (dict->id == -1 && data[0] == RADIUS_A_VENDOR_SPECIFIC && data[1] > 6) {
 	    int vendorid = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | (data[5] << 0);
 	    cur_dict = rad_dict_lookup_by_id(vendorid);
 	    if (cur_dict) {
@@ -325,6 +325,8 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 			}
 		    }
 		    rad_attr_val_dump_helper(d_start, d_len, buf, buf_len, cur_dict);
+		    if (!d_start[1])
+			return;
 		    d_len -= d_start[1];
 		    d_start += d_start[1];
 		    add_separator = 1;
@@ -341,9 +343,9 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 		add_separator = 1;
 	    }
 	}
-	if (!data[1])		// packet malformed, attribut length zero
+	if (data < data_end && !data[1])
 	    return;
-	data += data[1];
+	*data += data[1];
 
     }
     *(*buf) = 0;
@@ -352,6 +354,51 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 	*buf = buf_start;
 	// assert (*buf_len == strlen(buf_start));
     }
+}
+
+char *rad_attr_val_dump1(mem_t *mem, u_char **data, size_t *data_len)
+{
+    if (*data_len < 3 || !(*data)[1])
+	return NULL;
+
+    struct rad_dict *dict = rad_dict_lookup_by_id(-1);
+    size_t buf_len = 4096;
+    char *buf_start = mem_alloc(mem, buf_len);
+    char *buf = buf_start;
+
+    u_char *d_start = *data;
+    size_t d_len = (*data)[1];
+    if (!d_len)
+	return NULL;
+    struct rad_dict *cur_dict = dict;
+    if (dict->id == -1 && (*data)[0] == RADIUS_A_VENDOR_SPECIFIC && (*data)[1] > 6) {
+	int vendorid = ((*data)[2] << 24) | ((*data)[3] << 16) | ((*data)[4] << 8) | ((*data)[5] << 0);
+	cur_dict = rad_dict_lookup_by_id(vendorid);
+	if (cur_dict) {
+	    d_start = (*data) + 6;
+	    d_len = (*data)[1] - 6;
+	    if (!d_len)
+		return NULL;
+	}
+    }
+
+    if (dict->id != -1 || (*d_start != RADIUS_A_USER_PASSWORD)) {
+	if (cur_dict) {
+	    while (d_len > 0) {
+		rad_attr_val_dump_helper(d_start, d_len, &buf, &buf_len, cur_dict);
+		d_len -= d_start[1];
+		d_start += d_start[1];
+		if (!d_start[1])
+		    return NULL;
+	    }
+	} else {
+	    rad_attr_val_dump_hex(d_start, d_len, &buf, &buf_len);
+	}
+    }
+    *data = d_start;
+    *data_len = d_len;
+
+    return buf_start;
 }
 
 void rad_dict_get_val(int dict_id, int attr_id, int val_id, char **s, size_t *s_len)

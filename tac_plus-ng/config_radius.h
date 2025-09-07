@@ -80,6 +80,7 @@ void parse_radius_dictionary(struct sym *sym);
 int rad_get(rad_pak_hdr * pak_in, mem_t * mem, int vendorid, int id, enum token, void *, size_t *);
 void rad_attr_val_dump(mem_t * mem, u_char * data, size_t data_len, char **buf, size_t *buf_len, struct rad_dict *dict, char *separator,
 		       size_t separator_len);
+char *rad_attr_val_dump1(mem_t * mem, u_char ** data, size_t *data_len);
 
 int rad_dict_initialized(void);
 
