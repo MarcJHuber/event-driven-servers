@@ -768,10 +768,96 @@ static int aaa_acct_radius(struct aaa *aaa, char *user, char *remoteaddr, char *
     }
 
     for (int i = 0; i < aaa->oc; i++) {
-	if (aaa->ov[i].iov_len > 253 || t + aaa->ov[i].iov_len - (u_char *) opkt >= RAD_PAK_MAX)
-	    return -1;
-	memcpy(t, aaa->ov[i].iov_base, aaa->ov[i].iov_len);
-	t += aaa->ov[i].iov_len;
+	char *vid_str = alloca(aaa->ov[i].iov_len + 1);
+	memcpy(vid_str, aaa->ov[i].iov_base, aaa->ov[i].iov_len + 1);
+	char *id_str = strchr(vid_str, ':');
+
+	if (id_str) {
+	    *id_str = 0;
+	    id_str++;
+	} else {
+	    id_str = vid_str;
+	    vid_str = "";
+	}
+
+	char *v_str = strchr(id_str, '=');
+
+	if (!v_str) {
+	    fprintf(stderr, "RADIUS attribute '%s': missing value\n", (char *) aaa->ov[i].iov_base);
+	    exit(-1);
+	}
+	*v_str++ = 0;
+
+	struct rad_dict *dict = rad_dict_lookup_by_name(vid_str);
+	if (!dict) {
+	    fprintf(stderr, "RADIUS dictionary '%s' unknown\n", vid_str);
+	    exit(-1);
+	}
+
+	struct rad_dict_attr *attr = rad_dict_attr_lookup_by_name(dict, id_str);
+	if (!attr) {
+	    fprintf(stderr, "RADIUS attribute '%s' unknown\n", (char *) aaa->ov[i].iov_base);
+	    exit(-1);
+	}
+
+	u_char *vlenp = NULL;
+	if (*vid_str) {
+	    *t++ = RADIUS_A_VENDOR_SPECIFIC;
+	    vlenp = t;
+	    *t++ = 6;
+	    u_char u = htonl(attr->dict->id);
+	    memcpy(t, &u, 4);
+	    t += 4;
+	}
+
+	u_char *t_start = t;
+
+	if (attr->type == S_integer || attr->type == S_time || attr->type == S_enum) {
+	    u_int u;
+	    if (isdigit(*v_str)) {
+		u = atoi(v_str);
+	    } else {
+		struct rad_dict_val *val = rad_dict_val_lookup_by_name(attr, v_str);
+		if (!val) {
+		    fprintf(stderr, "RADIUS value '%s' not found (attribute: %s)", v_str, attr->name.txt);
+		    exit(-1);
+		}
+		u = val->id;
+	    }
+	    *t++ = attr->id;
+	    *t++ = 6;
+	    u = htonl(u);
+	    memcpy(t, &u, 4);
+	    t += 4;
+	} else if (attr->type == S_string_keyword) {
+	    size_t val_len = strlen(v_str);
+	    *t++ = attr->id;
+	    *t += 2 + val_len;
+	    memcpy(t, v_str, val_len);
+	    t += val_len;
+	} else if (attr->type == S_address || attr->type == S_ipaddr || attr->type == S_ipv4addr) {
+	    *t++ = attr->id;
+	    *t++ = 6;
+	    u_char ipv4[4];
+	    if (!inet_pton(AF_INET, v_str, ipv4)) {
+		fprintf(stderr, "IPv4 address %s not recognized\n", v_str);
+		exit(-1);
+	    }
+	    memcpy(t, ipv4, 4);
+	    t += 4;
+	} else if (attr->type == S_ipv6addr) {
+	    *t++ = attr->id;
+	    *t++ = 18;
+	    u_char ipv6[16];
+	    if (!inet_pton(AF_INET6, v_str, ipv6)) {
+		fprintf(stderr, "IPv6 address %s not recognized\n", v_str);
+		exit(-1);
+	    }
+	    memcpy(t, ipv6, 16);
+	    t += 16;
+	}
+	if (vlenp)
+	    *vlenp = t - t_start;
     }
 
     opkt->length = htons(t - (u_char *) opkt);
@@ -856,6 +942,16 @@ static int aaa_acct_radius(struct aaa *aaa, char *user, char *remoteaddr, char *
 	    return -1;
     }
     if (ipkt->code == RADIUS_CODE_ACCOUNTING_RESPONSE) {
+	u_char *data = RADIUS_DATA(ipkt);
+	size_t data_len = RADIUS_DATA_LEN(ipkt);
+	char *buf = NULL;
+	while ((buf = rad_attr_val_dump1(NULL, &data, &data_len))) {
+	    size_t buf_len = strlen(buf) + 1;
+	    u_char *d = calloc(1, buf_len + 1);
+	    memcpy(d, buf, buf_len + 1);
+	    aaa_got(aaa, d, buf_len + 1);
+	    free(buf);
+	}
 	return 0;
     }
 
