@@ -1,0 +1,45 @@
+################################################################################
+# GNU Makefile for tactester
+# (C)2025 by Marc Huber <Marc.Huber@web.de>
+################################################################################
+
+include $(BASE)/Makefile.inc
+
+PROG=tactester
+
+LIB	+= $(LIB_MAVIS) $(LIB_CRYPT) $(LIB_NET) $(LIB_SSL) $(LIB_CRYPTO) $(LIB_PCRE) $(LIB_TLS)
+
+CFLAGS	+= $(DEF) $(INC) $(INC_SSL) $(INC_PCRE)
+VPATH	= $(BASE)/$(PROG):$(BASE)/misc:-I$(BASE)/tac_plus-ng
+
+ALL = $(PROG)$(EXEC_EXT) install_stage
+
+all: $(ALL)
+
+main.o: main.c $(BASE)/misc/version.h
+
+OBJ += conn.o aaa.o main.o ../tac_plus-ng/config_radius.o
+
+$(OBJ): conn.h
+
+$(PROG)$(EXEC_EXT): $(OBJ)
+	$(CC) -o $@ $^ $(LIB)
+
+clean:
+	@rm -f *.o *.bak *~ $(PROG) core.[0-9]* core
+
+$(INSTALLROOT)$(SBINDIR_DEST):
+	@mkdir -p -m 0755 $@
+
+$(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT): $(PROG)$(EXEC_EXT)
+	$(INSTALL) -m 0755 $< $@
+
+install:  $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT)
+
+install_doc:
+	@$(MAKE) -C $(BASE)/$(PROG)/doc INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+install_stage:
+	@$(MAKE) -f $(BASE)/$(PROG)/Makefile.obj INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+
+
