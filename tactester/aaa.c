@@ -447,7 +447,7 @@ static int aaa_acct_tacacs(struct aaa *aaa, char *user, char *remoteaddr, char *
 
 static int rad_set_password(u_char **data, size_t *data_len, const char *key, size_t key_len, const u_char *authenticator, char *pass)
 {
-    *(*data)++ = (u_char) RADIUS_A_USER_PASSWORD;
+    *(*data)++ =(u_char) RADIUS_A_USER_PASSWORD;
     (*data_len)--;
     u_char *lenp = (*data)++;
     *lenp = 2;
@@ -932,14 +932,14 @@ static int aaa_acct_radius(struct aaa *aaa, char *user, char *remoteaddr, char *
 		return -1;
 	    t += *t - 1;
 	}
-	if (!ma_found)
-	    return -1;
-
-	u_char cma[16];
-	u_int ma_len = 16;
-	HMAC(EVP_md5(), aaa->conn->key, strlen(aaa->conn->key), (u_char *) ipkt, ipkt_len, cma, &ma_len);
-	if (memcmp(ima, cma, 16))
-	    return -1;
+	if (ma_found) {
+	    // message authenticator is optional for accounting, but will be validated if present
+	    u_char cma[16];
+	    u_int ma_len = 16;
+	    HMAC(EVP_md5(), aaa->conn->key, strlen(aaa->conn->key), (u_char *) ipkt, ipkt_len, cma, &ma_len);
+	    if (memcmp(ima, cma, 16))
+		return -1;
+	}
     }
     if (ipkt->code == RADIUS_CODE_ACCOUNTING_RESPONSE) {
 	u_char *data = RADIUS_DATA(ipkt);
