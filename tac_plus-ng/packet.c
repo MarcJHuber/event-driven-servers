@@ -112,8 +112,7 @@ static void set_response_authenticator(tac_session * session, rad_pak_hdr * pak)
 static tac_pak *new_rad_pak(tac_session *session, u_char code)
 {
 #ifdef WITH_SSL
-    int want_message_authenticator = code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT || code == RADIUS_CODE_ACCESS_CHALLENGE || code == RADIUS_CODE_ACCOUNTING_RESPONSE;
-    if (want_message_authenticator)
+    if (session->ctx->radius_1_1 == BISTATE_NO)
 	session->radius_data->data_len += 18;
 #endif
     int len = session->radius_data->data_len + RADIUS_HDR_SIZE;
@@ -128,8 +127,8 @@ static tac_pak *new_rad_pak(tac_session *session, u_char code)
     u_char *data = RADIUS_DATA(&pak->pak.rad);
     memcpy(data, session->radius_data->data, session->radius_data->data_len);
 
+    if (session->ctx->radius_1_1 == BISTATE_NO) {
 #ifdef WITH_SSL
-    if ((session->ctx->radius_1_1 == BISTATE_NO) && want_message_authenticator) {
 	memcpy(pak->pak.rad.authenticator, session->radius_data->pak_in->authenticator, 16);
 	u_char *ma = data + session->radius_data->data_len - 18;
 	*ma++ = RADIUS_A_MESSAGE_AUTHENTICATOR;
@@ -137,11 +136,10 @@ static tac_pak *new_rad_pak(tac_session *session, u_char code)
 	u_int ma_len = 16;
 	HMAC(EVP_md5(), session->ctx->key->key, session->ctx->key->len, (const unsigned char *) &pak->pak.rad, len, ma, &ma_len);
 	memset(pak->pak.rad.authenticator, 0, 16);
-    }
 #endif
-
-    if (session->ctx->radius_1_1 == BISTATE_NO)
 	set_response_authenticator(session, &pak->pak.rad);
+    }
+
     return pak;
 }
 
@@ -857,8 +855,10 @@ void tac_read(struct context *ctx, int cur)
     ctx->hdroff = 0;
 }
 
-static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
+static int rad_check_failed(struct context *ctx, rad_pak_hdr *pak)
 {
+    u_char *p = RADIUS_DATA(pak);
+    u_char *e = p + RADIUS_DATA_LEN(pak);
 // Consistency check: Do the attribute lengths sum up exactly?
 #ifdef WITH_SSL
     u_char *message_authenticator = NULL;
@@ -891,7 +891,10 @@ static int rad_check_failed(struct context *ctx, u_char *p, u_char *e)
     }
 #ifdef WITH_SSL
 // The Message-Authenticator attribute is mandatory for RADIUS BLAST mitigation
-    if ((ctx->radius_1_1 == BISTATE_NO) && !message_authenticator && !(ctx->host->bug_compatibility & CLIENT_BUG_NO_MESSAGE_AUTHENTICATOR)) {
+    int message_authenticator_required = pak->code == RADIUS_CODE_ACCESS_ACCEPT || pak->code == RADIUS_CODE_ACCESS_REJECT
+	|| pak->code == RADIUS_CODE_ACCESS_CHALLENGE;
+    if ((ctx->radius_1_1 == BISTATE_NO) && !message_authenticator && message_authenticator_required
+	&& !(ctx->host->bug_compatibility & CLIENT_BUG_NO_MESSAGE_AUTHENTICATOR)) {
 	report(NULL, LOG_INFO_CONN, ~0, "%s did not set Message-Authenticator attribute", ctx->device_addr_ascii.txt);
 	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, -1);
@@ -1048,9 +1051,7 @@ void rad_read(struct context *ctx, int cur)
 
     rad_pak_hdr *pak = &ctx->in->pak.rad;
 
-    u_char *p = RADIUS_DATA(&ctx->in->pak.rad);
-    u_char *e = p + data_len;
-    if (rad_check_failed(ctx, p, e))
+    if (rad_check_failed(ctx, &ctx->in->pak.rad))
 	return;
 
 #define RAD_PAK_SESSIONID(A) (((uint32_t) (A)->code << 8) | (uint32_t) (A)->identifier)
