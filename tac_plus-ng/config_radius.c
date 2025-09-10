@@ -343,7 +343,7 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 		add_separator = 1;
 	    }
 	}
-	if (data < data_end && !data[1])
+	if (data < data_end || !data[1])
 	    return;
 	*data += data[1];
 
