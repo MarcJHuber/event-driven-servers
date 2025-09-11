@@ -5581,7 +5581,9 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 		if (1 == inet_pton(AF_INET6, sym->buf, &u.ipv6))
 		    m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
 	    }
-	    if (!m->b.v)
+	    if (m->b.v)
+		sym_get(sym);
+	    else
 		m->b.v = (void *) new_rad_action(mem, attr, &u, parse_log_format(sym, mem));
 	    break;
 	}
