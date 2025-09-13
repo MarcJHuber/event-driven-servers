@@ -263,10 +263,17 @@ int conn_connect(struct conn *conn)
     SSL_CTX_set_options(conn->ctx, SSL_OP_ALL);
 
     if (conn->peer_cafile) {
+#if OPENSSL_VERSION_NUMBER < 0x30000000
+	if (SSL_CTX_load_verify_locations(conn->ctx, conn->peer_cafile, NULL) != 1) {
+	    SSL_CTX_free(conn->ctx);
+	    return -1;
+	}
+#else
 	if (SSL_CTX_load_verify_file(conn->ctx, conn->peer_cafile) != 1) {
 	    SSL_CTX_free(conn->ctx);
 	    return -1;
 	}
+#endif
 	SSL_CTX_set_verify_depth(conn->ctx, 8);
     } else
 	SSL_CTX_set_verify_depth(conn->ctx, 0);
