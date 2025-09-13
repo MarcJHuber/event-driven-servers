@@ -73,8 +73,12 @@
 #include "misc/utf.h"
 
 #if defined(WITH_CRYPTO)
+#if OPENSSL_VERSION_NUMBER < 0x30000000
+#include <openssl/sha.h>
+#else
 #include <openssl/types.h>
 #include <openssl/evp.h>
+#endif
 #endif
 
 #define DEBAUTHC session, LOG_DEBUG, DEBUG_AUTHEN_FLAG
@@ -338,8 +342,13 @@ static int verify_cisco_type89(char *password, char *p, char type)
 	if (!PKCS5_PBKDF2_HMAC(password, strlen(password), salt, salt_len, 20000, EVP_sha256(), 32, hash))
 	    return -1;
     } else if (type == '9') {
+#ifdef OPENSSL_NO_SCRYPT
+	report(NULL, LOG_INFO, ~0, "%s doesn't support Type 9 (scrypt) passwords", OPENSSL_VERSION_TEXT);
+	return -1;
+#else
 	if (!EVP_PBE_scrypt(password, strlen(password), salt, salt_len, 16384, 1, 1, 0, hash, 32))
 	    return -1;
+#endif
     }
     char hash64[128];
     cisco64_enc(hash, 32, hash64);
@@ -1485,12 +1494,21 @@ static void do_mschap(tac_session *session)
 static void mschapv2_chalhash(u_char *peerChal, u_char *authChal, char *user, u_char *chal)
 {
     u_char md[SHA_DIGEST_LENGTH];
+#if OPENSSL_VERSION_NUMBER < 0x30000000
+    SHA_CTX c;
+    SHA1_Init(&c);
+    SHA1_Update(&c, peerChal, 16);
+    SHA1_Update(&c, authChal, 16);
+    SHA1_Update(&c, user, strlen(user));
+    SHA1_Final(md, &c);
+#else
     size_t len = strlen(user);
     u_char *d = alloca(32 + len);
     memcpy(d, peerChal, 16);
     memcpy(d + 16, authChal, 16);
     memcpy(d + 32, user, len);
     EVP_Q_digest(NULL, "SHA1", NULL, d, 32 + len, md, NULL);
+#endif
     memcpy(chal, md, 8);
 }
 

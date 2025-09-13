@@ -106,21 +106,11 @@
 #include "misc/io_dns_revmap.h"
 #endif
 
-#ifdef WITH_SSL
-#include <openssl/sha.h>
-#endif
-
 #ifndef MD5_LEN
 #define MD5_LEN           16
 #endif
 #ifndef MSCHAP_DIGEST_LEN
 #define MSCHAP_DIGEST_LEN 49
-#endif
-
-#if defined(WITH_SSL) && OPENSSL_VERSION_NUMBER < 0x30000000
-#undef WITH_SSL
-#undef WITH_CRYPTO
-#warning Disabling OpenSSL support. Please upgrade to version 3.x
 #endif
 
 struct context;

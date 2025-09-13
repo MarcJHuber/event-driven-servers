@@ -2860,8 +2860,22 @@ static char *calc_ssh_key_hash(char *hashname, unsigned char *in, size_t in_len)
     }
     if (!in_len)
 	in_len = strlen((char *) in);
+#if OPENSSL_VERSION_NUMBER < 0x30000000
+    if (!strcmp(hashname, "MD5")) {
+	struct iovec iov[1] = {
+	    {.iov_base = in,.iov_len = in_len },
+	};
+	md_len = MD5_LEN;
+	md5v(md, md_len, iov, 1);
+    } else if (!strcmp(hashname, "SHA256")) {
+	SHA256(in, in_len, md);
+	md_len = SHA256_DIGEST_LENGTH;
+    } else
+	return NULL;
+#else
     if (!EVP_Q_digest(NULL, hashname, NULL, in, in_len, md, &md_len))
 	return NULL;
+#endif
 
     if (!strcmp(hashname, "MD5")) {
 	char hex[] = "0123456789abcdef";
