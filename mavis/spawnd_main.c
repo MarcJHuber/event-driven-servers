@@ -26,6 +26,16 @@
 #include <sys/sysctl.h>
 #endif
 
+#ifdef WITH_SSL
+#include <openssl/opensslv.h>
+#endif
+#ifdef WITH_CURL
+#include <curl/curlver.h>
+#endif
+#ifdef WITH_ARES
+#include <ares_version.h>
+#endif
+
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
 struct spawnd_data spawnd_data = { 0 };	/* configuration data */
@@ -354,20 +364,27 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 #ifdef WITH_PCRE2
 	"/PCRE2"
 #endif
-#ifdef WITH_CRYPTO
-	"/CRYPTO"
-#endif
 #ifdef WITH_ARES
 	"/ARES"
+#ifdef ARES_VERSION_STR
+	" " ARES_VERSION_STR
+#endif
 #endif
 #ifdef WITH_CURL
 	"/CURL"
+#ifdef LIBCURL_VERSION
+	" " LIBCURL_VERSION
+#endif
 #endif
 #ifdef WITH_TLS
 	"/TLS"
 #endif
 #ifdef WITH_SSL
+#ifdef OPENSSL_VERSION_TEXT
+	"/" OPENSSL_VERSION_TEXT
+#else
 	"/SSL"
+#endif
 #endif
 #ifdef DEBUG
 	"/DEBUG"
@@ -590,20 +607,27 @@ void scm_main(int argc, char **argv, char **envp)
 #ifdef WITH_PCRE2
 	"/PCRE2"
 #endif
-#ifdef WITH_CRYPTO
-	"/CRYPTO"
-#endif
 #ifdef WITH_ARES
 	"/ARES"
+#ifdef ARES_VERSION_STR
+	" " ARES_VERSION_STR
+#endif
 #endif
 #ifdef WITH_CURL
 	"/CURL"
+#ifdef LIBCURL_VERSION
+	" " LIBCURL_VERSION
+#endif
 #endif
 #ifdef WITH_TLS
 	"/TLS"
 #endif
 #ifdef WITH_SSL
+#ifdef OPENSSL_VERSION_TEXT
+	"/" OPENSSL_VERSION_TEXT
+#else
 	"/SSL"
+#endif
 #endif
 #ifdef DEBUG
 	"/DEBUG"
