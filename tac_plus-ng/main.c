@@ -834,7 +834,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 	reject_conn(ctx, "SNI", __func__, __LINE__);
 	return;
     }
-
     tac_host *by_address = ctx->host;
     ctx->host = NULL;
 
@@ -1098,6 +1097,7 @@ void complete_host(tac_host *h)
 	HS(tls_peer_cert_san_validation, TRISTATE_DUNNO);
 #ifndef OPENSSL_NO_PSK
 	HS(tls_psk_id, NULL);
+	HS(tls_psk_hint, NULL);
 	if (!h->tls_psk_key) {
 	    h->tls_psk_key = hp->tls_psk_key;
 	    h->tls_psk_key_len = hp->tls_psk_key_len;
@@ -1156,6 +1156,8 @@ static int app_verify_cb(X509_STORE_CTX *sctx, void *app_ctx)
     if (SSL_get_negotiated_client_cert_type(ctx->tls) == TLSEXT_cert_type_rpk)
 	return 1;
 #endif
+    //if (ctx->tls_psk_identity.txt)
+//      return 1;
     if (ctx->host->tls_peer_cert_validation == S_none)
 	return 1;
 
@@ -1476,7 +1478,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1591,11 +1593,19 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    SSL_CTX_set_cert_verify_callback(ctx->realm->tls, app_verify_cb, ctx);
 	    SSL_CTX_set_alpn_select_cb(ctx->realm->tls, alpn_cb, ctx);
 	    SSL_CTX_set_session_cache_mode(ctx->realm->tls, SSL_SESS_CACHE_OFF);
+#ifndef OPENSSL_NO_PSK
+	    if (ctx->host->tls_psk_hint)	// rememinder to myself: irrelevant for TLS1.3
+		SSL_CTX_use_psk_identity_hint(ctx->realm->tls, ctx->host->tls_psk_hint);
+#endif
 	}
 	if (ctx->realm->dtls) {
 	    SSL_CTX_set_cert_verify_callback(ctx->realm->dtls, app_verify_cb, ctx);
 	    SSL_CTX_set_alpn_select_cb(ctx->realm->dtls, alpn_cb, ctx);
 	    SSL_CTX_set_session_cache_mode(ctx->realm->dtls, SSL_SESS_CACHE_OFF);
+#ifndef OPENSSL_NO_PSK
+	    if (ctx->host->tls_psk_hint)
+		SSL_CTX_use_psk_identity_hint(ctx->realm->dtls, ctx->host->tls_psk_hint);
+#endif
 	}
 
 	if (ctx->realm->tls_sni_required == TRISTATE_YES) {

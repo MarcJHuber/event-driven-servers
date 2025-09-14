@@ -1780,6 +1780,12 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    case S_psk:
 		sym_get(sym);
 		switch (sym->code) {
+		case S_hint:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->default_host->tls_psk_hint = strdup(sym->buf);
+		    sym_get(sym);
+		    break;
 		case S_id:
 		    sym_get(sym);
 		    parse(sym, S_equal);
@@ -1796,7 +1802,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    r->use_tls_psk = parse_bool(sym) ? BISTATE_YES : BISTATE_NO;
 		    break;
 		default:
-		    parse_error_expect(sym, S_id, S_key, S_equal, S_unknown);
+		    parse_error_expect(sym, S_id, S_key, S_equal, S_hint, S_unknown);
 		}
 		continue;
 #endif
@@ -3742,6 +3748,11 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	sym_get(sym);
 	parse(sym, S_psk);
 	switch (sym->code) {
+	case S_hint:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    host->tls_psk_hint = mem_strdup(host->mem, sym->buf);
+	    break;
 	case S_id:
 	    sym_get(sym);
 	    parse(sym, S_equal);
@@ -3753,7 +3764,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    parse_tls_psk_key(sym, host);
 	    break;
 	default:
-	    parse_error_expect(sym, S_id, S_key, S_unknown);
+	    parse_error_expect(sym, S_id, S_key, S_hint, S_unknown);
 	}
 	sym_get(sym);
 	break;
@@ -5857,7 +5868,7 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
     u_char *key;
     size_t key_len;
     if (cfg_get_tls_psk(ctx, (char *) identity, &key, &key_len)) {
-	report(NULL, LOG_ERR, ~0, "%s:%d psk not found", __FILE__, __LINE__);
+	report(NULL, LOG_ERR, ~0, "%s:%d psk for identity '%s' not found", __FILE__, __LINE__, (char *) identity);
 	return 0;
     }
 
@@ -5916,12 +5927,13 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 
     str_set(&ctx->tls_psk_identity, mem_strdup(ctx->mem, (char *) identity), 0);
 
+    SSL_set_verify(ctx->tls, SSL_VERIFY_NONE, NULL);
+
     return 1;
 }
 
 static unsigned int psk_server_cb(SSL *ssl, const char *identity, unsigned char *psk, unsigned int max_psk_len)
 {
-
     // FIXME -- use SSL_CTX_get_app_data instead of SSL_get_fd/io_get_ctx?
 
     if (SSL_version(ssl) > TLS1_2_VERSION)	// FIXME -- check whether that check makes sense at all
@@ -5985,23 +5997,25 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls)
 	SSL_CTX_set_default_passwd_cb(ctx, ssl_pem_phrase_cb);
 	SSL_CTX_set_default_passwd_cb_userdata(ctx, r->tls_pass);
     }
-    if (r->tls_cert && !SSL_CTX_use_certificate_chain_file(ctx, r->tls_cert))
-	report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_use_certificate_chain_file", __func__, __LINE__);
-    if ((r->tls_key || r->tls_cert)
-	&& !SSL_CTX_use_PrivateKey_file(ctx, r->tls_key ? r->tls_key : r->tls_cert, SSL_FILETYPE_PEM))
-	report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_use_PrivateKey_file", __func__, __LINE__);
-    if (r->tls_key && r->tls_cert && !SSL_CTX_check_private_key(ctx))
-	report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_check_private_key", __func__, __LINE__);
-    SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
+    if (!r->use_tls_psk) {
+	if (r->tls_cert && !SSL_CTX_use_certificate_chain_file(ctx, r->tls_cert))
+	    report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_use_certificate_chain_file", __func__, __LINE__);
+	if ((r->tls_key || r->tls_cert)
+	    && !SSL_CTX_use_PrivateKey_file(ctx, r->tls_key ? r->tls_key : r->tls_cert, SSL_FILETYPE_PEM))
+	    report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_use_PrivateKey_file", __func__, __LINE__);
+	if (r->tls_key && r->tls_cert && !SSL_CTX_check_private_key(ctx))
+	    report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_check_private_key", __func__, __LINE__);
 
-    if (r->tls_cafile && !SSL_CTX_load_verify_locations(ctx, r->tls_cafile, NULL)) {
-	char buf[256];
-	const char *terr = ERR_error_string(ERR_get_error(), buf);
-	report(NULL, LOG_ERR, ~0,
-	       "%s %d: realm %s: SSL_CTX_load_verify_locations(\"%s\") failed%s%s", __func__, __LINE__, r->name.txt, r->tls_cafile, terr ? ": " : "",
-	       terr ? terr : "");
-	tac_exit(EX_CONFIG);
+	if (r->tls_cafile && !SSL_CTX_load_verify_locations(ctx, r->tls_cafile, NULL)) {
+	    char buf[256];
+	    const char *terr = ERR_error_string(ERR_get_error(), buf);
+	    report(NULL, LOG_ERR, ~0,
+		   "%s %d: realm %s: SSL_CTX_load_verify_locations(\"%s\") failed%s%s", __func__, __LINE__, r->name.txt, r->tls_cafile, terr ? ": " : "",
+		   terr ? terr : "");
+	    tac_exit(EX_CONFIG);
+	}
     }
+    SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
 
     unsigned long flags = 0;
     if (r->tls_accept_expired == TRISTATE_YES)
