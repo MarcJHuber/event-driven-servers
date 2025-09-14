@@ -1358,8 +1358,11 @@ mavis format custom_0 = "${server.address} ${server.port}"
    Keys and SNIs are supported:
 
      * tls psk = ( yes | no )
-       This enables PSK support at realm level.
-       PSK identity and key can be declared at device level:
+       This enables PSK support at realm level. Please note that
+       PSK and cert-based authentication are mutually exclusive.
+       Enabling PSK support disables cert authentication.
+       PSK identity and key can be declared at device or realm
+       level:
 tls psk id = myid
 tls psk key = 0123456789abcdef # in hex
      * tls sni = SNI
@@ -1784,13 +1787,15 @@ aaa authentication enable default group tacacs+ enable
    draft-ietf-opsawg-tacacs-tls13-24.txt).
    3 8 Accept TACACS+ payloads lower than advertized in the
    TACACS+ header.
-   4 16 Check for a space in the remote address field of a packet
-   and strip everything after before attempting an IP address
-   conversion.
+   4 16 Check for a space in the remote address field of a TACACS+
+   packet and strip everything after before attempting an IP
+   address conversion.
    5 32 Accept RADIUS packets if no Message-Authenticator
    attribute is set. This disables RADIUS BLAST attack migigation.
    6 64 Don't require key-based packet obfuscation for non-TLS
-   (this violates draft-ietf-opsawg-tacacs-tls13-24.txt).
+   TACACS+ (this violates draft-ietf-opsawg-tacacs-tls13-24.txt).
+   7 128 Don't require TLS1.3 TACACS+-over-TLS (this violates
+   draft-ietf-opsawg-tacacs-tls13-24.txt).
 
    Example:
   device ... {
