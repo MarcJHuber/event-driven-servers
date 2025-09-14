@@ -43,6 +43,12 @@ struct conn {
     size_t readbuf_len;
     size_t readbuf_off;
     int retries;
+    char *client_psk_hint;
+    size_t client_psk_hint_len;
+    char *client_psk_identity;
+    size_t client_psk_identity_len;
+    char *client_psk_key;
+    size_t client_psk_key_len;
 };
 
 struct conn *conn_new(void);
@@ -61,6 +67,9 @@ void conn_init_timeout(struct conn *);
 void conn_set_timeout(struct conn *, time_t tv_sec, suseconds_t tv_usec);
 void conn_set_retries(struct conn *, int retries);
 void conn_set_vrf(struct conn *, char *vrf);	// FIXME, not yet implemented
+void conn_set_tls_psk(struct conn *, char *identity, size_t identity_len);
+void conn_set_tls_psk_id(struct conn *, char *psk, size_t psk_len);
+void conn_set_tls_psk_hint(struct conn *, char *hint, size_t hint_len);
 
 void conn_set_peer_addr(struct conn *, sockaddr_union * addr);
 void conn_set_local_addr(struct conn *, sockaddr_union * addr);

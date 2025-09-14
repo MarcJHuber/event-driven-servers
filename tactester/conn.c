@@ -12,6 +12,7 @@
 
 #include "conn.h"
 #include <strings.h>
+#include <ctype.h>
 
 int conn_update_timeout(struct conn *conn)
 {
@@ -84,6 +85,12 @@ void conn_free(struct conn *conn)
 	free(conn->readbuf);
     if (conn->key)
 	free(conn->key);
+    if (conn->client_psk_hint)
+	free(conn->client_psk_hint);
+    if (conn->client_psk_identity)
+	free(conn->client_psk_identity);
+    if (conn->client_psk_key)
+	free(conn->client_psk_key);
     free(conn);
 }
 
@@ -225,6 +232,60 @@ static int pem_phrase_cb(char *buf, int size, int rwflag __attribute__((unused))
     return i;
 }
 
+static char hexbyte(char *s)
+{
+    char *h = "\0\01\02\03\04\05\06\07\010\011\0\0\0\0\0\0\0\012\013\014\015\016\017\0\0\0\0\0\0\0\0\0";
+    return (h[(s[0] - '0') & 0x1F] << 4) | h[(s[1] - '0') & 0x1F];
+}
+
+void conn_set_tls_psk(struct conn *conn, char *psk, size_t psk_len)
+{
+    // FIXME -- no psk sanitity checking
+    char k[2];
+    psk_len >>= 1;
+    conn->client_psk_key = calloc(1, psk_len);
+    conn->client_psk_key_len = psk_len;
+    for (size_t i = 0; i < psk_len; i++) {
+	k[0] = toupper(*psk++);
+	k[1] = toupper(*psk++);
+	conn->client_psk_key[i] = hexbyte(k);
+    }
+}
+
+void conn_set_tls_psk_hint(struct conn *conn, char *hint, size_t hint_len)
+{
+    conn->client_psk_hint = strdup(hint);
+    conn->client_psk_hint_len = hint_len;
+}
+
+void conn_set_tls_psk_id(struct conn *conn, char *identity, size_t identity_len)
+{
+    conn->client_psk_identity = strdup(identity);
+    conn->client_psk_identity_len = identity_len;
+}
+
+#ifndef OPENSSL_NO_PSK
+static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity, unsigned int max_identity_len, unsigned char *psk, unsigned int max_psk_len)
+{
+    struct conn *conn = SSL_CTX_get_app_data(SSL_get_SSL_CTX(ssl));
+
+    if (hint)
+	fprintf(stderr, "PSK identity hint: %s\n", hint);
+
+    // FIXME, should compare hint to conn->client_psk_hint
+
+    memset(identity, 0, max_identity_len);
+    if (max_identity_len > conn->client_psk_identity_len)
+	max_identity_len = conn->client_psk_identity_len;
+    memcpy(identity, conn->client_psk_identity, max_identity_len);
+
+    if (max_psk_len > conn->client_psk_key_len)
+	max_psk_len = conn->client_psk_key_len;
+    memcpy(psk, conn->client_psk_key, max_psk_len);
+
+    return conn->client_psk_key_len;
+}
+#endif
 int conn_connect(struct conn *conn)
 {
     if (conn->fd > -1)
@@ -278,11 +339,8 @@ int conn_connect(struct conn *conn)
     } else
 	SSL_CTX_set_verify_depth(conn->ctx, 0);
 
-#if 1
     if (conn->sni || conn->peer_cafile)
 	SSL_CTX_set_verify(conn->ctx, SSL_VERIFY_PEER, NULL);
-// this currently breaks the connection.
-#endif
 
     if (conn->client_key_pass) {
 	SSL_CTX_set_default_passwd_cb(conn->ctx, pem_phrase_cb);
@@ -305,7 +363,12 @@ int conn_connect(struct conn *conn)
 	    return -1;
 	}
     }
-
+#ifndef OPENSSL_NO_PSK
+    if (conn->client_psk_identity_len && conn->client_psk_key_len) {
+	SSL_CTX_set_psk_client_callback(conn->ctx, psk_client_cb);
+	SSL_CTX_set_app_data(conn->ctx, conn);
+    }
+#endif
     SSL_CTX_set_session_cache_mode(conn->ctx, SSL_SESS_CACHE_OFF);
 
     conn->ssl = SSL_new(conn->ctx);
@@ -313,7 +376,6 @@ int conn_connect(struct conn *conn)
 	SSL_CTX_free(conn->ctx);
 	return -1;
     }
-
     if (conn->sni) {
 	SSL_set_tlsext_host_name(conn->ssl, conn->sni);
 	SSL_set1_host(conn->ssl, conn->sni);

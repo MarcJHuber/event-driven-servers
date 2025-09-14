@@ -139,8 +139,32 @@ static void parse_server(struct sym *sym, int skip)
 		    conn_set_tls_alpn(conn, sym->buf);
 		sym_get(sym);
 		continue;
+	    case S_psk:
+		sym_get(sym);
+		switch (sym->code) {
+		case S_hint:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    conn_set_tls_psk_hint(conn, sym->buf, strlen(sym->buf));
+		    sym_get(sym);
+		    continue;
+		case S_id:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    conn_set_tls_psk_id(conn, sym->buf, strlen(sym->buf));
+		    sym_get(sym);
+		    continue;
+		case S_key:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    conn_set_tls_psk(conn, sym->buf, strlen(sym->buf));
+		    sym_get(sym);
+		    continue;
+		default:
+		    parse_error_expect(sym, S_key, S_hint, S_id, S_unknown);
+		}
 	    default:
-		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_sni, S_alpn, S_unknown);
+		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_sni, S_alpn, S_psk, S_unknown);
 	    }
 	    continue;
 	case S_timeout:
