@@ -171,7 +171,21 @@ static void parse_listen(struct sym *sym)
 	case S_ssl:
 	case S_tls:
 	    sym_get(sym);
-	    parse(sym, S_equal);
+	    switch (sym->code) {
+	    case S_equal:
+		sym_get(sym);
+		break;
+	    case S_psk:
+		sym_get(sym);
+		parse(sym, S_equal);
+		if (parse_bool(sym))
+		    ctx->sd_flags |= SCM_FLAG_TLSPSK;
+		else
+		    ctx->sd_flags &= ~SCM_FLAG_TLSPSK;
+		continue;
+	    default:
+		parse_error_expect(sym, S_equal, S_psk, S_unknown);
+	    }
 	    switch (sym->code) {
 	    case S_yes:
 	    case S_permit:

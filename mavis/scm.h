@@ -26,6 +26,7 @@ struct scm_data_accept {
     int aaa_protocol;
 #define SCM_FLAG_HAPROXY 1
 #define SCM_FLAG_RADACCT 2
+#define SCM_FLAG_TLSPSK 4
     u_int flags;
     int socktype;		// SOCK_STREAM, SOCK_SEQPACKET; SOCK_DGRAM
     int protocol;		// AF_INET, AF_INET6, ...
