@@ -339,7 +339,7 @@ int conn_connect(struct conn *conn)
     } else
 	SSL_CTX_set_verify_depth(conn->ctx, 0);
 
-    if (conn->sni || conn->peer_cafile)
+    if (!conn->client_psk_key_len && (conn->sni || conn->peer_cafile))
 	SSL_CTX_set_verify(conn->ctx, SSL_VERIFY_PEER, NULL);
 
     if (conn->client_key_pass) {
