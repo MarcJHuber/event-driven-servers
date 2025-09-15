@@ -206,6 +206,10 @@ acl accept ::1
 
             tac_plus-ng will accept unencrypted connections from
             this listeners if tls auto-detect = yes is enabled.
+          + tls psk = ( yes | no )
+            This directive tells a child process whether to uses
+            pre-shared keys instead of certificates for TLS
+            authentication (currently tac_plus-ng only).
           + aaa.protocol = Protocol
             To keep tac_plus-ng from auto-detecting the AAA
             protocol, Protocol can be set to exactly one of
