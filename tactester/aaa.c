@@ -181,6 +181,7 @@ static int aaa_authc_tacacs_ascii(struct aaa *aaa, char *user, char *remoteaddr,
 	return -1;
 
     opak->seq_no = 3;
+    opak->flags = pak->flags;
     data_len = TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + pass_len;
     opak->datalength = htonl(data_len);
     cont->user_msg_len = ntohs(pass_len);
@@ -200,12 +201,6 @@ static int aaa_authc_tacacs_ascii(struct aaa *aaa, char *user, char *remoteaddr,
 
     pak = alloca(TAC_PLUS_HDR_SIZE + data_len);
     memset(pak, 0, TAC_PLUS_HDR_SIZE + data_len);
-    pak->version = TAC_PLUS_MAJOR_VER | TAC_PLUS_MINOR_VER_DEFAULT;
-    pak->type = TAC_PLUS_AUTHEN;
-    pak->session_id = hdr.session_id;
-    pak->datalength = htonl(data_len);
-    pak->seq_no = 1;
-    pak->flags = hdr.flags | TAC_PLUS_UNENCRYPTED_FLAG;
     reply = (struct authen_reply *) ((u_char *) pak + TAC_PLUS_HDR_SIZE);
     memcpy(pak, &hdr, TAC_PLUS_HDR_SIZE);
     if (conn_read(aaa->conn, reply, data_len) != data_len)
