@@ -448,6 +448,8 @@ struct realm {
 #ifdef WITH_SSL
     SSL_CTX *tls;
     SSL_CTX *dtls;
+    SSL_CTX *tls_psk;
+    SSL_CTX *dtls_psk;
     char *tls_cert;
     char *tls_key;
     char *tls_pass;
@@ -705,6 +707,7 @@ struct context {
 	BISTATE(reset_tcp);
 	BISTATE(udp);
 	BISTATE(radius_1_1);
+	BISTATE(use_tls_psk);
     } __attribute__((__packed__));
     enum token mavis_result;
     enum token aaa_protocol;
