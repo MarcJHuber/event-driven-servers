@@ -145,19 +145,22 @@ static void parse_server(struct sym *sym, int skip)
 		case S_hint:
 		    sym_get(sym);
 		    parse(sym, S_equal);
-		    conn_set_tls_psk_hint(conn, sym->buf, strlen(sym->buf));
+		    if (!skip)
+			conn_set_tls_psk_hint(conn, sym->buf, strlen(sym->buf));
 		    sym_get(sym);
 		    continue;
 		case S_id:
 		    sym_get(sym);
 		    parse(sym, S_equal);
-		    conn_set_tls_psk_id(conn, sym->buf, strlen(sym->buf));
+		    if (!skip)
+			conn_set_tls_psk_id(conn, sym->buf, strlen(sym->buf));
 		    sym_get(sym);
 		    continue;
 		case S_key:
 		    sym_get(sym);
 		    parse(sym, S_equal);
-		    conn_set_tls_psk(conn, sym->buf, strlen(sym->buf));
+		    if (!skip)
+			conn_set_tls_psk(conn, sym->buf, strlen(sym->buf));
 		    sym_get(sym);
 		    continue;
 		default:
