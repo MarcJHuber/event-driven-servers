@@ -207,7 +207,7 @@ static rb_tree_t *tags_by_name = NULL;
 static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION ** sess);
 static unsigned int psk_server_cb(SSL * ssl, const char *identity, unsigned char *psk, unsigned int max_psk_len);
 #endif
-static SSL_CTX *ssl_init(struct realm *, int);
+static SSL_CTX *ssl_init(struct realm *, int dtls, int use_tls_psk);
 #endif
 
 static char *confdir_strdup(char *in)
@@ -238,19 +238,21 @@ void complete_realm(tac_realm *r)
     tac_realm *rp = r->parent;
 #ifdef WITH_SSL
     if (r->tls_cert || r->tls_key) {
-	r->tls = ssl_init(r, 0);
-	r->dtls = ssl_init(r, 1);
+	if (!r->tls)
+	    r->tls = ssl_init(r, 0, 0);
+	if (!r->dtls)
+	    r->dtls = ssl_init(r, 1, 0);
     }
 #ifndef OPENSSL_NO_PSK
-    if (r->use_tls_psk == BISTATE_YES) {
-	if (!r->tls)
-	    r->tls = ssl_init(r, 0);
-	if (!r->dtls)
-	    r->dtls = ssl_init(r, 1);
-	SSL_CTX_set_psk_find_session_callback(r->tls, psk_find_session_cb);	// tls1.3
-	SSL_CTX_set_psk_find_session_callback(r->dtls, psk_find_session_cb);	// dtls1.3, eventually
-	SSL_CTX_set_psk_server_callback(r->tls, psk_server_cb);	// tls1.2
-	SSL_CTX_set_psk_server_callback(r->dtls, psk_server_cb);	// dtls1.2
+    if (r->use_tls_psk) {
+	if (!r->tls_psk)
+	    r->tls_psk = ssl_init(r, 0, 1);
+	if (!r->dtls_psk)
+	    r->dtls_psk = ssl_init(r, 1, 1);
+	SSL_CTX_set_psk_find_session_callback(r->tls_psk, psk_find_session_cb);	// tls1.3
+	SSL_CTX_set_psk_find_session_callback(r->dtls_psk, psk_find_session_cb);	// dtls1.3, eventually
+	SSL_CTX_set_psk_server_callback(r->tls_psk, psk_server_cb);	// tls1.2
+	SSL_CTX_set_psk_server_callback(r->dtls_psk, psk_server_cb);	// dtls1.2
     }
 #endif
 #endif
@@ -5927,8 +5929,6 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 
     str_set(&ctx->tls_psk_identity, mem_strdup(ctx->mem, (char *) identity), 0);
 
-    SSL_set_verify(ctx->tls, SSL_VERIFY_NONE, NULL);
-
     return 1;
 }
 
@@ -5984,7 +5984,7 @@ static int ssl_pem_phrase_cb(char *buf, int size, int rwflag __attribute__((unus
     return i;
 }
 
-static SSL_CTX *ssl_init(struct realm *r, int dtls)
+static SSL_CTX *ssl_init(struct realm *r, int dtls, int use_tls_psk)
 {
     SSL_CTX *ctx = SSL_CTX_new(dtls ? DTLS_server_method() : TLS_server_method());
     if (!ctx) {
@@ -5997,7 +5997,7 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls)
 	SSL_CTX_set_default_passwd_cb(ctx, ssl_pem_phrase_cb);
 	SSL_CTX_set_default_passwd_cb_userdata(ctx, r->tls_pass);
     }
-    if (!r->use_tls_psk) {
+    if (!use_tls_psk) {
 	if (r->tls_cert && !SSL_CTX_use_certificate_chain_file(ctx, r->tls_cert))
 	    report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_use_certificate_chain_file", __func__, __LINE__);
 	if ((r->tls_key || r->tls_cert)

@@ -834,15 +834,22 @@ static void accept_control_tls(struct context *ctx, int cur)
 	reject_conn(ctx, "SNI", __func__, __LINE__);
 	return;
     }
-    tac_host *by_address = ctx->host;
-    ctx->host = NULL;
-
 #ifndef OPENSSL_NO_PSK
     if (ctx->tls_psk_identity.txt) {
+	unsigned char buf[ctx->host->tls_psk_key_len];
+	if (ctx->host->tls_psk_key_len != SSL_SESSION_get_master_key(SSL_get_session(ctx->tls), buf, ctx->host->tls_psk_key_len)
+	    || memcmp(buf, ctx->host->tls_psk_key, ctx->host->tls_psk_key_len)) {
+	    // OpenSSL fall-through due to wrong client psk
+	    reject_conn(ctx, "PSK", __func__, __LINE__);
+	    return;
+	}
 	set_host_by_psk_identity(ctx, ctx->tls_psk_identity.txt);
 	goto done;
     }
 #endif
+    tac_host *by_address = ctx->host;
+    ctx->host = NULL;
+
     X509 *cert = SSL_get_peer_certificate(ctx->tls);
 
     char buf[40];
@@ -1156,8 +1163,6 @@ static int app_verify_cb(X509_STORE_CTX *sctx, void *app_ctx)
     if (SSL_get_negotiated_client_cert_type(ctx->tls) == TLSEXT_cert_type_rpk)
 	return 1;
 #endif
-    //if (ctx->tls_psk_identity.txt)
-//      return 1;
     if (ctx->host->tls_peer_cert_validation == S_none)
 	return 1;
 
@@ -1440,6 +1445,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
     ctx->tls_versions = sd_ext->sd.tls_versions;
     ctx->use_tls = (sd_ext->sd.tls_versions && sd_ext->sd.type == SCM_ACCEPT) ? BISTATE_YES : BISTATE_NO;
     ctx->use_dtls = (sd_ext->sd.tls_versions && sd_ext->sd.type == SCM_UDPDATA) ? BISTATE_YES : BISTATE_NO;
+    ctx->use_tls_psk = (r->use_tls_psk && (sd_ext->sd.flags & SCM_FLAG_TLSPSK)) ? BISTATE_YES : BISTATE_NO;
     if (inject_buf) {
 	ctx->udp = BISTATE_YES;
 	ctx->inject_buf = mem_alloc(ctx->mem, INJECT_BUF_SIZE);
@@ -1593,20 +1599,26 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    SSL_CTX_set_cert_verify_callback(ctx->realm->tls, app_verify_cb, ctx);
 	    SSL_CTX_set_alpn_select_cb(ctx->realm->tls, alpn_cb, ctx);
 	    SSL_CTX_set_session_cache_mode(ctx->realm->tls, SSL_SESS_CACHE_OFF);
-#ifndef OPENSSL_NO_PSK
-	    if (ctx->host->tls_psk_hint)	// rememinder to myself: irrelevant for TLS1.3
-		SSL_CTX_use_psk_identity_hint(ctx->realm->tls, ctx->host->tls_psk_hint);
-#endif
 	}
+#ifndef OPENSSL_NO_PSK
+	if (ctx->realm->tls_psk) {
+	    SSL_CTX_set_session_cache_mode(ctx->realm->tls_psk, SSL_SESS_CACHE_OFF);
+	    if (ctx->host->tls_psk_hint)	// rememinder to myself: irrelevant for TLS1.3
+		SSL_CTX_use_psk_identity_hint(ctx->realm->tls_psk, ctx->host->tls_psk_hint);
+	}
+#endif
 	if (ctx->realm->dtls) {
 	    SSL_CTX_set_cert_verify_callback(ctx->realm->dtls, app_verify_cb, ctx);
 	    SSL_CTX_set_alpn_select_cb(ctx->realm->dtls, alpn_cb, ctx);
 	    SSL_CTX_set_session_cache_mode(ctx->realm->dtls, SSL_SESS_CACHE_OFF);
-#ifndef OPENSSL_NO_PSK
-	    if (ctx->host->tls_psk_hint)
-		SSL_CTX_use_psk_identity_hint(ctx->realm->dtls, ctx->host->tls_psk_hint);
-#endif
 	}
+#ifndef OPENSSL_NO_PSK
+	if (ctx->realm->dtls_psk) {
+	    SSL_CTX_set_session_cache_mode(ctx->realm->dtls_psk, SSL_SESS_CACHE_OFF);
+	    if (ctx->host->tls_psk_hint)
+		SSL_CTX_use_psk_identity_hint(ctx->realm->dtls_psk, ctx->host->tls_psk_hint);
+	}
+#endif
 
 	if (ctx->realm->tls_sni_required == TRISTATE_YES) {
 	    if (ctx->realm->tls) {
@@ -1630,7 +1642,10 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 		SSL_CTX_set_keylog_callback(ctx->realm->dtls, keylog_cb);
 	}
 
-	ctx->tls = SSL_new(ctx->use_tls ? ctx->realm->tls : (ctx->use_dtls ? ctx->realm->dtls : NULL));
+	if (ctx->use_tls_psk)
+	    ctx->tls = SSL_new(ctx->use_tls ? ctx->realm->tls_psk : (ctx->use_dtls ? ctx->realm->dtls_psk : NULL));
+	else
+	    ctx->tls = SSL_new(ctx->use_tls ? ctx->realm->tls : (ctx->use_dtls ? ctx->realm->dtls : NULL));
 
 	if (ctx->tls) {
 	    u_int versions = ctx->tls_versions;
@@ -1663,14 +1678,16 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    SSL_set_session_id_context(ctx->tls, (const unsigned char *) &ctx, sizeof(ctx));
 	    SSL_set_num_tickets(ctx->tls, 0);
 
+	    if (!ctx->use_tls_psk) {
 #if OPENSSL_VERSION_NUMBER >= 0x30200000
-	    if (ctx->host->tls_client_cert_type_len)
-		SSL_set1_client_cert_type(ctx->tls, ctx->host->tls_client_cert_type, ctx->host->tls_client_cert_type_len);
-	    if (ctx->host->tls_server_cert_type_len)
-		SSL_set1_server_cert_type(ctx->tls, ctx->host->tls_server_cert_type, ctx->host->tls_server_cert_type_len);
+		if (ctx->host->tls_client_cert_type_len)
+		    SSL_set1_client_cert_type(ctx->tls, ctx->host->tls_client_cert_type, ctx->host->tls_client_cert_type_len);
+		if (ctx->host->tls_server_cert_type_len)
+		    SSL_set1_server_cert_type(ctx->tls, ctx->host->tls_server_cert_type, ctx->host->tls_server_cert_type_len);
 #endif
-	    int mode = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
-	    SSL_set_verify(ctx->tls, mode, NULL);
+		int mode = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE | SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
+		SSL_set_verify(ctx->tls, mode, NULL);
+	    }
 
 	    if (ctx->udp) {
 		//ctx->rbio = BIO_new(BIO_s_dgram_mem());
