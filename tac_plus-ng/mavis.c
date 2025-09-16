@@ -56,6 +56,7 @@ struct mavis_ctx_data {
 };
 
 static void mavis_lookup_final(tac_session *, av_ctx *);
+static void dump_av_pairs(tac_session * session, av_ctx * avc, char *what);
 
 static void mavis_switch(tac_session *session, av_ctx *avc, int result)
 {
@@ -191,6 +192,7 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
 	    av_set(avc, custom_attrs[i], eval_log_format(session, session->ctx, NULL, session->ctx->realm->mavis_custom_attr[i], io_now.tv_sec, NULL));
     session->eval_log_raw = 0;
 
+    dump_av_pairs(session, avc, ">>> sent user");
     int result = mavis_send(mcx, &avc);
 
     switch (result) {
@@ -240,7 +242,7 @@ static void dump_av_pairs(tac_session *session, av_ctx *avc, char *what)
 	    AV_A_IPADDR, AV_A_REALM, AV_A_TACPROFILE, AV_A_SSHKEY, AV_A_SSHKEYHASH, AV_A_SSHKEYID, AV_A_PATH,
 	    AV_A_UID, AV_A_GID, AV_A_HOME, AV_A_ROOT, AV_A_SHELL, AV_A_GIDS, AV_A_PASSWORD_MUSTCHANGE, AV_A_ARGS,
 	    AV_A_RARGS, AV_A_VERDICT, AV_A_IDENTITY_SOURCE, AV_A_CUSTOM_0, AV_A_CUSTOM_1, AV_A_CUSTOM_2, AV_A_CUSTOM_3,
-	    AV_A_COMMENT, -1
+	    AV_A_CERTSUBJ, AV_A_CERTDATA, AV_A_COMMENT, -1
 	};
 	report(session, LOG_DEBUG, ~0, "%s av pairs:", what);
 	for (int i = 0; show[i] > -1; i++)
@@ -257,7 +259,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 
     session->mavisauth_res = S_unknown;
 
-    dump_av_pairs(session, avc, "user");
+    dump_av_pairs(session, avc, "<<< received user");
     if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&	//
 	(t = av_get(avc, AV_A_TACTYPE)) && !strcmp(t, session->mavis_data->mavistype) &&	//
 	(t = av_get(avc, AV_A_USER)) && !strcmp(t, session->username.txt) &&	//
@@ -507,8 +509,13 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 
 #if defined(WITH_SSL)
     if (ctx->tls) {
-	if (ctx->tls_peer_cert_subject.txt)
-	    av_set(avc, AV_A_CERTSUBJ, (char *) ctx->tls_peer_cert_subject.txt);
+	if (ctx->tls_psk_identity.len) {
+	    char t[40 + ctx->tls_psk_identity.len];
+	    snprintf(t, 40 + ctx->tls_psk_identity.len, "pskid=\"%s\"", ctx->tls_psk_identity.txt);
+	    av_set(avc, AV_A_CERTDATA, t);
+	} else {
+	    if (ctx->tls_peer_cert_subject.txt)
+		av_set(avc, AV_A_CERTSUBJ, (char *) ctx->tls_peer_cert_subject.txt);
 
 #define SAN_PREFIX "san=\""
 #define SHA1_PREFIX "sha1=\""
@@ -517,13 +524,7 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 #define ISSUER_PREFIX "issuer=\""
 #define SERIAL_PREFIX "serial=\""
 #define SEQ_SUFFIX "\","
-	size_t len = 0;
-
-	if (ctx->tls_psk_identity.len) {
-	    char t[40 + ctx->tls_psk_identity.len];
-	    snprintf(t, 40 + ctx->tls_psk_identity.len, "pskid=\"%s\"", ctx->tls_psk_identity.txt);
-	    av_set(avc, AV_A_CERTDATA, t);
-	} else {
+	    size_t len = 0;
 
 	    if (ctx->tls_peer_cert_issuer.txt)
 		len += sizeof(ISSUER_PREFIX) + sizeof(SEQ_SUFFIX) + ctx->tls_peer_cert_issuer.len;
@@ -625,6 +626,7 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
     }
 #endif
 
+    dump_av_pairs(&session, avc, ">>> sent host");
     int result = mavis_send(mcx, &avc);
     switch (result) {
     case MAVIS_DEFERRED:
@@ -640,7 +642,7 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx *avc)
 {
     char *t, *result = NULL;
     tac_session session = {.ctx = ctx };
-    dump_av_pairs(&session, avc, "host");
+    dump_av_pairs(&session, avc, "<<< received host");
     ctx->mavis_result = S_deny;
     if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&	//
 	(t = av_get(avc, AV_A_TACTYPE)) && !strcmp(t, ctx->mavis_data->mavistype) &&	//
@@ -753,6 +755,7 @@ void mavis_dacl_lookup(tac_session *session, void (*f)(tac_session *), const cha
     if (r->name.txt)
 	av_set(avc, AV_A_REALM, r->name.txt);
 
+    dump_av_pairs(session, avc, ">>> sent dacl");
     int result = mavis_send(mcx, &avc);
 
     switch (result) {
@@ -772,7 +775,7 @@ static void mavis_dacl_lookup_final(tac_session *session, av_ctx *avc)
 
     session->mavisauth_res = S_unknown;
 
-    dump_av_pairs(session, avc, "user");
+    dump_av_pairs(session, avc, "<<< received user");
     if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&	//
 	(t = av_get(avc, AV_A_TACTYPE)) && !strcmp(t, AV_V_TACTYPE_DACL) &&	//
 	(t = av_get(avc, AV_A_USER)) && !strcmp(t, session->username.txt) &&	//
