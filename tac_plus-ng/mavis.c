@@ -519,102 +519,109 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 #define SEQ_SUFFIX "\","
 	size_t len = 0;
 
-	if (ctx->tls_peer_cert_issuer.txt)
-	    len += sizeof(ISSUER_PREFIX) + sizeof(SEQ_SUFFIX) + ctx->tls_peer_cert_issuer.len;
-	if (ctx->tls_peer_serial.txt)
-	    len += sizeof(SERIAL_PREFIX) + sizeof(SEQ_SUFFIX) + ctx->tls_peer_serial.len;
-
-	for (struct fingerprint * fp = ctx->fingerprint; fp; fp = fp->next) {
-	    if (fp->type == S_tls_peer_cert_sha1) {
-		len += sizeof(SHA1_PREFIX) + sizeof(SEQ_SUFFIX) + 3 * SHA_DIGEST_LENGTH;
-		continue;
-	    }
-	    if (fp->type == S_tls_peer_cert_sha256) {
-		len += sizeof(SHA256_PREFIX) + sizeof(SEQ_SUFFIX) + 3 * SHA256_DIGEST_LENGTH;
-		continue;
-	    }
-	    if (fp->type == S_tls_peer_cert_rpk) {
-		len += sizeof(RPK_PREFIX) + sizeof(SEQ_SUFFIX) + 3 * fp->rpk_len;
-		continue;
-	    }
-	}
-
-
-	char *u = NULL;
-	char *t = NULL;
-	if (ctx->tls_peer_cert_san_count) {
-	    size_t *la = alloca(ctx->tls_peer_cert_san_count * sizeof(size_t));
-	    len += ctx->tls_peer_cert_san_count * (sizeof(SAN_PREFIX) + sizeof(SEQ_SUFFIX));
-	    for (size_t i = 0; i < ctx->tls_peer_cert_san_count; i++) {
-		la[i] = strlen(ctx->tls_peer_cert_san[i]);
-		len += la[i];
-	    }
-	    t = alloca(len);
-	    u = t;
-	    for (size_t i = 0; i < ctx->tls_peer_cert_san_count; i++) {
-		memcpy(u, SAN_PREFIX, sizeof(SAN_PREFIX) - 1);
-		u += sizeof(SAN_PREFIX) - 1;
-		memcpy(u, ctx->tls_peer_cert_san[i], la[i]);
-		u += la[i];
-		memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
-		u += sizeof(SEQ_SUFFIX) - 1;
-	    }
-	}
-
-	if (!t) {
-	    t = alloca(len);
-	    u = t;
-	}
-
-	if (ctx->tls_peer_cert_issuer.txt) {
-	    memcpy(u, ISSUER_PREFIX, sizeof(ISSUER_PREFIX) - 1);
-	    u += sizeof(ISSUER_PREFIX) - 1;
-	    memcpy(u, ctx->tls_peer_cert_issuer.txt, ctx->tls_peer_cert_issuer.len);
-	    u += ctx->tls_peer_cert_issuer.len;
-	    memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
-	    u += sizeof(SEQ_SUFFIX) - 1;
-	}
-
-	if (ctx->tls_peer_serial.txt) {
-	    memcpy(u, SERIAL_PREFIX, sizeof(SERIAL_PREFIX) - 1);
-	    u += sizeof(SERIAL_PREFIX) - 1;
-	    memcpy(u, ctx->tls_peer_serial.txt, ctx->tls_peer_serial.len);
-	    u += ctx->tls_peer_serial.len;
-	    memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
-	    u += sizeof(SEQ_SUFFIX) - 1;
-	}
-
-	for (struct fingerprint * fp = ctx->fingerprint; fp; fp = fp->next) {
-	    if (fp->type == S_tls_peer_cert_sha1) {
-		memcpy(u, SHA1_PREFIX, sizeof(SHA1_PREFIX) - 1);
-		u += sizeof(SHA1_PREFIX) - 1;
-		dump_hex(fp->hash, SHA_DIGEST_LENGTH, &u);
-		memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
-		u += sizeof(SEQ_SUFFIX) - 1;
-		continue;
-	    }
-	    if (fp->type == S_tls_peer_cert_sha256) {
-		memcpy(u, SHA256_PREFIX, sizeof(SHA256_PREFIX) - 1);
-		u += sizeof(SHA256_PREFIX) - 1;
-		dump_hex(fp->hash, SHA256_DIGEST_LENGTH, &u);
-		memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
-		u += sizeof(SEQ_SUFFIX) - 1;
-		continue;
-	    }
-	    if (fp->type == S_tls_peer_cert_rpk) {
-		memcpy(u, RPK_PREFIX, sizeof(RPK_PREFIX) - 1);
-		u += sizeof(RPK_PREFIX) - 1;
-		dump_hex(fp->rpk, fp->rpk_len, &u);
-		memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
-		u += sizeof(SEQ_SUFFIX) - 1;
-		continue;
-	    }
-	}
-	u--;			// trailing comma
-	*u = 0;
-
-	if (t)
+	if (ctx->tls_psk_identity.len) {
+	    char t[40 + ctx->tls_psk_identity.len];
+	    snprintf(t, 40 + ctx->tls_psk_identity.len, "pskid=\"%s\"", ctx->tls_psk_identity.txt);
 	    av_set(avc, AV_A_CERTDATA, t);
+	} else {
+
+	    if (ctx->tls_peer_cert_issuer.txt)
+		len += sizeof(ISSUER_PREFIX) + sizeof(SEQ_SUFFIX) + ctx->tls_peer_cert_issuer.len;
+	    if (ctx->tls_peer_serial.txt)
+		len += sizeof(SERIAL_PREFIX) + sizeof(SEQ_SUFFIX) + ctx->tls_peer_serial.len;
+
+	    for (struct fingerprint * fp = ctx->fingerprint; fp; fp = fp->next) {
+		if (fp->type == S_tls_peer_cert_sha1) {
+		    len += sizeof(SHA1_PREFIX) + sizeof(SEQ_SUFFIX) + 3 * SHA_DIGEST_LENGTH;
+		    continue;
+		}
+		if (fp->type == S_tls_peer_cert_sha256) {
+		    len += sizeof(SHA256_PREFIX) + sizeof(SEQ_SUFFIX) + 3 * SHA256_DIGEST_LENGTH;
+		    continue;
+		}
+		if (fp->type == S_tls_peer_cert_rpk) {
+		    len += sizeof(RPK_PREFIX) + sizeof(SEQ_SUFFIX) + 3 * fp->rpk_len;
+		    continue;
+		}
+	    }
+
+
+	    char *u = NULL;
+	    char *t = NULL;
+	    if (ctx->tls_peer_cert_san_count) {
+		size_t *la = alloca(ctx->tls_peer_cert_san_count * sizeof(size_t));
+		len += ctx->tls_peer_cert_san_count * (sizeof(SAN_PREFIX) + sizeof(SEQ_SUFFIX));
+		for (size_t i = 0; i < ctx->tls_peer_cert_san_count; i++) {
+		    la[i] = strlen(ctx->tls_peer_cert_san[i]);
+		    len += la[i];
+		}
+		t = alloca(len);
+		u = t;
+		for (size_t i = 0; i < ctx->tls_peer_cert_san_count; i++) {
+		    memcpy(u, SAN_PREFIX, sizeof(SAN_PREFIX) - 1);
+		    u += sizeof(SAN_PREFIX) - 1;
+		    memcpy(u, ctx->tls_peer_cert_san[i], la[i]);
+		    u += la[i];
+		    memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+		    u += sizeof(SEQ_SUFFIX) - 1;
+		}
+	    }
+
+	    if (!t) {
+		t = alloca(len);
+		u = t;
+	    }
+
+	    if (ctx->tls_peer_cert_issuer.txt) {
+		memcpy(u, ISSUER_PREFIX, sizeof(ISSUER_PREFIX) - 1);
+		u += sizeof(ISSUER_PREFIX) - 1;
+		memcpy(u, ctx->tls_peer_cert_issuer.txt, ctx->tls_peer_cert_issuer.len);
+		u += ctx->tls_peer_cert_issuer.len;
+		memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+		u += sizeof(SEQ_SUFFIX) - 1;
+	    }
+
+	    if (ctx->tls_peer_serial.txt) {
+		memcpy(u, SERIAL_PREFIX, sizeof(SERIAL_PREFIX) - 1);
+		u += sizeof(SERIAL_PREFIX) - 1;
+		memcpy(u, ctx->tls_peer_serial.txt, ctx->tls_peer_serial.len);
+		u += ctx->tls_peer_serial.len;
+		memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+		u += sizeof(SEQ_SUFFIX) - 1;
+	    }
+
+	    for (struct fingerprint * fp = ctx->fingerprint; fp; fp = fp->next) {
+		if (fp->type == S_tls_peer_cert_sha1) {
+		    memcpy(u, SHA1_PREFIX, sizeof(SHA1_PREFIX) - 1);
+		    u += sizeof(SHA1_PREFIX) - 1;
+		    dump_hex(fp->hash, SHA_DIGEST_LENGTH, &u);
+		    memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+		    u += sizeof(SEQ_SUFFIX) - 1;
+		    continue;
+		}
+		if (fp->type == S_tls_peer_cert_sha256) {
+		    memcpy(u, SHA256_PREFIX, sizeof(SHA256_PREFIX) - 1);
+		    u += sizeof(SHA256_PREFIX) - 1;
+		    dump_hex(fp->hash, SHA256_DIGEST_LENGTH, &u);
+		    memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+		    u += sizeof(SEQ_SUFFIX) - 1;
+		    continue;
+		}
+		if (fp->type == S_tls_peer_cert_rpk) {
+		    memcpy(u, RPK_PREFIX, sizeof(RPK_PREFIX) - 1);
+		    u += sizeof(RPK_PREFIX) - 1;
+		    dump_hex(fp->rpk, fp->rpk_len, &u);
+		    memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+		    u += sizeof(SEQ_SUFFIX) - 1;
+		    continue;
+		}
+	    }
+	    u--;		// trailing comma
+	    *u = 0;
+
+	    if (t)
+		av_set(avc, AV_A_CERTDATA, t);
+	}
     }
 #endif
 

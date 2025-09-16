@@ -698,6 +698,23 @@ static void complete_host_mavis_tls(struct context *ctx)
     accept_control_final(ctx);
 }
 
+static void accept_control_check_tls_final(struct context *ctx);
+
+#ifndef OPENSSL_NO_PSK
+static void complete_host_mavis_tls_psk(struct context *ctx)
+{
+    if (query_mavis_host(ctx, complete_host_mavis_tls_psk))
+	return;
+
+    if (ctx->mavis_result == S_deny) {
+	ctx->hint = "by MAVIS backend";
+	reject_conn(ctx, ctx->hint, __func__, __LINE__);
+	return;
+    }
+    accept_control_check_tls_final(ctx);
+}
+#endif
+
 static void set_host_by_dn(struct context *ctx, char *in, int *m)
 {
     if (!in || !*in)
@@ -1562,6 +1579,124 @@ static int dtls_ver_ok(u_int ver, u_char v)
 }
 #endif
 
+
+#if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
+static void get_tls13_hello_identifier(u_char *buf, size_t buf_len, char **identity, size_t *identity_len)
+{
+    u_char *buf_end = buf + buf_len;
+
+    int next_len = 1;
+    for (int step = 0; buf + next_len <= buf_end; step++) {
+	switch (step) {
+	case 0:		// handshake
+	    if (*buf++ != 0x16)	// handshake
+		return;
+	    next_len = 2;
+	    continue;
+	case 1:		// TLS1.0
+	    if (*buf++ != 0x03)
+		return;
+	    if (*buf++ != 0x01)
+		return;
+	    next_len = 2;
+	    continue;
+	case 2:		// length, 2 bytes
+	    {
+		size_t len = *buf++;
+		len <<= 8;
+		len |= *buf++;
+		if (len != (size_t) (buf_end - buf))
+		    return;
+		next_len = 1;
+		continue;
+	    }
+	case 3:		// client hello
+	    if (*buf++ != 0x01)
+		return;
+	    next_len = 3;
+	    continue;
+	case 4:		// length, 3 bytes
+	    {
+		size_t len = *buf++;
+		len <<= 8;
+		len |= *buf++;
+		len <<= 8;
+		len |= *buf++;
+		if (len != (size_t) (buf_end - buf))
+		    return;
+		next_len = 1;
+		continue;
+	    }
+	case 5:		// TLS1.2
+	    if (*buf++ != 0x03)
+		return;
+	    if (*buf++ != 0x03)
+		return;
+	    next_len = 32;
+	    continue;
+	case 6:		// random
+	    buf += 32;
+	    next_len = 1;
+	    continue;
+	case 7:		// session id length
+	    next_len = *buf++;
+	    continue;
+	case 8:		// session id;
+	    buf += next_len;
+	    next_len = 2;
+	    continue;
+	case 9:		// cipher suites length
+	    next_len = *buf++;
+	    next_len <<= 8;
+	    next_len |= *buf++;
+	    continue;
+	case 10:		// cipher suites
+	    buf += next_len;
+	    next_len = 1;
+	    continue;
+	case 11:		// compression methods length
+	    next_len = *buf++;
+	    continue;
+	case 12:		// compression methods
+	    buf += next_len;
+	    next_len = 2;
+	    continue;
+	case 13:		// extensions length
+	    next_len = *buf++;
+	    next_len <<= 8;
+	    next_len |= *buf++;
+	    continue;
+	case 14:		// extensions
+	    while (buf + 4 <= buf_end) {
+		size_t len = (buf[2] << 8) | buf[3];
+		if (buf[0] == 0x00 && buf[1] == 41) {
+		    buf += 4;
+		    if (buf + len > buf_end)
+			return;
+		    // identities length
+		    len = *buf++;
+		    len <<= 8;
+		    len |= *buf++;
+		    if (buf + len > buf_end)
+			return;
+		    len = *buf++;
+		    // identity length
+		    len <<= 8;
+		    len |= *buf++;
+		    if (buf + len > buf_end)
+			return;
+		    *identity = (char *) buf;
+		    *identity_len = len;
+		    return;
+		}
+		buf += 4 + len;
+	    }
+	    return;
+	}
+    }
+}
+#endif
+
 static void accept_control_check_tls(struct context *ctx, int cur __attribute__((unused)))
 {
 #ifdef WITH_SSL
@@ -1582,6 +1717,28 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 		ctx->use_tls = (tmp[1] == 0x03 && tmp[2] == 0x01 && tmp[5] == 1) ? BISTATE_YES : BISTATE_NO;
 	}
     }
+#ifndef OPENSSL_NO_PSK
+    {
+	u_char buf[1024];
+	size_t buf_len = recv_inject(ctx, buf, sizeof(buf), MSG_PEEK, NULL);
+	if (buf_len > 0) {
+	    char *identity = NULL;
+	    size_t identity_len = 0;
+	    get_tls13_hello_identifier(buf, buf_len, &identity, &identity_len);
+	    if (identity_len)
+		str_set(&ctx->tls_psk_identity, mem_strndup(ctx->mem, (u_char *) identity, identity_len), identity_len);
+	}
+    }
+#endif
+
+    if (ctx->tls_psk_identity.txt)
+	complete_host_mavis_tls_psk(ctx);
+    else
+	accept_control_check_tls_final(ctx);
+}
+
+static void accept_control_check_tls_final(struct context *ctx)
+{
     if (ctx->host && (ctx->use_tls || ctx->use_dtls)) {
 	if ((ctx->use_tls && !ctx->realm->tls && !ctx->realm->use_tls_psk) || (ctx->use_dtls && !ctx->realm->dtls && !ctx->realm->use_tls_psk)) {
 	    report(NULL, LOG_ERR, ~0, "%s but realm %s isn't configured suitably",
