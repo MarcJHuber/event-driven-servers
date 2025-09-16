@@ -5837,7 +5837,7 @@ static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char **key, si
 		return 0;
 	    }
 	}
-	t = strchr(t, ',');
+	t = strchr(t, '.');
 	if (t)
 	    t++;
     }
