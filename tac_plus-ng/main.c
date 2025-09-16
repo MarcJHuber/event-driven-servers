@@ -711,6 +711,7 @@ static void complete_host_mavis_tls_psk(struct context *ctx)
 	reject_conn(ctx, ctx->hint, __func__, __LINE__);
 	return;
     }
+    io_set_i(ctx->io, ctx->sock);
     accept_control_check_tls_final(ctx);
 }
 #endif
@@ -1501,7 +1502,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1728,15 +1729,18 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    for (size_t i = 0; i < identity_len; i++)
 		if (!isprint(identity[i]))
 		    identity_len = 0;
-	    if (identity_len)
+	    if (identity_len) {
+		ctx->mavis_tried = 0;
 		str_set(&ctx->tls_psk_identity, mem_strndup(ctx->mem, (u_char *) identity, identity_len), identity_len);
+	    }
 	}
     }
 #endif
 
-    if (ctx->tls_psk_identity.txt)
+    if (ctx->tls_psk_identity.len) {
+	io_clr_i(ctx->io, ctx->sock);
 	complete_host_mavis_tls_psk(ctx);
-    else
+    } else
 	accept_control_check_tls_final(ctx);
 }
 
