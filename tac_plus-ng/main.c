@@ -1501,7 +1501,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;
@@ -1725,6 +1725,9 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    char *identity = NULL;
 	    size_t identity_len = 0;
 	    get_tls13_hello_identifier(buf, buf_len, &identity, &identity_len);
+	    for (size_t i = 0; i < identity_len; i++)
+		if (!isprint(identity[i]))
+		    identity_len = 0;
 	    if (identity_len)
 		str_set(&ctx->tls_psk_identity, mem_strndup(ctx->mem, (u_char *) identity, identity_len), identity_len);
 	}
