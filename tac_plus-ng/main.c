@@ -1719,7 +1719,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	}
     }
 #ifndef OPENSSL_NO_PSK
-    {
+    if (ctx->use_tls_psk) {
 	u_char buf[1024];
 	size_t buf_len = recv_inject(ctx, buf, sizeof(buf), MSG_PEEK, NULL);
 	if (buf_len > 0) {
