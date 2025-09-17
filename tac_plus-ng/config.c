@@ -6037,10 +6037,13 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls, int use_tls_psk)
 	SSL_CTX_set_default_passwd_cb(ctx, ssl_pem_phrase_cb);
 	SSL_CTX_set_default_passwd_cb_userdata(ctx, r->tls_pass);
     }
+#ifndef OPENSSL_NO_PSK
     if (use_tls_psk) {
 	if (r->tls_psk_hint)
 	    SSL_CTX_use_psk_identity_hint(ctx, r->tls_psk_hint);
-    } else {
+    } else
+#endif
+    {
 	if (r->tls_cert && !SSL_CTX_use_certificate_chain_file(ctx, r->tls_cert))
 	    report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_use_certificate_chain_file", __func__, __LINE__);
 	if ((r->tls_key || r->tls_cert)
