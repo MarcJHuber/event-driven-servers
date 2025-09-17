@@ -1231,7 +1231,11 @@ static int cert_verify(struct context *ctx)
     if (ctx->host->tls_peer_cert_validation == S_none)
 	return 1;
 
-    X509 *cert = cert = SSL_get1_peer_certificate(ctx->tls);
+#if OPENSSL_VERSION_NUMBER < 0x30000000
+    X509 *cert = SSL_get_peer_certificate(ctx->tls);
+#else
+    X509 *cert = SSL_get1_peer_certificate(ctx->tls);
+#endif
     if ((ctx->host->tls_peer_cert_validation != S_hash) &&	//
 	(X509_check_purpose(cert, X509_PURPOSE_SSL_CLIENT, 0) == 1) &&	//
 	(X509_verify_cert_post_handshake(ctx->tls) == 1))
