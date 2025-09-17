@@ -5847,16 +5847,7 @@ static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char **key, si
 
 static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION **sess)
 {
-    // FIXME -- use SSL_CTX_get_app_data instead of SSL_get_fd/io_get_ctx?
-
-    int fd = SSL_get_fd(ssl);
-
-    if (fd < -1) {
-	report(NULL, LOG_ERR, ~0, "%s:%d SSL_get_fd() = %d", __FILE__, __LINE__, fd);
-	return 0;
-    }
-
-    struct context *ctx = io_get_ctx(common_data.io, fd);
+    struct context *ctx = SSL_get_app_data(ssl);
     if (!ctx) {
 	report(NULL, LOG_ERR, ~0, "%s:%d io_get_ctx()", __FILE__, __LINE__);
 	return 0;
@@ -5870,7 +5861,9 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
     u_char *key;
     size_t key_len;
     if (cfg_get_tls_psk(ctx, (char *) identity, &key, &key_len)) {
-	report(NULL, LOG_ERR, ~0, "%s:%d psk for identity '%s' not found", __FILE__, __LINE__, (char *) identity);
+	char *t = (char *) identity;
+	for (; *t && isprint(*t); t++);
+	report(NULL, LOG_ERR, ~0, "%s:%d psk for identity '%s' not found", __FILE__, __LINE__, *t ? "invalid" : (char *) identity);
 	return 0;
     }
 
@@ -5934,19 +5927,7 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 
 static unsigned int psk_server_cb(SSL *ssl, const char *identity, unsigned char *psk, unsigned int max_psk_len)
 {
-    // FIXME -- use SSL_CTX_get_app_data instead of SSL_get_fd/io_get_ctx?
-
-    if (SSL_version(ssl) > TLS1_2_VERSION)	// FIXME -- check whether that check makes sense at all
-	return 0;
-
-    int fd = SSL_get_fd(ssl);
-
-    if (fd < -1) {
-	report(NULL, LOG_ERR, ~0, "%s:%d SSL_get_fd() = %d", __FILE__, __LINE__, fd);
-	return 0;
-    }
-
-    struct context *ctx = io_get_ctx(common_data.io, fd);
+    struct context *ctx = SSL_get_app_data(ssl);
     if (!ctx) {
 	report(NULL, LOG_ERR, ~0, "%s:%d io_get_ctx()", __FILE__, __LINE__);
 	return 0;

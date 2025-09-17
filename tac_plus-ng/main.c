@@ -854,12 +854,14 @@ static void accept_control_tls(struct context *ctx, int cur)
     }
 #ifndef OPENSSL_NO_PSK
     if (ctx->tls_psk_identity.txt) {
-	unsigned char buf[ctx->host->tls_psk_key_len];
-	if (ctx->host->tls_psk_key_len != SSL_SESSION_get_master_key(SSL_get_session(ctx->tls), buf, ctx->host->tls_psk_key_len)
-	    || memcmp(buf, ctx->host->tls_psk_key, ctx->host->tls_psk_key_len)) {
-	    // OpenSSL fall-through due to wrong client psk
-	    reject_conn(ctx, "PSK", __func__, __LINE__);
-	    return;
+	if (SSL_version(ctx->tls) == TLS1_3_VERSION) {
+	    unsigned char buf[ctx->host->tls_psk_key_len];
+	    if (ctx->host->tls_psk_key_len != SSL_SESSION_get_master_key(SSL_get_session(ctx->tls), buf, ctx->host->tls_psk_key_len)
+		|| memcmp(buf, ctx->host->tls_psk_key, ctx->host->tls_psk_key_len)) {
+		// OpenSSL fall-through due to wrong client psk
+		reject_conn(ctx, "PSK", __func__, __LINE__);
+		return;
+	    }
 	}
 	set_host_by_psk_identity(ctx, ctx->tls_psk_identity.txt);
 	goto done;
@@ -1719,7 +1721,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	}
     }
 #ifndef OPENSSL_NO_PSK
-    if (ctx->use_tls_psk) {
+    if (ctx->realm->use_tls_psk) {
 	u_char buf[1024];
 	size_t buf_len = recv_inject(ctx, buf, sizeof(buf), MSG_PEEK, NULL);
 	if (buf_len > 0) {
@@ -1732,6 +1734,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    if (identity_len) {
 		ctx->mavis_tried = 0;
 		str_set(&ctx->tls_psk_identity, mem_strndup(ctx->mem, (u_char *) identity, identity_len), identity_len);
+		ctx->use_tls_psk = BISTATE_YES;
 	    }
 	}
     }
@@ -1812,6 +1815,7 @@ static void accept_control_check_tls_final(struct context *ctx)
 	    ctx->tls = SSL_new(ctx->use_tls ? ctx->realm->tls : (ctx->use_dtls ? ctx->realm->dtls : NULL));
 
 	if (ctx->tls) {
+	    SSL_set_app_data(ctx->tls, ctx);
 	    u_int versions = ctx->tls_versions;
 	    int ver = 0;
 	    if (ctx->udp) {
