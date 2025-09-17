@@ -1359,9 +1359,12 @@ mavis format custom_0 = "${server.address} ${server.port}"
 
      * tls psk = ( yes | no )
        This enables PSK support at realm level. Please note that
-       PSK and cert-based authentication are mutually exclusive
-       and a dedicated listener configuration with tls psk = yes
-       in spawnd context will be required, too.
+       PSK and cert-based authentication are mutually exclusive in
+       OpenSSL, and a dedicated listener configuration with tls
+       psk = yes in spawnd context might be required. Exception:
+       For TLS1.3, tac_plus-ngwill permit for PSK and certificate
+       authentication on the same port by evaluating the initial
+       ClientHello message.
        PSK identity and key can be declared at device or realm
        level:
 tls psk id = myid
