@@ -1738,12 +1738,12 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    }
 	}
     }
-#endif
 
     if (ctx->tls_psk_identity.len) {
 	io_clr_i(ctx->io, ctx->sock);
 	complete_host_mavis_tls_psk(ctx);
     } else
+#endif
 	accept_control_check_tls_final(ctx);
 }
 
