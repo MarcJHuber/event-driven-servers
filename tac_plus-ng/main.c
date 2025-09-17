@@ -1185,7 +1185,11 @@ void complete_host(tac_host *h)
 #ifdef WITH_SSL
 static int X509_verify_cert_post_handshake(SSL *ssl)
 {
-    X509 *cert = cert = SSL_get1_peer_certificate(ssl);
+#if OPENSSL_VERSION_NUMBER < 0x30000000
+    X509 *cert = SSL_get_peer_certificate(ssl);
+#else
+    X509 *cert = SSL_get1_peer_certificate(ssl);
+#endif
     if (!cert)
 	return 0;
 
