@@ -232,7 +232,6 @@ struct tac_host {
     u_int bug_compatibility;
     u_int debug;
 #ifdef WITH_SSL
-    char *tls_psk_hint;
     char *tls_psk_id;
     u_char *tls_psk_key;
     size_t tls_psk_key_len;
@@ -460,6 +459,7 @@ struct realm {
     u_char *alpn_vec;
     size_t alpn_vec_len;
     rb_tree_t *fingerprints;
+    char *tls_psk_hint;
 #endif
     u_int debug;
     int rulecount;

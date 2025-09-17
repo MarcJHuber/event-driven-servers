@@ -290,6 +290,7 @@ void complete_realm(tac_realm *r)
 	    r->alpn_vec_len = rp->alpn_vec_len;
 	RS(tls_accept_expired, TRISTATE_DUNNO);
 	RS(default_host->tls_peer_cert_validation, S_unknown);
+	RS(tls_psk_hint, NULL);
 
 	if (!r->default_host->tls_client_cert_type_len) {
 	    r->default_host->tls_client_cert_type[0] = r->parent->default_host->tls_client_cert_type[0];
@@ -1785,7 +1786,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		case S_hint:
 		    sym_get(sym);
 		    parse(sym, S_equal);
-		    r->default_host->tls_psk_hint = strdup(sym->buf);
+		    r->tls_psk_hint = strdup(sym->buf);
 		    sym_get(sym);
 		    break;
 		case S_id:
@@ -1804,7 +1805,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    r->use_tls_psk = parse_bool(sym) ? BISTATE_YES : BISTATE_NO;
 		    break;
 		default:
-		    parse_error_expect(sym, S_id, S_key, S_equal, S_hint, S_unknown);
+		    parse_error_expect(sym, S_id, S_key, S_equal, S_unknown);
 		}
 		continue;
 #endif
@@ -1881,7 +1882,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		continue;
 	    default:
 		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_passphrase, S_ciphers, S_peer, S_accept, S_verify_depth, S_alpn, S_autodetect,
-				   S_sni, S_unknown);
+				   S_psk, S_sni, S_unknown);
 	    }
 	    continue;
 #endif
@@ -3750,11 +3751,6 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	sym_get(sym);
 	parse(sym, S_psk);
 	switch (sym->code) {
-	case S_hint:
-	    sym_get(sym);
-	    parse(sym, S_equal);
-	    host->tls_psk_hint = mem_strdup(host->mem, sym->buf);
-	    break;
 	case S_id:
 	    sym_get(sym);
 	    parse(sym, S_equal);
@@ -3766,7 +3762,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    parse_tls_psk_key(sym, host);
 	    break;
 	default:
-	    parse_error_expect(sym, S_id, S_key, S_hint, S_unknown);
+	    parse_error_expect(sym, S_id, S_key, S_unknown);
 	}
 	sym_get(sym);
 	break;
@@ -5965,6 +5961,69 @@ static int ssl_pem_phrase_cb(char *buf, int size, int rwflag __attribute__((unus
     return i;
 }
 
+static int SSLKEYLOGFILE = -1;
+static void keylog_cb(const SSL *ssl __attribute__((unused)), const char *line)
+{
+    if (SSLKEYLOGFILE > -1) {
+	struct flock flock = {.l_type = F_WRLCK,.l_whence = SEEK_SET };
+	fcntl(SSLKEYLOGFILE, F_SETLK, &flock);
+
+	lseek(SSLKEYLOGFILE, 0, SEEK_END);
+	write(SSLKEYLOGFILE, line, strlen(line));
+	write(SSLKEYLOGFILE, "\n", 1);
+
+	struct flock funlock = {.l_type = F_UNLCK,.l_whence = SEEK_SET };
+	fcntl(SSLKEYLOGFILE, F_SETLK, &funlock);
+    }
+}
+
+static int alpn_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg __attribute__((unused)))
+{
+    struct context *ctx = SSL_get_app_data(ssl);
+#define ALPN_RADIUS_1_1 "\012radius/1.1"
+    if (SSL_select_next_proto((unsigned char **) out, outlen, (const unsigned char *) ALPN_RADIUS_1_1, sizeof(ALPN_RADIUS_1_1) - 1, in, inlen) ==
+	OPENSSL_NPN_NEGOTIATED)
+	ctx->radius_1_1 = BISTATE_YES;
+
+    if (ctx->realm->alpn_vec && ctx->realm->alpn_vec_len > 1
+	&& SSL_select_next_proto((unsigned char **) out, outlen, ctx->realm->alpn_vec, ctx->realm->alpn_vec_len, in, inlen) != OPENSSL_NPN_NEGOTIATED) {
+	ctx->hint = "ALPN verification";
+	ctx->alpn_passed = TRISTATE_NO;
+	return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+    ctx->alpn_passed = TRISTATE_YES;
+
+    return SSL_TLSEXT_ERR_OK;
+}
+
+static int sni_cb(SSL *ssl, int *al __attribute__((unused)), void *arg __attribute__((unused)))
+{
+    struct context *ctx = SSL_get_app_data(ssl);
+    const char *servername = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+    tac_realm *r = servername ? lookup_sni(servername, strlen(servername), ctx->realm, &ctx->tls_sni.txt, &ctx->tls_sni.len) : NULL;
+
+    if (!r)
+	goto fatal;
+
+    if (r != ctx->realm) {
+	ctx->realm = r;
+	while (r && !r->tls)
+	    r = r->parent;
+	if (!r || !r->tls || !SSL_set_SSL_CTX(ssl, r->tls))
+	    goto fatal;
+    }
+
+    ctx->sni_passed = BISTATE_YES;
+
+    return SSL_TLSEXT_ERR_OK;
+
+  fatal:
+    ctx->hint = "SNI verification";
+    *al = SSL_AD_UNRECOGNIZED_NAME;
+    return SSL_TLSEXT_ERR_ALERT_FATAL;
+}
+
+
 static SSL_CTX *ssl_init(struct realm *r, int dtls, int use_tls_psk)
 {
     SSL_CTX *ctx = SSL_CTX_new(dtls ? DTLS_server_method() : TLS_server_method());
@@ -5978,7 +6037,10 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls, int use_tls_psk)
 	SSL_CTX_set_default_passwd_cb(ctx, ssl_pem_phrase_cb);
 	SSL_CTX_set_default_passwd_cb_userdata(ctx, r->tls_pass);
     }
-    if (!use_tls_psk) {
+    if (use_tls_psk) {
+	if (r->tls_psk_hint)
+	    SSL_CTX_use_psk_identity_hint(ctx, r->tls_psk_hint);
+    } else {
 	if (r->tls_cert && !SSL_CTX_use_certificate_chain_file(ctx, r->tls_cert))
 	    report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_use_certificate_chain_file", __func__, __LINE__);
 	if ((r->tls_key || r->tls_cert)
@@ -5995,8 +6057,19 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls, int use_tls_psk)
 		   terr ? terr : "");
 	    tac_exit(EX_CONFIG);
 	}
+	SSL_CTX_set_alpn_select_cb(ctx, alpn_cb, NULL);
+	if (r->tls_sni_required == TRISTATE_YES)
+	    SSL_CTX_set_tlsext_servername_callback(ctx, sni_cb);
     }
     SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
+
+    char *sslkeylogfile = getenv("SSLKEYLOGFILE");
+    if (sslkeylogfile) {
+	if (SSLKEYLOGFILE < 0)
+	    SSLKEYLOGFILE = open(sslkeylogfile, O_CREAT | O_APPEND, 0644);
+	if (SSLKEYLOGFILE > -1)
+	    SSL_CTX_set_keylog_callback(ctx, keylog_cb);
+    }
 
     unsigned long flags = 0;
     if (r->tls_accept_expired == TRISTATE_YES)
