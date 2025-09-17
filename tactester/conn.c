@@ -267,7 +267,7 @@ void conn_set_tls_psk_id(struct conn *conn, char *identity, size_t identity_len)
 #ifndef OPENSSL_NO_PSK
 static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity, unsigned int max_identity_len, unsigned char *psk, unsigned int max_psk_len)
 {
-    struct conn *conn = SSL_CTX_get_app_data(SSL_get_SSL_CTX(ssl));
+    struct conn *conn = SSL_get_app_data(ssl);
 
     if (hint)
 	fprintf(stderr, "PSK identity hint: %s\n", hint);
@@ -286,6 +286,7 @@ static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity, un
     return conn->client_psk_key_len;
 }
 #endif
+
 int conn_connect(struct conn *conn)
 {
     if (conn->fd > -1)
@@ -322,6 +323,7 @@ int conn_connect(struct conn *conn)
     }
 
     SSL_CTX_set_options(conn->ctx, SSL_OP_ALL);
+    SSL_CTX_set_options(conn->ctx, SSL_OP_NO_QUERY_MTU);
 
     if (conn->peer_cafile) {
 #if OPENSSL_VERSION_NUMBER < 0x30000000
@@ -364,10 +366,8 @@ int conn_connect(struct conn *conn)
 	}
     }
 #ifndef OPENSSL_NO_PSK
-    if (conn->client_psk_identity_len && conn->client_psk_key_len) {
+    if (conn->client_psk_identity_len && conn->client_psk_key_len)
 	SSL_CTX_set_psk_client_callback(conn->ctx, psk_client_cb);
-	SSL_CTX_set_app_data(conn->ctx, conn);
-    }
 #endif
     SSL_CTX_set_session_cache_mode(conn->ctx, SSL_SESS_CACHE_OFF);
 
@@ -376,6 +376,8 @@ int conn_connect(struct conn *conn)
 	SSL_CTX_free(conn->ctx);
 	return -1;
     }
+    SSL_set_mtu(conn->ssl, 1456);
+    SSL_set_app_data(conn->ssl, conn);
     if (conn->sni) {
 	SSL_set_tlsext_host_name(conn->ssl, conn->sni);
 	SSL_set1_host(conn->ssl, conn->sni);
@@ -395,22 +397,41 @@ int conn_connect(struct conn *conn)
     if (conn_update_timeout(conn))
 	return -1;
 
-    switch (conn->tls_version) {
-    case 0x10:
-	SSL_CTX_set_min_proto_version(conn->ctx, TLS1_VERSION);
-	SSL_CTX_set_max_proto_version(conn->ctx, TLS1_VERSION);
-	break;
-    case 0x12:
-	SSL_CTX_set_min_proto_version(conn->ctx, TLS1_2_VERSION);
-	SSL_CTX_set_max_proto_version(conn->ctx, TLS1_2_VERSION);
-	break;
-    case 0x13:
-	SSL_CTX_set_min_proto_version(conn->ctx, TLS1_3_VERSION);
-	SSL_CTX_set_max_proto_version(conn->ctx, TLS1_3_VERSION);
-	break;
-    default:
-	;
-    }
+    if (conn->socket_type == SOCK_STREAM)
+	switch (conn->tls_version) {
+	case 0x10:
+	    SSL_CTX_set_min_proto_version(conn->ctx, TLS1_VERSION);
+	    SSL_CTX_set_max_proto_version(conn->ctx, TLS1_VERSION);
+	    break;
+	case 0x12:
+	    SSL_CTX_set_min_proto_version(conn->ctx, TLS1_2_VERSION);
+	    SSL_CTX_set_max_proto_version(conn->ctx, TLS1_2_VERSION);
+	    break;
+	case 0x13:
+	    SSL_CTX_set_min_proto_version(conn->ctx, TLS1_3_VERSION);
+	    SSL_CTX_set_max_proto_version(conn->ctx, TLS1_3_VERSION);
+	    break;
+	default:
+	    ;
+    } else
+	switch (conn->tls_version) {
+	case 0x10:
+	    SSL_CTX_set_min_proto_version(conn->ctx, DTLS1_VERSION);
+	    SSL_CTX_set_max_proto_version(conn->ctx, DTLS1_VERSION);
+	    break;
+	case 0x12:
+	    SSL_CTX_set_min_proto_version(conn->ctx, DTLS1_2_VERSION);
+	    SSL_CTX_set_max_proto_version(conn->ctx, DTLS1_2_VERSION);
+	    break;
+#ifdef DTLS1_3_VERSION
+	case 0x13:
+	    SSL_CTX_set_min_proto_version(conn->ctx, DTLS1_3_VERSION);
+	    SSL_CTX_set_max_proto_version(conn->ctx, DTLS1_3_VERSION);
+	    break;
+#endif
+	default:
+	    ;
+	}
 
     SSL_set_num_tickets(conn->ssl, 0);
     int res = SSL_connect(conn->ssl);
