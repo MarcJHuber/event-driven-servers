@@ -83,8 +83,8 @@ my $LIBARCH = undef;
 
 my $aux = "";
 
-my @DIRS_DEFAULT = qw(mavis spawnd mavisd ftpd tac_plus tac_plus-ng tcprelay);
-my @ALLDIRS = qw(mavis spawnd mavisd ftpd tac_plus tac_plus-ng tcprelay );
+my @DIRS_DEFAULT = qw(mavis spawnd mavisd tac_plus tac_plus-ng );
+my @ALLDIRS = qw(mavis spawnd mavisd tac_plus tac_plus-ng );
 my $DIRS_DEFAULT = join(" ", @DIRS_DEFAULT);
 my $ALLDIRS = join(" ", @ALLDIRS);
 
