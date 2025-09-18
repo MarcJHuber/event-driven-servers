@@ -6060,6 +6060,7 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls, int use_tls_psk)
 		   terr ? terr : "");
 	    tac_exit(EX_CONFIG);
 	}
+	SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
 	SSL_CTX_set_alpn_select_cb(ctx, alpn_cb, NULL);
 	if (r->tls_sni_required == TRISTATE_YES)
 	    SSL_CTX_set_tlsext_servername_callback(ctx, sni_cb);

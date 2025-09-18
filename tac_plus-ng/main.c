@@ -871,14 +871,18 @@ static void accept_control_tls(struct context *ctx, int cur)
 #endif
 
     if (!cert_verify(ctx)) {
-	reject_conn(ctx, "CERT", __func__, __LINE__);
+	reject_conn(ctx, ctx->hint, __func__, __LINE__);
 	return;
     }
 
     tac_host *by_address = ctx->host;
-    ctx->host = NULL;
+    //ctx->host = NULL;
 
+#if OPENSSL_VERSION_NUMBER < 0x30000000
     X509 *cert = SSL_get_peer_certificate(ctx->tls);
+#else
+    X509 *cert = SSL_get1_peer_certificate(ctx->tls);
+#endif
 
     char buf[40];
     str_set(&ctx->tls_conn_version, (char *) SSL_get_version(ctx->tls), 0);
@@ -887,8 +891,6 @@ static void accept_control_tls(struct context *ctx, int cur)
     str_set(&ctx->tls_conn_cipher_strength, mem_strdup(ctx->mem, buf), 0);
 
     if (cert) {
-	time_t notafter = -1, notbefore = -1;
-
 #if OPENSSL_VERSION_NUMBER >= 0x30200000
 	if (SSL_get_negotiated_client_cert_type(ctx->tls) == TLSEXT_cert_type_x509)
 #endif
@@ -908,8 +910,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 		str_set(&ctx->tls_peer_serial, t, 0);
 	    }
 
-	    ASN1_TIME *notafter_asn1 = X509_get_notAfter(cert);
-	    ASN1_TIME *notbefore_asn1 = X509_get_notBefore(cert);
 	    X509_NAME *x;
 
 	    if ((x = X509_get_subject_name(cert))) {
@@ -923,23 +923,36 @@ static void accept_control_tls(struct context *ctx, int cur)
 		    str_set(&ctx->tls_peer_cert_issuer, mem_strdup(ctx->mem, t), 0);
 	    }
 
-	    if (notafter_asn1 && notbefore_asn1) {
-		struct tm notafter_tm, notbefore_tm;
-		if ((1 == ASN1_TIME_to_tm(notafter_asn1, &notafter_tm)) && (1 == ASN1_TIME_to_tm(notbefore_asn1, &notbefore_tm))) {
-		    notafter = mktime(&notafter_tm);
-		    notbefore = mktime(&notbefore_tm);
+	    if (ctx->host->tls_peer_cert_validation == S_cert || ctx->host->tls_peer_cert_validation == S_any) {
+		time_t notafter = -1, notbefore = -1;
+
+		ASN1_TIME *notafter_asn1 = X509_get_notAfter(cert);
+		ASN1_TIME *notbefore_asn1 = X509_get_notBefore(cert);
+
+		if (notafter_asn1 && notbefore_asn1) {
+		    struct tm notafter_tm, notbefore_tm;
+		    if ((1 == ASN1_TIME_to_tm(notafter_asn1, &notafter_tm)) && (1 == ASN1_TIME_to_tm(notbefore_asn1, &notbefore_tm))) {
+			notafter = mktime(&notafter_tm);
+			notbefore = mktime(&notbefore_tm);
+		    }
+
+		    if (notafter > -1 && notbefore > -1) {
+			if (notafter < io_now.tv_sec) {
+			    reject_conn(ctx, "cert expired", __func__, __LINE__);
+			    X509_free(cert);
+			    return;
+			}
+			if (notbefore > io_now.tv_sec) {
+			    reject_conn(ctx, "cert not yet valid", __func__, __LINE__);
+			    X509_free(cert);
+			    return;
+			}
+			if (notafter < io_now.tv_sec + 30 * 86400)
+			    report(NULL, LOG_INFO_CERT, ~0, "peer certificate for %s will expire in %lld days", ctx->peer_addr_ascii.txt,
+				   (long long) (notafter - io_now.tv_sec) / 86400);
+		    }
 		}
 	    }
-
-	    if (ctx->tls_peer_cert_subject.txt) {
-		ctx->tls_peer_cert_subject.len = strlen(ctx->tls_peer_cert_subject.txt);
-	    }
-	    if (ctx->tls_peer_cert_issuer.txt) {
-		ctx->tls_peer_cert_issuer.len = strlen(ctx->tls_peer_cert_issuer.txt);
-	    }
-	    if (notafter > -1 && notbefore > -1 && ctx->realm->tls_accept_expired != TRISTATE_YES && notafter < io_now.tv_sec + 30 * 86400)
-		report(NULL, LOG_INFO_CERT, ~0, "peer certificate for %s will expire in %lld days", ctx->peer_addr_ascii.txt,
-		       (long long) (notafter - io_now.tv_sec) / 86400);
 
 	    if (ctx->tls_peer_cert_subject.txt) {
 		char *cn = alloca(ctx->tls_peer_cert_subject.len + 1);
@@ -959,6 +972,8 @@ static void accept_control_tls(struct context *ctx, int cur)
 		    str_set(&ctx->tls_peer_cn, mem_strdup(ctx->mem, cn), 0);
 		}
 	    }
+	    ctx->host = NULL;
+	    // find device object based on cert data
 	    if (ctx->fingerprint_matched == BISTATE_NO) {
 		// check SANs -- cycle through all DNS SANs and find the best host match
 
@@ -1034,8 +1049,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 		    }
 		    GENERAL_NAMES_free(san);
 		}
-		X509_free(cert);
-
 		// check for dn match:
 		if (!ctx->host)
 		    set_host_by_dn(ctx, (char *) ctx->tls_peer_cert_subject.txt, NULL);
@@ -1045,6 +1058,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 		    set_host_by_cn(ctx, ctx->tls_peer_cn.txt, NULL);
 	    }
 	}
+	X509_free(cert);
     }
 #if OPENSSL_VERSION_NUMBER >= 0x30200000
     else if (0 == check_rpk(ctx, by_address)) {
@@ -1214,7 +1228,7 @@ static int X509_verify_cert_post_handshake(SSL *ssl)
 
     X509_STORE_CTX_set_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx(), ssl);
 
-    int res = (X509_verify_cert(ctx) == 1);
+    int res = X509_verify_cert(ctx);
 
     X509_STORE_CTX_free(ctx);
     X509_free(cert);
@@ -1236,10 +1250,10 @@ static int cert_verify(struct context *ctx)
 #else
     X509 *cert = SSL_get1_peer_certificate(ctx->tls);
 #endif
-    if ((ctx->host->tls_peer_cert_validation != S_hash) &&	//
-	(X509_check_purpose(cert, X509_PURPOSE_SSL_CLIENT, 0) == 1) &&	//
-	(X509_verify_cert_post_handshake(ctx->tls) == 1))
-	return 1;
+    if (!cert) {
+	ctx->hint = "no cert";
+	return 0;
+    }
 
     struct fingerprint *fp_sha1 = mem_alloc(ctx->mem, sizeof(struct fingerprint));
     fp_sha1->type = S_tls_peer_cert_sha1;
@@ -1249,14 +1263,30 @@ static int cert_verify(struct context *ctx)
     X509_digest(cert, EVP_sha1(), fp_sha1->hash, NULL);
     X509_digest(cert, EVP_sha256(), fp_sha256->hash, NULL);
 
-    ctx->fingerprint = fp_sha1;
-    fp_sha1->next = fp_sha256;
+    if (X509_check_purpose(cert, X509_PURPOSE_SSL_CLIENT, 0) != 1) {
+	ctx->hint = "cert purpose";
+	X509_free(cert);
+	return 0;
+    }
+    if (ctx->host->tls_peer_cert_validation == S_cert || ctx->host->tls_peer_cert_validation == S_any) {
+	if (X509_verify_cert_post_handshake(ctx->tls) == 1)
+	    X509_free(cert);
+	return 1;
+	if (ctx->host->tls_peer_cert_validation == S_cert) {
+	    ctx->hint = "cert chain verification";
+	    X509_free(cert);
+	    return 0;
+	}
+    }
 
-    if (ctx->host->tls_peer_cert_validation != S_cert) {
+    if (ctx->host->tls_peer_cert_validation == S_hash || ctx->host->tls_peer_cert_validation == S_any) {
+	ctx->fingerprint = fp_sha1;
+	fp_sha1->next = fp_sha256;
 	if (ctx->host->mem) {	// dynamic host, compare cert fingerprint to the one supplied by MAVIS
 	    for (struct fingerprint * fp = ctx->host->fingerprint; fp; fp = fp->next)
 		if (!compare_fingerprint(fp, ctx->fingerprint)) {
 		    ctx->fingerprint_matched = BISTATE_YES;
+		    X509_free(cert);
 		    return 1;
 		}
 	} else {		// static host, lookup fingerprint
@@ -1264,12 +1294,14 @@ static int cert_verify(struct context *ctx)
 	    if (fp) {
 		ctx->host = fp->host;
 		ctx->fingerprint_matched = BISTATE_YES;
+		X509_free(cert);
 		return 1;
 	    }
 	}
     }
 
-    ctx->hint = "Certificate verification";
+    ctx->hint = "cert verification";
+    X509_free(cert);
     return 0;			// 0: failure, 1: success
 }
 
