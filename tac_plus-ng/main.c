@@ -330,8 +330,8 @@ static void accept_control_singleprocess(int, struct scm_data_accept *);
 static void accept_control_udp_singleprocess(int s, struct scm_data_udp *sd);
 static void accept_control_raw(int, struct scm_data_accept_ext *);
 static void accept_control_px(int, struct scm_data_accept_ext *);
-static void accept_control_check_tls(struct context *, int);
 #if defined(WITH_SSL)
+static void accept_control_check_tls(struct context *, int);
 static void accept_control_tls(struct context *, int);
 #endif
 static void setup_signals(void);
@@ -1545,6 +1545,7 @@ static void complete_host_mavis(struct context *ctx)
     if (ctx->host)
 	ctx->key = ctx->host->key;
 
+#ifdef WITH_SSL
     io_set_cb_i(ctx->io, ctx->sock, (void *) accept_control_check_tls);
     io_set_cb_o(ctx->io, ctx->sock, (void *) accept_control_check_tls);
     io_set_cb_h(ctx->io, ctx->sock, (void *) cleanup);
@@ -1553,6 +1554,9 @@ static void complete_host_mavis(struct context *ctx)
     io_set_i(ctx->io, ctx->sock);
     if (ctx->udp)
 	accept_control_check_tls(ctx, ctx->sock);
+#else
+    accept_control_final(ctx);
+#endif
 }
 
 ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags, enum io_status *status)
@@ -1716,9 +1720,9 @@ static void get_tls13_hello_identifier(u_char *buf, size_t buf_len, char **ident
 }
 #endif
 
+#ifdef WITH_SSL
 static void accept_control_check_tls(struct context *ctx, int cur __attribute__((unused)))
 {
-#ifdef WITH_SSL
     u_char tmp[6];
     if (recv_inject(ctx, tmp, sizeof(tmp), MSG_PEEK, NULL) == (ssize_t) sizeof(tmp)) {
 	if (ctx->udp && tmp[0] == 0x17 && tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2])) {
@@ -1759,7 +1763,6 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	io_clr_i(ctx->io, ctx->sock);
 	complete_host_mavis_tls_psk(ctx);
     } else
-#endif
 	accept_control_check_tls_final(ctx);
 }
 
@@ -1843,6 +1846,7 @@ static void accept_control_check_tls_final(struct context *ctx)
     else
 	accept_control_final(ctx);
 }
+#endif
 
 static void accept_control_final(struct context *ctx)
 {
