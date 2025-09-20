@@ -1347,6 +1347,7 @@ static void do_enable_getuser(tac_session *session)
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, resp, 0, NULL, 0, 0);
 }
 
+#if 0
 #ifdef WITH_CRYPTO
 static void mschap_desencrypt(u_char *clear, u_char *str __attribute__((unused)), u_char *cypher)
 {
@@ -1570,6 +1571,7 @@ static void do_mschapv2(tac_session *session)
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), NULL, 0, NULL, 0, 0);
 }
+#endif
 #endif
 
 static void do_login(tac_session *session)
@@ -2015,6 +2017,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 		    if (hdr->version == TAC_PLUS_VER_ONE)
 			session->authen_data->authfn = do_chap;
 		    break;
+#if 0
 #ifdef WITH_CRYPTO
 		case TAC_PLUS_AUTHEN_TYPE_MSCHAP:
 		    if (hdr->version == TAC_PLUS_VER_ONE)
@@ -2024,6 +2027,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 		    if (hdr->version == TAC_PLUS_VER_ONE)
 			session->authen_data->authfn = do_mschapv2;
 		    break;
+#endif
 #endif
 		case TAC_PLUS_AUTHEN_TYPE_SSHKEY:
 		    // limit to hdr->version? 1.2 perhaps?
