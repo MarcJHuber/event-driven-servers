@@ -2200,7 +2200,7 @@ static void do_radius_login(tac_session *session)
 
 	res = check_access(session, pwdat, session->password, &hint, &resp);
     } else if (type == S_chap) {
-	if (query_mavis_info(session, do_chap, PW_CHAP))
+	if (query_mavis_info(session, do_radius_login, PW_CHAP))
 	    return;
 	if (session->user->passwd[PW_CHAP]) {
 	    struct pwdat *pwdat = NULL;
