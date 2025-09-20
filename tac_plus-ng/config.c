@@ -1221,9 +1221,11 @@ int rad_check_dacl(tac_session *session)
 		if (p[1] != 18)
 		    return 0;
 		found |= 1;
-	    } else if (p[0] == RADIUS_A_VENDOR_SPECIFIC && p[2] == RADIUS_VID_CISCO[0]
-		       && p[3] == RADIUS_VID_CISCO[1] && p[4] == RADIUS_VID_CISCO[2]
-		       && p[5] == RADIUS_VID_CISCO[3]) {
+	    } else if (p[0] == RADIUS_A_VENDOR_SPECIFIC
+		       && p[2] == ((RADIUS_VID_CISCO >> 24) & 0xff)
+		       && p[3] == ((RADIUS_VID_CISCO >> 16) & 0xff)
+		       && p[4] == ((RADIUS_VID_CISCO >> 8) & 0xff)
+		       && p[5] == (RADIUS_VID_CISCO & 0xff)) {
 		u_char *ve = p + p[1];
 		u_char *vp = p + 6;
 		while (vp < ve && vp[1] > 1) {
@@ -5343,10 +5345,10 @@ int rad_attr_add_dacl(tac_session *session, struct rad_dacl *dacl, uint32_t *i)
 	if (*i < dacl->nace && data + 2 + dacl->ace[*i].iov_len < data_end && 6 + 2 + dacl->ace[*i].iov_len + dacl->prefix.len + 16 /* #<digit>= */  < 255) {
 	    *data++ = RADIUS_A_VENDOR_SPECIFIC;
 	    u_char *len = data++;
-	    *data++ = RADIUS_VID_CISCO[0];
-	    *data++ = RADIUS_VID_CISCO[1];
-	    *data++ = RADIUS_VID_CISCO[2];
-	    *data++ = RADIUS_VID_CISCO[3];
+	    *data++ = (RADIUS_VID_CISCO >> 24);
+	    *data++ = (RADIUS_VID_CISCO >> 16) & 0xff;
+	    *data++ = (RADIUS_VID_CISCO >> 8) & 0xff;
+	    *data++ = (RADIUS_VID_CISCO) & 0xff;
 	    *len = 6;
 	    char dbuf[32];
 	    int dlen = snprintf(dbuf, sizeof(dbuf), "#%u=", (*i) + 1);
