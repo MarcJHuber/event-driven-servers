@@ -471,6 +471,8 @@ static enum token lookup_and_set_user(tac_session *session)
 	h = h->parent;
     }
 
+    res = S_deny;
+
     report(DEBAUTHC, "looking for user %s realm %s", session->username.txt, session->ctx->realm->name.txt);
 
     if (!session->user_is_session_specific)
@@ -486,7 +488,6 @@ static enum token lookup_and_set_user(tac_session *session)
 	if (session->user_is_session_specific)
 	    free_user(session->user);
 	session->user = NULL;
-	res = S_deny;
     }
 
     if (session->user) {
@@ -495,6 +496,7 @@ static enum token lookup_and_set_user(tac_session *session)
 	    session->debug |= session->profile->debug;
 	res = S_permit;
     }
+
     report(DEBAUTHC, "user lookup %s", (res == S_permit) ? "succeded" : "failed");
     return res;
 }
@@ -502,8 +504,8 @@ static enum token lookup_and_set_user(tac_session *session)
 static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&& ((!session->user && (session->ctx->realm->mavis_login == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
-	    || (session->user && pw_ix == PW_MAVIS));
+	&&( (!session->user &&(session->ctx->realm->mavis_login == TRISTATE_YES) &&(session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
+	   ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -529,7 +531,7 @@ static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *)
 
 static int query_mavis_info_login(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
+    int res = !session->flag_mavis_info && !session->user &&(session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_LOGIN);
@@ -548,8 +550,8 @@ int query_mavis_info(tac_session *session, void (*f)(tac_session *), enum pw_ix 
 static int query_mavis_auth_pap(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth &&
-	((!session->user && (session->ctx->realm->mavis_pap == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
-	 || (session->user && pw_ix == PW_MAVIS));
+	( (!session->user &&(session->ctx->realm->mavis_pap == TRISTATE_YES) &&(session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
+	 ||(session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_PAP);
@@ -558,7 +560,7 @@ static int query_mavis_auth_pap(tac_session *session, void (*f)(tac_session *), 
 
 static int query_mavis_info_pap(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->user && (session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
+    int res = !session->user &&(session->ctx->realm->mavis_pap_prefetch == TRISTATE_YES) && !session->flag_mavis_info;
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_PAP);
@@ -573,6 +575,8 @@ int query_mavis_dacl(tac_session *session, void (*f)(tac_session *))
 	mavis_dacl_lookup(session, f, AV_V_TACTYPE_DACL);
     return res;
 }
+
+static enum token check_access(tac_session * session, struct pwdat *pwdat, char *passwd, enum hint_enum *hint, char **resp);
 
 static void do_chap(tac_session *session)
 {
@@ -610,8 +614,9 @@ static void do_chap(tac_session *session)
 		    res = S_deny;
 		    hint = hint_failed;
 		} else {
-		    res = S_permit;
-		    hint = hint_succeeded;
+		    char *resp = NULL;
+		    session->mavisauth_res = S_permit;
+		    res = check_access(session, NULL, session->user->passwd[PW_CHAP]->value, &hint, &resp);
 		}
 	    }
 	}
@@ -844,8 +849,8 @@ static void do_chpass(tac_session *session)
 
 static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*f)(tac_session *))
 {
-    if ((session->ctx->realm->chalresp == TRISTATE_YES) && (!session->user || ((pw_ix == PW_MAVIS) && (TRISTATE_NO != session->user->chalresp)))) {
-	if (!session->flag_chalresp) {
+    if( (session->ctx->realm->chalresp == TRISTATE_YES) &&(!session->user ||( (pw_ix == PW_MAVIS) &&(TRISTATE_NO != session->user->chalresp)))) {
+	if(!session->flag_chalresp) {
 	    session->flag_chalresp = 1;
 	    mavis_lookup(session, f, AV_V_TACTYPE_CHAL, PW_LOGIN);
 	    return;
@@ -2128,19 +2133,48 @@ static void do_radius_login(tac_session *session)
 {
     enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
+    enum token type = S_unknown;
+    enum pw_ix pw_ix = PW_LOGIN;
 
-    int pw_res = -2;
+    if (!session->username.txt) {
+	report_auth(session, "radius login", hint_denied, res);
+	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
+	return;
+    }
 
-    if (!session->username.txt
-	|| (pw_res =
-	    (session->ctx->radius_1_1 ? rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_USER_PASSWORD, S_string_keyword, &session->password,
-						NULL) : rad_get_password(session, &session->password, NULL)))) {
+    int pw_res =
+	(session->ctx->radius_1_1 ? rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_USER_PASSWORD, S_string_keyword, &session->password,
+					    NULL) : rad_get_password(session, &session->password, NULL));
+    if (!pw_res)
+	type = S_pap;
+
+    u_char *chap_password = NULL;
+    size_t chap_password_len = 0;
+    u_char *chap_challenge = NULL;
+    size_t chap_challenge_len = 0;
+
+    if (type == S_unknown) {
+	// try chap
+	if (!rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_CHAP_PASSWORD, S_octets, &chap_password, &chap_password_len)) {
+	    if (chap_password_len == 1 + MD5_LEN
+		&& rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_CHAP_CHALLENGE, S_octets, &chap_challenge, &chap_challenge_len)) {
+		if (session->ctx->radius_1_1 == BISTATE_NO) {
+		    chap_challenge = session->radius_data->pak_in->authenticator;
+		    chap_challenge_len = 16;
+		}
+		type = S_chap;
+		pw_ix = PW_CHAP;
+	    }
+	}
+    }
+
+    if (type == S_unknown) {
 	report_auth(session, "radius login", (pw_res < 0) ? hint_nopass : hint_badsecret, res);
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
     }
 
-    if (password_requirements_failed(session, "radius login"))
+    if (type == S_pap && password_requirements_failed(session, "radius login"))
 	return;
 
     if (S_deny == lookup_and_set_user(session)) {
@@ -2149,23 +2183,47 @@ static void do_radius_login(tac_session *session)
 	return;
     }
 
-    if (session->user && session->user->passwd[PW_LOGIN] && session->user->passwd[PW_LOGIN]->type == S_error) {
+    if (session->user && session->user->passwd[pw_ix] && session->user->passwd[pw_ix]->type == S_error) {
 	cleanup_session(session);
 	return;
     }
 
-    if (query_mavis_info_login(session, do_radius_login))
-	return;
-
-    enum pw_ix pw_ix = PW_LOGIN;
-    struct pwdat *pwdat = NULL;
-    set_pwdat(session, &pwdat, &pw_ix);
-
-    if (query_mavis_auth_login(session, do_radius_login, pw_ix))
-	return;
-
     char *resp = NULL;
-    res = check_access(session, pwdat, session->password, &hint, &resp);
+
+    if (type == S_pap) {
+	if (query_mavis_info_login(session, do_radius_login))
+	    return;
+	struct pwdat *pwdat = NULL;
+	set_pwdat(session, &pwdat, &pw_ix);
+	if (query_mavis_auth_login(session, do_radius_login, pw_ix))
+	    return;
+
+	res = check_access(session, pwdat, session->password, &hint, &resp);
+    } else if (type == S_chap) {
+	if (query_mavis_info(session, do_chap, PW_CHAP))
+	    return;
+	if (session->user->passwd[PW_CHAP]) {
+	    struct pwdat *pwdat = NULL;
+	    set_pwdat(session, &pwdat, &pw_ix);
+	    struct iovec iov[3] = {
+		{.iov_base = chap_password,.iov_len = 1 },
+		{.iov_base = session->user->passwd[PW_CHAP]->value,.iov_len = strlen(session->user->passwd[PW_CHAP]->value) },
+		{.iov_base = chap_challenge,.iov_len = chap_challenge_len },
+	    };
+	    u_char digest[MD5_LEN];
+	    md5v(digest, MD5_LEN, iov, 3);
+	    if (memcmp(chap_password + 1, digest, MD5_LEN)) {
+		hint = hint_failed;
+		res = S_deny;
+	    } else {
+		session->mavisauth_res = S_permit;
+		res = check_access(session, NULL, session->user->passwd[PW_CHAP]->value, &hint, &resp);
+	    }
+	} else {
+	    hint = hint_no_cleartext;
+	    res = S_deny;
+	}
+    }
 
     if (res == S_error) {
 	// Backend failure.
