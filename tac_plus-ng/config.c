@@ -6026,7 +6026,7 @@ static int sni_cb(SSL *ssl, int *al __attribute__((unused)), void *arg __attribu
 }
 
 
-static SSL_CTX *ssl_init(struct realm *r, int dtls, int use_tls_psk)
+static SSL_CTX *ssl_init(struct realm *r, int dtls, int use_tls_psk __attribute__((unused)))
 {
     SSL_CTX *ctx = SSL_CTX_new(dtls ? DTLS_server_method() : TLS_server_method());
     if (!ctx) {
