@@ -160,8 +160,8 @@ Marc Huber
      * Supports (non-standard) SSH Public Key Authentication (see
        the Wiki for reference)
      * Implements and auto-detects legacy RADIUS (UDP and TCP),
-       RADSEC (TLS) and RADIUS/DTLS (all with PAP authentication
-       only).
+       RADSEC (TLS) and RADIUS/DTLS (with PAP, CHAP, MSCHAPv1 and
+       MSCHAPv2 authentication).
      * Supports RADIUS Downloadable ACLs.
      __________________________________________________________
 
