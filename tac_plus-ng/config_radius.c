@@ -396,7 +396,7 @@ char *rad_attr_val_dump1(mem_t *mem, u_char **data, size_t *data_len)
 	}
     }
     *data = d_start;
-    *data_len = d_len;
+    *data_len -= d_len;
 
     return buf_start;
 }
