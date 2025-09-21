@@ -1763,6 +1763,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	io_clr_i(ctx->io, ctx->sock);
 	complete_host_mavis_tls_psk(ctx);
     } else
+#endif
 	accept_control_check_tls_final(ctx);
 }
 
@@ -1840,7 +1841,6 @@ static void accept_control_check_tls_final(struct context *ctx)
 	accept_control_tls(ctx, ctx->sock);
 	return;
     }
-#endif
     if (!ctx->host)
 	reject_conn(ctx, ctx->hint, __func__, __LINE__);
     else
