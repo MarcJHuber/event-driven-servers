@@ -75,9 +75,14 @@
 #if defined(WITH_CRYPTO)
 #if OPENSSL_VERSION_NUMBER < 0x30000000
 #include <openssl/sha.h>
+void *ossl_legacy = NULL;
+void *ossl_default = NULL;
 #else
 #include <openssl/types.h>
 #include <openssl/evp.h>
+#include <openssl/provider.h>
+OSSL_PROVIDER *ossl_legacy = NULL;
+OSSL_PROVIDER *ossl_default = NULL;
 #endif
 #endif
 
@@ -1347,96 +1352,66 @@ static void do_enable_getuser(tac_session *session)
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, resp, 0, NULL, 0, 0);
 }
 
-#if 0
 #ifdef WITH_CRYPTO
-static void mschap_desencrypt(u_char *clear, u_char *str __attribute__((unused)), u_char *cypher)
+static void mschap_desencrypt(u_char *in, u_char *key, u_char *out)
 {
-    unsigned char key[8];
+    unsigned char key_par[8];
 
-    /*
-     * Copy the key inserting parity bits. This is a little cryptic:
-     * basicly we are inserting one bit into the stream after every 7 bits
-     */
+    // make room for parity bits
+    key_par[0] = key[0] & 0xfe;
+    key_par[1] = ((key[0] << 7) | (key[1] >> 1)) & 0xfe;
+    key_par[2] = ((key[1] << 6) | (key[2] >> 2)) & 0xfe;
+    key_par[3] = ((key[2] << 5) | (key[3] >> 3)) & 0xfe;
+    key_par[4] = ((key[3] << 4) | (key[4] >> 4)) & 0xfe;
+    key_par[5] = ((key[4] << 3) | (key[5] >> 5)) & 0xfe;
+    key_par[6] = ((key[5] << 2) | (key[6] >> 6)) & 0xfe;
+    key_par[7] = (key[6] << 1) & 0xfe;
 
-    key[0] = ((str[0] & 0xfe));
-    key[1] = ((str[0] & 0x01) << 7) | ((str[1] & 0xfc) >> 1);
-    key[2] = ((str[1] & 0x03) << 6) | ((str[2] & 0xf8) >> 2);
-    key[3] = ((str[2] & 0x07) << 5) | ((str[3] & 0xf0) >> 3);
-    key[4] = ((str[3] & 0x0f) << 4) | ((str[4] & 0xe0) >> 4);
-    key[5] = ((str[4] & 0x1f) << 3) | ((str[5] & 0xc0) >> 5);
-    key[6] = ((str[5] & 0x3f) << 2) | ((str[6] & 0x80) >> 6);
-    key[7] = ((str[6] & 0x7f) << 1);
-
-    /* copy clear to cypher, cause our des encrypts in place */
-    memcpy(cypher, clear, (size_t) 8);
-
-    {
-	// I've no idea whether this will work, and I've a strong tendency to drop both MSCHAPv1 and MSCHAPv2 support
-	int out_len = 8;
-	EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-	EVP_EncryptInit(ctx, EVP_des_ecb(), key, NULL);
-	EVP_EncryptUpdate(ctx, cypher, &out_len, clear, 8);
-	EVP_EncryptFinal(ctx, cypher, &out_len);
-	EVP_CIPHER_CTX_free(ctx);
+    // ensure odd parity
+    for (int i = 0; i < 8; i++) {
+	uint8_t r = key_par[i];
+	uint8_t p = 1;
+	while (r) {
+	    if (r & 1)
+		p ^= 1;
+	    r >>= 1;
+	}
+	key_par[i] |= p;
     }
+
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    EVP_EncryptInit_ex(ctx, EVP_des_ecb(), NULL, key_par, NULL);
+    EVP_CIPHER_CTX_set_padding(ctx, 0);
+    int out_len = 8;
+    EVP_EncryptUpdate(ctx, out, &out_len, in, 8);
+    int tmp_len = 0;
+    EVP_EncryptFinal_ex(ctx, out + out_len, &tmp_len);
+    EVP_CIPHER_CTX_free(ctx);
 }
 
-static void mschap_deshash(u_char *clear, u_char *cypher)
+static void mschap_chalresp(u_char *chal, u_char *hash, u_char *out)
 {
-    mschap_desencrypt((u_char *) "KGS!@#$%", clear, cypher);
-}
+    u_char hash_padded[21] = { 0 };
 
-static void mschap_lmhash(char *password, u_char *hash)
-{
-    u_char upassword[15] = { 0 };
+    memcpy(hash_padded, hash, (size_t) 16);
 
-    for (size_t i = 0; password[i] && i < sizeof(upassword); i++)
-	upassword[i] = (u_char) toupper((int) (password[i]));
-
-    mschap_deshash(upassword, hash);
-    mschap_deshash(upassword + 7, hash + 8);
-}
-
-static void mschap_chalresp(u_char *chal, u_char *hash, u_char *resp)
-{
-    u_char zhash[21] = { 0 };
-
-    memcpy(zhash, hash, (size_t) 16);
-
-    mschap_desencrypt(chal, zhash, resp);
-    mschap_desencrypt(chal, zhash + 7, resp + 8);
-    mschap_desencrypt(chal, zhash + 14, resp + 16);
-}
-
-static void mschap_lmchalresp(u_char *chal, char *password, u_char *resp)
-{
-    u_char hash[16];
-
-    mschap_lmhash(password, hash);
-    mschap_chalresp(chal, hash, resp);
+    mschap_desencrypt(chal, hash_padded, out);
+    mschap_desencrypt(chal, hash_padded + 7, out + 8);
+    mschap_desencrypt(chal, hash_padded + 14, out + 16);
 }
 
 static void mschap_nthash(char *password, u_char *hash)
 {
-    myMD4_CTX context;
-
-    char *enc = NULL;
-    size_t enc_len = 0;
-    size_t password_len = strlen(password);
-
-    if (utf8_to_utf16le(password, password_len, &enc, &enc_len)) {
-	// Not utf8, fallback to old behavior. I don't expect this to actually work.
-	enc_len = 2 * password_len;
-	enc = alloca(enc_len);
-	char *e = enc;
-	while (*password) {
-	    *e++ = *password++;
-	    e++;		// 0x00
-	}
+    size_t buf_len = 2 * strlen(password);
+    u_char buf[buf_len];
+    u_char *b = buf;
+    while (*password) {
+	*b++ = *password++;
+	*b++ = 0;
     }
-
+    myMD4_CTX context;
     MD4Init(&context);
-    MD4Update(&context, (u_char *) enc, enc_len);
+    MD4Update(&context, (u_char *) buf, buf_len);
     MD4Final(hash, &context);
 }
 
@@ -1477,10 +1452,6 @@ static void do_mschap(tac_session *session)
 	    if (resp[48]) {
 		mschap_ntchalresp(chal, session->user->passwd[PW_MSCHAP]->value, response);
 		if (!memcmp(response, resp + 24, 24))
-		    res = S_permit;
-	    } else {
-		mschap_lmchalresp(chal, session->user->passwd[PW_MSCHAP]->value, response);
-		if (!memcmp(response, resp, 24))
 		    res = S_permit;
 	    }
 
@@ -1559,6 +1530,7 @@ static void do_mschapv2(tac_session *session)
 		mschapv2_ntresp(chal, resp, session->user->name.txt, session->user->passwd[PW_MSCHAP]->value, response);
 		if (!memcmp(response, resp + 24, 24))
 		    res = S_permit;
+//FIXME, check_acccess
 	    }
 
 	    if (res == S_permit)
@@ -1571,7 +1543,6 @@ static void do_mschapv2(tac_session *session)
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), NULL, 0, NULL, 0, 0);
 }
-#endif
 #endif
 
 static void do_login(tac_session *session)
@@ -1958,6 +1929,10 @@ void authen_init(void)
     li_password_expired = parse_log_format_inline("\"${PASSWORD_EXPIRED}\n\"", __FILE__, __LINE__);
     li_password_expires = parse_log_format_inline("\"${PASSWORD_EXPIRES}\n\"", __FILE__, __LINE__);
     li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
+#if OPENSSL_VERSION_NUMBER >= 0x30000000
+    ossl_legacy = OSSL_PROVIDER_load(NULL, "legacy");
+    ossl_default = OSSL_PROVIDER_load(NULL, "default");
+#endif
 }
 
 char *check_client_bug_invalid_remote_address(tac_session *session)
@@ -2017,7 +1992,6 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 		    if (hdr->version == TAC_PLUS_VER_ONE)
 			session->authen_data->authfn = do_chap;
 		    break;
-#if 0
 #ifdef WITH_CRYPTO
 		case TAC_PLUS_AUTHEN_TYPE_MSCHAP:
 		    if (hdr->version == TAC_PLUS_VER_ONE)
@@ -2027,7 +2001,6 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 		    if (hdr->version == TAC_PLUS_VER_ONE)
 			session->authen_data->authfn = do_mschapv2;
 		    break;
-#endif
 #endif
 		case TAC_PLUS_AUTHEN_TYPE_SSHKEY:
 		    // limit to hdr->version? 1.2 perhaps?
@@ -2158,19 +2131,38 @@ static void do_radius_login(tac_session *session)
     size_t chap_challenge_len = 0;
 
     if (type == S_unknown) {
-	// try chap
-	if (!rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_CHAP_PASSWORD, S_octets, &chap_password, &chap_password_len)) {
-	    if (chap_password_len == 1 + MD5_LEN
-		&& rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_CHAP_CHALLENGE, S_octets, &chap_challenge, &chap_challenge_len)) {
+	if (!rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_CHAP_PASSWORD, S_octets, &chap_password, &chap_password_len)
+	    && chap_password_len == 1 + MD5_LEN) {
+	    if (rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_CHAP_CHALLENGE, S_octets, &chap_challenge, &chap_challenge_len)) {
 		if (session->ctx->radius_1_1 == BISTATE_NO) {
 		    chap_challenge = session->radius_data->pak_in->authenticator;
 		    chap_challenge_len = 16;
 		}
+	    }
+	    if (chap_challenge_len) {
 		type = S_chap;
 		pw_ix = PW_CHAP;
 	    }
 	}
     }
+
+#ifdef WITH_CRYPTO
+    u_char *mschap_challenge = NULL;
+    size_t mschap_challenge_len = 0;
+    u_char *mschap_response = NULL;
+    size_t mschap_response_len = 0;
+
+    if (type == S_unknown) {
+	if (!rad_get
+	    (session->radius_data->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &mschap_challenge, &mschap_challenge_len)
+	    && (mschap_challenge_len > 0)
+	    && !rad_get(session->radius_data->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_RESPONSE, S_octets, &mschap_response,
+			&mschap_response_len) && (mschap_response_len == 50)) {
+	    type = S_mschap;
+	    pw_ix = PW_MSCHAP;
+	}
+    }
+#endif
 
     if (type == S_unknown) {
 	report_auth(session, "radius login", (pw_res < 0) ? hint_nopass : hint_badsecret, res);
@@ -2206,7 +2198,7 @@ static void do_radius_login(tac_session *session)
     } else if (type == S_chap) {
 	if (query_mavis_info(session, do_radius_login, PW_CHAP))
 	    return;
-	if (session->user->passwd[PW_CHAP]) {
+	if (session->user->passwd[PW_CHAP] && session->user->passwd[PW_CHAP]->type == S_clear) {
 	    struct pwdat *pwdat = NULL;
 	    set_pwdat(session, &pwdat, &pw_ix);
 	    struct iovec iov[3] = {
@@ -2228,6 +2220,32 @@ static void do_radius_login(tac_session *session)
 	    res = S_deny;
 	}
     }
+#ifdef WITH_CRYPTO
+    else if (type == S_mschap) {
+	if (query_mavis_info(session, do_radius_login, PW_MSCHAP))
+	    return;
+	if (session->user->passwd[PW_MSCHAP] && session->user->passwd[PW_MSCHAP]->type == S_clear) {
+	    struct pwdat *pwdat = NULL;
+	    set_pwdat(session, &pwdat, &pw_ix);
+	    if (mschap_response[1] == 0x01) {
+		u_char response[24];
+		mschap_ntchalresp(mschap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
+		if (!memcmp(response, mschap_response + 24 + 2, 24))
+		    res = S_permit;
+	    }
+	    if (res == S_permit) {
+		session->mavisauth_res = S_permit;
+		res = check_access(session, NULL, session->user->passwd[PW_MSCHAP]->value, &hint, &resp);
+	    } else {
+		hint = hint_failed;
+		res = S_deny;
+	    }
+	} else {
+	    hint = hint_no_cleartext;
+	    res = S_deny;
+	}
+    }
+#endif
 
     if (res == S_error) {
 	// Backend failure.
