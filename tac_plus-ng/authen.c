@@ -75,8 +75,6 @@
 #if defined(WITH_CRYPTO)
 #if OPENSSL_VERSION_NUMBER < 0x30000000
 #include <openssl/sha.h>
-void *ossl_legacy = NULL;
-void *ossl_default = NULL;
 #else
 #include <openssl/types.h>
 #include <openssl/evp.h>
