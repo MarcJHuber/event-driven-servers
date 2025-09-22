@@ -1414,7 +1414,7 @@ static void mschap_nthash(char *password, u_char *hash)
     MD4Final(hash, &context);
 }
 
-static void mschap_ntchalresp(u_char *chal, char *password, u_char *resp)
+static void mschapv1_ntresp(u_char *chal, char *password, u_char *resp)
 {
     u_char nt_hash[16];
 
@@ -1453,7 +1453,7 @@ static void do_mschap(tac_session *session)
 	    session->authen_data->data = NULL;
 
 	    if (resp[48]) {
-		mschap_ntchalresp(chal, session->user->passwd[PW_MSCHAP]->value, response);
+		mschapv1_ntresp(chal, session->user->passwd[PW_MSCHAP]->value, response);
 		if (!memcmp(response, resp + 24, 24))
 		    res = S_permit;
 	    }
@@ -2251,43 +2251,23 @@ static void do_radius_login(tac_session *session)
 	}
     }
 #ifdef WITH_CRYPTO
-    else if (type == S_mschap && mschap_version == 1) {
+    else if (type == S_mschap) {
 	if (query_mavis_info(session, do_radius_login, PW_MSCHAP))
 	    return;
 	if (session->user) {
 	    if (session->user->passwd[PW_MSCHAP] && session->user->passwd[PW_MSCHAP]->type == S_clear) {
 		struct pwdat *pwdat = NULL;
 		set_pwdat(session, &pwdat, &pw_ix);
-		if (mschap_response[1] == 0x01) {
+		if ((mschap_version == 1 && mschap_response[1] == 0x01) || (mschap_version == 2)) {
 		    u_char response[24];
-		    mschap_ntchalresp(mschap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
+		    if (mschap_version == 1)
+			mschapv1_ntresp(mschap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
+		    else
+			mschapv2_ntresp(mschap_response + 2 /* == peer challenge */ , mschap_challenge, session->user->name.txt,
+					session->user->passwd[PW_MSCHAP]->value, response);
 		    if (!memcmp(response, mschap_response + 24 + 2, 24))
 			res = S_permit;
 		}
-		if (res == S_permit) {
-		    session->mavisauth_res = S_permit;
-		    res = check_access(session, NULL, session->user->passwd[PW_MSCHAP]->value, &hint, &resp);
-		} else {
-		    hint = hint_failed;
-		    res = S_deny;
-		}
-	    } else {
-		hint = hint_no_cleartext;
-		res = S_deny;
-	    }
-	}
-    } else if (type == S_mschap && mschap_version == 2) {
-	if (query_mavis_info(session, do_radius_login, PW_MSCHAP))
-	    return;
-	if (session->user) {
-	    if (session->user->passwd[PW_MSCHAP] && session->user->passwd[PW_MSCHAP]->type == S_clear) {
-		struct pwdat *pwdat = NULL;
-		set_pwdat(session, &pwdat, &pw_ix);
-		u_char response[24];
-		mschapv2_ntresp(mschap_response + 2 /* == peer challenge */ , mschap_challenge, session->user->name.txt,
-				session->user->passwd[PW_MSCHAP]->value, response);
-		if (!memcmp(response, mschap_response + 24 + 2, 24))
-		    res = S_permit;
 		if (res == S_permit) {
 		    session->mavisauth_res = S_permit;
 		    res = check_access(session, NULL, session->user->passwd[PW_MSCHAP]->value, &hint, &resp);
