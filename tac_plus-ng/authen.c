@@ -2126,9 +2126,10 @@ static void do_radius_login(tac_session *session)
     enum hint_enum hint = hint_nosuchuser;
     enum token type = S_unknown;
     enum pw_ix pw_ix = PW_LOGIN;
+    char *info = "radius login";
 
     if (!session->username.txt) {
-	report_auth(session, "radius login", hint_denied, res);
+	report_auth(session, info, hint_denied, res);
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
     }
@@ -2192,16 +2193,16 @@ static void do_radius_login(tac_session *session)
 #endif
 
     if (type == S_unknown) {
-	report_auth(session, "radius login", (pw_res < 0) ? hint_nopass : hint_badsecret, res);
+	report_auth(session, info, (pw_res < 0) ? hint_nopass : hint_badsecret, res);
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
     }
 
-    if (type == S_pap && password_requirements_failed(session, "radius login"))
+    if (type == S_pap && password_requirements_failed(session, info))
 	return;
 
     if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, "radius login", hint_denied_by_acl, res);
+	report_auth(session, info, hint_denied_by_acl, res);
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
     }
@@ -2223,6 +2224,7 @@ static void do_radius_login(tac_session *session)
 		return;
 	    res = check_access(session, pwdat, session->password, &hint, &resp);
 	}
+	info = "radius pap login";
     } else if (type == S_chap) {
 	if (query_mavis_info(session, do_radius_login, PW_CHAP))
 	    return;
@@ -2249,6 +2251,7 @@ static void do_radius_login(tac_session *session)
 		res = S_deny;
 	    }
 	}
+	info = "radius chap login";
     }
 #ifdef WITH_CRYPTO
     else if (type == S_mschap) {
@@ -2280,12 +2283,13 @@ static void do_radius_login(tac_session *session)
 		res = S_deny;
 	    }
 	}
+	info = mschap_version == 1 ? "radius mschap login" : "radius mschapv2 login";
     }
 #endif
 
     if (res == S_error) {
 	// Backend failure.
-	report_auth(session, "radius login", hint, res);
+	report_auth(session, info, hint, res);
 	rad_send_error(session, RADIUS_V_ERROR_CAUSE_RESOURCES_UNAVAILABLE);
 	return;
     }
@@ -2301,7 +2305,7 @@ static void do_radius_login(tac_session *session)
 	}
     }
 
-    report_auth(session, "radius login", hint, res);
+    report_auth(session, info, hint, res);
 
     if (!resp)
 	resp = session->user_msg.txt;
