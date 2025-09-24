@@ -1020,7 +1020,7 @@ static void do_enable(tac_session *session)
     if ((session->ctx->host->augmented_enable == TRISTATE_YES) && (S_permit == eval_tac_acl(session, session->ctx->realm->enable_user_acl))
 	) {
 	session->username.txt[0] = 0;
-	session->authen_data->authfn = do_enable_augmented;
+	session->authfn = do_enable_augmented;
 	do_enable_augmented(session);
 	return;
     }
@@ -1029,7 +1029,7 @@ static void do_enable(tac_session *session)
 	&& !session->enable_getuser && (session->ctx->host->anon_enable == TRISTATE_NO)) {
 	session->enable_getuser = 1;
 	session->username.txt[0] = 0;
-	session->authen_data->authfn = do_enable_getuser;
+	session->authfn = do_enable_getuser;
 	do_enable_getuser(session);
 	return;
     }
@@ -1058,7 +1058,7 @@ static void do_enable(tac_session *session)
 	res = S_permit;
     else {
 	if (session->user && session->enable && (session->enable->type == S_login)) {
-	    session->authen_data->authfn = do_enable_login;
+	    session->authfn = do_enable_login;
 	    session->flag_mavis_auth = 0;
 	    do_enable_login(session);
 	    return;
@@ -1137,7 +1137,7 @@ static void do_ascii_login(tac_session *session)
 	    && (!session->password[0] && (pw_ix == PW_MAVIS || (session->ctx->realm->mavis_userdb == TRISTATE_YES)))) {
 	    mem_free(session->mem, &session->password);
 	    session->password = NULL;
-	    session->authen_data->authfn = do_chpass;
+	    session->authfn = do_chpass;
 	    session->flag_mavis_auth = 0;
 	    session->user_msg.txt = eval_log_format(session, session->ctx, NULL, li_password_change_dialog, io_now.tv_sec, &session->user_msg.len);
 	    do_chpass(session);
@@ -1179,7 +1179,7 @@ static void do_ascii_login(tac_session *session)
 	    if (!session->user_msg.txt)
 		session->user_msg.txt = eval_log_format(session, session->ctx, NULL, li_change_password, io_now.tv_sec, &session->user_msg.len);
 	    session->flag_mavis_auth = 0;
-	    session->authen_data->authfn = do_chpass;
+	    session->authfn = do_chpass;
 	    do_chpass(session);
 	    return;
 	}
@@ -1345,7 +1345,7 @@ static void do_enable_getuser(tac_session *session)
     report_auth(session, "enforced enable login", hint, res);
 
     if (res == S_permit) {
-	session->authen_data->authfn = do_enable;
+	session->authfn = do_enable;
 	do_enable(session);
     } else
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, resp, 0, NULL, 0, 0);
@@ -1986,7 +1986,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	case TAC_PLUS_AUTHEN_LOGIN:
 	    switch (start->service) {
 	    case TAC_PLUS_AUTHEN_SVC_ENABLE:
-		session->authen_data->authfn = do_enable;
+		session->authfn = do_enable;
 		username_required = 0;
 		break;
 	    default:
@@ -1995,44 +1995,44 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 		    if (((session->ctx->host->bug_compatibility & CLIENT_BUG_INVALID_START_DATA) || (common_data.debug & DEBUG_TACTRACE_FLAG))
 			&& start->user_len && start->data_len) {
 			/* PAP-like inbound login. Not in rfc8907, but used by IOS-XR. */
-			session->authen_data->authfn = do_login;
+			session->authfn = do_login;
 		    } else {
 			/* Standard ASCII login */
-			session->authen_data->authfn = do_ascii_login;
+			session->authfn = do_ascii_login;
 			session->passwd_changeable = 1;
 			username_required = 0;
 			start->data_len = 0;	/* rfc8907 5.4.2.1 says to ignore the data field */
 		    }
 		    break;
 		case TAC_PLUS_AUTHEN_TYPE_PAP:
-		    session->authen_data->authfn = do_pap;
+		    session->authfn = do_pap;
 		    break;
 		case TAC_PLUS_AUTHEN_TYPE_CHAP:
 		    if (hdr->version == TAC_PLUS_VER_ONE)
-			session->authen_data->authfn = do_chap;
+			session->authfn = do_chap;
 		    break;
 #ifdef WITH_CRYPTO
 		case TAC_PLUS_AUTHEN_TYPE_MSCHAP:
 		    if (hdr->version == TAC_PLUS_VER_ONE)
-			session->authen_data->authfn = do_mschap;
+			session->authfn = do_mschap;
 		    break;
 		case TAC_PLUS_AUTHEN_TYPE_MSCHAPV2:
 		    if (hdr->version == TAC_PLUS_VER_ONE)
-			session->authen_data->authfn = do_mschapv2;
+			session->authfn = do_mschapv2;
 		    break;
 #endif
 		case TAC_PLUS_AUTHEN_TYPE_SSHKEY:
 		    // limit to hdr->version? 1.2 perhaps?
-		    session->authen_data->authfn = do_sshkeyhash;
+		    session->authfn = do_sshkeyhash;
 		    break;
 		case TAC_PLUS_AUTHEN_TYPE_SSHCERT:
 		    // limit to hdr->version? 1.2 perhaps?
-		    session->authen_data->authfn = do_sshcerthash;
+		    session->authfn = do_sshcerthash;
 		    break;
 #ifdef WITH_CRYPTO
 		case TAC_PLUS_AUTHEN_TYPE_EAP:
 		    // limit to hdr->version? 1.2 perhaps?
-		    session->authen_data->authfn = do_eap;
+		    session->authfn = do_eap;
 		    break;
 #endif
 		}
@@ -2042,7 +2042,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	    if (session->ctx->realm->chpass == TRISTATE_YES)
 		switch (start->type) {
 		case TAC_PLUS_AUTHEN_TYPE_ASCII:
-		    session->authen_data->authfn = do_chpass;
+		    session->authfn = do_chpass;
 		    session->chpass = 1;
 		    session->passwd_changeable = 1;
 		    username_required = 0;
@@ -2051,7 +2051,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	    break;
 	}
 
-	if (session->authen_data->authfn) {
+	if (session->authfn) {
 	    u_char *p = (u_char *) start + TAC_AUTHEN_START_FIXED_FIELDS_SIZE;
 	    str_set(&session->username, mem_strndup(session->mem, p, start->user_len), start->user_len);
 	    tac_user *u = lookup_user(session);
@@ -2095,7 +2095,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	session->authen_data->msg_len = ntohs(cont->user_msg_len);
 	session->authen_data->data_len = ntohs(cont->user_data_len);
 #ifdef WITH_CRYPTO
-	if (session->authen_data->authfn == do_eap) {
+	if (session->authfn == do_eap) {
 	    // no need to duplicate, do_eap() doesn't need a local null-terminated copy right now.
 	    session->authen_data->msg = (char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE;
 	    session->authen_data->data = (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + session->authen_data->msg_len;
@@ -2109,17 +2109,17 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	}
     }
 
-    if (session->authen_data->authfn) {
+    if (session->authfn) {
 	if (username_required && !session->username.txt[0])
 	    send_authen_error(session, "No username in packet");
 	else {
 #ifdef WITH_DNS
 	    if ((hdr->seq_no == 1) && (session->ctx->host->dns_timeout > 0) && (session->revmap_pending || session->ctx->revmap_pending)) {
-		session->resumefn = session->authen_data->authfn;
+		session->resumefn = session->authfn;
 		io_sched_add(session->ctx->io, session, (void *) resume_session, session->ctx->host->dns_timeout, 0);
 	    } else
 #endif
-		session->authen_data->authfn(session);
+		session->authfn(session);
 	}
     } else
 	send_authen_error(session, "Invalid or unsupported AUTHEN/START (action=%d authen_type=%d)", start->action, start->type);
@@ -2369,10 +2369,21 @@ static void do_radius_dacl(tac_session *session)
 void rad_authen(tac_session *session)
 {
     if (session->radius_data->pak_in->code == RADIUS_CODE_ACCESS_REQUEST) {
-	if (rad_check_dacl(session))
+	if (rad_check_dacl(session)) {
 	    do_radius_dacl(session);
-	else
-	    do_radius_login(session);
+	    return;
+	}
+	session->authfn = do_radius_login;
+	if (session->nac_addr_valid)
+	    get_revmap_nac(session);
+#ifdef WITH_DNS
+	if ((session->ctx->host->dns_timeout > 0) && (session->revmap_pending || session->ctx->revmap_pending)) {
+	    session->resumefn = session->authfn;
+	    io_sched_add(session->ctx->io, session, (void *) resume_session, session->ctx->host->dns_timeout, 0);
+	    return;
+	}
+#endif
+	session->authfn(session);
 	return;
     }
     cleanup_session(session);

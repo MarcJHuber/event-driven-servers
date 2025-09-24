@@ -519,7 +519,6 @@ struct authen_data {
     char *msg;
     size_t msg_len;
     int iterations;
-    void (*authfn)(tac_session *);
 };
 
 struct mavis_data;
@@ -608,6 +607,7 @@ struct tac_session {
     u_char version;
     u_char pak_authen_type;
     u_char pak_authen_method;
+    void (*authfn)(tac_session *);
     void (*resumefn)(tac_session *);
     char **attrs_m;		/* mandatory */
     char **attrs_o;		/* optional (from NAS) */
