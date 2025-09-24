@@ -6,7 +6,7 @@ TAC_PLUS-NG
 ===========
 
 tac_plus-ng implements both TACACS+ (TCP, TLS) and RADIUS (UDP, TCP, DTLS,
-TLS), with RADIUS support for PAP authentication and Downloadable ACLs.
+TLS), with RADIUS support for PAP/CHAP/MSCHAPv1/MSCHAPv2 authentication and Downloadable ACLs.
 
 Documentation:
 
