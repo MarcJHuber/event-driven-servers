@@ -1401,17 +1401,22 @@ static void mschap_chalresp(u_char *chal, u_char *hash, u_char *out)
 
 static void mschap_nthash(char *password, u_char *hash)
 {
-    size_t buf_len = 2 * strlen(password);
-    u_char buf[buf_len];
-    u_char *b = buf;
-    while (*password) {
-	*b++ = *password++;
-	*b++ = 0;
+    char *buf = NULL;
+    size_t buf_len = 0;
+    size_t password_len = strlen(password);
+
+    if (utf8_to_utf16le(password, password_len, &buf, &buf_len)) {
+      // Not utf8, so just try copying
+	buf = calloc(1, 2 * buf_len);
+	for (char *b = buf; *password; b++)
+	  *b++ = *password++;
     }
+
     myMD4_CTX context;
     MD4Init(&context);
     MD4Update(&context, (u_char *) buf, buf_len);
     MD4Final(hash, &context);
+    free (buf);
 }
 
 static void mschapv1_ntresp(u_char *chal, char *password, u_char *resp)
