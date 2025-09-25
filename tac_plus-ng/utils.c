@@ -593,7 +593,6 @@ void parse_log(struct sym *sym, tac_realm *r)
 		sym_get(sym);
 		parse(sym, S_equal);
 		lf->prefix = parse_log_format(sym, NULL);
-		sym_get(sym);
 		continue;
 	    case S_postfix:
 		sym_get(sym);
