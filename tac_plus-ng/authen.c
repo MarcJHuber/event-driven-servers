@@ -508,7 +508,7 @@ static enum token lookup_and_set_user(tac_session *session)
 static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&& ((!session->user && (session->ctx->realm->mavis_login == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
+	&& ((!session->user &&(session->ctx->realm->mavis_login == TRISTATE_YES) &&(session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
 	    || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
@@ -535,7 +535,7 @@ static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *)
 
 static int query_mavis_info_login(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
+    int res = !session->flag_mavis_info && !session->user &&(session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_LOGIN);
@@ -1406,17 +1406,17 @@ static void mschap_nthash(char *password, u_char *hash)
     size_t password_len = strlen(password);
 
     if (utf8_to_utf16le(password, password_len, &buf, &buf_len)) {
-      // Not utf8, so just try copying
+	// Not utf8, so just try copying
 	buf = calloc(1, 2 * buf_len);
 	for (char *b = buf; *password; b++)
-	  *b++ = *password++;
+	    *b++ = *password++;
     }
 
     myMD4_CTX context;
     MD4Init(&context);
     MD4Update(&context, (u_char *) buf, buf_len);
     MD4Final(hash, &context);
-    free (buf);
+    free(buf);
 }
 
 static void mschapv1_ntresp(u_char *chal, char *password, u_char *resp)
@@ -2129,81 +2129,79 @@ static void do_radius_login(tac_session *session)
 {
     enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
-    enum token type = S_unknown;
-    enum pw_ix pw_ix = PW_LOGIN;
     char *info = "radius login";
+#define rd session->radius_data
 
     if (!session->username.txt) {
 	report_auth(session, info, hint_denied, res);
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
     }
+    if (rd->type == S_unknown) {
+	int pw_res = (session->ctx->radius_1_1 ? rad_get(rd->pak_in, session->mem, -1, RADIUS_A_USER_PASSWORD, S_string_keyword, &session->password,
+							 NULL) : rad_get_password(session, &session->password, NULL));
+	if (pw_res < 0)
+	    hint = hint_nopass;
+	else if (pw_res > 0)
+	    hint = hint_badsecret;
+	else {
+	    rd->type = S_pap;
+	    rd->pw_ix = PW_LOGIN;
+	}
+    }
 
-    int pw_res =
-	(session->ctx->radius_1_1 ? rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_USER_PASSWORD, S_string_keyword, &session->password,
-					    NULL) : rad_get_password(session, &session->password, NULL));
-    if (!pw_res)
-	type = S_pap;
-
-    u_char *chap_password = NULL;
-    size_t chap_password_len = 0;
-    u_char *chap_challenge = NULL;
-    size_t chap_challenge_len = 0;
-
-    if (type == S_unknown) {
-	if (!rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_CHAP_PASSWORD, S_octets, &chap_password, &chap_password_len)
-	    && chap_password_len == 1 + MD5_LEN) {
-	    if (rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_CHAP_CHALLENGE, S_octets, &chap_challenge, &chap_challenge_len)) {
+    if (rd->type == S_unknown) {
+	if (!rad_get(rd->pak_in, session->mem, -1, RADIUS_A_CHAP_PASSWORD, S_octets, &rd->chap_password, &rd->chap_password_len)
+	    && rd->chap_password_len == 1 + MD5_LEN) {
+	    if (rad_get(rd->pak_in, session->mem, -1, RADIUS_A_CHAP_CHALLENGE, S_octets, &rd->chap_challenge, &rd->chap_challenge_len)) {
 		if (session->ctx->radius_1_1 == BISTATE_NO) {
-		    chap_challenge = session->radius_data->pak_in->authenticator;
-		    chap_challenge_len = 16;
+		    rd->chap_challenge = rd->pak_in->authenticator;
+		    rd->chap_challenge_len = 16;
 		}
 	    }
-	    if (chap_challenge_len) {
-		type = S_chap;
-		pw_ix = PW_CHAP;
+	    if (rd->chap_challenge_len) {
+		rd->type = S_chap;
+		rd->pw_ix = PW_CHAP;
 	    }
 	}
     }
 
 #ifdef WITH_CRYPTO
-    u_char *mschap_challenge = NULL;
-    size_t mschap_challenge_len = 0;
-    u_char *mschap_response = NULL;
-    size_t mschap_response_len = 0;
-    int mschap_version = 1;
+#define mschap_challenge chap_challenge
+#define mschap_challenge_len chap_challenge_len
+#define mschap_response chap_password
+#define mschap_response_len chap_password_len
 
-    if (type == S_unknown) {
-	if (!rad_get
-	    (session->radius_data->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &mschap_challenge, &mschap_challenge_len)
-	    && (mschap_challenge_len > 0)
-	    && !rad_get(session->radius_data->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_RESPONSE, S_octets, &mschap_response,
-			&mschap_response_len) && (mschap_response_len == 50)) {
-	    type = S_mschap;
-	    pw_ix = PW_MSCHAP;
+    if (rd->type == S_unknown) {
+	if (!rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &rd->mschap_challenge, &rd->mschap_challenge_len)
+	    && (rd->mschap_challenge_len > 0)
+	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_RESPONSE, S_octets, &rd->mschap_response,
+			&rd->mschap_response_len) && (rd->mschap_response_len == 50)) {
+	    rd->type = S_mschap;
+	    rd->pw_ix = PW_MSCHAP;
+	    rd->mschap_version = 1;
 	}
     }
 
-    if (type == S_unknown) {
-	if (!rad_get
-	    (session->radius_data->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &mschap_challenge, &mschap_challenge_len)
-	    && (mschap_challenge_len > 0)
-	    && !rad_get(session->radius_data->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP2_RESPONSE, S_octets, &mschap_response,
-			&mschap_response_len) && (mschap_response_len == 50)) {
-	    type = S_mschap;
-	    pw_ix = PW_MSCHAP;
-	    mschap_version = 2;
+    if (rd->type == S_unknown) {
+	if (!rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &rd->mschap_challenge, &rd->mschap_challenge_len)
+	    && (rd->mschap_challenge_len > 0)
+	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP2_RESPONSE, S_octets, &rd->mschap_response,
+			&rd->mschap_response_len) && (rd->mschap_response_len == 50)) {
+	    rd->type = S_mschap;
+	    rd->pw_ix = PW_MSCHAP;
+	    rd->mschap_version = 2;
 	}
     }
 #endif
 
-    if (type == S_unknown) {
-	report_auth(session, info, (pw_res < 0) ? hint_nopass : hint_badsecret, res);
+    if (rd->type == S_unknown) {
+	report_auth(session, info, hint, res);
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
     }
 
-    if (type == S_pap && password_requirements_failed(session, info))
+    if (rd->type == S_pap && password_requirements_failed(session, info))
 	return;
 
     if (S_deny == lookup_and_set_user(session)) {
@@ -2212,39 +2210,38 @@ static void do_radius_login(tac_session *session)
 	return;
     }
 
-    if (session->user && session->user->passwd[pw_ix] && session->user->passwd[pw_ix]->type == S_error) {
+    char *resp = NULL;
+
+    if (rd->type != S_pap && query_mavis_info_login(session, do_radius_login))
+	return;
+    if (session->user && session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_error) {
 	cleanup_session(session);
 	return;
     }
-
-    char *resp = NULL;
-
-    if (type == S_pap) {
-	if (query_mavis_info_login(session, do_radius_login))
-	    return;
-	if (session->user) {
-	    struct pwdat *pwdat = NULL;
-	    set_pwdat(session, &pwdat, &pw_ix);
-	    if (query_mavis_auth_login(session, do_radius_login, pw_ix))
+    if (session->user || rd->type == S_pap) {
+	if (rd->type == S_pap) {
+	    if (query_mavis_info(session, do_radius_login, rd->pw_ix))
 		return;
-	    res = check_access(session, pwdat, session->password, &hint, &resp);
-	}
-	info = "radius pap login";
-    } else if (type == S_chap) {
-	if (query_mavis_info(session, do_radius_login, PW_CHAP))
-	    return;
-	if (session->user) {
+	    struct pwdat *pwdat = NULL;
+	    set_pwdat(session, &pwdat, &rd->pw_ix);
+	    if (query_mavis_auth_login(session, do_radius_login, rd->pw_ix))
+		return;
+	    if (session->user) {
+		res = check_access(session, pwdat, session->password, &hint, &resp);
+		info = "radius pap login";
+	    }
+	} else if (rd->type == S_chap) {
 	    if (session->user->passwd[PW_CHAP] && session->user->passwd[PW_CHAP]->type == S_clear) {
 		struct pwdat *pwdat = NULL;
-		set_pwdat(session, &pwdat, &pw_ix);
+		set_pwdat(session, &pwdat, &rd->pw_ix);
 		struct iovec iov[3] = {
-		    {.iov_base = chap_password,.iov_len = 1 },
+		    {.iov_base = rd->chap_password,.iov_len = 1 },
 		    {.iov_base = session->user->passwd[PW_CHAP]->value,.iov_len = strlen(session->user->passwd[PW_CHAP]->value) },
-		    {.iov_base = chap_challenge,.iov_len = chap_challenge_len },
+		    {.iov_base = rd->chap_challenge,.iov_len = rd->chap_challenge_len },
 		};
 		u_char digest[MD5_LEN];
 		md5v(digest, MD5_LEN, iov, 3);
-		if (memcmp(chap_password + 1, digest, MD5_LEN)) {
+		if (memcmp(rd->chap_password + 1, digest, MD5_LEN)) {
 		    hint = hint_failed;
 		    res = S_deny;
 		} else {
@@ -2255,25 +2252,22 @@ static void do_radius_login(tac_session *session)
 		hint = hint_no_cleartext;
 		res = S_deny;
 	    }
+	    info = "radius chap login";
 	}
-	info = "radius chap login";
-    }
 #ifdef WITH_CRYPTO
-    else if (type == S_mschap) {
-	if (query_mavis_info(session, do_radius_login, PW_MSCHAP))
-	    return;
-	if (session->user) {
+	else if (rd->type == S_mschap) {
 	    if (session->user->passwd[PW_MSCHAP] && session->user->passwd[PW_MSCHAP]->type == S_clear) {
 		struct pwdat *pwdat = NULL;
-		set_pwdat(session, &pwdat, &pw_ix);
-		if ((mschap_version == 1 && mschap_response[1] == 0x01) || (mschap_version == 2)) {
+		set_pwdat(session, &pwdat, &rd->pw_ix);
+		if ((rd->mschap_version == 1 && rd->mschap_response[1] == 0x01) || (rd->mschap_version == 2)) {
 		    u_char response[24];
-		    if (mschap_version == 1)
-			mschapv1_ntresp(mschap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
+		    u_char *peer_challenge = rd->mschap_response + 2;
+		    u_char *peer_response = rd->mschap_response + 2 + 24;
+		    if (rd->mschap_version == 1)
+			mschapv1_ntresp(rd->mschap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
 		    else
-			mschapv2_ntresp(mschap_response + 2 /* == peer challenge */ , mschap_challenge, session->user->name.txt,
-					session->user->passwd[PW_MSCHAP]->value, response);
-		    if (!memcmp(response, mschap_response + 24 + 2, 24))
+			mschapv2_ntresp(peer_challenge, rd->mschap_challenge, session->user->name.txt, session->user->passwd[PW_MSCHAP]->value, response);
+		    if (!memcmp(response, peer_response, 24))
 			res = S_permit;
 		}
 		if (res == S_permit) {
@@ -2287,8 +2281,8 @@ static void do_radius_login(tac_session *session)
 		hint = hint_no_cleartext;
 		res = S_deny;
 	    }
+	    info = rd->mschap_version == 1 ? "radius mschap login" : "radius mschapv2 login";
 	}
-	info = mschap_version == 1 ? "radius mschap login" : "radius mschapv2 login";
     }
 #endif
 
@@ -2322,7 +2316,7 @@ static void do_radius_dacl(tac_session *session)
 {
     int first = 0;
     enum token res = S_deny;
-    if (!session->radius_data->dacl) {
+    if (!rd->dacl) {
 	first = 1;
 	if (!session->username.txt)
 	    goto fail;
@@ -2335,24 +2329,24 @@ static void do_radius_dacl(tac_session *session)
 	str_set(&session->username, u, h - u);
 	if (query_mavis_dacl(session, do_radius_dacl))
 	    return;
-	session->radius_data->dacl = lookup_dacl(u, session->ctx->realm);
-	if (!session->radius_data->dacl)
+	rd->dacl = lookup_dacl(u, session->ctx->realm);
+	if (!rd->dacl)
 	    goto fail;
     }
 
     void *val = NULL;
     size_t val_len = 0;
     uint32_t nace = 0;
-    if (!rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_STATE, S_octets, &val, &val_len)) {
+    if (!rad_get(rd->pak_in, session->mem, -1, RADIUS_A_STATE, S_octets, &val, &val_len)) {
 	if (!val || val_len != sizeof(uint32_t))
 	    goto fail;
 	memcpy(&nace, val, sizeof(uint32_t));
 	nace = ntohl(nace);
     }
 
-    if (rad_attr_add_dacl(session, session->radius_data->dacl, &nace))
+    if (rad_attr_add_dacl(session, rd->dacl, &nace))
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
-    else if (nace == session->radius_data->dacl->nace)
+    else if (nace == rd->dacl->nace)
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_ACCEPT, NULL);
     else {
 	if (first)
@@ -2368,7 +2362,7 @@ static void do_radius_dacl(tac_session *session)
 
 void rad_authen(tac_session *session)
 {
-    if (session->radius_data->pak_in->code == RADIUS_CODE_ACCESS_REQUEST) {
+    if (rd->pak_in->code == RADIUS_CODE_ACCESS_REQUEST) {
 	if (rad_check_dacl(session)) {
 	    do_radius_dacl(session);
 	    return;
@@ -2388,3 +2382,5 @@ void rad_authen(tac_session *session)
     }
     cleanup_session(session);
 }
+
+#undef rd
