@@ -1352,7 +1352,7 @@ static void do_enable_getuser(tac_session *session)
 }
 
 #ifdef WITH_CRYPTO
-static void mschap_desencrypt(u_char *in, u_char *key, u_char *out)
+static void mschap_desencrypt(u_char *in, u_char key[21], u_char out[8])
 {
     unsigned char key_par[8];
 
@@ -1388,11 +1388,11 @@ static void mschap_desencrypt(u_char *in, u_char *key, u_char *out)
     EVP_CIPHER_CTX_free(ctx);
 }
 
-static void mschap_chalresp(u_char *chal, u_char *hash, u_char *out)
+static void mschap_chalresp(u_char *chal, u_char nt_hash[16], u_char *out)
 {
     u_char hash_padded[21] = { 0 };
 
-    memcpy(hash_padded, hash, (size_t) 16);
+    memcpy(hash_padded, nt_hash, (size_t) 16);
 
     mschap_desencrypt(chal, hash_padded, out);
     mschap_desencrypt(chal, hash_padded + 7, out + 8);
@@ -1419,7 +1419,7 @@ static void mschap_nthash(char *password, u_char *hash)
     free(buf);
 }
 
-static void mschapv1_ntresp(u_char *chal, char *password, u_char *resp)
+static void mschapv1_ntresp(u_char *chal, char *password, u_char resp[24])
 {
     u_char nt_hash[16];
 
@@ -1482,7 +1482,7 @@ static void do_mschap(tac_session *session)
     send_authen_reply(session, TAC_SYM_TO_CODE(res), NULL, 0, NULL, 0, 0);
 }
 
-static void mschapv2_ntresp(u_char *peer_challenge, u_char *auth_challenge, char *username, char *password, u_char *response)
+static void mschapv2_ntresp(u_char peer_challenge[16], u_char auth_challenge[16], char *username, char *password, u_char response[24])
 {
     uint8_t nt_hash[16];
 
