@@ -554,10 +554,10 @@ static int query_mavis_info_mschap(tac_session *session, void (*f)(tac_session *
 
 static int query_mavis_mschap_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
-    int res = !session->flag_mavis_auth && ((	/* !session->user && */
-						(session->ctx->realm->mavis_mschap ==
-						 TRISTATE_YES) /*&& (session->ctx->realm->mavis_mschap_prefetch != TRISTATE_YES) */ )
-					    || (session->user && pw_ix == PW_MAVIS));
+    // assumption: user was pre-fetched
+    int res = !session->flag_mavis_auth
+	&& ((session->user && session->user->passwd[pw_ix]->type == S_deny /* that's the default */  && (session->ctx->realm->mavis_mschap == TRISTATE_YES))
+	    || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_MSCHAP, PW_MSCHAP);
@@ -1557,7 +1557,7 @@ static void do_mschapv2(tac_session *session)
 	session->mschap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_RESPONSE_LEN;
 	session->mschap_response_len = MSCHAP_RESPONSE_LEN;
 	u_char *chal = mem_alloc(session->mem, MSCHAPv1_CHALLENGE_LEN);
-	mschapv2_chal(session->mschap_response + 2, session->mschap_challenge, session->username.txt, chal);
+	mschapv2_chal(session->mschap_response, session->mschap_challenge, session->username.txt, chal);
 	session->mschap_challenge = chal;
 	session->mschap_challenge_len = MSCHAPv1_CHALLENGE_LEN;
 	session->mschap_response += 24;
