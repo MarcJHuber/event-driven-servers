@@ -475,11 +475,6 @@ typedef struct tac_session tac_session;
 struct radius_data {
     enum token type;
     enum pw_ix pw_ix;
-    int mschap_version;
-    u_char *chap_password;
-    size_t chap_password_len;
-    u_char *chap_challenge;
-    size_t chap_challenge_len;
     str_t device_dns_name;
     str_t device_addr_ascii;
     struct in6_addr device_addr;
@@ -590,6 +585,11 @@ struct tac_session {
     struct pwdat *enable;
     struct autonumber *autonumber;
     tac_profile *profile;
+    int mschap_version;
+    u_char *chap_password;
+    size_t chap_password_len;
+    u_char *chap_challenge;
+    size_t chap_challenge_len;
     struct {
 	BISTATE(nac_addr_valid);
 	BISTATE(flag_mavis_info);
