@@ -166,6 +166,16 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
     if (session->password_new && !strcmp(type, AV_V_TACTYPE_CHPW))
 	av_set(avc, AV_A_PASSWORD_NEW, session->password_new);
 
+    if (session->chap_challenge_len && session->chap_password_len && !strcmp(type, AV_V_TACTYPE_MSCHAP)) {
+	char buf[((session->chap_challenge_len + session->chap_password_len) << 1) + 2];
+	char *b = buf;
+	dump_hex(session->chap_challenge, session->chap_challenge_len, &b);
+	*b++ = ' ';
+	dump_hex(session->chap_password, session->chap_password_len, &b);
+	*b = 0;
+	av_set(avc, AV_A_CHALLENGE, buf);
+    }
+
     if (!session->ctx->realm->caching_period && !strcmp(type, AV_V_TACTYPE_INFO) && session->author_data) {
 	struct author_data *data = session->author_data;
 	int len = 0, cnt = data->in_cnt - 1;
@@ -386,7 +396,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 	    return;
 	}
 
-	if (strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_INFO)) {
+	if (!strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_AUTH) || !strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_CHPW)) {
 	    session->mavisauth_res = S_permit;
 	    if ((TRISTATE_YES != u->chalresp) && session->password && !u->passwd_oneshot) {
 		char *pass = session->password_new ? session->password_new : session->password;
@@ -467,7 +477,6 @@ static void mavis_ctx_callback(struct context *ctx)
     mavis_ctx_switch(ctx, avc, rc);
 }
 
-#if defined(WITH_SSL)
 void dump_hex(u_char *data, size_t data_len, char **buf)
 {
     char hex[16] = "0123456789abcdef";
@@ -479,7 +488,6 @@ void dump_hex(u_char *data, size_t data_len, char **buf)
 	*(*buf)++ = hex[data[i] & 15];
     }
 }
-#endif
 
 void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const char *const type)
 {

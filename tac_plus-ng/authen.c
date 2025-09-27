@@ -535,12 +535,34 @@ static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *)
 
 static int query_mavis_info_login(tac_session *session, void (*f)(tac_session *))
 {
-    int res = !session->flag_mavis_info && !session->user &&(session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
+    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_login_prefetch == TRISTATE_YES);
     session->flag_mavis_info = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_LOGIN);
     return res;
 }
+
+#ifdef WITH_CRYPTO
+static int query_mavis_info_mschap(tac_session *session, void (*f)(tac_session *))
+{
+    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_mschap_prefetch == TRISTATE_YES);
+    session->flag_mavis_info = 1;
+    if (res)
+	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_MSCHAP);
+    return res;
+}
+
+static int query_mavis_mschap_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
+{
+    int res = !session->flag_mavis_auth &&
+	((!session->user && (session->ctx->realm->mavis_mschap == TRISTATE_YES) && (session->ctx->realm->mavis_mschap_prefetch != TRISTATE_YES))
+	 || (session->user && pw_ix == PW_MAVIS));
+    session->flag_mavis_auth = 1;
+    if (res)
+	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_MSCHAP);
+    return res;
+}
+#endif
 
 int query_mavis_info(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
@@ -1434,7 +1456,6 @@ static void mschapv1_ntresp(u_char chal[8], char *password, u_char resp[24])
 
 static void do_mschap(tac_session *session)
 {
-
     enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
     char *info = (session->mschap_version == 1) ? "mschap login" : "mschapv2 login";
@@ -1445,8 +1466,15 @@ static void do_mschap(tac_session *session)
 	return;
     }
 
-    if (query_mavis_info(session, do_mschap, PW_MSCHAP))
+    if (query_mavis_info_mschap(session, do_mschap))
 	return;
+
+    if (session->user && session->user->passwd[PW_MSCHAP] && session->user->passwd[PW_MSCHAP]->type == S_error) {
+	    send_authen_error(session, "Handling refused.");
+	    return;
+    }
+    if (query_mavis_mschap_login(session, do_mschap, PW_MSCHAP))
+	    return;
 
     if (session->user) {
 	if (session->user->passwd[PW_MSCHAP]->type != S_clear) {
@@ -1455,25 +1483,22 @@ static void do_mschap(tac_session *session)
 	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_RESTART, NULL, 0, NULL, 0, 0);
 	    return;
 	}
-	if (session->authen_data->data_len == 1 /* PPP id */  + 8 /* challenge length */  + MSCHAP_DIGEST_LEN) {
-	    u_char response[24];
+	u_char response[24];
 
-	    mschapv1_ntresp(session->mschap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
-	    if (!memcmp(response, session->mschap_response + 24, 24))
-		res = S_permit;
+	mschapv1_ntresp(session->mschap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
+	if (!memcmp(response, session->mschap_response + 24, 24))
+	    res = S_permit;
 
-	    if (res == S_permit)
-		res = user_invalid(session->user, &hint);
-	    if (res == S_permit) {
-		char *tmp = NULL;
-		session->mavisauth_res = S_permit;
-		res = check_access(session, NULL, session->user->passwd[PW_MSCHAP]->value, &hint, &tmp);
-	    } else {
-		hint = hint_failed;
-		res = S_deny;
-	    }
-	} else
-	    hint = hint_invalid_challenge_length;
+	if (res == S_permit)
+	    res = user_invalid(session->user, &hint);
+	if (res == S_permit) {
+	    char *tmp = NULL;
+	    session->mavisauth_res = S_permit;
+	    res = check_access(session, NULL, session->user->passwd[PW_MSCHAP]->value, &hint, &tmp);
+	} else {
+	    hint = hint_failed;
+	    res = S_deny;
+	}
     }
 
     report_auth(session, info, hint, res);
@@ -1481,14 +1506,19 @@ static void do_mschap(tac_session *session)
     send_authen_reply(session, TAC_SYM_TO_CODE(res), NULL, 0, NULL, 0, 0);
 }
 
+#define MSCHAP_PPPID_LEN 1
+#define MSCHAPv1_CHALLENGE_LEN 8
+#define MSCHAPv2_CHALLENGE_LEN 16
+#define MSCHAP_RESPONSE_LEN 49
+
 static void do_mschapv1(tac_session *session)
 {
-    if (session->authen_data->data_len == 1 /* PPP id */  + 8 /* challenge length */  + MSCHAP_DIGEST_LEN) {
+    if (session->authen_data->data_len == MSCHAP_PPPID_LEN + MSCHAPv1_CHALLENGE_LEN + MSCHAP_RESPONSE_LEN) {
 	session->mschap_version = 1;
 	session->mschap_challenge = session->authen_data->data + 1;
-	session->mschap_challenge_len = 8;
-	session->mschap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_DIGEST_LEN;
-	session->mschap_response_len = MSCHAP_DIGEST_LEN;
+	session->mschap_challenge_len = MSCHAPv1_CHALLENGE_LEN;
+	session->mschap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_RESPONSE_LEN;
+	session->mschap_response_len = MSCHAP_RESPONSE_LEN;
 	do_mschap(session);
 	return;
     }
@@ -1496,7 +1526,7 @@ static void do_mschapv1(tac_session *session)
     send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 }
 
-static void mschapv2_chal(u_char peer_challenge[16], u_char auth_challenge[16], char *username, u_char out[8])
+static void mschapv2_chal(u_char peer_challenge[16], u_char auth_challenge[16], char *username, u_char out[MSCHAPv1_CHALLENGE_LEN])
 {
     uint8_t digest[SHA_DIGEST_LENGTH];
 #if OPENSSL_VERSION_NUMBER < 0x30000000
@@ -1521,16 +1551,16 @@ static void mschapv2_chal(u_char peer_challenge[16], u_char auth_challenge[16], 
 
 static void do_mschapv2(tac_session *session)
 {
-    if (session->authen_data->data_len == 1 /* PPP id */  + 8 /* challenge length */  + MSCHAP_DIGEST_LEN) {
+    if (session->authen_data->data_len == MSCHAP_PPPID_LEN + MSCHAPv2_CHALLENGE_LEN + MSCHAP_RESPONSE_LEN) {
 	session->mschap_version = 2;
 	session->mschap_challenge = session->authen_data->data + 1;
-	session->mschap_challenge_len = 8;
-	session->mschap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_DIGEST_LEN;
-	session->mschap_response_len = MSCHAP_DIGEST_LEN;
-	u_char *chal = mem_alloc(session->mem, 8);
+	session->mschap_challenge_len = MSCHAPv2_CHALLENGE_LEN;
+	session->mschap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_RESPONSE_LEN;
+	session->mschap_response_len = MSCHAP_RESPONSE_LEN;
+	u_char *chal = mem_alloc(session->mem, MSCHAPv1_CHALLENGE_LEN);
 	mschapv2_chal(session->mschap_response + 2, session->mschap_challenge, session->username.txt, chal);
 	session->mschap_challenge = chal;
-	session->mschap_challenge_len = 8;
+	session->mschap_challenge_len = MSCHAPv1_CHALLENGE_LEN;
 	do_mschap(session);
 	return;
     }
@@ -2185,73 +2215,85 @@ static void do_radius_login(tac_session *session)
 
     char *resp = NULL;
 
-    if (rd->type != S_pap && query_mavis_info_login(session, do_radius_login))
+    if (rd->type == S_chap && query_mavis_info(session, do_radius_login, rd->pw_ix))
 	return;
-    if (session->user && session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_error) {
-	cleanup_session(session);
-	return;
-    }
-    if (session->user || rd->type == S_pap) {
-	if (rd->type == S_pap) {
-	    if (query_mavis_info(session, do_radius_login, rd->pw_ix))
-		return;
+    if (rd->type == S_pap) {
+	if (query_mavis_info_login(session, do_radius_login))
+	    return;
+	if (session->user && session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_error) {
+	    rad_send_error(session, RADIUS_V_ERROR_CAUSE_ADMINISTRATIVELY_RROHIBITED);
+	    return;
+	}
+	struct pwdat *pwdat = NULL;
+	set_pwdat(session, &pwdat, &rd->pw_ix);
+	if (query_mavis_auth_login(session, do_radius_login, rd->pw_ix))
+	    return;
+	if (session->user) {
+	    res = check_access(session, pwdat, session->password, &hint, &resp);
+	    info = "radius pap login";
+	}
+    } else if (rd->type == S_chap) {
+	if (query_mavis_info(session, do_radius_login, rd->pw_ix))
+	    return;
+	if (session->user && session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_error) {
+	    rad_send_error(session, RADIUS_V_ERROR_CAUSE_ADMINISTRATIVELY_RROHIBITED);
+	    return;
+	}
+	if (session->user && session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_clear) {
 	    struct pwdat *pwdat = NULL;
 	    set_pwdat(session, &pwdat, &rd->pw_ix);
-	    if (query_mavis_auth_login(session, do_radius_login, rd->pw_ix))
-		return;
-	    if (session->user) {
-		res = check_access(session, pwdat, session->password, &hint, &resp);
-		info = "radius pap login";
-	    }
-	} else if (rd->type == S_chap) {
-	    if (session->user->passwd[PW_CHAP] && session->user->passwd[PW_CHAP]->type == S_clear) {
-		struct pwdat *pwdat = NULL;
-		set_pwdat(session, &pwdat, &rd->pw_ix);
-		struct iovec iov[3] = {
-		    {.iov_base = session->chap_password,.iov_len = 1 },
-		    {.iov_base = session->user->passwd[PW_CHAP]->value,.iov_len = strlen(session->user->passwd[PW_CHAP]->value) },
-		    {.iov_base = session->chap_challenge,.iov_len = session->chap_challenge_len },
-		};
-		u_char digest[MD5_LEN];
-		md5v(digest, MD5_LEN, iov, 3);
-		if (memcmp(session->chap_password + 1, digest, MD5_LEN)) {
-		    hint = hint_failed;
-		    res = S_deny;
-		} else {
-		    session->mavisauth_res = S_permit;
-		    res = check_access(session, NULL, session->user->passwd[PW_CHAP]->value, &hint, &resp);
-		}
+	    struct iovec iov[3] = {
+		{.iov_base = session->chap_password,.iov_len = 1 },
+		{.iov_base = session->user->passwd[rd->pw_ix]->value,.iov_len = strlen(session->user->passwd[rd->pw_ix]->value) },
+		{.iov_base = session->chap_challenge,.iov_len = session->chap_challenge_len },
+	    };
+	    u_char digest[MD5_LEN];
+	    md5v(digest, MD5_LEN, iov, 3);
+	    if (memcmp(session->chap_password + 1, digest, MD5_LEN)) {
+		hint = hint_failed;
 	    } else {
-		hint = hint_no_cleartext;
-		res = S_deny;
+		session->mavisauth_res = S_permit;
+		res = check_access(session, NULL, session->user->passwd[rd->pw_ix]->value, &hint, &resp);
 	    }
-	    info = "radius chap login";
+	} else if (session->user) {
+	    hint = hint_no_cleartext;
 	}
+	info = "radius chap login";
+    }
 #ifdef WITH_CRYPTO
-	else if (rd->type == S_mschap) {
-	    if (session->user->passwd[PW_MSCHAP] && session->user->passwd[PW_MSCHAP]->type == S_clear) {
-		struct pwdat *pwdat = NULL;
-		set_pwdat(session, &pwdat, &rd->pw_ix);
-		if ((session->mschap_version == 1 && session->mschap_response[1] == 0x01) || (session->mschap_version == 2)) {
-		    u_char response[24];
-		    mschapv1_ntresp(session->mschap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
-		    u_char *peer_response = session->mschap_response + 2 + 24;
-		    if (!memcmp(response, peer_response, 24))
-			res = S_permit;
+    else if (rd->type == S_mschap) {
+	if (query_mavis_info_mschap(session, do_radius_login))
+	    return;
+	if (session->user && session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_error) {
+	    rad_send_error(session, RADIUS_V_ERROR_CAUSE_ADMINISTRATIVELY_RROHIBITED);
+	    return;
+	}
+	if (query_mavis_mschap_login(session, do_radius_login, rd->pw_ix))
+	    return;
+	if (session->user) {
+	    if (((session->mavisauth_res == S_permit) || (session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_clear))) {
+		if (session->mavisauth_res != S_permit) {
+		    struct pwdat *pwdat = NULL;
+		    set_pwdat(session, &pwdat, &rd->pw_ix);
+		    if ((session->mschap_version == 1 && session->mschap_response[1] == 0x01) || (session->mschap_version == 2)) {
+			u_char response[24];
+			mschapv1_ntresp(session->mschap_challenge, session->user->passwd[rd->pw_ix]->value, response);
+			u_char *peer_response = session->mschap_response + 2 + 24;
+			if (!memcmp(response, peer_response, 24))
+			    res = S_permit;
+		    }
 		}
-		if (res == S_permit) {
+		if (res == S_permit || session->mavisauth_res == S_permit) {
 		    session->mavisauth_res = S_permit;
-		    res = check_access(session, NULL, session->user->passwd[PW_MSCHAP]->value, &hint, &resp);
+		    res = check_access(session, NULL, session->user->passwd[rd->pw_ix]->value, &hint, &resp);
 		} else {
 		    hint = hint_failed;
-		    res = S_deny;
 		}
-	    } else {
-		hint = hint_no_cleartext;
-		res = S_deny;
 	    }
-	    info = session->mschap_version == 1 ? "radius mschap login" : "radius mschapv2 login";
+	} else {
+	    hint = hint_no_cleartext;
 	}
+	info = session->mschap_version == 1 ? "radius mschap login" : "radius mschapv2 login";
     }
 #endif
 

@@ -109,9 +109,6 @@
 #ifndef MD5_LEN
 #define MD5_LEN           16
 #endif
-#ifndef MSCHAP_DIGEST_LEN
-#define MSCHAP_DIGEST_LEN 49
-#endif
 
 struct context;
 struct tac_acl;
@@ -412,6 +409,7 @@ struct realm {
 	TRISTATE(mavis_mschap);
 	TRISTATE(mavis_pap_prefetch);
 	TRISTATE(mavis_login_prefetch);
+	TRISTATE(mavis_mschap_prefetch);
 	TRISTATE(script_profile_parent_first);
 	TRISTATE(script_host_parent_first);
 	TRISTATE(script_realm_parent_first);

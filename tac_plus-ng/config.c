@@ -1305,6 +1305,10 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		sym_get(sym);
 		parse(sym, S_equal);
 		parse(sym, S_mavis);
+		if (sym->code == S_prefetch) {
+		    sym_get(sym);
+		    r->mavis_mschap_prefetch = TRISTATE_YES;
+		}
 		r->mavis_mschap = TRISTATE_YES;
 		r->mavis_userdb = TRISTATE_YES;
 		break;
