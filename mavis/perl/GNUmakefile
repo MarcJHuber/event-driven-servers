@@ -16,7 +16,7 @@ BACKENDS +=	tacplus_ldap_authonly tacplus_opie tacplus_passwd
 BACKENDS +=	tacplus_radius tacplus_sms tacplus_shadow
 BACKENDS +=	tacplus-ng_ldap
 BACKENDS +=	tacplus-ng-demo-host
-BACKENDS +=	mavis_tacplus-ng_ntlmauth.pl
+BACKENDS +=	mavis_tacplus-ng_ntlmauth
 
 BI = $(patsubst %,$(M)/mavis_%.$(SUF), $(BACKENDS))
 
