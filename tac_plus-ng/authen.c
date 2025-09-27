@@ -1388,7 +1388,7 @@ static void mschap_desencrypt(u_char *in, u_char key[21], u_char out[8])
     EVP_CIPHER_CTX_free(ctx);
 }
 
-static void mschap_chalresp(u_char *chal, u_char nt_hash[16], u_char *out)
+static void mschap_chalresp(u_char chal[8], u_char nt_hash[16], u_char out[24])
 {
     u_char hash_padded[21] = { 0 };
 
@@ -1419,7 +1419,7 @@ static void mschap_nthash(char *password, u_char *hash)
     free(buf);
 }
 
-static void mschapv1_ntresp(u_char *chal, char *password, u_char resp[24])
+static void mschapv1_ntresp(u_char chal[8], char *password, u_char resp[24])
 {
     u_char nt_hash[16];
 
@@ -1482,13 +1482,9 @@ static void do_mschap(tac_session *session)
     send_authen_reply(session, TAC_SYM_TO_CODE(res), NULL, 0, NULL, 0, 0);
 }
 
-static void mschapv2_ntresp(u_char peer_challenge[16], u_char auth_challenge[16], char *username, char *password, u_char response[24])
+static void mschapv2_chal(u_char peer_challenge[16], u_char auth_challenge[16], char *username, u_char out[8])
 {
-    uint8_t nt_hash[16];
-
-    mschap_nthash(password, nt_hash);
-
-    uint8_t digest[SHA256_DIGEST_LENGTH];
+    uint8_t digest[SHA_DIGEST_LENGTH];
 #if OPENSSL_VERSION_NUMBER < 0x30000000
     SHA_CTX ctx;
     SHA1_Init(&ctx);
@@ -1506,7 +1502,18 @@ static void mschapv2_ntresp(u_char peer_challenge[16], u_char auth_challenge[16]
     EVP_DigestFinal_ex(ctx, digest, &digest_len);
     EVP_MD_CTX_free(ctx);
 #endif
-    mschap_chalresp(digest, nt_hash, response);
+    memcpy(out, digest, 8);
+}
+
+static void mschapv2_ntresp(u_char peer_challenge[16], u_char auth_challenge[16], char *username, char *password, u_char response[24])
+{
+    u_char chal[8];
+    mschapv2_chal(peer_challenge, auth_challenge, username, chal);
+
+    uint8_t nt_hash[16];
+
+    mschap_nthash(password, nt_hash);
+    mschap_chalresp(chal, nt_hash, response);
 }
 
 static void do_mschapv2(tac_session *session)
