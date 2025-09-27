@@ -204,6 +204,7 @@ extern struct av_char av_char[];
 #define AV_V_TACTYPE_CHAL		"CHAL"
 #define AV_V_TACTYPE_HOST		"HOST"
 #define AV_V_TACTYPE_DACL		"DACL"
+#define AV_V_TACTYPE_MSCHAP		"MSCH"
 typedef struct av_ctx av_ctx;
 
 struct av_ctx {
