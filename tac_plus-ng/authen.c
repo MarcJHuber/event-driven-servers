@@ -2175,7 +2175,7 @@ static void do_radius_login(tac_session *session)
     if (rd->type == S_unknown) {
 	if (!rad_get
 	    (rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &session->mschap_challenge, &session->mschap_challenge_len)
-	    && (session->mschap_challenge_len > 0)
+	    && (session->mschap_challenge_len == 8)
 	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_RESPONSE, S_octets, &session->mschap_response,
 			&session->mschap_response_len) && (session->mschap_response_len == 50)) {
 	    rd->type = S_mschap;
@@ -2189,13 +2189,13 @@ static void do_radius_login(tac_session *session)
     if (rd->type == S_unknown) {
 	if (!rad_get
 	    (rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &session->mschap_challenge, &session->mschap_challenge_len)
-	    && (session->mschap_challenge_len > 0)
+	    && (session->mschap_challenge_len == 16)
 	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP2_RESPONSE, S_octets, &session->mschap_response,
 			&session->mschap_response_len) && (session->mschap_response_len == 50)) {
 	    rd->type = S_mschap;
 	    rd->pw_ix = PW_MSCHAP;
 	    mschapv2_chal(session->mschap_response + 2, session->mschap_challenge, session->username.txt, session->mschap_challenge);
-	    session->mschap_challenge_len = 8;
+	    session->mschap_challenge_len = 16;
 	    session->mschap_version = 2;
 	    session->mschap_response += 26;
 	    session->mschap_response_len -= 26;
@@ -2226,7 +2226,7 @@ static void do_radius_login(tac_session *session)
 	if (query_mavis_info_login(session, do_radius_login))
 	    return;
 	if (session->user && session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_error) {
-	    rad_send_error(session, RADIUS_V_ERROR_CAUSE_ADMINISTRATIVELY_RROHIBITED);
+	    rad_send_error(session, RADIUS_V_ERROR_CAUSE_ADMINISTRATIVELY_PROHIBITED);
 	    return;
 	}
 	struct pwdat *pwdat = NULL;
@@ -2241,7 +2241,7 @@ static void do_radius_login(tac_session *session)
 	if (query_mavis_info(session, do_radius_login, rd->pw_ix))
 	    return;
 	if (session->user && session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_error) {
-	    rad_send_error(session, RADIUS_V_ERROR_CAUSE_ADMINISTRATIVELY_RROHIBITED);
+	    rad_send_error(session, RADIUS_V_ERROR_CAUSE_ADMINISTRATIVELY_PROHIBITED);
 	    return;
 	}
 	if (session->user && session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_clear) {
@@ -2270,7 +2270,7 @@ static void do_radius_login(tac_session *session)
 	if (query_mavis_info_mschap(session, do_radius_login))
 	    return;
 	if (session->user && session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_error) {
-	    rad_send_error(session, RADIUS_V_ERROR_CAUSE_ADMINISTRATIVELY_RROHIBITED);
+	    rad_send_error(session, RADIUS_V_ERROR_CAUSE_ADMINISTRATIVELY_PROHIBITED);
 	    return;
 	}
 	struct pwdat *pwdat = NULL;
@@ -2283,12 +2283,10 @@ static void do_radius_login(tac_session *session)
 	    else if ((session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_clear)) {
 		struct pwdat *pwdat = NULL;
 		set_pwdat(session, &pwdat, &rd->pw_ix);
-		if ((session->mschap_version == 1 && session->mschap_response[1] == 0x01) || (session->mschap_version == 2)) {
-		    u_char response[24];
-		    mschapv1_ntresp(session->mschap_challenge, session->user->passwd[rd->pw_ix]->value, response);
-		    if (!memcmp(response, session->mschap_response, 24))
-			res = S_permit;
-		}
+		u_char response[24];
+		mschapv1_ntresp(session->mschap_challenge, session->user->passwd[rd->pw_ix]->value, response);
+		if (!memcmp(response, session->mschap_response, 24))
+		    res = S_permit;
 	    } else
 		hint = hint_no_cleartext;
 	    if (res == S_permit) {
