@@ -264,6 +264,7 @@ void complete_realm(tac_realm *r)
 	RS(mavis_noauthcache, TRISTATE_DUNNO);
 	RS(mavis_pap, TRISTATE_DUNNO);
 	RS(mavis_login, TRISTATE_DUNNO);
+	RS(mavis_mschap, TRISTATE_DUNNO);
 	RS(mavis_pap_prefetch, TRISTATE_DUNNO);
 	RS(mavis_login_prefetch, TRISTATE_DUNNO);
 	RS(script_profile_parent_first, TRISTATE_DUNNO);
@@ -1297,6 +1298,20 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		parse_error_expect(sym, S_backend, S_login, S_unknown);
 	    }
 	    continue;
+	case S_mschap:
+	    sym_get(sym);
+	    switch (sym->code) {
+	    case S_backend:
+		sym_get(sym);
+		parse(sym, S_equal);
+		parse(sym, S_mavis);
+		r->mavis_mschap = TRISTATE_YES;
+		r->mavis_userdb = TRISTATE_YES;
+		break;
+	    default:
+		parse_error_expect(sym, S_backend, S_unknown);
+	    }
+	    continue;
 	case S_login:
 	    sym_get(sym);
 	    parse(sym, S_backend);
@@ -1963,7 +1978,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    parse_error_expect(sym, S_password, S_pap, S_login, S_accounting, S_authentication, S_access, S_authorization, S_warning,
 			       S_connection, S_dns, S_cache, S_log, S_umask, S_retire, S_user, S_group, S_profile, S_acl, S_mavis,
 			       S_enable, S_net, S_parent, S_ruleset, S_time, S_realm, S_trace, S_debug, S_dacl,
-			       S_anonenable,
+			       S_anonenable, S_mschap,
 			       S_key, S_motd, S_welcome, S_reject, S_permit, S_bug, S_augmented_enable, S_singleconnection, S_context,
 			       S_script, S_message, S_session, S_maxrounds, S_host, S_device, S_syslog, S_proctitle, S_coredump, S_alias,
 			       S_script_order, S_skip, S_aaa_protocol_allowed, S_dscp,
@@ -3350,6 +3365,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	case S_permit:
 	case S_bug:
 	case S_pap:
+	case S_mschap:
 	case S_key:
 	case S_radius_key:
 	case S_anonenable:
@@ -3458,10 +3474,11 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	switch (sym->code) {
 	case S_password:
 	    parse_host_pap_password(sym, host);
-	    return;
+	    break;
 	default:
 	    parse_error_expect(sym, S_password, S_unknown);
 	}
+	return;
     case S_address:
 	sym_get(sym);
 	if (sym->code == S_file) {
