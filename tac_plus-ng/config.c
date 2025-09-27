@@ -1222,8 +1222,7 @@ int rad_check_dacl(tac_session *session)
 		if (p[1] != 18)
 		    return 0;
 		found |= 1;
-	    } else if (p[0] == RADIUS_A_VENDOR_SPECIFIC
-		       && p[2] == ((RADIUS_VID_CISCO >> 24) & 0xff)
+	    } else if (p[0] == RADIUS_A_VENDOR_SPECIFIC && p[2] == ((RADIUS_VID_CISCO >> 24) & 0xff)
 		       && p[3] == ((RADIUS_VID_CISCO >> 16) & 0xff)
 		       && p[4] == ((RADIUS_VID_CISCO >> 8) & 0xff)
 		       && p[5] == (RADIUS_VID_CISCO & 0xff)) {
@@ -1305,10 +1304,9 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		sym_get(sym);
 		parse(sym, S_equal);
 		parse(sym, S_mavis);
-		if (sym->code == S_prefetch) {
-		    sym_get(sym);
-		    r->mavis_mschap_prefetch = TRISTATE_YES;
-		}
+		if (sym->code == S_prefetch)
+		    sym_get(sym);	// just skip
+		r->mavis_mschap_prefetch = TRISTATE_YES;	// this is mandatory
 		r->mavis_mschap = TRISTATE_YES;
 		r->mavis_userdb = TRISTATE_YES;
 		break;

@@ -111,6 +111,15 @@ static void mavis_callback(tac_session *session)
     mavis_switch(session, avc, rc);
 }
 
+static void dump_hex_mschap(u_char *data, size_t data_len, char **buf)
+{
+    char hex[16] = "0123456789ABCDEF";
+    for (size_t i = 0; i < data_len; i++) {
+	*(*buf)++ = hex[data[i] >> 4];
+	*(*buf)++ = hex[data[i] & 15];
+    }
+}
+
 void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *const type, enum pw_ix pw_ix)
 {
     tac_realm *r = session->ctx->realm;
@@ -169,9 +178,9 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
     if (session->chap_challenge_len && session->chap_password_len && !strcmp(type, AV_V_TACTYPE_MSCHAP)) {
 	char buf[((session->chap_challenge_len + session->chap_password_len) << 1) + 2];
 	char *b = buf;
-	dump_hex(session->chap_challenge, session->chap_challenge_len, &b);
+	dump_hex_mschap(session->chap_challenge, session->chap_challenge_len, &b);
 	*b++ = ' ';
-	dump_hex(session->chap_password, session->chap_password_len, &b);
+	dump_hex_mschap(session->chap_password, session->chap_password_len, &b);
 	*b = 0;
 	av_set(avc, AV_A_CHALLENGE, buf);
     }
@@ -252,7 +261,7 @@ static void dump_av_pairs(tac_session *session, av_ctx *avc, char *what)
 	    AV_A_IPADDR, AV_A_REALM, AV_A_TACPROFILE, AV_A_SSHKEY, AV_A_SSHKEYHASH, AV_A_SSHKEYID, AV_A_PATH,
 	    AV_A_UID, AV_A_GID, AV_A_HOME, AV_A_ROOT, AV_A_SHELL, AV_A_GIDS, AV_A_PASSWORD_MUSTCHANGE, AV_A_ARGS,
 	    AV_A_RARGS, AV_A_VERDICT, AV_A_IDENTITY_SOURCE, AV_A_CUSTOM_0, AV_A_CUSTOM_1, AV_A_CUSTOM_2, AV_A_CUSTOM_3,
-	    AV_A_CERTSUBJ, AV_A_CERTDATA, AV_A_COMMENT, -1
+	    AV_A_CERTSUBJ, AV_A_CERTDATA, AV_A_COMMENT, AV_A_CHALLENGE, -1
 	};
 	report(session, LOG_DEBUG, ~0, "%s av pairs:", what);
 	for (int i = 0; show[i] > -1; i++)
@@ -336,7 +345,8 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 
 		session->user = u;
 
-		if (strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_INFO) && u->passwd[session->mavis_data->pw_ix])
+		if ((!strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_AUTH) || !strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_CHPW))
+		    && u->passwd[session->mavis_data->pw_ix])
 		    switch (session->mavis_data->pw_ix) {
 		    case PW_PAP:
 			if (u->passwd[session->mavis_data->pw_ix]->type == S_login)
@@ -361,17 +371,15 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 		    RB_insert(r->usertable, u);
 		} else
 		    session->user_is_session_specific = 1;
-
-		if (strcmp(result, AV_V_RESULT_OK)) {
-		    session->mavis_latency = timediff(&session->mavis_data->start);
-		    report(session, LOG_INFO_MAVIS, ~0, "result for user %s is %s [%lu ms]", session->username.txt, result, session->mavis_latency);
-		    return;
-		}
 	    }
 	}
 
 	if (u->dynamic)
 	    u->dynamic = io_now.tv_sec + r->caching_period;
+
+	if (!strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_MSCHAP)) {
+	    session->mavisauth_res = S_permit;
+	}
 
 	session->passwd_mustchange = av_get(avc, AV_A_PASSWORD_MUSTCHANGE) ? 1 : 0;
 	// password changes are supported for ASCII login anc CHPASS only
@@ -426,7 +434,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 		    tac_user *uf = RB_payload(rbn, tac_user *);
 		    if (uf->fallback_only) {
 			report(session, LOG_DEBUG, DEBUG_AUTHEN_FLAG, "Entering emergency mode");
-			session->mavisauth_res = 0;
+			session->mavisauth_res = S_unknown;
 			av_set(avc, AV_A_USER_RESPONSE, NULL);
 		    }
 		}
