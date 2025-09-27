@@ -2198,6 +2198,10 @@ static void do_radius_login(tac_session *session)
 	    rd->type = S_mschap;
 	    rd->pw_ix = PW_MSCHAP;
 	    rd->mschap_version = 2;
+	    u_char *chal = mem_alloc(session->mem, 8);
+	    mschapv2_chal(rd->mschap_response + 2, rd->mschap_challenge, session->username.txt, chal);
+	    rd->mschap_challenge = chal;
+	    rd->mschap_challenge_len = 8;
 	}
     }
 #endif
@@ -2268,12 +2272,8 @@ static void do_radius_login(tac_session *session)
 		set_pwdat(session, &pwdat, &rd->pw_ix);
 		if ((rd->mschap_version == 1 && rd->mschap_response[1] == 0x01) || (rd->mschap_version == 2)) {
 		    u_char response[24];
-		    u_char *peer_challenge = rd->mschap_response + 2;
+		    mschapv1_ntresp(rd->mschap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
 		    u_char *peer_response = rd->mschap_response + 2 + 24;
-		    if (rd->mschap_version == 1)
-			mschapv1_ntresp(rd->mschap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
-		    else
-			mschapv2_ntresp(peer_challenge, rd->mschap_challenge, session->user->name.txt, session->user->passwd[PW_MSCHAP]->value, response);
 		    if (!memcmp(response, peer_response, 24))
 			res = S_permit;
 		}
