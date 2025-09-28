@@ -1376,7 +1376,17 @@ static void do_enable_getuser(tac_session *session)
 #define mschap_response chap_password
 #define mschap_response_len chap_password_len
 
-static void mschap_desencrypt(u_char *in, u_char key[21], u_char out[8])
+#define MSCHAP_TAC_PRE_LEN 1
+#define MSCHAP_RAD_PRE_LEN 2
+#define MSCHAPv1_CHALLENGE_LEN 8
+#define MSCHAPv2_CHALLENGE_LEN 16
+#define MSCHAP_LM_RESPONSE_LEN 24
+#define MSCHAP_NT_RESPONSE_LEN 24
+#define MSCHAP_TAC_RESPONSE_LEN 49
+#define MSCHAP_RAD_RESPONSE_LEN 50
+#define MSCHAP_NT_HASH_LEN 16
+
+static void mschap_desencrypt(u_char *in, u_char key[7], u_char out[8])
 {
     unsigned char key_par[8];
 
@@ -1412,18 +1422,18 @@ static void mschap_desencrypt(u_char *in, u_char key[21], u_char out[8])
     EVP_CIPHER_CTX_free(ctx);
 }
 
-static void mschap_chalresp(u_char chal[8], u_char nt_hash[16], u_char out[24])
+static void mschap_chalresp(u_char chal[MSCHAPv1_CHALLENGE_LEN], u_char nt_hash[MSCHAP_NT_HASH_LEN], u_char out[MSCHAP_NT_RESPONSE_LEN])
 {
     u_char hash_padded[21] = { 0 };
 
-    memcpy(hash_padded, nt_hash, (size_t) 16);
+    memcpy(hash_padded, nt_hash, MSCHAP_NT_HASH_LEN);
 
     mschap_desencrypt(chal, hash_padded, out);
     mschap_desencrypt(chal, hash_padded + 7, out + 8);
     mschap_desencrypt(chal, hash_padded + 14, out + 16);
 }
 
-static void mschap_nthash(char *password, u_char *hash)
+static void mschap_nthash(char *password, u_char nt_hash[MSCHAP_NT_HASH_LEN])
 {
     char *buf = NULL;
     size_t buf_len = 0;
@@ -1439,13 +1449,13 @@ static void mschap_nthash(char *password, u_char *hash)
     myMD4_CTX context;
     MD4Init(&context);
     MD4Update(&context, (u_char *) buf, buf_len);
-    MD4Final(hash, &context);
+    MD4Final(nt_hash, &context);
     free(buf);
 }
 
-static void mschapv1_ntresp(u_char chal[8], char *password, u_char resp[24])
+static void mschapv1_ntresp(u_char chal[MSCHAPv1_CHALLENGE_LEN], char *password, u_char resp[MSCHAP_NT_RESPONSE_LEN])
 {
-    u_char nt_hash[16];
+    u_char nt_hash[MSCHAP_NT_HASH_LEN];
 
     mschap_nthash(password, nt_hash);
     mschap_chalresp(chal, nt_hash, resp);
@@ -1480,9 +1490,9 @@ static void do_mschap(tac_session *session)
 	if (session->mavisauth_res != S_unknown)
 	    res = session->mavisauth_res;
 	else if (session->user->passwd[PW_MSCHAP]->type == S_clear) {
-	    u_char response[24];
+	    u_char response[MSCHAP_NT_RESPONSE_LEN];
 	    mschapv1_ntresp(session->mschap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
-	    if (!memcmp(response, session->mschap_response, 24))
+	    if (!memcmp(response, session->mschap_response, MSCHAP_NT_RESPONSE_LEN))
 		res = S_permit;
 	} else {
 	    hint = hint_no_cleartext;
@@ -1505,19 +1515,14 @@ static void do_mschap(tac_session *session)
     send_authen_reply(session, TAC_SYM_TO_CODE(res), NULL, 0, NULL, 0, 0);
 }
 
-#define MSCHAP_PPPID_LEN 1
-#define MSCHAPv1_CHALLENGE_LEN 8
-#define MSCHAPv2_CHALLENGE_LEN 16
-#define MSCHAP_RESPONSE_LEN 49
-
 static void do_mschapv1(tac_session *session)
 {
-    if (session->authen_data->data_len == MSCHAP_PPPID_LEN + MSCHAPv1_CHALLENGE_LEN + MSCHAP_RESPONSE_LEN) {
+    if (session->authen_data->data_len == MSCHAP_TAC_PRE_LEN + MSCHAPv1_CHALLENGE_LEN + MSCHAP_TAC_RESPONSE_LEN) {
 	session->mschap_version = 1;
-	session->mschap_challenge = session->authen_data->data + 1;
+	session->mschap_challenge = session->authen_data->data + MSCHAP_TAC_PRE_LEN;
 	session->mschap_challenge_len = MSCHAPv1_CHALLENGE_LEN;
-	session->mschap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_RESPONSE_LEN + 24;
-	session->mschap_response_len = 24;
+	session->mschap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_TAC_RESPONSE_LEN + MSCHAP_LM_RESPONSE_LEN;
+	session->mschap_response_len = MSCHAP_NT_RESPONSE_LEN;
 	do_mschap(session);
 	return;
     }
@@ -1525,43 +1530,43 @@ static void do_mschapv1(tac_session *session)
     send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 }
 
-static void mschapv2_chal(u_char peer_challenge[16], u_char auth_challenge[16], char *username, u_char out[MSCHAPv1_CHALLENGE_LEN])
+static void mschapv2_chal(u_char peer_challenge[MSCHAPv2_CHALLENGE_LEN], u_char auth_challenge[MSCHAPv2_CHALLENGE_LEN], char *username, u_char out[MSCHAPv1_CHALLENGE_LEN])
 {
     uint8_t digest[SHA_DIGEST_LENGTH];
 #if OPENSSL_VERSION_NUMBER < 0x30000000
     SHA_CTX ctx;
     SHA1_Init(&ctx);
-    SHA1_Update(&ctx, peer_challenge, 16);
-    SHA1_Update(&ctx, auth_challenge, 16);
+    SHA1_Update(&ctx, peer_challenge, MSCHAPv2_CHALLENGE_LEN);
+    SHA1_Update(&ctx, auth_challenge, MSCHAPv2_CHALLENGE_LEN);
     SHA1_Update(&ctx, username, strlen(username));
     SHA1_Final(digest, &ctx);
 #else
     unsigned int digest_len = 0;
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
     EVP_DigestInit_ex(ctx, EVP_sha1(), NULL);
-    EVP_DigestUpdate(ctx, peer_challenge, 16);
-    EVP_DigestUpdate(ctx, auth_challenge, 16);
+    EVP_DigestUpdate(ctx, peer_challenge, MSCHAPv2_CHALLENGE_LEN);
+    EVP_DigestUpdate(ctx, auth_challenge, MSCHAPv2_CHALLENGE_LEN);
     EVP_DigestUpdate(ctx, username, strlen(username));
     EVP_DigestFinal_ex(ctx, digest, &digest_len);
     EVP_MD_CTX_free(ctx);
 #endif
-    memcpy(out, digest, 8);
+    memcpy(out, digest, MSCHAPv1_CHALLENGE_LEN);
 }
 
 static void do_mschapv2(tac_session *session)
 {
-    if (session->authen_data->data_len == MSCHAP_PPPID_LEN + MSCHAPv2_CHALLENGE_LEN + MSCHAP_RESPONSE_LEN) {
+    if (session->authen_data->data_len == MSCHAP_TAC_PRE_LEN + MSCHAPv2_CHALLENGE_LEN + MSCHAP_TAC_RESPONSE_LEN) {
 	session->mschap_version = 2;
 	session->mschap_challenge = session->authen_data->data + 1;
 	session->mschap_challenge_len = MSCHAPv2_CHALLENGE_LEN;
-	session->mschap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_RESPONSE_LEN;
-	session->mschap_response_len = MSCHAP_RESPONSE_LEN;
+	session->mschap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_TAC_RESPONSE_LEN;
+	session->mschap_response_len = MSCHAP_TAC_RESPONSE_LEN;
 	u_char *chal = mem_alloc(session->mem, MSCHAPv1_CHALLENGE_LEN);
 	mschapv2_chal(session->mschap_response, session->mschap_challenge, session->username.txt, chal);
 	session->mschap_challenge = chal;
 	session->mschap_challenge_len = MSCHAPv1_CHALLENGE_LEN;
-	session->mschap_response += 24;
-	session->mschap_response_len = 24;
+	session->mschap_response += MSCHAP_NT_RESPONSE_LEN;
+	session->mschap_response_len = MSCHAP_NT_RESPONSE_LEN;
 	do_mschap(session);
 	return;
     }
@@ -2175,30 +2180,30 @@ static void do_radius_login(tac_session *session)
     if (rd->type == S_unknown) {
 	if (!rad_get
 	    (rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &session->mschap_challenge, &session->mschap_challenge_len)
-	    && (session->mschap_challenge_len == 8)
+	    && (session->mschap_challenge_len == MSCHAPv1_CHALLENGE_LEN)
 	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_RESPONSE, S_octets, &session->mschap_response,
-			&session->mschap_response_len) && (session->mschap_response_len == 50)) {
+			&session->mschap_response_len) && (session->mschap_response_len == MSCHAP_RAD_RESPONSE_LEN)) {
 	    rd->type = S_mschap;
 	    rd->pw_ix = PW_MSCHAP;
 	    session->mschap_version = 1;
-	    session->mschap_response += 26;
-	    session->mschap_response_len -= 26;
+	    session->mschap_response += MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
+	    session->mschap_response_len -= MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
 	}
     }
 
     if (rd->type == S_unknown) {
 	if (!rad_get
 	    (rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &session->mschap_challenge, &session->mschap_challenge_len)
-	    && (session->mschap_challenge_len == 16)
+	    && (session->mschap_challenge_len == MSCHAPv2_CHALLENGE_LEN)
 	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP2_RESPONSE, S_octets, &session->mschap_response,
-			&session->mschap_response_len) && (session->mschap_response_len == 50)) {
+			&session->mschap_response_len) && (session->mschap_response_len == MSCHAP_RAD_RESPONSE_LEN)) {
 	    rd->type = S_mschap;
 	    rd->pw_ix = PW_MSCHAP;
-	    mschapv2_chal(session->mschap_response + 2, session->mschap_challenge, session->username.txt, session->mschap_challenge);
-	    session->mschap_challenge_len = 16;
+	    mschapv2_chal(session->mschap_response + MSCHAP_RAD_PRE_LEN, session->mschap_challenge, session->username.txt, session->mschap_challenge);
+	    session->mschap_challenge_len = MSCHAPv2_CHALLENGE_LEN;
 	    session->mschap_version = 2;
-	    session->mschap_response += 26;
-	    session->mschap_response_len -= 26;
+	    session->mschap_response += MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
+	    session->mschap_response_len -= MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
 	}
     }
 #endif
@@ -2283,9 +2288,9 @@ static void do_radius_login(tac_session *session)
 	    else if ((session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_clear)) {
 		struct pwdat *pwdat = NULL;
 		set_pwdat(session, &pwdat, &rd->pw_ix);
-		u_char response[24];
+		u_char response[MSCHAP_NT_RESPONSE_LEN];
 		mschapv1_ntresp(session->mschap_challenge, session->user->passwd[rd->pw_ix]->value, response);
-		if (!memcmp(response, session->mschap_response, 24))
+		if (!memcmp(response, session->mschap_response, MSCHAP_NT_RESPONSE_LEN))
 		    res = S_permit;
 	    } else
 		hint = hint_no_cleartext;
