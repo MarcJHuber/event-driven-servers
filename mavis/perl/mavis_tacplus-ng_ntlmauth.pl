@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # $Id$
 #
-# mavis_tacplus_ntmlauth.pl
+# mavis_tacplus_ntlmauth.pl
 # (C)2025 Marc Huber <Marc.Huber@web.de>
 # All rights reserved.
 #
@@ -38,35 +38,34 @@ NT_DOMAIN
 use lib '/usr/local/lib/mavis/';
 
 use strict;
-use POSIX qw(pipe dup2);
+use IPC::Open3;
 use Mavis;
 
 $| = 1;
 
-my $NTLM_AUTH = "/usr/bin/ntml_auth";
+my $NTLM_AUTH = "/usr/bin/ntlm_auth";
 my $NT_DOMAIN = "EXAMPLE";
 
 $NTLM_AUTH		= $ENV{'NTLM_AUTH'} if exists $ENV{'NTLM_AUTH'};
 $NT_DOMAIN		= $ENV{'NT_DOMAIN'} if exists $ENV{'NT_DOMAIN'};
 
 sub run_ntlmauth($) {
-	my ($parent0, $child1) = POSIX::pipe();
-	my ($child0, $parent1) = POSIX::pipe();
-	my $childpid = fork();
-	if ($childpid eq 0) {
-		POSIX::close $parent0;
-		POSIX::close $parent1;
-		POSIX::dup2($child0, 0);
-		POSIX::dup2($child1, 1);
-		exec $NTLM_AUTH, "--helper-protocol=ntlm-server-1", "--allow-mschapv2";
+	my $pid = open3(my $chld_in, my $chld_out, undef,
+		$NTLM_AUTH, '--helper-protocol=ntlm-server-1', '--allow-mschapv2');
+
+	print $chld_in $_[0];
+	close $chld_in;
+
+	my $res = 1;
+	local $/ = "\n";
+	while (<$chld_out>) {
+		chomp;
+		$res = 0 if /^Authenticated: Yes$/;
+		print STDERR $_ . "\n" if /^Authentication-Error:/
 	}
-	POSIX::close $child0;
-	POSIX::close $child1;
-	POSIX::write($parent1, $_[0], length($_[0])) or printf STDERR "POSIX::write: $!";
-	POSIX::close $parent0;
-	POSIX::close $parent1;
-	waitpid($childpid, 0);
-	$?;
+	close $chld_out;
+	waitpid($pid, 0);
+	$res;
 }
 
 my ($in);
