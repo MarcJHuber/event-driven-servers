@@ -943,8 +943,14 @@ static void rad_set_fields(tac_session *session)
 	 &session->nac_addr_ascii.len))
 	session->nac_addr_valid = v6_ptoh(&session->nac_address, NULL, session->nac_addr_ascii.txt) ? 0 : 1;
 
-    if (rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_NAS_PORT_ID, S_string_keyword, &session->port.txt, &session->port.len))
-	rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_NAS_PORT, S_string_keyword, &session->port.txt, &session->port.len);
+    if (rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_NAS_PORT_ID, S_string_keyword, &session->port.txt, &session->port.len)) {
+	u_int port_id = 0;
+	if (!rad_get(session->radius_data->pak_in, session->mem, -1, RADIUS_A_NAS_PORT, S_integer, &port_id, NULL)) {
+	    char port[80];
+	    snprintf(port, sizeof(port), "%u", port_id);
+	    str_set(&session->port, mem_strdup(session->mem, port), 0);
+	}
+    }
 
     int service_type;
     size_t service_type_len = sizeof(service_type);
