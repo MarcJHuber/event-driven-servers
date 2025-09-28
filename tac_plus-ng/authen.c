@@ -1557,7 +1557,7 @@ static void do_mschapv2(tac_session *session)
 {
     if (session->authen_data->data_len == MSCHAP_TAC_PRE_LEN + MSCHAPv2_CHALLENGE_LEN + MSCHAP_TAC_RESPONSE_LEN) {
 	session->mschap_version = 2;
-	session->mschap_challenge = session->authen_data->data + 1;
+	session->mschap_challenge = session->authen_data->data + MSCHAP_TAC_PRE_LEN;
 	session->mschap_challenge_len = MSCHAPv2_CHALLENGE_LEN;
 	session->mschap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_TAC_RESPONSE_LEN;
 	session->mschap_response_len = MSCHAP_TAC_RESPONSE_LEN;
