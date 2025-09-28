@@ -1254,7 +1254,7 @@ enable user acl = custom_enable_acl
        users (with password = mavis or simlar) only.
      * pap backend = mavis [ prefetch ]
        Verify PAP passwords using the MAVIS back-end. This needs
-       to be set to either mavis or prefetch in order to
+       to be set to either mavis or mavis prefetch in order to
        authenticate PAP requests using the MAVIS back-end. If
        unset, the PAP password from the users' profile will be
        used.
@@ -1265,7 +1265,7 @@ enable user acl = custom_enable_acl
      * login backend = mavis [ prefetch ] [ chalresp [ noecho ] ]
        [ chpass ]
        Verify Login passwords using the MAVIS back-end. This needs
-       to be set to either mavis or prefetch in order to
+       to be set to either mavis or mavis prefetch in order to
        authenticate login requests using the MAVIS back-end. If
        unset, the login password from the users' profile will be
        used.
@@ -1281,6 +1281,17 @@ login backend = mavis chalresp noecho
        user provides an empty password at login, the user is given
        the option to change his password. This requires
        appropriate support in the MAVIS back-end modules.
+     * ms-chap backend = mavis [ prefetch ]
+       Verify MSCHAP passwords using the MAVIS back-end. This
+       needs to be set to either mavis or mavis prefetch in order
+       to authenticate MSCHAP requests using the MAVIS back-end.
+       If unset, the MSCHAP password from the users' profile will
+       be used.
+       prefetch is actually enabled automatically. The daemon will
+       first retrieve the users' profile from the back-end and
+       then authenticate the user based on information eventually
+       found there.
+       This directive implies user backend = mavis.
      * mavis module module { ... }
        Load MAVIS module module. See the MAVIS documentation for
        configuration guidance.
@@ -1308,11 +1319,11 @@ mavis format custom_0 = "${server.address} ${server.port}"
 
 4.7.3. TLS and DTLS
 
-   TACACS+ over TLS1.3 is supported, as are RADIUS over both TLS
-   and DTLS. These features require OpenSSL version 3.
+   TACACS+ over TLS1.3 is supported, as is RADIUS over both TLS
+   and DTLS. Availability of toese features may depend on your
+   OpenSSL version.
 
-   The following configuration options are available if and only
-   if the software was compiled with OpenSSL 3.x support:
+   The following configuration options are availablet:
 
      * tls cert-file = cert-file
        Specifies the public part of a TLS server certificate in
@@ -1358,11 +1369,12 @@ mavis format custom_0 = "${server.address} ${server.port}"
    Keys and SNIs are supported:
 
      * tls psk = ( yes | no )
-       This enables PSK support at realm level. Please note that
-       PSK and cert-based authentication are mutually exclusive in
-       OpenSSL, and a dedicated listener configuration with tls
-       psk = yes in spawnd context might be required. Exception:
-       For TLS1.3, tac_plus-ngwill permit for PSK and certificate
+       This enables PSK support at realm level, if supported by
+       your OpenSSL version. Please note that PSK and cert-based
+       authentication are mutually exclusive in OpenSSL, and a
+       dedicated listener configuration with tls psk = yes in
+       spawnd context might be required. Exception: For TLS1.3,
+       tac_plus-ngwill permit for PSK and certificate
        authentication on the same port by evaluating the initial
        ClientHello message.
        PSK identity and key can be declared at device or realm
