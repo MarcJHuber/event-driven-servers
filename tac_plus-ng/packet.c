@@ -387,6 +387,14 @@ void rad_send_acct_reply(tac_session *session)
 
 void rad_send_error(tac_session *session, uint32_t cause)
 {
+    if (session->message.len && (session->radius_data->data_len + 2 + session->message.len < sizeof(session->radius_data->data))
+	&& (session->message.len + 2 < 256)) {
+	u_char *data = session->radius_data->data;
+	*data++ = RADIUS_A_REPLY_MESSAGE;
+	*data++ = (u_char) session->message.len + 2;
+	memcpy(data, session->message.txt, session->message.len);
+	session->radius_data->data_len += 2 + session->message.len;
+    }
     if ((session->radius_data->data_len + 6 < sizeof(session->radius_data->data))) {
 	u_char *data = session->radius_data->data;
 	*data++ = RADIUS_A_ERROR_CAUSE;
