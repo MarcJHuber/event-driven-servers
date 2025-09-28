@@ -58,7 +58,7 @@ sub run_ntlmauth($) {
 		POSIX::close $parent1;
 		POSIX::dup2($child0, 0);
 		POSIX::dup2($child1, 1);
-		exec $NTLM_AUTH, "---helper-protocol=ntlm-server-1", "--allow-mschapv2";
+		exec $NTLM_AUTH, "--helper-protocol=ntlm-server-1", "--allow-mschapv2";
 	}
 	POSIX::close $child0;
 	POSIX::close $child1;
@@ -96,7 +96,7 @@ while ($in = <>) {
 		$V[AV_A_USER_RESPONSE] = "Challenge/Response not set.";
 		goto fatal;
 	}
-	if (uc $V[AV_A_CHALLENGE] !~ /^[0-9a-fA-F]{16} [0-9a-fA-F]{48}$/) {
+	if (uc $V[AV_A_CHALLENGE] !~ /^([0-9a-fA-F]{16}) ([0-9a-fA-F]{48})$/) {
 		$V[AV_A_USER_RESPONSE] = "Challenge/Response invalid.";
 		goto fatal;
 	}
@@ -104,7 +104,8 @@ while ($in = <>) {
 		"Username: " . $V[AV_A_USER] . "\n" .
 		"NT-Domain: " . $NT_DOMAIN . "\n" .
 		"LANMAN-Challenge: " . $1 . "\n" .
-		"NT-Response: " . $2 . "\n"
+		"NT-Response: " . $2 . "\n" .
+		".\n"
 	   )) {
 		$V[AV_A_RESULT] = AV_V_RESULT_FAIL;
 	} else {
