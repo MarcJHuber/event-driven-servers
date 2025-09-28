@@ -49,7 +49,7 @@ my $NT_DOMAIN = "EXAMPLE";
 $NTLM_AUTH		= $ENV{'NTLM_AUTH'} if exists $ENV{'NTLM_AUTH'};
 $NT_DOMAIN		= $ENV{'NT_DOMAIN'} if exists $ENV{'NT_DOMAIN'};
 
-sub run_ntlmauth($) {
+sub run_ntlmauth($$) {
 	my $pid = open3(my $chld_in, my $chld_out, undef,
 		$NTLM_AUTH, '--helper-protocol=ntlm-server-1', '--allow-mschapv2');
 
@@ -59,9 +59,12 @@ sub run_ntlmauth($) {
 	my $res = 1;
 	local $/ = "\n";
 	while (<$chld_out>) {
-		chomp;
-		$res = 0 if /^Authenticated: Yes$/;
-		print STDERR $_ . "\n" if /^Authentication-Error:/
+		if (/^Authentication-Error:\s(.*)$/) {
+			print STDERR $_;
+			$_[1] = $_;
+		} else {
+			$res = 0 if /^Authenticated: Yes\n$/;
+		}
 	}
 	close $chld_out;
 	waitpid($pid, 0);
@@ -99,14 +102,16 @@ while ($in = <>) {
 		$V[AV_A_USER_RESPONSE] = "Challenge/Response invalid.";
 		goto fatal;
 	}
+	my $err = undef;
 	if (run_ntlmauth(
 		"Username: " . $V[AV_A_USER] . "\n" .
 		"NT-Domain: " . $NT_DOMAIN . "\n" .
 		"LANMAN-Challenge: " . $1 . "\n" .
 		"NT-Response: " . $2 . "\n" .
-		".\n"
+		".\n", $err
 	   )) {
 		$V[AV_A_RESULT] = AV_V_RESULT_FAIL;
+		$V[AV_A_USER_RESPONSE] = $err if $err;
 	} else {
 		$V[AV_A_RESULT] = AV_V_RESULT_OK;
 	}
