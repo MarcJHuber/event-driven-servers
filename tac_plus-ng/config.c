@@ -2042,7 +2042,7 @@ static void free_dacl(struct rad_dacl *dacl)
 static struct pwdat passwd_deny = {.type = S_deny };
 static struct pwdat passwd_mavis = {.type = S_mavis };
 static struct pwdat passwd_login = {.type = S_login };
-static struct pwdat passwd_deny_dflt = {.type = S_deny };
+struct pwdat passwd_deny_dflt = {.type = S_deny };
 static struct pwdat passwd_mavis_dflt = {.type = S_mavis };
 static struct pwdat passwd_login_dflt = {.type = S_login };
 static struct pwdat passwd_permit = {.type = S_permit };
