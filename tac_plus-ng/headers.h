@@ -472,7 +472,6 @@ typedef struct tac_session tac_session;
 
 struct radius_data {
     enum token type;
-    enum pw_ix pw_ix;
     str_t device_dns_name;
     str_t device_addr_ascii;
     struct in6_addr device_addr;

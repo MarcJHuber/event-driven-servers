@@ -227,12 +227,14 @@ static int password_requirements_failed(tac_session *session, char *what)
     return 0;
 }
 
-static int user_invalid(tac_user *user, enum hint_enum *hint)
+static enum token user_expiry_check(enum token *res, tac_user *user, enum hint_enum *hint)
 {
-    int res = (user->valid_from && user->valid_from > io_now.tv_sec) || (user->valid_until && user->valid_until <= io_now.tv_sec);
-    if (res && hint)
-	*hint = hint_expired;
-    return res ? S_deny : S_permit;
+    if ((user->valid_from && user->valid_from > io_now.tv_sec) || (user->valid_until && user->valid_until <= io_now.tv_sec)) {
+	if (hint)
+	    *hint = hint_expired;
+	*res = S_deny;
+    }
+    return *res;
 }
 
 #ifdef WITH_SSL
@@ -605,49 +607,92 @@ int query_mavis_dacl(tac_session *session, void (*f)(tac_session *))
 
 static enum token check_access(tac_session * session, struct pwdat *pwdat, char *passwd, enum hint_enum *hint, char **resp);
 
+static int refuse_tac_session(tac_session *session, char *info, enum pw_ix pw_ix)
+{
+    if (session->user && session->user->passwd[pw_ix]->type == S_error) {
+	report_auth(session, info, hint_error, S_deny);
+	send_authen_error(session, "Handling refused.");
+	return -1;
+    }
+    return 0;
+}
+
+static int refuse_rad_session(tac_session *session, char *info, enum pw_ix pw_ix)
+{
+    if (session->user && session->user->passwd[pw_ix]->type == S_error) {
+	report_auth(session, info, hint_error, S_deny);
+	rad_send_error(session, RADIUS_V_ERROR_CAUSE_ADMINISTRATIVELY_PROHIBITED);
+	return -1;
+    }
+    return 0;
+}
+
+static int set_tac_user(tac_session *session, char *info)
+{
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, info, hint_denied_by_acl, S_deny);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+	return -1;
+    }
+    return 0;
+}
+
+static int set_rad_user(tac_session *session, char *info)
+{
+    if (S_deny == lookup_and_set_user(session)) {
+	report_auth(session, info, hint_denied_by_acl, S_deny);
+	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
+	return -1;
+    }
+    return 0;
+}
+
 static void do_chap(tac_session *session)
 {
+    char *info = "chap login";
     enum token res = S_deny;
 
-    if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, "chap login", hint_denied_by_acl, S_deny);
-	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+    if (set_tac_user(session, info))
 	return;
-    }
 
     if (query_mavis_info(session, do_chap, PW_CHAP))
 	return;
 
+    if (refuse_tac_session(session, info, PW_CHAP))
+	return;
+
     enum hint_enum hint = hint_nosuchuser;
-    if (session->user) {
-	res = user_invalid(session->user, &hint);
-	if (res == S_permit) {
+
+    char *resp = NULL;
+    if (session->authen_data->data_len - MD5_LEN > 0) {
+	session->chap_password = session->authen_data->data;
+	session->chap_challenge = session->authen_data->data + 1;
+	session->chap_challenge_len = session->authen_data->data_len - 1 - MD5_LEN;
+	if (session->user) {
 	    if (session->user->passwd[PW_CHAP]->type != S_clear) {
 		hint = hint_no_cleartext;
-	    } else if (session->authen_data->data_len - MD5_LEN > 0) {
-		u_char digest[MD5_LEN];
+	    } else {
 		struct iovec iov[3] = {
-		    {.iov_base = session->authen_data->data,.iov_len = 1 },
+		    {.iov_base = session->chap_password,.iov_len = 1 },
 		    {.iov_base = session->user->passwd[PW_CHAP]->value,.iov_len = strlen(session->user->passwd[PW_CHAP]->value) },
-		    {.iov_base = session->authen_data->data + 1,.iov_len = session->authen_data->data_len - 1 - MD5_LEN },
+		    {.iov_base = session->chap_challenge, session->chap_challenge_len },
 		};
+		u_char digest[MD5_LEN];
 		md5v(digest, MD5_LEN, iov, 3);
-
-		if (memcmp(digest, session->authen_data->data + session->authen_data->data_len - MD5_LEN, (size_t) MD5_LEN)) {
-		    res = S_deny;
+		if (memcmp(digest, session->chap_password + 1, (size_t) MD5_LEN)) {
 		    hint = hint_failed;
 		} else {
-		    char *resp = NULL;
 		    session->mavisauth_res = S_permit;
 		    res = check_access(session, NULL, session->user->passwd[PW_CHAP]->value, &hint, &resp);
+		    user_expiry_check(&res, session->user, &hint);
 		}
 	    }
 	}
     }
 
-    report_auth(session, "chap login", hint, res);
+    report_auth(session, info, hint, res);
 
-    send_authen_reply(session, TAC_SYM_TO_CODE(res), NULL, 0, NULL, 0, 0);
+    send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
 }
 
 static enum token check_access(tac_session *session, struct pwdat *pwdat, char *passwd, enum hint_enum *hint, char **resp)
@@ -686,10 +731,9 @@ static enum token check_access(tac_session *session, struct pwdat *pwdat, char *
 	}
 
 	session->password_bad = NULL;
-	if (res == S_permit)
-	    res = user_invalid(session->user, hint);
+	user_expiry_check(&res, session->user, hint);
 
-	if (res != S_permit) {
+	if (resp && res != S_permit) {
 	    if (session->ctx->host->reject_banner)
 		*resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
 	    session->password_bad = session->password;
@@ -697,7 +741,7 @@ static enum token check_access(tac_session *session, struct pwdat *pwdat, char *
 	}
     }
 
-    if (!*resp)
+    if (resp && !*resp)
 	*resp = session->user_msg.txt;
 
     return res;
@@ -770,6 +814,7 @@ static char *set_motd_banner(tac_session *session)
 
 static void do_chpass(tac_session *session)
 {
+    char *info = "password change";
     enum hint_enum hint = hint_nosuchuser;
 
     if (!session->username.txt[0] && session->authen_data->msg) {
@@ -787,7 +832,7 @@ static void do_chpass(tac_session *session)
     if (!session->password && session->authen_data->msg) {
 	session->password = session->authen_data->msg;
 	session->authen_data->msg = NULL;
-	if (password_requirements_failed(session, "password change"))
+	if (password_requirements_failed(session, info))
 	    return;
     }
     if (!session->password) {
@@ -805,7 +850,7 @@ static void do_chpass(tac_session *session)
     if (!session->password_new && session->authen_data->msg) {
 	session->password_new = session->authen_data->msg;
 	session->authen_data->msg = NULL;
-	if (password_requirements_failed(session, "password change"))
+	if (password_requirements_failed(session, info))
 	    return;
     }
 
@@ -832,12 +877,8 @@ static void do_chpass(tac_session *session)
 	return;
     }
 
-    enum token res = lookup_and_set_user(session);
-    if (res == S_deny) {
-	report_auth(session, "password change", hint_denied_by_acl, S_deny);
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+    if (set_tac_user(session, info))
 	return;
-    }
 
     if (query_mavis_info_login(session, do_chpass))
 	return;
@@ -845,6 +886,9 @@ static void do_chpass(tac_session *session)
     enum pw_ix pw_ix = PW_LOGIN;
     struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
+
+    if (refuse_tac_session(session, info, pw_ix))
+	return;
 
     if (!session->flag_mavis_auth
 	&& (((session->ctx->realm->mavis_login_prefetch != TRISTATE_YES) && !session->user) || (session->user && pw_ix == PW_MAVIS))) {
@@ -854,7 +898,7 @@ static void do_chpass(tac_session *session)
     }
 
     char *resp = NULL;
-    res = check_access(session, pwdat, session->password_new, &hint, &resp);
+    enum token res = check_access(session, pwdat, session->password_new, &hint, &resp);
 
     if (res == S_permit) {
 	session->passwd_mustchange = 0;
@@ -865,7 +909,7 @@ static void do_chpass(tac_session *session)
 	resp = set_motd_banner(session);
     }
 
-    report_auth(session, "password change", hint, res);
+    report_auth(session, info, hint, res);
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
 }
@@ -907,35 +951,30 @@ static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*
 /* enable with login password */
 static void do_enable_login(tac_session *session)
 {
+    char info[40];
+    snprintf(info, sizeof(info), "enable %d", session->priv_lvl);
+
     enum hint_enum hint = hint_nosuchuser;
     char *resp = eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL);
 
-    enum token res = lookup_and_set_user(session);
-    if (res == S_deny) {
-	report_auth(session, "enable login", hint_denied_by_acl, res);
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+    if (set_tac_user(session, info))
 	return;
-    }
-
-    if (session->user && session->user->passwd[PW_LOGIN] && session->user->passwd[PW_LOGIN]->type == S_error) {
-	send_authen_error(session, "Handling refused.");
-	return;
-    }
 
     if (query_mavis_info_login(session, do_enable_login))
 	return;
 
-    char buf[40];
-    snprintf(buf, sizeof(buf), "enable %d", session->priv_lvl);
 
     enum pw_ix pw_ix = PW_LOGIN;
     struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
+    if (refuse_tac_session(session, info, pw_ix))
+	return;
+
     if (session->authen_data->msg) {
 	session->password = session->authen_data->msg;
 	session->authen_data->msg = NULL;
-	if (password_requirements_failed(session, buf))
+	if (password_requirements_failed(session, info))
 	    return;
     }
 
@@ -945,17 +984,12 @@ static void do_enable_login(tac_session *session)
 	return;
     }
 
-    pw_ix = PW_LOGIN;
-    set_pwdat(session, &pwdat, &pw_ix);
-
     if (query_mavis_auth_login(session, do_enable_login, pw_ix))
 	return;
 
-    set_pwdat(session, &pwdat, &pw_ix);
+    enum token res = check_access(session, pwdat, session->password, &hint, &resp);
 
-    res = check_access(session, pwdat, session->password, &hint, &resp);
-
-    report_auth(session, buf, hint, res);
+    report_auth(session, info, hint, res);
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), (res == S_permit) ? NULL : resp, 0, NULL, 0, 0);
 }
@@ -964,21 +998,14 @@ static void do_enable_getuser(tac_session *);
 
 static void do_enable_augmented(tac_session *session)
 {
+    char *info = "enable login";
+    enum token res = S_deny;
     enum hint_enum hint = hint_denied;
     char *u;
     char *resp = eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL);
 
-    enum token res = lookup_and_set_user(session);
-    if (res == S_deny) {
-	report_auth(session, "enable login", hint_denied_by_acl, res);
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+    if (set_tac_user(session, info))
 	return;
-    }
-
-    if (session->user && session->user->passwd[PW_LOGIN] && session->user->passwd[PW_LOGIN]->type == S_error) {
-	send_authen_error(session, "Handling refused.");
-	return;
-    }
 
     if (query_mavis_info_login(session, do_enable_augmented))
 	return;
@@ -997,14 +1024,10 @@ static void do_enable_augmented(tac_session *session)
 	    *u++ = 0;
 	    session->password = u;
 	    session->authen_data->msg = NULL;
-	    if (password_requirements_failed(session, "enable login"))
+	    if (password_requirements_failed(session, info))
 		return;
-	    res = lookup_and_set_user(session);
-	    if (res == S_deny) {
-		report_auth(session, "enable login", hint_denied_by_acl, res);
-		send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+	    if (set_tac_user(session, info))
 		return;
-	    }
 	}
     }
 
@@ -1012,11 +1035,12 @@ static void do_enable_augmented(tac_session *session)
     struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
+    if (refuse_tac_session(session, info, pw_ix))
+	return;
+
     if (session->username.txt[0]) {
 	if (query_mavis_auth_login(session, do_enable_augmented, pw_ix))
 	    return;
-
-	set_pwdat(session, &pwdat, &pw_ix);
 
 	cfg_get_enable(session, &session->enable);
 
@@ -1026,13 +1050,15 @@ static void do_enable_augmented(tac_session *session)
 	}
     }
 
-    report_auth(session, "enable login", hint, res);
+    report_auth(session, info, hint, res);
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), (res == S_permit) ? NULL : resp, 0, NULL, 0, 0);
 }
 
 static void do_enable(tac_session *session)
 {
+    char info[40];
+    snprintf(info, sizeof(info), "enable %d", session->priv_lvl);
     enum token res = S_deny;
     enum hint_enum hint = hint_denied;
 
@@ -1053,22 +1079,18 @@ static void do_enable(tac_session *session)
 	return;
     }
 
-    char buf[40];
-    if (S_deny == lookup_and_set_user(session)) {
-	snprintf(buf, sizeof(buf), "enable %d", session->priv_lvl);
-	report_auth(session, buf, hint_denied_by_acl, res);
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+    if (set_tac_user(session, info))
 	return;
-    }
 
-    if (session->user && session->user->passwd[PW_LOGIN] && session->user->passwd[PW_LOGIN]->type == S_error) {
-	send_authen_error(session, "Handling refused.");
+    enum pw_ix pw_ix = PW_LOGIN;
+    struct pwdat *pwdat = NULL;
+    set_pwdat(session, &pwdat, &pw_ix);
+
+    if (refuse_tac_session(session, info, pw_ix))
 	return;
-    }
 
     if (query_mavis_info(session, do_enable, PW_LOGIN))
 	return;
-
 
     if (!session->enable)
 	cfg_get_enable(session, &session->enable);
@@ -1093,9 +1115,7 @@ static void do_enable(tac_session *session)
 	    res = compare_pwdat(session->enable, session->username.txt, session->authen_data->msg, &hint);
     }
 
-    snprintf(buf, sizeof(buf), "enable %d", session->priv_lvl);
-
-    report_auth(session, buf, hint, res);
+    report_auth(session, info, hint, res);
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res),
 		      (res == S_permit) ? NULL : eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL), 0, NULL, 0, 0);
@@ -1103,6 +1123,7 @@ static void do_enable(tac_session *session)
 
 static void do_ascii_login(tac_session *session)
 {
+    char *info = "shell login";
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL, *m;
     enum token res = S_deny;
@@ -1121,16 +1142,8 @@ static void do_ascii_login(tac_session *session)
 	return;
     }
 
-    if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, "shell login", hint_denied_by_acl, res);
-	send_authen_reply(session, res, NULL, 0, NULL, 0, 0);
+    if (set_tac_user(session, info))
 	return;
-    }
-
-    if (session->user && session->user->passwd[PW_LOGIN] && session->user->passwd[PW_LOGIN]->type == S_error) {
-	send_authen_error(session, "Handling refused.");
-	return;
-    }
 
     if (query_mavis_info_login(session, do_ascii_login))
 	return;
@@ -1139,11 +1152,14 @@ static void do_ascii_login(tac_session *session)
     struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
+    if (refuse_tac_session(session, info, pw_ix))
+	return;
+
     if (!pwdat || (pwdat->type != S_permit)) {
 	if (session->authen_data->msg) {
 	    session->password = session->authen_data->msg;
 	    session->authen_data->msg = NULL;
-	    if (password_requirements_failed(session, "shell login"))
+	    if (password_requirements_failed(session, info))
 		return;
 	}
 
@@ -1164,13 +1180,8 @@ static void do_ascii_login(tac_session *session)
 	}
     }
 
-    pw_ix = PW_LOGIN;
-    set_pwdat(session, &pwdat, &pw_ix);
-
     if (query_mavis_auth_login(session, do_ascii_login, pw_ix))
 	return;
-
-    set_pwdat(session, &pwdat, &pw_ix);
 
     if (session->user && session->password && session->password_bad && !strcmp(session->password, session->password_bad)) {
 	/* Safeguard against router-initiated login retries. Stops
@@ -1187,7 +1198,7 @@ static void do_ascii_login(tac_session *session)
 
     mem_free(session->mem, &session->challenge);
 
-    report_auth(session, "shell login", hint, res);
+    report_auth(session, info, hint, res);
 
     switch (res) {
     case S_error:
@@ -1247,16 +1258,14 @@ static int eap_step(tac_session *session __attribute__((unused)),
 
 static void do_eap(tac_session *session)
 {
+    char *info = "eap login";
     enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
     u_char eap_out[0x10000], *eap_in = NULL;
     size_t eap_out_len = 0, eap_in_len = 0;
 
-    if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, "shell login", hint_denied_by_acl, res);
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+    if (set_tac_user(session, info))
 	return;
-    }
 
     if (query_mavis_info_login(session, do_eap))
 	return;
@@ -1288,7 +1297,7 @@ static void do_eap(tac_session *session)
 	res = S_deny;
     }
 
-    report_auth(session, "shell login", hint, res);
+    report_auth(session, info, hint, res);
 
     if (res == S_permit) {
 	if (session->user->valid_until && session->user->valid_until < io_now.tv_sec + session->ctx->realm->warning_period)
@@ -1301,6 +1310,7 @@ static void do_eap(tac_session *session)
 
 static void do_enable_getuser(tac_session *session)
 {
+    char *info = "enforced enable login";
     enum hint_enum hint = hint_nosuchuser;
     char *resp = eval_log_format(session, session->ctx, NULL, li_enable_password_incorrect, io_now.tv_sec, NULL);
     enum token res = S_deny;
@@ -1318,16 +1328,8 @@ static void do_enable_getuser(tac_session *session)
 	return;
     }
 
-    if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, "enforced enable login", hint_denied_by_acl, S_deny);
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+    if (set_tac_user(session, info))
 	return;
-    }
-
-    if (session->user && session->user->passwd[PW_LOGIN] && session->user->passwd[PW_LOGIN]->type == S_error) {
-	send_authen_error(session, "Handling refused.");
-	return;
-    }
 
     if (query_mavis_info_login(session, do_enable_getuser))
 	return;
@@ -1336,21 +1338,19 @@ static void do_enable_getuser(tac_session *session)
     struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
+    if (refuse_tac_session(session, info, pw_ix))
+	return;
+
     if (session->authen_data->msg) {
 	session->password = session->authen_data->msg;
 	session->authen_data->msg = NULL;
-	if (password_requirements_failed(session, "enforced enable login"))
+	if (password_requirements_failed(session, info))
 	    return;
     }
 
     if (!session->password) {
 	send_password_prompt(session, pw_ix, do_enable_getuser);
 	return;
-    }
-
-    if (session->user) {
-	pw_ix = PW_LOGIN;
-	set_pwdat(session, &pwdat, &pw_ix);
     }
 
     if (query_mavis_auth_login(session, do_enable_getuser, pw_ix))
@@ -1361,7 +1361,7 @@ static void do_enable_getuser(tac_session *session)
     res = check_access(session, pwdat, session->password, &hint, &resp);
     mem_free(session->mem, &session->challenge);
 
-    report_auth(session, "enforced enable login", hint, res);
+    report_auth(session, info, hint, res);
 
     if (res == S_permit) {
 	session->authfn = do_enable;
@@ -1467,25 +1467,19 @@ static void do_mschap(tac_session *session)
     enum hint_enum hint = hint_nosuchuser;
     char *info = (session->mschap_version == 1) ? "mschap login" : "mschapv2 login";
 
-    if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, info, hint_denied_by_acl, res);
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+    if (set_tac_user(session, info))
 	return;
-    }
 
     if (query_mavis_info_mschap(session, do_mschap))
 	return;
 
-    if (session->user && session->user->passwd[PW_MSCHAP] && session->user->passwd[PW_MSCHAP]->type == S_error) {
-	send_authen_error(session, "Handling refused.");
-	return;
-    }
-    enum pw_ix pw_ix = PW_MSCHAP;
-    struct pwdat *pwdat = NULL;
-    set_pwdat(session, &pwdat, &pw_ix);
-    if (query_mavis_mschap_login(session, do_mschap, pw_ix))
+    if (refuse_tac_session(session, info, PW_MSCHAP))
 	return;
 
+    if (query_mavis_mschap_login(session, do_mschap, PW_MSCHAP))
+	return;
+
+    char *resp = NULL;
     if (session->user) {
 	if (session->mavisauth_res != S_unknown)
 	    res = session->mavisauth_res;
@@ -1498,12 +1492,10 @@ static void do_mschap(tac_session *session)
 	    hint = hint_no_cleartext;
 	}
 
-	if (res == S_permit)
-	    res = user_invalid(session->user, &hint);
+	user_expiry_check(&res, session->user, &hint);
 	if (res == S_permit) {
-	    char *tmp = NULL;
 	    session->mavisauth_res = S_permit;
-	    res = check_access(session, NULL, session->user->passwd[PW_MSCHAP]->value, &hint, &tmp);
+	    res = check_access(session, NULL, session->user->passwd[PW_MSCHAP]->value, &hint, &resp);
 	} else {
 	    hint = hint_failed;
 	    res = S_deny;
@@ -1512,7 +1504,7 @@ static void do_mschap(tac_session *session)
 
     report_auth(session, info, hint, res);
 
-    send_authen_reply(session, TAC_SYM_TO_CODE(res), NULL, 0, NULL, 0, 0);
+    send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
 }
 
 static void do_mschapv1(tac_session *session)
@@ -1530,7 +1522,8 @@ static void do_mschapv1(tac_session *session)
     send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 }
 
-static void mschapv2_chal(u_char peer_challenge[MSCHAPv2_CHALLENGE_LEN], u_char auth_challenge[MSCHAPv2_CHALLENGE_LEN], char *username, u_char out[MSCHAPv1_CHALLENGE_LEN])
+static void mschapv2_chal(u_char peer_challenge[MSCHAPv2_CHALLENGE_LEN], u_char auth_challenge[MSCHAPv2_CHALLENGE_LEN], char *username,
+			  u_char out[MSCHAPv1_CHALLENGE_LEN])
 {
     uint8_t digest[SHA_DIGEST_LENGTH];
 #if OPENSSL_VERSION_NUMBER < 0x30000000
@@ -1577,6 +1570,7 @@ static void do_mschapv2(tac_session *session)
 
 static void do_login(tac_session *session)
 {
+    char *info = "ascii login";
     enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
@@ -1584,15 +1578,13 @@ static void do_login(tac_session *session)
     if (!session->password) {
 	session->password = (char *) session->authen_data->data;
 	session->authen_data->data = NULL;
-	if (password_requirements_failed(session, "ascii login"))
+	if (password_requirements_failed(session, info))
 	    return;
     }
 
-    if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, "ascii login", hint_denied_by_acl, res);
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+    if (set_tac_user(session, info))
 	return;
-    }
+
     if (query_mavis_info_login(session, do_login))
 	return;
 
@@ -1600,20 +1592,22 @@ static void do_login(tac_session *session)
     struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
+    if (refuse_tac_session(session, info, pw_ix))
+	return;
+
     if (query_mavis_auth_login(session, do_login, pw_ix))
 	return;
 
-    set_pwdat(session, &pwdat, &pw_ix);
-
     res = check_access(session, pwdat, session->password, &hint, &resp);
 
-    report_auth(session, "ascii login", hint, res);
+    report_auth(session, info, hint, res);
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
 }
 
 static void do_pap(tac_session *session)
 {
+    char *info = "pap login";
     enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
@@ -1639,14 +1633,12 @@ static void do_pap(tac_session *session)
 	session->authen_data->msg = NULL;
     }
 
-    if (password_requirements_failed(session, "pap login"))
+    if (password_requirements_failed(session, info))
 	return;
 
-    if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, "pap login", hint_denied_by_acl, res);
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+    if (set_tac_user(session, info))
 	return;
-    }
+
     if (query_mavis_info_pap(session, do_pap))
 	return;
 
@@ -1654,12 +1646,15 @@ static void do_pap(tac_session *session)
     struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
+    if (refuse_tac_session(session, info, pw_ix))
+	return;
+
     if (query_mavis_auth_pap(session, do_pap, pw_ix))
 	return;
 
     res = check_access(session, pwdat, session->password, &hint, &resp);
 
-    report_auth(session, "pap login", hint, res);
+    report_auth(session, info, hint, res);
 
     if (!resp)
 	resp = session->user_msg.txt;
@@ -1679,16 +1674,15 @@ static void do_pap(tac_session *session)
 //
 static void do_sshkeyhash(tac_session *session)
 {
+    char *info = "ssh-key-hash login";
     enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
     char *key = NULL;
 
-    if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, "ssh-key-hash login", hint_denied_by_acl, res);
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+    if (set_tac_user(session, info))
 	return;
-    }
+
     if (query_mavis_info(session, do_sshkeyhash, PW_LOGIN))
 	return;
 
@@ -1713,14 +1707,13 @@ static void do_sshkeyhash(tac_session *session)
 	    mem_free(session->mem, &session->password);
 	    if (res != S_permit && session->ctx->host->reject_banner)
 		resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
-	    if (res == S_permit)
-		res = user_invalid(session->user, &hint);
+	    user_expiry_check(&res, session->user, &hint);
 	}
     }
 
     if (res == S_permit)
 	hint = hint_permitted;
-    report_auth(session, "ssh-key-hash login", hint, res);
+    report_auth(session, info, hint, res);
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, (u_char *) key, 0, 0);
 }
@@ -1734,16 +1727,15 @@ static void do_sshkeyhash(tac_session *session)
 
 static void do_sshcerthash(tac_session *session)
 {
+    char *info = "ssh-cert-hash login";
     enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
     char *key = NULL;
 
-    if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, "ssh-cert-hash login", hint_denied_by_acl, res);
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
+    if (set_tac_user(session, info))
 	return;
-    }
+
     if (query_mavis_info(session, do_sshcerthash, PW_LOGIN))
 	return;
 
@@ -1763,14 +1755,13 @@ static void do_sshcerthash(tac_session *session)
 	    mem_free(session->mem, &session->password);
 	    if (res != S_permit && session->ctx->host->reject_banner)
 		resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
-	    if (res == S_permit)
-		res = user_invalid(session->user, &hint);
+	    user_expiry_check(&res, session->user, &hint);
 	}
     }
 
     if (res == S_permit)
 	hint = hint_permitted;
-    report_auth(session, "ssh-key-hash login", hint, res);
+    report_auth(session, info, hint, res);
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, (u_char *) key, 0, 0);
 }
@@ -2065,13 +2056,6 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	if (session->authfn) {
 	    u_char *p = (u_char *) start + TAC_AUTHEN_START_FIXED_FIELDS_SIZE;
 	    str_set(&session->username, mem_strndup(session->mem, p, start->user_len), start->user_len);
-	    tac_user *u = lookup_user(session);
-
-	    if (u && u->passwd[PW_LOGIN] && u->passwd[PW_LOGIN]->type == S_error) {
-		send_authen_error(session, "Handling refused.");
-		return;
-	    }
-
 	    p += start->user_len;
 	    str_set(&session->port, mem_strndup(session->mem, p, start->port_len), start->port_len);
 	    p += start->port_len;
@@ -2157,7 +2141,6 @@ static void do_radius_login(tac_session *session)
 	    hint = hint_badsecret;
 	else {
 	    rd->type = S_pap;
-	    rd->pw_ix = PW_LOGIN;
 	}
     }
 
@@ -2172,7 +2155,6 @@ static void do_radius_login(tac_session *session)
 	    }
 	    if (session->chap_challenge_len) {
 		rd->type = S_chap;
-		rd->pw_ix = PW_CHAP;
 	    }
 	}
     }
@@ -2184,7 +2166,6 @@ static void do_radius_login(tac_session *session)
 	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_RESPONSE, S_octets, &session->mschap_response,
 			&session->mschap_response_len) && (session->mschap_response_len == MSCHAP_RAD_RESPONSE_LEN)) {
 	    rd->type = S_mschap;
-	    rd->pw_ix = PW_MSCHAP;
 	    session->mschap_version = 1;
 	    session->mschap_response += MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
 	    session->mschap_response_len -= MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
@@ -2198,7 +2179,6 @@ static void do_radius_login(tac_session *session)
 	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP2_RESPONSE, S_octets, &session->mschap_response,
 			&session->mschap_response_len) && (session->mschap_response_len == MSCHAP_RAD_RESPONSE_LEN)) {
 	    rd->type = S_mschap;
-	    rd->pw_ix = PW_MSCHAP;
 	    mschapv2_chal(session->mschap_response + MSCHAP_RAD_PRE_LEN, session->mschap_challenge, session->username.txt, session->mschap_challenge);
 	    session->mschap_challenge_len = MSCHAPv2_CHALLENGE_LEN;
 	    session->mschap_version = 2;
@@ -2208,100 +2188,94 @@ static void do_radius_login(tac_session *session)
     }
 #endif
 
+    if (rd->type == S_pap)
+	info = "radius pap login";
+    else if (rd->type == S_chap)
+	info = "radius chap login";
+    else if (rd->type == S_mschap)
+	info = session->mschap_version == 1 ? "radius mschap login" : "radius mschapv2 login";
+
     if (rd->type == S_unknown) {
 	report_auth(session, info, hint, res);
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return;
     }
-
     if (rd->type == S_pap && password_requirements_failed(session, info))
 	return;
 
-    if (S_deny == lookup_and_set_user(session)) {
-	report_auth(session, info, hint_denied_by_acl, res);
-	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
+    if (set_rad_user(session, info))
 	return;
-    }
 
     char *resp = NULL;
 
-    if (rd->type == S_chap && query_mavis_info(session, do_radius_login, rd->pw_ix))
+    if (rd->type == S_chap && query_mavis_info(session, do_radius_login, PW_CHAP))
 	return;
     if (rd->type == S_pap) {
 	if (query_mavis_info_login(session, do_radius_login))
 	    return;
-	if (session->user && session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_error) {
-	    rad_send_error(session, RADIUS_V_ERROR_CAUSE_ADMINISTRATIVELY_PROHIBITED);
-	    return;
-	}
+	enum pw_ix pw_ix = PW_LOGIN;	// PW_PAP?
 	struct pwdat *pwdat = NULL;
-	set_pwdat(session, &pwdat, &rd->pw_ix);
-	if (query_mavis_auth_login(session, do_radius_login, rd->pw_ix))
+	set_pwdat(session, &pwdat, &pw_ix);
+	if (refuse_rad_session(session, info, pw_ix))
+	    return;
+	if (query_mavis_auth_login(session, do_radius_login, pw_ix))
 	    return;
 	if (session->user) {
 	    res = check_access(session, pwdat, session->password, &hint, &resp);
-	    info = "radius pap login";
+	    user_expiry_check(&res, session->user, &hint);
 	}
     } else if (rd->type == S_chap) {
-	if (query_mavis_info(session, do_radius_login, rd->pw_ix))
+	if (query_mavis_info(session, do_radius_login, PW_CHAP))
 	    return;
-	if (session->user && session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_error) {
-	    rad_send_error(session, RADIUS_V_ERROR_CAUSE_ADMINISTRATIVELY_PROHIBITED);
+	if (refuse_rad_session(session, info, PW_CHAP))
 	    return;
-	}
-	if (session->user && session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_clear) {
-	    struct pwdat *pwdat = NULL;
-	    set_pwdat(session, &pwdat, &rd->pw_ix);
-	    struct iovec iov[3] = {
-		{.iov_base = session->chap_password,.iov_len = 1 },
-		{.iov_base = session->user->passwd[rd->pw_ix]->value,.iov_len = strlen(session->user->passwd[rd->pw_ix]->value) },
-		{.iov_base = session->chap_challenge,.iov_len = session->chap_challenge_len },
-	    };
-	    u_char digest[MD5_LEN];
-	    md5v(digest, MD5_LEN, iov, 3);
-	    if (memcmp(session->chap_password + 1, digest, MD5_LEN)) {
-		hint = hint_failed;
+	if (session->user) {
+	    if (session->user->passwd[PW_CHAP]->type != S_clear) {
+		hint = hint_no_cleartext;
 	    } else {
-		session->mavisauth_res = S_permit;
-		res = check_access(session, NULL, session->user->passwd[rd->pw_ix]->value, &hint, &resp);
+		struct iovec iov[3] = {
+		    {.iov_base = session->chap_password,.iov_len = 1 },
+		    {.iov_base = session->user->passwd[PW_CHAP]->value,.iov_len = strlen(session->user->passwd[PW_CHAP]->value) },
+		    {.iov_base = session->chap_challenge,.iov_len = session->chap_challenge_len },
+		};
+		u_char digest[MD5_LEN];
+		md5v(digest, MD5_LEN, iov, 3);
+		if (memcmp(session->chap_password + 1, digest, MD5_LEN)) {
+		    hint = hint_failed;
+		} else {
+		    session->mavisauth_res = S_permit;
+		    res = check_access(session, NULL, session->user->passwd[PW_CHAP]->value, &hint, &resp);
+		    user_expiry_check(&res, session->user, &hint);
+		}
 	    }
-	} else if (session->user) {
-	    hint = hint_no_cleartext;
 	}
-	info = "radius chap login";
     }
 #ifdef WITH_CRYPTO
     else if (rd->type == S_mschap) {
 	if (query_mavis_info_mschap(session, do_radius_login))
 	    return;
-	if (session->user && session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_error) {
-	    rad_send_error(session, RADIUS_V_ERROR_CAUSE_ADMINISTRATIVELY_PROHIBITED);
+	if (refuse_rad_session(session, info, PW_MSCHAP))
 	    return;
-	}
-	struct pwdat *pwdat = NULL;
-	set_pwdat(session, &pwdat, &rd->pw_ix);
-	if (query_mavis_mschap_login(session, do_radius_login, rd->pw_ix))
+	if (query_mavis_mschap_login(session, do_radius_login, PW_MSCHAP))
 	    return;
 	if (session->user) {
 	    if (session->mavisauth_res != S_unknown)
 		res = session->mavisauth_res;
-	    else if ((session->user->passwd[rd->pw_ix] && session->user->passwd[rd->pw_ix]->type == S_clear)) {
-		struct pwdat *pwdat = NULL;
-		set_pwdat(session, &pwdat, &rd->pw_ix);
+	    else if ((session->user->passwd[PW_MSCHAP] && session->user->passwd[PW_MSCHAP]->type == S_clear)) {
 		u_char response[MSCHAP_NT_RESPONSE_LEN];
-		mschapv1_ntresp(session->mschap_challenge, session->user->passwd[rd->pw_ix]->value, response);
+		mschapv1_ntresp(session->mschap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
 		if (!memcmp(response, session->mschap_response, MSCHAP_NT_RESPONSE_LEN))
 		    res = S_permit;
 	    } else
 		hint = hint_no_cleartext;
 	    if (res == S_permit) {
 		session->mavisauth_res = S_permit;
-		res = check_access(session, NULL, session->user->passwd[rd->pw_ix]->value, &hint, &resp);
+		res = check_access(session, NULL, session->user->passwd[PW_MSCHAP]->value, &hint, &resp);
 	    } else {
 		hint = hint_failed;
 	    }
+	    user_expiry_check(&res, session->user, &hint);
 	}
-	info = session->mschap_version == 1 ? "radius mschap login" : "radius mschapv2 login";
     }
 #endif
 
@@ -2333,6 +2307,7 @@ static void do_radius_login(tac_session *session)
 
 static void do_radius_dacl(tac_session *session)
 {
+    char *info = "dacl request";
     int first = 0;
     enum token res = S_deny;
     if (!rd->dacl) {
@@ -2363,6 +2338,7 @@ static void do_radius_dacl(tac_session *session)
 	nace = ntohl(nace);
     }
 
+    report_auth(session, info, hint_succeeded, res);
     if (rad_attr_add_dacl(session, rd->dacl, &nace))
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
     else if (nace == rd->dacl->nace)
@@ -2375,7 +2351,7 @@ static void do_radius_dacl(tac_session *session)
     return;
 
   fail:
-    report_auth(session, "dacl request", hint_failed, res);
+    report_auth(session, info, hint_failed, res);
     rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 }
 
