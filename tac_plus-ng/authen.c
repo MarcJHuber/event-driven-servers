@@ -554,11 +554,13 @@ static int query_mavis_info_mschap(tac_session *session, void (*f)(tac_session *
     return res;
 }
 
+extern struct pwdat passwd_deny_dflt; // from config.c
+
 static int query_mavis_mschap_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     // assumption: user was pre-fetched
     int res = !session->flag_mavis_auth
-	&& ((session->user && session->user->passwd[pw_ix]->type == S_deny /* that's the default */  && (session->ctx->realm->mavis_mschap == TRISTATE_YES))
+	&& ((session->user && session->user->passwd[pw_ix] == &passwd_deny_dflt && (session->ctx->realm->mavis_mschap == TRISTATE_YES))
 	    || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
@@ -1881,7 +1883,6 @@ static void set_revmap_nas(struct context *ctx, char *hostname, int ttl)
 }
 #endif
 
-
 void get_revmap_nas(tac_session *session)
 {
     struct context *ctx = session->ctx;
@@ -2146,9 +2147,8 @@ static void do_radius_login(tac_session *session)
 	    hint = hint_nopass;
 	else if (pw_res > 0)
 	    hint = hint_badsecret;
-	else {
+	else
 	    rd->type = S_pap;
-	}
     }
 
     if (rd->type == S_unknown) {
@@ -2163,9 +2163,8 @@ static void do_radius_login(tac_session *session)
 		    session->chap_challenge_len = 16;
 		}
 	    }
-	    if (session->chap_challenge_len) {
+	    if (session->chap_challenge_len)
 		rd->type = S_chap;
-	    }
 	}
     }
 #ifdef WITH_CRYPTO
