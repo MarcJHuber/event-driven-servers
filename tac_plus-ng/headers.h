@@ -583,8 +583,9 @@ struct tac_session {
     struct autonumber *autonumber;
     tac_profile *profile;
     int mschap_version;
-    u_char *chap_password;
-    size_t chap_password_len;
+    u_char *chap_response;
+    size_t chap_response_len;
+    u_char chap_pppid;
     u_char *chap_challenge;
     size_t chap_challenge_len;
     struct {

@@ -647,6 +647,30 @@ static int set_rad_user(tac_session *session, char *info)
     return 0;
 }
 
+static void chap_helper(tac_session *session, enum token *res, enum hint_enum *hint, char **resp)
+{
+    if (session->user) {
+	if (session->user->passwd[PW_CHAP]->type != S_clear) {
+	    *hint = hint_no_cleartext;
+	} else {
+	    struct iovec iov[3] = {
+		{.iov_base = &session->chap_pppid,.iov_len = 1 },
+		{.iov_base = session->user->passwd[PW_CHAP]->value,.iov_len = strlen(session->user->passwd[PW_CHAP]->value) },
+		{.iov_base = session->chap_challenge, session->chap_challenge_len },
+	    };
+	    u_char digest[MD5_LEN];
+	    md5v(digest, MD5_LEN, iov, 3);
+	    if (memcmp(digest, session->chap_response, (size_t) MD5_LEN)) {
+		*hint = hint_failed;
+	    } else {
+		session->mavisauth_res = S_permit;
+		*res = check_access(session, NULL, session->user->passwd[PW_CHAP]->value, hint, resp);
+		user_expiry_check(res, session->user, hint);
+	    }
+	}
+    }
+}
+
 static void do_chap(tac_session *session)
 {
     char *info = "chap login";
@@ -665,29 +689,12 @@ static void do_chap(tac_session *session)
 
     char *resp = NULL;
     if (session->authen_data->data_len - MD5_LEN > 0) {
-	session->chap_password = session->authen_data->data;
+	session->chap_pppid = session->authen_data->data[0];
 	session->chap_challenge = session->authen_data->data + 1;
 	session->chap_challenge_len = session->authen_data->data_len - 1 - MD5_LEN;
-	if (session->user) {
-	    if (session->user->passwd[PW_CHAP]->type != S_clear) {
-		hint = hint_no_cleartext;
-	    } else {
-		struct iovec iov[3] = {
-		    {.iov_base = session->chap_password,.iov_len = 1 },
-		    {.iov_base = session->user->passwd[PW_CHAP]->value,.iov_len = strlen(session->user->passwd[PW_CHAP]->value) },
-		    {.iov_base = session->chap_challenge, session->chap_challenge_len },
-		};
-		u_char digest[MD5_LEN];
-		md5v(digest, MD5_LEN, iov, 3);
-		if (memcmp(digest, session->chap_password + 1, (size_t) MD5_LEN)) {
-		    hint = hint_failed;
-		} else {
-		    session->mavisauth_res = S_permit;
-		    res = check_access(session, NULL, session->user->passwd[PW_CHAP]->value, &hint, &resp);
-		    user_expiry_check(&res, session->user, &hint);
-		}
-	    }
-	}
+	session->chap_response = session->chap_challenge + session->chap_challenge_len;
+	session->chap_response_len = MD5_LEN;
+	chap_helper(session, &res, &hint, &resp);
     }
 
     report_auth(session, info, hint, res);
@@ -1371,11 +1378,6 @@ static void do_enable_getuser(tac_session *session)
 }
 
 #ifdef WITH_CRYPTO
-#define mschap_challenge chap_challenge
-#define mschap_challenge_len chap_challenge_len
-#define mschap_response chap_password
-#define mschap_response_len chap_password_len
-
 #define MSCHAP_TAC_PRE_LEN 1
 #define MSCHAP_RAD_PRE_LEN 2
 #define MSCHAPv1_CHALLENGE_LEN 8
@@ -1461,6 +1463,31 @@ static void mschapv1_ntresp(u_char chal[MSCHAPv1_CHALLENGE_LEN], char *password,
     mschap_chalresp(chal, nt_hash, resp);
 }
 
+static void mschap_helper(tac_session *session, enum token *res, enum hint_enum *hint, char **resp)
+{
+    if (session->user) {
+	if (session->mavisauth_res != S_unknown)
+	    *res = session->mavisauth_res;
+	else if (session->user->passwd[PW_MSCHAP]->type == S_clear) {
+	    u_char response[MSCHAP_NT_RESPONSE_LEN];
+	    mschapv1_ntresp(session->chap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
+	    if (!memcmp(response, session->chap_response, MSCHAP_NT_RESPONSE_LEN))
+		*res = S_permit;
+	} else {
+	    *hint = hint_no_cleartext;
+	}
+
+	user_expiry_check(res, session->user, hint);
+	if (*res == S_permit) {
+	    session->mavisauth_res = S_permit;
+	    *res = check_access(session, NULL, session->user->passwd[PW_MSCHAP]->value, hint, resp);
+	} else {
+	    *hint = hint_failed;
+	    *res = S_deny;
+	}
+    }
+}
+
 static void do_mschap(tac_session *session)
 {
     enum token res = S_deny;
@@ -1480,27 +1507,7 @@ static void do_mschap(tac_session *session)
 	return;
 
     char *resp = NULL;
-    if (session->user) {
-	if (session->mavisauth_res != S_unknown)
-	    res = session->mavisauth_res;
-	else if (session->user->passwd[PW_MSCHAP]->type == S_clear) {
-	    u_char response[MSCHAP_NT_RESPONSE_LEN];
-	    mschapv1_ntresp(session->mschap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
-	    if (!memcmp(response, session->mschap_response, MSCHAP_NT_RESPONSE_LEN))
-		res = S_permit;
-	} else {
-	    hint = hint_no_cleartext;
-	}
-
-	user_expiry_check(&res, session->user, &hint);
-	if (res == S_permit) {
-	    session->mavisauth_res = S_permit;
-	    res = check_access(session, NULL, session->user->passwd[PW_MSCHAP]->value, &hint, &resp);
-	} else {
-	    hint = hint_failed;
-	    res = S_deny;
-	}
-    }
+    mschap_helper(session, &res, &hint, &resp);
 
     report_auth(session, info, hint, res);
 
@@ -1511,10 +1518,10 @@ static void do_mschapv1(tac_session *session)
 {
     if (session->authen_data->data_len == MSCHAP_TAC_PRE_LEN + MSCHAPv1_CHALLENGE_LEN + MSCHAP_TAC_RESPONSE_LEN) {
 	session->mschap_version = 1;
-	session->mschap_challenge = session->authen_data->data + MSCHAP_TAC_PRE_LEN;
-	session->mschap_challenge_len = MSCHAPv1_CHALLENGE_LEN;
-	session->mschap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_TAC_RESPONSE_LEN + MSCHAP_LM_RESPONSE_LEN;
-	session->mschap_response_len = MSCHAP_NT_RESPONSE_LEN;
+	session->chap_challenge = session->authen_data->data + MSCHAP_TAC_PRE_LEN;
+	session->chap_challenge_len = MSCHAPv1_CHALLENGE_LEN;
+	session->chap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_TAC_RESPONSE_LEN + MSCHAP_LM_RESPONSE_LEN;
+	session->chap_response_len = MSCHAP_NT_RESPONSE_LEN;
 	do_mschap(session);
 	return;
     }
@@ -1550,16 +1557,16 @@ static void do_mschapv2(tac_session *session)
 {
     if (session->authen_data->data_len == MSCHAP_TAC_PRE_LEN + MSCHAPv2_CHALLENGE_LEN + MSCHAP_TAC_RESPONSE_LEN) {
 	session->mschap_version = 2;
-	session->mschap_challenge = session->authen_data->data + MSCHAP_TAC_PRE_LEN;
-	session->mschap_challenge_len = MSCHAPv2_CHALLENGE_LEN;
-	session->mschap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_TAC_RESPONSE_LEN;
-	session->mschap_response_len = MSCHAP_TAC_RESPONSE_LEN;
+	session->chap_challenge = session->authen_data->data + MSCHAP_TAC_PRE_LEN;
+	session->chap_challenge_len = MSCHAPv2_CHALLENGE_LEN;
+	session->chap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_TAC_RESPONSE_LEN;
+	session->chap_response_len = MSCHAP_TAC_RESPONSE_LEN;
 	u_char *chal = mem_alloc(session->mem, MSCHAPv1_CHALLENGE_LEN);
-	mschapv2_chal(session->mschap_response, session->mschap_challenge, session->username.txt, chal);
-	session->mschap_challenge = chal;
-	session->mschap_challenge_len = MSCHAPv1_CHALLENGE_LEN;
-	session->mschap_response += MSCHAP_NT_RESPONSE_LEN;
-	session->mschap_response_len = MSCHAP_NT_RESPONSE_LEN;
+	mschapv2_chal(session->chap_response, session->chap_challenge, session->username.txt, chal);
+	session->chap_challenge = chal;
+	session->chap_challenge_len = MSCHAPv1_CHALLENGE_LEN;
+	session->chap_response += MSCHAP_NT_RESPONSE_LEN;
+	session->chap_response_len = MSCHAP_NT_RESPONSE_LEN;
 	do_mschap(session);
 	return;
     }
@@ -2145,8 +2152,11 @@ static void do_radius_login(tac_session *session)
     }
 
     if (rd->type == S_unknown) {
-	if (!rad_get(rd->pak_in, session->mem, -1, RADIUS_A_CHAP_PASSWORD, S_octets, &session->chap_password, &session->chap_password_len)
-	    && session->chap_password_len == 1 + MD5_LEN) {
+	if (!rad_get(rd->pak_in, session->mem, -1, RADIUS_A_CHAP_PASSWORD, S_octets, &session->chap_response, &session->chap_response_len)
+	    && session->chap_response_len == 1 + MD5_LEN) {
+	    session->chap_pppid = session->chap_response[0];
+	    session->chap_response++;
+	    session->chap_response_len--;
 	    if (rad_get(rd->pak_in, session->mem, -1, RADIUS_A_CHAP_CHALLENGE, S_octets, &session->chap_challenge, &session->chap_challenge_len)) {
 		if (session->ctx->radius_1_1 == BISTATE_NO) {
 		    session->chap_challenge = rd->pak_in->authenticator;
@@ -2161,29 +2171,29 @@ static void do_radius_login(tac_session *session)
 #ifdef WITH_CRYPTO
     if (rd->type == S_unknown) {
 	if (!rad_get
-	    (rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &session->mschap_challenge, &session->mschap_challenge_len)
-	    && (session->mschap_challenge_len == MSCHAPv1_CHALLENGE_LEN)
-	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_RESPONSE, S_octets, &session->mschap_response,
-			&session->mschap_response_len) && (session->mschap_response_len == MSCHAP_RAD_RESPONSE_LEN)) {
+	    (rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &session->chap_challenge, &session->chap_challenge_len)
+	    && (session->chap_challenge_len == MSCHAPv1_CHALLENGE_LEN)
+	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_RESPONSE, S_octets, &session->chap_response,
+			&session->chap_response_len) && (session->chap_response_len == MSCHAP_RAD_RESPONSE_LEN)) {
 	    rd->type = S_mschap;
 	    session->mschap_version = 1;
-	    session->mschap_response += MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
-	    session->mschap_response_len -= MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
+	    session->chap_response += MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
+	    session->chap_response_len -= MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
 	}
     }
 
     if (rd->type == S_unknown) {
 	if (!rad_get
-	    (rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &session->mschap_challenge, &session->mschap_challenge_len)
-	    && (session->mschap_challenge_len == MSCHAPv2_CHALLENGE_LEN)
-	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP2_RESPONSE, S_octets, &session->mschap_response,
-			&session->mschap_response_len) && (session->mschap_response_len == MSCHAP_RAD_RESPONSE_LEN)) {
+	    (rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &session->chap_challenge, &session->chap_challenge_len)
+	    && (session->chap_challenge_len == MSCHAPv2_CHALLENGE_LEN)
+	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP2_RESPONSE, S_octets, &session->chap_response,
+			&session->chap_response_len) && (session->chap_response_len == MSCHAP_RAD_RESPONSE_LEN)) {
 	    rd->type = S_mschap;
-	    mschapv2_chal(session->mschap_response + MSCHAP_RAD_PRE_LEN, session->mschap_challenge, session->username.txt, session->mschap_challenge);
-	    session->mschap_challenge_len = MSCHAPv2_CHALLENGE_LEN;
+	    mschapv2_chal(session->chap_response + MSCHAP_RAD_PRE_LEN, session->chap_challenge, session->username.txt, session->chap_challenge);
+	    session->chap_challenge_len = MSCHAPv2_CHALLENGE_LEN;
 	    session->mschap_version = 2;
-	    session->mschap_response += MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
-	    session->mschap_response_len -= MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
+	    session->chap_response += MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
+	    session->chap_response_len -= MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
 	}
     }
 #endif
@@ -2229,26 +2239,7 @@ static void do_radius_login(tac_session *session)
 	    return;
 	if (refuse_rad_session(session, info, PW_CHAP))
 	    return;
-	if (session->user) {
-	    if (session->user->passwd[PW_CHAP]->type != S_clear) {
-		hint = hint_no_cleartext;
-	    } else {
-		struct iovec iov[3] = {
-		    {.iov_base = session->chap_password,.iov_len = 1 },
-		    {.iov_base = session->user->passwd[PW_CHAP]->value,.iov_len = strlen(session->user->passwd[PW_CHAP]->value) },
-		    {.iov_base = session->chap_challenge,.iov_len = session->chap_challenge_len },
-		};
-		u_char digest[MD5_LEN];
-		md5v(digest, MD5_LEN, iov, 3);
-		if (memcmp(session->chap_password + 1, digest, MD5_LEN)) {
-		    hint = hint_failed;
-		} else {
-		    session->mavisauth_res = S_permit;
-		    res = check_access(session, NULL, session->user->passwd[PW_CHAP]->value, &hint, &resp);
-		    user_expiry_check(&res, session->user, &hint);
-		}
-	    }
-	}
+	chap_helper(session, &res, &hint, &resp);
     }
 #ifdef WITH_CRYPTO
     else if (rd->type == S_mschap) {
@@ -2258,24 +2249,7 @@ static void do_radius_login(tac_session *session)
 	    return;
 	if (query_mavis_mschap_login(session, do_radius_login, PW_MSCHAP))
 	    return;
-	if (session->user) {
-	    if (session->mavisauth_res != S_unknown)
-		res = session->mavisauth_res;
-	    else if ((session->user->passwd[PW_MSCHAP] && session->user->passwd[PW_MSCHAP]->type == S_clear)) {
-		u_char response[MSCHAP_NT_RESPONSE_LEN];
-		mschapv1_ntresp(session->mschap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
-		if (!memcmp(response, session->mschap_response, MSCHAP_NT_RESPONSE_LEN))
-		    res = S_permit;
-	    } else
-		hint = hint_no_cleartext;
-	    if (res == S_permit) {
-		session->mavisauth_res = S_permit;
-		res = check_access(session, NULL, session->user->passwd[PW_MSCHAP]->value, &hint, &resp);
-	    } else {
-		hint = hint_failed;
-	    }
-	    user_expiry_check(&res, session->user, &hint);
-	}
+	mschap_helper(session, &res, &hint, &resp);
     }
 #endif
 

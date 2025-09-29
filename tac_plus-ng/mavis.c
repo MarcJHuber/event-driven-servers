@@ -175,12 +175,12 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
     if (session->password_new && !strcmp(type, AV_V_TACTYPE_CHPW))
 	av_set(avc, AV_A_PASSWORD_NEW, session->password_new);
 
-    if (session->chap_challenge_len && session->chap_password_len && !strcmp(type, AV_V_TACTYPE_MSCHAP)) {
-	char buf[((session->chap_challenge_len + session->chap_password_len) << 1) + 2];
+    if (session->chap_challenge_len && session->chap_response_len && !strcmp(type, AV_V_TACTYPE_MSCHAP)) {
+	char buf[((session->chap_challenge_len + session->chap_response_len) << 1) + 2];
 	char *b = buf;
 	dump_hex_mschap(session->chap_challenge, session->chap_challenge_len, &b);
 	*b++ = ' ';
-	dump_hex_mschap(session->chap_password, session->chap_password_len, &b);
+	dump_hex_mschap(session->chap_response, session->chap_response_len, &b);
 	*b = 0;
 	av_set(avc, AV_A_CHALLENGE, buf);
     }
