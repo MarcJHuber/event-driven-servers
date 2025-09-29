@@ -582,10 +582,12 @@ struct tac_session {
     struct pwdat *enable;
     struct autonumber *autonumber;
     tac_profile *profile;
-    int mschap_version;
+    union {
+	u_char mschap_version;
+	u_char chap_pppid;
+    };
     u_char *chap_response;
     size_t chap_response_len;
-    u_char chap_pppid;
     u_char *chap_challenge;
     size_t chap_challenge_len;
     struct {
