@@ -1246,6 +1246,7 @@ static void do_ascii_login(tac_session *session)
     }
 }
 
+#if 0
 #ifdef WITH_CRYPTO
 #define EAP_REQUEST     1
 #define EAP_RESPONSE    2
@@ -1315,6 +1316,7 @@ static void do_eap(tac_session *session)
     } else
 	send_authen_reply(session, TAC_SYM_TO_CODE(res), NULL, 0, eap_out, eap_out_len, 0);
 }
+#endif
 #endif
 
 static void do_enable_getuser(tac_session *session)
@@ -1727,6 +1729,7 @@ static void do_sshkeyhash(tac_session *session)
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, (u_char *) key, 0, 0);
 }
 
+#if 0
 // This is proof-of-concept code for SSH certificate validation with minor protocol changes.
 // Clients just need to use TAC_PLUS_AUTHEN_TYPE_SSHCERTASH (9) and put the client certificate
 // key-id into the data field. The daemon will return a matching AuthorizedPrincipalsFile line. 
@@ -1774,6 +1777,7 @@ static void do_sshcerthash(tac_session *session)
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, (u_char *) key, 0, 0);
 }
+#endif
 
 void free_reverse(void *payload, void *data __attribute__((unused)))
 {
@@ -2035,6 +2039,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 		    // limit to hdr->version? 1.2 perhaps?
 		    session->authfn = do_sshkeyhash;
 		    break;
+#if 0
 		case TAC_PLUS_AUTHEN_TYPE_SSHCERT:
 		    // limit to hdr->version? 1.2 perhaps?
 		    session->authfn = do_sshcerthash;
@@ -2044,6 +2049,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 		    // limit to hdr->version? 1.2 perhaps?
 		    session->authfn = do_eap;
 		    break;
+#endif
 #endif
 		}
 	    }
@@ -2097,12 +2103,14 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	username_required = 0;
 	session->authen_data->msg_len = ntohs(cont->user_msg_len);
 	session->authen_data->data_len = ntohs(cont->user_data_len);
+#if 0
 #ifdef WITH_CRYPTO
 	if (session->authfn == do_eap) {
 	    // no need to duplicate, do_eap() doesn't need a local null-terminated copy right now.
 	    session->authen_data->msg = (char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE;
 	    session->authen_data->data = (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + session->authen_data->msg_len;
 	} else
+#endif
 #endif
 	{
 	    session->authen_data->msg = mem_copy(session->mem, (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE, session->authen_data->msg_len);
