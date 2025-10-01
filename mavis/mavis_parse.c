@@ -1769,6 +1769,9 @@ void parse_common(struct sym *sym)
 	    if (sym->code == S_syslog) {
 		common_data.debug_redirected = 0;
 		common_data.debugtty = 0;
+	    } else if (!strcmp(sym->buf, "stderr")) {
+		common_data.debug_redirected = 1;
+		common_data.debugtty = 0;
 	    } else if (freopen(sym->buf, "w+", stderr)) {
 		common_data.debug_redirected = 1;
 		common_data.debugtty = 0;
