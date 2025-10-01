@@ -827,7 +827,6 @@ static void do_chpass(tac_session *session)
     enum hint_enum hint = hint_nosuchuser;
 
     if (!session->username.txt[0] && session->authen_data->msg) {
-	mem_free(session->mem, &session->username);
 	str_set(&session->username, session->authen_data->msg, session->authen_data->msg_len);
 	session->authen_data->msg = NULL;
     }
@@ -1138,7 +1137,6 @@ static void do_ascii_login(tac_session *session)
     enum token res = S_deny;
 
     if (!session->username.txt[0] && session->authen_data->msg) {
-	mem_free(session->mem, &session->username);
 	session->username.txt = session->authen_data->msg;
 	session->username.len = session->authen_data->msg_len;
 	session->authen_data->msg = NULL;
@@ -1333,7 +1331,6 @@ static void do_enable_getuser(tac_session *session)
     }
 
     if (!session->username.txt[0]) {
-	mem_free(session->mem, &session->username);
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETUSER,
 			  eval_log_format(session, session->ctx, NULL, li_username, io_now.tv_sec, NULL), 0, NULL, 0, 0);
 	return;
@@ -1613,6 +1610,9 @@ static void do_login(tac_session *session)
 
     report_auth(session, info, hint, res);
 
+    if (!resp)
+	resp = session->user_msg.txt;
+
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
 }
 
@@ -1628,24 +1628,12 @@ static void do_pap(tac_session *session)
 	return;
     }
 
-    mem_free(session->mem, &session->password);
-
-    if (session->version != TAC_PLUS_VER_ONE && session->seq_no == 1) {
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETPASS,
-			  eval_log_format(session, session->ctx, NULL, li_password, io_now.tv_sec, NULL), 0, NULL, 0, TAC_PLUS_REPLY_FLAG_NOECHO);
-	return;
-    }
-
-    if (session->version == TAC_PLUS_VER_ONE) {
+    if (session->authen_data->data) {
 	session->password = (char *) session->authen_data->data;
 	session->authen_data->data = NULL;
-    } else {
-	session->password = (char *) session->authen_data->msg;
-	session->authen_data->msg = NULL;
+	if (password_requirements_failed(session, info))
+	    return;
     }
-
-    if (password_requirements_failed(session, info))
-	return;
 
     if (set_tac_user(session, info))
 	return;
@@ -1671,6 +1659,7 @@ static void do_pap(tac_session *session)
 	resp = session->user_msg.txt;
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
+
 }
 
 // This is proof-of-concept code for SSH key validation with minor protocol changes.
@@ -1715,7 +1704,6 @@ static void do_sshkeyhash(tac_session *session)
 	    hint = hint_denied;
 
 	if (res == S_permit) {
-	    mem_free(session->mem, &session->password);
 	    if (res != S_permit && session->ctx->host->reject_banner)
 		resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
 	    user_expiry_check(&res, session->user, &hint);
@@ -1764,7 +1752,6 @@ static void do_sshcerthash(tac_session *session)
 	    hint = hint_denied;
 
 	if (res == S_permit) {
-	    mem_free(session->mem, &session->password);
 	    if (res != S_permit && session->ctx->host->reject_banner)
 		resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
 	    user_expiry_check(&res, session->user, &hint);
@@ -2019,7 +2006,8 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 		    }
 		    break;
 		case TAC_PLUS_AUTHEN_TYPE_PAP:
-		    session->authfn = do_pap;
+		    if (hdr->version == TAC_PLUS_VER_ONE)
+			session->authfn = do_pap;
 		    break;
 		case TAC_PLUS_AUTHEN_TYPE_CHAP:
 		    if (hdr->version == TAC_PLUS_VER_ONE)
