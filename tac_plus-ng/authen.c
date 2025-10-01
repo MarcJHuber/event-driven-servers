@@ -1640,6 +1640,13 @@ static void do_pap(tac_session *session)
     struct pwdat *pwdat = NULL;
     set_pwdat(session, &pwdat, &pw_ix);
 
+    if (pw_ix == PW_LOGIN) {
+	session->authfn = do_login;
+	session->authen_data->data = (u_char *) session->password;
+	do_login(session);
+	return;
+    }
+
     if (refuse_tac_session(session, info, pw_ix))
 	return;
 
@@ -1654,7 +1661,6 @@ static void do_pap(tac_session *session)
 	resp = session->user_msg.txt;
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
-
 }
 
 // This is proof-of-concept code for SSH key validation with minor protocol changes.
