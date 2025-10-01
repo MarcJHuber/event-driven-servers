@@ -1583,7 +1583,7 @@ static void do_login(tac_session *session)
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
 
-    if (!session->password) {
+    if (session->authen_data->data) {
 	session->password = (char *) session->authen_data->data;
 	session->authen_data->data = NULL;
 	if (password_requirements_failed(session, info))
