@@ -554,7 +554,7 @@ static int query_mavis_info_mschap(tac_session *session, void (*f)(tac_session *
     return res;
 }
 
-extern struct pwdat passwd_deny_dflt; // from config.c
+extern struct pwdat passwd_deny_dflt;	// from config.c
 
 static int query_mavis_mschap_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
@@ -1623,11 +1623,6 @@ static void do_pap(tac_session *session)
     enum hint_enum hint = hint_nosuchuser;
     char *resp = NULL;
 
-    if (session->ctx->host->map_pap_to_login == TRISTATE_YES) {
-	do_login(session);
-	return;
-    }
-
     if (session->authen_data->data) {
 	session->password = (char *) session->authen_data->data;
 	session->authen_data->data = NULL;
@@ -2007,7 +2002,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 		    break;
 		case TAC_PLUS_AUTHEN_TYPE_PAP:
 		    if (hdr->version == TAC_PLUS_VER_ONE)
-			session->authfn = do_pap;
+			session->authfn = (session->ctx->host->map_pap_to_login == TRISTATE_YES) ? do_login : do_pap;
 		    break;
 		case TAC_PLUS_AUTHEN_TYPE_CHAP:
 		    if (hdr->version == TAC_PLUS_VER_ONE)
