@@ -3153,12 +3153,11 @@ ntly enabled.\n"
 
 6. RADIUS
 
-   tac_plus-ng comes with limited RADIUS support: Only PAP
-   authentications and accounting and Downloadable ACLs are
-   supported. This should be sufficient for handling
-   administrative access, and the main reason for this feature is
-   actually to provide a common configuration for both TACACS+ and
-   RADIUS
+   tac_plus-ng comes with RADIUS support:
+   PAP/CHAP/MSCHAPv1/MSCHAPv2 authentications, accounting and
+   Downloadable ACLs are supported. This should be sufficient for
+   handling administrative access, and it obviously provides a
+   common configuration for both TACACS+ and RADIUS
 
    If you don't care about RADIUS: That functionality will not be
    available unless a RADIUS dictionary (see below) is configured,
@@ -3178,8 +3177,9 @@ LS.
 6.1. Accepting RADIUS Queries
 
    By default, spawnd will only care for TCP sessions. This is
-   sufficient for RADSEC-over-TLS, but plain legacy RADIUS
-   requires UDP. This can easily be enables in a spawnd directive:
+   sufficient for RADIUS-over-TLS (RADSEC), but plain legacy
+   RADIUS requires UDP. This can easily be enables in a spawnd
+   directive:
 id = spawnd {
         background = no
         listen { port = 49 } # TACACS+

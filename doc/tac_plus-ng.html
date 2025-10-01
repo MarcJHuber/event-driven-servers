@@ -3739,7 +3739,7 @@ mavis module external {
 <div class="section">
 <hr>
 <h2 class="section"><a name="AEN3475" id="AEN3475">6. RADIUS</a></h2>
-<p><span class="bold"><b class="emphasis">tac_plus-ng</b></span> comes with limited RADIUS support: Only PAP authentications and accounting and Downloadable ACLs are supported. This should be sufficient for handling administrative access, and the main reason for this feature is actually to provide a common configuration for both <span class="emphasis"><i class="emphasis">TACACS+</i></span> and <span class="emphasis"><i class="emphasis">RADIUS</i></span></p>
+<p><span class="bold"><b class="emphasis">tac_plus-ng</b></span> comes with RADIUS support: PAP/CHAP/MSCHAPv1/MSCHAPv2 authentications, accounting and Downloadable ACLs are supported. This should be sufficient for handling administrative access, and it obviously provides a common configuration for both <span class="emphasis"><i class="emphasis">TACACS+</i></span> and <span class="emphasis"><i class="emphasis">RADIUS</i></span></p>
 <p>If you don't care about <span class="emphasis"><i class="emphasis">RADIUS</i></span>: That functionality will not be available unless a <span class="emphasis"><i class="emphasis">RADIUS dictionary</i></span> (see below) is configured, and TLS/DTLS/Message-Signing absolutely requires building with <span class="emphasis"><i class="emphasis">OpenSSL</i></span> support.</p>
 <p>Also, you can selectively disable the protocols you want to be supported on a per-realm basis:</p>
 <pre class="screen">   aaa.protocol.allowed = tacacs,tacacs.tcp,tacacs.tls,radius,radius.udp,radius.tls,radius.dtls
@@ -3749,7 +3749,7 @@ mavis module external {
 <div class="section">
 <hr>
 <h3 class="section"><a name="AEN3487" id="AEN3487">6.1. Accepting RADIUS Queries</a></h3>
-<p>By default, <span class="bold"><b class="emphasis">spawnd</b></span> will only care for TCP sessions. This is sufficient for <span class="emphasis"><i class="emphasis">RADSEC-over-TLS</i></span>, but plain legacy RADIUS requires UDP. This can easily be enables in a <span class="bold"><b class="emphasis">spawnd</b></span> directive:</p>
+<p>By default, <span class="bold"><b class="emphasis">spawnd</b></span> will only care for TCP sessions. This is sufficient for <span class="emphasis"><i class="emphasis">RADIUS-over-TLS (RADSEC)</i></span>, but plain legacy RADIUS requires UDP. This can easily be enables in a <span class="bold"><b class="emphasis">spawnd</b></span> directive:</p>
 <pre class="screen">id = spawnd {
         background = no
         listen { port = 49 } # TACACS+
