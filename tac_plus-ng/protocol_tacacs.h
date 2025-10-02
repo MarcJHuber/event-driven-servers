@@ -161,7 +161,7 @@ struct authen_reply {
 #define TAC_PLUS_AUTHEN_STATUS_FOLLOW   0x21
 
     u_char flags;
-#define	TAC_PLUS_REPLY_FLAG_NOECHO		0x01
+#define	TAC_PLUS_REPLY_FLAG_NOECHO	0x01
 
     u_short msg_len;
     u_short data_len;
@@ -174,17 +174,17 @@ struct authen_reply {
 /* An authorization request packet */
 struct author {
     u_char authen_method;
-#define TAC_PLUS_AUTHEN_METH_NOT_SET			0x00
-#define TAC_PLUS_AUTHEN_METH_NONE			0x01
-#define TAC_PLUS_AUTHEN_METH_KRB5			0x02
-#define TAC_PLUS_AUTHEN_METH_LINE			0x03
-#define TAC_PLUS_AUTHEN_METH_ENABLE			0x04
-#define TAC_PLUS_AUTHEN_METH_LOCAL			0x05
-#define TAC_PLUS_AUTHEN_METH_TACACSPLUS			0x06
-#define TAC_PLUS_AUTHEN_METH_GUEST			0x08
-#define TAC_PLUS_AUTHEN_METH_RADIUS			0x10
-#define TAC_PLUS_AUTHEN_METH_KRB4			0x11
-#define TAC_PLUS_AUTHEN_METH_RCMD			0x20
+#define TAC_PLUS_AUTHEN_METH_NOT_SET	0x00
+#define TAC_PLUS_AUTHEN_METH_NONE	0x01
+#define TAC_PLUS_AUTHEN_METH_KRB5	0x02
+#define TAC_PLUS_AUTHEN_METH_LINE	0x03
+#define TAC_PLUS_AUTHEN_METH_ENABLE	0x04
+#define TAC_PLUS_AUTHEN_METH_LOCAL	0x05
+#define TAC_PLUS_AUTHEN_METH_TACACSPLUS	0x06
+#define TAC_PLUS_AUTHEN_METH_GUEST	0x08
+#define TAC_PLUS_AUTHEN_METH_RADIUS	0x10
+#define TAC_PLUS_AUTHEN_METH_KRB4	0x11
+#define TAC_PLUS_AUTHEN_METH_RCMD	0x20
 
     u_char priv_lvl;
     u_char authen_type;
@@ -202,7 +202,7 @@ struct author {
     /* <char data for each arg> */
 } __attribute__((__packed__));
 
-#define TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE	8
+#define TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE 8
 
 /* An authorization reply packet */
 struct author_reply {
