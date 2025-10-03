@@ -2604,14 +2604,12 @@ static void parse_password(struct sym *sym, tac_user *user)
 static struct tac_acl *tac_acl_lookup(char *s, tac_realm *r)
 {
     struct tac_acl a = {.name.txt = s,.name.len = strlen(s) };
-    while (r) {
+    for (; r; r = r->parent)
 	if (r->acltable) {
 	    struct tac_acl *res = RB_lookup(r->acltable, &a);
 	    if (res)
 		return res;
 	}
-	r = r->parent;
-    }
     return NULL;
 }
 
@@ -5628,15 +5626,11 @@ static tac_group *lookup_group(char *name, tac_realm *r)
 {
     tac_group g = {.name.txt = name,.name.len = strlen(name) };
 
-    while (r) {
-	if (r->groups_by_name) {
-	    tac_group *res;
-	    if ((res = RB_lookup(r->groups_by_name, &g)))
-		return res;
-	}
-	r = r->parent;
-    }
-    return 0;
+    tac_group *res = NULL;
+    for (; r && !res; r = r->parent)
+	if (r->groups_by_name)
+	    res = RB_lookup(r->groups_by_name, &g);
+    return res;
 }
 
 mavis_ctx *lookup_mcx(tac_realm *r)

@@ -304,8 +304,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 		}
 
 		u = new_user(session->username.txt, S_mavis, r);
-		tac_realm *rf = r;
-		while (rf) {
+		for (tac_realm *rf = r; rf; rf = rf->parent)
 		    if (rf->usertable) {
 			rb_node_t *rbn = RB_search(rf->usertable, u);
 			if (rbn) {
@@ -320,8 +319,6 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 			    }
 			}
 		    }
-		    rf = rf->parent;
-		}
 
 		u->dynamic = io_now.tv_sec + r->caching_period;
 
@@ -426,7 +423,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
     } else if (result && !strcmp(result, AV_V_RESULT_ERROR)) {
 	session->mavisauth_res = S_error;
 	r->last_backend_failure = io_now.tv_sec;
-	while (r && session->mavisauth_res) {
+	for (; r && session->mavisauth_res; r = r->parent)
 	    if (r->usertable) {
 		tac_user u = {.name = session->username };
 		rb_node_t *rbn = RB_search(r->usertable, &u);
@@ -439,8 +436,6 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 		    }
 		}
 	    }
-	    r = r->parent;
-	}
     } else if (result && !strcmp(result, AV_V_RESULT_FAIL)) {
 	session->mavisauth_res = S_deny;
     }
