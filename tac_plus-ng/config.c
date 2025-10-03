@@ -1764,6 +1764,16 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    r->skip_parent_script = parse_bistate(sym);
 	    r->default_host->skip_parent_script = r->skip_parent_script;
 	    continue;
+	case S_script:{
+		enum token next_code = sym_peek(sym);
+		if (next_code != S_equal && next_code != S_openbra) {
+		    // script <name> =
+		    parse_tac_acl(sym, r);
+		    continue;
+		}
+		// script = <name>
+		// script { <script> }
+	    }
 	case S_anonenable:
 	case S_key:
 	case S_radius_key:
@@ -1775,7 +1785,6 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	case S_augmented_enable:
 	case S_singleconnection:
 	case S_context:
-	case S_script:
 	case S_message:
 	case S_session:
 	case S_maxrounds:
