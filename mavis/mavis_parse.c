@@ -783,8 +783,7 @@ void sym_get(struct sym *sym)
 
 enum token sym_peek(struct sym *sym)
 {
-    struct sym mysym;
-    memcpy(&mysym, sym, sizeof(struct sym));
+    struct sym mysym = *sym;
     sym_get(&mysym);
     return mysym.code;
 }
