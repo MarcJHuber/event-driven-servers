@@ -2714,14 +2714,11 @@ static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm 
 	case S_parent:
 	    sym_get(sym);
 	    parse(sym, S_equal);
-	    tac_realm *rp = r;
 	    profile->parent = NULL;
-	    while (rp && !profile->parent) {
+	    for (tac_realm *rp = r; rp && !profile->parent; rp = rp->parent)
 		profile->parent = lookup_profile(sym->buf, r);
-		rp = rp->parent;
-	    }
 	    if (!profile->parent)
-		parse_error(sym, "Host '%s' not found.", sym->buf);
+		parse_error(sym, "Profile '%s' not found.", sym->buf);
 	    if (loopcheck_profile(profile))
 		parse_error(sym, "'%s': circular reference rejected", sym->buf);
 	    sym_get(sym);
