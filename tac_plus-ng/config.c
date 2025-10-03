@@ -5575,7 +5575,7 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 		m->b.v = (void *) new_rad_action(mem, attr, &u, parse_log_format(sym, mem));
 	    break;
 	}
-	char buf[0x1000F];
+	char buf[0x1000];
 	snprintf(buf, sizeof(buf), "\"%s%s\"", sym->buf, sep);
 	sym_get(sym);
 	m->b.v = (char *) parse_log_format_inline(buf, sym->filename, sym->line);
