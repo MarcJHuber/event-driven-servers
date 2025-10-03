@@ -388,11 +388,9 @@ void complete_profile(tac_profile *p)
 
 radixtree_t *lookup_hosttree(tac_realm *r)
 {
-    while (r) {
+    for (; r; r = r->parent)
 	if (r->hosttree)
 	    return r->hosttree;
-	r = r->parent;
-    }
     return NULL;
 }
 
@@ -570,8 +568,7 @@ tac_user *lookup_user(tac_session *session)
     if (!session->username.len)
 	return NULL;
     tac_user user = {.name = session->username };
-    tac_realm *r = session->ctx->realm;
-    while (r && !res) {
+    for (tac_realm * r = session->ctx->realm; r && !res; r = r->parent) {
 	if (r->usertable)
 	    res = RB_lookup(r->usertable, &user);
 	if (!res && r->aliastable) {
@@ -583,7 +580,6 @@ tac_user *lookup_user(tac_session *session)
 	    RB_search_and_delete(r->usertable, res);
 	    res = NULL;
 	}
-	r = r->parent;
     }
     return res;
 }
@@ -591,42 +587,36 @@ tac_user *lookup_user(tac_session *session)
 static tac_profile *lookup_profile(char *name, tac_realm *r)
 {
     tac_profile profile = {.name.txt = name,.name.len = strlen(name) };
-    while (r) {
+    for (; r; r = r->parent)
 	if (r->profiletable) {
 	    tac_profile *res;
 	    if ((res = RB_lookup(r->profiletable, &profile)))
 		return res;
 	}
-	r = r->parent;
-    }
     return NULL;
 }
 
 static tac_rewrite *lookup_rewrite(char *name, tac_realm *r)
 {
     tac_rewrite rewrite = {.name.txt = name,.name.len = strlen(name) };
-    while (r) {
+    for (; r; r = r->parent)
 	if (r->rewrite) {
 	    tac_rewrite *res;
 	    if ((res = RB_lookup(r->rewrite, &rewrite)))
 		return res;
 	}
-	r = r->parent;
-    }
     return NULL;
 }
 
 tac_host *lookup_host(char *name, tac_realm *r)
 {
     tac_host host = {.name.txt = name,.name.len = strlen(name) };
-    while (r) {
+    for (; r; r = r->parent)
 	if (r->hosttable) {
 	    tac_host *res;
 	    if ((res = RB_lookup(r->hosttable, &host)))
 		return res;
 	}
-	r = r->parent;
-    }
     return NULL;
 }
 
@@ -638,21 +628,19 @@ static tac_net *lookup_net(char *name, tac_realm *r, tac_user *user)
 	if ((res = RB_lookup(user->nettable, &net)))
 	    return res;
     }
-    while (r) {
+    for (; r; r = r->parent)
 	if (r->nettable) {
 	    tac_net *res;
 	    if ((res = RB_lookup(r->nettable, &net)))
 		return res;
 	}
-	r = r->parent;
-    }
     return NULL;
 }
 
 struct rad_dacl *lookup_dacl(char *name, tac_realm *r)
 {
     struct rad_dacl dacl = {.name.txt = name,.name.len = strlen(name) };
-    while (r) {
+    for (; r; r = r->parent)
 	if (r->dacls) {
 	    struct rad_dacl *res = RB_lookup(r->dacls, &dacl);
 	    if (res && res->dynamic && res->dynamic < io_now.tv_sec) {
@@ -661,8 +649,6 @@ struct rad_dacl *lookup_dacl(char *name, tac_realm *r)
 	    }
 	    return res;
 	}
-	r = r->parent;
-    }
     return NULL;
 }
 
@@ -673,14 +659,12 @@ static struct mavis_timespec *lookup_timespec(char *name, tac_realm *r, tac_user
 	if ((res = find_timespec(user->timespectable, name)))
 	    return res;
     }
-    while (r) {
+    for (; r; r = r->parent)
 	if (r->timespectable) {
 	    struct mavis_timespec *res;
 	    if ((res = find_timespec(r->timespectable, name)))
 		return res;
 	}
-	r = r->parent;
-    }
     return NULL;
 }
 
@@ -688,13 +672,12 @@ static struct mavis_timespec *lookup_timespec(char *name, tac_realm *r, tac_user
 struct fingerprint *lookup_fingerprint(struct context *ctx)
 {
     for (tac_realm * r = ctx->realm; r; r = r->parent)
-	if (r->fingerprints) {
+	if (r->fingerprints)
 	    for (struct fingerprint * fp = ctx->fingerprint; fp; fp = fp->next) {
 		struct fingerprint *res = RB_lookup(r->fingerprints, fp);
 		if (res)
 		    return res;
 	    }
-	}
     return NULL;
 }
 #endif
@@ -788,7 +771,7 @@ static void dns_add_a(rb_tree_t **t, struct in6_addr *a, char *name)
 
 static struct dns_forward_mapping *dns_lookup_a(tac_realm *r, char *name, int recurse)
 {
-    while (r) {
+    for (; r; r = r->parent) {
 	if (r->dns_tree_a) {
 	    struct dns_forward_mapping dn = {.name.txt = name,.name.len = strlen(name) };
 	    struct dns_forward_mapping *res = (struct dns_forward_mapping *) RB_lookup(r->dns_tree_a, &dn);
@@ -797,7 +780,6 @@ static struct dns_forward_mapping *dns_lookup_a(tac_realm *r, char *name, int re
 	}
 	if (!recurse)
 	    return NULL;
-	r = r->parent;
     }
     return NULL;
 }
@@ -1127,8 +1109,7 @@ struct sni_list {
 
 tac_realm *lookup_sni(const char *name, size_t name_len, tac_realm *r, char **txt, size_t *len)
 {
-    struct sni_list *l = r->sni_list;
-    while (l) {
+    for (struct sni_list * l = r->sni_list; l; l = l->next)
 	if (name_len == l->name_len && !strcmp(name, l->name)) {
 	    if (txt)
 		*txt = l->name;
@@ -1136,8 +1117,6 @@ tac_realm *lookup_sni(const char *name, size_t name_len, tac_realm *r, char **tx
 		*len = l->name_len;
 	    return r;
 	}
-	l = l->next;
-    }
 
     if (r->realms) {
 	tac_realm *res;
@@ -2313,8 +2292,7 @@ enum token eval_ruleset_r(tac_session *session, tac_realm *realm, int parent_fir
     if (res == S_permit || res == S_deny)
 	return res;
 
-    struct tac_rule *rule = realm->rules;
-    while (rule) {
+    for (struct tac_rule * rule = realm->rules; rule; rule = rule->next)
 	if (rule->enabled) {
 	    res = eval_tac_acl(session, &rule->acl);
 #define DEBACL session, LOG_DEBUG, DEBUG_ACL_FLAG
@@ -2330,8 +2308,6 @@ enum token eval_ruleset_r(tac_session *session, tac_realm *realm, int parent_fir
 	    default:;
 	    }
 	}
-	rule = rule->next;
-    }
 
     if (parent_first != TRISTATE_YES && realm->skip_parent_script != BISTATE_YES)
 	res = eval_ruleset_r(session, realm->parent, parent_first);
@@ -2715,7 +2691,7 @@ static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm 
 	    sym_get(sym);
 	    parse(sym, S_equal);
 	    profile->parent = NULL;
-	    for (tac_realm *rp = r; rp && !profile->parent; rp = rp->parent)
+	    for (tac_realm * rp = r; rp && !profile->parent; rp = rp->parent)
 		profile->parent = lookup_profile(sym->buf, r);
 	    if (!profile->parent)
 		parse_error(sym, "Profile '%s' not found.", sym->buf);
@@ -4172,7 +4148,6 @@ static void parse_net(struct sym *sym, tac_realm *r, tac_user *user, tac_net *pa
 	nettable = &user->nettable;
     }
     tac_net *net = mem_alloc(mem, sizeof(tac_net)), *np;
-    struct dns_forward_mapping *d;
 
     if (!*nettable) {
 	*nettable = RB_tree_new(compare_name, NULL);
@@ -4193,11 +4168,8 @@ static void parse_net(struct sym *sym, tac_realm *r, tac_user *user, tac_net *pa
     net->res = S_permit;
     net->user_local = user ? BISTATE_YES : BISTATE_NO;
 
-    d = dns_lookup_a(r, sym->buf, 1);
-    while (d) {
+    for (struct dns_forward_mapping * d = dns_lookup_a(r, sym->buf, 1); d; d = d->next)
 	radix_add(net->nettree, &d->a, 128, net);
-	d = d->next;
-    }
 
     sym_get(sym);
     parse(sym, S_openbra);
@@ -4937,14 +4909,9 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	}
 	return tac_script_cond_eval_res(session, m, res);
     case S_host:
-	{
-	    tac_host *h = session->host;
-	    while (!res && h) {
-		res = (h == (tac_host *) (m->s.rhs));
-		h = h->parent;
-	    }
-	    return tac_script_cond_eval_res(session, m, res);
-	}
+	for (tac_host * h = session->host; !res && h; h = h->parent)
+	    res = (h == (tac_host *) (m->s.rhs));
+	return tac_script_cond_eval_res(session, m, res);
     case S_net:
 	if (m->s.token == S_nas) {
 	    tac_net *net = (tac_net *) (m->s.rhs);
@@ -4962,20 +4929,14 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	    res = tac_group_check(m->s.rhs, session->user->groups, NULL);
 	return tac_script_cond_eval_res(session, m, res);
     case S_devicetag:
-	{
-	    tac_host *h = session->host;
-	    if (m->s.rhs_token == S_string) {
-		while (!res && h) {
-		    res = tac_tag_check(session, m->s.rhs, h->tags);
-		    h = h->parent;
-		}
-	    } else if (m->s.rhs_token == S_devicetag)
-		res = -1;
-	    else if (m->s.rhs_token == S_usertag && session && session->user) {
-		res = tac_tag_list_check(session, h, session->user);
-	    }
-	    return tac_script_cond_eval_res(session, m, res);
-	}
+	if (m->s.rhs_token == S_string)
+	    for (tac_host * h = session->host; !res && h; h = h->parent)
+		res = tac_tag_check(session, m->s.rhs, h->tags);
+	else if (m->s.rhs_token == S_devicetag)
+	    res = -1;
+	else if (m->s.rhs_token == S_usertag && session && session->user)
+	    res = tac_tag_list_check(session, session->host, session->user);
+	return tac_script_cond_eval_res(session, m, res);
     case S_usertag:
 	if (session && session->user) {
 	    if (m->s.rhs_token == S_string)
@@ -4990,14 +4951,9 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	res = S_permit == eval_tac_acl(session, (struct tac_acl *) m->s.rhs);
 	return tac_script_cond_eval_res(session, m, res);
     case S_realm:
-	{
-	    tac_realm *r = session->ctx->realm;
-	    while (!res && r) {
-		res = (r == (tac_realm *) m->s.rhs);
-		r = r->parent;
-	    }
-	    return tac_script_cond_eval_res(session, m, res);
-	}
+	for (tac_realm * r = session->ctx->realm; !res && r; r = r->parent)
+	    res = (r == (tac_realm *) m->s.rhs);
+	return tac_script_cond_eval_res(session, m, res);
     case S_radius:
 	{
 	    struct rad_dict_attr *attr = (struct rad_dict_attr *) m->s.lhs;
@@ -5149,33 +5105,18 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 		res = tac_group_regex_check(session, m, session->user->groups, NULL);
 	    return tac_script_cond_eval_res(session, m, res);
 	case S_devicetag:
-	    {
-		tac_host *h = session->host;
-		while (!res && h) {
-		    res = tac_tag_regex_check(session, m, h->tags);
-		    h = h->parent;
-		}
-		return tac_script_cond_eval_res(session, m, res);
-	    }
+	    for (tac_host * h = session->host; !res && h; h = h->parent)
+		res = tac_tag_regex_check(session, m, h->tags);
+	    return tac_script_cond_eval_res(session, m, res);
 	case S_devicename:
 	case S_host:
-	    {
-		tac_host *h = session->host;
-		while (!res && h) {
-		    res = tac_mavis_cond_compare(session, m, h->name.txt, h->name.len);
-		    h = h->parent;
-		}
-		return tac_script_cond_eval_res(session, m, res);
-	    }
+	    for (tac_host * h = session->host; !res && h; h = h->parent)
+		res = tac_mavis_cond_compare(session, m, h->name.txt, h->name.len);
+	    return tac_script_cond_eval_res(session, m, res);
 	case S_realm:
-	    {
-		tac_realm *r = session->ctx->realm;
-		while (!res && r) {
-		    res = tac_mavis_cond_compare(session, m, r->name.txt, r->name.len);
-		    r = r->parent;
-		}
-		return tac_script_cond_eval_res(session, m, res);
-	    }
+	    for (tac_realm * r = session->ctx->realm; !res && r; r = r->parent)
+		res = tac_mavis_cond_compare(session, m, r->name.txt, r->name.len);
+	    return tac_script_cond_eval_res(session, m, res);
 	case S_memberof:
 	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_MEMBEROF]) {
 		size_t l = strlen(session->user->avc->arr[AV_A_MEMBEROF]) + 1;
@@ -5700,11 +5641,9 @@ static tac_group *lookup_group(char *name, tac_realm *r)
 
 mavis_ctx *lookup_mcx(tac_realm *r)
 {
-    while (r) {
+    for (; r; r = r->parent)
 	if (r->mcx)
 	    return r->mcx;
-	r = r->parent;
-    }
     return NULL;
 }
 
