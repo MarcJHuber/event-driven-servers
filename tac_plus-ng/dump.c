@@ -424,6 +424,26 @@ static struct i2s map_rad_code[] = {
     { 0 }
 };
 
+static void rad_sanitize_pak(u_char *out, u_char *in, size_t len)
+{
+    memcpy(out, in, RADIUS_HDR_SIZE);
+    in += RADIUS_HDR_SIZE;
+    out += RADIUS_HDR_SIZE;
+    len -= RADIUS_HDR_SIZE;
+    for (u_char * end = in + len; in < end;) {
+	int hide = (*in == RADIUS_A_USER_PASSWORD);
+	*out = *in;
+	out++, in++;
+	*out = *in;
+	u_char fl = *in - 2;
+	out++, in++;
+	for (; fl; fl--) {
+	    *out = hide ? '*' : *in;
+	    out++, in++;
+	}
+    }
+}
+
 void dump_rad_pak(tac_session *session, rad_pak_hdr *pkt)
 {
     if (!(common_data.debug & DEBUG_TACTRACE_FLAG) && !session->ctx->radius_1_1)
@@ -431,7 +451,13 @@ void dump_rad_pak(tac_session *session, rad_pak_hdr *pkt)
 
     report(DEBPACK, "%s---<start packet>---%s", common_data.font_green, common_data.font_plain);
     report(DEBHEX, "%spacket%s (len: %d):%s", common_data.font_red, common_data.font_plain, (int) ntohs(pkt->length), common_data.font_plain);
-    report_hex(DEBHEX, (u_char *) pkt, (int) ntohs(pkt->length));
+
+    {
+	size_t pkt_len = ntohs(pkt->length);
+	u_char p[pkt_len];
+	rad_sanitize_pak(p, (u_char *) pkt, pkt_len);
+	report_hex(DEBHEX, p, pkt_len);
+    }
 
     report(DEBPACK, "%scode=%s [%u] identifer=%u length=%u%s", common_data.font_blue, i2s(map_rad_code, pkt->code, NULL),
 	   pkt->code, pkt->identifier, ntohs(pkt->length), common_data.font_plain);
