@@ -5573,14 +5573,15 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 		sym_get(sym);
 	    else
 		m->b.v = (void *) new_rad_action(mem, attr, &u, parse_log_format(sym, mem));
-	    break;
+	} else {
+	    size_t buf_len = 3 + strlen(sym->buf) + strlen(sep);
+	    char buf[buf_len];
+	    snprintf(buf, buf_len, "\"%s%s\"", sym->buf, sep);
+	    m->b.v = (char *) parse_log_format_inline(buf, sym->filename, sym->line);
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    ((struct log_item *) m->b.v)->next = parse_log_format(sym, mem);
 	}
-	char buf[0x1000];
-	snprintf(buf, sizeof(buf), "\"%s%s\"", sym->buf, sep);
-	sym_get(sym);
-	m->b.v = (char *) parse_log_format_inline(buf, sym->filename, sym->line);
-	parse(sym, S_equal);
-	((struct log_item *) m->b.v)->next = parse_log_format(sym, mem);
 	break;
     default:
 	parse_error_expect(sym, S_openbra, S_closebra, S_return, S_permit, S_deny, S_context, S_message, S_if,
