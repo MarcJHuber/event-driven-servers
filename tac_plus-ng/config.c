@@ -217,7 +217,7 @@ static char *confdir_strdup(char *in)
 	return strdup(in);
     size_t in_len = strlen(in);
     size_t cd_len = strlen(common_data.conffile);
-    char *b = alloca(in_len + cd_len);
+    char b[in_len + cd_len];
     strcpy(b, common_data.conffile);
     char *r = strrchr(b, '/');
     if (r)
@@ -2799,8 +2799,9 @@ enum token validate_ssh_key_id(tac_session *session)
     struct ssh_key_id **ssh_key_id = &session->user->ssh_key_id;
     while (*ssh_key_id) {
 	size_t len = strlen((*ssh_key_id)->s) + 1;
-	char *v = alloca(len);
-	memcpy(v, (*ssh_key_id)->s, len);
+	char buf[len];
+	memcpy(buf, (*ssh_key_id)->s, len);
+	char *v = buf;
 	while (*v) {
 	    char *e;
 	    int quoted = 0;
@@ -2919,7 +2920,7 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 
     do {
 	size_t slen = strlen(sym->buf);
-	unsigned char *t = alloca(slen);
+	unsigned char t[slen];
 	char *hash, *key;
 	size_t hash_len;
 	int len = -1;
@@ -2937,7 +2938,7 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 	}
 
 	if (!strncmp(p, begin_marker, begin_marker_len)) {
-	    char *n = alloca(slen);
+	    char n[slen];
 	    char *t = n;
 	    char *h;
 	    is_rfc4716 = 1;
@@ -3011,7 +3012,7 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 	    key = mem_strdup(user->mem, sym->buf);
 	else {
 	    int l = slen;
-	    char *ck = alloca(slen + 200);
+	    char ck[slen + 200];
 	    *ck = 0;
 	    strcat(ck, begin_marker);
 	    strcat(ck, "\n");
@@ -4121,7 +4122,7 @@ static void parse_dacl(struct sym *sym, tac_realm *r)
     sym_get(sym);
 
     size_t name_len = strlen(sym->buf);
-    char *name = alloca(name_len + 1);
+    char name[name_len + 1];
     strncpy(name, sym->buf, name_len);
     sym_get(sym);
     add_dacl(name, name_len, sym, r, 0);
@@ -4343,7 +4344,7 @@ static void attr_add_single(tac_session *session, char ***v, int *i, char *attr,
 
 static void attr_add_multi(tac_session *session, char ***v, int *i, char *attr, size_t attr_len)
 {
-    char *a = alloca(attr_len + 1);
+    char a[attr_len + 1];
     size_t a_len;
 
     for (a_len = 0; a_len < attr_len && attr[a_len] != '*' && attr[a_len] != '='; a_len++);
@@ -5118,8 +5119,9 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	case S_memberof:
 	    if (session->user && session->user->avc && session->user->avc->arr[AV_A_MEMBEROF]) {
 		size_t l = strlen(session->user->avc->arr[AV_A_MEMBEROF]) + 1;
-		char *v = alloca(l);
-		memcpy(v, session->user->avc->arr[AV_A_MEMBEROF], l);
+		char buf[l];
+		memcpy(buf, session->user->avc->arr[AV_A_MEMBEROF], l);
+		char *v = buf;
 		while (*v) {
 		    char *e;
 		    if (*v != '"') {

@@ -171,8 +171,7 @@ void send_author_reply(tac_session *session, u_char status, char *msg, char *dat
 {
     int msg_len = msg ? (int) strlen(msg) : 0;
     int data_len = data ? (int) strlen(data) : 0;
-    size_t j = arg_cnt * sizeof(int);
-    int *arglen = alloca(j);
+    int arglen[arg_cnt + 1];
     int user_msg_len = session->user_msg.txt ? (int) strlen(session->user_msg.txt) : 0;
 
     if ((user_msg_len + msg_len) & ~0xffff)

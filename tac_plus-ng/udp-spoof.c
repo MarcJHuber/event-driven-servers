@@ -79,7 +79,7 @@ ssize_t sendto_spoof(sockaddr_union *src_su, sockaddr_union *dst_su, void *buf, 
 	setsockopt(sock, IPPROTO_IP, IP_HDRINCL, &one, sizeof(one));
 #endif
 	size_t buffer_len = sizeof(struct ip) + sizeof(struct udphdr) + buf_len;
-	u_char *buffer = alloca(buffer_len);
+	u_char buffer[buffer_len];
 	memset(buffer, 0, buffer_len);
 
 	struct ip *ip = (struct ip *) buffer;
@@ -117,7 +117,7 @@ ssize_t sendto_spoof(sockaddr_union *src_su, sockaddr_union *dst_su, void *buf, 
 	setsockopt(sock, IPPROTO_IPV6, IPV6_HDRINCL, &one, sizeof(one));
 #endif
 	size_t buffer_len = sizeof(struct ip6_hdr) + sizeof(struct udphdr) + buf_len;
-	u_char *buffer = alloca(buffer_len);
+	u_char buffer[buffer_len];
 	memset(buffer, 0, buffer_len);
 
 	struct ip6_hdr *ip6 = (struct ip6_hdr *) buffer;

@@ -172,7 +172,6 @@ void parse_error(struct sym *sym, char *fmt, ...)
 void parse_error_expect(struct sym *sym, ...)
 {
     size_t len = 20;
-    char *s, *p;
     va_list ap;
     u_char a[S_null + 1];
     size_t token_count = 0, j = 0, dec = 1;
@@ -186,7 +185,8 @@ void parse_error_expect(struct sym *sym, ...)
     }
     va_end(ap);
 
-    p = s = alloca(len);
+    char s[len];
+    char *p = s;
 
     if (token_count > 1)
 	token_count--, dec = 0;
@@ -310,27 +310,23 @@ static void substitute_envvar(struct sym *sym)
     char *be = buf + MAX_INPUT_LINE_LEN - 1;
     while (*t) {
 	if (*t == '$' && *(t + 1) == '{') {
-	    char *var;
-	    u_int var_len;
 	    char *vs = t + 2;
 	    char *ve = vs;
 	    while (*ve && *ve != '}')
 		ve++;
 	    if (ve) {
-		var_len = ve - vs + 1;
-		var = alloca(var_len);
-		if (var) {
-		    memcpy(var, vs, var_len);
-		    var[var_len - 1] = 0;
-		    var = getenv(var);
-		    found = 1;
-		    if (var) {
-			t = ve;
-			t++;
-			while (b < be && *var)
-			    *b++ = *var++;
-			continue;
-		    }
+		size_t var_len = ve - vs + 1;
+		char var[var_len];
+		memcpy(var, vs, var_len);
+		var[var_len - 1] = 0;
+		char *e = getenv(var);
+		found = 1;
+		if (e) {
+		    t = ve;
+		    t++;
+		    while (b < be && *e)
+			*b++ = *e++;
+		    continue;
 		}
 	    }
 	}
@@ -675,7 +671,8 @@ void sym_get(struct sym *sym)
 
     if (aliastable && sym->code == S_string) {
 	int len = strlen(sym->buf);
-	struct alias *a = alloca(sizeof(struct alias) + len);
+	char _a[sizeof(struct alias) + len];
+	struct alias *a = (struct alias *) _a;
 	memcpy(a->name, sym->buf, len + 1);
 	a = RB_lookup(aliastable, (void *) a);
 	if (a) {
@@ -1823,9 +1820,8 @@ void parse_common(struct sym *sym)
 	sym_get(sym);
 	break;
     case S_setenv:{
-	    char *e;
 	    sym_get(sym);
-	    e = alloca(strlen(sym->buf) + 1);
+	    char e[strlen(sym->buf) + 1];
 	    strcpy(e, sym->buf);
 	    sym_get(sym);
 	    if (sym->code == S_equal)
@@ -2395,7 +2391,7 @@ static enum token mavis_script_eval_r(mavis_ctx *mcx, av_ctx *ac, struct mavis_a
 	    if (common_data.debug & DEBUG_ACL_FLAG) {
 		size_t len = strlen(s);
 		size_t olen = len * 4 + 1;
-		char *out = alloca(olen);
+		char out[olen];
 		fprintf(stderr, "%s/line %u: [%s] %s = \"%s\"\n", mcx->identity_source_name, m->line, codestring[m->code].txt, av_char[m->a.a].name,
 			escape_string(s, len, out, &olen));
 	    }
@@ -2721,15 +2717,13 @@ static int parse_uucptime(struct mavis_tm *, char *in);
 
 void parse_timespec(rb_tree_t *timespectable, struct sym *sym)
 {
-    struct mavis_timespec *ts;
-    size_t l;
-
     sym_get(sym);
     if (sym->code == S_equal)
 	sym_get(sym);
-    l = strlen(sym->buf);
+    size_t l = strlen(sym->buf);
 
-    ts = alloca(sizeof(struct mavis_timespec) + l);
+    char _ts[sizeof(struct mavis_timespec) + l];
+    struct mavis_timespec *ts = (struct mavis_timespec *) _ts;
     strcpy(ts->name, sym->buf);
 
     ts = RB_lookup(timespectable, (void *) ts);
@@ -2772,7 +2766,8 @@ void parse_timespec(rb_tree_t *timespectable, struct sym *sym)
 struct mavis_timespec *find_timespec(rb_tree_t *timespectable, char *s)
 {
     size_t l = strlen(s);
-    struct mavis_timespec *ts = alloca(sizeof(struct mavis_timespec) + l);
+    char _ts[sizeof(struct mavis_timespec) + l];
+    struct mavis_timespec *ts = (struct mavis_timespec *) _ts;
     strcpy(ts->name, s);
     ts = RB_lookup(timespectable, (void *) ts);
     return ts;

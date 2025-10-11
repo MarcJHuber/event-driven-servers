@@ -188,12 +188,12 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
     if (!session->ctx->realm->caching_period && !strcmp(type, AV_V_TACTYPE_INFO) && session->author_data) {
 	struct author_data *data = session->author_data;
 	int len = 0, cnt = data->in_cnt - 1;
-	size_t *arglen = alloca(data->in_cnt * sizeof(size_t));
+	size_t arglen[data->in_cnt + 1];
 	for (int i = 0; i < data->in_cnt; i++) {
 	    arglen[i] = strlen(data->in_args[i]);
 	    len += arglen[i] + 1;
 	}
-	char *args = alloca(len);
+	char args[len + 1];
 	char *p = args;
 	for (int i = 0; i <= cnt; i++) {
 	    memcpy(p, data->in_args[i], arglen[i]);
@@ -561,7 +561,7 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 	    char *u = NULL;
 	    char *t = NULL;
 	    if (ctx->tls_peer_cert_san_count) {
-		size_t *la = alloca(ctx->tls_peer_cert_san_count * sizeof(size_t));
+		size_t la[ctx->tls_peer_cert_san_count];
 		len += ctx->tls_peer_cert_san_count * (sizeof(SAN_PREFIX) + sizeof(SEQ_SUFFIX));
 		for (size_t i = 0; i < ctx->tls_peer_cert_san_count; i++) {
 		    la[i] = strlen(ctx->tls_peer_cert_san[i]);

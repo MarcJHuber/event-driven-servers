@@ -226,15 +226,12 @@ static void dump_header(tac_session *session, tac_pak_hdr *hdr, int bogus)
 	    l = ntohs(cont->user_msg_len) + ntohs(cont->user_data_len);
 	}
 	if (l) {
-	    char *t = alloca(n);
-	    if (t) {
-		memcpy(t, tac_payload(hdr, char *), n);
-		memset(t + n - l, '*', l);
-		report(DEBHEX, "%spacket body [partially masked]%s (len: %d):%s", common_data.font_red, common_data.font_plain,
-		       (int) l, common_data.font_plain);
-		report_hex(DEBHEX, (u_char *) t, n);
-		return;
-	    }
+	    char t[n];
+	    memcpy(t, tac_payload(hdr, char *), n);
+	    memset(t + n - l, '*', l);
+	    report(DEBHEX, "%spacket body [partially masked]%s (len: %d):%s", common_data.font_red, common_data.font_plain, (int) l, common_data.font_plain);
+	    report_hex(DEBHEX, (u_char *) t, n);
+	    return;
 	}
     }
     report(DEBHEX, "%spacket body%s (len: %d):%s", common_data.font_red, common_data.font_plain, (int) ntohl(hdr->datalength), common_data.font_plain);

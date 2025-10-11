@@ -66,8 +66,8 @@ static int bad_nas_args(tac_session *, struct author_data *);
 void eval_args(tac_session *session, u_char *p, u_char *argsizep, size_t argcnt)
 {
     size_t len = 0, tlen = 0;
-    char *cmdline, *t;
-    t = cmdline = alloca(session->ctx->in->length);
+    char cmdline[session->ctx->in->length];
+    char *t = cmdline;
 
     for (size_t i = 0; i < argcnt; i++) {
 	size_t l = *argsizep;

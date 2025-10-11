@@ -157,15 +157,16 @@ static void rad_dict_attr_add_val(struct sym *sym, struct rad_dict_attr *attr, c
 struct rad_dict_attr *rad_dict_attr_lookup(struct sym *sym)
 {
     size_t buf_len = strlen(sym->buf);
-    char *vid_str = alloca(buf_len + 1);
-    memcpy(vid_str, sym->buf, buf_len + 1);
+    char buf[buf_len + 1];
+    memcpy(buf, sym->buf, buf_len + 1);
+    char *vid_str = buf;
     char *id_str = strchr(vid_str, ':');
 
     if (id_str) {
 	*id_str = 0;
 	id_str++;
     } else {
-	id_str = sym->buf;
+	id_str = buf;
 	vid_str = "";
     }
 

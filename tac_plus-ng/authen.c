@@ -167,7 +167,7 @@ static char *get_hint(tac_session *session, enum hint_enum h)
 
 static void report_auth(tac_session *session, char *what, enum hint_enum hint, enum token res)
 {
-    char *realm = alloca(session->ctx->realm->name.len + 40);
+    char realm[session->ctx->realm->name.len + 40];
     tac_realm *r = session->ctx->realm;
 
     session->result = &codestring[res];
@@ -525,7 +525,7 @@ static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *)
 	if (m && strchr(m, (int) '%')) {
 	    struct tm *tm = localtime(&session->password_expiry);
 	    size_t b_len = m_len + 200;
-	    char *b = alloca(b_len);
+	    char b[b_len];
 	    if (strftime(b, b_len, m, tm))
 		m = mem_strdup(session->mem, b);
 	}
@@ -931,13 +931,15 @@ static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*
 	    return;
 	}
 	if (session->challenge) {
-	    char *chal = alloca(40 + strlen(session->challenge));
+	    size_t resp_len = 0;
+	    char *resp = eval_log_format(session, session->ctx, NULL, li_response, io_now.tv_sec, &resp_len);
+	    char chal[40 + strlen(session->challenge) + resp_len];
 	    *chal = 0;
 	    if (!session->welcome_banner || !session->welcome_banner[0])
 		strncpy(chal, "\n", 2);
 	    strcat(chal, session->challenge);
 	    strcat(chal, "\n");
-	    strcat(chal, eval_log_format(session, session->ctx, NULL, li_response, io_now.tv_sec, &session->msg.len));
+	    strcat(chal, resp);
 	    strcat(chal, " ");
 	    str_set(&session->msg, chal, 0);
 	    session->welcome_banner = set_welcome_banner(session, NULL);
@@ -2080,7 +2082,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
     } else if (cont->flags & TAC_PLUS_CONTINUE_FLAG_ABORT) {
 	char *t = hints[hint_abort].plain.txt;
 	size_t l = ntohs(cont->user_data_len) + 100;
-	char *tmp = alloca(l);
+	char tmp[l];
 	if (cont->user_data_len) {
 	    snprintf(tmp, l, "%s (%*s)", t, cont->user_msg_len, (char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + ntohs(cont->user_msg_len));
 	    t = tmp;

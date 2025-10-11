@@ -151,7 +151,7 @@ void report_string(tac_session *session, int priority, int level, char *pre, cha
 {
     if (report_flag_set(session, priority, level)) {
 	size_t outlen = len * 4 + 1;
-	char *v = alloca(outlen);
+	char v[outlen];
 	char *m = escape_string(p, len, v, &outlen);
 
 	report(session, priority, level, "%s%s%s (len: %d): %s%s%s", common_data.font_red, pre, common_data.font_plain, len, common_data.font_blue, m,
