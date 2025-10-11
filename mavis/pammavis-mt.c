@@ -114,7 +114,7 @@ static pthread_mutex_t mutex_lock;
 static void av_write(av_ctx * ac, uint32_t result)
 {
     size_t len = av_array_to_char_len(ac);
-    char *buf = alloca(len + sizeof(struct mavis_ext_hdr_v1));
+    char buf[len + sizeof(struct mavis_ext_hdr_v1)];
     if (is_mt == TRISTATE_YES) {
 	len = av_array_to_char(ac, buf + sizeof(struct mavis_ext_hdr_v1), len, NULL);
 
@@ -174,7 +174,7 @@ static void *run_thread(void *arg)
 
 static void generate_test_output(char *arg)
 {
-    char *s = alloca(strlen(arg) + 1);
+    char s[strlen(arg) + 1];
     char *t = s;
 
     while (*arg) {

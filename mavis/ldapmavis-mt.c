@@ -521,7 +521,7 @@ static int dnhash_add_entry_groupOfNames(LDAP *ldap, struct dnhash **h, char *dn
     char *attrs[] = { "member", NULL };
     LDAPMessage *res = NULL;
     size_t filter_len = strlen(dn) + ldap_filter_group_len;
-    char *filter = alloca(filter_len);
+    char filter[filter_len];
     snprintf(filter, filter_len, ldap_filter_group, dn);
     int rc = ldap_search_ext_s(ldap, base_dn_group, scope_group, filter, attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
     if (rc != LDAP_SUCCESS)
@@ -595,7 +595,7 @@ static char *translate_ldap_error(char *err /* from ldap_err2string() */ , char 
 	    if (ovector_count == 2) {
 		size_t match_start = ovector[2];
 		size_t match_len = ovector[3] - ovector[2];
-		char *id = alloca(match_len + 1);
+		char id[match_len + 1];
 		strncpy(id, diag + match_start, match_len);
 		id[match_len] = 0;
 		struct ad_error_codes *a = ad_error_codes;
@@ -613,7 +613,7 @@ static char *translate_ldap_error(char *err /* from ldap_err2string() */ , char 
     if (!err && !diag)
 	return "Permission denied.";
     int len = 30 + (err ? strlen(err) : 0) + (diag ? strlen(diag) : 0);
-    char *message = alloca(len + 30);
+    char message[len + 30];
     snprintf(message, len, "%s%s%s", err ? err : "", (err && diag) ? ": " : "", diag ? diag : "");
     if (!strcmp(message, "invalidCredentials"))
 	return "Permission denied.";
@@ -632,7 +632,7 @@ static pthread_mutex_t mutex_lock;
 static void av_write(av_ctx *ac, uint32_t result)
 {
     size_t len = av_array_to_char_len(ac);
-    char *buf = alloca(len + sizeof(struct mavis_ext_hdr_v1));
+    char buf[len + sizeof(struct mavis_ext_hdr_v1)];
     if (is_mt == TRISTATE_YES) {
 	len = av_array_to_char(ac, buf + sizeof(struct mavis_ext_hdr_v1), len, NULL);
 
@@ -669,7 +669,7 @@ static void *run_thread(void *arg)
     };
     char *username = av_get(ac, AV_A_USER);
     size_t filter_len = ldap_filter_len + strlen(username);
-    char *filter = alloca(filter_len);
+    char filter[filter_len];
     snprintf(filter, filter_len, ldap_filter, username);
 
     LDAPMessage *res = NULL;
@@ -903,7 +903,7 @@ static void *run_thread(void *arg)
 	    if (capabilities & CAP_AD) {
 		char *oldpw = av_get(ac, AV_A_PASSWORD);
 		size_t oldpw_len = strlen(oldpw);
-		char *quoted_oldpw = alloca(oldpw_len + 3);
+		char quoted_oldpw[oldpw_len + 3];
 		*quoted_oldpw = '"';
 		memcpy(quoted_oldpw + 1, oldpw, oldpw_len++);
 		quoted_oldpw[oldpw_len++] = '"';
@@ -913,7 +913,7 @@ static void *run_thread(void *arg)
 
 		char *newpw = av_get(ac, AV_A_PASSWORD_NEW);
 		size_t newpw_len = strlen(newpw);
-		char *quoted_newpw = alloca(newpw_len + 3);
+		char quoted_newpw[newpw_len + 3];
 		*quoted_newpw = '"';
 		memcpy(quoted_newpw + 1, newpw, newpw_len++);
 		quoted_newpw[newpw_len++] = '"';

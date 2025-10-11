@@ -155,7 +155,8 @@ static void mavis_drop_in(mavis_ctx * mcx)
 static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 {
     char *t, *m, *p;
-    struct user *u = alloca(sizeof(struct user));
+    struct user _u = {0};
+    struct user *u = &_u;
 
     t = av_get(*ac, AV_A_TYPE);
 

@@ -228,7 +228,6 @@ group-id = gid
 #define HAVE_mavis_parse_in
 static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 {
-    char *env_name;
     size_t len;
     struct stat st;
 
@@ -265,10 +264,9 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 	    default:
 		parse_error_expect(sym, S_min, S_max, S_unknown);
 	    }
-
-	case S_setenv:
+	case S_setenv:{
 	    sym_get(sym);
-	    env_name = alloca(strlen(sym->buf) + 1);
+	    char env_name[strlen(sym->buf) + 1];
 	    strcpy(env_name, sym->buf);
 	    sym_get(sym);
 	    parse(sym, S_equal);
@@ -279,7 +277,7 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 	    mcx->env[mcx->envcount] = NULL;
 	    sym_get(sym);
 	    continue;
-
+	}
 	case S_exec:{
 		char buf[MAX_INPUT_LINE_LEN];
 		sym_get(sym);
@@ -482,17 +480,17 @@ static void read_from_child(struct context *ctx, int cur)
 		    rb_node_t *r;
 		    struct query *q;
 		    char *serial = av_get(ctx->ac, AV_A_SERIAL);
-		    char *serial_old = alloca(strlen(serial) + 1);
-		    int result;
+		    size_t serial_size = strlen(serial) + 1;
+		    char serial_old[serial_size];
 
-		    strcpy(serial_old, serial);
+		    memcpy(serial_old, serial, serial_size);
 
 		    io_clr_i(ctx->mcx->io, ctx->fd_in);
 
 		    av_clear(ctx->ac);
 		    *++t = 0;
 		    av_char_to_array(ctx->ac, ctx->b_in, NULL);
-		    result = atoi(++t);
+		    int result = atoi(++t);
 
 		    ctx->in_use = 0;
 		    ctx->mcx->usage--;

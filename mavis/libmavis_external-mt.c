@@ -142,7 +142,6 @@ setenv a = b
 #define HAVE_mavis_parse_in
 static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 {
-    char *env_name;
     size_t len;
     struct stat st;
 
@@ -151,9 +150,9 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 	case S_script:
 	    mavis_script_parse(mcx, NULL, sym);
 	    continue;
-	case S_setenv:
+	case S_setenv:{
 	    sym_get(sym);
-	    env_name = alloca(strlen(sym->buf) + 1);
+	    char env_name[strlen(sym->buf) + 1];
 	    strcpy(env_name, sym->buf);
 	    sym_get(sym);
 	    parse(sym, S_equal);
@@ -164,6 +163,7 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 	    mcx->env[mcx->envcount] = NULL;
 	    sym_get(sym);
 	    continue;
+	}
 	case S_exec:{
 		char buf[MAX_INPUT_LINE_LEN];
 		sym_get(sym);
