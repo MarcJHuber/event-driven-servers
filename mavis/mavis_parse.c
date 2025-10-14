@@ -2350,11 +2350,44 @@ static enum token mavis_script_eval_r(mavis_ctx *mcx, av_ctx *ac, struct mavis_a
 #ifdef WITH_PCRE2
 	    uint32_t i;
 #endif
-	    char s[4096];	// yeah, this sucks.
+	    // calculate length first
 	    char *v = m->b.v;
-	    char *se = s + sizeof(s) - strlen(v) - 100;
+	    size_t s_len = 1;
+	    while (*v) {
+		switch (*v) {
+		case '$':
+		    v++;
+		    if (!isdigit((int) *v)) {
+			s_len++;
+			break;
+		    }
+#ifdef WITH_PCRE2
+		    i = *v - '0';
+#endif
+		    v++;
+#ifdef WITH_PCRE2
+		    if (pcre_arg && ovector && i < ovector_count && ovector[2 * i] < ovector[2 * i + 1]) {
+			size_t l = ovector[2 * i + 1] - ovector[2 * i];
+		        s_len += l;
+		    }
+#else
+		    report_cfg_error(LOG_INFO, ~0, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
+#endif
+		    continue;
+		case '\\':
+		    v++;
+		    if (!*v)
+			continue;
+		default:;
+		}
+		v++;
+		s_len++;
+	    }
+	    // now allocate mem and copy actual strings
+	    char s[s_len];
+	    v = m->b.v;
 	    char *t = s;
-	    while (*v && t < se) {
+	    while (*v) {
 		switch (*v) {
 		case '$':
 		    v++;
@@ -2369,13 +2402,11 @@ static enum token mavis_script_eval_r(mavis_ctx *mcx, av_ctx *ac, struct mavis_a
 #ifdef WITH_PCRE2
 		    if (pcre_arg && ovector && i < ovector_count && ovector[2 * i] < ovector[2 * i + 1]) {
 			size_t l = ovector[2 * i + 1] - ovector[2 * i];
-			if (((int) (se - t) > (int) l)) {
-			    strncpy(t, (char *) pcre_arg + ovector[2 * i], l);
-			    t += l;
-			}
+			strncpy(t, (char *) pcre_arg + ovector[2 * i], l);
+			t += l;
 		    }
 #else
-		    report_cfg_error(LOG_INFO, ~0, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
+//		    report_cfg_error(LOG_INFO, ~0, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
 #endif
 		    continue;
 		case '\\':
