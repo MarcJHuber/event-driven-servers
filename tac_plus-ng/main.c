@@ -1197,8 +1197,9 @@ void complete_host(tac_host *h)
 }
 
 #ifdef WITH_SSL
-static int X509_verify_cert_post_handshake(SSL *ssl)
+static int X509_verify_cert_post_handshake(SSL *ssl, mem_t *mem, char **reason)
 {
+    *reason = NULL;
 #if OPENSSL_VERSION_NUMBER < 0x30000000
     X509 *cert = SSL_get_peer_certificate(ssl);
 #else
@@ -1208,6 +1209,7 @@ static int X509_verify_cert_post_handshake(SSL *ssl)
 	return 0;
 
     if (X509_check_purpose(cert, X509_PURPOSE_SSL_CLIENT, 0) != 1) {
+	*reason = "cert purpose";
 	X509_free(cert);
 	return 0;
     }
@@ -1215,17 +1217,20 @@ static int X509_verify_cert_post_handshake(SSL *ssl)
     STACK_OF(X509) * chain = SSL_get_peer_cert_chain(ssl);
     X509_STORE *store = SSL_CTX_get_cert_store(SSL_get_SSL_CTX(ssl));
     if (!store) {
+	*reason = "SSL_CTX_get_cert_store";
 	X509_free(cert);
 	return 0;
     }
 
     X509_STORE_CTX *ctx = X509_STORE_CTX_new();
     if (!ctx) {
+	*reason = "X509_STORE_CTX_new";
 	X509_free(cert);
 	return 0;
     }
 
     if (X509_STORE_CTX_init(ctx, store, cert, chain) != 1) {
+	*reason = "X509_STORE_CTX_init";
 	X509_STORE_CTX_free(ctx);
 	X509_free(cert);
 	return 0;
@@ -1234,6 +1239,12 @@ static int X509_verify_cert_post_handshake(SSL *ssl)
     X509_STORE_CTX_set_ex_data(ctx, SSL_get_ex_data_X509_STORE_CTX_idx(), ssl);
 
     int res = X509_verify_cert(ctx);
+    if (res != 1) {
+	unsigned long e = X509_STORE_CTX_get_error(ctx);
+	char *es = ERR_error_string(e, NULL);
+	if (es)
+	    *reason = mem_strdup(mem, es);
+    }
 
     X509_STORE_CTX_free(ctx);
     X509_free(cert);
@@ -1274,12 +1285,13 @@ static int cert_verify(struct context *ctx)
 	return 0;
     }
     if (ctx->host->tls_peer_cert_validation == S_cert || ctx->host->tls_peer_cert_validation == S_any) {
-	if (X509_verify_cert_post_handshake(ctx->tls) == 1) {
+	char *reason = NULL;
+	if (X509_verify_cert_post_handshake(ctx->tls, ctx->mem, &reason) == 1) {
 	    X509_free(cert);
 	    return 1;
 	}
 	if (ctx->host->tls_peer_cert_validation == S_cert) {
-	    ctx->hint = "cert chain verification";
+	    ctx->hint = reason ? reason : "cert chain verification";
 	    X509_free(cert);
 	    return 0;
 	}
