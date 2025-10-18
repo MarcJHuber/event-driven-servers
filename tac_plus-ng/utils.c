@@ -1038,10 +1038,14 @@ static str_t *eval_log_format_type(tac_session *session, struct context *ctx __a
     return NULL;
 }
 
-static str_t *eval_log_format_hint(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
+static str_t str;
+
+static str_t *eval_log_format_hint(tac_session *session, struct context *ctx, struct logfile *lf __attribute__((unused)))
 {
     if (session)
 	return &session->hint;
+    if (ctx && ctx->hint)
+	return str_set(&str, ctx->hint, 0);
     return NULL;
 }
 
@@ -1140,8 +1144,6 @@ str_t *eval_log_format_privlvl(tac_session *session, struct context *ctx __attri
     }
     return NULL;
 }
-
-static str_t str;
 
 static str_t *eval_log_format_ssh_key_hash(tac_session *session, struct context *ctx __attribute__((unused)), struct logfile *lf __attribute__((unused)))
 {
