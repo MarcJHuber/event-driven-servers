@@ -1207,6 +1207,11 @@ static int X509_verify_cert_post_handshake(SSL *ssl)
     if (!cert)
 	return 0;
 
+    if (X509_check_purpose(cert, X509_PURPOSE_SSL_CLIENT, 0) != 1) {
+	X509_free(cert);
+	return 0;
+    }
+
     STACK_OF(X509) * chain = SSL_get_peer_cert_chain(ssl);
     X509_STORE *store = SSL_CTX_get_cert_store(SSL_get_SSL_CTX(ssl));
     if (!store) {
@@ -1269,9 +1274,10 @@ static int cert_verify(struct context *ctx)
 	return 0;
     }
     if (ctx->host->tls_peer_cert_validation == S_cert || ctx->host->tls_peer_cert_validation == S_any) {
-	if (X509_verify_cert_post_handshake(ctx->tls) == 1)
+	if (X509_verify_cert_post_handshake(ctx->tls) == 1) {
 	    X509_free(cert);
-	return 1;
+	    return 1;
+	}
 	if (ctx->host->tls_peer_cert_validation == S_cert) {
 	    ctx->hint = "cert chain verification";
 	    X509_free(cert);
