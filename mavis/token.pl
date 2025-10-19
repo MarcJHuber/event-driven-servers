@@ -131,6 +131,7 @@ buffer				S_buffer
 bye				S_bye
 ca-file				S_cafile
 ca-path				S_capath
+crl-dir				S_crldir
 cache				S_cache
 caseless			S_caseless
 cert				S_cert

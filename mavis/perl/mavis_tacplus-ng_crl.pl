@@ -11,6 +11,9 @@
 #
 
 =pod
+
+  # Usage:
+
   mavis module = external {
         exec = ../../mavis/perl/mavis_tacplus-ng_crl.pl mavis_tacplus-ng_crl.pl "--basedir=/var/tac_plus-ng/crl"
         script out {
@@ -20,6 +23,11 @@
                 }
         }
   }
+
+  # or just:
+
+  tls crl-dir = /var/tac_plus-ng/crl
+
 =cut
 
 use lib '/usr/local/lib/mavis/';
@@ -81,8 +89,9 @@ if ($update) {
 	while (<$chld_out>) {
 		chomp;
 		if (defined $issuer && /Serial Number: ([0-9A-F]+)/) {
+			my $serial = lc $1;
 			my $T;
-			open ($T, ">$BASEDIR/$issuer/$1") && close $T;
+			open ($T, ">$BASEDIR/$issuer/$serial") && close $T;
 		} elsif (!defined($issuer) && /Issuer:\s+(.+)\s*$/) {
 			$issuer = md5_hex($1);
 			mkdir $BASEDIR, 0755;
@@ -133,6 +142,7 @@ while ($in = <>) {
 	my $serial = $V[AV_A_CERTDATA];
 	$serial =~ s/^(.*,|)serial="([^"]+)".*$/$2/ or goto bye;
 	$serial =~ s/://g;
+	$serial = lc $serial;
 
 	if (-f "$BASEDIR/$issuer/$serial") {
 		$V[AV_A_RESULT] = AV_V_RESULT_FAIL;

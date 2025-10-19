@@ -459,6 +459,7 @@ struct realm {
     size_t alpn_vec_len;
     rb_tree_t *fingerprints;
     char *tls_psk_hint;
+    str_t crl_basedir;
 #endif
     u_int debug;
     int rulecount;

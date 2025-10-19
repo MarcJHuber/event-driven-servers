@@ -293,6 +293,11 @@ void complete_realm(tac_realm *r)
 	RS(default_host->tls_peer_cert_validation, S_unknown);
 	RS(tls_psk_hint, NULL);
 
+	if (!r->crl_basedir.txt) {
+	    r->crl_basedir.txt = rp->crl_basedir.txt;
+	    r->crl_basedir.len = rp->crl_basedir.len;
+	}
+
 	if (!r->default_host->tls_client_cert_type_len) {
 	    r->default_host->tls_client_cert_type[0] = r->parent->default_host->tls_client_cert_type[0];
 	    r->default_host->tls_client_cert_type[1] = r->parent->default_host->tls_client_cert_type[1];
@@ -1816,6 +1821,12 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		}
 		continue;
 #endif
+	    case S_crldir:
+		sym_get(sym);
+		parse(sym, S_equal);
+		str_set(&r->crl_basedir, confdir_strdup(sym->buf), 0);
+		sym_get(sym);
+		continue;
 	    case S_cert_file:
 		sym_get(sym);
 		parse(sym, S_equal);
