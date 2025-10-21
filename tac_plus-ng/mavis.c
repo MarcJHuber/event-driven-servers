@@ -304,7 +304,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 		}
 
 		u = new_user(session->username.txt, S_mavis, r);
-		for (tac_realm *rf = r; rf; rf = rf->parent)
+		for (tac_realm * rf = r; rf; rf = rf->parent)
 		    if (rf->usertable) {
 			rb_node_t *rbn = RB_search(rf->usertable, u);
 			if (rbn) {
@@ -534,11 +534,14 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 #define RPK_PREFIX "rpk=\""
 #define ISSUER_PREFIX "issuer=\""
 #define SERIAL_PREFIX "serial=\""
+#define ISSUERAKI_PREFIX "issueraki=\""
 #define SEQ_SUFFIX "\","
 	    size_t len = 0;
 
-	    if (ctx->tls_peer_cert_issuer.txt)
-		len += sizeof(ISSUER_PREFIX) + sizeof(SEQ_SUFFIX) + ctx->tls_peer_cert_issuer.len;
+	    if (ctx->tls_peer_cert_issuer2.txt)
+		len += sizeof(ISSUER_PREFIX) + sizeof(SEQ_SUFFIX) + ctx->tls_peer_cert_issuer2.len;
+	    if (ctx->tls_peer_cert_aki.txt)
+		len += sizeof(ISSUERAKI_PREFIX) + sizeof(SEQ_SUFFIX) + ctx->tls_peer_cert_aki.len;
 	    if (ctx->tls_peer_serial.txt)
 		len += sizeof(SERIAL_PREFIX) + sizeof(SEQ_SUFFIX) + ctx->tls_peer_serial.len;
 
@@ -556,7 +559,6 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 		    continue;
 		}
 	    }
-
 
 	    char *u = NULL;
 	    char *t = NULL;
@@ -584,11 +586,20 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 		u = t;
 	    }
 
-	    if (ctx->tls_peer_cert_issuer.txt) {
+	    if (ctx->tls_peer_cert_issuer2.txt) {
 		memcpy(u, ISSUER_PREFIX, sizeof(ISSUER_PREFIX) - 1);
 		u += sizeof(ISSUER_PREFIX) - 1;
-		memcpy(u, ctx->tls_peer_cert_issuer.txt, ctx->tls_peer_cert_issuer.len);
-		u += ctx->tls_peer_cert_issuer.len;
+		memcpy(u, ctx->tls_peer_cert_issuer2.txt, ctx->tls_peer_cert_issuer2.len);
+		u += ctx->tls_peer_cert_issuer2.len;
+		memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
+		u += sizeof(SEQ_SUFFIX) - 1;
+	    }
+
+	    if (ctx->tls_peer_cert_aki.txt) {
+		memcpy(u, ISSUERAKI_PREFIX, sizeof(ISSUERAKI_PREFIX) - 1);
+		u += sizeof(ISSUERAKI_PREFIX) - 1;
+		memcpy(u, ctx->tls_peer_cert_aki.txt, ctx->tls_peer_cert_aki.len);
+		u += ctx->tls_peer_cert_aki.len;
 		memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
 		u += sizeof(SEQ_SUFFIX) - 1;
 	    }

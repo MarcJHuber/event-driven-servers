@@ -892,6 +892,8 @@ static void accept_control_tls(struct context *ctx, int cur)
     snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
     str_set(&ctx->tls_conn_cipher_strength, mem_strdup(ctx->mem, buf), 0);
 
+    char *hex = "0123456789abcdef";
+
     if (cert) {
 #if OPENSSL_VERSION_NUMBER >= 0x30200000
 	if (SSL_get_negotiated_client_cert_type(ctx->tls) == TLSEXT_cert_type_x509)
@@ -901,15 +903,13 @@ static void accept_control_tls(struct context *ctx, int cur)
 
 	    ASN1_INTEGER *serial_asn1 = X509_get_serialNumber(cert);
 	    if (serial_asn1) {
-		char *hex = "0123456789ABCDEF";
-		char *t = mem_alloc(ctx->mem, 3 * serial_asn1->length);
+		char *b = buf;
 		for (int i = 0; i < serial_asn1->length; i++) {
-		    t[i * 3] = hex[(serial_asn1->data[i] & 0xF0) >> 4];
-		    t[i * 3 + 1] = hex[serial_asn1->data[i] & 0xf];
-		    if (i + 1 != serial_asn1->length)
-			t[i * 3 + 2] = ':';
+		    *b++ = hex[(serial_asn1->data[i] & 0xF0) >> 4];
+		    *b++ = hex[serial_asn1->data[i] & 0xf];
 		}
-		str_set(&ctx->tls_peer_serial, t, 0);
+		*b = 0;
+		str_set(&ctx->tls_peer_serial, mem_strdup(ctx->mem, buf), 0);
 	    }
 
 	    X509_NAME *x;
@@ -923,6 +923,30 @@ static void accept_control_tls(struct context *ctx, int cur)
 		char *t = X509_NAME_oneline(x, buf, sizeof(buf));
 		if (t)
 		    str_set(&ctx->tls_peer_cert_issuer, mem_strdup(ctx->mem, t), 0);
+
+		BIO *bio = BIO_new(BIO_s_mem());
+
+		// issuer in openssl crl output compatible format, for mavis backend modules
+		if (X509_NAME_print_ex(bio, x, 0, XN_FLAG_SEP_CPLUS_SPC | XN_FLAG_SPC_EQ | ASN1_STRFLGS_ESC_QUOTE) != 1) {
+		    size_t cert_issuer_len = BIO_read(bio, buf, sizeof(buf) - 1);
+		    if (cert_issuer_len > 0) {
+			buf[cert_issuer_len] = 0;
+			str_set(&ctx->tls_peer_cert_issuer2, mem_strdup(ctx->mem, buf), cert_issuer_len);
+		    }
+		}
+		BIO_free(bio);
+	    }
+
+	    AUTHORITY_KEYID *aki = (AUTHORITY_KEYID *) X509_get_ext_d2i(cert, NID_authority_key_identifier, NULL, NULL);
+	    if (aki) {
+		char *s = mem_alloc(ctx->mem, 2 * aki->keyid->length + 1);
+		char *p = s;
+		for (int i = 0; i < aki->keyid->length; i++) {
+		    *p++ = hex[aki->keyid->data[i] & 7];
+		    *p++ = hex[aki->keyid->data[i] >> 4];
+		}
+		str_set(&ctx->tls_peer_cert_aki, s, 2 * aki->keyid->length);
+		AUTHORITY_KEYID_free(aki);
 	    }
 
 	    if (ctx->host->tls_peer_cert_validation == S_cert || ctx->host->tls_peer_cert_validation == S_any) {
@@ -962,24 +986,64 @@ static void accept_control_tls(struct context *ctx, int cur)
 			tac_session session = {.ctx = ctx };
 
 			do {
-			    char *hex = "0123456789abcdef";
+			    AUTHORITY_KEYID *aki = (AUTHORITY_KEYID *) X509_get_ext_d2i(cer, NID_authority_key_identifier, NULL, NULL);
+			    size_t aki_len = 0;
+			    if (aki)
+				aki_len = aki->keyid->length * 2;
+			    char aki_txt[aki_len + 1];
+
+			    if (aki) {
+				char *p = aki_txt;
+				for (int i = 0; i < aki->keyid->length; i++) {
+				    *p++ = hex[aki->keyid->data[i] & 7];
+				    *p++ = hex[aki->keyid->data[i] >> 4];
+				}
+				AUTHORITY_KEYID_free(aki);
+			    }
+			    aki_txt[aki_len] = 0;
+
 			    ASN1_INTEGER *serial_asn1 = X509_get_serialNumber(cer);
 			    size_t serial_len = serial_asn1->length * 2;
-			    size_t crlfile_len = ctx->host->realm->crl_basedir.len + 1 + 2 * MD5_LEN + 1 + serial_len + 1;
+			    size_t crlfile_len = ctx->host->realm->crl_basedir.len + 1 + (aki_len ? aki_len : (2 * MD5_LEN)) + 1 + serial_len + 1;
+
 			    char crlfile[crlfile_len];
 			    char *p = crlfile;
 			    memcpy(p, ctx->host->realm->crl_basedir.txt, ctx->host->realm->crl_basedir.len);
 			    p += ctx->host->realm->crl_basedir.len;
 			    *p++ = '/';
 
-			    x = X509_get_issuer_name(cert);
+			    if (common_data.debug & DEBUG_NET_FLAG) {
+				x = X509_get_subject_name(cer);
+				if (x) {
+				    BIO *bio = BIO_new(BIO_s_mem());
+
+				    size_t buf_len = 0;
+				    if (X509_NAME_print_ex(bio, x, 0, XN_FLAG_SEP_CPLUS_SPC | XN_FLAG_SPC_EQ | ASN1_STRFLGS_ESC_QUOTE) != 1) {
+					buf_len = BIO_read(bio, buf, sizeof(buf) - 1);
+					if (buf_len > 0) {
+					    buf[buf_len] = 0;
+					    report(&session, LOG_DEBUG, DEBUG_NET_FLAG, "cert subject: %s", buf);
+					}
+				    }
+
+				    BIO_free(bio);
+				}
+			    }
+
+			    if (aki_len) {
+				report(&session, LOG_DEBUG, DEBUG_NET_FLAG, "cert issuer AKI: %s", aki_txt);
+				memcpy(p, aki_txt, aki_len);
+				p += aki_len;
+			    }
+
+			    x = X509_get_issuer_name(cer);
 			    if (x) {
 				BIO *bio = BIO_new(BIO_s_mem());
 
 				size_t cert_issuer_len = 0;
 				char *cert_issuer = NULL;
 				if (X509_NAME_print_ex(bio, x, 0, XN_FLAG_SEP_CPLUS_SPC | XN_FLAG_SPC_EQ | ASN1_STRFLGS_ESC_QUOTE) != 1) {
-				    cert_issuer_len = BIO_read(bio, buf, sizeof(buf));
+				    cert_issuer_len = BIO_read(bio, buf, sizeof(buf) - 1);
 				    if (cert_issuer_len > 0) {
 					cert_issuer = buf;
 					buf[cert_issuer_len] = 0;
@@ -989,34 +1053,36 @@ static void accept_control_tls(struct context *ctx, int cur)
 				BIO_free(bio);
 
 				if (cert_issuer) {
-				    report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "cert issuer: %s", cert_issuer);
-				    u_char issuer_md5[MD5_LEN];
-				    struct iovec iov[1] = { {.iov_base = cert_issuer,.iov_len = cert_issuer_len } };
-				    md5v(issuer_md5, MD5_LEN, iov, 1);
-				    for (int i = 0; i < MD5_LEN; i++) {
-					*p++ = hex[issuer_md5[i] >> 4];
-					*p++ = hex[issuer_md5[i] & 15];
+				    report(&session, LOG_DEBUG, DEBUG_NET_FLAG, "cert issuer: %s", cert_issuer);
+				    if (!aki_len) {
+					u_char issuer_md5[MD5_LEN];
+					struct iovec iov[1] = { {.iov_base = cert_issuer,.iov_len = cert_issuer_len } };
+					md5v(issuer_md5, MD5_LEN, iov, 1);
+					for (int i = 0; i < MD5_LEN; i++) {
+					    *p++ = hex[issuer_md5[i] >> 4];
+					    *p++ = hex[issuer_md5[i] & 15];
+					}
 				    }
 				}
-				*p++ = '/';
-
-				if (serial_asn1) {
-				    for (int i = 0; i < serial_asn1->length; i++) {
-					*p++ = hex[(serial_asn1->data[i] & 0xF0) >> 4];
-					*p++ = hex[serial_asn1->data[i] & 0xf];
-				    }
-				}
-				*p = 0;
-
-				report(&session, LOG_DEBUG, DEBUG_PACKET_FLAG, "revocation check: %s", crlfile);
-				if (!access(crlfile, F_OK)) {
-				    reject_conn(ctx, (i < 0) ? "peer cert revoked" : "ca cert revoked", __func__, __LINE__);
-				    X509_free(cert);
-				    return;
-				}
-				i++;
-				cer = sk_X509_value(chain, i);
 			    }
+			    *p++ = '/';
+
+			    if (serial_asn1) {
+				for (int i = 0; i < serial_asn1->length; i++) {
+				    *p++ = hex[(serial_asn1->data[i] & 0xF0) >> 4];
+				    *p++ = hex[serial_asn1->data[i] & 0xf];
+				}
+			    }
+			    *p = 0;
+
+			    report(&session, LOG_DEBUG, DEBUG_NET_FLAG, "revocation check: %s", crlfile);
+			    if (!access(crlfile, F_OK)) {
+				reject_conn(ctx, (i < 0) ? "peer cert revoked" : "ca cert revoked", __func__, __LINE__);
+				X509_free(cert);
+				return;
+			    }
+			    i++;
+			    cer = sk_X509_value(chain, i);
 			} while (i < i_max);
 		    }
 		}
@@ -1607,7 +1673,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
 static int query_mavis_host(struct context *ctx, void (*f)(struct context *))
 {
-    if(!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
+    if (!ctx->host || ctx->host->try_mavis != TRISTATE_YES)
 	return 0;
     if (!ctx->mavis_tried) {
 	ctx->mavis_tried = 1;

@@ -86,16 +86,29 @@ if ($update) {
 	close $chld_in;
 
 	my $issuer = undef;
+	my $aki = undef;
+	my $dir = undef;
+	my $first = 1;
+
 	while (<$chld_out>) {
 		chomp;
-		if (defined $issuer && /Serial Number: ([0-9A-F]+)/) {
+		if (!defined($aki) && /X509v3 Authority Key Identifier:/) {
+			$aki = lc <$chld_out>;
+			$aki =~ s/\s+//g;
+			$aki =~ s/://g;
+			$dir = $aki;
+		} elsif (defined $issuer && /Serial Number: ([0-9A-F]+)/) {
+			if ($first) {
+				mkdir $BASEDIR, 0755;
+				mkdir "$BASEDIR/$dir", 0755;
+				$first = undef
+			}
 			my $serial = lc $1;
 			my $T;
-			open ($T, ">$BASEDIR/$issuer/$serial") && close $T;
+			open ($T, ">$BASEDIR/$dir/$serial") && close $T;
 		} elsif (!defined($issuer) && /Issuer:\s+(.+)\s*$/) {
-			$issuer = md5_hex($1);
-			mkdir $BASEDIR, 0755;
-			mkdir "$BASEDIR/$issuer", 0755;
+			$dir = md5_hex($1);
+			$dir = $issuer;
 		}
 	}
 	close $chld_out;
@@ -136,13 +149,14 @@ while ($in = <>) {
 	goto bye if (!defined($V[AV_A_CERTDATA]));
 
 	my $issuer = $V[AV_A_CERTDATA];
-	$issuer =~ s/^(.*,|)issuer="([^"]+)".*$/$2/ or goto bye;
-	$issuer = md5_hex($issuer);
+	unless ($issuer =~ s/^(.*,|)issueraki="([^"]+)".*$/$2/) {
+		$issuer = $V[AV_A_CERTDATA];
+		$issuer =~ s/^(.*,|)issuer="([^"]+)".*$/$2/ or goto bye;
+		$issuer = md5_hex($issuer);
+	}
 
 	my $serial = $V[AV_A_CERTDATA];
 	$serial =~ s/^(.*,|)serial="([^"]+)".*$/$2/ or goto bye;
-	$serial =~ s/://g;
-	$serial = lc $serial;
 
 	if (-f "$BASEDIR/$issuer/$serial") {
 		$V[AV_A_RESULT] = AV_V_RESULT_FAIL;
