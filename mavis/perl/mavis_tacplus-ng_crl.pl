@@ -33,7 +33,6 @@
 use lib '/usr/local/lib/mavis/';
 use strict;
 use Mavis;
-use Digest::MD5 qw(md5_hex);
 use Getopt::Long;
 use LWP::Simple;
 use IPC::Open3;
@@ -85,10 +84,8 @@ if ($update) {
 	print $chld_in $der;
 	close $chld_in;
 
-	my $issuer = undef;
 	my $aki = undef;
 	my $dir = undef;
-	my $first = 1;
 
 	while (<$chld_out>) {
 		chomp;
@@ -97,18 +94,12 @@ if ($update) {
 			$aki =~ s/\s+//g;
 			$aki =~ s/://g;
 			$dir = $aki;
-		} elsif (defined $issuer && /Serial Number: ([0-9A-F]+)/) {
-			if ($first) {
-				mkdir $BASEDIR, 0755;
-				mkdir "$BASEDIR/$dir", 0755;
-				$first = undef
-			}
+			mkdir $BASEDIR, 0755;
+			mkdir "$BASEDIR/$dir", 0755;
+		} elsif (defined $dir && /Serial Number: ([0-9A-F]+)/) {
 			my $serial = lc $1;
 			my $T;
 			open ($T, ">$BASEDIR/$dir/$serial") && close $T;
-		} elsif (!defined($issuer) && /Issuer:\s+(.+)\s*$/) {
-			$dir = md5_hex($1);
-			$dir = $issuer;
 		}
 	}
 	close $chld_out;

@@ -538,8 +538,8 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 #define SEQ_SUFFIX "\","
 	    size_t len = 0;
 
-	    if (ctx->tls_peer_cert_issuer2.txt)
-		len += sizeof(ISSUER_PREFIX) + sizeof(SEQ_SUFFIX) + ctx->tls_peer_cert_issuer2.len;
+	    if (ctx->tls_peer_cert_issuer.txt)
+		len += sizeof(ISSUER_PREFIX) + sizeof(SEQ_SUFFIX) + ctx->tls_peer_cert_issuer.len;
 	    if (ctx->tls_peer_cert_aki.txt)
 		len += sizeof(ISSUERAKI_PREFIX) + sizeof(SEQ_SUFFIX) + ctx->tls_peer_cert_aki.len;
 	    if (ctx->tls_peer_serial.txt)
@@ -586,11 +586,11 @@ void mavis_ctx_lookup(struct context *ctx, void (*f)(struct context *), const ch
 		u = t;
 	    }
 
-	    if (ctx->tls_peer_cert_issuer2.txt) {
+	    if (ctx->tls_peer_cert_issuer.txt) {
 		memcpy(u, ISSUER_PREFIX, sizeof(ISSUER_PREFIX) - 1);
 		u += sizeof(ISSUER_PREFIX) - 1;
-		memcpy(u, ctx->tls_peer_cert_issuer2.txt, ctx->tls_peer_cert_issuer2.len);
-		u += ctx->tls_peer_cert_issuer2.len;
+		memcpy(u, ctx->tls_peer_cert_issuer.txt, ctx->tls_peer_cert_issuer.len);
+		u += ctx->tls_peer_cert_issuer.len;
 		memcpy(u, SEQ_SUFFIX, sizeof(SEQ_SUFFIX) - 1);
 		u += sizeof(SEQ_SUFFIX) - 1;
 	    }

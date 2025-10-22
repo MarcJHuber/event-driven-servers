@@ -923,18 +923,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 		char *t = X509_NAME_oneline(x, buf, sizeof(buf));
 		if (t)
 		    str_set(&ctx->tls_peer_cert_issuer, mem_strdup(ctx->mem, t), 0);
-
-		BIO *bio = BIO_new(BIO_s_mem());
-
-		// issuer in openssl crl output compatible format, for mavis backend modules
-		if (X509_NAME_print_ex(bio, x, 0, XN_FLAG_SEP_CPLUS_SPC | XN_FLAG_SPC_EQ | ASN1_STRFLGS_ESC_QUOTE) != 1) {
-		    size_t cert_issuer_len = BIO_read(bio, buf, sizeof(buf) - 1);
-		    if (cert_issuer_len > 0) {
-			buf[cert_issuer_len] = 0;
-			str_set(&ctx->tls_peer_cert_issuer2, mem_strdup(ctx->mem, buf), cert_issuer_len);
-		    }
-		}
-		BIO_free(bio);
 	    }
 
 	    AUTHORITY_KEYID *aki = (AUTHORITY_KEYID *) X509_get_ext_d2i(cert, NID_authority_key_identifier, NULL, NULL);

@@ -674,7 +674,6 @@ struct context {
     str_t tls_conn_version;
     str_t tls_conn_cipher;
     str_t tls_peer_cert_issuer;
-    str_t tls_peer_cert_issuer2; // for MAVIS
     str_t tls_peer_cert_aki;
     str_t tls_peer_cert_subject;
     str_t tls_conn_cipher_strength;
