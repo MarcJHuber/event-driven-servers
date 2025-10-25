@@ -245,7 +245,7 @@ static void usage()
     fprintf(stderr, "  -A <attribute>      attributes for acct/authz\n");
     fprintf(stderr, "  -u <user>           user name [%s]\n", arg_user);
     fprintf(stderr, "  -p <password>       user password [%s]\n", arg_pass);
-    fprintf(stderr, "  -m <mode>           (authc, authz (TACACS+ only), acct) [authz]\n");
+    fprintf(stderr, "  -m <mode>           (authc, authz, acct) [authz]\n");
     fprintf(stderr, "  -R <client_ip>      remote client ip [127.0.0.1]\n");
     fprintf(stderr, "  -T <tty_port>       tty name [%s]\n", arg_tty);
     fprintf(stderr, "  -A <authen_type>    TACACS+ authen_type (ascii, pap) [ascii]\n");
@@ -365,10 +365,6 @@ int main(int argc, char *argv[])
     cfg_read_config(arg_config, myparse, arg_config_id);
     if (common_data.parse_only)
 	exit(0);
-
-    int is_tacacs = conn->protocol == S_tacacs_tcp || conn->protocol == S_tacacs_tls;
-    if (mode == AAA_AUTHZ && !is_tacacs)
-	mode = AAA_ACCT;
 
     conn_connect(conn);
     struct aaa *aaa = aaa_new(conn);

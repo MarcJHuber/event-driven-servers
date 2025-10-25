@@ -470,7 +470,7 @@ static int aaa_authc_radius(struct aaa *aaa, char *user, char *remoteaddr, char 
     size_t user_len = strlen(user);
     size_t remotetty_len = strlen(remotetty);
     size_t remoteaddr_len = strlen(remoteaddr);
-    size_t pass_len = strlen(pass);
+    size_t pass_len = pass ? strlen(pass) : 0;
     int radius11 = aaa->conn->alpn && !memcmp(aaa->conn->alpn, "\012radius/1.1", 11);
 
     if (user_len > 253 || remotetty_len > 253 || remoteaddr_len > 253 || pass_len > 253)
@@ -495,16 +495,25 @@ static int aaa_authc_radius(struct aaa *aaa, char *user, char *remoteaddr, char 
     for (int i = 0; i < 16; i += sizeof(int)) {
 	*((int *) (opkt->authenticator + i)) = random();
     }
-    if (radius11) {
-	*t++ = (u_char) RADIUS_A_USER_PASSWORD;
-	*t++ = (u_char) pass_len + 2;
-	memcpy(t, pass, pass_len);
-	t += pass_len;
-    } else if (aaa->conn->key) {
-	size_t data_len = t - (u_char *) opkt + RAD_PAK_MAX;
-	rad_set_password(&t, &data_len, aaa->conn->key, strlen(aaa->conn->key), opkt->authenticator, pass);
-    } else
-	return -1;
+    if (pass) {
+	if (radius11) {
+	    *t++ = (u_char) RADIUS_A_USER_PASSWORD;
+	    *t++ = (u_char) pass_len + 2;
+	    memcpy(t, pass, pass_len);
+	    t += pass_len;
+	} else if (aaa->conn->key) {
+	    size_t data_len = t - (u_char *) opkt + RAD_PAK_MAX;
+	    rad_set_password(&t, &data_len, aaa->conn->key, strlen(aaa->conn->key), opkt->authenticator, pass);
+	} else
+	    return -1;
+    } else {
+	*t++ = RADIUS_A_SERVICE_TYPE;
+	*t++ = 6;
+	*t++ = 0;
+	*t++ = 0;
+	*t++ = 0;
+	*t++ = RADIUS_V_SERVICE_TYPE_AUTHORIZE_ONLY;
+    }
 
     if (remoteaddr) {
 	size_t len = strlen(remoteaddr);
@@ -972,6 +981,11 @@ int aaa_authc(struct aaa *aaa, char *user, char *remoteaddr, char *remotetty, ch
 int aaa_authz(struct aaa *aaa, char *user, char *remoteaddr, char *remotetty)
 {
     switch (aaa->conn->protocol) {
+    case S_radius_tls:
+    case S_radius_dtls:
+    case S_radius_udp:
+    case S_radius_tcp:
+	return aaa_authc_radius(aaa, user, remoteaddr, remotetty, NULL);
     case S_tacacs_tls:
     case S_tacacs_tcp:
 	return aaa_authz_tacacs(aaa, user, remoteaddr, remotetty);
