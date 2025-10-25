@@ -2196,6 +2196,14 @@ static void do_radius_login(tac_session *session)
     }
 #endif
 
+    if (rd->type == S_unknown) {
+	int service_type = 0;
+	size_t service_type_len = sizeof(service_type);
+	if (!rad_get(rd->pak_in, session->mem, -1, RADIUS_A_SERVICE_TYPE, S_integer, &service_type, &service_type_len)
+	    && service_type == RADIUS_V_SERVICE_TYPE_AUTHORIZE_ONLY)
+	    rd->type = S_authorization;
+    }
+
     if (rd->type == S_pap)
 	info = "radius pap login";
     else if (rd->type == S_chap)
@@ -2250,6 +2258,18 @@ static void do_radius_login(tac_session *session)
 	mschap_helper(session, &res, &hint, &resp);
     }
 #endif
+    else if (rd->type == S_authorization) {
+	info = "radius authorize-only";
+	if (query_mavis_info_login(session, do_radius_login))
+	    return;
+	if (refuse_rad_session(session, info, PW_LOGIN))
+	    return;
+	if (session->user) {
+	    session->mavisauth_res = S_permit;
+	    res = check_access(session, NULL, NULL, &hint, &resp);
+	    user_expiry_check(&res, session->user, &hint);
+	}
+    }
 
     if (res == S_error) {
 	// Backend failure.
