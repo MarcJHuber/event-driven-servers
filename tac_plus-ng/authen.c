@@ -2260,7 +2260,7 @@ static void do_radius_login(tac_session *session)
 #endif
     else if (rd->type == S_authorization) {
 	info = "radius authorize-only";
-	if (query_mavis_info_login(session, do_radius_login))
+	if (query_mavis_info(session, do_radius_login, PW_LOGIN))
 	    return;
 	if (refuse_rad_session(session, info, PW_LOGIN))
 	    return;
