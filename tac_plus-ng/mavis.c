@@ -679,10 +679,7 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx *avc)
 	    h->mem = ctx->mem;
 	    init_host(h, ctx->host, ctx->realm, 0);
 
-	    struct sym sym = { 0 };
-	    sym.filename = ctx->device_addr_ascii.txt;
-	    sym.line = 1;
-	    sym.flag_prohibit_include = 1;
+	    struct sym sym = {.filename = ctx->device_addr_ascii.txt,.line = 1,.flag_prohibit_include = 1 };
 	    sym.in = sym.tin = profile;
 	    sym.len = sym.tlen = strlen(profile);
 	    if (parse_host_profile(&sym, ctx->realm, h))
@@ -795,9 +792,9 @@ static void mavis_dacl_lookup_final(tac_session *session, av_ctx *avc)
     char *t, *result = NULL;
     tac_realm *r = session->ctx->realm;
 
-    session->mavisauth_res = S_unknown;
+    session->mavisauth_res = S_deny;
 
-    dump_av_pairs(session, avc, "<<< received user");
+    dump_av_pairs(session, avc, "<<< received dacl");
     if ((t = av_get(avc, AV_A_TYPE)) && !strcmp(t, AV_V_TYPE_TACPLUS) &&	//
 	(t = av_get(avc, AV_A_TACTYPE)) && !strcmp(t, AV_V_TACTYPE_DACL) &&	//
 	(t = av_get(avc, AV_A_USER)) && !strcmp(t, session->username.txt) &&	//
@@ -811,27 +808,11 @@ static void mavis_dacl_lookup_final(tac_session *session, av_ctx *avc)
 	}
 
 	struct sym sym = {.filename = session->username.txt,.line = 1,.flag_prohibit_include = 1 };
-
-	if (!r->caching_period && session->user) {
-	    free_user(session->user);
-	    session->user = NULL;
-	}
-
 	char *p = av_get(avc, AV_A_TACPROFILE);
 	if (!p || parse_dacl_fmt(&sym, session, r, p)) {
 	    session->radius_data->dacl = NULL;
 	    session->mavisauth_res = S_deny;
 	}
-
-	if (strcmp(result, AV_V_RESULT_OK)) {
-	    session->mavis_latency = timediff(&session->mavis_data->start);
-	    report(session, LOG_INFO_MAVIS, ~0, "result for dacl %s is %s [%lu ms]", session->username.txt, result, session->mavis_latency);
-	    return;
-	}
-    } else if (result && !strcmp(result, AV_V_RESULT_ERROR)) {
-	session->mavisauth_res = S_deny;
-    } else if (result && !strcmp(result, AV_V_RESULT_FAIL)) {
-	session->mavisauth_res = S_deny;
     }
     if (result) {
 	session->mavis_latency = timediff(&session->mavis_data->start);
