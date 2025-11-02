@@ -671,8 +671,6 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx *avc)
 	(t = av_get(avc, AV_A_USER)) && !strcmp(t, ctx->device_addr_ascii.txt) &&	//
 	(result = av_get(avc, AV_A_RESULT)) && !strcmp(result, AV_V_RESULT_OK)) {
 
-	ctx->mavis_result = S_permit;
-
 	char *profile = av_get(avc, AV_A_TACPROFILE);
 	if (profile) {
 	    tac_host *h = mem_alloc(ctx->mem, sizeof(tac_host));
@@ -682,15 +680,15 @@ static void mavis_ctx_lookup_final(struct context *ctx, av_ctx *avc)
 	    struct sym sym = {.filename = ctx->device_addr_ascii.txt,.line = 1,.flag_prohibit_include = 1 };
 	    sym.in = sym.tin = profile;
 	    sym.len = sym.tlen = strlen(profile);
-	    if (parse_host_profile(&sym, ctx->realm, h))
-		ctx->mavis_result = S_deny;
-	    else {
+	    if (!parse_host_profile(&sym, ctx->realm, h)) {
 		if (!h->name.txt)
 		    h->name = ctx->host->name;
 		complete_host(h);
 		ctx->host = h;
+		ctx->mavis_result = S_permit;
 	    }
-	}
+	} else
+	    ctx->mavis_result = S_permit;
     }
     if (result) {
 	ctx->mavis_latency = timediff(&ctx->mavis_data->start);
@@ -808,11 +806,11 @@ static void mavis_dacl_lookup_final(tac_session *session, av_ctx *avc)
 	}
 
 	struct sym sym = {.filename = session->username.txt,.line = 1,.flag_prohibit_include = 1 };
-	char *p = av_get(avc, AV_A_TACPROFILE);
-	if (!p || parse_dacl_fmt(&sym, session, r, p)) {
+	char *profile = av_get(avc, AV_A_TACPROFILE);
+	if (!profile || parse_dacl_fmt(&sym, session, r, profile))
 	    session->radius_data->dacl = NULL;
-	    session->mavisauth_res = S_deny;
-	}
+	else
+	    session->mavisauth_res = S_permit;
     }
     if (result) {
 	session->mavis_latency = timediff(&session->mavis_data->start);
