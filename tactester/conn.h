@@ -21,6 +21,7 @@
 #include "mavis/token.h"
 
 struct conn {
+    char *name;
     int fd;
     int socket_type;		// SOCK_STREAM, SOCK_DGRAM
     u_char tls_version;		// 0: None, 0x10: 1.0, 0x11: 1.1, 0x12, 0x13, ..., 0xff: any
@@ -51,7 +52,7 @@ struct conn {
     size_t client_psk_key_len;
 };
 
-struct conn *conn_new(void);
+struct conn *conn_new(char *name);
 void conn_free(struct conn *);
 
 int conn_set_transport(struct conn *, enum token token);

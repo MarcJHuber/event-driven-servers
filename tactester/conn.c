@@ -58,9 +58,11 @@ void conn_set_retries(struct conn *conn, int retries)
     conn->retries = retries;
 }
 
-struct conn *conn_new(void)
+struct conn *conn_new(char *name)
 {
     struct conn *conn = calloc(1, sizeof(struct conn));
+    if (name)
+	conn->name = strdup(name);
     conn->fd = -1;
     conn->socket_type = SOCK_STREAM;
     conn_set_timeout(conn, 2, 0);

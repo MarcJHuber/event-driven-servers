@@ -360,7 +360,7 @@ int main(int argc, char *argv[])
 	    usage();
 	}
 
-    conn = conn_new();
+    conn = conn_new(arg_server);
 
     cfg_read_config(arg_config, myparse, arg_config_id);
     if (common_data.parse_only)
