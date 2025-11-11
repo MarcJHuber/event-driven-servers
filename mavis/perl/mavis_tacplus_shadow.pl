@@ -210,9 +210,18 @@ while ($in = <>) {
 
 	my $SHADOW = undef;
 
-	unless (open ($SHADOW, "+< $shadow") && flock($SHADOW, LOCK_EX)) {
-		$V[AV_A_USER_RESPONSE] = "Password database unavailable";
-		goto fatal;	
+	if ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_AUTH) {
+		unless (open ($SHADOW, "< $shadow")) {
+			print STDERR "open (line " . __LINE__ . "): $!";
+			$V[AV_A_USER_RESPONSE] = "Password database unavailable ($!)";
+			goto fatal;
+		}
+	} elsif ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_CHPW) {
+		unless (open ($SHADOW, "+< $shadow") && flock($SHADOW, LOCK_EX)) {
+			print STDERR "open (line " . __LINE__ . "): $!";
+			$V[AV_A_USER_RESPONSE] = "Password database unavailable ($!)";
+			goto fatal;
+		}
 	}
 
 	$/ = "\n";
@@ -284,7 +293,7 @@ while ($in = <>) {
 		}
 
 		my @M = fgrep ($v, \@L, 1);
-	    goto fail if $#M + 1 != $#L;
+		goto fail if $#M + 1 != $#L;
 
 		my $encpw = new_password_hash ($V[AV_A_PASSWORD_NEW]);
 
