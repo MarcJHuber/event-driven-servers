@@ -382,7 +382,7 @@ retry_once:
 		$V[AV_A_GID] = $val if $val = $entry->get_value('gidNumber');
 		$V[AV_A_SHELL] = $val if $val = $entry->get_value('loginShell');
 		$V[AV_A_HOME] = $val if $val = $entry->get_value('homeDirectory');
-		$V[AV_A_SSHKEY] = $val if $val = $entry->get_value('sshPublicKey');
+		$V[AV_A_SSHKEY] = '"' . $val . '"' if $val = $entry->get_value('sshPublicKey');
 		my $authdn = $mesg->entry(0)->dn;
 
 		unless (exists($V[AV_A_MEMBEROF])) {
