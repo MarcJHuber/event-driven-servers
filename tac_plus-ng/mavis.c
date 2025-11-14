@@ -322,7 +322,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 
 		u->dynamic = io_now.tv_sec + r->caching_period;
 
-		if (parse_user_profile_multi(avc, &sym, u, "{ member = \"%.*s\" }", AV_A_TACMEMBER) ||
+		if (parse_user_profile_multi(avc, &sym, u, "{ member = %.*s }", AV_A_TACMEMBER) ||
 		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key = \"%.*s\" }", AV_A_SSHKEY) ||
 		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key-hash = \"%.*s\" }", AV_A_SSHKEYHASH) ||
 		    parse_user_profile_multi(avc, &sym, u, "{ ssh-key-id = \"%.*s\" }", AV_A_SSHKEYID) ||
