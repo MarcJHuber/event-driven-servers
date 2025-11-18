@@ -58,6 +58,7 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/err.h>
+#include "type6.h"
 #endif
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
@@ -1222,8 +1223,44 @@ static void accept_control_px(int s, struct scm_data_accept_ext *sd)
     io_sched_add(ctx->io, ctx, (void *) try_raw, 2, 0);
 }
 
+#ifdef WITH_SSL
+static void dec6(tac_host *h)
+{
+    for (struct tac_key * k = h->key; k; k = k->next)
+	if (k->keytype == S_6) {
+	    k->keytype = S_clear;
+	    if (h->type6key) {
+		char *dec = decrypt_type6(k->key, h->type6key);
+		if (dec) {
+		    k->len = strlen(dec);
+		    memcpy(k->key, dec, k->len + 1);
+		    free(dec);
+		}
+	    }
+	}
+
+    for (struct tac_key * k = h->radius_key; k; k = k->next)
+	if (k->keytype == S_6) {
+	    k->keytype = S_clear;
+	    if (h->type6key) {
+		char *dec = decrypt_type6(k->key, h->type6key);
+		if (dec) {
+		    k->len = strlen(dec);
+		    memcpy(k->key, dec, k->len + 1);
+		    free(dec);
+		}
+	    }
+	}
+}
+#endif
+
 void complete_host(tac_host *h)
 {
+#ifdef WITH_SSL
+    if (!h->parent && !h->realm->default_host->complete)
+	dec6(h->realm->default_host);
+    else
+#endif
     if (!h->complete && h->parent) {
 	tac_host *hp = h->parent;
 	complete_host(hp);
@@ -1265,6 +1302,8 @@ void complete_host(tac_host *h)
 	HS(radius_key, NULL);
 	HS(target_realm, NULL);
 #ifdef WITH_SSL
+	HS(type6key, NULL);
+	dec6(h);
 	HS(tls_peer_cert_san_validation, TRISTATE_DUNNO);
 #ifndef OPENSSL_NO_PSK
 	HS(tls_psk_id, NULL);

@@ -441,7 +441,7 @@ static void getsym(struct sym *sym)
 		    parse_error(sym, "EOF unexpected");
 		if (*sym->ch == '\n')
 		    sym->line++;
-		if (*sym->ch == '\\') {
+		if (!sym->noescape && *sym->ch == '\\') {
 		    char scc, sc = 0;
 		    sym_getchar(sym);
 		    scc = *sym->ch;

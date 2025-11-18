@@ -307,6 +307,7 @@ struct sym {
     u_int flag_parse_pcre:1;
     u_int flag_prohibit_include:1;
     u_int quoted:1;
+    u_int noescape:1;
     char ch[4];			/* current parse character */
     char chlen;			/* current parse character length */
     enum token code;		/* parser output */

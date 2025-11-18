@@ -135,6 +135,7 @@ struct tac_key {
     u_int line;			/* configuration file line number */
     time_t warn;
     char *key;
+    enum token keytype;
 };
 
 struct tac_host;
@@ -238,6 +239,7 @@ struct tac_host {
     u_char tls_server_cert_type[2];
     size_t tls_client_cert_type_len;
     size_t tls_server_cert_type_len;
+    char *type6key;
 #endif
 };
 

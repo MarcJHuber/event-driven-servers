@@ -292,6 +292,7 @@ void complete_realm(tac_realm *r)
 	RS(tls_accept_expired, TRISTATE_DUNNO);
 	RS(default_host->tls_peer_cert_validation, S_unknown);
 	RS(tls_psk_hint, NULL);
+	RS(default_host->type6key, NULL);
 
 	if (!r->crl_basedir.txt) {
 	    r->crl_basedir.txt = rp->crl_basedir.txt;
@@ -722,10 +723,19 @@ static void parse_key(struct sym *sym, tac_host *host)
 
     parse(sym, S_equal);
 
+    enum token keytype = S_clear;
+
     if (sym->code == S_7) {
 	sym_get(sym);
 	c7decode(sym->buf);
     }
+#ifdef WITH_SSL
+    else if (sym->code == S_6) {
+	sym->noescape = 1;
+	sym_get(sym);
+	keytype = S_6;
+    }
+#endif
 
     size_t len = strlen(sym->buf);
     *tk = mem_alloc(host->mem, sizeof(struct tac_key) + len + 1);
@@ -733,7 +743,9 @@ static void parse_key(struct sym *sym, tac_host *host)
     (*tk)->line = sym->line;
     (*tk)->len = len;
     (*tk)->key = ((char *) (*tk)) + sizeof(struct tac_key);
+    (*tk)->keytype = keytype;
     memcpy((*tk)->key, sym->buf, len);
+    sym->noescape = 0;
 
     sym_get(sym);
 }
@@ -1781,10 +1793,15 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	case S_maxrounds:
 	case S_host:
 	case S_device:
+#if defined(WITH_SSL)
 	case S_tls_peer_cert_validation:
 #if OPENSSL_VERSION_NUMBER >= 0x30200000
 	case S_tls_client_cert_type:
 	case S_tls_server_cert_type:
+#endif
+#if defined(WITH_SSL)
+	case S_type6key:
+#endif
 #endif
 	    parse_host_attr(sym, r, r->default_host);
 	    continue;
@@ -3404,6 +3421,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 #if OPENSSL_VERSION_NUMBER >= 0x30200000
 	case S_tls_client_cert_type:
 	case S_tls_server_cert_type:
+	case S_type6key:
 #endif
 #endif
 	    break;
@@ -3420,7 +3438,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 			       S_tls,
 #endif
 #if defined(WITH_SSL)
-			       S_tls_peer_cert_sha1, S_tls_peer_cert_sha256, S_tls_peer_cert_rpk, S_tls_client_cert_type, S_tls_server_cert_type,
+			       S_tls_peer_cert_sha1, S_tls_peer_cert_sha256, S_tls_peer_cert_rpk, S_tls_client_cert_type, S_tls_server_cert_type, S_type6key,
 #endif
 			       S_unknown);
 	}
@@ -3931,6 +3949,12 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	} while (parse_comma(sym));
 	break;
 #endif
+    case S_type6key:
+	sym_get(sym);
+	parse(sym, S_equal);
+	host->type6key = mem_strdup(host->mem, sym->buf);
+	sym_get(sym);
+	break;
 #endif
     default:
 	parse_error_expect(sym, S_host, S_device, S_parent, S_authentication, S_permit,

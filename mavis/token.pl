@@ -56,6 +56,7 @@ close F;
 __DATA__
 4				S_4
 5				S_5
+6				S_6
 7				S_7
 8				S_8
 9				S_9
@@ -315,6 +316,7 @@ transmission-mode		S_transmissionmode
 transmit			S_transmit
 tries				S_tries
 type				S_type
+type6-key			S_type6key
 type7-key			S_type7key
 umask				S_umask
 until				S_until
