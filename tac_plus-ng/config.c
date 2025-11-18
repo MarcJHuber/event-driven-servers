@@ -697,6 +697,8 @@ static int globerror(const char *epath, int eerrno)
 
 static time_t parse_date(struct sym *sym, time_t offset);
 
+static int c7decode(char *);
+
 static void parse_key(struct sym *sym, tac_host *host)
 {
     struct tac_key **tk;
@@ -719,6 +721,11 @@ static void parse_key(struct sym *sym, tac_host *host)
 	tk = &(*tk)->next;
 
     parse(sym, S_equal);
+
+    if (sym->code == S_7) {
+	sym_get(sym);
+	c7decode(sym->buf);
+    }
 
     size_t len = strlen(sym->buf);
     *tk = mem_alloc(host->mem, sizeof(struct tac_key) + len + 1);
@@ -2446,7 +2453,7 @@ static char hexbyte(char *s)
     return (h[(s[0] - '0') & 0x1F] << 4) | h[(s[1] - '0') & 0x1F];
 }
 
-static int c7decode(mem_t *mem, char *in)
+static int c7decode(char *in)
 {
     char *out = in;
     size_t len = strlen(in);
@@ -2457,7 +2464,7 @@ static int c7decode(mem_t *mem, char *in)
 	char *e = "051207055A0A070E204D4F08180416130A0D052B2A2529323423120617020057585952550F021917585956525354550A5A07065956";
 	char *u, *t = e;
 
-	c7 = mem_alloc(mem, strlen(e) / 2 + 1);
+	c7 = calloc(0, strlen(e) / 2 + 1);
 	u = c7;
 	while (*t) {
 	    *u = 'a' ^ hexbyte(t);
@@ -2537,7 +2544,7 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
     enum token sc = sym->code;
     sym_get(sym);
 
-    if (c7 && c7decode(mem, sym->buf))
+    if (c7 && c7decode(sym->buf))
 	parse_error(sym, "type 7 password is malformed");
 
     struct pwdat *pp = mem_alloc(mem, sizeof(struct pwdat) + strlen(sym->buf));
