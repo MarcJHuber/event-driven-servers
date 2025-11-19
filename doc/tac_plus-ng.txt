@@ -842,7 +842,7 @@ syslog filter = 46 # 2 + 4 + 8 + 32
    ${service} service type (e.g. shell)
    ${result} typically permit or deny
    ${hint} added/replaced for authorization, informal text for
-   accounting
+   accounting, error message for TLS failures
    ${client.dnsname}, ${nac-name} [deprecated] Client DNS reverse
    mapping
    ${msgid} A message ID, perhaps suitable for RFC5424 logs. These
@@ -1660,8 +1660,8 @@ key = ""
        mapped to ASCII Login requests. You may wish to uses this
        for NEXUS devices.
      * enable [ level ] = ( permit | deny | error | login | (
-       clear | crypt | pbkdf2 | asa | 4 | 5 | 7 | 8 | 9 ) password
-       )
+       clear | crypt | pbkdf2 | asa | 4 | 5 | 6 | 7 | 8 | 9 )
+       password )
        This directive may be used to set device specific enable
        passwords, to use the login password, or to permit (without
        password) or refuse any enable attempt. level defaults to
@@ -1677,6 +1677,24 @@ key = ""
    The pbkdf2 and asa hashes can be copied from a Cisco ASA plain
    text configuration. Likewise, the 4, 5, 7, 8 and 9 type
    password hashes can be copied from IOS.
+
+       Note Password Encryption
+
+
+   If compiled with OpenSSL support Cisco Type-6 AES128 password
+   encryption is available. Encrypted password strings can be
+   copied from a IOS system or generated manually (for example
+   with type6). Type-6 passwords used in host context require a
+   type6-key definition for the master key in host or realm
+   context, while type-6 passwords in user or profile context use
+   the master key from the realm context.
+master key = demo # or master key = "${SOME_ENVIRONMENT_VARIBLE}"
+
+user ... {
+    password login = 'SeIF^JbTBWUcRIhgP[FW\`L\AAB' # no need to escape c
+haracters, just copy here as-is
+}
+
        You can enable via TACACS+ by configuring on the NAS:
 aaa authentication enable default group tacacs+ enable
      * anonymous-enable = ( permit | deny )
@@ -2184,8 +2202,8 @@ user username { ...  }
        Implement an alternate user name. This may be used multiple
        times.
      * password login [ fallback ] = ( ( clear | crypt | pbkdf2 |
-       asa | 4 | 5 | 7 | 8 | 9 ) password | mavis | permit | deny
-       | error )
+       asa | 4 | 5 | 6 | 7 | 8 | 9 ) password | mavis | permit |
+       deny | error )
        The login password authenticates shell log-ins to the
        server.
 password login = crypt aFtFBT4e5muQE
@@ -2197,7 +2215,7 @@ password login = clear Ci5c0
        This functionality may be useful if you want to
        authenticate at external systems, despite static user
        declarations in the configuration file.
-       If you're using password login = mavis, thefallback
+       If you're using password login = mavis, the fallback
        password will be used if there's a MAVIS backend error.
 
        Tip Fallback to LOCAL
@@ -2207,18 +2225,19 @@ password login = clear Ci5c0
    be rejected with a TACACS+ error status. This will likely
    instruct your device to fall back to local authentication.
      * password pap [ fallback ] = ( ( clear | crypt | pbkdf2 |
-       asa | 4 | 5 | 7 | 8 | 9 ) password | login|mavis | permit |
-       deny )
+       asa | 4 | 5 | 6 | 7 | 8 | 9 ) password | login|mavis |
+       permit | deny )
        The pap authenticates PAP log-ins to the server. Just like
        with login, the password doesn't need to be in clear text,
        but may be hashed, or may be looked up via the MAVIS
        back-end. You can even map pap to login globally by
        configuring password pap = login in realm context.
-       If you're using password pap = mavis, thefallback password
+       If you're using password pap = mavis, the fallback password
        will be used if there's a MAVIS backend error.
-     * password chap = ( clear password | permit | deny )
+     * password chap = ( ( clear | 6 ) password | permit | deny )
        For CHAP authentication, a cleartext password is required.
-     * password ms-chap = ( clear password | permit | deny )
+     * password ms-chap = ( ( clear | 6 ) password | permit | deny
+       )
        For MS-CHAP authentication, a cleartext password is
        required.
      * password { ... }
@@ -2231,7 +2250,7 @@ user marc {
     }
 }
      * enable [ level ] = ( permit | deny | login | ( clear |
-       crypt | pbkdf2 | asa | 4 | 5 | 7 | 8 | 9 ) password )
+       crypt | pbkdf2 | asa | 4 | 5 | 6 | 7 | 8 | 9 ) password )
        This directive may be used to set user specific enable
        passwords, to use the login password, or to permit (without
        password) or refuse any enable attempt. Enable secrets
