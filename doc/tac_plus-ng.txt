@@ -2893,6 +2893,11 @@ int async 1
    LDAP search filter for groups. Default:
 
    "(&(objectclass=groupOfNames)(member=%s))"
+   LDAP_FILTER_POSIXGROUP
+
+   LDAP search filter for posix groups. Default:
+
+   "(&(objectclass=posixGroup)(memberUid=%s))"
    LDAP_USER
 
    User to use for LDAP bind if server doesn't permit anonymous
@@ -2948,6 +2953,11 @@ int async 1
 
    Limit nested group lookups to the given value. Unlimited if
    unset.
+
+   Example: 1
+   LDAP_POSIXGROUP
+
+   Also lookup for posix group memberships if enabled.
 
    Example: 1
      __________________________________________________________

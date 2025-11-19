@@ -123,6 +123,7 @@ my $LDAP_SERVER_TYPE;
 my @LDAP_BIND;
 my $LDAP_FILTER;
 my $LDAP_FILTER_GROUP = "(&(objectclass=groupOfNames)(member=%s))";
+my $LDAP_FILTER_POSIXGROUP = "(&(objectclass=posixGroup)(memberUid=%s))";
 my $LDAP_HOSTS		= ['ldaps://localhost'];
 my $LDAP_BASE		= 'dc=example,dc=com';
 my $LDAP_BASE_GROUP	= undef;
@@ -134,6 +135,7 @@ my $LDAP_MEMBEROF_FILTER = undef;
 my $LDAP_TACMEMBER	= "tacMember";
 my $LDAP_TACMEMBER_MAP_OU	= undef;
 my $LDAP_NESTED_GROUP_DEPTH	= undef;
+my $LDAP_POSIXGROUP	= undef;
 my $use_starttls;
 my %tls_options;
 
@@ -146,6 +148,7 @@ $LDAP_SCOPE_GROUP	= $LDAP_SCOPE;
 $LDAP_BASE_GROUP	= $LDAP_BASE;
 $LDAP_SCOPE_GROUP	= $ENV{'LDAP_SCOPE_GROUP'} if exists $ENV{'LDAP_SCOPE_GROUP'};
 $LDAP_FILTER_GROUP	= $ENV{'LDAP_FILTER_GROUP'} if exists $ENV{'LDAP_FILTER_GROUP'};
+$LDAP_FILTER_POSIXGROUP	= $ENV{'LDAP_FILTER_POSIXGROUP'} if exists $ENV{'LDAP_FILTER_POSIXGROUP'};
 $LDAP_BASE_GROUP	= $ENV{'LDAP_BASE_GROUP'} if exists $ENV{'LDAP_BASE_GROUP'};
 $LDAP_FILTER		= $ENV{'LDAP_FILTER'} if exists $ENV{'LDAP_FILTER'};
 $LDAP_CONNECT_TIMEOUT	= $ENV{'LDAP_CONNECT_TIMEOUT'} if exists $ENV{'LDAP_CONNECT_TIMEOUT'};
@@ -156,6 +159,7 @@ $LDAP_MEMBEROF_FILTER	= $ENV{'LDAP_MEMBEROF_FILTER'} if exists $ENV{'LDAP_MEMBER
 $LDAP_TACMEMBER		= $ENV{'LDAP_TACMEMBER'} if exists $ENV{'LDAP_TACMEMBER'};
 $LDAP_TACMEMBER_MAP_OU	= $ENV{'LDAP_TACMEMBER_MAP_OU'} if exists $ENV{'LDAP_TACMEMBER_MAP_OU'};
 $LDAP_NESTED_GROUP_DEPTH	= $ENV{'LDAP_NESTED_GROUP_DEPTH'} if exists $ENV{'LDAP_NESTED_GROUP_DEPTH'};
+$LDAP_POSIXGROUP	= $ENV{'LDAP_POSIXGROUP'} if exists $ENV{'LDAP_POSIXGROUP'};
 
 use Net::LDAP qw(LDAP_INVALID_CREDENTIALS LDAP_CONSTRAINT_VIOLATION);
 use Net::LDAP::Constant qw(LDAP_EXTENSION_PASSWORD_MODIFY LDAP_CAP_ACTIVE_DIRECTORY);
@@ -239,6 +243,21 @@ sub expand_memberof($) {
 
 	my %H;
 	expand_memberof_sub($_[0], \%H, 0);
+	my @res = sort keys %H;
+	return \@res;
+}
+
+sub expand_posixGroup() {
+	my %H;
+	my $mesg = $ldap->search(base => $LDAP_BASE_GROUP, scope=>$LDAP_SCOPE_GROUP, filter=>sprintf($LDAP_FILTER_POSIXGROUP, $V[AV_A_USER]), attrs=>['cn']);
+	if ($mesg->code){
+		$V[AV_A_USER_RESPONSE] = $mesg->error . " (" . __LINE__ . ")";
+		goto fatal;
+	}
+	my $cn;
+	foreach my $entry ($mesg->entries) {
+		$H{$cn} = 1 if $cn = $entry->get_value('cn');
+	}
 	my @res = sort keys %H;
 	return \@res;
 }
@@ -356,14 +375,21 @@ retry_once:
 			$ldap->root_dse->supported_extension(LDAP_EXTENSION_PASSWORD_MODIFY);
 	}
 	$mesg = $ldap->search(base => $LDAP_BASE, filter => sprintf($LDAP_FILTER, $V[AV_A_USER]), scope => $LDAP_SCOPE,
-		attrs => ['shadowExpire','memberOf','dn', 'uidNumber', 'gidNumber', 'loginShell', 'homeDirectory', 'sshPublicKey',
+		attrs => ['shadowExpire', 'memberOf', 'dn', 'uidNumber', 'gidNumber', 'loginShell', 'homeDirectory', 'sshPublicKey',
 			  'krbPasswordExpiration', $LDAP_TACMEMBER]);
 	if ($mesg->count() == 1) {
 		my $entry = $mesg->entry(0);
 
-		my $val = $entry->get_value('memberOf', asref => 1);
-		$authdn = $entry->dn;
 		my (@M, @MO);
+		my $val;
+
+		if (defined $LDAP_POSIXGROUP and $LDAP_POSIXGROUP)  {
+			$val = expand_posixGroup();
+			@M = @$val;
+		}
+
+		$val = $entry->get_value('memberOf', asref => 1);
+		$authdn = $entry->dn;
 		if ($#{$val} > -1) {
 			$val = expand_memberof($val);
 		} else {
@@ -375,6 +401,7 @@ retry_once:
 				push @MO, $m;
 			}
 		}
+
 		$V[AV_A_TACMEMBER] = '"' . join('","', @M) . '"' if $#M > -1;
 		$V[AV_A_MEMBEROF] = '"' . join('","', @MO) . '"' if $#MO > -1;
 		$V[AV_A_DN] = $authdn;

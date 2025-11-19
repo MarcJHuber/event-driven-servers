@@ -3514,6 +3514,13 @@ int async 1
 </td>
 </tr>
 <tr>
+<td><tt class="literal">LDAP_FILTER_POSIXGROUP</tt></td>
+<td>
+<p>LDAP search filter for posix groups. Default:</p>
+<p><tt class="literal">"(&amp;(objectclass=posixGroup)(memberUid=%s))"</tt></p>
+</td>
+</tr>
+<tr>
 <td><tt class="literal">LDAP_USER</tt></td>
 <td>
 <p>User to use for LDAP bind if server doesn't permit anonymous searches.</p>
@@ -3584,6 +3591,13 @@ int async 1
 <td><tt class="literal">LDAP_NESTED_GROUP_DEPTH</tt></td>
 <td>
 <p>Limit nested group lookups to the given value. Unlimited if unset.</p>
+<p>Example: <tt class="literal">1</tt></p>
+</td>
+</tr>
+<tr>
+<td><tt class="literal">LDAP_POSIXGROUP</tt></td>
+<td>
+<p>Also lookup for posix group memberships if enabled.</p>
 <p>Example: <tt class="literal">1</tt></p>
 </td>
 </tr>
