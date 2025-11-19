@@ -87,6 +87,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/x509_vfy.h>
+#include "type6.h"
 #endif
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
@@ -2544,6 +2545,8 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
 	sym_get(sym);
 	sym_get(sym);
 	return &passwd_deny;
+    case S_6:
+	sym->noescape = 1;
     case S_clear:
 	break;
     case S_7:
@@ -2553,13 +2556,14 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
     default:
 	parse_error_expect(sym, S_clear, S_permit, S_deny, S_login, S_asa, S_5, S_7,
 #ifdef WITH_SSL
-			   S_pbkdf2, S_4, S_8, S_9,
+			   S_pbkdf2, S_4, S_8, S_9, S_6,
 #endif
 			   cry ? S_crypt : S_unknown, S_unknown);
     }
 
     enum token sc = sym->code;
     sym_get(sym);
+    sym->noescape = 0;
 
     if (c7 && c7decode(sym->buf))
 	parse_error(sym, "type 7 password is malformed");
@@ -4444,21 +4448,49 @@ int cfg_get_enable(tac_session *session, struct pwdat **p)
 {
     int m = 0;
     struct pwdat **d[3];
+#ifdef WITH_SSL
+    char *type6key[3];
+#endif
 
     if (!session->profile && (S_permit != eval_ruleset(session, session->ctx->realm)))
 	return -1;
 
-    if (session->user && session->user->enable)
+    if (session->user && session->user->enable) {
+#ifdef WITH_SSL
+	type6key[m] = session->user->realm->default_host->type6key;
+#endif
 	d[m++] = session->user->enable;
-    if (session->profile && session->profile->enable)
+    }
+    if (session->profile && session->profile->enable) {
+#ifdef WITH_SSL
+	type6key[m] = session->user->realm->default_host->type6key;
+#endif
 	d[m++] = session->profile->enable;
-    if (session->host->enable)
+    }
+    if (session->host->enable) {
+#ifdef WITH_SSL
+	type6key[m] = session->host->type6key;
+#endif
 	d[m++] = session->host->enable;
+    }
 
     for (int level = session->priv_lvl; level < TAC_PLUS_PRIV_LVL_MAX + 1; level++) {
 	for (int i = 0; i < m; i++)
 	    if (d[i][level]) {
 		*p = d[i][level];
+#ifdef WITH_SSL
+		if ((*p)->type == S_6) {
+		    (*p)->type = S_clear;
+		    if (type6key[i]) {
+			char *dec = decrypt_type6((*p)->value, type6key[i]);
+			if (dec) {
+			    size_t len = strlen(dec);
+			    memcpy((*p)->value, dec, len + 1);
+			    free(dec);
+			}
+		    }
+		}
+#endif
 		return 0;
 	    }
     }

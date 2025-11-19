@@ -82,6 +82,7 @@
 OSSL_PROVIDER *ossl_legacy = NULL;
 OSSL_PROVIDER *ossl_default = NULL;
 #endif
+#include "type6.h"
 #endif
 
 #define DEBAUTHC session, LOG_DEBUG, DEBUG_AUTHEN_FLAG
@@ -779,6 +780,19 @@ static void set_pwdat(tac_session *session, struct pwdat **pwdat, enum pw_ix *pw
 	    *pw_ix = PW_MAVIS;
 	    *pwdat = session->user->passwd[*pw_ix];
 	}
+#ifdef WITH_SSL
+	if ((*pwdat)->type == S_6) {
+	    (*pwdat)->type = S_clear;
+	    if (session->user->realm->default_host->type6key) {
+		char *dec = decrypt_type6((*pwdat)->value, session->user->realm->default_host->type6key);
+		if (dec) {
+		    size_t len = strlen(dec);
+		    memcpy((*pwdat)->value, dec, len + 1);
+		    free(dec);
+		}
+	    }
+	}
+#endif
     } else
 	*pwdat = NULL;
 }
