@@ -183,7 +183,7 @@ static void free_context(void *c)
 static void write_to_child(struct context *, int);
 
 #define HAVE_mavis_init_in
-static int mavis_init_in(mavis_ctx * mcx)
+static int mavis_init_in(mavis_ctx *mcx)
 {
     DebugIn(DEBUG_MAVIS);
 
@@ -226,7 +226,7 @@ user-id = uid
 group-id = gid
 */
 #define HAVE_mavis_parse_in
-static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
+static int mavis_parse_in(mavis_ctx *mcx, struct sym *sym)
 {
     size_t len;
     struct stat st;
@@ -265,19 +265,19 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 		parse_error_expect(sym, S_min, S_max, S_unknown);
 	    }
 	case S_setenv:{
-	    sym_get(sym);
-	    char env_name[strlen(sym->buf) + 1];
-	    strcpy(env_name, sym->buf);
-	    sym_get(sym);
-	    parse(sym, S_equal);
-	    len = strlen(env_name) + strlen(sym->buf) + 2;
-	    mcx->env = Xrealloc(mcx->env, (mcx->envcount + 2) * sizeof(char *));
-	    mcx->env[mcx->envcount] = Xcalloc(1, len);
-	    snprintf(mcx->env[mcx->envcount++], len, "%s=%s", env_name, sym->buf);
-	    mcx->env[mcx->envcount] = NULL;
-	    sym_get(sym);
-	    continue;
-	}
+		sym_get(sym);
+		char env_name[strlen(sym->buf) + 1];
+		strcpy(env_name, sym->buf);
+		sym_get(sym);
+		parse(sym, S_equal);
+		len = strlen(env_name) + strlen(sym->buf) + 2;
+		mcx->env = Xrealloc(mcx->env, (mcx->envcount + 2) * sizeof(char *));
+		mcx->env[mcx->envcount] = Xcalloc(1, len);
+		snprintf(mcx->env[mcx->envcount++], len, "%s=%s", env_name, sym->buf);
+		mcx->env[mcx->envcount] = NULL;
+		sym_get(sym);
+		continue;
+	    }
 	case S_exec:{
 		char buf[MAX_INPUT_LINE_LEN];
 		sym_get(sym);
@@ -317,7 +317,7 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 }
 
 #define HAVE_mavis_drop_in
-static void mavis_drop_in(mavis_ctx * mcx)
+static void mavis_drop_in(mavis_ctx *mcx)
 {
     free(mcx->path);
 
@@ -378,14 +378,14 @@ static int mavis_send_in(mavis_ctx *, av_ctx **);
 
 static void child_died(struct context *ctx, int cur __attribute__((unused)))
 {
-	if (ctx->fd_in > -1) {
-	    io_close(ctx->mcx->io, ctx->fd_in);
-	    ctx->fd_in = -1;
-	}
-	if (ctx->fd_out > -1) {
-	    io_close(ctx->mcx->io, ctx->fd_out);
-	    ctx->fd_out = -1;
-	}
+    if (ctx->fd_in > -1) {
+	io_close(ctx->mcx->io, ctx->fd_in);
+	ctx->fd_in = -1;
+    }
+    if (ctx->fd_out > -1) {
+	io_close(ctx->mcx->io, ctx->fd_out);
+	ctx->fd_out = -1;
+    }
 
     int i = ctx->index;
     if (ctx->ac || !ctx->mcx->cx[i]->counter) {	// might be called multiple times else
@@ -622,7 +622,7 @@ static void read_err_from_child(struct context *ctx, int cur __attribute__((unus
     DebugOut(DEBUG_PROC);
 }
 
-static int fork_child(mavis_ctx * mcx, int i)
+static int fork_child(mavis_ctx *mcx, int i)
 {
     int fi[2], fo[2], fe[2];
     pid_t childpid;
@@ -771,7 +771,7 @@ static void start_query(struct context *ctx)
 }
 
 #define HAVE_mavis_send_in
-static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
+static int mavis_send_in(mavis_ctx *mcx, av_ctx **ac)
 {
     int i = -1;
     int res = MAVIS_DEFERRED;
@@ -877,7 +877,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 }
 
 #define HAVE_mavis_cancel_in
-static int mavis_cancel_in(mavis_ctx * mcx, void *app_ctx)
+static int mavis_cancel_in(mavis_ctx *mcx, void *app_ctx)
 {
     struct query q;
     rb_node_t *r;
@@ -917,7 +917,7 @@ static int mavis_cancel_in(mavis_ctx * mcx, void *app_ctx)
 }
 
 #define HAVE_mavis_recv_in
-static int mavis_recv_in(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
+static int mavis_recv_in(mavis_ctx *mcx, av_ctx **ac, void *app_ctx)
 {
     struct query q;
     rb_node_t *r;
@@ -949,7 +949,7 @@ static int mavis_recv_in(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
 }
 
 #define HAVE_mavis_new
-static void mavis_new(mavis_ctx * mcx)
+static void mavis_new(mavis_ctx *mcx)
 {
     if (mcx->io)
 	mcx->child_min = 4, mcx->child_max = 20;
