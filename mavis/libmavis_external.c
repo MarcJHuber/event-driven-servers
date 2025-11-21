@@ -378,6 +378,15 @@ static int mavis_send_in(mavis_ctx *, av_ctx **);
 
 static void child_died(struct context *ctx, int cur __attribute__((unused)))
 {
+	if (ctx->fd_in > -1) {
+	    io_close(ctx->mcx->io, ctx->fd_in);
+	    ctx->fd_in = -1;
+	}
+	if (ctx->fd_out > -1) {
+	    io_close(ctx->mcx->io, ctx->fd_out);
+	    ctx->fd_out = -1;
+	}
+
     int i = ctx->index;
     if (ctx->ac || !ctx->mcx->cx[i]->counter) {	// might be called multiple times else
 	DebugIn(DEBUG_PROC);
@@ -396,15 +405,6 @@ static void child_died(struct context *ctx, int cur __attribute__((unused)))
 	ctx->mcx->cx[i]->counter = 0;
 
 	io_child_set(ctx->pid, NULL, NULL);
-
-	if (ctx->fd_in > -1) {
-	    io_close(ctx->mcx->io, ctx->fd_in);
-	    ctx->fd_in = -1;
-	}
-	if (ctx->fd_out > -1) {
-	    io_close(ctx->mcx->io, ctx->fd_out);
-	    ctx->fd_out = -1;
-	}
 
 	ctx->index = -1;
 
