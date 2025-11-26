@@ -531,7 +531,6 @@ static int dnhash_add_entry_groupOfNames(LDAP *ldap, struct dnhash **h, char *dn
 	LDAPMessage *entry;
 	for (entry = ldap_first_entry(ldap, res); entry; entry = ldap_next_entry(ldap, entry)) {
 	    char *gdn = ldap_get_dn(ldap, entry);
-	    fprintf(stderr, "checking gdn %s\n", gdn);
 	    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(ldap_memberof_regex, NULL);
 	    int pcre_res = pcre2_match((pcre2_code *) ldap_memberof_regex, (PCRE2_SPTR8) gdn, (PCRE2_SIZE) strlen(gdn), 0, 0, match_data, NULL);
 	    if (pcre_res < 0 && pcre_res != PCRE2_ERROR_NOMATCH) {
