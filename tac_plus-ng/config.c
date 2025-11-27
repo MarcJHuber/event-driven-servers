@@ -492,11 +492,13 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
 
     if (parent) {
 	r->parent = parent;
+	r->debug = parent->debug;
 	r->caching_period = -1;
 	r->dns_caching_period = -1;
 	r->warning_period = -1;
 	r->backend_failure_period = -1;
     } else {
+	r->debug = common_data.debug;
 	r->caching_period = 120;
 	r->dns_caching_period = 1800;
 	r->warning_period = 14 * 86400;
