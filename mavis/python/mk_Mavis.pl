@@ -136,6 +136,9 @@ class Mavis:
 	def set_gid(self, arg):
 		self.av_pairs[AV_A_GID] = arg
 
+	def set_gids(self, arg):
+		self.av_pairs[AV_A_GIDS] = arg
+
 	def set_shell(self, arg):
 		self.av_pairs[AV_A_SHELL] = arg
 
