@@ -51,12 +51,20 @@ LDAP_SCOPE_GROUP
 	LDAP search scope (BASE, LEVEL, SUBTREE) for groups
 	Default: SUBTREE
 
+LDAP_SCOPE_POSIXGROUP
+	LDAP search scope (BASE, LEVEL, SUBTREE) for groups
+	Default: SUBTREE
+
 LDAP_BASE
 	Base DN of your LDAP server
 	Example: "dc=example,dc=com"
 
 LDAP_BASE_GROUP
 	Base groupe search DN of your LDAP server, defaults to LDAP_BASE
+	Example: "dc=example,dc=com"
+
+LDAP_BASE_POSIXGROUP
+	Base POSIX groups search DN of your LDAP server, defaults to LDAP_BASE
 	Example: "dc=example,dc=com"
 
 LDAP_CONNECT_TIMEOUT
@@ -105,6 +113,12 @@ TLS_OPTIONS
 LDAP_NESTED_GROUP_DEPTH
 	Limit nested group lookups to the given value. Unlimited if unset.
 	Example: 2
+
+LDAP_SKIP_MEMBEROF
+LDAP_SKIP_POSIXGROUP
+LDAP_SKIP_GROUPOFNAMES
+	When set, the corresponding LDAP group lookups will be skipped.
+	Default: unset
 """
 
 import os, sys, re, ldap3, time
@@ -128,6 +142,7 @@ eval_env('LDAP_FILTER', None)
 eval_env('LDAP_FILTER_GROUP', '(&(objectclass=groupOfNames)(member={}))')
 eval_env('LDAP_SCOPE', 'SUBTREE')
 eval_env('LDAP_SCOPE_GROUP', LDAP_SCOPE)
+eval_env('LDAP_SCOPE_POSIXGROUP', LDAP_SCOPE)
 eval_env('LDAP_CONNECT_TIMEOUT', 5)
 memberof_regex = re.compile('(?i)' + eval_env('LDAP_MEMBEROF_REGEX', '^cn=([^,]+),.*'))
 memberof_filter = re.compile('(?i)' + eval_env('LDAP_MEMBEROF_FILTER', '.'))
@@ -135,6 +150,9 @@ eval_env('LDAP_TACMEMBER', 'tacMember')
 ou_regex = re.compile('(?i)^ou=(.+)$')
 eval_env('LDAP_TACMEMBER_MAP_OU', None)
 eval_env('LDAP_NESTED_GROUP_DEPTH', None)
+eval_env('LDAP_SKIP_MEMBEROF', None)
+eval_env('LDAP_SKIP_POSIXGROUP', None)
+eval_env('LDAP_SKIP_GROUPOFNAMES', None)
 tls = None
 if eval_env('TLS_OPTIONS', None) is not None:
 	tls = eval("{ " + TLS_OPTIONS + "}")
@@ -241,6 +259,8 @@ while True:
 				if LDAP_FILTER == None:
 					LDAP_FILTER = '(&(objectclass=user)(sAMAccountName={}))'
 				LDAP_USER = conn.user
+				LDAP_SKIP_POSIXGROUP = 1
+				LDAP_SKIP_GROUPOFNAMES = 1
 
 			if conn.server.info.vendor_name != None:
 				if (LDAP_USER == None or LDAP_PASSWD == None) and '389 Project' in conn.server.info.vendor_name:
@@ -357,8 +377,6 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 
 	if len(entry.uidNumber) > 0:
 		D.set_uid(entry.uidNumber[0])
-	if len(entry.gidNumber) > 0:
-		D.set_gid(entry.gidNumber[0])
 	if len(entry.loginShell) > 0:
 		D.set_shell(entry.loginShell[0])
 	if len(entry.homeDirectory) > 0:
@@ -366,9 +384,11 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 
 	L = None
 	if len(entry.memberOf) > 0:
-		L = expand_memberof(entry.memberOf)
+		if LDAP_SKIP_MEMBEROF is None:
+			L = expand_memberof(entry.memberOf)
 	else:
-		L = expand_groupOfNames(entry.entry_dn)
+		if LDAP_SKIP_GROUPOFNAMES is None:
+			L = expand_groupOfNames(entry.entry_dn)
 
 	TACMEMBER = [];
 
@@ -384,6 +404,20 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 			r = ou_regex.match(ou)
 			if r:
 				TACMEMBER.append(r.group(1))
+
+	if len(entry.gidNumber) > 0:
+		D.set_gid(entry.gidNumber[0])
+	if len(entry.gidNumber) > 0 and LDAP_SKIP_POSIXGROUP == None:
+		conn.search(search_base=LDAP_BASE, search_scope=LDAP_SCOPE_POSIXGROUP,
+			search_filter='(&(objectclass=posixGroup)(gidNumber={}))'.format(entry.gidNumber[0]),
+			attributes=["cn"])
+		if len(conn.entries) == 1:
+			TACMEMBER.extend(conn.entries[0].cn)
+		conn.search(search_base=LDAP_BASE, search_scope=LDAP_SCOPE_POSIXGROUP,
+			search_filter='(&(objectclass=posixGroup)(memberUid={}))'.format(D.user),
+			attributes=["cn"])
+		for e in conn.entries:
+			TACMEMBER.extend(e.cn)
 
 	if len(TACMEMBER) > 0:
 		D.set_tacmember("\"" + "\",\"".join(TACMEMBER) + "\"")
