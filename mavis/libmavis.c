@@ -26,7 +26,7 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-int mavis_method_add(mavis_ctx ** mcx, struct io_context *ioctx, char *path, char *id)
+int mavis_method_add(mavis_ctx **mcx, struct io_context *ioctx, char *path, char *id)
 {
     Debug((DEBUG_MAVIS, "+ %s(%s)\n", __func__, path));
 
@@ -55,7 +55,7 @@ int mavis_method_add(mavis_ctx ** mcx, struct io_context *ioctx, char *path, cha
     return 0;
 }
 
-int mavis_init(mavis_ctx * mcx, char *version, char *token_version)
+int mavis_init(mavis_ctx *mcx, char *version, char *token_version)
 {
     DebugIn(DEBUG_MAVIS);
 
@@ -72,7 +72,7 @@ int mavis_init(mavis_ctx * mcx, char *version, char *token_version)
     return result;
 }
 
-int mavis_drop(mavis_ctx * mcx)
+int mavis_drop(mavis_ctx *mcx)
 {
     DebugIn(DEBUG_MAVIS);
 
@@ -87,7 +87,7 @@ int mavis_drop(mavis_ctx * mcx)
     return 0;
 }
 
-int mavis_parse(mavis_ctx * mcx, struct sym *sym, char *id)
+int mavis_parse(mavis_ctx *mcx, struct sym *sym, char *id)
 {
     DebugIn(DEBUG_MAVIS);
 
@@ -100,7 +100,7 @@ int mavis_parse(mavis_ctx * mcx, struct sym *sym, char *id)
     return result;
 }
 
-static int mavis_sanitycheck(mavis_ctx * mcx, av_ctx * ac)
+static int mavis_sanitycheck(mavis_ctx *mcx, av_ctx *ac)
 {
     if (!mcx) {
 	av_set(ac, AV_A_RESULT, AV_V_RESULT_ERROR);
@@ -118,7 +118,7 @@ static int mavis_sanitycheck(mavis_ctx * mcx, av_ctx * ac)
     return -1;
 }
 
-char *av_addserial(av_ctx * ac)
+char *av_addserial(av_ctx *ac)
 {
     if (!ac->arr[AV_A_SERIAL]) {
 	u_char u[16];
@@ -138,7 +138,7 @@ char *av_addserial(av_ctx * ac)
     return ac->arr[AV_A_SERIAL];
 }
 
-int mavis_send(mavis_ctx * mcx, av_ctx ** ac)
+int mavis_send(mavis_ctx *mcx, av_ctx **ac)
 {
     DebugIn(DEBUG_MAVIS);
 
@@ -160,7 +160,7 @@ int mavis_send(mavis_ctx * mcx, av_ctx ** ac)
     return result;
 }
 
-int mavis_cancel(mavis_ctx * mcx, void *app_ctx)
+int mavis_cancel(mavis_ctx *mcx, void *app_ctx)
 {
     DebugIn(DEBUG_MAVIS);
 
@@ -170,7 +170,7 @@ int mavis_cancel(mavis_ctx * mcx, void *app_ctx)
     return result;
 }
 
-int mavis_recv(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
+int mavis_recv(mavis_ctx *mcx, av_ctx **ac, void *app_ctx)
 {
     DebugIn(DEBUG_MAVIS);
     int result = mcx->recv(mcx, ac, app_ctx);
@@ -180,7 +180,7 @@ int mavis_recv(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
     return result;
 }
 
-void av_clear(av_ctx * ac)
+void av_clear(av_ctx *ac)
 {
     DebugIn(DEBUG_AV);
     if (ac)
@@ -189,7 +189,7 @@ void av_clear(av_ctx * ac)
     DebugOut(DEBUG_AV);
 }
 
-void av_move(av_ctx * ac_out, av_ctx * ac_in)
+void av_move(av_ctx *ac_out, av_ctx *ac_in)
 {
     DebugIn(DEBUG_AV);
     av_clear(ac_out);
@@ -202,7 +202,7 @@ void av_move(av_ctx * ac_out, av_ctx * ac_in)
     DebugOut(DEBUG_AV);
 }
 
-void av_copy(av_ctx * ac_out, av_ctx * ac_in)
+void av_copy(av_ctx *ac_out, av_ctx *ac_in)
 {
     DebugIn(DEBUG_AV);
     av_clear(ac_out);
@@ -216,7 +216,7 @@ void av_copy(av_ctx * ac_out, av_ctx * ac_in)
     DebugOut(DEBUG_AV);
 }
 
-void av_merge(av_ctx * ac_out, av_ctx * ac_in)
+void av_merge(av_ctx *ac_out, av_ctx *ac_in)
 {
     DebugIn(DEBUG_AV);
 
@@ -227,7 +227,7 @@ void av_merge(av_ctx * ac_out, av_ctx * ac_in)
     DebugOut(DEBUG_AV);
 }
 
-void av_set(av_ctx * ac, int av_attribute, char *av_value)
+void av_set(av_ctx *ac, int av_attribute, char *av_value)
 {
     if (av_attribute < 0 || av_attribute >= AV_A_ARRAYSIZE) {
 	Debug((DEBUG_AV, "%s(%d) out of bounds\n", __func__, av_attribute));
@@ -244,7 +244,7 @@ void av_set(av_ctx * ac, int av_attribute, char *av_value)
 	ac->arr[av_attribute] = NULL;
 }
 
-void av_setf(av_ctx * ac, int av_attribute, char *format, ...)
+void av_setf(av_ctx *ac, int av_attribute, char *format, ...)
 {
     size_t len = 1024, nlen;
     va_list ap;
@@ -263,7 +263,33 @@ void av_setf(av_ctx * ac, int av_attribute, char *format, ...)
     av_set(ac, av_attribute, tmpbuf);
 }
 
-char *av_get(av_ctx * ac, int av_attribute)
+void av_add(av_ctx *ac, int av_attribute, char *separator, char *format, ...)
+{
+    if (!separator)
+	separator = "";
+    size_t len = 1024, nlen;
+    va_list ap;
+    char *tmpbuf = alloca(len);
+
+    va_start(ap, format);
+    nlen = vsnprintf(tmpbuf, len, format, ap);
+    va_end(ap);
+    if (len <= nlen) {
+	tmpbuf = alloca(++nlen);
+	va_start(ap, format);
+	vsnprintf(tmpbuf, nlen, format, ap);
+	va_end(ap);
+    }
+    va_end(ap);
+    char *val = av_get(ac, av_attribute);
+    if (val) {
+	av_setf(ac, av_attribute, "%s%s%s", val, separator, tmpbuf);
+    } else {
+	av_set(ac, av_attribute, tmpbuf);
+    }
+}
+
+char *av_get(av_ctx *ac, int av_attribute)
 {
     if (av_attribute < 0 || av_attribute > AV_A_ARRAYSIZE) {
 	Debug((DEBUG_AV, "%s(%d): out of bounds\n", __func__, av_attribute));
@@ -277,7 +303,7 @@ char *av_get(av_ctx * ac, int av_attribute)
     return ac->arr[av_attribute];
 }
 
-void av_dump(av_ctx * ac)
+void av_dump(av_ctx *ac)
 {
     fprintf(stderr, "attribute-value-pairs:\n");
     for (int i = 0; i < AV_A_ARRAYSIZE; i++)
@@ -306,7 +332,7 @@ int av_attr_token_to_i(struct sym *sym)
     return av_attribute_to_i(b);
 }
 
-size_t av_array_to_char_len(av_ctx * ac)
+size_t av_array_to_char_len(av_ctx *ac)
 {
     size_t j = 1;		// terminating \0
     for (int i = 0; i < AV_A_ARRAYSIZE; i++) {
@@ -319,7 +345,7 @@ size_t av_array_to_char_len(av_ctx * ac)
     return j;
 }
 
-int av_array_to_char(av_ctx * ac, char *buffer, size_t buflen, fd_set * set)
+int av_array_to_char(av_ctx *ac, char *buffer, size_t buflen, fd_set *set)
 {
     char *u;
     char *t = buffer;
@@ -340,7 +366,7 @@ int av_array_to_char(av_ctx * ac, char *buffer, size_t buflen, fd_set * set)
     return (int) (t - buffer);
 }
 
-int av_char_to_array(av_ctx * ac, char *buffer, fd_set * set)
+int av_char_to_array(av_ctx *ac, char *buffer, fd_set *set)
 {
     char *av_start = buffer;
     char *av_end = av_start;
@@ -380,13 +406,13 @@ av_ctx *av_new(void *cb, void *ctx)
     return a;
 }
 
-void av_setcb(av_ctx * a, void *cb, void *ctx)
+void av_setcb(av_ctx *a, void *cb, void *ctx)
 {
     a->app_cb = cb;
     a->app_ctx = ctx;
 }
 
-void av_free(av_ctx * ac)
+void av_free(av_ctx *ac)
 {
     if (ac) {
 	for (int i = 0; i < AV_A_ARRAYSIZE; i++)
@@ -395,7 +421,7 @@ void av_free(av_ctx * ac)
     }
 }
 
-void av_free_private(av_ctx * ac)
+void av_free_private(av_ctx *ac)
 {
     if (ac) {
 	for (int i = 0; i < AV_A_ARRAYSIZE; i++)

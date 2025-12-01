@@ -279,6 +279,8 @@ char *av_get(av_ctx *, int);
 void av_set(av_ctx *, int, char *);
 void av_setf(av_ctx *, int, char *, ...)
     __attribute__((format(printf, 3, 4)));
+void av_add(av_ctx * ac, int av_attribute, char *separator, char *format, ...)
+    __attribute__((format(printf, 4, 5)));
 #define av_unset(A,B) av_set(A,B, NULL)
 void av_clear(av_ctx *);
 void av_dump(av_ctx *);
