@@ -29,6 +29,7 @@ static int is_mt = TRISTATE_DUNNO;
 
 static int scope = LDAP_SCOPE_SUBTREE;
 static int scope_group = LDAP_SCOPE_SUBTREE;
+static int scope_posixgroup = LDAP_SCOPE_SUBTREE;
 static int ldap_tacmember_map_ou = 0;
 static int ldap_tls_protocol_min = LDAP_OPT_X_TLS_PROTOCOL_TLS1_2;
 static time_t ldap_timeout = 30;
@@ -38,6 +39,7 @@ static int capabilities_set = 0;
 static char *ldap_url = NULL;
 static char *base_dn = NULL;
 static char *base_dn_group = NULL;
+static char *base_dn_posixgroup = NULL;
 static char *ldap_tacmember_attr = NULL;
 static char *ldap_filter = NULL;
 static char *ldap_filter_group = NULL;
@@ -51,7 +53,9 @@ static pcre2_code *ldap_memberof_filter = NULL;
 static pcre2_code *ad_result_regex = NULL;
 static pcre2_code *ad_dsid_regex = NULL;
 static int ldap_sizelimit = 100;
-
+static int ldap_skip_memberof = 0;
+static int ldap_skip_posixgroup = 0;
+static int ldap_skip_groupofnames = 0;
 
 static void usage(void)
 {
@@ -68,13 +72,18 @@ Important environment variables and ther defaults:\n\
 \n\
 Leaving the ones below as-is is likely safe:\n\
  LDAP_BASE_GROUP               same as LDAP_BASE\n\
+ LDAP_BASE_POSIXGROUP          same as LDAP_BASE\n\
  LDAP_SCOPE                    subtree (base, level, onelevel, subtree)\n\
  LDAP_SCOPE_GROUP              subtree (base, level, onelevel, subtree)\n\
+ LDAP_SCOPE_POSIXGROUP         subtree (base, level, onelevel, subtree)\n\
  LDAP_TIMEOUT                  5 [seconds]\n\
  LDAP_NETWORK_TIMEOUT          5 [seconds]\n\
  LDAP_TACMEMBER                tacMember\n\
  LDAP_TACMEMBER_MAP_OU         unset (set to map OUs to TACMEMBER)\n\
- LDAP_NESTED_MEMBEROF_DEPTH    unset (set to limit group membership lookup depth)\n"
+ LDAP_NESTED_MEMBEROF_DEPTH    unset (set to limit group membership lookup depth)\n\
+ LDAP_SKIP_MEMBEROF            unset (set to skip memberOf lookups)\n\
+ LDAP_SKIP_POSIXGROUP          unset (set to skip posixGroup lookups)\n\
+ LDAP_SKIP_GROUPOFNAMES        unset (set to skip groupOfNames lookups)\n"
 #ifdef LDAP_OPT_X_TLS_PROTOCOL_TLS1_3
 	    " LDAP_TLS_PROTOCOL_MIN         TLS1_2 (TLS1_0, TLS1_1, TLS1_2, TLS1_3)\n"
 #else
@@ -117,8 +126,7 @@ static int LDAP_eval_rootdse(LDAP *ldap, LDAPMessage *res)
 #define CAP_PWMODIFY 4
 #define CAP_FASTBIND 8
 #define CAP_STARTTLS 16
-    LDAPMessage *entry;
-    for (entry = ldap_first_entry(ldap, res); entry; entry = ldap_next_entry(ldap, entry)) {
+    for (LDAPMessage * entry = ldap_first_entry(ldap, res); entry; entry = ldap_next_entry(ldap, entry)) {
 	/* Print the DN string of the object */
 	BerElement *be = NULL;
 	char *attribute = NULL;
@@ -131,6 +139,8 @@ static int LDAP_eval_rootdse(LDAP *ldap, LDAPMessage *res)
 			if (!strcmp(v[i]->bv_val, LDAP_CAP_ACTIVE_DIRECTORY_OID)
 			    || !strcmp(v[i]->bv_val, LDAP_CAP_ACTIVE_DIRECTORY_ADAM_OID)) {
 			    capabilities |= CAP_AD;
+			    ldap_skip_groupofnames = 1;
+			    ldap_skip_posixgroup = 1;
 			} else if (!strcmp(v[i]->bv_val, LDAP_SERVER_FAST_BIND_OID)) {
 			    capabilities |= CAP_FASTBIND;
 			}
@@ -162,6 +172,8 @@ static int LDAP_eval_rootdse(LDAP *ldap, LDAPMessage *res)
 		}
 	    }
 	}
+	if (be)
+	    ber_free(be, 0);
     }
     return capabilities;
 }
@@ -339,7 +351,7 @@ static int LDAP_init(LDAP **ldap, int *capabilities)
 
     if (!capabilities_set) {
 	char *attrs[] = { "+", NULL };	// OpenLDAP
-	LDAPMessage *res;
+	LDAPMessage *res = NULL;
 	rc = ldap_search_ext_s(*ldap, "", LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
 	if (rc == LDAP_SUCCESS)
 	    capabilities_set = 1;
@@ -437,9 +449,8 @@ static int dnhash_add(struct dnhash **ha, char *dn, size_t match_start, size_t m
     return 0;
 }
 
-static int dnhash_add_entry(LDAP *ldap, struct dnhash **h, char *dn, int level)
+static int dnhash_match(struct dnhash **h, char *dn)
 {
-
     if (ldap_memberof_filter) {
 	pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(ldap_memberof_filter, NULL);
 	int pcre_res = pcre2_match((pcre2_code *) ldap_memberof_filter, (PCRE2_SPTR8) dn, (PCRE2_SIZE) strlen(dn), 0, 0, match_data, NULL);
@@ -479,89 +490,135 @@ static int dnhash_add_entry(LDAP *ldap, struct dnhash **h, char *dn, int level)
     int rc = dnhash_add(h, dn, match_start, match_len, matched);
     if (match_data)
 	pcre2_match_data_free(match_data);
-    if (rc)
+    return rc;
+}
+
+static int dnhash_add_entry(LDAP *ldap, struct dnhash **h, char *dn, int level)
+{
+    struct iovec iov[2][1024] = { 0 };
+    int iov_count[2] = { 0 };
+
+    int iov_cur = 0;
+    int iov_next = 1;
+    if (!dnhash_match(h, dn))
 	return -1;
 
-    if (level < 1 && ldap_group_depth > -2)
-	return 0;
+    iov[iov_cur][iov_count[iov_cur]].iov_base = strdup(dn);
+    iov_count[iov_cur]++;
 
-    char *attrs[] = { "memberOf", NULL };
-    LDAPMessage *res = NULL;
-    rc = ldap_search_ext_s(ldap, dn, LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
-    if (rc != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
+    do {
+	char *attrs[] = { "memberof", NULL };
+	LDAPMessage *res = NULL;
+	int msgid_dummy;
+	int success = 0;
+	iov_count[iov_next] = 0;
 
-    if (rc == LDAP_SUCCESS && ldap_count_entries(ldap, res) == 1) {
-	LDAPMessage *entry = ldap_first_entry(ldap, res);
-
-	BerElement *be = NULL;
-	for (char *attribute = ldap_first_attribute(ldap, entry, &be); attribute; attribute = ldap_next_attribute(ldap, entry, be)) {
-	    struct berval **v = ldap_get_values_len(ldap, entry, attribute);
-	    if (v) {
-		if (!strcasecmp(attribute, "memberOf")) {
-		    int i = 0;
-		    for (; v[i]; i++)
-			dnhash_add_entry(ldap, h, v[i]->bv_val, level - 1);
-		}
-	    }
-	    ldap_value_free_len(v);
+	for (int i = 0; i < iov_count[iov_cur]; i++) {
+	    int rc =
+		ldap_search_ext(ldap, iov[iov_cur][i].iov_base, LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &msgid_dummy);
+	    if (rc == LDAP_SUCCESS)
+		success++;
+	    else
+		fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 	}
-    }
-    if (res)
-	ldap_msgfree(res);
+	for (int i = 0; i < success; i++) {
+	    struct timeval tv = {.tv_sec = ldap_timeout };
+
+	    int rc = ldap_result(ldap, LDAP_RES_ANY, 1, &tv, &res);
+
+	    if (rc == LDAP_RES_SEARCH_RESULT && ldap_count_entries(ldap, res) == 1) {
+		LDAPMessage *entry = ldap_first_entry(ldap, res);
+
+		BerElement *be = NULL;
+		for (char *attribute = ldap_first_attribute(ldap, entry, &be); attribute; attribute = ldap_next_attribute(ldap, entry, be)) {
+		    struct berval **v = ldap_get_values_len(ldap, entry, attribute);
+		    if (v) {
+			if (!strcasecmp(attribute, "memberof")) {
+			    for (int i = 0; v[i]; i++) {
+				if (!dnhash_match(h, v[i]->bv_val)) {
+				    iov[iov_cur][iov_count[iov_next]].iov_base = strdup(v[i]->bv_val);
+				    iov_count[iov_next]++;
+				}
+			    }
+			}
+		    }
+		    ldap_value_free_len(v);
+		    ldap_memfree(attribute);
+		}
+		if (be)
+		    ber_free(be, 0);
+	    }
+	    if (res)
+		ldap_msgfree(res);
+	}
+	for (int i = 0; i < iov_count[iov_cur]; i++) {
+	    free(iov[iov_cur][i].iov_base);
+	    iov[iov_cur][i].iov_base = NULL;
+	}
+	iov_cur ^= 1;
+	iov_next ^= 1;
+	level--;
+    } while (iov_count[iov_cur] && (level > 0 || ldap_group_depth == -2));
 
     return 0;
 }
 
 static int dnhash_add_entry_groupOfNames(LDAP *ldap, struct dnhash **h, char *dn, int level)
 {
-    if (level < 1 && ldap_group_depth > -2)
-	return 0;
+    struct iovec iov[2][1024] = { 0 };
+    int iov_count[2] = { 0 };
 
-    char *attrs[] = { "member", NULL };
-    LDAPMessage *res = NULL;
-    size_t filter_len = strlen(dn) + ldap_filter_group_len;
-    char filter[filter_len];
-    snprintf(filter, filter_len, ldap_filter_group, dn);
-    int rc = ldap_search_ext_s(ldap, base_dn_group, scope_group, filter, attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
-    if (rc != LDAP_SUCCESS)
-	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
+    int iov_cur = 0;
+    int iov_next = 1;
 
-    if (rc == LDAP_SUCCESS) {
-	LDAPMessage *entry;
-	for (entry = ldap_first_entry(ldap, res); entry; entry = ldap_next_entry(ldap, entry)) {
-	    char *gdn = ldap_get_dn(ldap, entry);
-	    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(ldap_memberof_regex, NULL);
-	    int pcre_res = pcre2_match((pcre2_code *) ldap_memberof_regex, (PCRE2_SPTR8) gdn, (PCRE2_SIZE) strlen(gdn), 0, 0, match_data, NULL);
-	    if (pcre_res < 0 && pcre_res != PCRE2_ERROR_NOMATCH) {
-		fprintf(stderr, "PCRE2 matching error: %d [%d]\n", pcre_res, __LINE__);
-		return -1;
-	    }
-	    if (pcre_res != PCRE2_ERROR_NOMATCH) {
-		PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(match_data);
-		uint32_t ovector_count = pcre2_get_ovector_count(match_data);
+    iov[iov_cur][iov_count[iov_cur]].iov_base = strdup(dn);
+    iov_count[iov_cur]++;
 
-		if (ovector_count < 1)
-		    return -1;
+    do {
+	char *attrs[] = { "member", NULL };
+	LDAPMessage *res = NULL;
+	int msgid_dummy;
+	int success = 0;
+	iov_count[iov_next] = 0;
 
-		size_t match_start = 0;
-		size_t match_len = 0;
-		if (ovector_count > 1) {
-		    match_start = ovector[2];
-		    match_len = ovector[3] - ovector[2];
-		}
-
-		int rc = dnhash_add(h, gdn, match_start, match_len, 1 /* FIXME? */ );
-		if (!rc)
-		    dnhash_add_entry_groupOfNames(ldap, h, gdn, level - 1);
-	    }
-	    if (match_data)
-		pcre2_match_data_free(match_data);
-	    ldap_memfree(gdn);
+	for (int i = 0; i < iov_count[iov_cur]; i++) {
+	    size_t filter_len = strlen(iov[iov_cur][i].iov_base) + ldap_filter_group_len;
+	    char filter[filter_len];
+	    snprintf(filter, filter_len, ldap_filter_group, iov[iov_cur][i].iov_base);
+	    int rc = ldap_search_ext(ldap, base_dn_group, scope_group, filter, attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &msgid_dummy);
+	    if (rc == LDAP_SUCCESS)
+		success++;
+	    else
+		fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 	}
-    }
-    if (res)
-	ldap_msgfree(res);
+	for (int i = 0; i < success; i++) {
+	    struct timeval tv = {.tv_sec = ldap_timeout };
+
+	    int rc = ldap_result(ldap, LDAP_RES_ANY, 1, &tv, &res);
+
+	    if (rc == LDAP_RES_SEARCH_RESULT && ldap_count_entries(ldap, res) > 0) {
+		LDAPMessage *entry;
+		for (entry = ldap_first_entry(ldap, res); entry; entry = ldap_next_entry(ldap, entry)) {
+		    char *gdn = ldap_get_dn(ldap, entry);
+		    if (!dnhash_match(h, gdn)) {
+			iov[iov_next][iov_count[iov_next]].iov_base = strdup(gdn);
+			iov_count[iov_next]++;
+		    }
+		    ldap_memfree(gdn);
+		}
+	    }
+	    if (res)
+		ldap_msgfree(res);
+	}
+	for (int i = 0; i < iov_count[iov_cur]; i++) {
+	    free(iov[iov_cur][i].iov_base);
+	    iov[iov_cur][i].iov_base = NULL;
+	}
+	iov_cur ^= 1;
+	iov_next ^= 1;
+	level--;
+    } while (iov_count[iov_cur] && (level > 0 || ldap_group_depth == -2));
+
     return 0;
 }
 
@@ -686,7 +743,6 @@ static void *run_thread(void *arg)
 	av_set(ac, AV_A_DN, dn);
 
 	time_t expiry = -1;
-	int memberOfAdded = 0;
 
 	char *tactype = av_get(ac, AV_A_TACTYPE);
 	int is_auth = !strcmp(tactype, AV_V_TACTYPE_AUTH) || !strcmp(tactype, AV_V_TACTYPE_CHPW);
@@ -697,53 +753,80 @@ static void *run_thread(void *arg)
 	for (char *attribute = ldap_first_attribute(ldap, entry, &be); attribute; attribute = ldap_next_attribute(ldap, entry, be)) {
 	    struct berval **v = ldap_get_values_len(ldap, entry, attribute);
 	    if (v) {
-		if (!strcasecmp(attribute, "memberOf")) {
+		if (!strcasecmp(attribute, "memberOf") && !ldap_skip_memberof) {
 		    int i = 0;
 		    for (i = 0; v[i]; i++)
-			memberOfAdded |= !dnhash_add_entry(ldap, hash, v[i]->bv_val, ldap_group_depth);
-		} else if (!strcasecmp(attribute, ldap_tacmember_attr)) {
-		    size_t b_len = 4;
-		    int i = 0;
-		    for (i = 0; v[i]; i++)
-			b_len += v[i]->bv_len;
-		    char *b = calloc(1, b_len);
-		    char *p = b;
-		    for (i = 0; v[i]; i++) {
-			if (*p != *b)
-			    *p++ = ',';
-			*p++ = '"';
-			memcpy(p, v[i]->bv_val, v[i]->bv_len);
-			p += v[i]->bv_len;
-			*p++ = '"';
-		    }
-		    av_set(ac, AV_A_TACMEMBER, b);
-		    free(b);
+			dnhash_add_entry(ldap, hash, v[i]->bv_val, ldap_group_depth);
+		} else if (ldap_tacmember_attr && !strcasecmp(attribute, ldap_tacmember_attr)) {
+		    for (int i = 0; v[i]; i++)
+			av_add(ac, AV_A_TACMEMBER, ",", "\"%s\"", v[i]->bv_val);
 		} else if (!strcasecmp(attribute, "sshPublicKey")) {
-		    size_t b_len = 4;
-		    int i = 0;
-		    for (i = 0; v[i]; i++)
-			b_len += v[i]->bv_len;
-		    char *b = calloc(1, b_len);
-		    char *p = b;
-		    for (i = 0; v[i]; i++) {
-			if (*p != *b)
-			    *p++ = ',';
-			*p++ = '"';
-			memcpy(p, v[i]->bv_val, v[i]->bv_len);
-			p += v[i]->bv_len;
-			*p++ = '"';
-		    }
-		    av_set(ac, AV_A_SSHKEY, b);
-		    free(b);
+		    for (int i = 0; v[i]; i++)
+			av_add(ac, AV_A_SSHKEY, ",", "\"%s\"", v[i]->bv_val);
 		} else if (*v) {
 		    if (!strcasecmp(attribute, "uidNumber")) {
 			av_set(ac, AV_A_UID, v[0]->bv_val);
 		    } else if (!strcasecmp(attribute, "gidNumber")) {
 			av_set(ac, AV_A_GID, v[0]->bv_val);
+			if (!ldap_skip_posixgroup) {
+			    int msgid_dummy;
+#define FILTER "(&(objectclass=posixGroup)(gidNumber=%s))"
+			    size_t len = sizeof(FILTER) + strlen(v[0]->bv_val);
+			    char filter1[len];
+			    snprintf(filter1, len, FILTER, v[0]->bv_val);
+#undef FILTER
+#define FILTER "(&(objectclass=posixGroup)(memberUid=%s))"
+			    len = sizeof(FILTER) + strlen(username);
+			    char filter2[len];
+			    snprintf(filter2, len, FILTER, username);
+#undef FILTER
+			    int success = 0;
+
+			    char *attrs[] = { "cn", "gidNumber", NULL };
+
+			    int rc =
+				ldap_search_ext(ldap, base_dn_posixgroup, scope_posixgroup, filter1, attrs, 0, NULL, NULL, NULL, ldap_sizelimit,
+						&msgid_dummy);
+			    if (rc == LDAP_SUCCESS)
+				success++;
+			    rc = ldap_search_ext(ldap, base_dn_posixgroup, scope_posixgroup, filter2, attrs, 0, NULL, NULL, NULL, ldap_sizelimit,
+						 &msgid_dummy);
+			    if (rc == LDAP_SUCCESS)
+				success++;
+
+			    for (int i = 0; i < success; i++) {
+				struct timeval tv = {.tv_sec = ldap_timeout };
+				LDAPMessage *res = NULL;
+
+				int rc = ldap_result(ldap, LDAP_RES_ANY, 1, &tv, &res);
+
+				if (rc == LDAP_RES_SEARCH_RESULT && ldap_count_entries(ldap, res) > 0) {
+				    LDAPMessage *entry = ldap_first_entry(ldap, res);
+				    BerElement *ber = NULL;
+				    for (char *attribute = ldap_first_attribute(ldap, entry, &ber); attribute;
+					 attribute = ldap_next_attribute(ldap, entry, ber)) {
+					struct berval **v = ldap_get_values_len(ldap, entry, attribute);
+					if (v && *v) {
+					    if (!strcasecmp(attribute, "cn")) {
+						av_add(ac, AV_A_TACMEMBER, ",", "\"%s\"", v[0]->bv_val);
+					    } else if (!strcasecmp(attribute, "gidNumber")) {
+						av_add(ac, AV_A_GIDS, ",", "%s", v[0]->bv_val);
+					    }
+					}
+					if (v)
+					    ldap_value_free_len(v);
+				    }
+				    if (ber)
+					ber_free(ber, 0);
+				}
+				if (res)
+				    ldap_msgfree(res);
+			    }
+			}
 		    } else if (!strcasecmp(attribute, "loginShell")) {
 			av_set(ac, AV_A_SHELL, v[0]->bv_val);
 		    } else if (!strcasecmp(attribute, "homeDirectory")) {
-			av_set(ac, AV_A_SHELL, v[0]->bv_val);
+			av_set(ac, AV_A_HOME, v[0]->bv_val);
 		    } else if (!strcasecmp(attribute, "shadowExpire")) {
 			int i = atoi(v[0]->bv_val);
 			if (i > -1)
@@ -762,9 +845,12 @@ static void *run_thread(void *arg)
 		ldap_value_free_len(v);
 	    }
 	}
+	if (be)
+	    ber_free(be, 0);
+	ldap_msgfree(res);
 
-	if (!memberOfAdded)
-	    memberOfAdded |= !dnhash_add_entry_groupOfNames(ldap, hash, dn, ldap_group_depth);
+	if (!ldap_skip_groupofnames)
+	    dnhash_add_entry_groupOfNames(ldap, hash, dn, ldap_group_depth);
 
 	char *tacmember_ou = "";
 	if (ldap_tacmember_map_ou) {
@@ -776,12 +862,10 @@ static void *run_thread(void *arg)
 	    while (*d) {
 		if (d[0] == ',' && tolower((int) d[1]) == 'o' && tolower((int) d[2]) == 'u' && d[3] == '=') {
 		    d += 4;
-		    if (t != tacmember_ou)
-			*t++ = ',';
-		    *t++ = '"';
+		    char *ou_start = d;
 		    while (*d && *d != ',')
-			*t++ = *d++;
-		    *t++ = '"';
+			d++;
+		    av_add(ac, AV_A_TACMEMBER, ",", "\"%.*s\"", (int) (ou_start - d - 1), ou_start);
 		    if (*d)
 			d++;
 		} else
@@ -792,60 +876,14 @@ static void *run_thread(void *arg)
 	    *t = 0;
 	}
 
-	int i;
-	int tacmember_len = strlen(tacmember_ou) + 1;
-	int memberof_len = 0;
-	for (i = 0; i < 256; i++) {
-	    struct dnhash *h = hash[i];
-	    for (; h; h = h->next) {
-		memberof_len += 3 + h->len;
-		tacmember_len += 3 + h->match_len;
-	    }
-	}
-	if (tacmember_len || memberof_len) {
-	    char *t = alloca(tacmember_len < memberof_len ? memberof_len : tacmember_len);
-	    if (memberof_len) {
-		char *b = t;
-		for (i = 0; i < 256; i++) {
-		    struct dnhash *h = hash[i];
-		    for (; h; h = h->next) {
-			if (!h->add)
-			    continue;
-			if (b != t)
-			    *b++ = ',';
-			*b++ = '"';
-			memcpy(b, h->name, h->len);
-			b += h->len;
-			*b++ = '"';
-		    }
+	for (int i = 0; i < 256; i++)
+	    for (struct dnhash * h = hash[i]; h; h = h->next)
+		if (h->add) {
+		    av_add(ac, AV_A_MEMBEROF, ",", "\"%.*s\"", (int) h->len, h->name);
+		    av_add(ac, AV_A_TACMEMBER, ",", "\"%.*s\"", (int) h->match_len, h->name + h->match_start);
 		}
-		*b = 0;
-		av_set(ac, AV_A_MEMBEROF, t);
-	    }
-	    if (tacmember_len) {
-		char *b = t;
-		while (*tacmember_ou)
-		    *b++ = *tacmember_ou++;
-		for (i = 0; i < 256; i++) {
-		    struct dnhash *h = hash[i];
-		    for (; h; h = h->next) {
-			if (!h->add)
-			    continue;
-			if (b != t)
-			    *b++ = ',';
-			*b++ = '"';
-			memcpy(b, h->name + h->match_start, h->match_len);
-			b += h->match_len;
-			*b++ = '"';
-		    }
-		}
-		*b = 0;
-		av_set(ac, AV_A_TACMEMBER, t);
-	    }
-	}
-	dnhash_drop(hash);
 
-	ldap_msgfree(res);
+	dnhash_drop(hash);
 
 	if (is_auth) {
 	    char *cap = av_get(ac, AV_A_CALLER_CAP);
@@ -993,6 +1031,20 @@ static void *run_thread(void *arg)
     return NULL;
 }
 
+static void set_scope(char *scope_str, int *scope)
+{
+    if (strcasecmp(scope_str, "base"))
+	*scope = LDAP_SCOPE_BASE;
+    else if (strcasecmp(scope_str, "level"))
+	*scope = LDAP_SCOPE_ONELEVEL;
+    else if (strcasecmp(scope_str, "onelevel"))
+	*scope = LDAP_SCOPE_ONELEVEL;
+    else if (strcasecmp(scope_str, "subtree"))
+	*scope = LDAP_SCOPE_SUBTREE;
+    else
+	fprintf(stderr, "LDAP scope '%s' not recognized, will be ignored.\n", scope_str);
+}
+
 int main(int argc, char **argv __attribute__((unused)))
 {
     if (argc > 1)
@@ -1006,32 +1058,16 @@ int main(int argc, char **argv __attribute__((unused)))
 
     char *tmp;
     tmp = getenv("LDAP_SCOPE");
-    if (tmp) {
-	if (strcasecmp(tmp, "base"))
-	    scope = LDAP_SCOPE_BASE;
-	else if (strcasecmp(tmp, "level"))
-	    scope = LDAP_SCOPE_ONELEVEL;
-	else if (strcasecmp(tmp, "onelevel"))
-	    scope = LDAP_SCOPE_ONELEVEL;
-	else if (strcasecmp(tmp, "subtree"))
-	    scope = LDAP_SCOPE_SUBTREE;
-	else
-	    fprintf(stderr, "LDAP scope '%s' not recognized, will be ignored.\n", tmp);
-    }
+    if (tmp)
+	set_scope(tmp, &scope);
 
     tmp = getenv("LDAP_SCOPE_GROUP");
-    if (tmp) {
-	if (strcasecmp(tmp, "base"))
-	    scope_group = LDAP_SCOPE_BASE;
-	else if (strcasecmp(tmp, "level"))
-	    scope_group = LDAP_SCOPE_ONELEVEL;
-	else if (strcasecmp(tmp, "onelevel"))
-	    scope_group = LDAP_SCOPE_ONELEVEL;
-	else if (strcasecmp(tmp, "subtree"))
-	    scope_group = LDAP_SCOPE_SUBTREE;
-	else
-	    fprintf(stderr, "LDAP scope '%s' not recognized, will be ignored.\n", tmp);
-    }
+    if (tmp)
+	set_scope(tmp, &scope_group);
+
+    tmp = getenv("LDAP_SCOPE_POSIXGROUP");
+    if (tmp)
+	set_scope(tmp, &scope_posixgroup);
 
     base_dn = getenv("LDAP_BASE");
     if (!base_dn) {
@@ -1042,6 +1078,10 @@ int main(int argc, char **argv __attribute__((unused)))
     base_dn_group = getenv("LDAP_BASE_GROUP");
     if (!base_dn_group)
 	base_dn_group = base_dn;
+
+    base_dn_posixgroup = getenv("LDAP_BASE_POSIXGROUP");
+    if (!base_dn_posixgroup)
+	base_dn_posixgroup = base_dn;
 
     tmp = getenv("LDAP_TIMEOUT");
     if (tmp)
@@ -1109,6 +1149,13 @@ int main(int argc, char **argv __attribute__((unused)))
     ldap_dn = getenv("LDAP_USER");
     ldap_pw = getenv("LDAP_PASSWD");
 
+    if (getenv("LDAP_SKIP_MEMBEROF"))
+	ldap_skip_memberof = 1;
+    if (getenv("LDAP_SKIP_POSIXGROUP"))
+	ldap_skip_posixgroup = 1;
+    if (getenv("LDAP_SKIP_GROUPOFNAMES"))
+	ldap_skip_groupofnames = 1;
+
     errcode = 0;
     ad_result_regex = pcre2_compile((PCRE2_SPTR8) ",\\s+data\\s+([^,]+),", PCRE2_ZERO_TERMINATED, 0, &errcode, &erroffset, NULL);
 
@@ -1119,8 +1166,6 @@ int main(int argc, char **argv __attribute__((unused)))
 	pcre2_get_error_message(errcode, buffer, sizeof(buffer));
 	fprintf(stderr, "PCRE2 error: %s\n", buffer);
     }
-
-
 
     ad_dsid_regex = pcre2_compile((PCRE2_SPTR8) "DSID-.*, data (532|533|773) ", PCRE2_ZERO_TERMINATED, 0, &errcode, &erroffset, NULL);
     if (!ad_dsid_regex)
