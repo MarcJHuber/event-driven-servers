@@ -47,6 +47,10 @@ LDAP_SCOPE_GROUP
 	LDAP search scope (base, one, sub) for groups
 	Default: sub
 
+LDAP_SCOPE_POSIXGROUP
+	LDAP search scope (base, one, sub) for POSIX groups
+	Default: sub
+
 LDAP_BASE
 	Base user search DN of your LDAP server
 	Example: "dc=example,dc=com"
@@ -112,6 +116,13 @@ TLS_OPTIONS
 LDAP_NESTED_GROUP_DEPTH
 	Limit nested group lookups to the given value. Unlimited if unset.
 	Example: 2
+
+LDAP_SKIP_MEMBEROF
+LDAP_SKIP_POSIXGROUP
+LDAP_SKIP_GROUPOFNAMES
+	When set, the corresponding LDAP group lookups will be skipped.
+	Default: unset
+
 =cut
 
 use lib '/usr/local/lib/mavis/';
@@ -122,18 +133,23 @@ use Mavis;
 my $LDAP_SERVER_TYPE;
 my @LDAP_BIND;
 my $LDAP_FILTER;
-my $LDAP_FILTER_GROUP = "(&(objectclass=groupOfNames)(member=%s))";
-my $LDAP_HOSTS		= ['ldaps://localhost'];
-my $LDAP_BASE		= 'dc=example,dc=com';
-my $LDAP_BASE_GROUP	= undef;
-my $LDAP_CONNECT_TIMEOUT = 1;
-my $LDAP_SCOPE		= 'sub';
-my $LDAP_SCOPE_GROUP	= undef;
-my $LDAP_MEMBEROF_REGEX = "^cn=([^,]+),.*";
-my $LDAP_MEMBEROF_FILTER = undef;
-my $LDAP_TACMEMBER	= "tacMember";
+my $LDAP_FILTER_GROUP 		= "(&(objectclass=groupOfNames)(member=%s))";
+my $LDAP_HOSTS			= ['ldaps://localhost'];
+my $LDAP_BASE			= 'dc=example,dc=com';
+my $LDAP_BASE_GROUP		= undef;
+my $LDAP_BASE_POSIXGROUP	= undef;
+my $LDAP_CONNECT_TIMEOUT 	= 1;
+my $LDAP_SCOPE			= 'sub';
+my $LDAP_SCOPE_GROUP		= 'sub';
+my $LDAP_SCOPE_POSIXGROUP	= 'sub';
+my $LDAP_MEMBEROF_REGEX 	= "^cn=([^,]+),.*";
+my $LDAP_MEMBEROF_FILTER 	= undef;
+my $LDAP_TACMEMBER		= "tacMember";
 my $LDAP_TACMEMBER_MAP_OU	= undef;
 my $LDAP_NESTED_GROUP_DEPTH	= undef;
+my $LDAP_SKIP_MEMBEROF		= undef;
+my $LDAP_SKIP_POSIXGROUP	= undef;
+my $LDAP_SKIP_GROUPOFNAMES	= undef;
 my $use_starttls;
 my %tls_options;
 
@@ -144,9 +160,12 @@ $LDAP_SCOPE		= $ENV{'LDAP_SCOPE'} if exists $ENV{'LDAP_SCOPE'};
 $LDAP_BASE		= $ENV{'LDAP_BASE'} if exists $ENV{'LDAP_BASE'};
 $LDAP_SCOPE_GROUP	= $LDAP_SCOPE;
 $LDAP_BASE_GROUP	= $LDAP_BASE;
+$LDAP_BASE_POSIXGROUP	= $LDAP_BASE;
 $LDAP_SCOPE_GROUP	= $ENV{'LDAP_SCOPE_GROUP'} if exists $ENV{'LDAP_SCOPE_GROUP'};
+$LDAP_SCOPE_POSIXGROUP	= $ENV{'LDAP_SCOPE_POSIXGROUP'} if exists $ENV{'LDAP_SCOPE_POSIXGROUP'};
 $LDAP_FILTER_GROUP	= $ENV{'LDAP_FILTER_GROUP'} if exists $ENV{'LDAP_FILTER_GROUP'};
 $LDAP_BASE_GROUP	= $ENV{'LDAP_BASE_GROUP'} if exists $ENV{'LDAP_BASE_GROUP'};
+$LDAP_BASE_POSIXGROUP	= $ENV{'LDAP_BASE_POSIXGROUP'} if exists $ENV{'LDAP_BASE_POSIXGROUP'};
 $LDAP_FILTER		= $ENV{'LDAP_FILTER'} if exists $ENV{'LDAP_FILTER'};
 $LDAP_CONNECT_TIMEOUT	= $ENV{'LDAP_CONNECT_TIMEOUT'} if exists $ENV{'LDAP_CONNECT_TIMEOUT'};
 @LDAP_BIND		= ($ENV{'LDAP_USER'}, password => $ENV{'LDAP_PASSWD'}) if (exists $ENV{'LDAP_USER'} && exists $ENV{'LDAP_PASSWD'});
@@ -156,6 +175,10 @@ $LDAP_MEMBEROF_FILTER	= $ENV{'LDAP_MEMBEROF_FILTER'} if exists $ENV{'LDAP_MEMBER
 $LDAP_TACMEMBER		= $ENV{'LDAP_TACMEMBER'} if exists $ENV{'LDAP_TACMEMBER'};
 $LDAP_TACMEMBER_MAP_OU	= $ENV{'LDAP_TACMEMBER_MAP_OU'} if exists $ENV{'LDAP_TACMEMBER_MAP_OU'};
 $LDAP_NESTED_GROUP_DEPTH	= $ENV{'LDAP_NESTED_GROUP_DEPTH'} if exists $ENV{'LDAP_NESTED_GROUP_DEPTH'};
+
+$LDAP_SKIP_MEMBEROF	= $ENV{'LDAP_SKIP_MEMBEROF'} if exists $ENV{'LDAP_SKIP_MEMBEROF'};
+$LDAP_SKIP_POSIXGROUP	= $ENV{'LDAP_SKIP_POSIXGROUP'} if exists $ENV{'LDAP_SKIP_POSIXGROUP'};
+$LDAP_SKIP_GROUPOFNAMES	= $ENV{'LDAP_SKIP_GROUPOFNAMES'} if exists $ENV{'LDAP_SKIP_GROUPOFNAMES'};
 
 use Net::LDAP qw(LDAP_INVALID_CREDENTIALS LDAP_CONSTRAINT_VIOLATION);
 use Net::LDAP::Constant qw(LDAP_EXTENSION_PASSWORD_MODIFY LDAP_CAP_ACTIVE_DIRECTORY);
@@ -243,6 +266,8 @@ sub expand_memberof($) {
 	return \@res;
 }
 
+my %gidHash; # cache gidNumber-to-cn mapping
+
 while ($in = <>) {
 	my ($a, $result);
 
@@ -325,6 +350,8 @@ retry_once:
 			if ($ldap->is_AD() || $ldap->is_ADAM()) {
 				$LDAP_SERVER_TYPE = "microsoft";
 				$LDAP_FILTER = '(&(objectclass=user)(sAMAccountName=%s))' unless defined $LDAP_FILTER;
+				$LDAP_SKIP_POSIXGROUP = 1;
+				$LDAP_SKIP_GROUPOFNAMES = 1;
 			} else {
 				$LDAP_SERVER_TYPE = "generic";
 				$LDAP_FILTER = '(&(objectclass=posixAccount)(uid=%s))' unless defined $LDAP_FILTER;
@@ -361,13 +388,14 @@ retry_once:
 	if ($mesg->count() == 1) {
 		my $entry = $mesg->entry(0);
 
-		my $val = $entry->get_value('memberOf', asref => 1);
+		my $val = [ ];
+		$val = $entry->get_value('memberOf', asref => 1) unless defined $LDAP_SKIP_MEMBEROF;;
 		$authdn = $entry->dn;
 		my (@M, @MO);
 		if ($#{$val} > -1) {
-			$val = expand_memberof($val);
+			$val = expand_memberof($val) unless defined $LDAP_SKIP_MEMBEROF;
 		} else {
-			$val = expand_groupOfNames($entry->dn);
+			$val = expand_groupOfNames($entry->dn) unless defined $LDAP_SKIP_GROUPOFNAMES;
 		}
 		foreach my $m (sort @$val) {
 			if ($m =~ /$LDAP_MEMBEROF_REGEX/i) {
@@ -375,31 +403,46 @@ retry_once:
 				push @MO, $m;
 			}
 		}
-		$V[AV_A_TACMEMBER] = '"' . join('","', @M) . '"' if $#M > -1;
-		$V[AV_A_MEMBEROF] = '"' . join('","', @MO) . '"' if $#MO > -1;
 		$V[AV_A_DN] = $authdn;
 		$V[AV_A_UID] = $val if $val = $entry->get_value('uidNumber');
-		$V[AV_A_GID] = $val if $val = $entry->get_value('gidNumber');
 		$V[AV_A_SHELL] = $val if $val = $entry->get_value('loginShell');
 		$V[AV_A_HOME] = $val if $val = $entry->get_value('homeDirectory');
-		$V[AV_A_SSHKEY] = '"' . $val . '"' if $val = $entry->get_value('sshPublicKey');
+		$val = $entry->get_value('sshPublicKey', asref => 1);
+		$V[AV_A_SSHKEY] = '"' . join('","', @$val) . '"' if $val;
+
 		my $authdn = $mesg->entry(0)->dn;
 
-		unless (exists($V[AV_A_MEMBEROF])) {
-			$val = $entry->get_value($LDAP_TACMEMBER, asref => 1);
-			$V[AV_A_MEMBEROF] = '"' . join('","', @$val) . '"' if $#{$val} > -1;
-		}
+		$val = $entry->get_value($LDAP_TACMEMBER, asref => 1);
+		push @M, @$val if $val;
 
 		if (defined $LDAP_TACMEMBER_MAP_OU) {
 			for my $ou (split(/,/, $authdn)) {
-				next unless $ou =~ /^ou=(.+)$/i;
-				if (exists ($V[AV_A_TACMEMBER])) {
-					$V[AV_A_TACMEMBER] .= ",\"$1\"";
-				} else {
-					$V[AV_A_TACMEMBER] = "\"$1\"";
-				}
+				push @M, $1 if $ou =~ /^ou=(.+)$/i;
 			}
 		}
+
+		my $gidNumber = $entry->get_value('gidNumber');
+		$V[AV_A_GID] = $gidNumber if defined $gidNumber;
+		if (defined $gidNumber && !defined $LDAP_SKIP_POSIXGROUP) {
+			my @G = ($gidNumber);
+			unless (exists $gidHash{$gidNumber}) {
+				$mesg = $ldap->search(base => $LDAP_BASE_POSIXGROUP, scope => $LDAP_SCOPE_POSIXGROUP, attrs => ['cn'],
+					filter => sprintf('(&(objectclass=posixGroup)(gidNumber=%s))', $gidNumber));
+				$gidHash{$gidNumber} = $mesg->entry(0)->get_value('cn') if $mesg->count() == 1;
+			}
+			push @M, $gidHash{$gidNumber} if exists $gidHash{$gidNumber};
+
+			$mesg = $ldap->search(base => $LDAP_BASE_POSIXGROUP, scope => $LDAP_SCOPE_POSIXGROUP, attrs => ['cn', 'gidNumber'],
+				filter => sprintf('(&(objectclass=posixGroup)(memberUid=%s))', $V[AV_A_USER]));
+			for (my $i = 0; $i < $mesg->count(); $i++) {
+				push @M, $mesg->entry($i)->get_value('cn');
+				push @G, $mesg->entry($i)->get_value('gidNumber');
+			}
+			$V[AV_A_GIDS] = join(',', @G);
+		}
+
+		$V[AV_A_TACMEMBER] = '"' . join('","', @M) . '"' if $#M > -1;
+		$V[AV_A_MEMBEROF] = '"' . join('","', @MO) . '"' if $#MO > -1;
 
 		if ($V[AV_A_TACTYPE] eq AV_V_TACTYPE_AUTH) {
 			my $caller_cap_chpw = exists($V[AV_A_CALLER_CAP]) && $V[AV_A_CALLER_CAP] =~ /:chpw:/;
