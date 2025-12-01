@@ -495,6 +495,8 @@ static int dnhash_match(struct dnhash **h, char *dn)
 
 static int dnhash_add_entry(LDAP *ldap, struct dnhash **h, char *dn, int level)
 {
+    if (level < 1)
+	return -1;
     struct iovec iov[2][1024] = { 0 };
     int iov_count[2] = { 0 };
 
@@ -565,6 +567,8 @@ static int dnhash_add_entry(LDAP *ldap, struct dnhash **h, char *dn, int level)
 
 static int dnhash_add_entry_groupOfNames(LDAP *ldap, struct dnhash **h, char *dn, int level)
 {
+    if (level < 1)
+	return -1;
     struct iovec iov[2][1024] = { 0 };
     int iov_count[2] = { 0 };
 

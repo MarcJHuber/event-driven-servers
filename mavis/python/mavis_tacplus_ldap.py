@@ -188,19 +188,20 @@ def expand_groupOfNames(g):
 def expand_memberof(g):
 	H = { }
 	def expand_memberof_sub(m, depth):
+		if LDAP_NESTED_GROUP_DEPTH is not None and int(LDAP_NESTED_GROUP_DEPTH) <= depth:
+			return [ ]
+		H[m] = True
 		if not m in H and memberof_regex.match(m):
 			if memberof_filter == None or memberof_filter.match(m):
 				H[m] = True
-				if LDAP_NESTED_GROUP_DEPTH is not None and int(LDAP_NESTED_GROUP_DEPTH) > depth:
-					conn.search(search_base = m, search_filter = '(objectclass=*)',
-						search_scope=ldap3.BASE, attributes = ['memberOf'])
-					for e in conn.entries:
-						for m in e.memberOf:
-							expand_memberof_sub(m, depth + 1)
+				conn.search(search_base = m, search_filter = '(objectclass=*)',
+					search_scope=ldap3.BASE, attributes = ['memberOf'])
+				for e in conn.entries:
+					for m in e.memberOf:
+						expand_memberof_sub(m, depth + 1)
 	for m in g:
 		if memberof_regex.match(m):
 			expand_memberof_sub(m, 0)
-			H[m] = True
 	return H.keys()
 
 

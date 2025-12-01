@@ -247,15 +247,14 @@ sub expand_memberof($) {
 		}
 		sub expand_memberof_sub($$$);
 
+		return if defined($LDAP_NESTED_GROUP_DEPTH) && $LDAP_NESTED_GROUP_DEPTH <= $depth;
 		my ($a, $H) = @_;
 		foreach my $m (@$a) {
 			next if defined $LDAP_MEMBEROF_FILTER && $m !~ /$LDAP_MEMBEROF_FILTER/i;
 			unless (exists $H->{$m}) {
 				$H->{$m} = 1;
-				if (!defined($LDAP_NESTED_GROUP_DEPTH) || $LDAP_NESTED_GROUP_DEPTH > $depth) {
-					my $g = get_memberof($m);
-					expand_memberof_sub($g, $H, $depth + 1);
-				}
+				my $g = get_memberof($m);
+				expand_memberof_sub($g, $H, $depth + 1);
 			}
 		}
 	}
