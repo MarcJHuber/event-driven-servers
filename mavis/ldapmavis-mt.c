@@ -80,7 +80,7 @@ Leaving the ones below as-is is likely safe:\n\
  LDAP_NETWORK_TIMEOUT          5 [seconds]\n\
  LDAP_TACMEMBER                tacMember\n\
  LDAP_TACMEMBER_MAP_OU         unset (set to map OUs to TACMEMBER)\n\
- LDAP_NESTED_MEMBEROF_DEPTH    unset (set to limit group membership lookup depth)\n\
+ LDAP_NESTED_GROUP_DEPTH       unset (set to limit group membership lookup depth)\n\
  LDAP_SKIP_MEMBEROF            unset (set to skip memberOf lookups)\n\
  LDAP_SKIP_POSIXGROUP          unset (set to skip posixGroup lookups)\n\
  LDAP_SKIP_GROUPOFNAMES        unset (set to skip groupOfNames lookups)\n"
