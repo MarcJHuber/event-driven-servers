@@ -506,6 +506,9 @@ static int dnhash_add_entry(LDAP *ldap, struct dnhash **h, char *dn, int level)
     int iov_next = 1;
     if (dnhash_match(h, dn))
 	return -1;
+    level--;
+    if (level < 1 && ldap_group_depth != -2)
+	return -1;
 
     iov[iov_cur][iov_count[iov_cur]].iov_base = strdup(dn);
     iov_count[iov_cur]++;
