@@ -179,7 +179,6 @@ def expand_groupOfNames(g):
 			conn.search(search_base = LDAP_BASE_GROUP,
 				search_filter = LDAP_FILTER_GROUP.format(m),
 				search_scope=LDAP_SCOPE_GROUP, attributes = ['dn'])
-			depth += 1
 			for e in conn.entries:
 				expand_groupOfNames_sub(e.entry_dn, depth + 1)
 	expand_groupOfNames_sub(g, 0)
@@ -191,9 +190,8 @@ def expand_memberof(g):
 	def expand_memberof_sub(m, depth):
 		if LDAP_NESTED_GROUP_DEPTH is not None and int(LDAP_NESTED_GROUP_DEPTH) <= depth:
 			return [ ]
-		H[m] = True
 		if not m in H and memberof_regex.match(m):
-			if memberof_filter == None or memberof_filter.match(m):
+			if memberof_filter is None or memberof_filter.match(m):
 				H[m] = True
 				conn.search(search_base = m, search_filter = '(objectclass=*)',
 					search_scope=ldap3.BASE, attributes = ['memberOf'])

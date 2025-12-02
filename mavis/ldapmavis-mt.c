@@ -497,21 +497,21 @@ static int dnhash_match(struct dnhash **h, char *dn)
 
 static int dnhash_add_entry(LDAP *ldap, struct dnhash **h, char *dn, int level)
 {
-    if (level < 1)
+    if (level < 1 && ldap_group_depth != -2)
 	return -1;
     struct iovec iov[2][1024] = { 0 };
     int iov_count[2] = { 0 };
 
     int iov_cur = 0;
     int iov_next = 1;
-    if (!dnhash_match(h, dn))
+    if (dnhash_match(h, dn))
 	return -1;
 
     iov[iov_cur][iov_count[iov_cur]].iov_base = strdup(dn);
     iov_count[iov_cur]++;
 
     do {
-	char *attrs[] = { "memberof", NULL };
+	char *attrs[] = { "memberOf", NULL };
 	LDAPMessage *res = NULL;
 	int msgid_dummy;
 	int success = 0;
@@ -537,7 +537,7 @@ static int dnhash_add_entry(LDAP *ldap, struct dnhash **h, char *dn, int level)
 		for (char *attribute = ldap_first_attribute(ldap, entry, &be); attribute; attribute = ldap_next_attribute(ldap, entry, be)) {
 		    struct berval **v = ldap_get_values_len(ldap, entry, attribute);
 		    if (v) {
-			if (!strcasecmp(attribute, "memberof")) {
+			if (!strcasecmp(attribute, "memberOf")) {
 			    for (int i = 0; v[i]; i++) {
 				if (!dnhash_match(h, v[i]->bv_val)) {
 				    iov[iov_cur][iov_count[iov_next]].iov_base = strdup(v[i]->bv_val);
@@ -776,7 +776,7 @@ static void *run_thread(void *arg)
 			av_set(ac, AV_A_UID, v[0]->bv_val);
 		    } else if (!strcasecmp(attribute, "gidNumber")) {
 			av_set(ac, AV_A_GID, v[0]->bv_val);
-			if (ldap_skip_posixgroup == 1) {
+			if (ldap_skip_posixgroup != 1) {
 			    int msgid_dummy;
 #define FILTER "(&(objectclass=posixGroup)(gidNumber=%s))"
 			    size_t len = sizeof(FILTER) + strlen(v[0]->bv_val);
