@@ -140,9 +140,9 @@ static int LDAP_eval_rootdse(LDAP *ldap, LDAPMessage *res)
 			    || !strcmp(v[i]->bv_val, LDAP_CAP_ACTIVE_DIRECTORY_ADAM_OID)) {
 			    capabilities |= CAP_AD;
 			    if (ldap_skip_groupofnames < 0)
-				    ldap_skip_groupofnames = 1;
+				ldap_skip_groupofnames = 1;
 			    if (ldap_skip_posixgroup < 0)
-				    ldap_skip_posixgroup = 1;
+				ldap_skip_posixgroup = 1;
 			} else if (!strcmp(v[i]->bv_val, LDAP_SERVER_FAST_BIND_OID)) {
 			    capabilities |= CAP_FASTBIND;
 			}
@@ -792,9 +792,8 @@ static void *run_thread(void *arg)
 
 			    char *attrs[] = { "cn", "gidNumber", NULL };
 
-			    int rc =
-				ldap_search_ext(ldap, base_dn_posixgroup, scope_posixgroup, filter1, attrs, 0, NULL, NULL, NULL, ldap_sizelimit,
-						&msgid_dummy);
+			    int rc = ldap_search_ext(ldap, base_dn_posixgroup, scope_posixgroup, filter1, attrs, 0, NULL, NULL, NULL, ldap_sizelimit,
+						     &msgid_dummy);
 			    if (rc == LDAP_SUCCESS)
 				success++;
 			    rc = ldap_search_ext(ldap, base_dn_posixgroup, scope_posixgroup, filter2, attrs, 0, NULL, NULL, NULL, ldap_sizelimit,
