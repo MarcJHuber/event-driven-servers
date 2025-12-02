@@ -350,8 +350,8 @@ retry_once:
 			if ($ldap->is_AD() || $ldap->is_ADAM()) {
 				$LDAP_SERVER_TYPE = "microsoft";
 				$LDAP_FILTER = '(&(objectclass=user)(sAMAccountName=%s))' unless defined $LDAP_FILTER;
-				$LDAP_SKIP_POSIXGROUP = 1 unless defined $LDAP_SKIP_POSIXGROUP;
-				$LDAP_SKIP_GROUPOFNAMES = 1 unless defined $LDAP_SKIP_GROUPOFNAMES;
+				$LDAP_SKIP_POSIXGROUP = "1" unless defined $LDAP_SKIP_POSIXGROUP;
+				$LDAP_SKIP_GROUPOFNAMES = "1" unless defined $LDAP_SKIP_GROUPOFNAMES;
 			} else {
 				$LDAP_SERVER_TYPE = "generic";
 				$LDAP_FILTER = '(&(objectclass=posixAccount)(uid=%s))' unless defined $LDAP_FILTER;
@@ -424,7 +424,7 @@ retry_once:
 
 		my $gidNumber = $entry->get_value('gidNumber');
 		$V[AV_A_GID] = $gidNumber if defined $gidNumber;
-		if (defined $gidNumber && (!defined $LDAP_SKIP_POSIXGROUP || $LDAP_SKIP_POSIXGROUP != "1")) {
+		if (defined $gidNumber && (!defined $LDAP_SKIP_POSIXGROUP || $LDAP_SKIP_POSIXGROUP ne "1")) {
 			my @G = ($gidNumber);
 			unless (exists $gidHash{$gidNumber}) {
 				$mesg = $ldap->search(base => $LDAP_BASE_POSIXGROUP, scope => $LDAP_SCOPE_POSIXGROUP, attrs => ['cn'],
