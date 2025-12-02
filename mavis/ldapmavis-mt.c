@@ -53,9 +53,9 @@ static pcre2_code *ldap_memberof_filter = NULL;
 static pcre2_code *ad_result_regex = NULL;
 static pcre2_code *ad_dsid_regex = NULL;
 static int ldap_sizelimit = 100;
-static int ldap_skip_memberof = 0;
-static int ldap_skip_posixgroup = 0;
-static int ldap_skip_groupofnames = 0;
+static int ldap_skip_memberof = -1;
+static int ldap_skip_posixgroup = -1;
+static int ldap_skip_groupofnames = -1;
 
 static void usage(void)
 {
@@ -81,9 +81,9 @@ Leaving the ones below as-is is likely safe:\n\
  LDAP_TACMEMBER                tacMember\n\
  LDAP_TACMEMBER_MAP_OU         unset (set to map OUs to TACMEMBER)\n\
  LDAP_NESTED_GROUP_DEPTH       unset (set to limit group membership lookup depth)\n\
- LDAP_SKIP_MEMBEROF            unset (set to skip memberOf lookups)\n\
- LDAP_SKIP_POSIXGROUP          unset (set to skip posixGroup lookups)\n\
- LDAP_SKIP_GROUPOFNAMES        unset (set to skip groupOfNames lookups)\n"
+ LDAP_SKIP_MEMBEROF            unset (0: don't skip memberOf lookups, 1: skip)\n\
+ LDAP_SKIP_POSIXGROUP          unset (0: don't skip posixGroup lookups, 1: skip)\n\
+ LDAP_SKIP_GROUPOFNAMES        unset (0: don't skip groupOfNames lookups, 1: skip)\n"
 #ifdef LDAP_OPT_X_TLS_PROTOCOL_TLS1_3
 	    " LDAP_TLS_PROTOCOL_MIN         TLS1_2 (TLS1_0, TLS1_1, TLS1_2, TLS1_3)\n"
 #else
@@ -139,8 +139,10 @@ static int LDAP_eval_rootdse(LDAP *ldap, LDAPMessage *res)
 			if (!strcmp(v[i]->bv_val, LDAP_CAP_ACTIVE_DIRECTORY_OID)
 			    || !strcmp(v[i]->bv_val, LDAP_CAP_ACTIVE_DIRECTORY_ADAM_OID)) {
 			    capabilities |= CAP_AD;
-			    ldap_skip_groupofnames = 1;
-			    ldap_skip_posixgroup = 1;
+			    if (ldap_skip_groupofnames < 0)
+				    ldap_skip_groupofnames = 1;
+			    if (ldap_skip_posixgroup < 0)
+				    ldap_skip_posixgroup = 1;
 			} else if (!strcmp(v[i]->bv_val, LDAP_SERVER_FAST_BIND_OID)) {
 			    capabilities |= CAP_FASTBIND;
 			}
@@ -757,10 +759,12 @@ static void *run_thread(void *arg)
 	for (char *attribute = ldap_first_attribute(ldap, entry, &be); attribute; attribute = ldap_next_attribute(ldap, entry, be)) {
 	    struct berval **v = ldap_get_values_len(ldap, entry, attribute);
 	    if (v) {
-		if (!strcasecmp(attribute, "memberOf") && !ldap_skip_memberof) {
+		if (!strcasecmp(attribute, "memberOf") && ldap_skip_memberof != 1) {
 		    int i = 0;
 		    for (i = 0; v[i]; i++)
 			dnhash_add_entry(ldap, hash, v[i]->bv_val, ldap_group_depth);
+		    if (ldap_skip_groupofnames < 0)
+			ldap_skip_groupofnames = 1;
 		} else if (ldap_tacmember_attr && !strcasecmp(attribute, ldap_tacmember_attr)) {
 		    for (int i = 0; v[i]; i++)
 			av_add(ac, AV_A_TACMEMBER, ",", "\"%s\"", v[i]->bv_val);
@@ -772,7 +776,7 @@ static void *run_thread(void *arg)
 			av_set(ac, AV_A_UID, v[0]->bv_val);
 		    } else if (!strcasecmp(attribute, "gidNumber")) {
 			av_set(ac, AV_A_GID, v[0]->bv_val);
-			if (!ldap_skip_posixgroup) {
+			if (ldap_skip_posixgroup == 1) {
 			    int msgid_dummy;
 #define FILTER "(&(objectclass=posixGroup)(gidNumber=%s))"
 			    size_t len = sizeof(FILTER) + strlen(v[0]->bv_val);
@@ -853,7 +857,7 @@ static void *run_thread(void *arg)
 	    ber_free(be, 0);
 	ldap_msgfree(res);
 
-	if (!ldap_skip_groupofnames)
+	if (ldap_skip_groupofnames != 1)
 	    dnhash_add_entry_groupOfNames(ldap, hash, dn, ldap_group_depth);
 
 	char *tacmember_ou = "";
@@ -1153,12 +1157,15 @@ int main(int argc, char **argv __attribute__((unused)))
     ldap_dn = getenv("LDAP_USER");
     ldap_pw = getenv("LDAP_PASSWD");
 
-    if (getenv("LDAP_SKIP_MEMBEROF"))
-	ldap_skip_memberof = 1;
-    if (getenv("LDAP_SKIP_POSIXGROUP"))
-	ldap_skip_posixgroup = 1;
-    if (getenv("LDAP_SKIP_GROUPOFNAMES"))
-	ldap_skip_groupofnames = 1;
+    tmp = getenv("LDAP_SKIP_MEMBEROF");
+    if (tmp)
+	ldap_skip_memberof = atoi(tmp);
+    tmp = getenv("LDAP_SKIP_POSIXGROUP");
+    if (tmp)
+	ldap_skip_posixgroup = atoi(tmp);
+    tmp = getenv("LDAP_SKIP_GROUPOFNAMES");
+    if (tmp)
+	ldap_skip_groupofnames = atoi(tmp);
 
     errcode = 0;
     ad_result_regex = pcre2_compile((PCRE2_SPTR8) ",\\s+data\\s+([^,]+),", PCRE2_ZERO_TERMINATED, 0, &errcode, &erroffset, NULL);

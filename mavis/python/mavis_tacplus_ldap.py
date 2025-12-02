@@ -117,7 +117,8 @@ LDAP_NESTED_GROUP_DEPTH
 LDAP_SKIP_MEMBEROF
 LDAP_SKIP_POSIXGROUP
 LDAP_SKIP_GROUPOFNAMES
-	When set, the corresponding LDAP group lookups will be skipped.
+	0: never skip the corresponding LDAP group lookups
+	1: always skip
 	Default: unset
 """
 
@@ -260,8 +261,10 @@ while True:
 				if LDAP_FILTER == None:
 					LDAP_FILTER = '(&(objectclass=user)(sAMAccountName={}))'
 				LDAP_USER = conn.user
-				LDAP_SKIP_POSIXGROUP = 1
-				LDAP_SKIP_GROUPOFNAMES = 1
+				if LDAP_SKIP_POSIXGROUP is None:
+					LDAP_SKIP_POSIXGROUP = 1
+				if LDAP_SKIP_GROUPOFNAMES is None:
+					LDAP_SKIP_GROUPOFNAMES = 1
 
 			if conn.server.info.vendor_name != None:
 				if (LDAP_USER == None or LDAP_PASSWD == None) and '389 Project' in conn.server.info.vendor_name:
@@ -385,10 +388,12 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 
 	L = None
 	if len(entry.memberOf) > 0:
-		if LDAP_SKIP_MEMBEROF is None:
+		if LDAP_SKIP_MEMBEROF is None or LDAP_SKIP_MEMBEROF == "1":
 			L = expand_memberof(entry.memberOf)
-	else:
 		if LDAP_SKIP_GROUPOFNAMES is None:
+			LDAP_SKIP_GROUPOFNAMES = "1"
+	else:
+		if LDAP_SKIP_GROUPOFNAMES is None or LDAP_SKIP_GROUPOFNAMES == "1":
 			L = expand_groupOfNames(entry.entry_dn)
 
 	TACMEMBER = [];
@@ -408,7 +413,7 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 
 	if len(entry.gidNumber) > 0:
 		D.set_gid(entry.gidNumber[0])
-	if len(entry.gidNumber) > 0 and LDAP_SKIP_POSIXGROUP == None:
+	if len(entry.gidNumber) > 0 and (LDAP_SKIP_POSIXGROUP is None or LDAP_SKIP_POSIXGROUP == "1"):
 		conn.search(search_base=LDAP_BASE, search_scope=LDAP_SCOPE_POSIXGROUP,
 			search_filter='(&(objectclass=posixGroup)(gidNumber={}))'.format(entry.gidNumber[0]),
 			attributes=["cn"])

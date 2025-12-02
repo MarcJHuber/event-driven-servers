@@ -120,7 +120,8 @@ LDAP_NESTED_GROUP_DEPTH
 LDAP_SKIP_MEMBEROF
 LDAP_SKIP_POSIXGROUP
 LDAP_SKIP_GROUPOFNAMES
-	When set, the corresponding LDAP group lookups will be skipped.
+	0: never skip the corresponding LDAP group lookups
+	1: always skip
 	Default: unset
 
 =cut
@@ -349,8 +350,8 @@ retry_once:
 			if ($ldap->is_AD() || $ldap->is_ADAM()) {
 				$LDAP_SERVER_TYPE = "microsoft";
 				$LDAP_FILTER = '(&(objectclass=user)(sAMAccountName=%s))' unless defined $LDAP_FILTER;
-				$LDAP_SKIP_POSIXGROUP = 1;
-				$LDAP_SKIP_GROUPOFNAMES = 1;
+				$LDAP_SKIP_POSIXGROUP = 1 unless defined $LDAP_SKIP_POSIXGROUP;
+				$LDAP_SKIP_GROUPOFNAMES = 1 unless defined $LDAP_SKIP_GROUPOFNAMES;
 			} else {
 				$LDAP_SERVER_TYPE = "generic";
 				$LDAP_FILTER = '(&(objectclass=posixAccount)(uid=%s))' unless defined $LDAP_FILTER;
@@ -388,13 +389,14 @@ retry_once:
 		my $entry = $mesg->entry(0);
 
 		my $val = [ ];
-		$val = $entry->get_value('memberOf', asref => 1) unless defined $LDAP_SKIP_MEMBEROF;;
+		$val = $entry->get_value('memberOf', asref => 1) unless defined $LDAP_SKIP_MEMBEROF && $LDAP_SKIP_MEMBEROF eq "1";
 		$authdn = $entry->dn;
 		my (@M, @MO);
 		if ($#{$val} > -1) {
-			$val = expand_memberof($val) unless defined $LDAP_SKIP_MEMBEROF;
+			$LDAP_SKIP_GROUPOFNAMES = "1" unless defined $LDAP_SKIP_GROUPOFNAMES;
+			$val = expand_memberof($val) unless defined $LDAP_SKIP_MEMBEROF && $LDAP_SKIP_MEMBEROF eq "1";
 		} else {
-			$val = expand_groupOfNames($entry->dn) unless defined $LDAP_SKIP_GROUPOFNAMES;
+			$val = expand_groupOfNames($entry->dn) unless defined $LDAP_SKIP_GROUPOFNAMES && $LDAP_SKIP_GROUPOFNAMES eq "1";
 		}
 		foreach my $m (sort @$val) {
 			if ($m =~ /$LDAP_MEMBEROF_REGEX/i) {
@@ -422,7 +424,7 @@ retry_once:
 
 		my $gidNumber = $entry->get_value('gidNumber');
 		$V[AV_A_GID] = $gidNumber if defined $gidNumber;
-		if (defined $gidNumber && !defined $LDAP_SKIP_POSIXGROUP) {
+		if (defined $gidNumber && (!defined $LDAP_SKIP_POSIXGROUP || $LDAP_SKIP_POSIXGROUP != "1")) {
 			my @G = ($gidNumber);
 			unless (exists $gidHash{$gidNumber}) {
 				$mesg = $ldap->search(base => $LDAP_BASE_POSIXGROUP, scope => $LDAP_SCOPE_POSIXGROUP, attrs => ['cn'],
