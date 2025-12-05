@@ -30,26 +30,6 @@ print <<EOT;
 
 import sys, os, re
 
-def write(av_pairs, result):
-	for key in sorted(av_pairs):
-		if av_pairs[key] is not None:
-			print(str(key) + " " + av_pairs[key])
-	print("=" + str(result))
-	sys.stdout.flush()
-
-def read():
-	av_pairs = { }
-	for line in sys.stdin:
-		if line:
-			line = line.rstrip('\\n')
-			if line == "=":
-				return av_pairs
-			av_pair = line.split(" ", 1)
-			av_pairs[int(av_pair[0])] = av_pair[1]
-		else:
-			break
-	exit(0)
-
 class Mavis:
 	def write(self, verdict, result, user_response):
 		self.av_pairs[AV_A_RESULT] = result
