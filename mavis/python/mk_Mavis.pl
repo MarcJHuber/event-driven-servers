@@ -77,6 +77,7 @@ class Mavis:
 						or self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_CHPW)
 					self.is_tacplus_authz = self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_INFO
 					self.is_tacplus_host = self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_HOST
+					self.is_tacplus_dacl = self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_DACL
 					self.is_tacplus_chpw = (
 						self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_CHPW)
 					if AV_A_USER in self.av_pairs:
@@ -127,6 +128,9 @@ class Mavis:
 
 	def set_sshpubkey(self, arg):
 		self.av_pairs[AV_A_SSHKEY] = arg
+
+	def set_tacprofile(self, arg):
+		self.av_pairs[AV_A_TACPROFILE] = arg
 
 	def remember_password(self, arg):
 		if arg:
