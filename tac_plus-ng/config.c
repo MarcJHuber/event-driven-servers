@@ -1746,6 +1746,13 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    common_data.font_red = "";
 		    common_data.font_plain = "";
 		    common_data.font_bold = "";
+		    common_data.font_black = "";
+		    common_data.font_green = "";
+		    common_data.font_yellow = "";
+		    common_data.font_magenta = "";
+		    common_data.font_cyan = "";
+		    common_data.font_white = "";
+		    common_data.font_bold = "";
 		}
 		sym_get(sym);
 		break;
@@ -4972,11 +4979,13 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
     case S_address:
 	switch (m->s.token) {
 	case S_nac:
+	case S_client:
 	case S_clientaddress:
 	    if (session->nac_addr_valid)
 		res = v6_contains(&((struct in6_cidr *) (m->s.rhs))->addr, ((struct in6_cidr *) (m->s.rhs))->mask, &session->nac_address);
 	    break;
 	case S_nas:
+	case S_device:
 	case S_deviceaddress:
 	    res = v6_contains(&((struct in6_cidr *) (m->s.rhs))->addr, ((struct in6_cidr *) (m->s.rhs))->mask, &session->ctx->device_addr);
 	default:
