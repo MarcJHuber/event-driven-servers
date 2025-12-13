@@ -115,7 +115,7 @@ static int compare_app_ctx(const void *v1, const void *v2)
 static void write_to_child(struct context *, int);
 
 #define HAVE_mavis_init_in
-static int mavis_init_in(mavis_ctx * mcx)
+static int mavis_init_in(mavis_ctx *mcx)
 {
     DebugIn(DEBUG_MAVIS);
 
@@ -140,7 +140,7 @@ exec = path argv0 argv1 argv2...
 setenv a = b
 */
 #define HAVE_mavis_parse_in
-static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
+static int mavis_parse_in(mavis_ctx *mcx, struct sym *sym)
 {
     size_t len;
     struct stat st;
@@ -151,25 +151,35 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 	    mavis_script_parse(mcx, NULL, sym);
 	    continue;
 	case S_setenv:{
-	    sym_get(sym);
-	    char env_name[strlen(sym->buf) + 1];
-	    strcpy(env_name, sym->buf);
-	    sym_get(sym);
-	    parse(sym, S_equal);
-	    len = strlen(env_name) + strlen(sym->buf) + 2;
-	    mcx->env = Xrealloc(mcx->env, (mcx->envcount + 2) * sizeof(char *));
-	    mcx->env[mcx->envcount] = Xcalloc(1, len);
-	    snprintf(mcx->env[mcx->envcount++], len, "%s=%s", env_name, sym->buf);
-	    mcx->env[mcx->envcount] = NULL;
-	    sym_get(sym);
-	    continue;
-	}
+		sym_get(sym);
+		char env_name[strlen(sym->buf) + 1];
+		strcpy(env_name, sym->buf);
+		sym_get(sym);
+		parse(sym, S_equal);
+		len = strlen(env_name) + strlen(sym->buf) + 2;
+		mcx->env = Xrealloc(mcx->env, (mcx->envcount + 2) * sizeof(char *));
+		mcx->env[mcx->envcount] = Xcalloc(1, len);
+		snprintf(mcx->env[mcx->envcount++], len, "%s=%s", env_name, sym->buf);
+		mcx->env[mcx->envcount] = NULL;
+		sym_get(sym);
+		continue;
+	    }
 	case S_exec:{
 		char buf[MAX_INPUT_LINE_LEN];
 		sym_get(sym);
 		parse(sym, S_equal);
 		mcx->argv = calloc(1, sizeof(char *));
 		ostypef(sym->buf, buf, sizeof(buf));
+#define S "$CONFDIR/"
+		if (!strncmp(buf, S, sizeof(S) - 1)) {
+		    char *slash = buf + sizeof(S) - 2;
+		    size_t total_len = strlen(common_data.confdir) + strlen(slash) + 1;
+		    char buf_tmp[total_len];
+		    strncpy(buf_tmp, common_data.confdir, total_len);
+		    strncat(buf_tmp, slash, total_len);
+		    memcpy(buf, buf_tmp, total_len);
+		}
+#undef S
 		if (stat(buf, &st))
 		    parse_error(sym, "%s: %s", buf, strerror(errno));
 		strset(&mcx->path, buf);
@@ -203,7 +213,7 @@ static int mavis_parse_in(mavis_ctx * mcx, struct sym *sym)
 }
 
 #define HAVE_mavis_drop_in
-static void mavis_drop_in(mavis_ctx * mcx)
+static void mavis_drop_in(mavis_ctx *mcx)
 {
     int i;
 
@@ -296,7 +306,7 @@ static void child_died(struct context *ctx, int cur __attribute__((unused)))
 	fork_ctx(ctx->mcx);
 
 	if (!RB_empty(ctx->mcx->by_serial)) {
-	    for (rb_node_t *rbn = RB_first(ctx->mcx->by_serial); rbn;) {
+	    for (rb_node_t * rbn = RB_first(ctx->mcx->by_serial); rbn;) {
 		struct query *q = RB_payload(rbn, struct query *);
 		rb_node_t *next = RB_next(rbn);
 		if (q->canceled) {
@@ -462,7 +472,7 @@ static void read_err_from_child(struct context *ctx, int cur __attribute__((unus
     DebugOut(DEBUG_PROC);
 }
 
-static int fork_ctx(mavis_ctx * mcx)
+static int fork_ctx(mavis_ctx *mcx)
 {
     int fi[2], fo[2], fe[2];
     pid_t ctxpid;
@@ -578,7 +588,7 @@ static int fork_ctx(mavis_ctx * mcx)
     return 0;
 }
 
-static void start_query(struct context *ctx, av_ctx * ac)
+static void start_query(struct context *ctx, av_ctx *ac)
 {
     size_t len = av_array_to_char_len(ac);
     struct iobuf *o = calloc(1, sizeof(struct iobuf));
@@ -602,7 +612,7 @@ static void start_query(struct context *ctx, av_ctx * ac)
 }
 
 #define HAVE_mavis_send_in
-static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
+static int mavis_send_in(mavis_ctx *mcx, av_ctx **ac)
 {
     int res = MAVIS_DEFERRED;
     struct query *q = calloc(1, sizeof(struct query));
@@ -630,7 +640,7 @@ static int mavis_send_in(mavis_ctx * mcx, av_ctx ** ac)
 }
 
 #define HAVE_mavis_cancel_in
-static int mavis_cancel_in(mavis_ctx * mcx, void *app_ctx)
+static int mavis_cancel_in(mavis_ctx *mcx, void *app_ctx)
 {
     struct query q;
     rb_node_t *rbn;
@@ -646,7 +656,7 @@ static int mavis_cancel_in(mavis_ctx * mcx, void *app_ctx)
 }
 
 #define HAVE_mavis_recv_in
-static int mavis_recv_in(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
+static int mavis_recv_in(mavis_ctx *mcx, av_ctx **ac, void *app_ctx)
 {
     struct query q;
     rb_node_t *ra;
@@ -678,7 +688,7 @@ static int mavis_recv_in(mavis_ctx * mcx, av_ctx ** ac, void *app_ctx)
 }
 
 #define HAVE_mavis_new
-static void mavis_new(mavis_ctx * mcx)
+static void mavis_new(mavis_ctx *mcx)
 {
     mcx->io_context_parent = mcx->io;
 }

@@ -732,16 +732,10 @@ void sym_get(struct sym *sym)
 	char *sb = NULL;
 #define S "$CONFDIR/"
 	if (!strncmp(sym->buf, S, sizeof(S) - 1) && common_data.conffile) {
-	    size_t in_len = strlen(sym->buf);
-	    size_t cd_len = strlen(common_data.conffile);
-	    sb = alloca(in_len + cd_len);
-	    strcpy(sb, common_data.conffile);
-	    char *r = strrchr(sb, '/');
-	    if (r)
-		*r = 0;
-	    else
-		strcpy(sb, "./");
-	    strcpy(sb + strlen(sb), sym->buf + sizeof(S) - 2);
+	    size_t len = strlen(sym->buf) + strlen(common_data.conffile);
+	    sb = alloca(len);
+	    strncpy(sb, common_data.confdir, len);
+	    strncat(sb, sym->buf + sizeof(S) - 2, len);
 #undef S
 	} else {
 	    sb = alloca(strlen(sym->buf) + 1);
@@ -2368,7 +2362,7 @@ static enum token mavis_script_eval_r(mavis_ctx *mcx, av_ctx *ac, struct mavis_a
 #ifdef WITH_PCRE2
 		    if (pcre_arg && ovector && i < ovector_count && ovector[2 * i] < ovector[2 * i + 1]) {
 			size_t l = ovector[2 * i + 1] - ovector[2 * i];
-		        s_len += l;
+			s_len += l;
 		    }
 #else
 		    report_cfg_error(LOG_INFO, ~0, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
@@ -2406,7 +2400,7 @@ static enum token mavis_script_eval_r(mavis_ctx *mcx, av_ctx *ac, struct mavis_a
 			t += l;
 		    }
 #else
-//		    report_cfg_error(LOG_INFO, ~0, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
+//                  report_cfg_error(LOG_INFO, ~0, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");
 #endif
 		    continue;
 		case '\\':

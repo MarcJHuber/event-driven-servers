@@ -397,6 +397,7 @@ struct common_data {
     struct pidfile *pidfile;
     int singleprocess;
     char *conffile;
+    char *confdir;
     char *id;
     time_t cleanup_interval;
     int (*scm_send_msg)(int, struct scm_data *, int);

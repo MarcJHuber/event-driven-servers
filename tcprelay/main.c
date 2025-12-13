@@ -50,10 +50,6 @@ int main(int argc, char **argv, char **envp)
 
     scm_main(argc, argv, envp);
 
-    if (!common_data.conffile) {
-	common_data.conffile = argv[optind];
-	common_data.id = argv[optind + 1];
-    }
     cfg_read_config(common_data.conffile, parse_decls, common_data.id ? common_data.id : common_data.progname);
 
     if (common_data.parse_only)

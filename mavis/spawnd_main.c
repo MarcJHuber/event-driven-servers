@@ -459,9 +459,14 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 
     strset(&spawnd_data.child_config, argv[optind]);
 
-    common_data.conffile = Xstrdup(argv[optind]);
+    common_data.conffile = strdup(argv[optind]);
+    char *lastslash = strrchr(common_data.conffile, '/');
+    if (lastslash)
+	common_data.confdir = strndup(common_data.conffile, lastslash - common_data.conffile);
+    else
+	common_data.confdir = "./";
     if (argv[optind + 1])
-	common_data.id = Xstrdup(argv[optind + 1]);
+	common_data.id = strdup(argv[optind + 1]);
 
     logmsg("startup%s (version " VERSION ")", spawnd_data.inetd ? " via inetd" : "");
 
@@ -487,10 +492,6 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
     }
 
     spawnd_data.retry_delay = 0;
-
-    common_data.conffile = strdup(argv[optind]);
-    if (argv[optind + 1])
-	common_data.id = strdup(argv[optind + 1]);
 
     cfg_read_config(argv[optind], spawnd_parse_decls, id ? id : (argv[optind + 1] ? argv[optind + 1] : common_data.progname));
 
@@ -664,4 +665,11 @@ void scm_main(int argc, char **argv, char **envp)
 	}
     if (argc != optind + 1 && argc != optind + 2)
 	common_usage();
+    common_data.conffile = argv[optind];
+    common_data.id = argv[optind + 1];
+    char *lastslash = strrchr(common_data.conffile, '/');
+    if (lastslash)
+	common_data.confdir = strndup(common_data.conffile, lastslash - common_data.conffile);
+    else
+	common_data.confdir = "./";
 }

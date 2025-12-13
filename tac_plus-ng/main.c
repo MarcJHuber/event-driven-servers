@@ -347,10 +347,6 @@ int main(int argc, char **argv, char **envp)
 
     buffer_setsize(0x8000, 0x10);
 
-    if (!common_data.conffile) {
-	common_data.conffile = argv[optind];
-	common_data.id = argv[optind + 1];
-    }
     if (!common_data.io)
 	common_data.io = io_init();
     cfg_read_config(common_data.conffile, parse_decls, common_data.id ? common_data.id : common_data.progname);

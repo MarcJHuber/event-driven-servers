@@ -51,10 +51,6 @@ int main(int argc, char **argv, char **envp)
 
     cfg_init();
 
-    if (!common_data.conffile) {
-	common_data.conffile = argv[optind];
-	common_data.id = argv[optind + 1];
-    }
     if (!common_data.io)
 	common_data.io = io_init();
     io = common_data.io;

@@ -229,10 +229,6 @@ int main(int argc, char **argv, char **envp)
 
     dns_tree_ptr_static = radix_new(NULL /* never freed */ , NULL);
 
-    if (!common_data.conffile) {
-	common_data.conffile = argv[optind];
-	common_data.id = argv[optind + 1];
-    }
     if (!common_data.io)
 	common_data.io = io_init();
     cfg_read_config(common_data.conffile, parse_decls, common_data.id ? common_data.id : common_data.progname);

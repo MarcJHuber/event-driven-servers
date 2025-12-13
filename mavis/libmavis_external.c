@@ -284,6 +284,16 @@ static int mavis_parse_in(mavis_ctx *mcx, struct sym *sym)
 		parse(sym, S_equal);
 		mcx->argv = calloc(1, sizeof(char *));
 		ostypef(sym->buf, buf, sizeof(buf));
+#define S "$CONFDIR/"
+		if (!strncmp(buf, S, sizeof(S) - 1)) {
+		    char *slash = buf + sizeof(S) - 2;
+		    size_t total_len = strlen(common_data.confdir) + strlen(slash) + 1;
+		    char buf_tmp[total_len];
+		    strncpy(buf_tmp, common_data.confdir, total_len);
+		    strncat(buf_tmp, slash, total_len);
+		    memcpy(buf, buf_tmp, total_len);
+		}
+#undef S
 		if (stat(buf, &st))
 		    parse_error(sym, "%s: %s", buf, strerror(errno));
 		strset(&mcx->path, buf);
