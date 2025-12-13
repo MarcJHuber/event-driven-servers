@@ -2047,7 +2047,8 @@ tacacs-server host 192.168.0.1 single-connection key your key here</pre>
 <td align="left" valign="top">
 <p>If compiled with OpenSSL support Cisco Type-6 AES128 password encryption is available. Encrypted password strings can be copied from a IOS system or generated manually (for example with <a class="lk" href="https://github.com:MarcJHuber/cisco6" target="_top">type6</a>). Type-6 passwords used in host context require a <span class="emphasis"><i class="emphasis">type6-key</i></span> definition for the master key in host or realm context, while <span class="emphasis"><i class="emphasis">type-6</i></span> passwords in user or profile context use the master key from the realm context.</p>
 <pre class="screen">
-master key = demo # or master key = "${SOME_ENVIRONMENT_VARIBLE}"
+master key = demo
+# master key = "${SOME_ENVIRONMENT_VARIABLE}"
 
 user ... {
     password login = 'SeIF^JbTBWUcRIhgP[FW\`L\AAB' # no need to escape characters, just copy here as-is

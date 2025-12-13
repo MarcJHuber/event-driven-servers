@@ -1688,7 +1688,8 @@ key = ""
    type6-key definition for the master key in host or realm
    context, while type-6 passwords in user or profile context use
    the master key from the realm context.
-master key = demo # or master key = "${SOME_ENVIRONMENT_VARIBLE}"
+master key = demo
+# master key = "${SOME_ENVIRONMENT_VARIABLE}"
 
 user ... {
     password login = 'SeIF^JbTBWUcRIhgP[FW\`L\AAB' # no need to escape c
