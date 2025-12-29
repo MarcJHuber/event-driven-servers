@@ -5646,19 +5646,22 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 		    parse_error(sym, "RADIUS value '$s' not found (attribute: %s)", sym->buf, attr->name);
 		u.u = htonl(val->id);
 		m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
+		sym_get(sym);
 	    } else if (attr->type == S_integer || attr->type == S_time || attr->type == S_enum) {
 		u.u = htonl(parse_uint(sym));
 		m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
 	    } else if (attr->type == S_ipv4addr || attr->type == S_ipaddr || attr->type == S_address) {
-		if (1 == inet_pton(AF_INET, sym->buf, &u.ipv4))
+		if (1 == inet_pton(AF_INET, sym->buf, &u.ipv4)) {
 		    m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
+		    sym_get(sym);
+		}
 	    } else if (attr->type == S_ipv6addr) {
-		if (1 == inet_pton(AF_INET6, sym->buf, &u.ipv6))
+		if (1 == inet_pton(AF_INET6, sym->buf, &u.ipv6)) {
 		    m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
+		    sym_get(sym);
+		}
 	    }
-	    if (m->b.v)
-		sym_get(sym);
-	    else
+	    if (!m->b.v)
 		m->b.v = (void *) new_rad_action(mem, attr, &u, parse_log_format(sym, mem));
 	} else {
 	    size_t buf_len = 3 + strlen(sym->buf) + strlen(sep);
