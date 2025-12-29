@@ -1738,9 +1738,25 @@ ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags, enum 
 {
     if (ctx->inject_buf && !ctx->inject_len) {
 	ssize_t l = recv(ctx->sock, ctx->inject_buf, INJECT_BUF_SIZE, 0);
-	if (l > -1)
+	if (l > 0) {
 	    ctx->inject_len = l;
-	ctx->inject_off = 0;
+	    ctx->inject_off = 0;
+	} else if (l == 0) {
+	    // Connection closed by peer
+	    if (status)
+		*status = io_status_close;
+	    return 0;
+	} else {
+	    // Error occurred
+	    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+		if (status)
+		    *status = io_status_retry;
+		return 0;
+	    }
+	    if (status)
+		*status = io_status_error;
+	    return l;
+	}
     }
     if (ctx->inject_buf && ctx->inject_len > ctx->inject_off) {
 	if (ctx->inject_len - ctx->inject_off < len)
@@ -1750,6 +1766,8 @@ ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags, enum 
 	    ctx->inject_off += len;
 	if (ctx->inject_off == ctx->inject_len)
 	    ctx->inject_len = 0;
+	if (status)
+	    *status = io_status_ok;
 	return len;
     }
     ssize_t res = recv(ctx->sock, buf, len, flags);
