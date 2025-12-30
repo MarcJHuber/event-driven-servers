@@ -1736,35 +1736,40 @@ static void complete_host_mavis(struct context *ctx)
 
 ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags, enum io_status *status)
 {
-    if (ctx->inject_buf && !ctx->inject_len) {
-	ssize_t l = recv(ctx->sock, ctx->inject_buf, INJECT_BUF_SIZE, 0);
-	if (l > -1)
-	    ctx->inject_len = l;
-	ctx->inject_off = 0;
-    }
-    if (ctx->inject_buf && ctx->inject_len > ctx->inject_off) {
-	if (ctx->inject_len - ctx->inject_off < len)
-	    len = ctx->inject_len - ctx->inject_off;
-	memcpy(buf, ctx->inject_buf + ctx->inject_off, len);
-	if (!(flags & MSG_PEEK))
-	    ctx->inject_off += len;
-	if (ctx->inject_off == ctx->inject_len)
-	    ctx->inject_len = 0;
-	return len;
-    }
-    ssize_t res = recv(ctx->sock, buf, len, flags);
-    if (status) {
-	if (res < 0) {
-	    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-		res = 0;
-		*status = io_status_retry;
-	    } else
-		*status = io_status_error;
-	} else if (!res) {
-	    *status = io_status_close;
+    if (!status)
+	status = alloca(sizeof(enum io_status));
+
+    ssize_t res = -1;
+    errno = 0;
+
+    if (ctx->inject_buf) {
+	// initial UDP packet, via scm
+	if (ctx->inject_len == ctx->inject_off)
+	    res = 0;
+	else if (ctx->inject_len > ctx->inject_off) {
+	    if (ctx->inject_len - ctx->inject_off < len)
+		len = ctx->inject_len - ctx->inject_off;
+	    memcpy(buf, ctx->inject_buf + ctx->inject_off, len);
+	    res = len;
+	    if (!(flags & MSG_PEEK))
+		ctx->inject_off += len;
+	    if (ctx->inject_off == ctx->inject_len)
+		mem_free(ctx->mem, &ctx->inject_buf);
+	}
+    } else
+	res = recv(ctx->sock, buf, len, flags);
+
+    if (res < 0) {
+	if (errno == EAGAIN || errno == EWOULDBLOCK) {
+	    res = 0;
+	    *status = io_status_retry;
 	} else
-	    *status = io_status_ok;
-    }
+	    *status = io_status_error;
+    } else if (res)
+	*status = io_status_ok;
+    else
+	*status = io_status_close;
+
     return res;
 }
 
