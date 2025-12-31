@@ -1743,7 +1743,11 @@ ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags, enum 
     errno = 0;
 
     if (ctx->inject_buf) {
-	// initial UDP packet, via scm
+	if (!ctx->inject_len) {
+	    res = recv(ctx->sock, ctx->inject_buf, INJECT_BUF_SIZE, 0);
+	    if (res > -1)
+		ctx->inject_len = res;
+	}
 	if (ctx->inject_len == ctx->inject_off)
 	    res = 0;
 	else if (ctx->inject_len > ctx->inject_off) {
@@ -1754,7 +1758,7 @@ ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags, enum 
 	    if (!(flags & MSG_PEEK))
 		ctx->inject_off += len;
 	    if (ctx->inject_off == ctx->inject_len)
-		mem_free(ctx->mem, &ctx->inject_buf);
+		ctx->inject_off = ctx->inject_len = 0;
 	}
     } else
 	res = recv(ctx->sock, buf, len, flags);
