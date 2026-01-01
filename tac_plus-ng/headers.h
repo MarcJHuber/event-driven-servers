@@ -873,7 +873,6 @@ tac_host *lookup_host(char *, tac_realm *);
 struct rad_dacl *lookup_dacl(char *, tac_realm *);
 int rad_check_dacl(tac_session *);
 int rad_attr_add_dacl(tac_session * session, struct rad_dacl *dacl, uint32_t * i);
-void dacl_copy(tac_session *);
 
 int query_mavis_info(tac_session *, void (*)(tac_session *), enum pw_ix);
 void expire_dynamic_users(tac_realm *);

@@ -2314,10 +2314,8 @@ static void do_radius_login(tac_session *session)
 static void do_radius_dacl(tac_session *session)
 {
     char *info = "dacl request";
-    int first = 0;
     enum token res = S_deny;
     if (!rd->dacl) {
-	first = 1;
 	if (!session->username.txt)
 	    goto fail;
 	char *u = session->username.txt;
@@ -2349,11 +2347,8 @@ static void do_radius_dacl(tac_session *session)
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
     else if (nace == rd->dacl->nace)
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_ACCEPT, NULL);
-    else {
-	if (first)
-	    dacl_copy(session);
+    else
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_CHALLENGE, NULL);
-    }
     return;
 
   fail:

@@ -4150,25 +4150,6 @@ int parse_dacl_fmt(struct sym *sym, tac_session *session, tac_realm *r, char *s)
     return 0;
 }
 
-void dacl_copy(tac_session *session)
-{
-    struct rad_dacl *dacl = mem_alloc(session->mem, sizeof(struct rad_dacl) + session->radius_data->dacl->nace * sizeof(struct iovec));
-    str_set(&dacl->name, mem_strdup(session->mem, session->radius_data->dacl->name.txt), session->radius_data->dacl->name.len);
-    dacl->nace = session->radius_data->dacl->nace;
-    dacl->data = mem_strdup(session->mem, session->radius_data->dacl->data);
-    dacl->realm = session->radius_data->dacl->realm;
-    off_t off;
-    if (dacl->data > session->radius_data->dacl->data)
-	off = dacl->data - session->radius_data->dacl->data;
-    else
-	off = -(off_t) (session->radius_data->dacl->data - dacl->data);
-    for (uint32_t i = 0; i < dacl->nace; i++) {
-	dacl->ace[i].iov_base = session->radius_data->dacl->ace[i].iov_base + off;
-	dacl->ace[i].iov_len = session->radius_data->dacl->ace[i].iov_len;
-    }
-    session->radius_data->dacl = dacl;
-}
-
 static void parse_dacl(struct sym *sym, tac_realm *r)
 {
     if (!r->dacls)

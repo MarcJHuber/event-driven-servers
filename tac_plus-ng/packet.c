@@ -360,8 +360,7 @@ static void rad_send_reply(tac_session *session, u_char status)
 	*pp = (tac_pak *) pak;
 	io_set_o(session->ctx->io, session->ctx->sock);
     }
-    if (status != RADIUS_CODE_ACCESS_CHALLENGE)
-	cleanup_session(session);
+    cleanup_session(session);
 }
 
 void rad_send_authen_reply(tac_session *session, u_char status, char *msg)
