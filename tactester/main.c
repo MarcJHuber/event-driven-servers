@@ -257,7 +257,11 @@ static void usage()
     fprintf(stderr, "\n");
     fprintf(stderr, "Author:  Marc.Huber@web.de\n");
     fprintf(stderr, "GIT:     https://github.com/MarcJHuber/event-driven-servers/\n");
-    fprintf(stderr, "Version: " VERSION "\n");
+    fprintf(stderr, "Version: " VERSION
+#ifdef OPENSSL_VERSION_TEXT
+	    "/" OPENSSL_VERSION_TEXT
+#endif
+	    "\n");
     fprintf(stderr, "\n");
     exit(-1);
 }
