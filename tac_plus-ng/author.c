@@ -87,7 +87,7 @@ void eval_args(tac_session *session, u_char *p, u_char *argsizep, size_t argcnt)
 	} else if (l > 8 && !strncmp(a, "service=", 8)) {
 	    str_set(&session->service, mem_strndup(session->mem, (u_char *) (a + 8), l - 8), l - 8);
 	} else if (l > 9 && !strncmp(a, "protocol=", 9)) {
-	    str_set(&session->protocol, mem_strndup(session->mem, (u_char *) (a + 8), l - 8), l - 9);
+	    str_set(&session->protocol, mem_strndup(session->mem, (u_char *) (a + 9), l - 9), l - 9);
 	}
 	p += *argsizep;
 	argsizep++;
