@@ -499,7 +499,8 @@ static void getsym(struct sym *sym)
 			}
 			break;
 		    default:
-			report_cfg_error(LOG_INFO, ~0, "Unknown escape sequence '\\%c'", scc);
+			if (!sym->nowarn)
+			    report_cfg_error(LOG_INFO, ~0, "Unknown escape sequence '\\%c'", scc);
 			continue;
 		    }
 		    buf_add(sym, sc);
@@ -1031,6 +1032,7 @@ void cfg_read_config(char *url, void (*parsefunction)(struct sym *), char *id)
 	    if (sym.code == S_equal)
 		sym_get(&sym);
 	    if (strcmp(sym.buf, id)) {
+		sym.nowarn = 1;
 		int bc = 1;
 		sym_get(&sym);
 		parse(&sym, S_openbra);
@@ -1049,6 +1051,7 @@ void cfg_read_config(char *url, void (*parsefunction)(struct sym *), char *id)
 		    }
 		    sym_get(&sym);
 		}
+		sym.nowarn = 0;
 	    } else {
 		found = 1;
 		sym_get(&sym);
