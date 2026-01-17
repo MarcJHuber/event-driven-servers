@@ -27,6 +27,10 @@ typedef struct io_context io_context_t;
 EXT struct timeval io_now;
 #undef EXT
 
+// Uncomment the following line and recompile for callback function statistics:
+//#define DEBUG_CB_STATS
+// This may help catching busy loops. Stats will show up in syslog.
+
 void io_register(io_context_t *, int, void *);
 void *io_unregister(io_context_t *, int);
 int io_poll(io_context_t *, int);
@@ -52,10 +56,21 @@ void *io_get_cb_e(io_context_t *, int);
 void *io_get_cb_o(io_context_t *, int);
 void *io_get_cb_h(io_context_t *, int);
 void *io_get_ctx(io_context_t *, int);
+#ifdef DEBUG_CB_STATS
+#define io_set_cb_i(A,B,C) io_set_cb_i_internal(A,B,C,#C)
+#define io_set_cb_o(A,B,C) io_set_cb_o_internal(A,B,C,#C)
+#define io_set_cb_e(A,B,C) io_set_cb_e_internal(A,B,C,#C)
+#define io_set_cb_h(A,B,C) io_set_cb_h_internal(A,B,C,#C)
+void io_set_cb_i_internal(io_context_t *, int, void *, char *);
+void io_set_cb_o_internal(io_context_t *, int, void *, char *);
+void io_set_cb_e_internal(io_context_t *, int, void *, char *);
+void io_set_cb_h_internal(io_context_t *, int, void *, char *);
+#else
 void io_set_cb_i(io_context_t *, int, void *);
 void io_set_cb_o(io_context_t *, int, void *);
 void io_set_cb_e(io_context_t *, int, void *);
 void io_set_cb_h(io_context_t *, int, void *);
+#endif
 void io_set_cb_inv_i(io_context_t *, void *);
 void io_set_cb_inv_o(io_context_t *, void *);
 void io_set_cb_inv_h(io_context_t *, void *);

@@ -65,6 +65,13 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 #define ARRAYINC 8192
 #define LISTINC 8192
 
+#ifdef DEBUG_CB_STATS
+struct io_cbfun {
+    char *name;
+    unsigned int count;
+};
+#endif
+
 struct io_handler {
     void *i;			/* input handler */
     void *o;			/* output handler */
@@ -72,6 +79,14 @@ struct io_handler {
     void *o_app;		/* application output handler */
     void *e;			/* error handler */
     void *h;			/* hangup handler */
+#ifdef DEBUG_CB_STATS
+    int i_ix;			/* input handler */
+    int o_ix;			/* output handler */
+    int i_app_ix;		/* application input handler */
+    int o_app_ix;		/* application output handler */
+    int e_ix;			/* error handler */
+    int h_ix;			/* hangup handler */
+#endif
     struct {
 	u_int want_read:1;	/* interested in reading */
 	u_int want_write:1;	/* interested in writing */
@@ -192,6 +207,12 @@ struct io_context {
 #define Port mechanism.port
 #endif
     } mechanism;
+#ifdef DEBUG_CB_STATS
+#define IO_STATS_MAX 128
+    struct io_cbfun io_stats[IO_STATS_MAX];
+    unsigned int io_stats_cur;
+    time_t last_dump;
+#endif
 };
 
 struct io_event {
@@ -314,6 +335,14 @@ int io_is_invalid_h(struct io_context *io, int cur)
     return (io->handler[cur].h == io->io_invalid_h);
 }
 
+#ifdef DEBUG_CB_STATS
+static void io_dump_stats(struct io_context *io)
+{
+    for (unsigned int i = 0; i < io->io_stats_cur; i++)
+	logmsg("%s called %u times", io->io_stats[i].name, io->io_stats[i].count);
+}
+#endif
+
 int io_poll(struct io_context *io, int poll_timeout)
 {
     int cax = 0;
@@ -329,17 +358,36 @@ int io_poll(struct io_context *io, int poll_timeout)
 	    struct io_context *ctx = io_get_ctx(io, fd);
 	    Debug((DEBUG_PROC, "fd %d ctx %p\n", fd, ctx));
 	    if (ctx) {
+#ifdef DEBUG_CB_STATS
+		int ix = IO_STATS_MAX;
+#endif
 		void (*cb)(void *, int) = NULL;
 		if (io->handler[fd].want_read && (ev & POLLIN))
-		    cb = (void (*)(void *, int)) (io_get_cb_i(io, fd));
+#ifdef DEBUG_CB_STATS
+		    ix = io->handler[fd].i_ix,
+#endif
+			cb = (void (*)(void *, int)) (io_get_cb_i(io, fd));
 		else if (io->handler[fd].want_write && (ev & POLLOUT) && !(ev & POLLHUP))
-		    cb = (void (*)(void *, int)) (io_get_cb_o(io, fd));
+#ifdef DEBUG_CB_STATS
+		    ix = io->handler[fd].o_ix,
+#endif
+			cb = (void (*)(void *, int)) (io_get_cb_o(io, fd));
 		else if (ev & POLLERR)
-		    cb = (void (*)(void *, int)) (io_get_cb_e(io, fd));
+#ifdef DEBUG_CB_STATS
+		    ix = io->handler[fd].e_ix,
+#endif
+			cb = (void (*)(void *, int)) (io_get_cb_e(io, fd));
 		else if (ev & POLLHUP)
-		    cb = (void (*)(void *, int)) (io_get_cb_h(io, fd));
+#ifdef DEBUG_CB_STATS
+		    ix = io->handler[fd].h_ix,
+#endif
+			cb = (void (*)(void *, int)) (io_get_cb_h(io, fd));
 
 		Debug((DEBUG_PROC, "fd %d cb = %p\n", fd, cb));
+#ifdef DEBUG_CB_STATS
+		if (cb && ix < IO_STATS_MAX)
+		    io->io_stats[ix].count++;
+#endif
 		if (cb)
 		    cb(ctx, fd);
 		else
@@ -357,6 +405,13 @@ int io_poll(struct io_context *io, int poll_timeout)
 
     for (int i = 0; i < unreg_count; i++)
 	io_unregister(io, unreg[i]);
+
+#ifdef DEBUG_CB_STATS
+    if (io->last_dump + 10 < io_now.tv_sec) {
+	io->last_dump = io_now.tv_sec;
+	io_dump_stats(io);
+    }
+#endif
 
     return res;
 }
@@ -2077,6 +2132,60 @@ int io_want_write(struct io_context *io, int fd)
     return io->handler[fd].want_write_app;
 }
 
+#ifdef DEBUG_CB_STATS
+static int io_lookup_stats_index(struct io_context *io, char *name)
+{
+    char *space = strrchr(name, ' ');
+    if (space)
+	name = space + 1;
+    unsigned int i = 0;
+    for (; i < io->io_stats_cur; i++)
+	if (!strcmp(io->io_stats[i].name, name))
+	    return i;
+    if (io->io_stats_cur < IO_STATS_MAX) {
+	io->io_stats[i].name = strdup(name);
+	io->io_stats_cur++;
+	return i;
+    }
+    return IO_STATS_MAX;
+}
+
+void io_set_cb_i_internal(struct io_context *io, int fd, void *f, char *fname)
+{
+    int ix = io_lookup_stats_index(io, fname);
+    io->handler[fd].i_app = f;
+    io->handler[fd].i_app_ix = ix;
+    if (!io->handler[fd].reneg) {
+	io->handler[fd].i = f;
+	io->handler[fd].i_ix = ix;
+    }
+}
+
+void io_set_cb_o_internal(struct io_context *io, int fd, void *f, char *fname)
+{
+    int ix = io_lookup_stats_index(io, fname);
+    io->handler[fd].o_app = f;
+    io->handler[fd].o_app_ix = ix;
+    if (!io->handler[fd].reneg) {
+	io->handler[fd].o = f;
+	io->handler[fd].o_ix = ix;
+    }
+}
+
+void io_set_cb_e_internal(struct io_context *io, int fd, void *f, char *fname)
+{
+    int ix = io_lookup_stats_index(io, fname);
+    io->handler[fd].e = f;
+    io->handler[fd].e_ix = ix;
+}
+
+void io_set_cb_h_internal(struct io_context *io, int fd, void *f, char *fname)
+{
+    int ix = io_lookup_stats_index(io, fname);
+    io->handler[fd].h = f;
+    io->handler[fd].h_ix = ix;
+}
+#else
 void io_set_cb_i(struct io_context *io, int fd, void *f)
 {
     io->handler[fd].i_app = f;
@@ -2100,6 +2209,7 @@ void io_set_cb_h(struct io_context *io, int fd, void *f)
 {
     io->handler[fd].h = f;
 }
+#endif
 
 void io_set_cb_inv_i(struct io_context *io, void *f)
 {
