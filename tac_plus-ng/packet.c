@@ -565,7 +565,8 @@ void tac_read(struct context *ctx, int cur)
 	}
 
     // auto-detect radius
-    if (rad_dict_initialized() && ctx->hdroff > 0 && ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
+    if (rad_dict_initialized() && ctx->aaa_protocol != S_tacacs_tcp && ctx->aaa_protocol != S_tacacs_tls && ctx->hdroff > 0
+	&& ctx->hdr.tac.version < TAC_PLUS_MAJOR_VER) {
 #ifdef WITH_SSL
 	if (ctx->tls) {
 	    int ssl_version = SSL_version(ctx->tls);
