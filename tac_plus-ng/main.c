@@ -943,8 +943,8 @@ static void accept_control_tls(struct context *ctx, int cur)
 		if (notafter_asn1 && notbefore_asn1) {
 		    struct tm notafter_tm, notbefore_tm;
 		    if ((1 == ASN1_TIME_to_tm(notafter_asn1, &notafter_tm)) && (1 == ASN1_TIME_to_tm(notbefore_asn1, &notbefore_tm))) {
-			notafter = mktime(&notafter_tm);
-			notbefore = mktime(&notbefore_tm);
+			notafter = timegm(&notafter_tm);
+			notbefore = timegm(&notbefore_tm);
 		    }
 
 		    if (notafter > -1 && notbefore > -1) {
