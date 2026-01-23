@@ -401,6 +401,7 @@ struct common_data {
     char *confdir;
     char *id;
     time_t cleanup_interval;
+    long gmt_offset;
     int (*scm_send_msg)(int, struct scm_data *, int);
     int (*scm_recv_msg)(int, struct scm_data_accept *, size_t, int *);
     void (*scm_accept)(int, struct scm_data_accept *);

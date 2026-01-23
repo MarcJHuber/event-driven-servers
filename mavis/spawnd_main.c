@@ -192,7 +192,6 @@ struct spawnd_context *spawnd_new_context(struct io_context *io)
     c->keepintvl = -1;
     c->keepcnt = -1;
     c->keepidle = -1;
-
     return c;
 }
 

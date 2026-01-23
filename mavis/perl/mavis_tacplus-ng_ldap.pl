@@ -266,6 +266,10 @@ sub expand_memberof($) {
 	return \@res;
 }
 
+use Time::Local;
+my @now = localtime(time);
+my $gmt_offset = timelocal(@now) - timetm(@now);
+
 my %gidHash; # cache gidNumber-to-cn mapping
 
 while ($in = <>) {
@@ -455,7 +459,7 @@ retry_once:
 				$val = $entry->get_value('krbPasswordExpiration');
 				if (defined $val) {
 					if ($val =~ /^(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)Z$/) {
-						$expiry = mktime($6, $5, $4, $3, $2 - 1, $1 - 1900);
+						$expiry = mktime($6, $5, $4, $3, $2 - 1, $1 - 1900) - $gmt_offset;
 					}
 				}
 			}

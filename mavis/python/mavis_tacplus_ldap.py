@@ -122,7 +122,7 @@ LDAP_SKIP_GROUPOFNAMES
 	Default: unset
 """
 
-import os, sys, re, ldap3, time
+import os, sys, re, ldap3, time, calendar
 from mavis import (Mavis,
 	MAVIS_DOWN, MAVIS_FINAL,
 	AV_V_RESULT_OK, AV_V_RESULT_ERROR, AV_V_RESULT_FAIL,
@@ -336,7 +336,7 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 						t = (int (m.group(1)), int(m.group(2)), int(m.group(3)),
 							int(m.group(4)), int(m.group(5)), int(m.group(6)),
 							0, 0, 0)
-						expiry = int(time.mktime(t))
+						expiry = int(calendar.timegm(t))
 			if expiry is not None:
 				if expiry < time.time():
 					user_msg = "Password has expired."
