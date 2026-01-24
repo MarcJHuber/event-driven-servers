@@ -186,7 +186,7 @@ use Net::LDAP::Constant qw(LDAP_EXTENSION_PASSWORD_MODIFY LDAP_CAP_ACTIVE_DIRECT
 use Net::LDAP::Extension::SetPassword;
 use Net::LDAP::Extra qw(AD);
 use IO::Socket::SSL;
-use POSIX qw(mktime);
+use Time::Local 'timegm';
 
 $| = 1;
 
@@ -268,7 +268,6 @@ sub expand_memberof($) {
 
 use Time::Local;
 my @now = localtime(time);
-my $gmt_offset = timelocal(@now) - timetm(@now);
 
 my %gidHash; # cache gidNumber-to-cn mapping
 
@@ -459,7 +458,8 @@ retry_once:
 				$val = $entry->get_value('krbPasswordExpiration');
 				if (defined $val) {
 					if ($val =~ /^(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)Z$/) {
-						$expiry = mktime($6, $5, $4, $3, $2 - 1, $1 - 1900) - $gmt_offset;
+						my $gmt_offset = timelocal(@now) - timetm(@now);
+						$expiry = timegm($6, $5, $4, $3, $2 - 1, $1 - 1900);
 					}
 				}
 			}
