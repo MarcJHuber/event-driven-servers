@@ -472,6 +472,15 @@
 #define VRF_SETFIB
 #endif
 /*******************************************************************************
+ * timegm()
+ */
+#if defined(__linux__)
+#define HAVE_TIMEGM
+#endif
+#if defined(__ANY_BSD__)
+#define HAVE_TIMEGM
+#endif
+/*******************************************************************************
  * misc
  */
 #ifndef LOG_PRIMASK

@@ -22,6 +22,8 @@
 #include "misc/utf.h"
 #include "misc/version.h"
 
+#include "misc/mytimegm.h"
+
 #define TRISTATE_DUNNO  0
 #define TRISTATE_YES    1
 #define TRISTATE_NO     2
@@ -718,8 +720,6 @@ static void av_write(av_ctx *ac, uint32_t result)
     av_free(ac);
 }
 
-static long gmt_offset = 0;
-
 static void *run_thread(void *arg)
 {
     LDAP *ldap = NULL;
@@ -850,9 +850,7 @@ static void *run_thread(void *arg)
 			    && z == 'Z') {
 			    tm.tm_year -= 1900;
 			    tm.tm_mon -= 1;
-			    expiry = mktime(&tm);
-			    if (expiry > -1)
-				expiry -= gmt_offset;
+			    expiry = mytimegm(&tm);
 			}
 		    }
 		}
@@ -1214,8 +1212,6 @@ int main(int argc, char **argv __attribute__((unused)))
 	getrlimit(RLIMIT_NOFILE, &rlim);
 	rlim.rlim_cur = rlim.rlim_max;
 	setrlimit(RLIMIT_NOFILE, &rlim);
-	time_t now = time(NULL);
-	gmt_offset = mktime(localtime(&now)) - mktime(gmtime(&now));
     }
 
     while (1) {

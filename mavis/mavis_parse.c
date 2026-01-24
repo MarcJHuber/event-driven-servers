@@ -147,8 +147,6 @@ void init_common_data(void)
     common_data.cleanup_interval = 2;	/* seconds, used to be 60 */
     common_data.syslog_filter = 0xffff;
     logopen();
-    time_t now = time(NULL);
-    common_data.gmt_offset = mktime(localtime(&now)) - mktime(gmtime(&now));
 }
 
 void parse_error(struct sym *sym, char *fmt, ...)
