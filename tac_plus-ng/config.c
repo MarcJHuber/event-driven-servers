@@ -728,7 +728,9 @@ static void parse_key(struct sym *sym, tac_host *host)
 
     enum token keytype = S_clear;
 
-    if (sym->code == S_7) {
+    if (sym->code == S_clear) {
+	sym_get(sym);
+    } else if (sym->code == S_7) {
 	sym_get(sym);
 	c7decode(sym->buf);
     }
