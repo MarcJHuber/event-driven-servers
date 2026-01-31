@@ -494,6 +494,9 @@ void mavis_detach(void);
 
 void mavis_module_parse_action(mavis_ctx *, struct sym *);
 
+void mavis_set_type6(char *(*fun)(const char *, const char *), char *master_key);
+char *mavis_decrypt_type6(char *);
+
 #define MAVIS_EXT_MAGIC_V1 0x4d610001
 struct mavis_ext_hdr_v1 {
     uint32_t magic;

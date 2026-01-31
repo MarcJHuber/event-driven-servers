@@ -268,13 +268,25 @@ static int mavis_parse_in(mavis_ctx *mcx, struct sym *sym)
 		sym_get(sym);
 		char env_name[strlen(sym->buf) + 1];
 		strcpy(env_name, sym->buf);
+		struct sym mysym = *sym;
+		mysym.noescape = 1;
+		sym_get(&mysym);
+		if (mysym.code == S_equal)
+		    sym_get(&mysym);
+		char *d = mavis_decrypt_type6(mysym.buf);
+		if (d)
+		    sym->noescape = 1;
 		sym_get(sym);
-		parse(sym, S_equal);
-		len = strlen(env_name) + strlen(sym->buf) + 2;
+		if (sym->code == S_equal)
+		    sym_get(sym);
+		len = strlen(env_name) + strlen(d ? d : sym->buf) + 2;
 		mcx->env = Xrealloc(mcx->env, (mcx->envcount + 2) * sizeof(char *));
 		mcx->env[mcx->envcount] = Xcalloc(1, len);
-		snprintf(mcx->env[mcx->envcount++], len, "%s=%s", env_name, sym->buf);
+		snprintf(mcx->env[mcx->envcount++], len, "%s=%s", env_name, d ? d : sym->buf);
+		if (d)
+		    free(d);
 		mcx->env[mcx->envcount] = NULL;
+		sym->noescape = 0;
 		sym_get(sym);
 		continue;
 	    }

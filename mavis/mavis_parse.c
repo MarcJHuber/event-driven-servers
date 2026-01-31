@@ -2927,3 +2927,19 @@ void mavis_module_parse_action(mavis_ctx *mcx, struct sym *sym)
 	parse_error_expect(sym, S_error, S_notfound, S_unknown);
     }
 }
+
+static char *(*type6_decryptfun)(const char *encoded, const char *master_key) = NULL;
+static char *type6_masterkey = NULL;
+
+void mavis_set_type6(char *(*fun)(const char *, const char *), char *master_key)
+{
+    if (fun && master_key) {
+	type6_decryptfun = fun;
+	type6_masterkey = master_key;
+    }
+}
+
+char *mavis_decrypt_type6(char *in)
+{
+    return (type6_decryptfun && type6_masterkey) ? type6_decryptfun(in, type6_masterkey) : NULL;
+}

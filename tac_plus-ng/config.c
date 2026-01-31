@@ -1605,6 +1605,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    sym_get(sym);
 	    switch (sym->code) {
 	    case S_module:
+		mavis_set_type6(decrypt_type6, r->default_host->type6key);
 		if (parse_mavismodule(&r->mcx, common_data.io, sym))
 		    scm_fatal();
 		continue;
