@@ -1590,7 +1590,8 @@ tacacs-server host 192.168.0.1 single-connection key your key here
    The key-value pairs permitted in device sections of the
    configuration file are explained below.
 
-     * key [warn] ( YYYY-MM-DD | s ) ] = string
+     * key [warn] ( YYYY-MM-DD | s ) ] = [ ( clear | 6 | 7 ) ]
+       string
        This sets the key used for encrypting the communication
        between server and NAS. Multiple keys may be set, making
        key migration from one key to another pretty easy. If the
@@ -1603,6 +1604,9 @@ tacacs-server host 192.168.0.1 single-connection key your key here
 key = ""
        Be careful to remember to switch encryption back on again
        after you've finished debugging.
+     * radius.key [warn] ( YYYY-MM-DD | s ) ] = [ ( clear | 6 | 7
+       ) ] string
+       The RADIUS secret can be set using this directive.
      * address = cidr
        Adds the address range specified by cidr to the current
        device definition.

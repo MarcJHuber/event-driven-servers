@@ -2,7 +2,7 @@ MAVIS - Modular Attribute-Value Interchange System
 
 Marc Huber
 
-   $Id: feea0b989df93a0f03a07220becab84ba21b4c88 $
+   $Id: fb641c839f3d085f9b6a924647c6c9d0120046fd $
      __________________________________________________________
 
    Table of Contents
@@ -499,6 +499,7 @@ cache expire FTP = 0
        (defaults: 4, 20).
      * setenv Variable = Value
        Set environment variables.
+       In tac_plus-ng context the value can be type6 encoded.
      * exec = Path Arguments ...
        Set path and arguments (including argv[0]) of the
        authentication program. It's recommended to enclose the
@@ -538,6 +539,7 @@ ename"
 
      * setenv Variable = Value
        Set environment variables.
+       In tac_plus-ng context the value can be type6 encoded.
      * exec = Path Arguments ...
        Set path and arguments (including argv[0]) of the
        authentication program. It's recommended to enclose the
