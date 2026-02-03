@@ -156,7 +156,7 @@ sub new_password_hash ($) {
 		$salt .= ('.', '/', 0..9, 'A'..'Z', 'a'..'z')[rand 64];
 	}
 
-	return get_password_hash($_[0], $salt);
+	return get_password_hash($_[0], $hashid . $salt);
 }
 
 sub fgrep ($$$) {
