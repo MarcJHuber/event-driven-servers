@@ -403,7 +403,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 
 	if (!strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_AUTH) || !strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_CHPW)) {
 	    session->mavisauth_res = S_permit;
-	    if ((TRISTATE_YES != u->chalresp) && session->password && !u->passwd_oneshot) {
+	    if (u->dynamic && (TRISTATE_YES != u->chalresp) && session->password && !u->passwd_oneshot) {
 		char *pass = session->password_new ? session->password_new : session->password;
 		char *crypt, salt[13];
 		salt[0] = '$';
