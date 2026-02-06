@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.7
+    rev: v0.15.0
     hooks:
       - id: ruff
         args: [--fix]
@@ -9,14 +9,14 @@ repos:
         files: ^mavis/python/mavis_tacplus_keycloak\.py$
 
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.44.0
+    rev: v0.47.0
     hooks:
       - id: markdownlint
         args: [--fix]
         files: ^CLAUDE\.md$
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
         files: ^(mavis/python/mavis_tacplus_keycloak\.py|CLAUDE\.md|Dockerfile|\.github/.*)$
@@ -27,7 +27,7 @@ repos:
         args: [--maxkb=500]
 
   - repo: https://github.com/hadolint/hadolint
-    rev: v2.12.0
+    rev: v2.14.0
     hooks:
       - id: hadolint-docker
-        entry: hadolint/hadolint hadolint --ignore DL3008
+        entry: ghcr.io/hadolint/hadolint hadolint --ignore DL3008

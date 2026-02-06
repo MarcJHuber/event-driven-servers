@@ -267,7 +267,7 @@ while True:
 	D.set_dn(claims.get("sub", D.user))
 
 	D.av_pairs[AV_A_IDENTITY_SOURCE] = "keycloak"
-	D.remember_password(False)
+	D.remember_password(False)  # noqa: FBT003
 
 	if groups:
 		# Reject group names containing double quotes or backslashes to prevent

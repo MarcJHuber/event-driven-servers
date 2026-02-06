@@ -60,7 +60,7 @@ MAVIS = **Modular Attribute-Value Interchange System**. It's a plugin chain for 
 ### Key AV attributes for TACACS+
 
 | Attribute | Description |
-|---|---|
+| --- | --- |
 | `AV_A_TYPE` | Request type (`TACPLUS`) |
 | `AV_A_USER` | Username |
 | `AV_A_PASSWORD` | Password |

@@ -24,3 +24,4 @@ spawnd/perl/pm_to_blib
 *.csr
 *.p12
 *.srl
+.python-version
