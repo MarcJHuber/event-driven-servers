@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY . /src
 WORKDIR /src
 
+ENV CC=clang
 RUN ./configure --prefix=/usr/local && make
 
 # Install to a staging root
@@ -42,11 +43,18 @@ RUN ldconfig
 # MAVIS Python modules live here
 ENV PYTHONPATH=/usr/local/lib/mavis
 
-# Config mount point
-RUN mkdir -p /etc/tac_plus-ng
+# Non-root runtime user
+# Port 49 requires CAP_NET_BIND_SERVICE: run with --cap-add=NET_BIND_SERVICE
+# or use a port > 1024 in the config and map it with -p 49:<high-port>.
+RUN groupadd -r tacplus && useradd -r -g tacplus -s /usr/sbin/nologin tacplus
+
+# Config and log directories
+RUN mkdir -p /etc/tac_plus-ng /var/log/tac_plus-ng \
+    && chown tacplus:tacplus /etc/tac_plus-ng /var/log/tac_plus-ng
 VOLUME ["/etc/tac_plus-ng"]
 
 EXPOSE 49/tcp
 
+USER tacplus
 ENTRYPOINT ["/usr/local/sbin/tac_plus-ng"]
 CMD ["/etc/tac_plus-ng/tac_plus-ng.cfg"]

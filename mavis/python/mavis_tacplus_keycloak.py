@@ -69,6 +69,7 @@ KEYCLOAK_REQUIRE_GROUP
 
 import os, sys, json, base64
 import requests
+from requests.exceptions import RequestException
 from mavis import (Mavis,
 	MAVIS_DOWN, MAVIS_FINAL,
 	AV_V_RESULT_OK, AV_V_RESULT_ERROR, AV_V_RESULT_FAIL,
@@ -106,7 +107,14 @@ http.verify = KEYCLOAK_VERIFY_TLS
 
 # JWT helpers ##################################################################
 def decode_jwt_payload(token):
-	"""Decode the payload of a JWT without signature verification."""
+	"""Decode the payload of a JWT without signature verification.
+
+	Signature verification is intentionally skipped: the token is obtained
+	directly from Keycloak over a TLS-protected channel with no untrusted
+	intermediaries, so payload inspection is safe. If tokens were received
+	from untrusted sources (e.g. client-supplied), full signature verification
+	against Keycloak's JWKS endpoint would be required instead.
+	"""
 	parts = token.split('.')
 	if len(parts) != 3:
 		raise ValueError("Malformed JWT: expected three dot-separated parts, got " + str(len(parts)))
@@ -118,6 +126,9 @@ def decode_jwt_payload(token):
 
 def decode_token_claims(token_data):
 	"""Decode access token JWT and return claims dict, or None on failure."""
+	if not isinstance(token_data, dict) or 'access_token' not in token_data:
+		print("mavis_tacplus_keycloak: token response missing 'access_token' key", file=sys.stderr)
+		return None
 	try:
 		return decode_jwt_payload(token_data['access_token'])
 	except Exception as e:
@@ -136,6 +147,9 @@ def extract_groups(claims):
 while True:
 	D = Mavis()
 
+	# Check AV_A_TYPE directly instead of calling Mavis.is_tacplus() which has
+	# an upstream bug: it passes self.av_pairs (a dict) as the verdict arg to
+	# D.write(), producing garbage output. This is a deliberate workaround.
 	if D.av_pairs.get(AV_A_TYPE) != AV_V_TYPE_TACPLUS:
 		D.write(MAVIS_DOWN, None, None)
 		continue
@@ -166,7 +180,7 @@ while True:
 
 	try:
 		resp = http.post(TOKEN_URL, data=post_data, timeout=KEYCLOAK_TIMEOUT)
-	except Exception as e:
+	except RequestException as e:
 		print("mavis_tacplus_keycloak: " + str(e), file=sys.stderr)
 		D.write(MAVIS_FINAL, AV_V_RESULT_ERROR,
 			"Keycloak connection error.")
@@ -213,7 +227,17 @@ while True:
 	D.remember_password(False)
 
 	if groups:
-		D.set_tacmember('"' + '","'.join(groups) + '"')
+		# Reject group names containing double quotes or backslashes to prevent
+		# malformed tacmember strings (the AV protocol uses quoted CSV format).
+		sanitized = []
+		for g in groups:
+			if '"' in g or '\\' in g:
+				print("mavis_tacplus_keycloak: skipping group with unsafe chars: "
+					+ repr(g), file=sys.stderr)
+				continue
+			sanitized.append(g)
+		if sanitized:
+			D.set_tacmember('"' + '","'.join(sanitized) + '"')
 
 	D.write(MAVIS_FINAL, AV_V_RESULT_OK, None)
 

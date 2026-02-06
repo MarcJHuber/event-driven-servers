@@ -89,13 +89,17 @@ MAVIS = **Modular Attribute-Value Interchange System**. It's a plugin chain for 
 Use `mavis/python/mavis.py` — provides the `Mavis` class and all AV_* constants.
 Reference implementation: `mavis/python/mavis_tacplus_ldap.py`.
 
-Pattern:
+Pattern (see `mavis/python/mavis_tacplus_keycloak.py` for the full example):
 ```python
-from mavis import Mavis, MAVIS_DOWN, MAVIS_FINAL, AV_V_RESULT_OK, ...
+from mavis import (Mavis, MAVIS_DOWN, MAVIS_FINAL, AV_V_RESULT_OK,
+    AV_A_TYPE, AV_V_TYPE_TACPLUS, ...)
 
 while True:
     D = Mavis()                    # Reads AV pairs from stdin
-    if not D.is_tacplus():         # Skip non-TACACS+ requests
+    # NOTE: Do NOT use D.is_tacplus() — upstream Mavis.is_tacplus() has a bug
+    # where it passes self.av_pairs (a dict) as the verdict arg to D.write(),
+    # producing garbage output. Check AV_A_TYPE directly instead.
+    if D.av_pairs.get(AV_A_TYPE) != AV_V_TYPE_TACPLUS:
         D.write(MAVIS_DOWN, None, None)
         continue
     if not D.valid():              # Validate required fields
