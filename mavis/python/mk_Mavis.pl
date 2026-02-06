@@ -55,7 +55,7 @@ class Mavis:
 				or self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_CHPW)
 			and (not AV_A_PASSWORD in self.av_pairs
 				or len(self.av_pairs[AV_A_PASSWORD]) == 0)):
-			self.write(MAVIS_FINAL, "Password not set.", AV_V_RESULT_ERROR)
+			self.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "Password not set.")
 			return False
 
 		if ((self.av_pairs[AV_A_TACTYPE] == AV_V_TACTYPE_CHPW)
@@ -95,7 +95,7 @@ class Mavis:
 
 	def is_tacplus(self):
 		if self.av_pairs[AV_A_TYPE] != AV_V_TYPE_TACPLUS:
-			self.write(self.av_pairs, MAVIS_DOWN)
+			self.write(MAVIS_DOWN, AV_V_RESULT_NOTFOUND, None)
 			return False
 		return True
 
