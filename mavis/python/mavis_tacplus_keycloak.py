@@ -68,6 +68,7 @@ KEYCLOAK_REQUIRE_GROUP
 """
 
 import base64
+import binascii
 import json
 import os
 import sys
@@ -102,6 +103,8 @@ KEYCLOAK_VERIFY_TLS = env("KEYCLOAK_VERIFY_TLS", "1") != "0"
 KEYCLOAK_TIMEOUT = int(env("KEYCLOAK_TIMEOUT", "5"))
 KEYCLOAK_GROUP_CLAIM = env("KEYCLOAK_GROUP_CLAIM", "groups")
 KEYCLOAK_REQUIRE_GROUP = env("KEYCLOAK_REQUIRE_GROUP")
+if KEYCLOAK_REQUIRE_GROUP:
+	KEYCLOAK_REQUIRE_GROUP = KEYCLOAK_REQUIRE_GROUP.strip().lstrip("/")
 
 if not KEYCLOAK_URL:
 	raise RuntimeError(
@@ -159,7 +162,7 @@ def decode_token_claims(token_data):
 		return None
 	try:
 		return decode_jwt_payload(token_data["access_token"])
-	except Exception as e:
+	except (ValueError, json.JSONDecodeError, binascii.Error) as e:
 		print(
 			"mavis_tacplus_keycloak: failed to decode JWT: " + str(e), file=sys.stderr
 		)
@@ -171,6 +174,10 @@ def extract_groups(claims):
 	if claims is None:
 		return []
 	groups = claims.get(KEYCLOAK_GROUP_CLAIM, [])
+	if isinstance(groups, str):
+		groups = [groups]
+	elif not isinstance(groups, (list, tuple, set)):
+		return []
 	# Keycloak may return full paths like "/admin" — strip leading slash
 	return [g.lstrip("/") for g in groups if g]
 
