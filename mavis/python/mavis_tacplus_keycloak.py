@@ -225,7 +225,7 @@ while True:
 			err = resp.json()
 			error_code = err.get("error", "")
 			detail = err.get("error_description", error_code)
-		except Exception:
+		except (json.JSONDecodeError, ValueError):
 			error_code = ""
 			detail = "HTTP " + str(resp.status_code)
 		if error_code == "invalid_grant":
@@ -252,7 +252,7 @@ while True:
 	if claims is None:
 		D.write(
 			MAVIS_FINAL,
-			AV_V_RESULT_FAIL,
+			AV_V_RESULT_ERROR,
 			"Failed to decode access token claims.",
 		)
 		continue
