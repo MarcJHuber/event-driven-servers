@@ -8,7 +8,7 @@ We only care about **tac_plus-ng** — a modern TACACS+ daemon. The rest of the 
 
 ## Repository Structure
 
-```
+```text
 ├── tac_plus-ng/         # TACACS+ NG server (our focus)
 │   ├── mavis.c          # TAC+ <-> MAVIS integration (auth dispatch)
 │   ├── sample/          # Example configs
@@ -51,12 +51,14 @@ Build prerequisites: GNU make, C compiler (clang preferred), libpcre2-dev, libc-
 MAVIS = **Modular Attribute-Value Interchange System**. It's a plugin chain for authentication/authorization.
 
 ### How it works
+
 - Modules form a **chain** — each gets a chance to handle the request
 - Communication uses **56 standardized AV (attribute-value) pairs** defined in `mavis/mavis.h`
 - A module returns: `MAVIS_FINAL` (done), `MAVIS_DOWN` (pass to next), `MAVIS_DEFERRED` (async)
 - Config can stack modules: cache -> groups -> external (script)
 
 ### Key AV attributes for TACACS+
+
 | Attribute | Description |
 |---|---|
 | `AV_A_TYPE` | Request type (`TACPLUS`) |
@@ -71,7 +73,8 @@ MAVIS = **Modular Attribute-Value Interchange System**. It's a plugin chain for 
 | `AV_A_IDENTITY_SOURCE` | Source of authentication |
 
 ### External script protocol (stdin/stdout)
-```
+
+```text
 # Input (one AV pair per line, terminated by "="):
 0 TACPLUS
 4 username
@@ -86,10 +89,12 @@ MAVIS = **Modular Attribute-Value Interchange System**. It's a plugin chain for 
 ```
 
 ### Writing a Python MAVIS backend
+
 Use `mavis/python/mavis.py` — provides the `Mavis` class and all AV_* constants.
 Reference implementation: `mavis/python/mavis_tacplus_ldap.py`.
 
 Pattern (see `mavis/python/mavis_tacplus_keycloak.py` for the full example):
+
 ```python
 from mavis import (Mavis, MAVIS_DOWN, MAVIS_FINAL, AV_V_RESULT_OK,
     AV_A_TYPE, AV_V_TYPE_TACPLUS, ...)
@@ -110,7 +115,8 @@ while True:
 ```
 
 ### Configuration pattern for external backends
-```
+
+```text
 mavis module <name> = external {
     exec = /path/to/script.py
     setenv VAR = value
@@ -126,9 +132,11 @@ pap backend = mavis
 ## Our Additions (Keycloak Backend)
 
 ### Goal
+
 Add a Python MAVIS external script that authenticates users against **Keycloak** using ROPC (Resource Owner Password Credentials) grant and maps Keycloak groups to TACACS+ group membership.
 
 ### Scope
+
 - Authentication only (AUTH) — no password changes (CHPW)
 - ROPC flow: `POST /realms/{realm}/protocol/openid-connect/token`
 - Group lookup via JWT group claims from access token (decoded by mavis_tacplus_keycloak.py)
@@ -137,7 +145,8 @@ Add a Python MAVIS external script that authenticates users against **Keycloak**
 - GitHub Actions CI for building the Docker image
 
 ### Config will look like
-```
+
+```text
 mavis module keycloak = external {
     exec = /path/to/mavis_tacplus_keycloak.py
     setenv KEYCLOAK_URL = https://keycloak.example.com

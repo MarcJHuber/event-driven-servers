@@ -1,0 +1,12 @@
+# Only lint/format our own Python files, not upstream
+include = ["mavis/python/mavis_tacplus_keycloak.py"]
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "E101",  # upstream uses tabs — don't fight it
+    "W191",  # same
+]
+
+[format]
+indent-style = "tab"

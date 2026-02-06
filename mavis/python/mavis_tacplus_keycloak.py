@@ -67,43 +67,61 @@ KEYCLOAK_REQUIRE_GROUP
 	Default: unset (no restriction)
 """
 
-import os, sys, json, base64
+import base64
+import json
+import os
+import sys
+
 import requests
 from requests.exceptions import RequestException
-from mavis import (Mavis,
-	MAVIS_DOWN, MAVIS_FINAL,
-	AV_V_RESULT_OK, AV_V_RESULT_ERROR, AV_V_RESULT_FAIL,
+
+from mavis import (
+	AV_A_IDENTITY_SOURCE,
+	AV_A_TYPE,
+	AV_V_RESULT_ERROR,
+	AV_V_RESULT_FAIL,
 	AV_V_RESULT_NOTFOUND,
-	AV_A_TYPE, AV_V_TYPE_TACPLUS, AV_A_IDENTITY_SOURCE
+	AV_V_RESULT_OK,
+	AV_V_TYPE_TACPLUS,
+	MAVIS_DOWN,
+	MAVIS_FINAL,
+	Mavis,
 )
+
 
 # Environment variable helpers ################################################
 def env(var, default=None):
 	return os.getenv(var) or default
 
-KEYCLOAK_URL       = env('KEYCLOAK_URL')
-KEYCLOAK_REALM     = env('KEYCLOAK_REALM', 'master')
-KEYCLOAK_CLIENT_ID = env('KEYCLOAK_CLIENT_ID', 'tacacs')
-KEYCLOAK_CLIENT_SECRET = env('KEYCLOAK_CLIENT_SECRET')
-KEYCLOAK_VERIFY_TLS    = env('KEYCLOAK_VERIFY_TLS', '1') != '0'
-KEYCLOAK_TIMEOUT       = int(env('KEYCLOAK_TIMEOUT', '5'))
-KEYCLOAK_GROUP_CLAIM   = env('KEYCLOAK_GROUP_CLAIM', 'groups')
-KEYCLOAK_REQUIRE_GROUP = env('KEYCLOAK_REQUIRE_GROUP')
+
+KEYCLOAK_URL = env("KEYCLOAK_URL")
+KEYCLOAK_REALM = env("KEYCLOAK_REALM", "master")
+KEYCLOAK_CLIENT_ID = env("KEYCLOAK_CLIENT_ID", "tacacs")
+KEYCLOAK_CLIENT_SECRET = env("KEYCLOAK_CLIENT_SECRET")
+KEYCLOAK_VERIFY_TLS = env("KEYCLOAK_VERIFY_TLS", "1") != "0"
+KEYCLOAK_TIMEOUT = int(env("KEYCLOAK_TIMEOUT", "5"))
+KEYCLOAK_GROUP_CLAIM = env("KEYCLOAK_GROUP_CLAIM", "groups")
+KEYCLOAK_REQUIRE_GROUP = env("KEYCLOAK_REQUIRE_GROUP")
 
 if not KEYCLOAK_URL:
 	raise RuntimeError(
 		"KEYCLOAK_URL is required. Set it via 'setenv KEYCLOAK_URL = https://...' "
-		"in the mavis module configuration.")
+		"in the mavis module configuration."
+	)
 
-TOKEN_URL = (KEYCLOAK_URL.rstrip('/')
-	+ '/realms/' + KEYCLOAK_REALM
-	+ '/protocol/openid-connect/token')
+TOKEN_URL = (
+	KEYCLOAK_URL.rstrip("/")
+	+ "/realms/"
+	+ KEYCLOAK_REALM
+	+ "/protocol/openid-connect/token"
+)
 
 print("mavis_tacplus_keycloak: ROPC endpoint " + TOKEN_URL, file=sys.stderr)
 
 # Reusable HTTP session ########################################################
 http = requests.Session()
 http.verify = KEYCLOAK_VERIFY_TLS
+
 
 # JWT helpers ##################################################################
 def decode_jwt_payload(token):
@@ -115,25 +133,34 @@ def decode_jwt_payload(token):
 	from untrusted sources (e.g. client-supplied), full signature verification
 	against Keycloak's JWKS endpoint would be required instead.
 	"""
-	parts = token.split('.')
+	parts = token.split(".")
 	if len(parts) != 3:
-		raise ValueError("Malformed JWT: expected three dot-separated parts, got " + str(len(parts)))
+		raise ValueError(
+			"Malformed JWT: expected three dot-separated parts, got " + str(len(parts))
+		)
 	payload = parts[1]
 	padding = 4 - len(payload) % 4
 	if padding != 4:
-		payload += '=' * padding
+		payload += "=" * padding
 	return json.loads(base64.urlsafe_b64decode(payload))
+
 
 def decode_token_claims(token_data):
 	"""Decode access token JWT and return claims dict, or None on failure."""
-	if not isinstance(token_data, dict) or 'access_token' not in token_data:
-		print("mavis_tacplus_keycloak: token response missing 'access_token' key", file=sys.stderr)
+	if not isinstance(token_data, dict) or "access_token" not in token_data:
+		print(
+			"mavis_tacplus_keycloak: token response missing 'access_token' key",
+			file=sys.stderr,
+		)
 		return None
 	try:
-		return decode_jwt_payload(token_data['access_token'])
+		return decode_jwt_payload(token_data["access_token"])
 	except Exception as e:
-		print("mavis_tacplus_keycloak: failed to decode JWT: " + str(e), file=sys.stderr)
+		print(
+			"mavis_tacplus_keycloak: failed to decode JWT: " + str(e), file=sys.stderr
+		)
 		return None
+
 
 def extract_groups(claims):
 	"""Extract group names from decoded JWT claims."""
@@ -141,7 +168,8 @@ def extract_groups(claims):
 		return []
 	groups = claims.get(KEYCLOAK_GROUP_CLAIM, [])
 	# Keycloak may return full paths like "/admin" — strip leading slash
-	return [g.lstrip('/') for g in groups if g]
+	return [g.lstrip("/") for g in groups if g]
+
 
 # Main loop ####################################################################
 while True:
@@ -164,64 +192,79 @@ while True:
 
 	# Password changes are not supported
 	if D.is_tacplus_chpw:
-		D.write(MAVIS_FINAL, AV_V_RESULT_FAIL,
-			"Password change is not supported via Keycloak ROPC.")
+		D.write(
+			MAVIS_FINAL,
+			AV_V_RESULT_FAIL,
+			"Password change is not supported via Keycloak ROPC.",
+		)
 		continue
 
 	# Authenticate via ROPC ####################################################
 	post_data = {
-		'grant_type': 'password',
-		'client_id': KEYCLOAK_CLIENT_ID,
-		'username': D.user,
-		'password': D.password,
+		"grant_type": "password",
+		"client_id": KEYCLOAK_CLIENT_ID,
+		"username": D.user,
+		"password": D.password,
 	}
 	if KEYCLOAK_CLIENT_SECRET:
-		post_data['client_secret'] = KEYCLOAK_CLIENT_SECRET
+		post_data["client_secret"] = KEYCLOAK_CLIENT_SECRET
 
 	try:
 		resp = http.post(TOKEN_URL, data=post_data, timeout=KEYCLOAK_TIMEOUT)
 	except RequestException as e:
 		print("mavis_tacplus_keycloak: " + str(e), file=sys.stderr)
-		D.write(MAVIS_FINAL, AV_V_RESULT_ERROR,
-			"Keycloak connection error.")
+		D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "Keycloak connection error.")
 		continue
 
 	if resp.status_code != 200:
 		try:
 			err = resp.json()
-			error_code = err.get('error', '')
-			detail = err.get('error_description', error_code)
+			error_code = err.get("error", "")
+			detail = err.get("error_description", error_code)
 		except Exception:
-			error_code = ''
+			error_code = ""
 			detail = "HTTP " + str(resp.status_code)
-		if error_code == 'invalid_grant':
+		if error_code == "invalid_grant":
 			D.write(MAVIS_FINAL, AV_V_RESULT_FAIL, "Permission denied.")
 		else:
-			D.write(MAVIS_FINAL, AV_V_RESULT_ERROR,
-				"Keycloak error: " + detail)
+			D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "Keycloak error: " + detail)
 		continue
 
 	try:
 		token_data = resp.json()
 	except (json.JSONDecodeError, ValueError):
-		print("mavis_tacplus_keycloak: non-JSON 200 response: "
-			+ str(resp.status_code) + " " + resp.text[:200], file=sys.stderr)
-		D.write(MAVIS_FINAL, AV_V_RESULT_ERROR,
-			"Keycloak returned non-JSON response.")
+		print(
+			"mavis_tacplus_keycloak: non-JSON 200 response: "
+			+ str(resp.status_code)
+			+ " "
+			+ resp.text[:200],
+			file=sys.stderr,
+		)
+		D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "Keycloak returned non-JSON response.")
 		continue
 
 	# Decode access token and extract groups ###################################
 	claims = decode_token_claims(token_data)
+	if claims is None:
+		D.write(
+			MAVIS_FINAL,
+			AV_V_RESULT_FAIL,
+			"Failed to decode access token claims.",
+		)
+		continue
 	groups = extract_groups(claims)
 
 	# Enforce required group membership
 	if KEYCLOAK_REQUIRE_GROUP and KEYCLOAK_REQUIRE_GROUP not in groups:
-		D.write(MAVIS_FINAL, AV_V_RESULT_FAIL,
-			"Permission denied: not a member of required group.")
+		D.write(
+			MAVIS_FINAL,
+			AV_V_RESULT_FAIL,
+			"Permission denied: not a member of required group.",
+		)
 		continue
 
 	# Build MAVIS response #####################################################
-	D.set_dn(claims.get('sub', D.user) if claims else D.user)
+	D.set_dn(claims.get("sub", D.user))
 
 	D.av_pairs[AV_A_IDENTITY_SOURCE] = "keycloak"
 	D.remember_password(False)
@@ -231,9 +274,12 @@ while True:
 		# malformed tacmember strings (the AV protocol uses quoted CSV format).
 		sanitized = []
 		for g in groups:
-			if '"' in g or '\\' in g:
-				print("mavis_tacplus_keycloak: skipping group with unsafe chars: "
-					+ repr(g), file=sys.stderr)
+			if '"' in g or "\\" in g:
+				print(
+					"mavis_tacplus_keycloak: skipping group with unsafe chars: "
+					+ repr(g),
+					file=sys.stderr,
+				)
 				continue
 			sanitized.append(g)
 		if sanitized:
