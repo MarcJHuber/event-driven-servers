@@ -100,7 +100,13 @@ KEYCLOAK_REALM = env("KEYCLOAK_REALM", "master")
 KEYCLOAK_CLIENT_ID = env("KEYCLOAK_CLIENT_ID", "tacacs")
 KEYCLOAK_CLIENT_SECRET = env("KEYCLOAK_CLIENT_SECRET")
 KEYCLOAK_VERIFY_TLS = env("KEYCLOAK_VERIFY_TLS", "1") != "0"
-KEYCLOAK_TIMEOUT = int(env("KEYCLOAK_TIMEOUT", "5"))
+_timeout_raw = env("KEYCLOAK_TIMEOUT", "5")
+try:
+	KEYCLOAK_TIMEOUT = int(_timeout_raw)
+except ValueError:
+	raise RuntimeError(
+		"Invalid KEYCLOAK_TIMEOUT value: '" + _timeout_raw + "'; must be an integer"
+	) from None
 KEYCLOAK_GROUP_CLAIM = env("KEYCLOAK_GROUP_CLAIM", "groups")
 KEYCLOAK_REQUIRE_GROUP = env("KEYCLOAK_REQUIRE_GROUP")
 if KEYCLOAK_REQUIRE_GROUP:
