@@ -6,6 +6,7 @@ build
 mavis/token.h
 mavis/token.c
 __pycache__
+.ruff_cache
 misc/version.h
 spawnd/perl/MYMETA.json
 spawnd/perl/MYMETA.yml
