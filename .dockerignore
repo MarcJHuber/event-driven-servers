@@ -1,0 +1,14 @@
+.git
+build
+**/*.o
+**/*.so
+**/*~
+**/*.bak
+*.md
+CLAUDE.md
+.github/
+LICENSE
+CONTRIBUTING
+README
+README.md
+PREREQUISITES.txt
