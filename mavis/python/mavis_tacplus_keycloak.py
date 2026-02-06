@@ -121,6 +121,10 @@ print("mavis_tacplus_keycloak: ROPC endpoint " + TOKEN_URL, file=sys.stderr)
 # Reusable HTTP session ########################################################
 http = requests.Session()
 http.verify = KEYCLOAK_VERIFY_TLS
+if not KEYCLOAK_VERIFY_TLS:
+	import urllib3
+
+	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 # JWT helpers ##################################################################
