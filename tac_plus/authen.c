@@ -440,7 +440,7 @@ static void do_chap(tac_session *session)
 	    if (session->passwdp->passwd[PW_CHAP]->type != S_clear) {
 		hint = hint_no_cleartext;
 		res = TAC_PLUS_AUTHEN_STATUS_FAIL;
-	    } else if (session->authen_data->data_len - MD5_LEN > 0) {
+	    } else if (session->authen_data->data_len > MD5_LEN) {
 		u_char digest[MD5_LEN];
 		myMD5_CTX mdcontext;
 
