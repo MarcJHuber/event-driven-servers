@@ -691,7 +691,7 @@ static void do_chap(tac_session *session)
     enum hint_enum hint = hint_nosuchuser;
 
     char *resp = NULL;
-    if (session->authen_data->data_len - MD5_LEN > 0) {
+    if (session->authen_data->data_len > MD5_LEN) {
 	session->chap_pppid = session->authen_data->data[0];
 	session->chap_challenge = session->authen_data->data + 1;
 	session->chap_challenge_len = session->authen_data->data_len - 1 - MD5_LEN;
