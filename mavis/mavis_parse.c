@@ -314,7 +314,7 @@ static void substitute_envvar(struct sym *sym)
 	    char *ve = vs;
 	    while (*ve && *ve != '}')
 		ve++;
-	    if (ve) {
+	    if (*ve) {
 		size_t var_len = ve - vs + 1;
 		char var[var_len];
 		memcpy(var, vs, var_len);
