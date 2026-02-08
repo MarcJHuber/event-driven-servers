@@ -93,7 +93,7 @@ char *groups_getlist(char *name, gid_t gid, char *buf, size_t buflen)
 	    return buf;
 	if (i)
 	    *b++ = ',', l++;
-	j = snprintf(b, (size_t) (b + buflen - b), "%d", g[i]);
+	j = snprintf(b, (size_t) (buf + buflen - b), "%d", g[i]);
 	l += j;
 	if (l >= buflen)
 	    break;
