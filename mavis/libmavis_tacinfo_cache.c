@@ -62,7 +62,7 @@ static int mavis_init_in(mavis_ctx * mcx)
 	pid_t pid;
 	struct stat st;
 	size_t dirlen = strlen(mcx->hashdir);
-	while (dirlen - 1 > 0 && mcx->hashdir[dirlen - 1] == '/')
+	while (dirlen > 1 && mcx->hashdir[dirlen - 1] == '/')
 	    dirlen--;
 	mcx->hashdir[dirlen] = 0;
 
