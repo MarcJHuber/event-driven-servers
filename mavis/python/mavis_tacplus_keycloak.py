@@ -82,6 +82,7 @@ import binascii
 import json
 import os
 import sys
+import time
 
 try:
 	import redis
@@ -168,16 +169,23 @@ if not KEYCLOAK_VERIFY_TLS:
 # Shared Redis/Valkey cache for cross-process group persistence ################
 _redis = None
 _redis_fail_count = 0
+_last_redis_attempt = 0.0
+_REDIS_BACKOFF_SECONDS = 10
 _CACHE_KEY_PREFIX = "tacplus:keycloak:" + KEYCLOAK_REALM + ":"
 
 
 def _get_redis():
 	"""Return a Redis client, reconnecting only when _redis is None."""
-	global _redis, _redis_fail_count
+	global _redis, _redis_fail_count, _last_redis_attempt
 	if redis is None:
 		return None
 	if _redis is not None:
 		return _redis
+	# Avoid hammering Redis with reconnect attempts
+	now = time.monotonic()
+	if now - _last_redis_attempt < _REDIS_BACKOFF_SECONDS:
+		return None
+	_last_redis_attempt = now
 	try:
 		client = redis.Redis.from_url(
 			REDIS_URL, decode_responses=True, socket_timeout=2
