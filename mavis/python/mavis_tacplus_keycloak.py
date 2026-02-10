@@ -83,7 +83,11 @@ import json
 import os
 import sys
 
-import redis
+try:
+	import redis
+except ImportError:
+	redis = None
+
 import requests
 from requests.exceptions import RequestException
 
@@ -164,6 +168,8 @@ _CACHE_KEY_PREFIX = "tacplus:keycloak:" + KEYCLOAK_REALM + ":"
 def _get_redis():
 	"""Return a healthy Redis client, retrying connection if needed."""
 	global _redis, _redis_fail_count
+	if redis is None:
+		return None
 	if _redis is not None:
 		try:
 			_redis.ping()
@@ -189,14 +195,21 @@ def _get_redis():
 		if _redis_fail_count == 1 or _redis_fail_count % 50 == 0:
 			print(
 				"mavis_tacplus_keycloak: Redis unavailable (" + str(e) + "); "
-				"INFO requests will return OK without groups",
+				"INFO/HOST requests will defer without groups",
 				file=sys.stderr,
 			)
 		return None
 
 
 # Attempt initial connection at startup
-_get_redis()
+if redis is None:
+	print(
+		"mavis_tacplus_keycloak: python3-redis not installed; "
+		"caching disabled, INFO/HOST requests will defer",
+		file=sys.stderr,
+	)
+else:
+	_get_redis()
 
 
 def cache_put(username, groups, dn):
@@ -325,14 +338,15 @@ while True:
 	# tac_plus-ng config maps groups to authorization rules and host access.
 	if D.is_tacplus_authz or D.is_tacplus_host:
 		cached_groups, cached_dn = cache_get(D.user)
+		if cached_groups is None:
+			# No cached session — user must authenticate first
+			D.write(MAVIS_DOWN, None, None)
+			continue
 		D.av_pairs[AV_A_IDENTITY_SOURCE] = "keycloak"
-		if cached_groups is not None:
-			D.set_dn(cached_dn)
-			sanitized = [g for g in cached_groups if '"' not in g and "\\" not in g]
-			if sanitized:
-				D.set_tacmember('"' + '","'.join(sanitized) + '"')
-		else:
-			D.set_dn(D.user)
+		D.set_dn(cached_dn)
+		# Groups are stored pre-sanitized by the AUTH path
+		if cached_groups:
+			D.set_tacmember('"' + '","'.join(cached_groups) + '"')
 		D.write(MAVIS_FINAL, AV_V_RESULT_OK, None)
 		continue
 
@@ -406,23 +420,22 @@ while True:
 	D.av_pairs[AV_A_IDENTITY_SOURCE] = "keycloak"
 	D.remember_password(False)  # noqa: FBT003
 
-	if groups:
-		# Reject group names containing double quotes or backslashes to prevent
-		# malformed tacmember strings (the AV protocol uses quoted CSV format).
-		sanitized = []
-		for g in groups:
-			if '"' in g or "\\" in g:
-				print(
-					"mavis_tacplus_keycloak: skipping group with unsafe chars: "
-					+ repr(g),
-					file=sys.stderr,
-				)
-				continue
-			sanitized.append(g)
-		if sanitized:
-			D.set_tacmember('"' + '","'.join(sanitized) + '"')
+	# Reject group names containing double quotes or backslashes to prevent
+	# malformed tacmember strings (the AV protocol uses quoted CSV format).
+	sanitized = []
+	for g in groups:
+		if '"' in g or "\\" in g:
+			print(
+				"mavis_tacplus_keycloak: skipping group with unsafe chars: " + repr(g),
+				file=sys.stderr,
+			)
+			continue
+		sanitized.append(g)
+	if sanitized:
+		D.set_tacmember('"' + '","'.join(sanitized) + '"')
 
-	cache_put(D.user, groups, claims.get("sub", D.user))
+	# Cache sanitized groups so INFO/HOST reads don't need re-sanitization
+	cache_put(D.user, sanitized, claims.get("sub", D.user))
 	D.write(MAVIS_FINAL, AV_V_RESULT_OK, None)
 
 # End
