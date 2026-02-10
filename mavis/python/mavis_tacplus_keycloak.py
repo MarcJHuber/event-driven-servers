@@ -157,45 +157,86 @@ if not KEYCLOAK_VERIFY_TLS:
 
 # Shared Redis/Valkey cache for cross-process group persistence ################
 _redis = None
-try:
-	_redis = redis.Redis.from_url(REDIS_URL, decode_responses=True, socket_timeout=2)
-	_redis.ping()
-	print("mavis_tacplus_keycloak: connected to Redis at " + REDIS_URL, file=sys.stderr)
-except Exception as e:
-	print(
-		"mavis_tacplus_keycloak: Redis unavailable (" + str(e) + "); "
-		"INFO requests will return OK without groups",
-		file=sys.stderr,
-	)
-	_redis = None
+_redis_fail_count = 0
+_CACHE_KEY_PREFIX = "tacplus:keycloak:" + KEYCLOAK_REALM + ":"
+
+
+def _get_redis():
+	"""Return a healthy Redis client, retrying connection if needed."""
+	global _redis, _redis_fail_count
+	if _redis is not None:
+		try:
+			_redis.ping()
+			_redis_fail_count = 0
+			return _redis
+		except redis.RedisError:
+			_redis = None
+	try:
+		client = redis.Redis.from_url(
+			REDIS_URL, decode_responses=True, socket_timeout=2
+		)
+		client.ping()
+		_redis = client
+		_redis_fail_count = 0
+		print(
+			"mavis_tacplus_keycloak: connected to Redis at " + REDIS_URL,
+			file=sys.stderr,
+		)
+		return _redis
+	except redis.RedisError as e:
+		_redis_fail_count += 1
+		# Log first failure and then every 50th to avoid flooding stderr
+		if _redis_fail_count == 1 or _redis_fail_count % 50 == 0:
+			print(
+				"mavis_tacplus_keycloak: Redis unavailable (" + str(e) + "); "
+				"INFO requests will return OK without groups",
+				file=sys.stderr,
+			)
+		return None
+
+
+# Attempt initial connection at startup
+_get_redis()
 
 
 def cache_put(username, groups, dn):
 	"""Store user groups in Redis. Non-fatal on failure."""
-	if _redis is None:
+	r = _get_redis()
+	if r is None:
 		return
 	try:
-		_redis.setex(
-			"tacplus:keycloak:" + username,
+		r.setex(
+			_CACHE_KEY_PREFIX + username,
 			KEYCLOAK_CACHE_TTL,
 			json.dumps({"groups": groups, "dn": dn}),
 		)
-	except Exception as e:
+	except redis.RedisError as e:
 		print("mavis_tacplus_keycloak: cache write failed: " + str(e), file=sys.stderr)
 
 
 def cache_get(username):
 	"""Retrieve cached groups from Redis. Returns (groups, dn) or (None, None)."""
-	if _redis is None:
+	r = _get_redis()
+	if r is None:
 		return None, None
 	try:
-		raw = _redis.get("tacplus:keycloak:" + username)
-		if raw is None:
-			return None, None
+		raw = r.get(_CACHE_KEY_PREFIX + username)
+	except redis.RedisError as e:
+		print(
+			"mavis_tacplus_keycloak: cache read failed (redis): " + str(e),
+			file=sys.stderr,
+		)
+		return None, None
+	if raw is None:
+		return None, None
+	try:
 		data = json.loads(raw)
 		return data.get("groups", []), data.get("dn", username)
-	except Exception as e:
-		print("mavis_tacplus_keycloak: cache read failed: " + str(e), file=sys.stderr)
+	except json.JSONDecodeError as e:
+		print(
+			"mavis_tacplus_keycloak: cache read failed (json decode): " + str(e),
+			file=sys.stderr,
+		)
 		return None, None
 
 
