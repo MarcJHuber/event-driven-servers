@@ -135,6 +135,12 @@ except ValueError:
 	raise RuntimeError(
 		"Invalid KEYCLOAK_CACHE_TTL value: '" + _cache_ttl_raw + "'; must be an integer"
 	) from None
+if KEYCLOAK_CACHE_TTL <= 0:
+	raise RuntimeError(
+		"Invalid KEYCLOAK_CACHE_TTL value: '"
+		+ _cache_ttl_raw
+		+ "'; must be a positive integer"
+	)
 
 if not KEYCLOAK_URL:
 	raise RuntimeError(
@@ -166,17 +172,12 @@ _CACHE_KEY_PREFIX = "tacplus:keycloak:" + KEYCLOAK_REALM + ":"
 
 
 def _get_redis():
-	"""Return a healthy Redis client, retrying connection if needed."""
+	"""Return a Redis client, reconnecting only when _redis is None."""
 	global _redis, _redis_fail_count
 	if redis is None:
 		return None
 	if _redis is not None:
-		try:
-			_redis.ping()
-			_redis_fail_count = 0
-			return _redis
-		except redis.RedisError:
-			_redis = None
+		return _redis
 	try:
 		client = redis.Redis.from_url(
 			REDIS_URL, decode_responses=True, socket_timeout=2
@@ -199,6 +200,12 @@ def _get_redis():
 				file=sys.stderr,
 			)
 		return None
+
+
+def _invalidate_redis():
+	"""Mark the current Redis connection as dead so _get_redis() reconnects."""
+	global _redis
+	_redis = None
 
 
 # Attempt initial connection at startup
@@ -224,7 +231,11 @@ def cache_put(username, groups, dn):
 			json.dumps({"groups": groups, "dn": dn}),
 		)
 	except redis.RedisError as e:
-		print("mavis_tacplus_keycloak: cache write failed: " + str(e), file=sys.stderr)
+		_invalidate_redis()
+		print(
+			"mavis_tacplus_keycloak: cache write failed: " + str(e),
+			file=sys.stderr,
+		)
 
 
 def cache_get(username):
@@ -235,6 +246,7 @@ def cache_get(username):
 	try:
 		raw = r.get(_CACHE_KEY_PREFIX + username)
 	except redis.RedisError as e:
+		_invalidate_redis()
 		print(
 			"mavis_tacplus_keycloak: cache read failed (redis): " + str(e),
 			file=sys.stderr,
@@ -319,7 +331,7 @@ while True:
 	if not D.valid():
 		continue
 
-	# Pass DACL to next module (future: Vault integration)
+	# Unsupported request type (e.g. DACL) — pass to next module
 	if not D.is_tacplus_authc and not D.is_tacplus_authz and not D.is_tacplus_host:
 		D.write(MAVIS_DOWN, AV_V_RESULT_NOTFOUND, None)
 		continue
