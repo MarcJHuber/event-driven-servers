@@ -360,7 +360,7 @@ while True:
 		cached_groups, cached_dn = cache_get(D.user)
 		if cached_groups is None:
 			# No cached session — user must authenticate first
-			D.write(MAVIS_DOWN, None, None)
+			D.write(MAVIS_DOWN, AV_V_RESULT_NOTFOUND, None)
 			continue
 		D.av_pairs[AV_A_IDENTITY_SOURCE] = "keycloak"
 		D.set_dn(cached_dn)
