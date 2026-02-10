@@ -65,6 +65,16 @@ KEYCLOAK_REQUIRE_GROUP
 	If set, authentication will fail unless the user is a member of this
 	group. Useful to restrict TACACS+ access to a specific Keycloak group.
 	Default: unset (no restriction)
+
+REDIS_URL
+	Redis/Valkey connection URL for cross-process group caching. On AUTH
+	success, groups are cached so that subsequent INFO/HOST requests (which
+	lack a password) can return group membership without re-authenticating.
+	Default: "redis://localhost:6379/0"
+
+KEYCLOAK_CACHE_TTL
+	Time-to-live in seconds for cached group entries in Redis.
+	Default: 600
 """
 
 import base64
@@ -73,6 +83,7 @@ import json
 import os
 import sys
 
+import redis
 import requests
 from requests.exceptions import RequestException
 
@@ -112,6 +123,15 @@ KEYCLOAK_REQUIRE_GROUP = env("KEYCLOAK_REQUIRE_GROUP")
 if KEYCLOAK_REQUIRE_GROUP:
 	KEYCLOAK_REQUIRE_GROUP = KEYCLOAK_REQUIRE_GROUP.strip().lstrip("/")
 
+REDIS_URL = env("REDIS_URL", "redis://localhost:6379/0")
+_cache_ttl_raw = env("KEYCLOAK_CACHE_TTL", "600")
+try:
+	KEYCLOAK_CACHE_TTL = int(_cache_ttl_raw)
+except ValueError:
+	raise RuntimeError(
+		"Invalid KEYCLOAK_CACHE_TTL value: '" + _cache_ttl_raw + "'; must be an integer"
+	) from None
+
 if not KEYCLOAK_URL:
 	raise RuntimeError(
 		"KEYCLOAK_URL is required. Set it via 'setenv KEYCLOAK_URL = https://...' "
@@ -134,6 +154,49 @@ if not KEYCLOAK_VERIFY_TLS:
 	import urllib3
 
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Shared Redis/Valkey cache for cross-process group persistence ################
+_redis = None
+try:
+	_redis = redis.Redis.from_url(REDIS_URL, decode_responses=True, socket_timeout=2)
+	_redis.ping()
+	print("mavis_tacplus_keycloak: connected to Redis at " + REDIS_URL, file=sys.stderr)
+except Exception as e:
+	print(
+		"mavis_tacplus_keycloak: Redis unavailable (" + str(e) + "); "
+		"INFO requests will return OK without groups",
+		file=sys.stderr,
+	)
+	_redis = None
+
+
+def cache_put(username, groups, dn):
+	"""Store user groups in Redis. Non-fatal on failure."""
+	if _redis is None:
+		return
+	try:
+		_redis.setex(
+			"tacplus:keycloak:" + username,
+			KEYCLOAK_CACHE_TTL,
+			json.dumps({"groups": groups, "dn": dn}),
+		)
+	except Exception as e:
+		print("mavis_tacplus_keycloak: cache write failed: " + str(e), file=sys.stderr)
+
+
+def cache_get(username):
+	"""Retrieve cached groups from Redis. Returns (groups, dn) or (None, None)."""
+	if _redis is None:
+		return None, None
+	try:
+		raw = _redis.get("tacplus:keycloak:" + username)
+		if raw is None:
+			return None, None
+		data = json.loads(raw)
+		return data.get("groups", []), data.get("dn", username)
+	except Exception as e:
+		print("mavis_tacplus_keycloak: cache read failed: " + str(e), file=sys.stderr)
+		return None, None
 
 
 # JWT helpers ##################################################################
@@ -202,8 +265,8 @@ while True:
 	if not D.valid():
 		continue
 
-	# We only handle authentication — pass authorization/host/dacl down
-	if not D.is_tacplus_authc:
+	# Pass DACL to next module (future: Vault integration)
+	if not D.is_tacplus_authc and not D.is_tacplus_authz and not D.is_tacplus_host:
 		D.write(MAVIS_DOWN, AV_V_RESULT_NOTFOUND, None)
 		continue
 
@@ -214,6 +277,22 @@ while True:
 			AV_V_RESULT_FAIL,
 			"Password change is not supported via Keycloak ROPC.",
 		)
+		continue
+
+	# Handle authorization (INFO) and host authorization (HOST) from cache.
+	# Both need the same data: user identity + group membership.
+	# tac_plus-ng config maps groups to authorization rules and host access.
+	if D.is_tacplus_authz or D.is_tacplus_host:
+		cached_groups, cached_dn = cache_get(D.user)
+		D.av_pairs[AV_A_IDENTITY_SOURCE] = "keycloak"
+		if cached_groups is not None:
+			D.set_dn(cached_dn)
+			sanitized = [g for g in cached_groups if '"' not in g and "\\" not in g]
+			if sanitized:
+				D.set_tacmember('"' + '","'.join(sanitized) + '"')
+		else:
+			D.set_dn(D.user)
+		D.write(MAVIS_FINAL, AV_V_RESULT_OK, None)
 		continue
 
 	# Authenticate via ROPC ####################################################
@@ -302,6 +381,7 @@ while True:
 		if sanitized:
 			D.set_tacmember('"' + '","'.join(sanitized) + '"')
 
+	cache_put(D.user, groups, claims.get("sub", D.user))
 	D.write(MAVIS_FINAL, AV_V_RESULT_OK, None)
 
 # End
