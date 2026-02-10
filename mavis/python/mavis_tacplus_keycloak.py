@@ -65,6 +65,16 @@ KEYCLOAK_REQUIRE_GROUP
 	If set, authentication will fail unless the user is a member of this
 	group. Useful to restrict TACACS+ access to a specific Keycloak group.
 	Default: unset (no restriction)
+
+REDIS_URL
+	Redis/Valkey connection URL for cross-process group caching. On AUTH
+	success, groups are cached so that subsequent INFO/HOST requests (which
+	lack a password) can return group membership without re-authenticating.
+	Default: "redis://localhost:6379/0"
+
+KEYCLOAK_CACHE_TTL
+	Time-to-live in seconds for cached group entries in Redis.
+	Default: 600
 """
 
 import base64
@@ -72,6 +82,12 @@ import binascii
 import json
 import os
 import sys
+import time
+
+try:
+	import redis
+except ImportError:
+	redis = None
 
 import requests
 from requests.exceptions import RequestException
@@ -112,6 +128,21 @@ KEYCLOAK_REQUIRE_GROUP = env("KEYCLOAK_REQUIRE_GROUP")
 if KEYCLOAK_REQUIRE_GROUP:
 	KEYCLOAK_REQUIRE_GROUP = KEYCLOAK_REQUIRE_GROUP.strip().lstrip("/")
 
+REDIS_URL = env("REDIS_URL", "redis://localhost:6379/0")
+_cache_ttl_raw = env("KEYCLOAK_CACHE_TTL", "600")
+try:
+	KEYCLOAK_CACHE_TTL = int(_cache_ttl_raw)
+except ValueError:
+	raise RuntimeError(
+		"Invalid KEYCLOAK_CACHE_TTL value: '" + _cache_ttl_raw + "'; must be an integer"
+	) from None
+if KEYCLOAK_CACHE_TTL <= 0:
+	raise RuntimeError(
+		"Invalid KEYCLOAK_CACHE_TTL value: '"
+		+ _cache_ttl_raw
+		+ "'; must be a positive integer"
+	)
+
 if not KEYCLOAK_URL:
 	raise RuntimeError(
 		"KEYCLOAK_URL is required. Set it via 'setenv KEYCLOAK_URL = https://...' "
@@ -134,6 +165,112 @@ if not KEYCLOAK_VERIFY_TLS:
 	import urllib3
 
 	urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Shared Redis/Valkey cache for cross-process group persistence ################
+_redis = None
+_redis_fail_count = 0
+_last_redis_attempt = 0.0
+_REDIS_BACKOFF_SECONDS = 10
+_CACHE_KEY_PREFIX = "tacplus:keycloak:" + KEYCLOAK_REALM + ":"
+
+
+def _get_redis():
+	"""Return a Redis client, reconnecting only when _redis is None."""
+	global _redis, _redis_fail_count, _last_redis_attempt
+	if redis is None:
+		return None
+	if _redis is not None:
+		return _redis
+	# Avoid hammering Redis with reconnect attempts
+	now = time.monotonic()
+	if now - _last_redis_attempt < _REDIS_BACKOFF_SECONDS:
+		return None
+	_last_redis_attempt = now
+	try:
+		client = redis.Redis.from_url(
+			REDIS_URL, decode_responses=True, socket_timeout=2
+		)
+		client.ping()
+		_redis = client
+		_redis_fail_count = 0
+		print(
+			"mavis_tacplus_keycloak: connected to Redis at " + REDIS_URL,
+			file=sys.stderr,
+		)
+		return _redis
+	except redis.RedisError as e:
+		_redis_fail_count += 1
+		# Log first failure and then every 50th to avoid flooding stderr
+		if _redis_fail_count == 1 or _redis_fail_count % 50 == 0:
+			print(
+				"mavis_tacplus_keycloak: Redis unavailable (" + str(e) + "); "
+				"INFO/HOST requests will defer without groups",
+				file=sys.stderr,
+			)
+		return None
+
+
+def _invalidate_redis():
+	"""Mark the current Redis connection as dead so _get_redis() reconnects."""
+	global _redis
+	_redis = None
+
+
+# Attempt initial connection at startup
+if redis is None:
+	print(
+		"mavis_tacplus_keycloak: python3-redis not installed; "
+		"caching disabled, INFO/HOST requests will defer",
+		file=sys.stderr,
+	)
+else:
+	_get_redis()
+
+
+def cache_put(username, groups, dn):
+	"""Store user groups in Redis. Non-fatal on failure."""
+	r = _get_redis()
+	if r is None:
+		return
+	try:
+		r.setex(
+			_CACHE_KEY_PREFIX + username,
+			KEYCLOAK_CACHE_TTL,
+			json.dumps({"groups": groups, "dn": dn}),
+		)
+	except redis.RedisError as e:
+		_invalidate_redis()
+		print(
+			"mavis_tacplus_keycloak: cache write failed: " + str(e),
+			file=sys.stderr,
+		)
+
+
+def cache_get(username):
+	"""Retrieve cached groups from Redis. Returns (groups, dn) or (None, None)."""
+	r = _get_redis()
+	if r is None:
+		return None, None
+	try:
+		raw = r.get(_CACHE_KEY_PREFIX + username)
+	except redis.RedisError as e:
+		_invalidate_redis()
+		print(
+			"mavis_tacplus_keycloak: cache read failed (redis): " + str(e),
+			file=sys.stderr,
+		)
+		return None, None
+	if raw is None:
+		return None, None
+	try:
+		data = json.loads(raw)
+		return data.get("groups", []), data.get("dn", username)
+	except json.JSONDecodeError as e:
+		print(
+			"mavis_tacplus_keycloak: cache read failed (json decode): " + str(e),
+			file=sys.stderr,
+		)
+		return None, None
 
 
 # JWT helpers ##################################################################
@@ -202,8 +339,8 @@ while True:
 	if not D.valid():
 		continue
 
-	# We only handle authentication — pass authorization/host/dacl down
-	if not D.is_tacplus_authc:
+	# Unsupported request type (e.g. DACL) — pass to next module
+	if not D.is_tacplus_authc and not D.is_tacplus_authz and not D.is_tacplus_host:
 		D.write(MAVIS_DOWN, AV_V_RESULT_NOTFOUND, None)
 		continue
 
@@ -214,6 +351,23 @@ while True:
 			AV_V_RESULT_FAIL,
 			"Password change is not supported via Keycloak ROPC.",
 		)
+		continue
+
+	# Handle authorization (INFO) and host authorization (HOST) from cache.
+	# Both need the same data: user identity + group membership.
+	# tac_plus-ng config maps groups to authorization rules and host access.
+	if D.is_tacplus_authz or D.is_tacplus_host:
+		cached_groups, cached_dn = cache_get(D.user)
+		if cached_groups is None:
+			# No cached session — user must authenticate first
+			D.write(MAVIS_DOWN, AV_V_RESULT_NOTFOUND, None)
+			continue
+		D.av_pairs[AV_A_IDENTITY_SOURCE] = "keycloak"
+		D.set_dn(cached_dn)
+		# Groups are stored pre-sanitized by the AUTH path
+		if cached_groups:
+			D.set_tacmember('"' + '","'.join(cached_groups) + '"')
+		D.write(MAVIS_FINAL, AV_V_RESULT_OK, None)
 		continue
 
 	# Authenticate via ROPC ####################################################
@@ -286,22 +440,22 @@ while True:
 	D.av_pairs[AV_A_IDENTITY_SOURCE] = "keycloak"
 	D.remember_password(False)  # noqa: FBT003
 
-	if groups:
-		# Reject group names containing double quotes or backslashes to prevent
-		# malformed tacmember strings (the AV protocol uses quoted CSV format).
-		sanitized = []
-		for g in groups:
-			if '"' in g or "\\" in g:
-				print(
-					"mavis_tacplus_keycloak: skipping group with unsafe chars: "
-					+ repr(g),
-					file=sys.stderr,
-				)
-				continue
-			sanitized.append(g)
-		if sanitized:
-			D.set_tacmember('"' + '","'.join(sanitized) + '"')
+	# Reject group names containing double quotes or backslashes to prevent
+	# malformed tacmember strings (the AV protocol uses quoted CSV format).
+	sanitized = []
+	for g in groups:
+		if '"' in g or "\\" in g:
+			print(
+				"mavis_tacplus_keycloak: skipping group with unsafe chars: " + repr(g),
+				file=sys.stderr,
+			)
+			continue
+		sanitized.append(g)
+	if sanitized:
+		D.set_tacmember('"' + '","'.join(sanitized) + '"')
 
+	# Cache sanitized groups so INFO/HOST reads don't need re-sanitization
+	cache_put(D.user, sanitized, claims.get("sub", D.user))
 	D.write(MAVIS_FINAL, AV_V_RESULT_OK, None)
 
 # End

@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3t64 \
     libcrypt1 \
     python3 \
+    python3-redis \
     python3-requests \
     && rm -rf /var/lib/apt/lists/*
 
