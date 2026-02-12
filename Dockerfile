@@ -35,8 +35,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /staging/usr/local/sbin/tac_plus-ng /usr/local/sbin/tac_plus-ng
 COPY --from=builder /staging/usr/local/lib/ /usr/local/lib/
 
-# Add the Keycloak MAVIS script (not in upstream install targets)
+# Add the Keycloak and Vault MAVIS scripts (not in upstream install targets)
 COPY mavis/python/mavis_tacplus_keycloak.py /usr/local/lib/mavis/mavis_tacplus_keycloak.py
+COPY mavis/python/mavis_tacplus_vault.py /usr/local/lib/mavis/mavis_tacplus_vault.py
 
 # Ensure the dynamic linker can find libmavis.so
 RUN ldconfig
