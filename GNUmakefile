@@ -16,7 +16,7 @@ OS	:= $(OSs)-$(OSr)-$(OSm)
 all: misc/version.h dirs install_fakeroot_doc
 
 misc/version.h: LAST_COMMIT
-	@set `cat $<` && printf "#define VERSION \"$$1\"\n" > $@
+	@set `cat $<` && printf "#define VERSION \"$$1\"\n#define RELEASE \"$$2\"\n" > $@
 
 build:
 	mkdir -p -m 0755 $@
