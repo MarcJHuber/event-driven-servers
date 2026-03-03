@@ -458,7 +458,7 @@ retry_once:
 				$val = $entry->get_value('krbPasswordExpiration');
 				if (defined $val) {
 					if ($val =~ /^(\d\d\d\d)(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)Z$/) {
-						my $gmt_offset = timelocal(@now) - timetm(@now);
+						my $gmt_offset = timelocal(@now) - timegm(@now);
 						$expiry = timegm($6, $5, $4, $3, $2 - 1, $1 - 1900);
 					}
 				}
