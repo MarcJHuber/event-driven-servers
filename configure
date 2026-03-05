@@ -105,7 +105,7 @@ $COMMENT{"epoll"} =
 ";
 
 $COMMENT{"ares"} =
-"c-ares is a library for asynchronous DNS requests. This option enables ftpd and tac_plus(-ng) to do DNS lookups.\n";
+"c-ares is a library for asynchronous DNS requests. This option enables DNS lookups for ftpd and tac_plus(-ng).\n";
 
 $COMMENT{"pcre2"} =
 "ftpd can use the PCRE v2 (\"Perl Compatible Regular Expressions\" v2) library for path rewriting, and tac_plus may use it as an alternative to POSIX regular expression matching. Using it is highly recommended and virtually mandatory for tac_plus-ng.
