@@ -295,7 +295,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 	    if (verdict && !session->ctx->realm->caching_period && !strcmp(verdict, AV_V_BOOL_TRUE))
 		session->authorized = 1;
 
-	    if (!u || u->dynamic) {
+	    if (!u || (u->dynamic && strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_MSCHAP))) {
 		struct sym sym = {.filename = session->username.txt,.line = 1,.flag_prohibit_include = 1 };
 
 		if (!r->caching_period && session->user) {
