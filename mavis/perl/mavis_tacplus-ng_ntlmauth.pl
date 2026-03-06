@@ -98,7 +98,7 @@ while ($in = <>) {
 		$V[AV_A_USER_RESPONSE] = "Challenge/Response not set.";
 		goto fatal;
 	}
-	if (uc $V[AV_A_CHALLENGE] !~ /^([0-9a-fA-F]{16}) ([0-9a-fA-F]{48})$/) {
+	if (uc $V[AV_A_CHALLENGE] !~ /^([0-9a-fA-F]{32}) ([0-9a-fA-F]{48})$/) {
 		$V[AV_A_USER_RESPONSE] = "Challenge/Response invalid.";
 		goto fatal;
 	}
