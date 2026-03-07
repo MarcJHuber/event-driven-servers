@@ -76,6 +76,7 @@ BEGIN {
 		AV_V_RESULT_OK
 		AV_V_TACTYPE_AUTH
 		AV_V_TACTYPE_CHAL
+		AV_V_TACTYPE_CHAP
 		AV_V_TACTYPE_CHPW
 		AV_V_TACTYPE_DACL
 		AV_V_TACTYPE_HOST
@@ -167,6 +168,7 @@ use constant AV_V_RESULT_NOTFOUND => "NFD";
 use constant AV_V_RESULT_OK => "ACK";
 use constant AV_V_TACTYPE_AUTH => "AUTH";
 use constant AV_V_TACTYPE_CHAL => "CHAL";
+use constant AV_V_TACTYPE_CHAP => "CHAP";
 use constant AV_V_TACTYPE_CHPW => "CHPW";
 use constant AV_V_TACTYPE_DACL => "DACL";
 use constant AV_V_TACTYPE_HOST => "HOST";

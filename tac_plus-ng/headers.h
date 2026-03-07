@@ -408,9 +408,11 @@ struct realm {
 	TRISTATE(mavis_noauthcache);	/* don't do backend password caching */
 	TRISTATE(mavis_pap);
 	TRISTATE(mavis_login);
+	TRISTATE(mavis_chap);
 	TRISTATE(mavis_mschap);
 	TRISTATE(mavis_pap_prefetch);
 	TRISTATE(mavis_login_prefetch);
+	TRISTATE(mavis_chap_prefetch);
 	TRISTATE(mavis_mschap_prefetch);
 	TRISTATE(script_profile_parent_first);
 	TRISTATE(script_host_parent_first);

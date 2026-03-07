@@ -545,6 +545,29 @@ static int query_mavis_info_login(tac_session *session, void (*f)(tac_session *)
     return res;
 }
 
+static int query_mavis_info_chap(tac_session *session, void (*f)(tac_session *))
+{
+    int res = !session->flag_mavis_info && !session->user && (session->ctx->realm->mavis_chap_prefetch == TRISTATE_YES);
+    session->flag_mavis_info = 1;
+    if (res)
+	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_CHAP);
+    return res;
+}
+
+extern struct pwdat passwd_deny_dflt;	// from config.c
+
+static int query_mavis_chap_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
+{
+    // assumption: user was pre-fetched
+    int res = !session->flag_mavis_auth
+	&& ((session->user && session->user->passwd[pw_ix] == &passwd_deny_dflt && (session->ctx->realm->mavis_chap == TRISTATE_YES))
+	    || (session->user && pw_ix == PW_MAVIS));
+    session->flag_mavis_auth = 1;
+    if (res)
+	mavis_lookup(session, f, AV_V_TACTYPE_CHAP, PW_CHAP);
+    return res;
+}
+
 #ifdef WITH_CRYPTO
 static int query_mavis_info_mschap(tac_session *session, void (*f)(tac_session *))
 {
@@ -554,8 +577,6 @@ static int query_mavis_info_mschap(tac_session *session, void (*f)(tac_session *
 	mavis_lookup(session, f, AV_V_TACTYPE_INFO, PW_MSCHAP);
     return res;
 }
-
-extern struct pwdat passwd_deny_dflt;	// from config.c
 
 static int query_mavis_mschap_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
@@ -653,7 +674,9 @@ static int set_rad_user(tac_session *session, char *info)
 static void chap_helper(tac_session *session, enum token *res, enum hint_enum *hint, char **resp)
 {
     if (session->user) {
-	if (session->user->passwd[PW_CHAP]->type != S_clear) {
+	if (session->mavisauth_res != S_unknown)
+	    *res = session->mavisauth_res;
+	else if (session->user->passwd[PW_CHAP]->type != S_clear) {
 	    *hint = hint_no_cleartext;
 	} else {
 	    struct iovec iov[3] = {
@@ -682,10 +705,13 @@ static void do_chap(tac_session *session)
     if (set_tac_user(session, info))
 	return;
 
-    if (query_mavis_info(session, do_chap, PW_CHAP))
+    if (query_mavis_info_chap(session, do_chap))
 	return;
 
     if (refuse_tac_session(session, info, PW_CHAP))
+	return;
+
+    if (query_mavis_chap_login(session, do_chap, PW_CHAP))
 	return;
 
     enum hint_enum hint = hint_nosuchuser;
@@ -2258,6 +2284,8 @@ static void do_radius_login(tac_session *session)
 	if (query_mavis_info(session, do_radius_login, PW_CHAP))
 	    return;
 	if (refuse_rad_session(session, info, PW_CHAP))
+	    return;
+	if (query_mavis_chap_login(session, do_radius_login, PW_MSCHAP))
 	    return;
 	chap_helper(session, &res, &hint, &resp);
     }
