@@ -5,7 +5,6 @@
 # (C)2025 Marc Huber <Marc.Huber@web.de>
 # All rights reserved.
 #
-# Shadow password backend for libmavis_external.so
 # MSCHAP authentication using SAMBA's ntlm_auth tool. Requires winbindd et al. to
 # be running on your system.
 #
