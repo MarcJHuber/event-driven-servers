@@ -1281,6 +1281,17 @@ login backend = mavis chalresp noecho
        user provides an empty password at login, the user is given
        the option to change his password. This requires
        appropriate support in the MAVIS back-end modules.
+     * chap backend = mavis [ prefetch ]
+       Verify CHAP passwords using the MAVIS back-end. This needs
+       to be set to either mavis or mavis prefetch in order to
+       authenticate CHAP requests using the MAVIS back-end. If
+       unset, the CHAP password from the users' profile will be
+       used.
+       prefetch is actually enabled automatically. The daemon will
+       first retrieve the users' profile from the back-end and
+       then authenticate the user based on information eventually
+       found there.
+       This directive implies user backend = mavis.
      * ms-chap backend = mavis [ prefetch ]
        Verify MSCHAP passwords using the MAVIS back-end. This
        needs to be set to either mavis or mavis prefetch in order
@@ -2230,7 +2241,7 @@ password login = clear Ci5c0
    be rejected with a TACACS+ error status. This will likely
    instruct your device to fall back to local authentication.
      * password pap [ fallback ] = ( ( clear | crypt | pbkdf2 |
-       asa | 4 | 5 | 6 | 7 | 8 | 9 ) password | login|mavis |
+       asa | 4 | 5 | 6 | 7 | 8 | 9 ) password | login | mavis |
        permit | deny )
        The pap authenticates PAP log-ins to the server. Just like
        with login, the password doesn't need to be in clear text,
@@ -2239,12 +2250,15 @@ password login = clear Ci5c0
        configuring password pap = login in realm context.
        If you're using password pap = mavis, the fallback password
        will be used if there's a MAVIS backend error.
-     * password chap = ( ( clear | 6 ) password | permit | deny )
+     * password chap = ( ( clear | 6 ) password | permit | deny |
+       mavis)
        For CHAP authentication, a cleartext password is required.
+       Alternatively, a suitable MAVIS backend can be used.
      * password ms-chap = ( ( clear | 6 ) password | permit | deny
-       )
+       | mavis)
        For MS-CHAP authentication, a cleartext password is
-       required.
+       required. Alternatively, a suitable MAVIS backend can be
+       used.
      * password { ... }
        This directive allows for nested specification of
        passwords. Example:
