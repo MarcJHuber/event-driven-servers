@@ -2264,8 +2264,6 @@ static void do_radius_login(tac_session *session)
 
     char *resp = NULL;
 
-    if (rd->type == S_chap && query_mavis_info(session, do_radius_login, PW_CHAP))
-	return;
     if (rd->type == S_pap) {
 	if (query_mavis_info_login(session, do_radius_login))
 	    return;
@@ -2281,7 +2279,7 @@ static void do_radius_login(tac_session *session)
 	    user_expiry_check(&res, session->user, &hint);
 	}
     } else if (rd->type == S_chap) {
-	if (query_mavis_info(session, do_radius_login, PW_CHAP))
+	if (query_mavis_info_chap(session, do_radius_login))
 	    return;
 	if (refuse_rad_session(session, info, PW_CHAP))
 	    return;
