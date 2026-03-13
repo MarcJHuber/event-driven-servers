@@ -63,10 +63,22 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 static void do_author(tac_session *);
 static int bad_nas_args(tac_session *, struct author_data *);
 
+// max cmdline length to prevent stack exhaustion
+#define MAX_CMDLINE_LEN 8192
+
 void eval_args(tac_session *session, u_char *p, u_char *argsizep, size_t argcnt)
 {
     size_t len = 0, tlen = 0;
-    char cmdline[session->ctx->in->length];
+
+    // validate length before allocating
+    if (session->ctx->in->length > MAX_CMDLINE_LEN) {
+        report(session, LOG_ERR, ~0, "cmdline length %zu exceeds max %d",
+               session->ctx->in->length, MAX_CMDLINE_LEN);
+        return;
+    }
+
+    // use heap instead of stack to avoid stack exhaustion
+    char *cmdline = mem_alloc(session->mem, session->ctx->in->length + 1);
     char *t = cmdline;
 
     for (size_t i = 0; i < argcnt; i++) {
