@@ -717,8 +717,17 @@ void tac_read(struct context *ctx, int cur)
     }
     u_int data_len = ntohl(ctx->hdr.tac.datalength);
 
+    // enforce max packet size to prevent memory exhaustion
+    #define MAX_PACKET_DATA_LEN 16384
     if (data_len & ~0xffffUL) {
 	report(NULL, LOG_ERR, ~0, "%s: Illegal data size: %u", ctx->device_addr_ascii.txt, data_len);
+	ctx->reset_tcp = BISTATE_YES;
+	cleanup(ctx, cur);
+	return;
+    }
+    if (data_len > MAX_PACKET_DATA_LEN) {
+	report(NULL, LOG_WARNING, ~0, "%s: packet size %u exceeds max %d",
+	       ctx->device_addr_ascii.txt, data_len, MAX_PACKET_DATA_LEN);
 	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, cur);
 	return;
@@ -1082,6 +1091,14 @@ void rad_read(struct context *ctx, int cur)
     }
 
     u_int data_len = RADIUS_DATA_LEN(&ctx->hdr.rad);
+
+    // enforce max packet size to prevent memory exhaustion
+    if (data_len > MAX_PACKET_DATA_LEN) {
+	report(NULL, LOG_WARNING, ~0, "%s: radius packet size %u exceeds max %d",
+	       ctx->device_addr_ascii.txt, data_len, MAX_PACKET_DATA_LEN);
+	cleanup(ctx, cur);
+	return;
+    }
 
     if (!ctx->in) {
 	ctx->in = mem_alloc(ctx->mem, sizeof(tac_pak) + data_len);

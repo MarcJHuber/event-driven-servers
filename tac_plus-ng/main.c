@@ -416,6 +416,16 @@ void update_bio(struct context *ctx)
 
 void cleanup(struct context *ctx, int cur __attribute__((unused)))
 {
+    // decrement connection counter for this ip
+    for (int i = 0; i < MAX_CONN_LIMIT_ENTRIES; i++) {
+	if (memcmp(&conn_limits[i].addr, &ctx->device_addr, sizeof(struct in6_addr)) == 0) {
+	    if (conn_limits[i].conn_count > 0) {
+		conn_limits[i].conn_count--;
+	    }
+	    break;
+	}
+    }
+
 #ifdef WITH_SSL
     if (ctx->tls) {
 	update_bio(ctx);
@@ -1596,6 +1606,15 @@ static void set_ctx_info(struct context *ctx, struct scm_data_accept_ext *sd_ext
 	str_set(&ctx->vrf, mem_strndup(ctx->mem, (u_char *) sd_ext->vrf, sd_ext->vrf_len), 0);
 }
 
+// simple per-ip connection tracking to prevent memory exhaustion
+#define MAX_CONN_LIMIT_ENTRIES 1024
+#define MAX_CONNECTIONS_PER_IP 100
+static struct {
+    struct in6_addr addr;
+    int conn_count;
+    time_t last_cleanup;
+} conn_limits[MAX_CONN_LIMIT_ENTRIES];
+
 static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, sockaddr_union *device_addr, u_char *inject_buf, size_t inject_len)
 {
     fcntl(s, F_SETFD, FD_CLOEXEC);
@@ -1614,6 +1633,53 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	if (ctx_spawnd && die_when_idle)
 	    cleanup_spawnd(ctx_spawnd, -1);
 	return;
+    }
+
+    // check connection limit per source ip
+    struct in6_addr peer_addr;
+    sockaddr_union peer_copy = peer;
+    su_convert(&peer_copy, AF_INET);
+    su_ptoh(&peer_copy, &peer_addr);
+
+    int slot = -1;
+    int found = 0;
+    for (int i = 0; i < MAX_CONN_LIMIT_ENTRIES; i++) {
+	// cleanup old entries (older than 60 seconds)
+	if (conn_limits[i].conn_count > 0 &&
+	    io_now.tv_sec - conn_limits[i].last_cleanup > 60) {
+	    conn_limits[i].conn_count = 0;
+	}
+
+	if (memcmp(&conn_limits[i].addr, &peer_addr, sizeof(struct in6_addr)) == 0) {
+	    found = 1;
+	    slot = i;
+	    break;
+	}
+	if (slot == -1 && conn_limits[i].conn_count == 0) {
+	    slot = i;
+	}
+    }
+
+    if (slot == -1) slot = io_now.tv_sec % MAX_CONN_LIMIT_ENTRIES;
+
+    if (!found) {
+	conn_limits[slot].addr = peer_addr;
+	conn_limits[slot].conn_count = 1;
+	conn_limits[slot].last_cleanup = io_now.tv_sec;
+    } else {
+	if (conn_limits[slot].conn_count >= MAX_CONNECTIONS_PER_IP) {
+	    char buf[256];
+	    report(NULL, LOG_WARNING, ~0, "connection limit exceeded for %s (max %d)",
+		   su_ntoa(&peer, buf, sizeof(buf)) ? buf : "<unknown>",
+		   MAX_CONNECTIONS_PER_IP);
+	    io_close(common_data.io, s);
+	    users_dec();
+	    if (ctx_spawnd && die_when_idle)
+		cleanup_spawnd(ctx_spawnd, -1);
+	    return;
+	}
+	conn_limits[slot].conn_count++;
+	conn_limits[slot].last_cleanup = io_now.tv_sec;
     }
 
     tac_realm *r = set_sd_realm(s, sd_ext);
