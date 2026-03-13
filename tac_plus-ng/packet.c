@@ -464,9 +464,28 @@ static int authen_pak_looks_bogus(struct context *ctx)
     struct authen_start *start = tac_payload(hdr, struct authen_start *);
     struct authen_cont *cont = tac_payload(hdr, struct authen_cont *);
     u_int datalength = ntohl(hdr->datalength);
-    u_int len = (hdr->seq_no == 1)
-	? (TAC_AUTHEN_START_FIXED_FIELDS_SIZE + start->user_len + start->port_len + start->rem_addr_len + start->data_len)
-	: (TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + ntohs(cont->user_msg_len) + ntohs(cont->user_data_len));
+    u_int len;
+
+    // check for integer overflow when summing length fields
+    if (hdr->seq_no == 1) {
+	len = TAC_AUTHEN_START_FIXED_FIELDS_SIZE;
+	if (len > UINT_MAX - start->user_len) return 1;
+	len += start->user_len;
+	if (len > UINT_MAX - start->port_len) return 1;
+	len += start->port_len;
+	if (len > UINT_MAX - start->rem_addr_len) return 1;
+	len += start->rem_addr_len;
+	if (len > UINT_MAX - start->data_len) return 1;
+	len += start->data_len;
+    } else {
+	len = TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE;
+	u_int user_msg = ntohs(cont->user_msg_len);
+	u_int user_data = ntohs(cont->user_data_len);
+	if (len > UINT_MAX - user_msg) return 1;
+	len += user_msg;
+	if (len > UINT_MAX - user_data) return 1;
+	len += user_data;
+    }
 
     return (ctx->host->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
 }
@@ -477,11 +496,23 @@ static int author_pak_looks_bogus(struct context *ctx)
     struct author *pak = tac_payload(hdr, struct author *);
     u_char *p = (u_char *) pak + TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE;
     u_int datalength = ntohl(hdr->datalength);
-    u_int len = TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE + pak->user_len + pak->port_len + pak->rem_addr_len + pak->arg_cnt;
+    u_int len = TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE;
+
+    // check for overflow when adding length fields
+    if (len > UINT_MAX - pak->user_len) return 1;
+    len += pak->user_len;
+    if (len > UINT_MAX - pak->port_len) return 1;
+    len += pak->port_len;
+    if (len > UINT_MAX - pak->rem_addr_len) return 1;
+    len += pak->rem_addr_len;
+    if (len > UINT_MAX - pak->arg_cnt) return 1;
+    len += pak->arg_cnt;
 
     int i;
-    for (i = 0; i < (int) pak->arg_cnt && len < datalength; i++)
+    for (i = 0; i < (int) pak->arg_cnt && len < datalength; i++) {
+	if (len > UINT_MAX - p[i]) return 1;
 	len += p[i];
+    }
 
     return (i != pak->arg_cnt) || (ctx->host->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
 }
@@ -492,11 +523,23 @@ static int accounting_pak_looks_bogus(struct context *ctx)
     struct acct *pak = tac_payload(hdr, struct acct *);
     u_char *p = (u_char *) pak + TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
     u_int datalength = ntohl(hdr->datalength);
-    u_int len = TAC_ACCT_REQ_FIXED_FIELDS_SIZE + pak->user_len + pak->port_len + pak->rem_addr_len + pak->arg_cnt;
+    u_int len = TAC_ACCT_REQ_FIXED_FIELDS_SIZE;
+
+    // check for overflow when adding length fields
+    if (len > UINT_MAX - pak->user_len) return 1;
+    len += pak->user_len;
+    if (len > UINT_MAX - pak->port_len) return 1;
+    len += pak->port_len;
+    if (len > UINT_MAX - pak->rem_addr_len) return 1;
+    len += pak->rem_addr_len;
+    if (len > UINT_MAX - pak->arg_cnt) return 1;
+    len += pak->arg_cnt;
 
     int i;
-    for (i = 0; i < (int) pak->arg_cnt && len < datalength; i++)
+    for (i = 0; i < (int) pak->arg_cnt && len < datalength; i++) {
+	if (len > UINT_MAX - p[i]) return 1;
 	len += p[i];
+    }
 
     return (i != pak->arg_cnt) || (ctx->host->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength);
 }
