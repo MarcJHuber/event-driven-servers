@@ -320,13 +320,38 @@ static void cisco64_enc(const unsigned char *in, size_t in_len, char *out)
     *outp = 0;
 }
 
+// constant-time string comparison to prevent timing attacks
+static int secure_strcmp(const char *s1, const char *s2)
+{
+    if (!s1 || !s2) return s1 == s2 ? 0 : -1;
+
+    size_t len1 = strlen(s1);
+    size_t len2 = strlen(s2);
+
+    // always compare at least some bytes even if lengths differ
+    size_t max_len = (len1 > len2) ? len1 : len2;
+    int result = 0;
+
+    // constant-time length comparison
+    result |= (len1 ^ len2);
+
+    // constant-time byte comparison
+    for (size_t i = 0; i < max_len; i++) {
+        unsigned char c1 = (i < len1) ? (unsigned char)s1[i] : 0;
+        unsigned char c2 = (i < len2) ? (unsigned char)s2[i] : 0;
+        result |= (c1 ^ c2);
+    }
+
+    return result;
+}
+
 static int verify_cisco_type4(char *hash_in, char *password)
 {
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256((unsigned char *) password, strlen(password), hash);
     char hash64[128];
     cisco64_enc(hash, SHA256_DIGEST_LENGTH, hash64);
-    return strcmp(hash64, hash_in);
+    return secure_strcmp(hash64, hash_in);  // use constant-time comparison
 }
 
 static int verify_cisco_type89(char *password, char *p, char type)
@@ -360,7 +385,7 @@ static int verify_cisco_type89(char *password, char *p, char type)
     }
     char hash64[128];
     cisco64_enc(hash, 32, hash64);
-    return strcmp(hash64, hash_in);
+    return secure_strcmp(hash64, hash_in);  // use constant-time comparison
 }
 #endif
 
@@ -389,7 +414,7 @@ static int verify_cisco_asa_md5(const char *username, const char *password, cons
     }
     *h = 0;
 
-    return strcmp(hash64, hash_in);
+    return secure_strcmp(hash64, hash_in);  // use constant-time comparison
 }
 
 static enum token compare_pwdat(struct pwdat *a, char *username __attribute__((unused)), char *b, enum hint_enum *hint)
@@ -399,16 +424,16 @@ static enum token compare_pwdat(struct pwdat *a, char *username __attribute__((u
     switch (a->type) {
     case S_clear:
 	if (b)
-	    res = strcmp(a->value, b);
+	    res = secure_strcmp(a->value, b);  // use constant-time comparison
 	break;
     case S_crypt:
 	if (b) {
 	    if (a->value[0] == '$' && a->value[1] == '1' && a->value[2] == '$')
-		res = strcmp(a->value, md5crypt(b, a->value));
+		res = secure_strcmp(a->value, md5crypt(b, a->value));  // use constant-time comparison
 	    else {
 		char *c = crypt(b, a->value);
 		if (c)
-		    res = strcmp(a->value, c);
+		    res = secure_strcmp(a->value, c);  // use constant-time comparison
 	    }
 	}
 	break;
