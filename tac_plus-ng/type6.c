@@ -82,6 +82,7 @@ static __inline__ char *b41_encode(const uint8_t *data, size_t len)
     out[0] = '\0';
 
     char block[4];
+    size_t out_pos = 0;
 
     for (size_t i = 0; i < len; i += 2) {
 	uint8_t pair[2];
@@ -93,7 +94,9 @@ static __inline__ char *b41_encode(const uint8_t *data, size_t len)
 	    pair[1] = 0x00;
 	}
 	base41_encode_two_bytes(pair, block);
-	strcat(out, block);
+	// use strncat to prevent buffer overflow
+	strncat(out + out_pos, block, out_len - out_pos - 1);
+	out_pos = strlen(out);
     }
 
     uint8_t pad[2];
@@ -105,7 +108,8 @@ static __inline__ char *b41_encode(const uint8_t *data, size_t len)
 	pad[1] = 0x01;
     }
     base41_encode_two_bytes(pad, block);
-    strcat(out, block);
+    strncat(out + out_pos, block, out_len - out_pos - 1);
+    out[out_len - 1] = '\0';
 
     return out;
 }

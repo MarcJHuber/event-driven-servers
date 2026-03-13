@@ -153,14 +153,16 @@ static char *get_hint(tac_session *session, enum hint_enum h)
     if (session->user_msg.txt) {
 	size_t n = hints[h].plain.len + session->user_msg.len + 20;
 	char *hint = mem_alloc(session->mem, n);
-	strcpy(hint, hints[h].plain.txt);
-	strcat(hint, " [");
-	strcat(hint, session->user_msg.txt);
+	// use snprintf to prevent buffer overflow
+	snprintf(hint, n, "%s [%s", hints[h].plain.txt, session->user_msg.txt);
 	char *t = strchr(hint, '\n');
-	if (t)
-	    strcpy(t, "]");
-	else
-	    strcat(hint, "]");
+	if (t) {
+	    *t = '\0';
+	    strncat(hint, "]", n - strlen(hint) - 1);
+	} else {
+	    strncat(hint, "]", n - strlen(hint) - 1);
+	}
+	hint[n - 1] = '\0';
 	return hint;
     }
     return hints[h].plain.txt;
@@ -176,9 +178,9 @@ static void report_auth(tac_session *session, char *what, enum hint_enum hint, e
     if (r == config.default_realm)
 	*realm = 0;
     else {
-	strcpy(realm, " (realm: ");
-	strcat(realm, session->ctx->realm->name.txt);
-	strcat(realm, ")");
+	// use snprintf to prevent buffer overflow
+	snprintf(realm, sizeof(realm), " (realm: %s)", session->ctx->realm->name.txt);
+	realm[sizeof(realm) - 1] = '\0';
     }
 
     char *hint_augmented = get_hint(session, hint);
@@ -973,14 +975,16 @@ static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*
 	if (session->challenge) {
 	    size_t resp_len = 0;
 	    char *resp = eval_log_format(session, session->ctx, NULL, li_response, io_now.tv_sec, &resp_len);
-	    char chal[40 + strlen(session->challenge) + resp_len];
-	    *chal = 0;
+	    size_t chal_size = 40 + strlen(session->challenge) + resp_len;
+	    char chal[chal_size];
+	    // use snprintf to prevent buffer overflow
+	    int offset = 0;
 	    if (!session->welcome_banner || !session->welcome_banner[0])
-		strncpy(chal, "\n", 2);
-	    strcat(chal, session->challenge);
-	    strcat(chal, "\n");
-	    strcat(chal, resp);
-	    strcat(chal, " ");
+		offset = snprintf(chal, chal_size, "\n");
+	    else
+		chal[0] = '\0';
+	    snprintf(chal + offset, chal_size - offset, "%s\n%s ", session->challenge, resp);
+	    chal[chal_size - 1] = '\0';
 	    str_set(&session->msg, chal, 0);
 	    session->welcome_banner = set_welcome_banner(session, NULL);
 	    send_authen_reply(session,
