@@ -185,10 +185,14 @@ static int mavis_parse_in(mavis_ctx *mcx, struct sym *sym)
 #define S "$CONFDIR/"
 		if (!strncmp(buf, S, sizeof(S) - 1)) {
 		    char *slash = buf + sizeof(S) - 2;
-		    size_t total_len = strlen(common_data.confdir) + strlen(slash) + 1;
+		    size_t confdir_len = strlen(common_data.confdir);
+		    size_t slash_len = strlen(slash);
+		    size_t total_len = confdir_len + slash_len + 1;
+		    if (sizeof(buf) < total_len)
+			parse_error(sym, "Path too long.");
 		    char buf_tmp[total_len];
-		    strncpy(buf_tmp, common_data.confdir, total_len);
-		    strncat(buf_tmp, slash, total_len);
+		    memcpy(buf_tmp, common_data.confdir, confdir_len);
+		    memcpy(buf_tmp + confdir_len, slash, slash_len);
 		    memcpy(buf, buf_tmp, total_len);
 		}
 #undef S
