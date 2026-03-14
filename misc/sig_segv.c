@@ -63,7 +63,7 @@ void catchsegv(int sig __attribute__((unused)))
     logmsg("Thank you.");
 
     snprintf(buf, sizeof(buf), "CRASHPID=%lu", (long unsigned) getpid());
-    putenv(buf);
+    putenv(buf); // No need for setenv() -- buf is stack-allocated, but this function never returns
 
 #ifdef HAVE_EXECINFO_H
     {
