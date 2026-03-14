@@ -5901,21 +5901,28 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 {
     struct context *ctx = SSL_get_app_data(ssl);
     if (!ctx) {
-	report(NULL, LOG_ERR, ~0, "%s:%d io_get_ctx()", __FILE__, __LINE__);
+	report(NULL, LOG_ERR, ~0, "%s:%d SSL_get_app_data", __FILE__, __LINE__);
 	return 0;
     }
+    if (!identity || !identity_len) {
+	report(NULL, LOG_ERR, ~0, "%s:%d identity unset", __FILE__, __LINE__);
+	return 0;
+    }
+    char id[identity_len + 1];
+    memcpy(id, identity, identity_len);
+    id[identity_len] = 0;
 
-    if (strlen((char *) identity) != identity_len) {
-	report(NULL, LOG_ERR, ~0, "%s:%d identity length mismatch (got=%lu expected=%lu)", __FILE__, __LINE__, strlen((char *) identity), identity_len);
+    if (strlen(id) != identity_len) {
+	report(NULL, LOG_ERR, ~0, "%s:%d identity length mismatch (got=%lu expected=%lu)", __FILE__, __LINE__, strlen(id), identity_len);
 	return 0;
     }
 
     u_char *key;
     size_t key_len;
-    if (cfg_get_tls_psk(ctx, (char *) identity, &key, &key_len)) {
-	char *t = (char *) identity;
+    if (cfg_get_tls_psk(ctx, id, &key, &key_len)) {
+	char *t = id;
 	for (; *t && isprint(*t); t++);
-	report(NULL, LOG_ERR, ~0, "%s:%d psk for identity '%s' not found", __FILE__, __LINE__, *t ? "invalid" : (char *) identity);
+	report(NULL, LOG_ERR, ~0, "%s:%d psk for identity '%s' not found", __FILE__, __LINE__, *t ? "invalid" : id);
 	return 0;
     }
 
@@ -5972,7 +5979,7 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 
     *sess = nsession;
 
-    str_set(&ctx->tls_psk_identity, mem_strdup(ctx->mem, (char *) identity), 0);
+    str_set(&ctx->tls_psk_identity, mem_strdup(ctx->mem, id), 0);
 
     return 1;
 }
