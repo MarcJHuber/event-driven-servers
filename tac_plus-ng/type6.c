@@ -79,7 +79,7 @@ static __inline__ char *b41_encode(const uint8_t *data, size_t len)
 {
     size_t out_len = ((len + 1) / 2 + 1) * 3 + 1;
     char *out = malloc(out_len);
-    out[0] = '\0';
+    char *t = out;
 
     char block[4];
 
@@ -93,7 +93,9 @@ static __inline__ char *b41_encode(const uint8_t *data, size_t len)
 	    pair[1] = 0x00;
 	}
 	base41_encode_two_bytes(pair, block);
-	strcat(out, block);
+	*t++ = block[0];
+	*t++ = block[1];
+	*t++ = block[2];
     }
 
     uint8_t pad[2];
@@ -105,7 +107,10 @@ static __inline__ char *b41_encode(const uint8_t *data, size_t len)
 	pad[1] = 0x01;
     }
     base41_encode_two_bytes(pad, block);
-    strcat(out, block);
+    *t++ = block[0];
+    *t++ = block[1];
+    *t++ = block[2];
+    *t = 0;
 
     return out;
 }
