@@ -160,8 +160,8 @@ static void write_av(mavis_ctx * mcx, int fd, av_ctx ** ac)
     ssize_t l = av_array_to_char(*ac, buf,
 				 sizeof(buf) - 3, NULL);
     if (l > -1) {
-	strcpy(buf + l, "=\n");
-	l += 2;
+	buf[l++] = '=';
+	buf[l++] = '\n';
 	while (l > 0) {
 	    ssize_t i = Write(fd, b, (size_t) l);
 	    if (i < 0) {
