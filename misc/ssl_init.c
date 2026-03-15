@@ -35,7 +35,8 @@ static int pem_phrase_cb(char *buf, int size, int rwflag __attribute__((unused))
 	return 0;
     }
 
-    strcpy(buf, (char *) userdata);
+    memcpy(buf, (char *) userdata, i);
+    buf[i] = 0;
     Debug((DEBUG_PROC, "- %s == %d\n", __func__, i));
     return i;
 }
