@@ -418,8 +418,10 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 		salt[11] = '$';
 		salt[12] = 0;
 		crypt = md5crypt(pass, salt);
-		u->passwd[PW_MAVIS] = mem_alloc(u->mem, sizeof(struct pwdat) + strlen(crypt));
-		strcpy(u->passwd[PW_MAVIS]->value, crypt);
+		size_t crypt_len = strlen(crypt);
+		u->passwd[PW_MAVIS] = mem_alloc(u->mem, sizeof(struct pwdat) + crypt_len);
+		memcpy(u->passwd[PW_MAVIS]->value, crypt, crypt_len);
+		u->passwd[PW_MAVIS]->value[crypt_len] = 0;
 		u->passwd[PW_MAVIS]->type = S_crypt;
 		u->passwd[session->mavis_data->pw_ix] = u->passwd[PW_MAVIS];
 	    }
