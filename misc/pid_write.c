@@ -30,9 +30,11 @@ struct pidfile *pid_write(char *path)
 {
     struct pidfile *p = NULL;
     if (path && *path) {
-	p = calloc(1, sizeof(struct pidfile) + strlen(path));
+	size_t l = strlen(path);
+	p = calloc(1, sizeof(struct pidfile) + l);
 
-	strcpy(p->path, path);
+	memcpy(p->path, path, l);
+	p->path[l] = 0;
 
 	p->fd = open(path, O_WRONLY | O_CREAT | O_NOFOLLOW, S_IROTH | S_IRGRP | S_IWUSR | S_IRUSR);
 
