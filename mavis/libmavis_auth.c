@@ -52,10 +52,12 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 
     if (mcx->authmode & CERTAUTH_CERT) {
 	if (in_certsubj && in_dbcertsubj) {
-	    char *a = alloca(strlen(in_dbcertsubj) + 1);
+	    size_t in_dbcertsubj_len = strlen(in_dbcertsubj);
+	    char a[in_dbcertsubj_len + 1];
 	    int found = 0;
 
-	    strcpy(a, in_dbcertsubj);
+	    memcpy(a, in_dbcertsubj, in_dbcertsubj_len + 1);
+	    a[in_dbcertsubj_len] = 0;
 
 	    for (char *t = strtok(a, "\r"); t && !found; t = strtok(NULL, "\r"))
 		if (!strcasecmp(in_certsubj, t))
