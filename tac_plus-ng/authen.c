@@ -153,14 +153,19 @@ static char *get_hint(tac_session *session, enum hint_enum h)
     if (session->user_msg.txt) {
 	size_t n = hints[h].plain.len + session->user_msg.len + 20;
 	char *hint = mem_alloc(session->mem, n);
-	strcpy(hint, hints[h].plain.txt);
-	strcat(hint, " [");
-	strcat(hint, session->user_msg.txt);
+	char *m = hint;
+	memcpy(m, hints[h].plain.txt, hints[h].plain.len);
+	m += hints[h].plain.len;
+	*m++ = ' ';
+	*m++ = '[';
+	memcpy(m, session->user_msg.txt, session->user_msg.len);
+	m += session->user_msg.len;
+	*m = 0;
 	char *t = strchr(hint, '\n');
 	if (t)
-	    strcpy(t, "]");
-	else
-	    strcat(hint, "]");
+	    m = t;
+	*m++ = ']';
+	*m = 0;
 	return hint;
     }
     return hints[h].plain.txt;
@@ -176,9 +181,15 @@ static void report_auth(tac_session *session, char *what, enum hint_enum hint, e
     if (r == config.default_realm)
 	*realm = 0;
     else {
-	strcpy(realm, " (realm: ");
-	strcat(realm, session->ctx->realm->name.txt);
-	strcat(realm, ")");
+#define S " (realm: "
+	char *t = realm;
+	memcpy(t, S, sizeof(S) - 1);
+	t += sizeof(S) - 1;
+	memcpy(t, session->ctx->realm->name.txt, session->ctx->realm->name.len);
+	t += session->ctx->realm->name.len;
+	*t++ = ')';
+	*t = 0;
+#undef S
     }
 
     char *hint_augmented = get_hint(session, hint);
@@ -976,15 +987,19 @@ static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*
 	}
 	if (session->challenge) {
 	    size_t resp_len = 0;
+	    size_t chal_len = strlen(session->challenge);
 	    char *resp = eval_log_format(session, session->ctx, NULL, li_response, io_now.tv_sec, &resp_len);
-	    char chal[40 + strlen(session->challenge) + resp_len];
-	    *chal = 0;
+	    char chal[40 + chal_len + resp_len];
+	    char *t = chal;
 	    if (!session->welcome_banner || !session->welcome_banner[0])
-		strncpy(chal, "\n", 2);
-	    strcat(chal, session->challenge);
-	    strcat(chal, "\n");
-	    strcat(chal, resp);
-	    strcat(chal, " ");
+		*t++ = '\n';
+	    memcpy(t, session->challenge, chal_len);
+	    t += chal_len;
+	    *t++ = '\n';
+	    memcpy(t, resp, resp_len);
+	    t += resp_len;
+	    *t++ = ' ';
+	    *t = 0;
 	    str_set(&session->msg, chal, 0);
 	    session->welcome_banner = set_welcome_banner(session, NULL);
 	    send_authen_reply(session,
