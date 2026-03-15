@@ -57,7 +57,6 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 	    int found = 0;
 
 	    memcpy(a, in_dbcertsubj, in_dbcertsubj_len + 1);
-	    a[in_dbcertsubj_len] = 0;
 
 	    for (char *t = strtok(a, "\r"); t && !found; t = strtok(NULL, "\r"))
 		if (!strcasecmp(in_certsubj, t))
