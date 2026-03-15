@@ -82,8 +82,10 @@ static void cache_add_addr(struct cache *cache, char *user, char *addr)
     if (!t || strcmp(RB_payload(t, struct item *)->user, user)) {
 	if (t)
 	    RB_delete(cache->items, t);
-	newitem = Xcalloc(1, sizeof(struct item) + strlen(user));
-	strcpy(newitem->user, user);
+	size_t user_len = strlen(user);
+	newitem = Xcalloc(1, sizeof(struct item) + user_len);
+	memcpy(newitem->user, user, user_len);
+	newitem->user[user_len] = 0;
 	newitem->count = 1;
 	newitem->addr = item.addr;
 	newitem->expire = io_now.tv_sec + cache->maxage;
