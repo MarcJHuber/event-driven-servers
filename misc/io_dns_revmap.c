@@ -337,7 +337,9 @@ void io_dns_add(struct io_dns_ctx *idc, sockaddr_union *su, void *app_cb, void *
 	    *t++ = hex[((char *) su->sin6.sin6_addr.s6_addr32)[i >> 2] >> 4];
 	    *t++ = '.';
 	}
-	strcpy(t, "IP6.ARPA");
+#define S "IP6.ARPA"
+	memcpy(t, S, sizeof(S));
+#undef S
 #endif				/* AF_INET6 */
     }
 
