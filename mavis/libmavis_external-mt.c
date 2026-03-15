@@ -152,8 +152,10 @@ static int mavis_parse_in(mavis_ctx *mcx, struct sym *sym)
 	    continue;
 	case S_setenv:{
 		sym_get(sym);
-		char env_name[strlen(sym->buf) + 1];
-		strcpy(env_name, sym->buf);
+		size_t sb_len = strlen(sym->buf);
+		char env_name[sb_len + 1];
+		memcpy(env_name, sym->buf, sb_len);
+		env_name[sb_len] = 0;
 		struct sym mysym = *sym;
 		mysym.noescape = 1;
 		sym_get(&mysym);
@@ -193,6 +195,7 @@ static int mavis_parse_in(mavis_ctx *mcx, struct sym *sym)
 		    char buf_tmp[total_len];
 		    memcpy(buf_tmp, common_data.confdir, confdir_len);
 		    memcpy(buf_tmp + confdir_len, slash, slash_len);
+		    buf_tmp[confdir_len + slash_len] = 0;
 		    memcpy(buf, buf_tmp, total_len);
 		}
 #undef S
