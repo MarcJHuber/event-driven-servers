@@ -739,8 +739,10 @@ void sym_get(struct sym *sym)
 	    strncat(sb, sym->buf + sizeof(S) - 2, len);
 #undef S
 	} else {
-	    sb = alloca(strlen(sym->buf) + 1);
-	    strcpy(sb, sym->buf);
+	    size_t sb_len = strlen(sym->buf);
+	    sb = alloca(sb_len + 1);
+	    memcpy(sb, sym->buf, sb_len);
+	    sb[sb_len] = 0;
 	}
 	sym_get(sym);
 	globerror_sym = sym;
@@ -1377,8 +1379,10 @@ void parse_mavispath(struct sym *sym)
     sym_get(sym);		// S_path
     parse(sym, S_equal);
     ostypef(sym->buf, buf, sizeof(buf));
-    *sp = calloc(1, sizeof(struct searchpath) + strlen(buf));
-    strcpy((*sp)->dir, buf);
+    size_t l = strlen(buf);
+    *sp = calloc(1, sizeof(struct searchpath) + l);
+    memcpy((*sp)->dir, buf, l);
+    (*sp)->dir[l] = 0;
     sym_get(sym);
 }
 
@@ -1818,8 +1822,10 @@ void parse_common(struct sym *sym)
 	break;
     case S_setenv:{
 	    sym_get(sym);
-	    char e[strlen(sym->buf) + 1];
-	    strcpy(e, sym->buf);
+	    size_t sb_len = strlen(sym->buf);
+	    char e[sb_len + 1];
+	    memcpy(e, sym->buf, sb_len);
+	    e[sb_len] = 0;
 	    sym_get(sym);
 	    if (sym->code == S_equal)
 		sym_get(sym);
@@ -1926,16 +1932,24 @@ int sym_normalize_cond_start(struct sym *sym, mem_t *mem, struct sym **mysym)
 	while (bc && (b < buf + SYM_COND_BUFSIZE - 100)) {
 	    switch (sym->code) {
 	    case S_and:
-		strcpy(b, ") && (");
-		while (*b)
-		    b++;
+		*b++ = ')';
+		*b++ = ' ';
+		*b++ = '&';
+		*b++ = '&';
+		*b++ = ' ';
+		*b++ = '(';
 		prev = sym->code;
 		sym_get(sym);
 		continue;
 	    case S_or:
-		strcpy(b, ")) || ((");
-		while (*b)
-		    b++;
+		*b++ = ')';
+		*b++ = ')';
+		*b++ = ' ';
+		*b++ = '|';
+		*b++ = '|';
+		*b++ = ' ';
+		*b++ = '(';
+		*b++ = '(';
 		prev = sym->code;
 		sym_get(sym);
 		continue;
@@ -2752,13 +2766,15 @@ void parse_timespec(rb_tree_t *timespectable, struct sym *sym)
 
     char _ts[sizeof(struct mavis_timespec) + l];
     struct mavis_timespec *ts = (struct mavis_timespec *) _ts;
-    strcpy(ts->name, sym->buf);
+    memcpy(ts->name, sym->buf, l);
+    ts->name[l] = 0;
 
     ts = RB_lookup(timespectable, (void *) ts);
     if (!ts) {
 	ts = (struct mavis_timespec *) calloc(1, sizeof(struct mavis_timespec)
 					      + l);
-	strcpy(ts->name, sym->buf);
+	memcpy(ts->name, sym->buf, l);
+	ts->name[l] = 0;
 	RB_insert(timespectable, ts);
     }
 
@@ -2796,7 +2812,8 @@ struct mavis_timespec *find_timespec(rb_tree_t *timespectable, char *s)
     size_t l = strlen(s);
     char _ts[sizeof(struct mavis_timespec) + l];
     struct mavis_timespec *ts = (struct mavis_timespec *) _ts;
-    strcpy(ts->name, s);
+    memcpy(ts->name, s, l);
+    ts->name[l] = 0;
     ts = RB_lookup(timespectable, (void *) ts);
     return ts;
 }
