@@ -219,14 +219,16 @@ static char *confdir_strdup(char *in)
     size_t in_len = strlen(in);
     size_t cd_len = strlen(common_data.conffile);
     char b[in_len + cd_len];
-    strcpy(b, common_data.conffile);
+    memcpy(b, common_data.conffile, cd_len);
+    b[cd_len] = 0;
     char *r = strrchr(b, '/');
-    if (r)
-	*r = 0;
-    else
-	strcpy(b, "./");
-    strcpy(b + strlen(b), in + sizeof(S) - 2);
-    return strdup(b);
+    if (!r) {
+	r = b + cd_len;
+	*r++ = '.';
+	*r++ = '/';
+    }
+    memcpy(r, in + sizeof(S) - 2, in_len - sizeof(S) - 2);
+    return strndup(b, r - b + in_len - sizeof(S) - 2);
 #undef S
 }
 
@@ -2600,9 +2602,10 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
     if (c7 && c7decode(sym->buf))
 	parse_error(sym, "type 7 password is malformed");
 
-    struct pwdat *pp = mem_alloc(mem, sizeof(struct pwdat) + strlen(sym->buf));
+    size_t sb_len = strlen(sym->buf);
+    struct pwdat *pp = mem_alloc(mem, sizeof(struct pwdat) + sb_len);
     pp->type = sc;
-    strcpy(pp->value, sym->buf);
+    memcpy(pp->value, sym->buf, sb_len);
     sym_get(sym);
     return pp;
 }
@@ -2997,16 +3000,15 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 	int len = -1;
 	int pad = 0;
 	char *p = sym->buf;
-	static char *begin_marker = "---- BEGIN SSH2 PUBLIC KEY ----";
-	static char *end_marker = "---- END SSH2 PUBLIC KEY ----";
-	static size_t begin_marker_len = 0;
-	static size_t end_marker_len = 0;
+#define S "---- BEGIN SSH2 PUBLIC KEY ----"
+	const char *begin_marker = S;
+	const size_t begin_marker_len = sizeof(S) - 1;
+#undef S
+#define S "---- END SSH2 PUBLIC KEY ----"
+	const char *end_marker = S;
+	const size_t end_marker_len = sizeof(S) - 1;;
+#undef S
 	int is_rfc4716 = 0;
-
-	if (!begin_marker_len) {
-	    begin_marker_len = strlen(begin_marker);
-	    end_marker_len = strlen(end_marker);
-	}
 
 	if (!strncmp(p, begin_marker, begin_marker_len)) {
 	    char n[slen];
@@ -3084,16 +3086,21 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 	else {
 	    int l = slen;
 	    char ck[slen + 200];
-	    *ck = 0;
-	    strcat(ck, begin_marker);
-	    strcat(ck, "\n");
+	    char *t = ck;
+	    memcpy(t, begin_marker, begin_marker_len);
+	    t += begin_marker_len;
+	    *t++ = '\n';
 	    while (l > 0) {
-		strncat(ck, p, 72);
+		strncpy(t, p, 72);
+		while (*t)
+		    t++;
+		*t++ = '\n';
 		l -= 72;
-		strcat(ck, "\n");
 	    }
-	    strcat(ck, end_marker);
-	    strcat(ck, "\n");
+	    memcpy(t, end_marker, end_marker_len);
+	    t += end_marker_len;
+	    *t++ = '\n';
+	    *t = 0;
 	    key = mem_strdup(user->mem, ck);
 	}
 	(*ssh_key)->key = key;
@@ -6020,7 +6027,7 @@ static int ssl_pem_phrase_cb(char *buf, int size, int rwflag __attribute__((unus
 	report(NULL, LOG_ERR, ~0, "ssl_pem_phrase_cb");
 	return 0;
     }
-    strcpy(buf, (char *) userdata);
+    memcpy(buf, (char *) userdata, i + 1);
     return i;
 }
 
