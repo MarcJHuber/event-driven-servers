@@ -156,20 +156,26 @@ static void parse_listen(struct sym *sym)
     while (sym->code != S_closebra && sym->code != S_eof) {
 	switch (sym->code) {
 	case S_path:
-	case S_address:
+	case S_address: {
 	    sym_get(sym);
 	    parse(sym, S_equal);
-	    address = alloca(strlen(sym->buf) + 1);
-	    strcpy(address, sym->buf);
+	    size_t sb_len = strlen(sym->buf);
+	    address = alloca(sb_len + 1);
+	    memcpy(address, sym->buf, sb_len);
+	    address[sb_len] = 0;
 	    sym_get(sym);
 	    continue;
-	case S_port:
+	}
+	case S_port: {
 	    sym_get(sym);
 	    parse(sym, S_equal);
-	    port = alloca(strlen(sym->buf) + 1);
-	    strcpy(port, sym->buf);
+	    size_t sb_len = strlen(sym->buf);
+	    port = alloca(sb_len + 1);
+	    memcpy(port, sym->buf, sb_len);
+	    address[sb_len] = 0;
 	    sym_get(sym);
 	    continue;
+	}
 	case S_mode:
 	    parse_umask(sym, &si.mode);
 	    continue;
