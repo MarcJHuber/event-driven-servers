@@ -344,8 +344,9 @@ static int mavis_recv_out(mavis_ctx * mcx, av_ctx ** ac)
 			    if (b + sizeof(b) - p - 2 > l) {
 				if (b[0])
 				    *p++ = ',';
-				strcpy(p, g->gr_name);
+				memcpy(p, g->gr_name, l);
 				p += l;
+				*p = 0;
 			    }
 			}
 		    }
