@@ -203,7 +203,7 @@ int main(int argc, char **argv)
 				    printf("%d ", AV_A_TACMEMBER);
 				else
 				    printf(",");
-				printf("%s", r->strvalue);
+				printf("\"%s\"", r->strvalue);
 				mc++;
 			    }
 			}
