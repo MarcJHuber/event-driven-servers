@@ -618,7 +618,7 @@ void parse_log(struct sym *sym, tac_realm *r)
 		tac_script_parse(sym, &lf->filter, NULL, r, NULL);
 		continue;
 	    default:
-		parse_error_expect(sym, S_destination, S_syslog, S_access, S_authorization, S_accounting, S_connection, S_closebra,
+		parse_error_expect(sym, S_destination, S_syslog, S_access, S_authorization, S_accounting, S_connection, S_closebra, S_filter,
 				   S_prefix, S_postfix, S_separator, S_radius_access, S_radius_accounting, S_timestamp, S_buffer, S_unknown);
 	    }
 	}
