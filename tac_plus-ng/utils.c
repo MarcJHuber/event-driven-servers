@@ -104,6 +104,7 @@ struct logfile {
      BISTATE(warned);
     enum token timestamp_format;
     size_t buf_limit;
+    struct mavis_action *filter;
 };
 
 static void log_start(struct logfile *, struct context_logfile *);
@@ -612,6 +613,9 @@ void parse_log(struct sym *sym, tac_realm *r)
 		parse(sym, S_limit);
 		parse(sym, S_equal);
 		lf->buf_limit = parse_int(sym);
+		continue;
+	    case S_filter:
+		tac_script_parse(sym, &lf->filter, NULL, r, NULL);
 		continue;
 	    default:
 		parse_error_expect(sym, S_destination, S_syslog, S_access, S_authorization, S_accounting, S_connection, S_closebra,
@@ -2070,6 +2074,9 @@ void log_exec(tac_session *session, struct context *ctx, enum token token, time_
 		default:
 		    return;
 		}
+
+		if (lf->filter && tac_script_eval_r(session, lf->filter) == S_deny)
+		    return;
 
 		sockaddr_union syslog_src;
 
