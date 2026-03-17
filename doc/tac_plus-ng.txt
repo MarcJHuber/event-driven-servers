@@ -771,6 +771,10 @@ n tested.
     #
     # buffer size = 64000 # default upper limit for log buffer, use 0 to
  unlimit
+    #
+    # Logs may be filtered using a script:
+    # filter = logfilter # pre-existing script
+    # filter { if (user =~ /^demo/) deny } # inline script
   }
   authentication log = mylog
   accounting log = mylog
