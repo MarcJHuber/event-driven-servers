@@ -5442,7 +5442,6 @@ int rad_attr_add_dacl(tac_session *session, struct rad_dacl *dacl, uint32_t *i)
 enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 {
     enum token r;
-    char *v;
     if (!m)
 	return S_unknown;
     switch (m->code) {
@@ -5516,17 +5515,20 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
     case S_add:
     case S_set:
     case S_optional:
-	session->eval_log_raw = 1;
-	v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, NULL);
-	session->eval_log_raw = 0;
-	if (m->code == S_set)
-	    attr_add(session, &session->attrs_m, &session->cnt_m, v, strlen(v));
-	else if (m->code == S_add)
-	    attr_add(session, &session->attrs_a, &session->cnt_a, v, strlen(v));
-	else			// S_optional
-	    attr_add(session, &session->attrs_o, &session->cnt_o, v, strlen(v));
-	report(DEBACL, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, v ? v : "");
-	break;
+	{
+	    session->eval_log_raw = 1;
+	    size_t v_len = 0;
+	    char *v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &v_len);
+	    session->eval_log_raw = 0;
+	    if (m->code == S_set)
+		attr_add(session, &session->attrs_m, &session->cnt_m, v, v_len);
+	    else if (m->code == S_add)
+		attr_add(session, &session->attrs_a, &session->cnt_a, v, v_len);
+	    else		// S_optional
+		attr_add(session, &session->attrs_o, &session->cnt_o, v, v_len);
+	    report(DEBACL, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, v);
+	    break;
+	}
     case S_if:
 	if (tac_script_cond_eval(session, m->a.c)) {
 	    r = tac_script_eval_r(session, m->b.a);

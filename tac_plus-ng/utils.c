@@ -2012,9 +2012,7 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
     *b = 0;
     if (outlen)
 	*outlen = total_len;
-    if (session)
-	return mem_strdup(session->mem, buf);
-    return mem_strdup(ctx->mem, buf);
+    return mem_strdup(session ? session->mem : ctx->mem, buf);
 }
 
 void log_exec(tac_session *session, struct context *ctx, enum token token, time_t sec)
