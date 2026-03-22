@@ -291,8 +291,7 @@ void complete_realm(tac_realm *r)
 	RS(tls_sni_required, TRISTATE_DUNNO);
 	RS(tls_autodetect, TRISTATE_DUNNO);
 	RS(alpn_vec, NULL);
-	if (!r->alpn_vec_len)
-	    r->alpn_vec_len = rp->alpn_vec_len;
+	RS(alpn_vec_len, 0);
 	RS(tls_accept_expired, TRISTATE_DUNNO);
 	RS(default_host->tls_peer_cert_validation, S_unknown);
 	RS(tls_psk_hint, NULL);
