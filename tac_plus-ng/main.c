@@ -846,6 +846,12 @@ static void accept_control_tls(struct context *ctx, int cur)
 	break;
     }
 
+    char buf[40];
+    str_set(&ctx->tls_conn_version, (char *) SSL_get_version(ctx->tls), 0);
+    str_set(&ctx->tls_conn_cipher, (char *) SSL_get_cipher(ctx->tls), 0);
+    snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
+    str_set(&ctx->tls_conn_cipher_strength, mem_strdup(ctx->mem, buf), 0);
+
     if (ctx->alpn_passed == TRISTATE_NO) {
 	reject_conn(ctx, "ALPN", __func__, __LINE__);
 	return;
@@ -883,12 +889,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 #else
     X509 *cert = SSL_get1_peer_certificate(ctx->tls);
 #endif
-
-    char buf[40];
-    str_set(&ctx->tls_conn_version, (char *) SSL_get_version(ctx->tls), 0);
-    str_set(&ctx->tls_conn_cipher, (char *) SSL_get_cipher(ctx->tls), 0);
-    snprintf(buf, sizeof(buf), "%d", SSL_get_cipher_bits(ctx->tls, NULL));
-    str_set(&ctx->tls_conn_cipher_strength, mem_strdup(ctx->mem, buf), 0);
 
     char *hex = "0123456789abcdef";
 
