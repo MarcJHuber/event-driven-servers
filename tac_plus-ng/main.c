@@ -903,7 +903,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    if (serial_asn1) {
 		char *b = buf;
 		for (int i = 0; i < serial_asn1->length; i++) {
-		    *b++ = hex[(serial_asn1->data[i] & 0xF0) >> 4];
+		    *b++ = hex[serial_asn1->data[i] >> 4];
 		    *b++ = hex[serial_asn1->data[i] & 0xf];
 		}
 		*b = 0;
@@ -928,8 +928,8 @@ static void accept_control_tls(struct context *ctx, int cur)
 		char *s = mem_alloc(ctx->mem, 2 * aki->keyid->length + 1);
 		char *p = s;
 		for (int i = 0; i < aki->keyid->length; i++) {
-		    *p++ = hex[aki->keyid->data[i] & 7];
 		    *p++ = hex[aki->keyid->data[i] >> 4];
+		    *p++ = hex[aki->keyid->data[i] & 0xf];
 		}
 		str_set(&ctx->tls_peer_cert_aki, s, 2 * aki->keyid->length);
 		AUTHORITY_KEYID_free(aki);
@@ -981,8 +981,8 @@ static void accept_control_tls(struct context *ctx, int cur)
 			    if (aki) {
 				char *p = aki_txt;
 				for (int i = 0; i < aki->keyid->length; i++) {
-				    *p++ = hex[aki->keyid->data[i] & 7];
 				    *p++ = hex[aki->keyid->data[i] >> 4];
+				    *p++ = hex[aki->keyid->data[i] & 0xf];
 				}
 				AUTHORITY_KEYID_free(aki);
 			    }
@@ -1046,7 +1046,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 					md5v(issuer_md5, MD5_LEN, iov, 1);
 					for (int i = 0; i < MD5_LEN; i++) {
 					    *p++ = hex[issuer_md5[i] >> 4];
-					    *p++ = hex[issuer_md5[i] & 15];
+					    *p++ = hex[issuer_md5[i] & 0xf];
 					}
 				    }
 				}
@@ -1055,7 +1055,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 
 			    if (serial_asn1) {
 				for (int i = 0; i < serial_asn1->length; i++) {
-				    *p++ = hex[(serial_asn1->data[i] & 0xF0) >> 4];
+				    *p++ = hex[serial_asn1->data[i] >> 4];
 				    *p++ = hex[serial_asn1->data[i] & 0xf];
 				}
 			    }
