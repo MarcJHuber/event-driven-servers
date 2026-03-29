@@ -1075,15 +1075,15 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    }
 
 	    if (ctx->tls_peer_cert_subject.txt) {
-		char *cn = alloca(ctx->tls_peer_cert_subject.len + 1);
+		char subj[ctx->tls_peer_cert_subject.len + 1];
 
 		// normalize subject
-		cn[ctx->tls_peer_cert_subject.len] = 0;
 		for (size_t i = 0; i < ctx->tls_peer_cert_subject.len; i++)
-		    cn[i] = tolower(ctx->tls_peer_cert_subject.txt[i]);
+		    subj[i] = tolower(ctx->tls_peer_cert_subject.txt[i]);
+		subj[ctx->tls_peer_cert_subject.len] = 0;
 
 		// set cn
-		cn = strstr(cn, "/cn=");
+		char *cn = strstr(subj, "/cn=");
 		if (cn) {
 		    cn += 4;
 		    char *e = strchr(cn, '/');
