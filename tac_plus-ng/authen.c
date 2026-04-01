@@ -753,7 +753,7 @@ static enum token check_access(tac_session *session, struct pwdat *pwdat, char *
     if (session->mavisauth_res != S_unknown) {
 	res = session->mavisauth_res;
 	session->mavisauth_res = S_unknown;
-	if (res == S_error && session->ctx->host->authfallback != TRISTATE_YES)
+	if (res == S_error && session->ctx->host->authfallback == TRISTATE_YES)
 	    res = S_deny;
     } else if (pwdat)
 	res = compare_pwdat(pwdat, session->username.txt, passwd, hint);
