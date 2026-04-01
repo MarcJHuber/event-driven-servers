@@ -1395,6 +1395,8 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    r->default_host->authfallback = parse_tristate(sym);
 		    break;
 		case S_period:
+		    sym_get(sym);
+		    parse(sym, S_equal);
 		    r->backend_failure_period = parse_seconds(sym);
 		    break;
 		default:
