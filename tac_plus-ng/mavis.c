@@ -39,6 +39,7 @@
 
 #include "headers.h"
 #include "misc/md5crypt.h"
+#include <utime.h>
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
@@ -299,7 +300,8 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 	    if (verdict && !session->ctx->realm->caching_period && !strcmp(verdict, AV_V_BOOL_TRUE))
 		session->authorized = 1;
 
-	    if (!u || (u->dynamic && strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_CHAP) && strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_MSCHAP))) {
+	    if (!u
+		|| (u->dynamic && strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_CHAP) && strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_MSCHAP))) {
 		struct sym sym = {.filename = session->username.txt,.line = 1,.flag_prohibit_include = 1 };
 
 		if (!r->caching_period && session->user) {
@@ -428,6 +430,13 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 	}
     } else if (result && !strcmp(result, AV_V_RESULT_ERROR)) {
 	session->mavisauth_res = S_error;
+	if (session->ctx->realm->backend_failure_file) {
+	    if (utime(session->ctx->realm->backend_failure_file, NULL)) {
+		int fd = open(session->ctx->realm->backend_failure_file, O_WRONLY | O_CREAT | O_EXCL, 0644);
+		if (fd > -1)
+		    close(fd);
+	    }
+	}
 	r->last_backend_failure = io_now.tv_sec;
 	for (; r && session->mavisauth_res; r = r->parent)
 	    if (r->usertable) {
