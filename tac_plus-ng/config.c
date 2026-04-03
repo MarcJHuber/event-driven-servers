@@ -285,6 +285,7 @@ void complete_realm(tac_realm *r)
 	RS(allowed_protocol_radius_tls, TRISTATE_DUNNO);
 	RS(allowed_protocol_tacacs_tcp, TRISTATE_DUNNO);
 	RS(allowed_protocol_tacacs_tls, TRISTATE_DUNNO);
+	RS(backend_failure_file, NULL);
 #ifdef WITH_SSL
 	RS(tls, NULL);
 	RS(dtls, NULL);
@@ -1399,8 +1400,14 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    parse(sym, S_equal);
 		    r->backend_failure_period = parse_seconds(sym);
 		    break;
+		case S_file:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->backend_failure_file = strdup(sym->buf);
+		    sym_get(sym);
+		    break;
 		default:
-		    parse_error_expect(sym, S_equal, S_period, S_unknown);
+		    parse_error_expect(sym, S_equal, S_period, S_file, S_unknown);
 		}
 		continue;
 	    default:

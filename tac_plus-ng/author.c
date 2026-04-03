@@ -289,7 +289,7 @@ static void do_author(tac_session *session)
 	    return;
     }
 
-    if (session->mavisauth_res == TAC_PLUS_AUTHEN_STATUS_ERROR) {
+    if (session->mavisauth_res == S_error && session->ctx->host->authfallback != TRISTATE_YES) {
 	report(DEBAUTHZ, "user '%s': backend failure", session->username.txt);
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_ERROR, session->message.txt, NULL, 0, NULL);
 	return;

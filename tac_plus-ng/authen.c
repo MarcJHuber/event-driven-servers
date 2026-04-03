@@ -497,11 +497,16 @@ static enum token lookup_and_set_user(tac_session *session)
     if (!session->user_is_session_specific)
 	session->user = lookup_user(session);
 
-    if (session->user && session->user->fallback_only
-	&& ((session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period < io_now.tv_sec)
-	    || (session->ctx->host->authfallback != TRISTATE_YES))) {
-	session->user = NULL;
-	res = S_deny;
+    if (session->user && session->user->fallback_only) {
+	struct stat st;
+	if ((session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period >= io_now.tv_sec) &&
+	    session->ctx->realm->backend_failure_file && !stat(session->ctx->realm->backend_failure_file, &st))
+	    session->ctx->realm->last_backend_failure = st.st_mtime;
+	if ((session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period < io_now.tv_sec) ||
+	    (session->ctx->host->authfallback != TRISTATE_YES)) {
+	    session->user = NULL;
+	    res = S_deny;
+	}
     }
 
     if (session->user && session->user->rewritten_only && !session->username_rewritten) {
@@ -842,6 +847,11 @@ static char *set_welcome_banner(tac_session *session, struct log_item *fmt_dflt)
 {
     if (session->welcome_banner)
 	return session->msg.txt;
+
+    struct stat st;
+    if ((session->ctx->realm->last_backend_failure + session->ctx->realm->backend_failure_period >= io_now.tv_sec) &&
+	session->ctx->realm->backend_failure_file && !stat(session->ctx->realm->backend_failure_file, &st))
+	session->ctx->realm->last_backend_failure = st.st_mtime;
 
     struct log_item *fmt = ((session->ctx->host->authfallback != TRISTATE_YES)
 			    || !session->ctx->host->welcome_banner_fallback

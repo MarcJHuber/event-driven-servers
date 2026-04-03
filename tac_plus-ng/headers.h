@@ -440,6 +440,7 @@ struct realm {
     int caching_period;		/* user caching period */
     int warning_period;		/* password expiration warning period */
     int backend_failure_period;
+    char *backend_failure_file;
     struct tac_acl *mavis_user_acl;
     struct tac_acl *enable_user_acl;
     struct tac_acl *password_acl;
