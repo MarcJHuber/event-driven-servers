@@ -3191,6 +3191,11 @@ ntly enabled.\n"
         authentication fallback = deny
         ...
     }
+
+   Backend failures are detected per-process. However, you can
+   sync fallback state between worker processes via the file
+   system, on a per-realm basis:
+    authentication fallback file = /tmp/tac/my_realm/fallack
      __________________________________________________________
 
 6. RADIUS
