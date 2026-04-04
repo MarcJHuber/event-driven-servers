@@ -75,7 +75,7 @@ endif
 
 MAVIS_LIBNAMES += remote system groups anonftp asciiftp limit
 MAVIS_LIBNAMES += cache auth log external userdb tee null tacinfo_cache
-MAVIS_LIBNAMES += tacauth_limit
+MAVIS_LIBNAMES += tacauth_limit error
 ifeq ($(WITH_PTHREAD),1)
 	MAVIS_LIBNAMES += external-mt
 endif
@@ -244,6 +244,11 @@ libmavis_auth.so: libmavis_auth.o tohex.o $(MAVIS_LIB)
 libmavis_null.o: libmavis_null.c mavis_glue.c
 
 libmavis_null.so: libmavis_null.o $(MAVIS_LIB)
+	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
+
+libmavis_error.o: libmavis_error.c mavis_glue.c
+
+libmavis_error.so: libmavis_error.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
 clean:
