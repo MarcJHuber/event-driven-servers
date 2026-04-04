@@ -34,7 +34,8 @@ Marc Huber
               5.2.14. The system module
               5.2.15. The userdb module
               5.2.16. The tee module
-              5.2.17. The null module
+              5.2.17. The error module
+              5.2.18. The null module
 
         5.3. MAVIS Scripting Language
 
@@ -982,7 +983,19 @@ id = ftpd {
    Railroad diagram: TeeConf
      __________________________________________________________
 
-5.2.17. The null module
+5.2.17. The error module
+
+   This one can be used to convert a limited number of ERROR
+   backend responses to FAIL status. The error status is kept in
+   an on on-disk file, and both the file name and the threshold
+   are configurable. Example:
+    mavis module = error {
+        threshold = 5
+        file = /var/tmp/mavis_failure_count
+    }
+     __________________________________________________________
+
+5.2.18. The null module
 
    This module comes without any functionality on its own. It may
    however be used in conjunction with the scripting feature

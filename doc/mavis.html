@@ -51,15 +51,16 @@
 <dt>5.2.14. <a class="lk" href="#AEN873">The <span class="emphasis"><i class="emphasis">system</i></span> module</a></dt>
 <dt>5.2.15. <a class="lk" href="#AEN947">The <span class="emphasis"><i class="emphasis">userdb</i></span> module</a></dt>
 <dt>5.2.16. <a class="lk" href="#AEN1017">The <span class="emphasis"><i class="emphasis">tee</i></span> module</a></dt>
-<dt>5.2.17. <a class="lk" href="#AEN1054">The <span class="emphasis"><i class="emphasis">null</i></span> module</a></dt>
+<dt>5.2.17. <a class="lk" href="#AEN1054">The <span class="emphasis"><i class="emphasis">error</i></span> module</a></dt>
+<dt>5.2.18. <a class="lk" href="#AEN1061">The <span class="emphasis"><i class="emphasis">null</i></span> module</a></dt>
 </dl>
 </dd>
-<dt>5.3. <a class="lk" href="#AEN1058">MAVIS Scripting Language</a></dt>
+<dt>5.3. <a class="lk" href="#AEN1065">MAVIS Scripting Language</a></dt>
 </dl>
 </dd>
-<dt>6. <a class="lk" href="#AEN1253">Testing your MAVIS configuration</a></dt>
-<dt>7. <a class="lk" href="#AEN1262">Environmental Variables</a></dt>
-<dt>8. <a class="lk" href="#AEN1267">Copyrights and Acknowledgements</a></dt>
+<dt>6. <a class="lk" href="#AEN1260">Testing your MAVIS configuration</a></dt>
+<dt>7. <a class="lk" href="#AEN1269">Environmental Variables</a></dt>
+<dt>8. <a class="lk" href="#AEN1274">Copyrights and Acknowledgements</a></dt>
 </dl>
 </div>
 <div class="section">
@@ -1043,13 +1044,23 @@ id = ftpd {
 </div>
 <div class="section">
 <hr>
-<h4 class="section"><a name="AEN1054" id="AEN1054">5.2.17. The <span class="emphasis"><i class="emphasis">null</i></span> module</a></h4>
+<h4 class="section"><a name="AEN1054" id="AEN1054">5.2.17. The <span class="emphasis"><i class="emphasis">error</i></span> module</a></h4>
+<p>This one can be used to convert a limited number of <tt class="literal">ERROR</tt> backend responses to <tt class="literal">FAIL</tt> status. The error status is kept in an on on-disk file, and both the file name and the threshold are configurable. Example:</p>
+<pre class="screen">
+    mavis module = error {
+        threshold = 5
+        file = /var/tmp/mavis_failure_count
+    }
+        </pre></div>
+<div class="section">
+<hr>
+<h4 class="section"><a name="AEN1061" id="AEN1061">5.2.18. The <span class="emphasis"><i class="emphasis">null</i></span> module</a></h4>
 <p>This module comes without any functionality on its own. It may however be used in conjunction with the scripting feature described below.</p>
 </div>
 </div>
 <div class="section">
 <hr>
-<h3 class="section"><a name="AEN1058" id="AEN1058">5.3. MAVIS Scripting Language</a></h3>
+<h3 class="section"><a name="AEN1065" id="AEN1065">5.3. MAVIS Scripting Language</a></h3>
 <p>All MAVIS modules in the distribution come with some basic scripting language support for modifying AV pair and/or module behavior. Scripts can be called when entering or leaving a module and are defined using the <tt class="literal">script</tt> keyword.</p>
 <p>Generic syntax for the scripting feature is:</p>
 <p><tt class="literal">script</tt> ( <tt class="literal">in</tt> | <tt class="literal">out</tt> | <tt class="literal">interim</tt>) <tt class="literal">= {</tt> <span class="emphasis"><i class="emphasis">action</i></span>+ <tt class="literal">}</tt></p>
@@ -1292,7 +1303,7 @@ id = tac_plus {
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1253" id="AEN1253">6. Testing your MAVIS configuration</a></h2>
+<h2 class="section"><a name="AEN1260" id="AEN1260">6. Testing your MAVIS configuration</a></h2>
 <p>You'll almost certainly want to validate that your backend configuration behaves as expected. You can do so using the <tt class="literal">mavistest</tt> binary. Syntax is:</p>
 <pre class="screen">mavistest [options] &lt;config&gt; &lt;id&gt; &lt;type&gt; &lt;user&gt; [&lt;password&gt;]
 
@@ -1317,14 +1328,14 @@ Sample usage: mavistest -d -1  /usr/local/etc/tac_plus.cfg tac_plus TACPLUS joe 
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1262" id="AEN1262">7. Environmental Variables</a></h2>
+<h2 class="section"><a name="AEN1269" id="AEN1269">7. Environmental Variables</a></h2>
 <p>Text enclosed in double quotes may make use of environment variables, e.g.:</p>
 <pre class="screen">filename = "${HOME}/log.txt"</pre>
 <p>The braces are required.</p>
 </div>
 <div class="section">
 <hr>
-<h2 class="section"><a name="AEN1267" id="AEN1267">8. Copyrights and Acknowledgements</a></h2>
+<h2 class="section"><a name="AEN1274" id="AEN1274">8. Copyrights and Acknowledgements</a></h2>
 <p>Please see the source for copyright and licensing information of individual files.</p>
 <ul>
 <li>
@@ -1372,7 +1383,7 @@ this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 </li>
 <li>
 <p>The end-user documentation included with the redistribution, if any, must include the following acknowledgment:</p>
-<a name="AEN1316" id="AEN1316"></a>
+<a name="AEN1323" id="AEN1323"></a>
 <blockquote class="BLOCKQUOTE">
 <p>This product includes software developed by Marc Huber (<code class="email">&lt;<a class="lk" href="mailto:Marc.Huber@web.de">Marc.Huber@web.de</a>&gt;</code>).</p>
 </blockquote>
