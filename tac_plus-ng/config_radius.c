@@ -171,10 +171,16 @@ struct rad_dict_attr *rad_dict_attr_lookup(struct sym *sym)
     }
 
     struct rad_dict *dict = rad_dict_lookup_by_name(vid_str);
-    if (!dict)
+    if (!dict && *vid_str)
 	parse_error(sym, "RADIUS dictionary '%s' unknown", vid_str);
 
     struct rad_dict_attr *attr = rad_dict_attr_lookup_by_name(dict, id_str);
+
+    if (!attr && !*vid_str)
+	for (dict = global_rad_dict; dict && !attr; dict = dict->next)
+	    if (dict->id)
+		attr = rad_dict_attr_lookup_by_name(dict, id_str);
+
     if (!attr)
 	parse_error(sym, "RADIUS attribute '%s' unknown", sym->buf);
 
