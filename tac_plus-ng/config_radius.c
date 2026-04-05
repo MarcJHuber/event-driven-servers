@@ -90,7 +90,7 @@ struct rad_dict *rad_dict_lookup_by_name(char *vendorname)
 {
     size_t vendorname_len = strlen(vendorname);
     for (struct rad_dict * dict = global_rad_dict; dict; dict = dict->next)
-	if (dict->name.len == vendorname_len && !strcmp(dict->name.txt, vendorname))
+	if (dict->name.len == vendorname_len && !strcasecmp(dict->name.txt, vendorname))
 	    return dict;
     return NULL;
 }
@@ -107,7 +107,7 @@ struct rad_dict_attr *rad_dict_attr_lookup_by_name(struct rad_dict *dict, char *
 {
     size_t name_len = strlen(name);
     for (struct rad_dict_attr * attr = dict->attr; attr; attr = attr->next)
-	if (attr->name.len == name_len && !strcmp(attr->name.txt, name))
+	if (attr->name.len == name_len && !strcasecmp(attr->name.txt, name))
 	    return attr;
     return NULL;
 }
@@ -124,7 +124,7 @@ struct rad_dict_val *rad_dict_val_lookup_by_name(struct rad_dict_attr *attr, cha
 {
     size_t name_len = strlen(name);
     for (struct rad_dict_val * val = attr->val; val; val = val->next)
-	if (val->name.len == name_len && !strcmp(val->name.txt, name))
+	if (val->name.len == name_len && !strcasecmp(val->name.txt, name))
 	    return val;
     return NULL;
 }
