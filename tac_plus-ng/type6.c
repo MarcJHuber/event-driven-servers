@@ -74,8 +74,6 @@ static __inline__ char *b41_encode(const uint8_t *data, size_t len)
     char *out = malloc(out_len);
     char *t = out;
 
-    char block[4];
-
     for (size_t i = 0; i < len; i += 2) {
 	if (i + 1 < len)
 	    base41_encode_two_bytes(data[i], data[i + 1], t);
@@ -86,11 +84,8 @@ static __inline__ char *b41_encode(const uint8_t *data, size_t len)
 
     if (!(len & 1)) {
 	base41_encode_two_bytes(0, 1, t);
-	*t++ = block[0];
-	*t++ = block[1];
-	*t++ = block[2];
+	t += 3;
     }
-
     *t = 0;
 
     return out;
