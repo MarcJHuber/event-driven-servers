@@ -34,22 +34,15 @@ static __inline__ int base41_decode_block(const char *in, uint8_t out[2])
     return 0;
 }
 
-static __inline__ void base41_encode_two_bytes(const uint8_t *in, char out[4])
+static __inline__ void base41_encode_two_bytes(const uint8_t byte0, const uint8_t byte1, char out[3])
 {
-    uint32_t number = ((uint32_t) in[0] << 8) | in[1];
+    uint32_t number = ((uint32_t) byte0 << 8) | byte1;
 
-    uint32_t z = number % 41;
+    out[2] = 'A' + number % 41;
     number /= 41;
-    uint32_t y = number % 41;
+    out[1] = 'A' + number % 41;
     number /= 41;
-    uint32_t x = number;
-
-    static const char b41[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghi";
-
-    out[0] = b41[x];
-    out[1] = b41[y];
-    out[2] = b41[z];
-    out[3] = '\0';
+    out[0] = 'A' + number;
 }
 
 static __inline__ int base41_decode(const char *in, uint8_t *out, size_t *out_len)
@@ -67,10 +60,10 @@ static __inline__ int base41_decode(const char *in, uint8_t *out, size_t *out_le
 
     if (j < 4)
 	return -1;
-    if (!out[j - 1])
-	j -= 1;
-    else if (out[j - 1] == 1 && !out[j - 2])
+    if (out[j - 1])
 	j -= 2;
+    else
+	j -= 1;
     *out_len = j;
     return 0;
 }
@@ -84,32 +77,20 @@ static __inline__ char *b41_encode(const uint8_t *data, size_t len)
     char block[4];
 
     for (size_t i = 0; i < len; i += 2) {
-	uint8_t pair[2];
-	if (i + 1 < len) {
-	    pair[0] = data[i];
-	    pair[1] = data[i + 1];
-	} else {
-	    pair[0] = data[i];
-	    pair[1] = 0x00;
-	}
-	base41_encode_two_bytes(pair, block);
+	if (i + 1 < len)
+	    base41_encode_two_bytes(data[i], data[i + 1], t);
+	else
+	    base41_encode_two_bytes(data[i], 0, t);
+	t += 3;
+    }
+
+    if (!(len & 1)) {
+	base41_encode_two_bytes(0, 1, t);
 	*t++ = block[0];
 	*t++ = block[1];
 	*t++ = block[2];
     }
 
-    uint8_t pad[2];
-    if (len % 2 == 1) {
-	pad[0] = data[len - 1];
-	pad[1] = 0x00;
-    } else {
-	pad[0] = 0x00;
-	pad[1] = 0x01;
-    }
-    base41_encode_two_bytes(pad, block);
-    *t++ = block[0];
-    *t++ = block[1];
-    *t++ = block[2];
     *t = 0;
 
     return out;
@@ -264,7 +245,7 @@ char *encrypt_type6(const char *cleartext, const char *master_key)
     unsigned int hmac_len;
     uint8_t *digest = HMAC(EVP_sha1(), ka, 16, enc, len, NULL, &hmac_len);
     if (digest) {
-        uint8_t mac[TYPE6_MAC_LEN];
+	uint8_t mac[TYPE6_MAC_LEN];
 	memcpy(mac, digest, TYPE6_MAC_LEN);
 
 	uint8_t final[TYPE6_SALT_LEN + len + TYPE6_MAC_LEN];
