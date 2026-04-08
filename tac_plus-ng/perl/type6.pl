@@ -22,20 +22,17 @@ use Crypt::Cipher::AES;
 
 my $TYPE6_SALT_LEN = 8;
 my $TYPE6_MAC_LEN  = 4;
-my $B41_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghi";
-
-my %B41_IDX = map { substr($B41_CHARS, $_, 1) => $_ } 0..(length($B41_CHARS)-1);
 
 sub base41_decode_triplet {
 	my ($a, $b, $c) = @_;
-	return undef unless exists $B41_IDX{$a} && exists $B41_IDX{$b} && exists $B41_IDX{$c};
-	my $num = $B41_IDX{$a} * 41 * 41 + $B41_IDX{$b} * 41 + $B41_IDX{$c};
+	my $num = (ord($a) - 65) * 41 * 41 + (ord($b) - 65) * 41 + (ord($c) - 65);
 	return pack("n", $num);
 }
 
 sub b41_decode {
 	my ($str) = @_;
 	return undef if length($str) % 3;
+	return undef unless $str =~ /^[A-i]+$/;
 	my $out = "";
 	for (my $i = 0; $i < length($str); $i += 3) {
 		$out .= base41_decode_triplet(substr($str,$i,1),substr($str,$i+1,1),substr($str,$i+2,1));
@@ -51,7 +48,7 @@ sub base41_encode_pair {
 	my $z = $val % 41; $val = int($val / 41);
 	my $y = $val % 41; $val = int($val / 41);
 	my $x = $val;
-	return substr($B41_CHARS, $x, 1) . substr($B41_CHARS, $y, 1) . substr($B41_CHARS, $z, 1);
+	return chr(65 + $x) . chr(65 + $y) . chr(65 + $z);
 }
 
 sub b41_encode {
