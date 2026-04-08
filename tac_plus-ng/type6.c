@@ -24,7 +24,7 @@ static __inline__ int base41_decode_block(const char *in, uint8_t out[2])
 {
     int val = 0;
     for (int i = 0; i < 3; i++) {
-	if (in[i] < 'A')
+	if (in[i] < 'A' || in[i] > 'i')
 	    return -1;
 	val *= 41;
 	val += in[i] - 'A';
@@ -52,18 +52,18 @@ static __inline__ int base41_decode(const char *in, uint8_t *out, size_t *out_le
 	return -1;
 
     size_t j = 0;
-    for (size_t i = 0; i < in_len; i += 3) {
+    for (size_t i = 0; i < in_len; i += 3, j += 2)
 	if (base41_decode_block(in + i, out + j))
 	    return -1;
-	j += 2;
-    }
 
-    if (j < 4)
+    if (j < 1)
 	return -1;
-    if (out[j - 1])
-	j -= 2;
-    else
-	j -= 1;
+
+    j -= out[j - 1] ? 2 : 1;
+
+    if (j < 1)
+	return -1;
+
     *out_len = j;
     return 0;
 }
@@ -73,19 +73,18 @@ static __inline__ char *b41_encode(const uint8_t *data, size_t len)
     size_t out_len = ((len + 1) / 2 + 1) * 3 + 1;
     char *out = malloc(out_len);
     char *t = out;
+    size_t odd = len & 1;
+    len &= ~1;
 
-    for (size_t i = 0; i < len; i += 2) {
-	if (i + 1 < len)
-	    base41_encode_two_bytes(data[i], data[i + 1], t);
-	else
-	    base41_encode_two_bytes(data[i], 0, t);
-	t += 3;
-    }
+    for (size_t i = 0; i < len; i += 2, t += 3)
+	base41_encode_two_bytes(data[i], data[i + 1], t);
 
-    if (!(len & 1)) {
+    if (odd)
+	base41_encode_two_bytes(data[len], 0, t);
+    else
 	base41_encode_two_bytes(0, 1, t);
-	t += 3;
-    }
+
+    t += 3;
     *t = 0;
 
     return out;
