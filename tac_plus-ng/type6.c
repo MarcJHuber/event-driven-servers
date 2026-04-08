@@ -51,7 +51,7 @@ static __inline__ int base41_decode(const char *in, uint8_t *out, size_t *out_le
     if (in_len % 3)
 	return -1;
 
-    size_t j = 0;
+    ssize_t j = 0;
     for (size_t i = 0; i < in_len; i += 3, j += 2)
 	if (base41_decode_block(in + i, out + j))
 	    return -1;
