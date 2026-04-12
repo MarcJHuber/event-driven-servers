@@ -20,23 +20,23 @@
 #define TYPE6_SALT_LEN 8
 #define TYPE6_MAC_LEN 4
 
-static __inline__ int base41_decode_block(const char *in, uint8_t out[2])
+static __inline__ int base41_decode_block(const char in[3], uint8_t out[2])
 {
-    int val = 0;
+    uint16_t number = 0;
     for (int i = 0; i < 3; i++) {
 	if (in[i] < 'A' || in[i] > 'i')
 	    return -1;
-	val *= 41;
-	val += in[i] - 'A';
+	number *= 41;
+	number += in[i] - 'A';
     }
-    out[0] = (val >> 8) & 0xFF;
-    out[1] = val & 0xFF;
+    out[0] = number >> 8;
+    out[1] = number & 0xFF;
     return 0;
 }
 
-static __inline__ void base41_encode_two_bytes(const uint8_t byte0, const uint8_t byte1, char out[3])
+static __inline__ void base41_encode_two_bytes(const uint8_t data[2], char out[3])
 {
-    uint32_t number = ((uint32_t) byte0 << 8) | byte1;
+    uint16_t number = ((uint16_t) data[0] << 8) | data[1];
 
     out[2] = 'A' + number % 41;
     number /= 41;
@@ -61,7 +61,7 @@ static __inline__ int base41_decode(const char *in, uint8_t *out, size_t *out_le
 
     j -= out[j - 1] ? 2 : 1;
 
-    if (j < 1)
+    if (j < 1 || out[j])
 	return -1;
 
     *out_len = j;
@@ -70,23 +70,15 @@ static __inline__ int base41_decode(const char *in, uint8_t *out, size_t *out_le
 
 static __inline__ char *b41_encode(const uint8_t *data, size_t len)
 {
-    size_t out_len = ((len + 1) / 2 + 1) * 3 + 1;
-    char *out = malloc(out_len);
-    char *t = out;
-    size_t odd = len & 1;
-    len &= ~1;
+    char *out = malloc((len >> 1) * 3 + 1);
+    if (out) {
+	char *t = out;
 
-    for (size_t i = 0; i < len; i += 2, t += 3)
-	base41_encode_two_bytes(data[i], data[i + 1], t);
+	for (size_t i = 0; i < len; i += 2, t += 3)
+	    base41_encode_two_bytes(data + i, t);
 
-    if (odd)
-	base41_encode_two_bytes(data[len], 0, t);
-    else
-	base41_encode_two_bytes(0, 1, t);
-
-    t += 3;
-    *t = 0;
-
+	*t = 0;
+    }
     return out;
 }
 
@@ -242,13 +234,16 @@ char *encrypt_type6(const char *cleartext, const char *master_key)
 	uint8_t mac[TYPE6_MAC_LEN];
 	memcpy(mac, digest, TYPE6_MAC_LEN);
 
-	uint8_t final[TYPE6_SALT_LEN + len + TYPE6_MAC_LEN];
+	size_t pad = (len & 1) ? 0 : 1;
+	uint8_t final[TYPE6_SALT_LEN + len + TYPE6_MAC_LEN + 1 + pad];
 	memcpy(final, salt, TYPE6_SALT_LEN);
 	memcpy(final + TYPE6_SALT_LEN, enc, len);
 	memcpy(final + TYPE6_SALT_LEN + len, mac, TYPE6_MAC_LEN);
+	final[TYPE6_SALT_LEN + len + TYPE6_MAC_LEN] = 0;
+	if (pad)
+	    final[TYPE6_SALT_LEN + len + TYPE6_MAC_LEN + 1] = 1;
 
-	char *encoded = b41_encode(final, TYPE6_SALT_LEN + len + TYPE6_MAC_LEN);
-	return encoded;
+	return b41_encode(final, TYPE6_SALT_LEN + len + TYPE6_MAC_LEN + 1 + pad);
     }
     return NULL;
 }
