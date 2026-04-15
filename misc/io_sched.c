@@ -2349,6 +2349,34 @@ static ssize_t io_SSL_rw(SSL *ssl __attribute__((unused)), struct io_context *io
     return res;
 }
 
+#ifdef OPENSSL_IS_BORINGSSL
+static __inline__ int SSL_write_ex(SSL *ssl, const void *buf, size_t num, size_t *written)
+{
+    int ret = SSL_write(ssl, buf, (int) num);
+
+    if (ret > 0) {
+	if (written)
+	    *written = (size_t) ret;
+	return 1;
+    }
+
+    return 0;
+}
+
+static __inline__ int SSL_read_ex(SSL *ssl, void *buf, size_t num, size_t *readbytes)
+{
+    int ret = SSL_read(ssl, buf, (int) num);
+
+    if (ret > 0) {
+	if (readbytes)
+	    *readbytes = (size_t) ret;
+	return 1;
+    }
+
+    return 0;
+}
+
+#endif
 ssize_t io_SSL_read(SSL *ssl, void *buf, size_t num, struct io_context *io, int fd, void *cb)
 {
     size_t readbytes = 0;

@@ -71,6 +71,7 @@
 #include "misc/mymd5.h"
 #include "misc/md5crypt.h"
 #include "misc/utf.h"
+#include "misc/base64.h"
 
 #if defined(WITH_CRYPTO)
 #if OPENSSL_VERSION_NUMBER < 0x30000000
@@ -250,17 +251,6 @@ static enum token user_expiry_check(enum token *res, tac_user *user, enum hint_e
 }
 
 #ifdef WITH_SSL
-static size_t base64_decode(const char *base64, size_t len, unsigned char *output)
-{
-    BIO *bio = BIO_new_mem_buf(base64, len);
-    BIO *b64 = BIO_new(BIO_f_base64());
-    BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
-    bio = BIO_push(b64, bio);
-    size_t decoded_len = BIO_read(bio, output, len);
-    BIO_free_all(bio);
-    return decoded_len;
-}
-
 static int verify_cisco_asa_pbkdf2(char *password, char *p)
 {
     if (strncmp(p, "$sha512$", 8))
@@ -290,18 +280,22 @@ static int verify_cisco_asa_pbkdf2(char *password, char *p)
     if (!hash_base64_len)
 	return -1;
 
-    unsigned char salt[salt_base64_len];
-    size_t salt_len = base64_decode(salt_base64, salt_base64_len, salt);
+    size_t salt_len = salt_base64_len;
+    char salt[salt_len];
+    if (base64dec(salt_base64, salt_base64_len, salt, &salt_len))
+	return -1;
     if (salt_len != 16)
 	return -1;
 
-    unsigned char stored_hash[hash_base64_len];
-    size_t hash_len = base64_decode(hash_base64, hash_base64_len, stored_hash);
+    size_t hash_len = hash_base64_len;
+    char stored_hash[hash_len];
+    if (base64dec(hash_base64, hash_base64_len, stored_hash, &hash_len))
+	return -1;
     if (hash_len != 16)
 	return -1;
 
     unsigned char computed_hash[64];
-    PKCS5_PBKDF2_HMAC(password, strlen(password), salt, salt_len, iterations, EVP_sha512(), 64, computed_hash);
+    PKCS5_PBKDF2_HMAC(password, strlen(password), (unsigned char *) salt, salt_len, iterations, EVP_sha512(), 64, computed_hash);
 
     return memcmp(computed_hash, stored_hash, 16);
 }

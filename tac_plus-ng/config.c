@@ -205,7 +205,9 @@ static rb_tree_t *tags_by_name = NULL;
 
 #ifdef WITH_SSL
 #ifndef OPENSSL_NO_PSK
+#ifndef OPENSSL_IS_BORINGSSL
 static int psk_find_session_cb(SSL * ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION ** sess);
+#endif
 static unsigned int psk_server_cb(SSL * ssl, const char *identity, unsigned char *psk, unsigned int max_psk_len);
 #endif
 static SSL_CTX *ssl_init(struct realm *, int dtls, int use_tls_psk);
@@ -252,10 +254,12 @@ void complete_realm(tac_realm *r)
 	    r->tls_psk = ssl_init(r, 0, 1);
 	if (!r->dtls_psk)
 	    r->dtls_psk = ssl_init(r, 1, 1);
+#ifndef OPENSSL_IS_BORINGSSL
 	SSL_CTX_set_psk_find_session_callback(r->tls_psk, psk_find_session_cb);	// tls1.3
 	SSL_CTX_set_psk_find_session_callback(r->dtls_psk, psk_find_session_cb);	// dtls1.3, eventually
-	SSL_CTX_set_psk_server_callback(r->tls_psk, psk_server_cb);	// tls1.2
-	SSL_CTX_set_psk_server_callback(r->dtls_psk, psk_server_cb);	// dtls1.2
+#endif
+	SSL_CTX_set_psk_server_callback(r->tls_psk, psk_server_cb);	// tls1.2 or BoringSSL
+	SSL_CTX_set_psk_server_callback(r->dtls_psk, psk_server_cb);	// dtls1.2 or BoringSSL
     }
 #endif
 #endif
@@ -5914,6 +5918,7 @@ static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char **key, si
     return -1;
 }
 
+#ifndef OPENSSL_IS_BORINGSSL
 static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t identity_len, SSL_SESSION **sess)
 {
     struct context *ctx = SSL_get_app_data(ssl);
@@ -6000,6 +6005,7 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 
     return 1;
 }
+#endif
 
 static unsigned int psk_server_cb(SSL *ssl, const char *identity, unsigned char *psk, unsigned int max_psk_len)
 {
@@ -6167,6 +6173,9 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls, int use_tls_psk __attribute_
     }
     if (r->tls_verify_depth > -1)
 	SSL_CTX_set_verify_depth(ctx, r->tls_verify_depth);
+#ifdef OPENSSL_IS_BORINGSSL
+    SSL_CTX_set_options(ctx, SSL_OP_NO_TICKET);
+#endif
     return ctx;
 }
 #endif

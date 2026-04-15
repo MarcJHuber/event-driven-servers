@@ -812,6 +812,26 @@ static void set_host_by_psk_identity(struct context *ctx, char *t)
 static int check_rpk(struct context *ctx, tac_host * h);
 #endif
 
+#ifdef OPENSSL_IS_BORINGSSL
+static int ASN1_TIME_to_tm(const ASN1_TIME *s, struct tm *tm)
+{
+    memset(tm, 0, sizeof(struct tm));
+    const char *data = (const char *) s->data;
+
+    if (sscanf(data, "%2d%2d%2d%2d%2d%2d", &tm->tm_year, &tm->tm_mon, &tm->tm_mday, &tm->tm_hour, &tm->tm_min, &tm->tm_sec) != 6)
+	return 0;
+
+    tm->tm_mon -= 1;
+
+    if (s->type == V_ASN1_GENERALIZEDTIME)
+	tm->tm_year -= 1900;
+    else if (s->type == V_ASN1_UTCTIME && tm->tm_year < 70)
+	    tm->tm_year += 100;
+
+    return 1;
+}
+#endif
+
 static int cert_verify(struct context *ctx);
 
 static void accept_control_tls(struct context *ctx, int cur)
@@ -2005,7 +2025,9 @@ static void accept_control_check_tls_final(struct context *ctx)
 	    SSL_set_min_proto_version(ctx->tls, ver);
 	    SSL_set_fd(ctx->tls, ctx->sock);
 	    SSL_set_session_id_context(ctx->tls, (const unsigned char *) &ctx, sizeof(ctx));
+#ifndef OPENSSL_IS_BORINGSSL
 	    SSL_set_num_tickets(ctx->tls, 0);
+#endif
 
 	    if (!ctx->use_tls_psk) {
 #if OPENSSL_VERSION_NUMBER >= 0x30200000
