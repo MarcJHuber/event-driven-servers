@@ -65,7 +65,6 @@ int base64dec(char *inbuf, size_t inbuf_len, char *outbuf, size_t *outbuf_len)
     static int initialized = 0;
     char *outbuf_start = outbuf;
     size_t i;
-    u_char c;
 
     if (!initialized) {
 	initialized++;
@@ -78,9 +77,11 @@ int base64dec(char *inbuf, size_t inbuf_len, char *outbuf, size_t *outbuf_len)
     if (*outbuf_len < 3 * (inbuf_len >> 2) + 1)
 	return -1;
 
-    for (i = 0; i < inbuf_len && *inbuf != '='; i++)
-	if ((c = base64_reverse[(int) *inbuf++]) != 255)
-	    switch (i & 3) {
+    for (i = 0; i < inbuf_len && *inbuf != '='; i++) {
+	u_char c = base64_reverse[(int) *inbuf++];
+	if (c == 255)
+	    return -1;
+	switch (i & 3) {
 	    case 0:
 		*outbuf = c << 2;
 		break;
@@ -96,12 +97,9 @@ int base64dec(char *inbuf, size_t inbuf_len, char *outbuf, size_t *outbuf_len)
 		*outbuf++ |= c;
 		break;
 	    }
-
-    if (i & 3)
-	outbuf++;
+	}
 
     *outbuf = 0;
-
     *outbuf_len = (int) (outbuf - outbuf_start);
     return 0;
 }
