@@ -1851,6 +1851,8 @@ aaa authentication enable default group tacacs+ enable
    TACACS+ (this violates draft-ietf-opsawg-tacacs-tls13-24.txt).
    7 128 Don't require TLS1.3 TACACS+-over-TLS (this violates
    draft-ietf-opsawg-tacacs-tls13-24.txt).
+   8 256 Ignore TACACS+ authorization AV pairs that lack the =/*
+   separator.
 
    Example:
   device ... {
