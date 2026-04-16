@@ -290,6 +290,7 @@ void complete_realm(tac_realm *r)
 	RS(allowed_protocol_tacacs_tcp, TRISTATE_DUNNO);
 	RS(allowed_protocol_tacacs_tls, TRISTATE_DUNNO);
 	RS(backend_failure_file, NULL);
+	r->default_host->bug_compatibility |= rp->default_host->bug_compatibility;
 #ifdef WITH_SSL
 	RS(tls, NULL);
 	RS(dtls, NULL);
