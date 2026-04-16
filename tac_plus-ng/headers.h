@@ -920,6 +920,7 @@ extern int die_when_idle;
 #define CLIENT_BUG_NO_MESSAGE_AUTHENTICATOR	0x20
 #define CLIENT_BUG_NOT_OBFUSCATED	0x40
 #define CLIENT_BUG_BAD_TLS_VERSION	0x80
+#define CLIENT_BUG_MALFORMED_NAS_ARGS	0x100
 
 char *check_client_bug_invalid_remote_address(tac_session *);
 
