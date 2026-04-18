@@ -290,7 +290,8 @@ void complete_realm(tac_realm *r)
 	RS(allowed_protocol_tacacs_tcp, TRISTATE_DUNNO);
 	RS(allowed_protocol_tacacs_tls, TRISTATE_DUNNO);
 	RS(backend_failure_file, NULL);
-	r->default_host->bug_compatibility |= rp->default_host->bug_compatibility;
+	if (!(r->default_host->bug_compatibility & CLIENT_BUG_NO_INHERIT))
+	    r->default_host->bug_compatibility |= rp->default_host->bug_compatibility;
 #ifdef WITH_SSL
 	RS(tls, NULL);
 	RS(dtls, NULL);
@@ -3543,7 +3544,13 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	sym_get(sym);
 	parse(sym, S_compatibility);
 	parse(sym, S_equal);
-	host->bug_compatibility = parse_int(sym);
+	if (sym->code == S_none) {
+	    host->bug_compatibility = CLIENT_BUG_NO_INHERIT;
+	    sym_get(sym);
+	} else {
+	    host->bug_compatibility = parse_int(sym);
+	    host->bug_compatibility &= ~CLIENT_BUG_NO_INHERIT;
+	}
 	return;
     case S_pap:
 	sym_get(sym);

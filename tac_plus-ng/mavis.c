@@ -114,7 +114,7 @@ static void mavis_callback(tac_session *session)
 
 static void dump_hex_mschap(u_char *data, size_t data_len, char **buf)
 {
-    char hex[16] = "0123456789ABCDEF";
+    char *hex = "0123456789ABCDEF";
     for (size_t i = 0; i < data_len; i++) {
 	*(*buf)++ = hex[data[i] >> 4];
 	*(*buf)++ = hex[data[i] & 15];

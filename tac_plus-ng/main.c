@@ -1352,7 +1352,8 @@ void complete_host(tac_host *h)
 	HS(max_rounds);
 #undef HS
 	h->debug |= hp->debug;
-	h->bug_compatibility |= hp->bug_compatibility;
+	if (!(h->bug_compatibility & CLIENT_BUG_NO_INHERIT))
+	    h->bug_compatibility |= hp->bug_compatibility;
 
 	if (h->enable) {
 	    if (hp->enable) {
