@@ -1862,6 +1862,9 @@ aaa authentication enable default group tacacs+ enable
   }
 
    This configuration will be accepted at realm level, too.
+
+   The bug compatibility value is inherited from the corresponding
+   parent. You can stop that with bug compatibility = none.
      __________________________________________________________
 
 4.12.6. Inheritance and Devices
