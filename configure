@@ -587,7 +587,7 @@ sub check_for($$$$$) {
 				if ($#g > -1) {
 					$DEFS{"WITH_$PKG"} = 1;
 					$DEFS{"INCDIR_$PKG"} = $inc;
-					$DEFS{"LIBDIR_$PKG"} = "$prefix/lib/$DEFS{'LIBARCH'}";
+					$DEFS{"LIBDIR_$PKG"} = "$prefix/$libarch";
 					last;
 				}
 				@g = glob("$prefix/lib/lib$lib$DEFS{'SHLIB_EXT'}*");
@@ -601,7 +601,7 @@ sub check_for($$$$$) {
 				if ($#g > -1) {
 					$DEFS{"WITH_$PKG"} = 1;
 					$DEFS{"INCDIR_$PKG"} = $inc;
-					$DEFS{"LIBDIR_$PKG"} = "$prefix/$machine-linux-gnu/lib";
+					$DEFS{"LIBDIR_$PKG"} = "$prefix/lib/$machine-linux-gnu";
 					last;
 				}
 			}
