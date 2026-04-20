@@ -725,8 +725,7 @@ void sym_get(struct sym *sym)
 	    common_data.regex_posix_flags = REG_ICASE;
 	}
     }
-    if (sym->code == S_include && !sym->flag_prohibit_include) {
-
+    if (sym->code == S_include && !sym->flag_prohibit_include && !sym->flag_parse_pcre) {
 	sym_get(sym);
 	if (sym->code == S_equal)
 	    sym_get(sym);
