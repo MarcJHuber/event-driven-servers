@@ -1867,7 +1867,7 @@ void common_usage(void)
 	    "%sHome site:%s  %shttps://www.pro-bono-publico.de/projects/%s\n"
 	    "%sSoure code:%s %shttps://github.com/MarcJHuber/event-driven-servers/%s\n"
 	    "\n"
-	    "%sPlease or open discussions and issues at the corresponding GitHub pages at\n"
+	    "%sPlease open discussions and issues via the corresponding GitHub pages at\n"
 	    "\n"
 	    "    https://github.com/MarcJHuber/event-driven-servers/discussions\n"
 	    "    https://github.com/MarcJHuber/event-driven-servers/issues\n"
