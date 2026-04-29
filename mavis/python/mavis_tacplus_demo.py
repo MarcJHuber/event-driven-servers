@@ -77,11 +77,9 @@ while True:
 	D = Mavis()
 
 	if not D.is_tacplus():
-		D.write(MAVIS_DOWN, None, None)
 		continue
 
 	if not D.valid():
-		D.write(MAVIS_FINAL, AV_V_RESULT_ERROR, "Invalid input.")
 		continue
 
 	time.sleep(float(DELAY))
