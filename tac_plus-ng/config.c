@@ -4062,7 +4062,7 @@ static void parse_host(struct sym *sym, tac_realm *r, tac_host *parent)
 	    host->name.txt[i] = tolower(host->name.txt[i]);
     }
     if ((hp = RB_lookup(r->hosttable, (void *) host)))
-	parse_error(sym, "Host '%s' already defined at line %u", sym->buf, hp->line);
+	parse_error(sym, "Host '%s' already defined at line %u", host->name.txt, hp->line);
 
     d = dns_lookup_a(r, sym->buf, 0);
     while (d) {
