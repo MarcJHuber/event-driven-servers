@@ -1939,11 +1939,11 @@ backend backendtacplus
 <p>Likewise, <tt class="literal">net</tt> related lookups use aggregates, too:</p>
 <pre class="screen">    aggregate net = 192.168.0.240/255.255.0.240</pre>
 <p>Aggregation is supported for both IPv4 and IPv6. Also, netmasks don't need to be contiguous.</p>
-<p>If compiled with TLS support, primary criteria for device object selection with TLS is no longer the NAS IP address but the certificate DNS SAN (order: IP, directory name, common name), followed by the DN and, common name. Sample DN matching sequence for <tt class="literal">/C=US/ST=California/L=San Francisco/O=Example Corp/OU=IT Department/CN=www.example.com</tt>: The daemon will check for device objects named</p>
 </td>
 </tr>
 </table>
 </div>
+<p>If compiled with TLS support, primary criteria for device object selection with TLS is no longer the NAS IP address but the certificate DNS SAN (order: IP, directory name, common name), followed by the DN and, common name. Sample DN matching sequence for <tt class="literal">/C=US/ST=California/L=San Francisco/O=Example Corp/OU=IT Department/CN=www.example.com</tt>: The daemon will check for device objects named</p>
 <ul>
 <li>
 <p><tt class="literal">/C=US/ST=California/L=San Francisco/O=Example Corp/OU=IT Department/CN=www.example.com</tt>,</p>
