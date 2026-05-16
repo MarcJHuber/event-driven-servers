@@ -826,7 +826,7 @@ static int ASN1_TIME_to_tm(const ASN1_TIME *s, struct tm *tm)
     if (s->type == V_ASN1_GENERALIZEDTIME)
 	tm->tm_year -= 1900;
     else if (s->type == V_ASN1_UTCTIME && tm->tm_year < 70)
-	    tm->tm_year += 100;
+	tm->tm_year += 100;
 
     return 1;
 }
@@ -1153,7 +1153,9 @@ static void accept_control_tls(struct context *ctx, int cur)
 				    continue;
 				radixtree_t *rxt = lookup_hosttree(ctx->realm);
 				if (rxt) {
-				    tac_host *h = radix_lookup(rxt, &addr, NULL);
+				    struct in6_addr agg_addr = addr;
+				    check_aggregate(ctx->realm, &agg_addr, S_device);
+				    tac_host *h = radix_lookup(rxt, &agg_addr, NULL);
 				    if (h) {
 					ctx->host = h;
 					prio = CERT_SAN_PRIO;
@@ -1654,8 +1656,11 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
     tac_host *h = NULL;
     radixtree_t *rxt = lookup_hosttree(r);
-    if (rxt)
-	h = radix_lookup(rxt, &ctx->device_addr, NULL);
+    if (rxt) {
+	struct in6_addr agg_addr = ctx->device_addr;
+	check_aggregate(r, &agg_addr, S_device);
+	h = radix_lookup(rxt, &agg_addr, NULL);
+    }
 
     if (h) {
 	complete_host(h);
@@ -1665,7 +1670,9 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	    ctx->realm = r;
 	    rxt = lookup_hosttree(r);
 	    if (rxt) {
-		h = radix_lookup(rxt, &ctx->device_addr, NULL);
+		struct in6_addr agg_addr = ctx->device_addr;
+		check_aggregate(r, &agg_addr, S_device);
+		h = radix_lookup(rxt, &agg_addr, NULL);
 		if (h)
 		    complete_host(h);
 	    }

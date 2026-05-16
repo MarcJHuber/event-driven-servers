@@ -982,7 +982,9 @@ static void rad_set_fields(tac_session *session)
     if (memcmp(&session->radius_data->device_addr, &session->ctx->device_addr, sizeof(session->ctx->device_addr))) {
 	radixtree_t *rxt = lookup_hosttree(session->ctx->realm);
 	if (rxt) {
-	    tac_host *h = radix_lookup(rxt, &session->radius_data->device_addr, NULL);
+	    struct in6_addr agg_addr = session->radius_data->device_addr;
+	    check_aggregate(session->ctx->realm, &agg_addr, S_device);
+	    tac_host *h = radix_lookup(rxt, &agg_addr, NULL);
 	    if (h) {
 		complete_host(h);
 		session->host = h;

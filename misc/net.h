@@ -288,4 +288,7 @@ int v6_contains(struct in6_addr *, int, struct in6_addr *);
 
 /* parse input CIDR string, set address and mask */
 int v6_ptoh(struct in6_addr *, int *, char *);
+
+/* parse input CIDR string, set address and mask */
+int v6_ptoh_ext(struct in6_addr *, struct in6_addr *, char *);
 #endif				/* __NET_H_ */

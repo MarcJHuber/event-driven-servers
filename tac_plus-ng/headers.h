@@ -385,6 +385,8 @@ typedef struct {
     tac_rewrite_expr *expr;
 } tac_rewrite;
 
+struct tac_aggregate;
+
 struct realm {
     TAC_NAME_ATTRIBUTES;
     u_int line;			/* configuration file line number */
@@ -485,6 +487,8 @@ struct realm {
     int rulecount;
     struct io_dns_ctx *idc;
     radixtree_t *dns_tree_ptr[3];	// 0: static, 1-2: dynamic
+    struct tac_aggregate *aggregate_dev;
+    struct tac_aggregate *aggregate_net;
 };
 
 struct tac_session;
@@ -940,6 +944,8 @@ extern int die_when_idle;
 #define CLIENT_BUG_NO_INHERIT		0x80000000
 
 char *check_client_bug_invalid_remote_address(tac_session *);
+
+void check_aggregate(tac_realm *r, struct in6_addr *, enum token);
 
 #endif				/* __HEADERS_H_ */
 /*

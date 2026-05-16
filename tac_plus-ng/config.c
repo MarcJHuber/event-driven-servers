@@ -275,6 +275,8 @@ void complete_realm(tac_realm *r)
 	RS(allowed_protocol_tacacs_tcp, TRISTATE_DUNNO);
 	RS(allowed_protocol_tacacs_tls, TRISTATE_DUNNO);
 	RS(backend_failure_file, NULL);
+	RS(aggregate_dev, NULL);
+	RS(aggregate_net, NULL);
 	if (!(r->default_host->bug_compatibility & CLIENT_BUG_NO_INHERIT))
 	    r->default_host->bug_compatibility |= rp->default_host->bug_compatibility;
 #ifdef WITH_SSL
@@ -1248,6 +1250,65 @@ int rad_check_dacl(tac_session *session)
     return 0;
 }
 
+struct tac_aggregate {
+    struct in6_addr addr;
+    struct in6_addr mask;
+    tac_host *host;
+    tac_net *net;
+    struct tac_aggregate *next;
+};
+
+// aggregate device = <ip>/<mask>
+// aggregate net = <ip>/<mask>
+
+static void parse_aggregate(struct sym *sym, tac_realm *r)
+{
+    struct tac_aggregate **a = NULL;
+    switch (sym->code) {
+    case S_net:
+	a = &(r->aggregate_net);
+	break;
+    case S_device:
+    case S_host:
+	a = &(r->aggregate_dev);
+	break;
+    default:
+	parse_error_expect(sym, S_device, S_host, S_net, S_unknown);
+    }
+    sym_get(sym);
+    parse(sym, S_equal);
+    while (*a)
+	a = &(*a)->next;
+    *a = calloc(1, sizeof(struct tac_aggregate));
+    if (v6_ptoh_ext(&((*a)->addr), &((*a)->mask), sym->buf))
+	parse_error(sym, "Expected an IP address or network, but got '%s'.", sym->buf);
+    for (int i = 0; i < 4; i++)
+	(*a)->addr.s6_addr32[i] &= (*a)->mask.s6_addr32[i];
+    sym_get(sym);
+}
+
+void check_aggregate(tac_realm *r, struct in6_addr *addr, enum token token)
+{
+    struct tac_aggregate *agg = r->aggregate_dev;
+    if (token == S_net)
+	agg = r->aggregate_net;
+
+    for (; r; r = r->parent) {
+	for (; agg; agg = agg->next) {
+	    uint32_t *aa = agg->addr.s6_addr32;
+	    uint32_t *am = agg->mask.s6_addr32;
+	    uint32_t *a = addr->s6_addr32;
+	    int i = 0;
+	    for (; i < 4 && aa[i] == (a[i] & am[i]); i++);
+	    if (i != 4)
+		continue;
+	    for (int j = 0; j < 4; j++)
+		a[j] = aa[j];
+	    return;
+	}
+    }
+}
+
 void parse_decls_real(struct sym *sym, tac_realm *r)
 {
     /* Top level of parser */
@@ -1575,6 +1636,10 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    parse(sym, S_equal);
 	    config.dscp = parse_uint(sym);
 	    config.dscp <<= 2;
+	    continue;
+	case S_aggregate:
+	    sym_get(sym);
+	    parse_aggregate(sym, r);
 	    continue;
 	case S_retire:
 	    top_only(sym, r);
@@ -2040,7 +2105,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 			       S_anonenable, S_mschap, S_chap,
 			       S_key, S_motd, S_welcome, S_reject, S_permit, S_bug, S_augmented_enable, S_singleconnection, S_context,
 			       S_script, S_message, S_session, S_maxrounds, S_host, S_device, S_syslog, S_proctitle, S_coredump, S_alias,
-			       S_script_order, S_skip, S_aaa_protocol_allowed, S_dscp,
+			       S_script_order, S_skip, S_aaa_protocol_allowed, S_dscp, S_aggregate,
 #ifdef WITH_PCRE2
 			       S_rewrite,
 #endif
@@ -5016,10 +5081,14 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
     case S_net:
 	if (m->s.token == S_nas) {
 	    tac_net *net = (tac_net *) (m->s.rhs);
-	    res = radix_lookup(net->nettree, &session->ctx->device_addr, NULL) ? -1 : 0;
+	    struct in6_addr addr = session->ctx->device_addr;
+	    check_aggregate(session->ctx->realm, &addr, S_net);
+	    res = radix_lookup(net->nettree, &addr, NULL) ? -1 : 0;
 	} else if (session->nac_addr_valid) {
 	    tac_net *net = (tac_net *) (m->s.rhs);
-	    res = radix_lookup(net->nettree, &session->nac_address, NULL) ? -1 : 0;
+	    struct in6_addr addr = session->nac_address;
+	    check_aggregate(session->ctx->realm, &addr, S_net);
+	    res = radix_lookup(net->nettree, &addr, NULL) ? -1 : 0;
 	}
 	return tac_script_cond_eval_res(session, m, res);
     case S_time:

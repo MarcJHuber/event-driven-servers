@@ -649,8 +649,7 @@ int v6_contains(struct in6_addr *n, int m, struct in6_addr *a)
 
 void v6_ntoh(struct in6_addr *a, struct in6_addr *b)
 {
-    int i;
-    for (i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++)
 	a->s6_addr32[i] = ntohl(b->s6_addr32[i]);
 }
 
@@ -708,5 +707,78 @@ int v6_ptoh(struct in6_addr *a, int *cm, char *s)
 	a->s6_addr32[2] = 0x0000FFFF;
 	a->s6_addr32[3] = ntohl(inet_addr(c));
 	return a->s6_addr32[3] == INADDR_NONE;
+    }
+}
+
+static __inline__ int minimum(int a, int b)
+{
+    return (a < b) ? a : b;
+}
+
+int v6_ptoh_ext(struct in6_addr *addr, struct in6_addr *mask, char *s)
+{
+    size_t s_len = strlen(s);
+    char in[s_len + 1];
+    memcpy(in, s, s_len + 1);
+
+    char *m = strchr(in, '/');
+    if (m)
+	*m++ = 0;
+
+#ifdef AF_INET6
+    if (strchr(in, ':')) {
+	if (m) {
+	    if (strchr(m, ':')) {
+		if (1 != inet_pton(AF_INET6, m, &mask->s6_addr32))
+		    return -1;
+		for (int i = 0; i < 4; i++)
+		    mask->s6_addr32[i] = ntohl(mask->s6_addr32[i]);
+	    } else {
+		int cidr = atoi(m);
+		if (cidr < 0 || cidr > 128)
+		    cidr = 128;
+		for (int i = 0, c = 32; i < 4; i++, c += 32) {
+		    int min = minimum(32, c - cidr);
+		    if (min == 32)
+			mask->s6_addr32[i] = 0;
+		    else {
+			mask->s6_addr32[i] = 0xffffffff;
+			if (cidr < c)
+			    mask->s6_addr32[i] <<= min;
+		    }
+		}
+	    }
+	}
+
+	if (1 != inet_pton(AF_INET6, in, &addr->s6_addr32))
+	    return -1;
+
+	for (int i = 0; i < 4; i++)
+	    addr->s6_addr32[i] = ntohl(addr->s6_addr32[i]);
+	return 0;
+    } else
+#endif
+    {
+	for (int i = 0; i < 4; i++)
+	    mask->s6_addr32[i] = 0xffffffff;
+	if (m) {
+	    if (strchr(m, '.')) {
+		in_addr_t ia = inet_addr(m);
+		if (ia == INADDR_NONE)
+		    return -1;
+		mask->s6_addr32[3] = ntohl(ia);
+	    } else {
+		int cidr = atoi(m);
+		if (cidr < 0 || cidr > 32)
+		    cidr = 32;
+		mask->s6_addr32[3] = 0xffffffff << (32 - cidr);
+	    }
+	} else
+	    mask->s6_addr32[3] = 0xffffffff;
+
+	addr->s6_addr32[0] = addr->s6_addr32[1] = 0;
+	addr->s6_addr32[2] = 0x0000FFFF;
+	addr->s6_addr32[3] = ntohl(inet_addr(in));
+	return addr->s6_addr32[3] == INADDR_NONE;
     }
 }
