@@ -1575,6 +1575,21 @@ quo\te me".
    fact that certain device object attributes (key, prompt, enable
    passwords) may only exist once.
 
+   Tip Aggregation
+
+
+   Some IP lookups support aggregation. E.g., defining
+    aggregate device = 172.16.0.0/23
+
+   at realm level will map device related IP lookups in that range
+   to 172.16.0.0.
+
+   Likewise, net related lookups use aggregates, too:
+    aggregate net = 192.168.0.240/255.255.0.240
+
+   Aggregation is supported for both IPv4 and IPv6. Also, netmasks
+   don't need to be contiguous.
+
    If compiled with TLS support, primary criteria for device
    object selection with TLS is no longer the NAS IP address but
    the certificate DNS SAN (order: IP, directory name, common
