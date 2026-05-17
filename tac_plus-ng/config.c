@@ -1282,8 +1282,6 @@ static void parse_aggregate(struct sym *sym, tac_realm *r)
     *a = calloc(1, sizeof(struct tac_aggregate));
     if (v6_ptoh_ext(&((*a)->addr), &((*a)->mask), sym->buf))
 	parse_error(sym, "Expected an IP address or network, but got '%s'.", sym->buf);
-    for (int i = 0; i < 4; i++)
-	(*a)->addr.s6_addr32[i] &= (*a)->mask.s6_addr32[i];
     sym_get(sym);
 }
 
@@ -1299,7 +1297,7 @@ void check_aggregate(tac_realm *r, struct in6_addr *addr, enum token token)
 	    uint32_t *am = agg->mask.s6_addr32;
 	    uint32_t *a = addr->s6_addr32;
 	    int i = 0;
-	    for (; i < 4 && aa[i] == (a[i] & am[i]); i++);
+	    for (; i < 4 && (aa[i] & am[i]) == (a[i] & am[i]); i++);
 	    if (i != 4)
 		continue;
 	    for (int j = 0; j < 4; j++)
