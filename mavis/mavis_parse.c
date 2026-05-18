@@ -1059,6 +1059,7 @@ void cfg_read_config(char *url, void (*parsefunction)(struct sym *), char *id)
 		parse(&sym, S_openbra);
 		parsefunction(&sym);
 		parse(&sym, S_closebra);
+		sym.code = S_eof;
 	    }
 	    break;
 	case S_eof:
