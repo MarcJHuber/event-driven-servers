@@ -486,5 +486,16 @@
 #ifndef LOG_PRIMASK
 #define LOG_PRIMASK 0x07
 #endif
+/*******************************************************************************
+ * arc4random() / arc4random_uniform()
+ */
+#if !defined(__ANY_BSD__) || \
+    (defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 36)))
+  /* natively available */
+#else
+# include <stdint.h>
+static inline uint32_t arc4random(void) { return (uint32_t) random(); }
+static inline uint32_t arc4random_uniform(uint32_t n) { return (uint32_t) (random() % n); }
+#endif
 /******************************************************************************/
 #endif				/* __SYSCONF_H__ */

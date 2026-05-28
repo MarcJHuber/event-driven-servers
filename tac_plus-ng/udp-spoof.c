@@ -86,7 +86,7 @@ ssize_t sendto_spoof(sockaddr_union *src_su, sockaddr_union *dst_su, void *buf, 
 	ip->ip_v = 4;
 	ip->ip_hl = 5;
 	ip->ip_len = htons(buffer_len);
-	ip->ip_id = rand();
+	ip->ip_id = arc4random();
 	ip->ip_ttl = 64;
 	ip->ip_p = IPPROTO_UDP;
 	ip->ip_src.s_addr = src_su->sin.sin_addr.s_addr;
@@ -94,7 +94,7 @@ ssize_t sendto_spoof(sockaddr_union *src_su, sockaddr_union *dst_su, void *buf, 
 	ip->ip_sum = checksum(ip, sizeof(struct ip), NULL, 0);
 
 	struct udphdr *udp = (struct udphdr *) (buffer + sizeof(struct ip));
-	udp->uh_sport = htons((short) ((0x8000 | rand()) & 0x7fff));
+	udp->uh_sport = htons(0x8000 | arc4random_uniform(0x8000));
 	udp->uh_dport = dst_su->sin.sin_port;
 	udp->uh_ulen = htons(sizeof(struct udphdr) + buf_len);
 
@@ -129,7 +129,7 @@ ssize_t sendto_spoof(sockaddr_union *src_su, sockaddr_union *dst_su, void *buf, 
 	ip6->ip6_dst = dst_su->sin6.sin6_addr;
 
 	struct udphdr *udp = (struct udphdr *) (buffer + sizeof(struct ip6_hdr));
-	udp->uh_sport = htons((short) ((0x8000 | rand()) & 0x7fff));
+	udp->uh_sport = htons(0x8000 | arc4random_uniform(0x8000));
 	udp->uh_dport = dst_su->sin6.sin6_port;
 	udp->uh_ulen = htons(sizeof(struct udphdr) + buf_len);
 

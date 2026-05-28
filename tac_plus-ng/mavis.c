@@ -416,7 +416,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 		salt[1] = '1';
 		salt[2] = '$';
 		for (int i = 3; i < 11; i++)
-		    salt[i] = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"[random() % 64];
+		    salt[i] = "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"[arc4random_uniform(64)];
 		salt[11] = '$';
 		salt[12] = 0;
 		crypt = md5crypt(pass, salt);
