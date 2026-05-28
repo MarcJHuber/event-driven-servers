@@ -2154,7 +2154,7 @@ static void accept_control(struct context *ctx, int cur)
 		return;
 	    memcpy(&sd_ext.sd, &u.sd_udp, sizeof(struct scm_data_udp));
 	    users_inc();
-	    set_sd_realm(cur, &sd_ext);
+	    set_sd_realm(s, &sd_ext);
 	    accept_control_common(s, &sd_ext, NULL, u.sd_udp.data, u.sd_udp.data_len);
 	    return;
 	}
@@ -2167,7 +2167,7 @@ static void accept_control(struct context *ctx, int cur)
 	int one = 1;
 	setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (char *) &one, (socklen_t) sizeof(one));
 	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (char *) &one, (socklen_t) sizeof(one));
-	set_sd_realm(cur, &sd_ext);
+	set_sd_realm(s, &sd_ext);
 	if ((sd_ext.sd.flags & SCM_FLAG_HAPROXY) || (sd_ext.realm->haproxy_autodetect == TRISTATE_YES))
 	    accept_control_px(s, &sd_ext);
 	else
