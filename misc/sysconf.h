@@ -489,7 +489,7 @@
 /*******************************************************************************
  * arc4random() / arc4random_uniform()
  */
-#if !defined(__ANY_BSD__) || \
+#if defined(__ANY_BSD__) || \
     (defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 36)))
   /* natively available */
 #else
