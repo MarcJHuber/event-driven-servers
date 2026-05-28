@@ -4894,7 +4894,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		    } else {	// non-numeric
 			struct rad_dict_val *val = rad_dict_val_lookup_by_name(attr, sym->buf);
 			if (attr->val && !val)
-			    parse_error(sym, "RADIUS value '$s' not found (attribute: %s)", sym->buf, attr->name);
+			    parse_error(sym, "RADIUS value '%s' not found (attribute: %s)", sym->buf, attr->name);
 			sym_get(sym);
 			m->s.rhs_txt = val->name.txt;
 			m->s.rhs = (void *) (long) val->id;
