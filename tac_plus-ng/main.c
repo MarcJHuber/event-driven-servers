@@ -587,7 +587,7 @@ static struct context_px *new_context_px(struct io_context *io, struct scm_data_
 {
     struct context_px *c = calloc(1, sizeof(struct context_px));
     c->io = io;
-    memcpy(&c->sd, sd, sizeof(*sd));
+    c->sd = *sd;
     return c;
 }
 
@@ -2152,7 +2152,7 @@ static void accept_control(struct context *ctx, int cur)
 	    rad_pak_hdr *hdr = (rad_pak_hdr *) (&u.sd_udp.data);
 	    if (u.sd_udp.data_len != ntohs(hdr->length))
 		return;
-	    memcpy(&sd_ext.sd, &u.sd_udp, sizeof(struct scm_data_udp));
+	    sd_ext.sd_udp = u.sd_udp;
 	    users_inc();
 	    set_sd_realm(s, &sd_ext);
 	    accept_control_common(s, &sd_ext, NULL, u.sd_udp.data, u.sd_udp.data_len);
@@ -2162,7 +2162,7 @@ static void accept_control(struct context *ctx, int cur)
 	users_dec();
 	return;
     case SCM_ACCEPT:
-	memcpy(&sd_ext.sd, &u.sd, sizeof(struct scm_data_accept));
+	sd_ext.sd = u.sd;
 	users_inc();
 	int one = 1;
 	setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (char *) &one, (socklen_t) sizeof(one));
