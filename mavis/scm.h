@@ -28,17 +28,17 @@ struct scm_data_accept {
 #define SCM_FLAG_RADACCT 2
 #define SCM_FLAG_TLSPSK 4
     u_int flags;
-    int socktype;		// SOCK_STREAM, SOCK_SEQPACKET; SOCK_DGRAM
-    int protocol;		// AF_INET, AF_INET6, ...
 #define SCM_REALM_SIZE 16
     char realm[SCM_REALM_SIZE];
+    int socktype;		// SOCK_STREAM, SOCK_SEQPACKET; SOCK_DGRAM
+    int protocol;		// AF_INET, AF_INET6, ...
 };
 
 struct scm_data_udp {
     enum scm_token type;
     u_int tls_versions;
     int aaa_protocol;
-    u_int flags;		// 1: haproxy, 2: radius-accounting
+    u_int flags;
     char realm[SCM_REALM_SIZE];
     short data_len;
     u_char data[] __attribute__((aligned(8)));
