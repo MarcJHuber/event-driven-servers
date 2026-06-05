@@ -81,6 +81,7 @@ BEGIN {
 		AV_V_TACTYPE_DACL
 		AV_V_TACTYPE_HOST
 		AV_V_TACTYPE_INFO
+		AV_V_TACTYPE_MFA
 		AV_V_TACTYPE_MSCHAP
 		AV_V_TYPE_FTP
 		AV_V_TYPE_LOGSTATS
@@ -173,6 +174,7 @@ use constant AV_V_TACTYPE_CHPW => "CHPW";
 use constant AV_V_TACTYPE_DACL => "DACL";
 use constant AV_V_TACTYPE_HOST => "HOST";
 use constant AV_V_TACTYPE_INFO => "INFO";
+use constant AV_V_TACTYPE_MFA => "MFA";
 use constant AV_V_TACTYPE_MSCHAP => "MSCH";
 use constant AV_V_TYPE_FTP => "FTP";
 use constant AV_V_TYPE_LOGSTATS => "PRIV_LOGSTATS";
