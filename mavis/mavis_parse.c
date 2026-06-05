@@ -1114,7 +1114,10 @@ int parse_int(struct sym *sym)
     int i;
     char c;
 
-    switch (sscanf(sym->buf, "%d%c", &i, &c)) {
+    int r = sscanf(sym->buf, "%d%c", &i, &c);
+    if (r == 2 && i == 0 && (c == 'x' || c == 'X'))
+	r = sscanf(sym->buf, "%x%c", &i, &c);
+    switch (r) {
     case 2:
 	switch (c) {
 	default:
