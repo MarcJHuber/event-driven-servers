@@ -306,6 +306,7 @@ typedef struct {
     struct pwdat *passwd[PW_MAVIS + 1];
     struct ssh_key *ssh_key;
     struct ssh_key_id *ssh_key_id;
+    struct tac_acl *mavis_mfa_acl;
     tac_groups *groups;
     tac_tags *tags;
     mem_t *mem;
@@ -459,6 +460,7 @@ struct realm {
     int backend_failure_period;
     char *backend_failure_file;
     struct tac_acl *mavis_user_acl;
+    struct tac_acl *mavis_mfa_acl;
     struct tac_acl *enable_user_acl;
     struct tac_acl *password_acl;
     time_t last_backend_failure;
@@ -611,15 +613,25 @@ struct tac_session {
 	u_char mschap_version;
 	u_char chap_pppid;
     };
-    u_char *chap_response;
-    size_t chap_response_len;
-    u_char *chap_challenge;
-    size_t chap_challenge_len;
+    union {
+	struct {
+	    u_char *chap_response;
+	    size_t chap_response_len;
+	    u_char *chap_challenge;
+	    size_t chap_challenge_len;
+	};
+	struct {
+	    char *mfa_info;
+	    enum hint_enum mfa_hint;
+	    char *mfa_msg;
+	};
+    };
     struct {
 	BISTATE(nac_addr_valid);
 	BISTATE(flag_mavis_info);
 	BISTATE(flag_mavis_auth);
 	BISTATE(flag_chalresp);
+	BISTATE(flag_mavis_mfa);
 	BISTATE(mavis_pending);
 	BISTATE(revmap_pending);
 	BISTATE(revmap_timedout);
@@ -632,6 +644,7 @@ struct tac_session {
 	BISTATE(chpass);
 	BISTATE(authorized);
 	BISTATE(eval_log_raw);
+	BISTATE(want_mfa);
     } __attribute__((__packed__));
     enum token mavisauth_res;
     u_int authfail_delay;
@@ -886,7 +899,7 @@ void resume_session(tac_session *, int);
 void get_pkt_data(tac_session *, struct authen_start *, struct author *);
 
 enum token tac_script_eval_r(tac_session *, struct mavis_action *);
-void tac_script_parse(struct sym *sym, struct mavis_action **p, mem_t *mem, tac_realm *realm, tac_user *user);
+void tac_script_parse(struct sym *sym, struct mavis_action **p, mem_t * mem, tac_realm * realm, tac_user * user);
 void tac_script_expire_exec_context(struct context *);
 void tac_script_set_exec_context(tac_session *, char *);
 char *tac_script_get_exec_context(tac_session *);
@@ -945,7 +958,7 @@ extern int die_when_idle;
 
 char *check_client_bug_invalid_remote_address(tac_session *);
 
-void check_aggregate(tac_realm *r, struct in6_addr *, enum token);
+void check_aggregate(tac_realm * r, struct in6_addr *, enum token);
 
 #endif				/* __HEADERS_H_ */
 /*

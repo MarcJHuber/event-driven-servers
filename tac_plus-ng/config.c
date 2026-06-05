@@ -266,6 +266,7 @@ void complete_realm(tac_realm *r)
 	RS(mavis_user_acl, NULL);
 	RS(enable_user_acl, NULL);
 	RS(password_acl, NULL);
+	RS(mavis_mfa_acl, NULL);
 	RS(haproxy_autodetect, TRISTATE_DUNNO);
 	RS(default_host->authfallback, TRISTATE_DUNNO);
 	RS(allowed_protocol_radius_udp, TRISTATE_DUNNO);
@@ -510,6 +511,8 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
 	r->mavis_user_acl = tac_acl_lookup("__internal__username_acl__", r);
 	parse_inline(r, "acl __internal__enable_user__ { if (user =~ \"^\\\\$enab..?\\\\$$\") permit deny }", __FILE__, __LINE__);
 	r->enable_user_acl = tac_acl_lookup("__internal__enable_user__", r);
+	parse_inline(r, "acl __internal__permit__ { permit }", __FILE__, __LINE__);
+	parse_inline(r, "acl __internal__deny__ { deny }", __FILE__, __LINE__);
     }
 
     return r;
@@ -1715,6 +1718,24 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    parse_error(sym, "ACL '%s' not found.", sym->buf);
 		sym_get(sym);
 		continue;
+	    case S_mfa:
+		sym_get(sym);
+		switch (sym->code) {
+		case S_acl:
+		    sym_get(sym);
+		    r->mavis_mfa_acl = tac_acl_lookup(sym->buf, r);
+		    if (!r->mavis_mfa_acl)
+			parse_error(sym, "ACL '%s' not found", sym->buf);
+		    sym_get(sym);
+		    break;
+		case S_equal:
+		    sym_get(sym);
+		    r->mavis_mfa_acl = tac_acl_lookup(parse_bool(sym) ? "__internal__permit__" : "__internal__deny__", r);
+		    break;
+		default:
+		    parse_error_expect(sym, S_acl, S_equal, S_unknown);
+	        }
+		continue;
 	    case S_format:
 		sym_get(sym);
 		switch (sym->code) {
@@ -1732,7 +1753,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		r->mavis_custom_attr[i] = parse_log_format(sym, NULL);
 		continue;
 	    default:
-		parse_error_expect(sym, S_module, S_path, S_cache, S_format, S_unknown);
+		parse_error_expect(sym, S_module, S_path, S_cache, S_noauthcache, S_user, S_mfa, S_format, S_unknown);
 	    }
 	case S_enable:
 	    sym_get(sym);
@@ -3229,6 +3250,26 @@ static void parse_user_attr(struct sym *sym, tac_user *user)
 	    continue;
 	case S_password:
 	    parse_password(sym, user);
+	    continue;
+	case S_mavis:
+	    sym_get(sym);
+	case S_mfa:
+	    parse(sym, S_mfa);
+	    switch (sym->code) {
+	    case S_acl:
+		sym_get(sym);
+		user->mavis_mfa_acl = tac_acl_lookup(sym->buf, r);
+		if (!user->mavis_mfa_acl)
+		    parse_error(sym, "ACL '%s' not found", sym->buf);
+		sym_get(sym);
+		break;
+	    case S_equal:
+		sym_get(sym);
+		user->mavis_mfa_acl = tac_acl_lookup(parse_bool(sym) ? "__internal__permit__" : "__internal__deny__", r);
+		break;
+	    default:
+		parse_error_expect(sym, S_acl, S_equal, S_unknown);
+	    }
 	    continue;
 	case S_enable:
 	    sym_get(sym);

@@ -171,12 +171,12 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
     if (r->name.txt)
 	av_set(avc, AV_A_REALM, r->name.txt);
 
-    if (session->password && strcmp(type, AV_V_TACTYPE_INFO))
+    if (session->password)
 	av_set(avc, AV_A_PASSWORD, session->password);
-    if (session->password_new && !strcmp(type, AV_V_TACTYPE_CHPW))
+    if (session->password_new)
 	av_set(avc, AV_A_PASSWORD_NEW, session->password_new);
 
-    if (session->chap_challenge_len && session->chap_response_len && (!strcmp(type, AV_V_TACTYPE_CHAP) || !strcmp(type, AV_V_TACTYPE_MSCHAP))) {
+    if (session->chap_challenge_len && session->chap_response_len) {
 	char buf[((session->chap_challenge_len + session->chap_response_len) << 1) + 5];
 	char *b = buf;
 	if (!strcmp(type, AV_V_TACTYPE_CHAP)) {
@@ -300,8 +300,8 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 	    if (verdict && !session->ctx->realm->caching_period && !strcmp(verdict, AV_V_BOOL_TRUE))
 		session->authorized = 1;
 
-	    if (!u
-		|| (u->dynamic && strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_CHAP) && strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_MSCHAP))) {
+	    if (!u || (u->dynamic && (!strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_AUTH) || !strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_CHPW)
+		       || !strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_INFO)))) {
 		struct sym sym = {.filename = session->username.txt,.line = 1,.flag_prohibit_include = 1 };
 
 		if (!r->caching_period && session->user) {

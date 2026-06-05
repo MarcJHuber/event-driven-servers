@@ -525,7 +525,7 @@ static enum token lookup_and_set_user(tac_session *session)
 static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_auth
-	&& ((!session->user &&(session->ctx->realm->mavis_login == TRISTATE_YES) &&(session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
+	&& ((!session->user && (session->ctx->realm->mavis_login == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
 	    || (session->user && pw_ix == PW_MAVIS));
     session->flag_mavis_auth = 1;
     if (res)
@@ -605,6 +605,15 @@ static int query_mavis_mschap_login(tac_session *session, void (*f)(tac_session 
 }
 #endif
 
+static int query_mavis_mfa(tac_session *session, void (*f)(tac_session *))
+{
+    int res = !session->flag_mavis_mfa && session->user;
+    session->flag_mavis_mfa = 1;
+    if (res)
+	mavis_lookup(session, f, AV_V_TACTYPE_MFA, PW_LOGIN);
+    return res;
+}
+
 int query_mavis_info(tac_session *session, void (*f)(tac_session *), enum pw_ix pw_ix)
 {
     int res = !session->flag_mavis_info && !session->user;
@@ -665,6 +674,14 @@ static int refuse_rad_session(tac_session *session, char *info, enum pw_ix pw_ix
     return 0;
 }
 
+static void set_mfa(tac_session *session)
+{
+    if (session->user && session->user->mavis_mfa_acl)
+	session->want_mfa = (S_permit == eval_tac_acl(session, session->user->mavis_mfa_acl)) ? BISTATE_YES : BISTATE_NO;
+    else if (session->host->realm->mavis_mfa_acl)
+	session->want_mfa = (S_permit == eval_tac_acl(session, session->host->realm->mavis_mfa_acl)) ? BISTATE_YES : BISTATE_NO;
+}
+
 static int set_tac_user(tac_session *session, char *info)
 {
     if (S_deny == lookup_and_set_user(session)) {
@@ -672,6 +689,7 @@ static int set_tac_user(tac_session *session, char *info)
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 	return -1;
     }
+    set_mfa(session);
     return 0;
 }
 
@@ -682,6 +700,7 @@ static int set_rad_user(tac_session *session, char *info)
 	rad_send_authen_reply(session, RADIUS_CODE_ACCESS_REJECT, NULL);
 	return -1;
     }
+    set_mfa(session);
     return 0;
 }
 
@@ -709,6 +728,63 @@ static void chap_helper(tac_session *session, enum token *res, enum hint_enum *h
 	    }
 	}
     }
+}
+
+static void do_mfa(tac_session * session);
+static void do_rad_mfa(tac_session * session);
+
+static int init_mfa(tac_session *session, enum token res, char *info, enum hint_enum hint, char *msg, int msg_len, u_char *data, int data_len)
+{
+    if (res == S_permit && session->want_mfa == BISTATE_YES) {
+	session->authfn = do_mfa;
+	session->mfa_info = info;
+	session->mfa_hint = hint;
+
+	session->authen_data->msg = msg;
+	session->authen_data->msg_len = msg_len;
+	session->authen_data->data = data;
+	session->authen_data->data_len = data_len;
+	do_mfa(session);
+	return -1;
+    }
+    return 0;
+}
+
+static int init_rad_mfa(tac_session *session, enum token res, char *info, enum hint_enum hint, char *resp)
+{
+    if (res == S_permit && session->want_mfa == BISTATE_YES) {
+	session->authfn = do_rad_mfa;
+	session->mfa_info = info;
+	session->mfa_hint = hint;
+
+	session->mfa_msg = resp;
+	do_rad_mfa(session);
+	return -1;
+    }
+    return 0;
+}
+
+static void do_mfa(tac_session *session)
+{
+    if (query_mavis_mfa(session, do_mfa))
+	return;
+
+    enum token res = session->mavisauth_res;
+    report_auth(session, session->mfa_info, session->mfa_hint, res);
+
+    send_authen_reply(session, TAC_SYM_TO_CODE(res), session->authen_data->msg, session->authen_data->msg_len, session->authen_data->data,
+		      session->authen_data->data_len, 0);
+}
+
+static void do_rad_mfa(tac_session *session)
+{
+    if (query_mavis_mfa(session, do_rad_mfa))
+	return;
+
+    enum token res = session->mavisauth_res;
+    report_auth(session, session->mfa_info, session->mfa_hint, res);
+
+    rad_send_authen_reply(session, RAD_SYM_TO_CODE(res), session->mfa_msg);
 }
 
 static void do_chap(tac_session *session)
@@ -739,6 +815,9 @@ static void do_chap(tac_session *session)
 	session->chap_response_len = MD5_LEN;
 	chap_helper(session, &res, &hint, &resp);
     }
+
+    if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
+	return;
 
     report_auth(session, info, hint, res);
 
@@ -976,6 +1055,9 @@ static void do_chpass(tac_session *session)
 	resp = set_motd_banner(session);
     }
 
+    if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
+	return;
+
     report_auth(session, info, hint, res);
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
@@ -1062,6 +1144,9 @@ static void do_enable_login(tac_session *session)
 
     enum token res = check_access(session, pwdat, session->password, &hint, &resp);
 
+    if (init_mfa(session, res, info, hint, NULL, 0, NULL, 0))
+	return;
+
     report_auth(session, info, hint, res);
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), (res == S_permit) ? NULL : resp, 0, NULL, 0, 0);
@@ -1122,6 +1207,9 @@ static void do_enable_augmented(tac_session *session)
 		res = check_access(session, pwdat, session->password, &hint, &resp);
 	}
     }
+
+    if (init_mfa(session, res, info, hint, NULL, 0, NULL, 0))
+	return;
 
     report_auth(session, info, hint, res);
 
@@ -1187,6 +1275,9 @@ static void do_enable(tac_session *session)
 	if (session->enable)
 	    res = compare_pwdat(session->enable, session->username.txt, session->authen_data->msg, &hint);
     }
+
+    if (init_mfa(session, res, info, hint, NULL, 0, NULL, 0))
+	return;
 
     report_auth(session, info, hint, res);
 
@@ -1270,10 +1361,10 @@ static void do_ascii_login(tac_session *session)
 
     mem_free(session->mem, &session->challenge);
 
-    report_auth(session, info, hint, res);
 
     switch (res) {
     case S_error:
+	report_auth(session, info, hint, res);
 	send_authen_error(session, "Authentication backend failure.");
 	return;
     case S_permit:
@@ -1288,8 +1379,13 @@ static void do_ascii_login(tac_session *session)
 
 	if (session->user->valid_until && session->user->valid_until < io_now.tv_sec + session->ctx->realm->warning_period)
 	    session->user_msg.txt = eval_log_format(session, session->ctx, NULL, li_account_expires, io_now.tv_sec, &session->user_msg.len);
+	char *resp = set_motd_banner(session);
 
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_PASS, set_motd_banner(session), 0, NULL, 0, 0);
+	if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
+	    return;
+
+	report_auth(session, info, hint, res);
+	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_PASS, resp, 0, NULL, 0, 0);
 	return;
     default:
 	;
@@ -1575,6 +1671,9 @@ static void do_mschap(tac_session *session)
     char *resp = NULL;
     mschap_helper(session, &res, &hint, &resp);
 
+    if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
+	return;
+
     report_auth(session, info, hint, res);
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
@@ -1673,10 +1772,13 @@ static void do_login(tac_session *session)
 
     res = check_access(session, pwdat, session->password, &hint, &resp);
 
-    report_auth(session, info, hint, res);
-
     if (!resp)
 	resp = session->user_msg.txt;
+
+    report_auth(session, info, hint, res);
+
+    if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
+	return;
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
 }
@@ -1720,10 +1822,13 @@ static void do_pap(tac_session *session)
 
     res = check_access(session, pwdat, session->password, &hint, &resp);
 
-    report_auth(session, info, hint, res);
-
     if (!resp)
 	resp = session->user_msg.txt;
+
+    if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
+	return;
+
+    report_auth(session, info, hint, res);
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
 }
@@ -1778,6 +1883,10 @@ static void do_sshkeyhash(tac_session *session)
 
     if (res == S_permit)
 	hint = hint_permitted;
+
+    if (init_mfa(session, res, info, hint, resp, 0, (u_char *) key, 0))
+	return;
+
     report_auth(session, info, hint, res);
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, (u_char *) key, 0, 0);
@@ -2352,10 +2461,13 @@ static void do_radius_login(tac_session *session)
 	}
     }
 
-    report_auth(session, info, hint, res);
-
     if (!resp)
 	resp = session->user_msg.txt;
+
+    if (rd->type != S_authorization && init_rad_mfa(session, res, info, hint, resp))
+	return;
+
+    report_auth(session, info, hint, res);
 
     rad_send_authen_reply(session, RAD_SYM_TO_CODE(res), resp);
 }
