@@ -95,6 +95,7 @@
 #endif
 #endif
 /******************************************************************************/
+#include <stdlib.h>
 #include <dlfcn.h>
 #include <syslog.h>
 #include <sys/types.h>
