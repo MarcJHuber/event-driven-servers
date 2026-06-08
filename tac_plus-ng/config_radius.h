@@ -73,6 +73,8 @@ struct rad_dict {
     struct rad_dict *next;
     int line;
     int id;
+    u_int type_len;
+    u_int vendor_len;
     struct rad_dict_attr *attr;
 };
 

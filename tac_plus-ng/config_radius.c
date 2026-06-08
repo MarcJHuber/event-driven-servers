@@ -75,6 +75,8 @@ static struct rad_dict *rad_dict_new(struct sym *sym, char *name, int id)
     str_set(&(*dict)->name, strdup(name), 0);
     (*dict)->line = sym->line;
     (*dict)->id = id;
+    (*dict)->type_len = 1;
+    (*dict)->vendor_len = 1;
     return *dict;
 }
 
@@ -202,6 +204,16 @@ static void rad_attr_val_dump_hex(u_char *data, size_t data_len, char **buf, siz
     }
 }
 
+static inline u_int get_uint(u_char *data, int len)
+{
+    u_int res = 0;
+    for (int i = 0; i < len; i++) {
+	res <<= 8;
+	res |= data[i];
+    }
+    return res;
+}
+
 static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, size_t *buf_len, struct rad_dict *dict)
 {
     // dump exactly one av pair, type is attr->type, prefixed with attr->dict->name (vendor name)
@@ -213,7 +225,15 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 	*(*buf)++ = ':';
 	*buf_len -= 1;
     }
-    struct rad_dict_attr *attr = rad_dict_attr_lookup_by_id(dict, *data);
+    struct rad_dict_attr *attr = rad_dict_attr_lookup_by_id(dict, get_uint(data, dict->type_len));
+    size_t vendor_len = get_uint(data + dict->type_len, dict->vendor_len);
+    if (!vendor_len)
+	vendor_len = data_len;
+    if (vendor_len < data_len)
+	return;
+
+    size_t val_len = vendor_len - dict->type_len - dict->vendor_len;
+    u_char *val = data + dict->type_len + dict->vendor_len;
 
     if (attr) {
 	if (*buf_len > attr->name.len + 2) {
@@ -225,24 +245,24 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 	}
 	switch (attr->type) {
 	case S_string_keyword:
-	    if (*buf_len > (size_t) (data[1] - 1)) {
+	    if (*buf_len > val_len - 1) {
 		if (attr->dict->id == -1 && attr->id == RADIUS_A_USER_PASSWORD) {
 		    *(*buf)++ = '*';
 		    *(*buf)++ = '*';
 		    *(*buf)++ = '*';
 		    *buf_len -= 3;
 		} else {
-		    memcpy(*buf, data + 2, data[1] - 2);
-		    *buf += data[1] - 2;
-		    *buf_len -= data[1] - 2;
+		    memcpy(*buf, val, val_len);
+		    *buf += val_len;
+		    *buf_len -= val_len;
 		}
 	    }
 	    break;
 	case S_enum:
 	case S_time:
 	case S_integer:
-	    if (data[1] == 6) {
-		u_int i = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | data[5];
+	    if (val_len == 4) {
+		u_int i = get_uint(val, 4);
 		struct rad_dict_val *val = rad_dict_val_lookup_by_id(attr, i);
 		if (val && (*buf_len > val->name.len)) {
 		    memcpy(*buf, val->name.txt, val->name.len);
@@ -258,15 +278,15 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 	    }
 	    break;
 	case S_octets:
-	    rad_attr_val_dump_hex(data + 2, data_len - 2, buf, buf_len);
+	    rad_attr_val_dump_hex(val, val_len, buf, buf_len);
 	    return;
 	case S_address:
 	case S_ipaddr:
 	case S_ipv4addr:
-	    if (data[1] == 6) {
+	    if (val_len == 4) {
 		sockaddr_union from = { 0 };
 		from.sin.sin_family = AF_INET;
-		memcpy(&from.sin.sin_addr, data + 2, 4);
+		memcpy(&from.sin.sin_addr, val, 4);
 		if (su_ntoa(&from, *buf, *buf_len)) {
 		    int len = strlen(*buf);
 		    *buf += len;
@@ -275,10 +295,10 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 	    }
 	    break;
 	case S_ipv6addr:
-	    if (data[1] == 18) {
+	    if (val_len == 16) {
 		sockaddr_union from = { 0 };
 		from.sin.sin_family = AF_INET6;
-		memcpy(&from.sin6.sin6_addr, data + 2, 16);
+		memcpy(&from.sin6.sin6_addr, val, 16);
 		if (su_ntoa(&from, *buf, *buf_len)) {
 		    int len = strlen(*buf);
 		    *buf += len;
@@ -308,12 +328,12 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
     u_char *data_end = data + data_len;
 
     int add_separator = 0;
-    while (data < data_end) {
+    while (data < data_end - dict->type_len - dict->vendor_len) {
 	u_char *d_start = data;
-	size_t d_len = data[1];
+	ssize_t d_len = data[1];
 	struct rad_dict *cur_dict = dict;
 	if (dict->id == -1 && data[0] == RADIUS_A_VENDOR_SPECIFIC && data[1] > 6) {
-	    int vendorid = (data[2] << 24) | (data[3] << 16) | (data[4] << 8) | (data[5] << 0);
+	    u_int vendorid = get_uint(data + 2, 4);
 	    cur_dict = rad_dict_lookup_by_id(vendorid);
 	    if (cur_dict) {
 		d_start = data + 6;
@@ -321,9 +341,9 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 	    }
 	}
 
-	if (dict->id != -1 || ( /* *d_start != RADIUS_A_MESSAGE_AUTHENTICATOR && */ *d_start != RADIUS_A_USER_PASSWORD)) {
+	if ((cur_dict && cur_dict->id != -1) || *d_start != RADIUS_A_USER_PASSWORD) {
 	    if (cur_dict) {
-		while (d_len > 0) {
+		while (d_len > cur_dict->type_len + cur_dict->vendor_len) {
 		    if (add_separator) {
 			if (*buf_len > separator_len) {
 			    memcpy(*buf, separator, separator_len);
@@ -332,10 +352,11 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 			}
 		    }
 		    rad_attr_val_dump_helper(d_start, d_len, buf, buf_len, cur_dict);
-		    if (!d_start[1])
-			return;
-		    d_len -= d_start[1];
-		    d_start += d_start[1];
+		    size_t vendor_len = get_uint(data + cur_dict->type_len, cur_dict->vendor_len);
+		    if (!vendor_len)
+			vendor_len = d_len;
+		    d_len -= vendor_len;
+		    d_start += vendor_len;
 		    add_separator = 1;
 		}
 	    } else {
@@ -350,8 +371,6 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 		add_separator = 1;
 	    }
 	}
-	if (!data[1])
-	    return;
 	data += data[1];
     }
 
@@ -374,36 +393,37 @@ char *rad_attr_val_dump1(mem_t *mem, u_char **data, size_t *data_len)
     char *buf = buf_start;
 
     u_char *d_start = *data;
-    size_t d_len = (*data)[1];
+    ssize_t d_len = (*data)[1];
     if (!d_len)
 	return NULL;
-    struct rad_dict *cur_dict = dict;
-    if (dict->id == -1 && (*data)[0] == RADIUS_A_VENDOR_SPECIFIC && (*data)[1] > 6) {
-	int vendorid = ((*data)[2] << 24) | ((*data)[3] << 16) | ((*data)[4] << 8) | ((*data)[5] << 0);
-	cur_dict = rad_dict_lookup_by_id(vendorid);
-	if (cur_dict) {
-	    d_start = (*data) + 6;
-	    d_len = (*data)[1] - 6;
-	    if (!d_len)
-		return NULL;
+    if ((*data)[0] == RADIUS_A_VENDOR_SPECIFIC && (*data)[1] > 6) {
+	u_int vendorid = get_uint(*data + 2, 4);
+	dict = rad_dict_lookup_by_id(vendorid);
+	if (dict) {
+	    d_start += 6;
+	    d_len -= 6;
 	}
     }
 
-    if (dict->id != -1 || (*d_start != RADIUS_A_USER_PASSWORD)) {
-	if (cur_dict) {
-	    while (d_len > 0) {
-		rad_attr_val_dump_helper(d_start, d_len, &buf, &buf_len, cur_dict);
-		d_len -= d_start[1];
-		d_start += d_start[1];
-		if (!d_start[1])
-		    return NULL;
+    if ((dict && dict->id != -1) || (*d_start != RADIUS_A_USER_PASSWORD)) {
+	if (dict) {
+	    while (d_len > dict->type_len + dict->vendor_len) {
+		rad_attr_val_dump_helper(d_start, d_len, &buf, &buf_len, dict);
+		size_t vendor_len = get_uint(d_start + dict->type_len, dict->vendor_len);
+		if (!vendor_len)
+			vendor_len = d_len;
+		d_len -= vendor_len;
+		d_start += vendor_len;
 	    }
 	} else {
 	    rad_attr_val_dump_hex(d_start, d_len, &buf, &buf_len);
+	    *d_start += d_len;
 	}
+    } else {
+	*d_start += d_len;
     }
-    *data = d_start;
-    *data_len -= d_len;
+    *data_len -= (*data)[1];
+    *data += (*data)[1];
 
     return buf_start;
 }
@@ -451,14 +471,21 @@ void parse_radius_dictionary(struct sym *sym)
 	    dict = rad_dict_new(sym, vendor, vendorid);
 	free(vendor);
     }
+    if (sym->code == S_format) {
+	sym_get(sym);
+	parse(sym, S_equal);
+	dict->type_len = parse_uint(sym);
+	parse(sym, S_comma);
+	dict->vendor_len = parse_uint(sym);
+    }
     parse(sym, S_openbra);
     while (sym->code == S_attr) {
 	sym_get(sym);
 	char *name = strdup(sym->buf);
 	sym_get(sym);
-	int id = parse_int(sym);
-	if (!id || (id & ~0xff))
-	    parse_error(sym, "Expected a number from 1 to 255 but got '%s'", sym->buf);
+	int id = parse_uint(sym);
+	if (!id || (id & (~0 << (8 * dict->type_len))))
+	    parse_error(sym, "Expected a number from 1 to %d but got '%d'", (1 << (8 * dict->type_len)) - 1, id);
 	enum token type = sym->code;
 	switch (type) {
 	case S_string_keyword:
@@ -555,16 +582,16 @@ int rad_get(rad_pak_hdr *pak_in, mem_t *mem, int vendorid, int id, enum token ty
 	while (p < e) {
 	    if (vendorid == -1 && p[0] == id)
 		return rad_get_helper(mem, type, val, val_len, p + 2, p[1] - 2);
-	    if (vendorid > -1 && p[0] == RADIUS_A_VENDOR_SPECIFIC && p[2] == ((vendorid >> 24) & 0xff)
-		&& p[3] == ((vendorid >> 16) & 0xff)
-		&& p[4] == ((vendorid >> 8) & 0xff)
-		&& p[5] == ((vendorid >> 0) & 0xff)) {
+	    if (vendorid > -1 && p[0] == RADIUS_A_VENDOR_SPECIFIC && (get_uint(p + 2, 4) == (u_int) vendorid)) {
 		u_char *ve = p + p[1];
 		u_char *vp = p + 6;
-		while (vp < ve && vp[1] > 1) {
-		    if (vp[0] == id)
-			return rad_get_helper(mem, type, val, val_len, vp + 2, vp[1] - 2);
-		    vp += vp[1];
+
+		while (vp < ve && get_uint(vp + dict->type_len, dict->vendor_len) > 1) {
+		    u_int vsa_type = get_uint(vp, dict->type_len);
+		    u_int attr_len = get_uint(vp + dict->type_len, dict->vendor_len);
+		    if (vsa_type == (u_int) id)
+			return rad_get_helper(mem, type, val, val_len, vp + dict->type_len + dict->vendor_len, attr_len - dict->type_len - dict->vendor_len);
+		    vp += attr_len;
 		}
 	    }
 	    if (!p[1])		// packet malformed, attribut length zero

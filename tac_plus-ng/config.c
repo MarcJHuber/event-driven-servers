@@ -5441,6 +5441,15 @@ struct rad_action {
     struct tac_action *next;
 };
 
+static inline u_char *set_uint(u_char *dest, u_int val, int octets)
+{
+    for (int i = octets - 1; i > -1; i--) {
+	dest[i] = val & 0xff;
+	val >>= 8;
+    }
+    return dest + octets;
+}
+
 static void rad_attr_add(tac_session *session, struct rad_action *a, union rad_action_union *u, char *code, unsigned int line)
 {
     if (!session->radius_data)
@@ -5477,27 +5486,23 @@ static void rad_attr_add(tac_session *session, struct rad_action *a, union rad_a
     default:			// just skip, likely OCTETS or VSA
 	return;
     }
-
-    int len = 2 + val_len;
+    struct rad_dict *dict = a->attr->dict;
+    int len = dict->type_len + dict->vendor_len + val_len;
     if (a->attr->dict->id > -1)
 	len += 6;
     if (data + len >= data_end || len > 255)
 	return;
 
-    if (a->attr->dict->id > -1) {
+    if (dict->id > -1) {
 	*data++ = RADIUS_A_VENDOR_SPECIFIC;
 	*data++ = len;
-	*data++ = (u_char) (0xff & (a->attr->dict->id >> 24));
-	*data++ = (u_char) (0xff & (a->attr->dict->id >> 16));
-	*data++ = (u_char) (0xff & (a->attr->dict->id >> 8));
-	*data++ = (u_char) (0xff & (a->attr->dict->id >> 0));
+	data = set_uint(data, a->attr->dict->id, 4);
 	data_len += 6;
-	len = 2 + val_len;
     }
 
-    *data++ = a->attr->id;
-    *data++ = 2 + val_len;
-    data_len += 2;
+    data = set_uint(data, a->attr->id, dict->type_len);
+    data = set_uint(data, dict->type_len + dict->vendor_len + val_len, dict->vendor_len);
+    data_len += dict->type_len + dict->vendor_len;
     memcpy(data, val, val_len);
     data += val_len;
     data_len += val_len;
