@@ -1195,7 +1195,7 @@ Username:
        Several broken TACACS+ implementations send no or an
        invalid username in enable packets. Setting this option to
        deny tries to enforce user authentication before enabling.
-       This option defaults to permit.
+       This option defaults to being unset.
        Alas, this may or may not work. In theory, the enable
        dialog should look somewhat like:
 Router> enable
@@ -1203,14 +1203,13 @@ Username: me
 Password: *******
 Enable Password: **********
 Router#
-       However, some implementations may resend the user password
-       at the Enable Password: prompt. In that case you've got
-       only two options: Either try
+       However, some implementations may simply resend the user
+       password at the Enable Password: prompt. In that case
+       you've got only two options: Either try
     enable = login
        at user profile level, which will omit the secondary
        password query and let the user enable with his login
-       password, or permit anonymous enable (which is disabled by
-       default) with
+       password, or permit anonymous enable with
     anonymous-enable = permit
        in device context to use the enable passwords defined
        there.
@@ -1341,6 +1340,10 @@ mavis user filter = __internal__username_acl__
        requests. Log variable substitution applies. For example,
 mavis format custom_0 = "${server.address} ${server.port}"
        will set the AV_A_CUSTOM_0 MAVIS attribute.
+     * mavis mfa = ( yes | no )
+       mavis mfa acl = acl
+       Authenticate users via MAVIS MFA. These directives work in
+       user context, too.
      __________________________________________________________
 
 4.7.3. TLS and DTLS
@@ -3383,6 +3386,14 @@ radius.dictionary cisco 9 {
    You can put this dictionary data directly into your main
    configuration file or put it somewhere else and just include
    it, which is recommended.
+
+   Multi-byte attribute (and length) dictionaries are supported,
+   too:
+radius.dictionary vendor-name vendor-id format=attribute bytes,length by
+tes
+
+   (This is similar to FreeRADIUS, but there are quite certainly
+   some missing options.)
      __________________________________________________________
 
 6.4. RADIUS Rule Set
