@@ -97,6 +97,24 @@ struct rad_dict_val *rad_dict_val_lookup_by_name(struct rad_dict_attr *attr, cha
 struct rad_dict *rad_dict_lookup_by_name(char *vendorname);
 struct rad_dict_attr *rad_dict_attr_lookup_by_name(struct rad_dict *dict, char *name);
 
+static inline u_char *set_uint(u_char *dest, u_int val, int len)
+{
+    for (int i = len - 1; i > -1; i--) {
+	dest[i] = val & 0xff;
+	val >>= 8;
+    }
+    return dest + len;
+}
+
+static inline u_int get_uint(u_char *data, int len)
+{
+    u_int val = 0;
+    for (int i = 0; i < len; i++) {
+	val <<= 8;
+	val |= data[i];
+    }
+    return val;
+}
 #endif				/* __CONFIG_RADIUS_H_ */
 /*
  * vim:ts=4

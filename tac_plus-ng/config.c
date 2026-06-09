@@ -5441,15 +5441,6 @@ struct rad_action {
     struct tac_action *next;
 };
 
-static inline u_char *set_uint(u_char *dest, u_int val, int octets)
-{
-    for (int i = octets - 1; i > -1; i--) {
-	dest[i] = val & 0xff;
-	val >>= 8;
-    }
-    return dest + octets;
-}
-
 static void rad_attr_add(tac_session *session, struct rad_action *a, union rad_action_union *u, char *code, unsigned int line)
 {
     if (!session->radius_data)

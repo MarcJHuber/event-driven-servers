@@ -204,16 +204,6 @@ static void rad_attr_val_dump_hex(u_char *data, size_t data_len, char **buf, siz
     }
 }
 
-static inline u_int get_uint(u_char *data, int len)
-{
-    u_int res = 0;
-    for (int i = 0; i < len; i++) {
-	res <<= 8;
-	res |= data[i];
-    }
-    return res;
-}
-
 static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, size_t *buf_len, struct rad_dict *dict)
 {
     // dump exactly one av pair, type is attr->type, prefixed with attr->dict->name (vendor name)

@@ -463,15 +463,6 @@ static int rad_set_password(u_char **data, size_t *data_len, const char *key, si
     return 0;
 }
 
-static inline u_char *set_uint(u_char *dest, u_int val, int octets)
-{
-    for (int i = octets - 1; i > -1; i--) {
-        dest[i] = val & 0xff;
-        val >>= 8;
-    }
-    return dest + octets;
-}
-
 static int aaa_got(struct aaa *aaa, u_char * data, size_t data_len);
 
 static int aaa_authc_radius(struct aaa *aaa, char *user, char *remoteaddr, char *remotetty, char *pass)
