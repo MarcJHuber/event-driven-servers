@@ -474,8 +474,8 @@ void parse_radius_dictionary(struct sym *sym)
 	char *name = strdup(sym->buf);
 	sym_get(sym);
 	int id = parse_uint(sym);
-	if (!id || (id & (~0 << (8 * dict->type_len))))
-	    parse_error(sym, "Expected a number from 1 to %d but got '%d'", (1 << (8 * dict->type_len)) - 1, id);
+	if (!id || (id & (~0U << (8 * dict->type_len))))
+	    parse_error(sym, "Expected a number from 1 to %d but got '%d'", (1U << (8 * dict->type_len)) - 1, id);
 	enum token type = sym->code;
 	switch (type) {
 	case S_string_keyword:
