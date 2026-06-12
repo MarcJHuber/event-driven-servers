@@ -124,11 +124,16 @@ static void *run_thread(void *arg)
     rc_avpair_add(rh, &send, PW_USER_NAME, av_get(ac, AV_A_USER), -1, 0);
     rc_avpair_add(rh, &send, PW_USER_PASSWORD, av_get(ac, AV_A_PASSWORD), -1, 0);
 
+    char *tactype = av_get(ac, AV_A_TACTYPE);
+    int mfa = 0;
+    if (tactype && !strcmp(tactype, AV_V_TACTYPE_MFA))
+	mfa = -1;
+
     int result = rc_auth(rh, 0, send, &received, buf);
     if (*buf)
 	av_set(ac, AV_A_COMMENT, buf);
     if (received) {
-	if ((group_attribute_name || group_attribute > -1)) {
+	if (!mfa && (group_attribute_name || group_attribute > -1)) {
 	    int remaining = sizeof(buf) - 10;
 	    char *b = buf;
 	    *b = 0;
@@ -164,11 +169,16 @@ static void *run_thread(void *arg)
     int res = MAVIS_FINAL;
 
     switch (result) {
-    case OK_RC:
-	av_set(ac, AV_A_PASSWORD_ONESHOT, "1");
-	av_set(ac, AV_A_DBPASSWORD, av_get(ac, AV_A_PASSWORD));
+    case OK_RC: {
+	if (mfa) {
+	    av_unset(ac, AV_A_PASSWORD);
+	} else {
+	    av_set(ac, AV_A_PASSWORD_ONESHOT, "1");
+	    av_set(ac, AV_A_DBPASSWORD, av_get(ac, AV_A_PASSWORD));
+	}
 	av_set(ac, AV_A_RESULT, AV_V_RESULT_OK);
 	break;
+    }
     case REJECT_RC:
 	av_set(ac, AV_A_RESULT, AV_V_RESULT_FAIL);
 	break;
@@ -355,7 +365,10 @@ int main(int argc, char **argv)
 	}
 
 	char *tactype = av_get(ac, AV_A_TACTYPE);
-	if (!tactype || strcmp(tactype, AV_V_TACTYPE_AUTH)) {
+	if (tactype && !strcmp(tactype, AV_V_TACTYPE_MFA))
+	    av_set(ac, AV_A_PASSWORD, "push");
+
+	if (!tactype || (strcmp(tactype, AV_V_TACTYPE_AUTH) && strcmp(tactype, AV_V_TACTYPE_MFA))) {
 	    av_write(ac, MAVIS_DOWN);
 	} else if (!av_get(ac, AV_A_PASSWORD) && !strcmp(tactype, AV_V_TACTYPE_AUTH)) {
 	    av_set(ac, AV_A_RESULT, AV_V_RESULT_FAIL);
