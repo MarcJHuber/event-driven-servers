@@ -12,7 +12,7 @@
 
 typedef union {
     char s[1];
-    u_int n[1];
+    u_long n[1];
 } a_char;			/* aligned char */
 
 struct blowfish_ctx;
