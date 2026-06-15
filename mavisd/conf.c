@@ -172,7 +172,7 @@ static void parse_listen(struct sym *sym)
 	    size_t sb_len = strlen(sym->buf);
 	    port = alloca(sb_len + 1);
 	    memcpy(port, sym->buf, sb_len);
-	    address[sb_len] = 0;
+	    port[sb_len] = 0;
 	    sym_get(sym);
 	    continue;
 	}
