@@ -1040,7 +1040,12 @@ void rad_read(struct context *ctx, int cur)
 	return;
     }
 
-    u_int data_len = RADIUS_DATA_LEN(&ctx->hdr.rad);
+    int data_len = RADIUS_DATA_LEN(&ctx->hdr.rad);
+    if (data_len < 0 || (data_len > (int) (0xffff - RADIUS_HDR_SIZE))) {
+	//report(NULL, LOG_ERR, ~0, "%s: Illegal data size: %u", ctx->device_addr_ascii.txt, data_len);
+	cleanup(ctx, cur);
+	return;
+    }
 
     if (!ctx->in) {
 	ctx->in = mem_alloc(ctx->mem, sizeof(tac_pak) + data_len);
