@@ -302,14 +302,21 @@ static void periodics(struct context *ctx, int cur __attribute__((unused)))
 
 static void periodics_ctx(struct context *ctx, int cur __attribute__((unused)))
 {
-    if (!ctx->out && !ctx->delayed && (ctx->host->tcp_timeout || ctx->dying) && (ctx->last_io + ctx->host->tcp_timeout < io_now.tv_sec)) {
-	cleanup(ctx, ctx->sock);
-	return;
-    }
+    if (!ctx->out && !ctx->delayed) {
+	    if ((ctx->udp != BISTATE_NO) && (ctx->host->tcp_timeout || ctx->dying) && (ctx->last_io + ctx->host->tcp_timeout < io_now.tv_sec)) {
+		cleanup(ctx, ctx->sock);
+		return;
+	    }
 
-    if (!ctx->out && !ctx->delayed && (ctx->host->udp_timeout || ctx->dying) && (ctx->last_io + ctx->host->udp_timeout < io_now.tv_sec)) {
-	cleanup(ctx, ctx->sock);
-	return;
+	    if ((ctx->udp == BISTATE_YES) && (ctx->host->udp_timeout || ctx->dying) && (ctx->last_io + ctx->host->udp_timeout < io_now.tv_sec)) {
+		cleanup(ctx, ctx->sock);
+		return;
+	    }
+
+	    if (!ctx->fragmented && (ctx->host->udp_timeout || ctx->dying) && (ctx->last_io + 3 < io_now.tv_sec)) {
+		cleanup(ctx, ctx->sock);
+		return;
+	    }
     }
 
     for (rb_node_t * rbnext, *rbn = RB_first(ctx->sessions); rbn; rbn = rbnext) {

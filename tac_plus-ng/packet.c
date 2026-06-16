@@ -535,6 +535,7 @@ void tac_read(struct context *ctx, int cur)
 {
     ssize_t len;
     int detached = 0;
+    ctx->fragmented = BISTATE_NO;
 
     ctx->last_io = io_now.tv_sec;
     context_lru_append(ctx);
@@ -553,8 +554,10 @@ void tac_read(struct context *ctx, int cur)
 	    return;
 
 	ctx->hdroff += len;
-	if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
+	if (ctx->hdroff != TAC_PLUS_HDR_SIZE) {
+	    ctx->fragmented = BISTATE_YES;
 	    return;
+	}
     }
 #define CHECK_PROTOCOL(A,B) \
 	if (ctx->realm->allowed_protocol_ ## A != TRISTATE_YES && ctx->aaa_protocol != S_unknown \
@@ -636,8 +639,10 @@ void tac_read(struct context *ctx, int cur)
 	return;
     }
 
-    if (ctx->hdroff != TAC_PLUS_HDR_SIZE)
+    if (ctx->hdroff != TAC_PLUS_HDR_SIZE) {
+	ctx->fragmented = BISTATE_YES;
 	return;
+    }
 
 #ifdef WITH_SSL
     if (ctx->tls) {
@@ -699,8 +704,10 @@ void tac_read(struct context *ctx, int cur)
 	return;
 
     ctx->in->offset += len;
-    if (ctx->in->offset != ctx->in->length)
+    if (ctx->in->offset != ctx->in->length) {
+	ctx->fragmented = BISTATE_YES;
 	return;
+    }
 
     tac_session *session = RB_lookup_session(ctx->sessions, ctx->hdr.tac.session_id);
 
@@ -1003,6 +1010,7 @@ void rad_read(struct context *ctx, int cur)
 {
     ssize_t len;
     int detached = 0;
+    ctx->fragmented = BISTATE_NO;
 
     ctx->last_io = io_now.tv_sec;
     context_lru_append(ctx);
@@ -1021,8 +1029,10 @@ void rad_read(struct context *ctx, int cur)
 	    return;
 
 	ctx->hdroff += len;
-	if (ctx->hdroff != RADIUS_HDR_SIZE)
+	if (ctx->hdroff != RADIUS_HDR_SIZE) {
+	    ctx->fragmented = BISTATE_YES;
 	    return;
+	}
     }
 
     switch (ctx->hdr.rad.code) {
@@ -1066,8 +1076,10 @@ void rad_read(struct context *ctx, int cur)
 	return;
 
     ctx->in->offset += len;
-    if (ctx->in->offset != ctx->in->length)
+    if (ctx->in->offset != ctx->in->length) {
+	ctx->fragmented = BISTATE_YES;
 	return;
+    }
 
     rad_pak_hdr *pak = &ctx->in->pak.rad;
 
