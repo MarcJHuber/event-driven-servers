@@ -827,6 +827,7 @@ static void do_chap(tac_session *session)
 static enum token check_access(tac_session *session, struct pwdat *pwdat, char *passwd, enum hint_enum *hint, char **resp)
 {
     enum token res = S_deny;
+    enum token host_res = author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first);
 
     if (session->mavisauth_res != S_unknown) {
 	res = session->mavisauth_res;
@@ -852,9 +853,7 @@ static enum token check_access(tac_session *session, struct pwdat *pwdat, char *
     }
 
     if (session->user && (!pwdat || pwdat->type != S_error)) {
-	if (res == S_permit && !session->authorized &&
-	    (S_deny == author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first) ||
-	     S_permit != eval_ruleset(session, session->ctx->realm))) {
+	if (res == S_permit && !session->authorized && (S_deny == host_res || S_permit != eval_ruleset(session, session->ctx->realm))) {
 	    res = S_deny;
 	    *hint = hint_denied_by_acl;
 	}
