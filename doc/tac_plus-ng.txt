@@ -1101,6 +1101,10 @@ message USERNAME = "Utilisateur: "
        Terminate a connection to a NAS after an idle period of at
        least s seconds.
        Default: 600
+     * fragment timeout = s
+       Terminate a connection to a NAS if fragmented packets
+       aren't completed in time.
+       Default: 3
      * context timeout = s
        Clears context cache entries after s seconds of inactivity.
        Default: 3600 seconds.
@@ -1340,6 +1344,8 @@ mavis user filter = __internal__username_acl__
        requests. Log variable substitution applies. For example,
 mavis format custom_0 = "${server.address} ${server.port}"
        will set the AV_A_CUSTOM_0 MAVIS attribute.
+       Tip: custom attributes can also be in ACLs. Example:
+       custom_0 = "string".
      * mavis mfa = ( yes | no )
        mavis mfa acl = acl
        Authenticate users via MAVIS MFA. These directives work in
