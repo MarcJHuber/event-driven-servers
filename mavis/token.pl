@@ -580,6 +580,7 @@ aaa.protocol			S_aaa_protocol
 aaa.protocol.allowed		S_aaa_protocol_allowed
 udp				S_udp
 tcp				S_tcp
+fragment			S_fragment
 dtls				S_dtls
 tacacs				S_tacacs
 tacacs.tcp			S_tacacs_tcp

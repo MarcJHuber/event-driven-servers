@@ -315,6 +315,7 @@ void complete_realm(tac_realm *r)
 	RS(warning_period);
 	RS(default_host->tcp_timeout);
 	RS(default_host->udp_timeout);
+	RS(default_host->fragment_timeout);
 	RS(default_host->session_timeout);
 	RS(default_host->context_timeout);
 	RS(default_host->dns_timeout);
@@ -421,6 +422,7 @@ void init_host(tac_host *host, tac_host *parent, tac_realm *r, int top)
     host->session_timeout = top ? 240 : -1;
     host->tcp_timeout = top ? 600 : -1;
     host->udp_timeout = top ? 30 : -1;
+    host->fragment_timeout = top ? 3 : -1;
     if (top) {
 	host->user_messages = calloc(UM_MAX, sizeof(char *));
 	host->user_messages[UM_PASSWORD] = "Password: ";
@@ -1507,6 +1509,12 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    parse(sym, S_timeout);
 	    parse(sym, S_equal);
 	    r->default_host->udp_timeout = parse_seconds(sym);
+	    break;
+	case S_fragment:
+	    sym_get(sym);
+	    parse(sym, S_timeout);
+	    parse(sym, S_equal);
+	    r->default_host->fragment_timeout = parse_seconds(sym);
 	    break;
 	case S_connection:
 	    sym_get(sym);
@@ -3767,6 +3775,12 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	parse(sym, S_timeout);
 	parse(sym, S_equal);
 	host->udp_timeout = parse_seconds(sym);
+	break;
+    case S_fragment:
+	sym_get(sym);
+	parse(sym, S_timeout);
+	parse(sym, S_equal);
+	host->fragment_timeout = parse_seconds(sym);
 	break;
     case S_connection:
 	sym_get(sym);

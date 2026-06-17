@@ -218,6 +218,7 @@ struct tac_host {
     tac_tags *tags;
     int tcp_timeout;		/* tcp connection idle timeout */
     int udp_timeout;		/* udp connection idle timeout */
+    int fragment_timeout;	/* timeout for fragmented packets */
     int session_timeout;	/* session idle timeout */
     int context_timeout;	/* shell context idle timeout */
     int dns_timeout;
