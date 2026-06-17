@@ -210,7 +210,7 @@ static int bad_nas_args(tac_session *session, struct author_data *data)
     if (session->ctx->host->bug_compatibility & CLIENT_BUG_MALFORMED_NAS_ARGS) {
 	int j = 0;
 	for (int i = 0; i < data->in_cnt; i++)
-	    if (!data->in_args[i])
+	    if (data->in_args[i])
 		data->in_args[j++] = data->in_args[i];
 	data->in_cnt = j;
     }
