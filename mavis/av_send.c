@@ -27,7 +27,7 @@ int av_send(av_ctx * ac, int sock, sockaddr_union * sa, struct blowfish_ctx *blo
 {
     DebugIn(DEBUG_MAVIS);
 
-    a_char av_buffer[BUFSIZE_MAVIS / sizeof(u_long)];
+    a_char av_buffer[BUFSIZE_MAVIS / sizeof(a_char) + 1];
 
     ssize_t buflen = av_array_to_char(ac, av_buffer->s, BUFSIZE_MAVIS - 1, NULL);
     if (buflen < 0)
