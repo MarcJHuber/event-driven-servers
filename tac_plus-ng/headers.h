@@ -659,6 +659,7 @@ struct tac_session {
     char **attrs_m;		/* mandatory */
     char **attrs_o;		/* optional (from NAS) */
     char **attrs_a;		/* add optional (to NAS) */
+    char *mavis_custom_attr[S_custom_3 - S_custom_0 + 1];
     int cnt_m;
     int cnt_o;
     int cnt_a;

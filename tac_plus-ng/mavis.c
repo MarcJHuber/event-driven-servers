@@ -171,10 +171,12 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
     if (r->name.txt)
 	av_set(avc, AV_A_REALM, r->name.txt);
 
-    if (session->password)
-	av_set(avc, AV_A_PASSWORD, session->password);
-    if (session->password_new)
-	av_set(avc, AV_A_PASSWORD_NEW, session->password_new);
+    if (strcmp(type, AV_V_TACTYPE_INFO)) {
+	if (session->password)
+	    av_set(avc, AV_A_PASSWORD, session->password);
+	if (session->password_new)
+	    av_set(avc, AV_A_PASSWORD_NEW, session->password_new);
+    }
 
     if (session->chap_challenge_len && session->chap_response_len) {
 	char buf[((session->chap_challenge_len + session->chap_response_len) << 1) + 5];
@@ -212,7 +214,9 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
 
     session->eval_log_raw = 1;
     for (int i = 0; i < 4; i++)
-	if (session->ctx->realm->mavis_custom_attr[i])
+	if (session->mavis_custom_attr[i])
+	    av_set(avc, custom_attrs[i], session->mavis_custom_attr[i]);
+	else if (session->ctx->realm->mavis_custom_attr[i])
 	    av_set(avc, custom_attrs[i], eval_log_format(session, session->ctx, NULL, session->ctx->realm->mavis_custom_attr[i], io_now.tv_sec, NULL));
     session->eval_log_raw = 0;
 

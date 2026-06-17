@@ -5591,6 +5591,13 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 	str_set(&session->label, eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->label.len), 0);
 	report(DEBACL, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, session->label.txt ? session->label.txt : "");
 	break;
+    case S_custom_0:
+    case S_custom_1:
+    case S_custom_2:
+    case S_custom_3:
+	session->mavis_custom_attr[m->code - S_custom_0] = m->b.v;
+	report(DEBACL, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, m->b.v ?  m->b.v : "");
+	break;
     case S_profile:
 	session->profile = (tac_profile *) (m->b.v);
 	report(DEBACL, " line %u: [%s] '%s'",
@@ -5758,6 +5765,15 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	m->b.v = (char *) tac_acl_lookup(sym->buf, realm);
 	if (!m->b.v)
 	    parse_error(sym, "ACL '%s' not found.", sym->buf);
+	sym_get(sym);
+	break;
+    case S_custom_0:
+    case S_custom_1:
+    case S_custom_2:
+    case S_custom_3:
+	m = mavis_action_new(sym, mem);
+	parse(sym, S_equal);
+	m->b.v = mem_strdup(mem, sym->buf);
 	sym_get(sym);
 	break;
     case S_add:
