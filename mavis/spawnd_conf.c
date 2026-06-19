@@ -240,15 +240,15 @@ static void parse_listen(struct sym *sym)
 			ctx->dtls_versions <<= 8;
 			ctx->dtls_versions |= DTLS1_2_VERSION & 0xff;	// ~2
 			break;
-#ifdef DTLS1_2_VERSION
+#ifdef DTLS1_3_VERSION
 		    case S_DTLS1_3:
 			ctx->dtls_versions <<= 8;
-			ctx->dtls_versions |= DTLS1_2_VERSION & 0xff;	// ~3
+			ctx->dtls_versions |= DTLS1_3_VERSION & 0xff;	// ~3
 			break;
 #endif
 		    default:
 			parse_error_expect(sym, S_DTLS1_0, S_DTLS1_2,
-#ifdef DTLS1_2_VERSION
+#ifdef DTLS1_3_VERSION
 					   S_DTLS1_3,
 #endif
 					   S_unknown);
