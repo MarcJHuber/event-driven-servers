@@ -1691,8 +1691,25 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
     context_lru_append(ctx);
     ctx->tls_versions = sd_ext->sd.tls_versions;
-    ctx->use_tls = (sd_ext->sd.tls_versions && sd_ext->sd.type == SCM_ACCEPT) ? BISTATE_YES : BISTATE_NO;
-    ctx->use_dtls = (sd_ext->sd.tls_versions && sd_ext->sd.type == SCM_UDPDATA) ? BISTATE_YES : BISTATE_NO;
+    if (ctx->realm->tls_autodetect && !ctx->tls_versions) {
+	if (ctx->realm->tls && sd_ext->sd.type == SCM_ACCEPT) {
+	    ctx->tls_versions = TLS1_2_VERSION & 0xff;
+	    ctx->tls_versions <<= 8;
+	    ctx->tls_versions |= TLS1_3_VERSION & 0xff;
+	} else if (ctx->realm->dtls && sd_ext->sd.type == SCM_UDPDATA) {
+	    ctx->tls_versions = DTLS1_VERSION & 0xff;
+	    ctx->tls_versions <<= 8;
+	    ctx->tls_versions |= DTLS1_2_VERSION & 0xff;
+#ifdef DTLS1_3_VERSION
+	    ctx->tls_versions <<= 8;
+	    ctx->tls_versions |= DTLS1_3_VERSION & 0xff;
+#endif
+	}
+    }
+    if (ctx->tls_versions) {
+	ctx->use_tls = (sd_ext->sd.type == SCM_ACCEPT) ? BISTATE_YES : BISTATE_NO;
+	ctx->use_dtls = (sd_ext->sd.type == SCM_UDPDATA) ? BISTATE_YES : BISTATE_NO;
+    }
     ctx->use_tls_psk = (r->use_tls_psk && (sd_ext->sd.flags & SCM_FLAG_TLSPSK)) ? BISTATE_YES : BISTATE_NO;
     if (inject_buf) {
 	ctx->udp = BISTATE_YES;
