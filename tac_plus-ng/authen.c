@@ -1404,79 +1404,6 @@ static void do_ascii_login(tac_session *session)
     }
 }
 
-#if 0
-#ifdef WITH_CRYPTO
-#define EAP_REQUEST     1
-#define EAP_RESPONSE    2
-#define EAP_SUCCESS     3
-#define EAP_FAILURE     4
-static int eap_step(tac_session *session __attribute__((unused)),
-		    u_char *eap_in __attribute__((unused)), size_t eap_in_len __attribute__((unused)),
-		    u_char *eap_out __attribute__((unused)), size_t *eap_out_len __attribute__((unused)))
-{
-    // This is a stub. An implementation bases on libeap (from hostapd) seems feasible,
-    // but makes no sense without client support.
-    *eap_out_len = 4;
-    eap_out[0] = EAP_FAILURE;
-    eap_out[1] = 0;
-    eap_out[2] = 0;
-    eap_out[3] = 4;
-    return eap_out[0];
-}
-
-static void do_eap(tac_session *session)
-{
-    char *info = "eap login";
-    enum token res = S_deny;
-    enum hint_enum hint = hint_nosuchuser;
-    u_char eap_out[0x10000], *eap_in = NULL;
-    size_t eap_out_len = 0, eap_in_len = 0;
-
-    if (set_tac_user(session, info))
-	return;
-
-    if (query_mavis_info_login(session, do_eap))
-	return;
-
-    if (!session->user) {
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL), 0,
-			  NULL, 0, 0);
-	return;
-    }
-
-    if (session->seq_no > 1) {
-	eap_in = session->authen_data->data;
-	eap_in_len = session->authen_data->data_len;
-    } else if (!session->authen_data) {
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, "EAP payload is missing", 0, NULL, 0, 0);
-	return;
-    }
-
-    switch (eap_step(session, eap_in, eap_in_len, eap_out, &eap_out_len)) {
-    case EAP_REQUEST:
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_GETDATA, NULL, 0, eap_out, eap_out_len, 0);
-	return;
-    case EAP_SUCCESS:
-	res = S_deny;
-	break;
-    case -1:			// delayed
-	return;
-    default:
-	res = S_deny;
-    }
-
-    report_auth(session, info, hint, res);
-
-    if (res == S_permit) {
-	if (session->user->valid_until && session->user->valid_until < io_now.tv_sec + session->ctx->realm->warning_period)
-	    session->user_msg.txt = eval_log_format(session, session->ctx, NULL, li_account_expires, io_now.tv_sec, &session->user_msg.len);
-	send_authen_reply(session, res, set_motd_banner(session), 0, eap_out, eap_out_len, 0);
-    } else
-	send_authen_reply(session, TAC_SYM_TO_CODE(res), NULL, 0, eap_out, eap_out_len, 0);
-}
-#endif
-#endif
-
 static void do_enable_getuser(tac_session *session)
 {
     char *info = "enforced enable login";
@@ -2206,12 +2133,6 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 		    // limit to hdr->version? 1.2 perhaps?
 		    session->authfn = do_sshcerthash;
 		    break;
-#ifdef WITH_CRYPTO
-		case TAC_PLUS_AUTHEN_TYPE_EAP:
-		    // limit to hdr->version? 1.2 perhaps?
-		    session->authfn = do_eap;
-		    break;
-#endif
 #endif
 		}
 	    }
@@ -2265,21 +2186,10 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	username_required = 0;
 	session->authen_data->msg_len = ntohs(cont->user_msg_len);
 	session->authen_data->data_len = ntohs(cont->user_data_len);
-#if 0
-#ifdef WITH_CRYPTO
-	if (session->authfn == do_eap) {
-	    // no need to duplicate, do_eap() doesn't need a local null-terminated copy right now.
-	    session->authen_data->msg = (char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE;
-	    session->authen_data->data = (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + session->authen_data->msg_len;
-	} else
-#endif
-#endif
-	{
-	    session->authen_data->msg = mem_copy(session->mem, (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE, session->authen_data->msg_len);
-	    session->authen_data->data =
-		(u_char *) mem_copy(session->mem, (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + session->authen_data->msg_len,
-				    session->authen_data->data_len);
-	}
+	session->authen_data->msg = mem_copy(session->mem, (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE, session->authen_data->msg_len);
+	session->authen_data->data =
+	    (u_char *) mem_copy(session->mem, (u_char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE + session->authen_data->msg_len,
+				session->authen_data->data_len);
     }
 
     if (session->authfn) {
