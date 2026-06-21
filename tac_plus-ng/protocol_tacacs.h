@@ -107,8 +107,10 @@ struct authen_start {
 #define TAC_PLUS_AUTHEN_TYPE_ARAP   4
 #define TAC_PLUS_AUTHEN_TYPE_MSCHAP 5
 #define TAC_PLUS_AUTHEN_TYPE_MSCHAPV2 6
+// experimental authen types:
 #define TAC_PLUS_AUTHEN_TYPE_SSHKEY 240
-#define TAC_PLUS_AUTHEN_TYPE_SSHCERT 241
+//#define TAC_PLUS_AUTHEN_TYPE_SSHCERT 241
+//#define TAC_PLUS_AUTHEN_TYPE_LOCAL 243
 
     u_char service;
 #define TAC_PLUS_AUTHEN_SVC_LOGIN  1

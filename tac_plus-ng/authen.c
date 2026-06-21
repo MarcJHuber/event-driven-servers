@@ -1759,6 +1759,7 @@ static void do_pap(tac_session *session)
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
 }
 
+#ifdef TAC_PLUS_AUTHEN_TYPE_SSHKEY
 // This is proof-of-concept code for SSH key validation with minor protocol changes.
 // Clients just need to use TAC_PLUS_AUTHEN_TYPE_SSHKEYHASH (8) and put the ssh public
 // key hash into the data field. This should be really easy to implement. The daemon
@@ -1792,19 +1793,14 @@ static void do_sshkeyhash(tac_session *session)
 	    res = session->authorized ? S_permit : ((S_deny == author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first)
 						     || S_permit != eval_ruleset(session, session->ctx->realm)) ? S_deny : S_permit);
 
-	    if (res == S_permit)
-		hint = hint_permitted;
-	    else {
-		hint = hint_denied_by_acl;
-	    }
+	    hint = (res == S_permit) ? hint_permitted : hint_denied_by_acl;
 	} else
 	    hint = hint_denied;
 
-	if (res == S_permit) {
-	    if (res != S_permit && session->ctx->host->reject_banner)
-		resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
+	if (res == S_permit)
 	    user_expiry_check(&res, session->user, &hint);
-	}
+	else if (session->ctx->host->reject_banner)
+	    resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
     }
 
     if (res == S_permit)
@@ -1817,8 +1813,9 @@ static void do_sshkeyhash(tac_session *session)
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, (u_char *) key, 0, 0);
 }
+#endif
 
-#if 0
+#ifdef TAC_PLUS_AUTHEN_TYPE_SSHCERT
 // This is proof-of-concept code for SSH certificate validation with minor protocol changes.
 // Clients just need to use TAC_PLUS_AUTHEN_TYPE_SSHCERTASH (9) and put the client certificate
 // key-id into the data field. The daemon will return a matching AuthorizedPrincipalsFile line. 
@@ -1852,11 +1849,10 @@ static void do_sshcerthash(tac_session *session)
 	} else
 	    hint = hint_denied;
 
-	if (res == S_permit) {
-	    if (res != S_permit && session->ctx->host->reject_banner)
-		resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
+	if (res == S_permit)
 	    user_expiry_check(&res, session->user, &hint);
-	}
+	else if (session->ctx->host->reject_banner)
+	    resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
     }
 
     if (res == S_permit)
@@ -1864,6 +1860,47 @@ static void do_sshcerthash(tac_session *session)
     report_auth(session, info, hint, res);
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, (u_char *) key, 0, 0);
+}
+#endif
+
+#ifdef TAC_PLUS_AUTHEN_TYPE_LOCAL
+// This is proof-of-concept code that adds MFA push support for users pre-authenticated by the NAD
+// (e.g. via public SSH keys available to the NAD, or via X.509 certificates).
+//
+static void do_local(tac_session *session)
+{
+    char *info = "local login";
+    enum token res = S_deny;
+    enum hint_enum hint = hint_nosuchuser;
+    char *resp = NULL;
+
+    if (set_tac_user(session, info))
+	return;
+
+    if (query_mavis_info(session, do_sshkeyhash, PW_LOGIN))
+	return;
+
+    if (session->user) {
+	res = session->authorized ? S_permit : ((S_deny == author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first)
+						 || S_permit != eval_ruleset(session, session->ctx->realm)) ? S_deny : S_permit);
+
+	hint = (res == S_permit) ? hint_permitted : hint_denied_by_acl;
+
+	if (res == S_permit)
+	    user_expiry_check(&res, session->user, &hint);
+	else if (session->ctx->host->reject_banner)
+	    resp = eval_log_format(session, session->ctx, NULL, session->ctx->host->reject_banner, io_now.tv_sec, NULL);
+    }
+
+    if (res == S_permit)
+	hint = hint_permitted;
+
+    if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
+	return;
+
+    report_auth(session, info, hint, res);
+
+    send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
 }
 #endif
 
@@ -2124,14 +2161,22 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 			session->authfn = do_mschapv2;
 		    break;
 #endif
+#ifdef TAC_PLUS_AUTHEN_TYPE_SSHKEY
 		case TAC_PLUS_AUTHEN_TYPE_SSHKEY:
 		    // limit to hdr->version? 1.2 perhaps?
 		    session->authfn = do_sshkeyhash;
 		    break;
-#if 0
+#endif
+#ifdef TAC_PLUS_AUTHEN_TYPE_SSHCERT
 		case TAC_PLUS_AUTHEN_TYPE_SSHCERT:
 		    // limit to hdr->version? 1.2 perhaps?
 		    session->authfn = do_sshcerthash;
+		    break;
+#endif
+#ifdef TAC_PLUS_AUTHEN_TYPE_LOCAL
+		case TAC_PLUS_AUTHEN_TYPE_LOCAL:
+		    // limit to hdr->version? 1.2 perhaps?
+		    session->authfn = do_local;
 		    break;
 #endif
 		}
