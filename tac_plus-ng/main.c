@@ -1690,6 +1690,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
     io_register(ctx->io, ctx->sock, ctx);
 
     context_lru_append(ctx);
+#ifdef WITH_SSL
     ctx->tls_versions = sd_ext->sd.tls_versions;
     if (ctx->realm->tls_autodetect && !ctx->tls_versions) {
 	if (ctx->realm->tls && sd_ext->sd.type == SCM_ACCEPT) {
@@ -1711,6 +1712,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	ctx->use_dtls = (sd_ext->sd.type == SCM_UDPDATA) ? BISTATE_YES : BISTATE_NO;
     }
     ctx->use_tls_psk = (r->use_tls_psk && (sd_ext->sd.flags & SCM_FLAG_TLSPSK)) ? BISTATE_YES : BISTATE_NO;
+#endif
     if (inject_buf) {
 	ctx->udp = BISTATE_YES;
 	ctx->inject_buf = mem_alloc(ctx->mem, INJECT_BUF_SIZE);
