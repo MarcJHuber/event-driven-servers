@@ -477,6 +477,8 @@ struct realm {
     char *tls_key;
     char *tls_pass;
     char *tls_ciphers;
+    char *tls_cipher_suites;
+    char *tls_psk_dhe_groups;
     char *tls_cafile;
     int tls_verify_depth;
     struct sni_list *sni_list;
@@ -484,6 +486,7 @@ struct realm {
     size_t alpn_vec_len;
     rb_tree_t *fingerprints;
     char *tls_psk_hint;
+    enum token tls_psk_key_exchange;
     str_t crl_basedir;
 #endif
     u_int debug;

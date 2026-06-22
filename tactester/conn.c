@@ -83,6 +83,10 @@ void conn_free(struct conn *conn)
 	free(conn->alpn);
     if (conn->peer_cafile)
 	free(conn->peer_cafile);
+    if (conn->tls_cipher_suites)
+	free(conn->tls_cipher_suites);
+    if (conn->tls_psk_dhe_groups)
+	free(conn->tls_psk_dhe_groups);
     if (conn->readbuf)
 	free(conn->readbuf);
     if (conn->key)
@@ -185,6 +189,25 @@ void conn_set_tls_peer_ca(struct conn *conn, char *peer_cafile)
     conn->peer_cafile = strdup(peer_cafile);
 }
 
+void conn_set_tls_cipher_suites(struct conn *conn, char *cipher_suites)
+{
+    if (conn->tls_cipher_suites)
+	free(conn->tls_cipher_suites);
+    conn->tls_cipher_suites = strdup(cipher_suites);
+}
+
+void conn_set_tls_psk_dhe_groups(struct conn *conn, char *groups)
+{
+    if (conn->tls_psk_dhe_groups)
+	free(conn->tls_psk_dhe_groups);
+    conn->tls_psk_dhe_groups = strdup(groups);
+}
+
+void conn_set_tls_psk_key_exchange(struct conn *conn, enum token mode)
+{
+    conn->tls_psk_key_exchange = mode;
+}
+
 void conn_set_peer_addr(struct conn *conn, sockaddr_union *addr)
 {
     conn->su_peer = *addr;
@@ -267,6 +290,76 @@ void conn_set_tls_psk_id(struct conn *conn, char *identity, size_t identity_len)
 }
 
 #ifndef OPENSSL_NO_PSK
+static int tls13_cipher_name_matches(const SSL_CIPHER *cipher, char *name, size_t name_len)
+{
+	const char *cipher_name = SSL_CIPHER_get_name(cipher);
+
+	return cipher_name && strlen(cipher_name) == name_len && !strncmp(cipher_name, name, name_len);
+}
+
+static int tls13_cipher_version_matches(const SSL_CIPHER *cipher)
+{
+	const char *version = SSL_CIPHER_get_version(cipher);
+
+	return version && !strcmp(version, "TLSv1.3");
+}
+
+static const SSL_CIPHER *tls13_cipher_find_by_name(const STACK_OF(SSL_CIPHER) *ciphers, char *name, size_t name_len)
+{
+	if (!ciphers)
+		return NULL;
+
+	for (int i = 0; i < sk_SSL_CIPHER_num(ciphers); i++) {
+		const SSL_CIPHER *cipher = sk_SSL_CIPHER_value(ciphers, i);
+		if (cipher && tls13_cipher_version_matches(cipher) && tls13_cipher_name_matches(cipher, name, name_len))
+			return cipher;
+	}
+
+	return NULL;
+}
+
+static const SSL_CIPHER *tls13_cipher_find_first(const STACK_OF(SSL_CIPHER) *ciphers)
+{
+	if (!ciphers)
+		return NULL;
+
+	for (int i = 0; i < sk_SSL_CIPHER_num(ciphers); i++) {
+		const SSL_CIPHER *cipher = sk_SSL_CIPHER_value(ciphers, i);
+		if (cipher && tls13_cipher_version_matches(cipher))
+			return cipher;
+	}
+
+	return NULL;
+}
+
+static const SSL_CIPHER *tls13_psk_cipher_find(SSL *ssl, char *cipher_suites)
+{
+	const STACK_OF(SSL_CIPHER) *ciphers = SSL_get_client_ciphers(ssl);
+	if (!ciphers)
+		ciphers = SSL_get_ciphers(ssl);
+
+	if (!cipher_suites)
+		return tls13_cipher_find_first(ciphers);
+
+	char *cipher_list = cipher_suites;
+	char cipher_list_buf[strlen(cipher_list) + 1];
+	memcpy(cipher_list_buf, cipher_list, strlen(cipher_list) + 1);
+
+	for (char *candidate = cipher_list_buf; candidate; ) {
+		char *next = strchr(candidate, ':');
+		if (next)
+			*next++ = 0;
+		if (!*candidate)
+			return NULL;
+		const SSL_CIPHER *cipher = tls13_cipher_find_by_name(ciphers, candidate, strlen(candidate));
+		if (cipher)
+			return cipher;
+		return NULL;
+		candidate = next;
+	}
+	return NULL;
+}
+
 static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity, unsigned int max_identity_len, unsigned char *psk, unsigned int max_psk_len)
 {
     struct conn *conn = SSL_get_app_data(ssl);
@@ -287,7 +380,84 @@ static unsigned int psk_client_cb(SSL *ssl, const char *hint, char *identity, un
 
     return conn->client_psk_key_len;
 }
+
+#if !defined(OPENSSL_IS_BORINGSSL) && defined(TLS1_3_VERSION)
+static int psk_use_session_cb(SSL *ssl, const EVP_MD *md __attribute__((unused)), const unsigned char **id, size_t *idlen, SSL_SESSION **sess)
+{
+	struct conn *conn = SSL_get_app_data(ssl);
+
+	const SSL_CIPHER *cipher = tls13_psk_cipher_find(ssl, conn->tls_cipher_suites);
+	if (!cipher)
+		return 0;
+
+	SSL_SESSION *nsession = SSL_SESSION_new();
+	if (!nsession)
+		return 0;
+
+	if (!SSL_SESSION_set1_master_key(nsession, (u_char *) conn->client_psk_key, conn->client_psk_key_len)) {
+		SSL_SESSION_free(nsession);
+		return 0;
+	}
+
+	if (!SSL_SESSION_set_cipher(nsession, cipher)) {
+		SSL_SESSION_free(nsession);
+		return 0;
+	}
+
+	if (!SSL_SESSION_set_protocol_version(nsession, TLS1_3_VERSION)) {
+		SSL_SESSION_free(nsession);
+		return 0;
+	}
+
+	*id = (unsigned char *) conn->client_psk_identity;
+	*idlen = conn->client_psk_identity_len;
+	*sess = nsession;
+
+	return 1;
+}
 #endif
+#endif
+
+static int conn_apply_tls_options(struct conn *conn)
+{
+	if (conn->tls_cipher_suites) {
+#ifdef TLS1_3_VERSION
+		if (!SSL_CTX_set_ciphersuites(conn->ctx, conn->tls_cipher_suites))
+			return -1;
+#else
+		return -1;
+#endif
+	}
+
+	if (conn->client_psk_identity_len && conn->client_psk_key_len && conn->tls_psk_dhe_groups && conn->tls_psk_key_exchange != S_no_dhe) {
+#ifdef SSL_CTRL_SET_GROUPS_LIST
+		if (!SSL_CTX_ctrl(conn->ctx, SSL_CTRL_SET_GROUPS_LIST, 0, conn->tls_psk_dhe_groups))
+			return -1;
+#else
+		return -1;
+#endif
+	}
+
+	switch (conn->tls_psk_key_exchange) {
+	case S_unknown:
+	case S_auto:
+#ifdef SSL_OP_ALLOW_NO_DHE_KEX
+		SSL_CTX_set_options(conn->ctx, SSL_OP_ALLOW_NO_DHE_KEX);
+#endif
+		return 0;
+	case S_dhe:
+		return 0;
+	case S_no_dhe:
+#if defined(SSL_OP_ALLOW_NO_DHE_KEX) && defined(SSL_OP_PREFER_NO_DHE_KEX)
+		SSL_CTX_set_options(conn->ctx, SSL_OP_ALLOW_NO_DHE_KEX | SSL_OP_PREFER_NO_DHE_KEX);
+		return 0;
+#else
+		return -1;
+#endif
+	default:
+		return -1;
+	}
+}
 
 int conn_connect(struct conn *conn)
 {
@@ -326,6 +496,11 @@ int conn_connect(struct conn *conn)
 
     SSL_CTX_set_options(conn->ctx, SSL_OP_ALL);
     SSL_CTX_set_options(conn->ctx, SSL_OP_NO_QUERY_MTU);
+
+	if (conn_apply_tls_options(conn)) {
+		SSL_CTX_free(conn->ctx);
+		return -1;
+	}
 
     if (conn->peer_cafile) {
 #if OPENSSL_VERSION_NUMBER < 0x30000000
@@ -368,8 +543,12 @@ int conn_connect(struct conn *conn)
 	}
     }
 #ifndef OPENSSL_NO_PSK
-    if (conn->client_psk_identity_len && conn->client_psk_key_len)
-	SSL_CTX_set_psk_client_callback(conn->ctx, psk_client_cb);
+	if (conn->client_psk_identity_len && conn->client_psk_key_len) {
+		SSL_CTX_set_psk_client_callback(conn->ctx, psk_client_cb);
+#if !defined(OPENSSL_IS_BORINGSSL) && defined(TLS1_3_VERSION)
+		SSL_CTX_set_psk_use_session_callback(conn->ctx, psk_use_session_cb);
+#endif
+	}
 #endif
     SSL_CTX_set_session_cache_mode(conn->ctx, SSL_SESS_CACHE_OFF);
 

@@ -139,6 +139,13 @@ static void parse_server(struct sym *sym, int skip)
 		    conn_set_tls_alpn(conn, sym->buf);
 		sym_get(sym);
 		continue;
+	    case S_cipher_suites:
+		sym_get(sym);
+		parse(sym, S_equal);
+		if (!skip)
+		    conn_set_tls_cipher_suites(conn, sym->buf);
+		sym_get(sym);
+		continue;
 	    case S_psk:
 		sym_get(sym);
 		switch (sym->code) {
@@ -163,11 +170,32 @@ static void parse_server(struct sym *sym, int skip)
 			conn_set_tls_psk(conn, sym->buf, strlen(sym->buf));
 		    sym_get(sym);
 		    continue;
+		case S_key_exchange:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    switch (sym->code) {
+		    case S_auto:
+		    case S_dhe:
+		    case S_no_dhe:
+			if (!skip)
+			    conn_set_tls_psk_key_exchange(conn, sym->code);
+			sym_get(sym);
+			continue;
+		    default:
+			parse_error_expect(sym, S_auto, S_dhe, S_no_dhe, S_unknown);
+		    }
+		case S_dhe_supported_groups:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    if (!skip)
+			conn_set_tls_psk_dhe_groups(conn, sym->buf);
+		    sym_get(sym);
+		    continue;
 		default:
-		    parse_error_expect(sym, S_key, S_hint, S_id, S_unknown);
+		    parse_error_expect(sym, S_key, S_key_exchange, S_dhe_supported_groups, S_hint, S_id, S_unknown);
 		}
 	    default:
-		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_sni, S_alpn, S_psk, S_unknown);
+		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_sni, S_alpn, S_cipher_suites, S_psk, S_unknown);
 	    }
 	    continue;
 	case S_timeout:
