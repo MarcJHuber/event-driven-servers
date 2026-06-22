@@ -207,6 +207,20 @@ static void parse_listen(struct sym *sym)
 		ctx->dtls_versions = 0;
 		sym_get(sym);
 		break;
+	    case S_auto:
+		sym_get(sym);
+		ctx->sd_flags |= SCM_FLAG_TLSAUTO;
+		if (!ctx->tls_versions) {
+		    ctx->tls_versions = (TLS1_2_VERSION & 0xff)
+			| ((TLS1_3_VERSION & 0xff) << 8);
+		    ctx->dtls_versions = (DTLS1_VERSION & 0xff)
+			| ((DTLS1_2_VERSION & 0xff) << 16)
+#ifdef DTLS1_3_VERSION
+			| ((DTLS1_3_VERSION & 0xff) << 24)
+#endif
+			;
+		}
+		break;
 	    case S_TLS1_2:
 	    case S_TLS1_3:
 		ctx->tls_versions = 0;
