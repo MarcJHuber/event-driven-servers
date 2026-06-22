@@ -201,78 +201,78 @@ static SSL_CTX *ssl_init(struct realm *, int dtls, int use_tls_psk);
 #if defined(WITH_SSL) && !defined(OPENSSL_IS_BORINGSSL)
 static int tls13_cipher_name_matches(const SSL_CIPHER *cipher, char *name, size_t name_len)
 {
-	const char *cipher_name = SSL_CIPHER_get_name(cipher);
+    const char *cipher_name = SSL_CIPHER_get_name(cipher);
 
-	return cipher_name && strlen(cipher_name) == name_len && !strncmp(cipher_name, name, name_len);
+    return cipher_name && strlen(cipher_name) == name_len && !strncmp(cipher_name, name, name_len);
 }
 
 static int tls13_cipher_version_matches(const SSL_CIPHER *cipher)
 {
-	const char *version = SSL_CIPHER_get_version(cipher);
+    const char *version = SSL_CIPHER_get_version(cipher);
 
-	return version && !strcmp(version, "TLSv1.3");
+    return version && !strcmp(version, "TLSv1.3");
 }
 
 static const SSL_CIPHER *tls13_cipher_find_by_name(const STACK_OF(SSL_CIPHER) *ciphers, char *name, size_t name_len)
 {
-	if (!ciphers)
-		return NULL;
-
-	for (int i = 0; i < sk_SSL_CIPHER_num(ciphers); i++) {
-		const SSL_CIPHER *cipher = sk_SSL_CIPHER_value(ciphers, i);
-		if (cipher && tls13_cipher_version_matches(cipher) && tls13_cipher_name_matches(cipher, name, name_len))
-			return cipher;
-	}
-
+    if (!ciphers)
 	return NULL;
+
+    for (int i = 0; i < sk_SSL_CIPHER_num(ciphers); i++) {
+	const SSL_CIPHER *cipher = sk_SSL_CIPHER_value(ciphers, i);
+	if (cipher && tls13_cipher_version_matches(cipher) && tls13_cipher_name_matches(cipher, name, name_len))
+	    return cipher;
+    }
+
+    return NULL;
 }
 
 static const SSL_CIPHER *tls13_cipher_find_first(const STACK_OF(SSL_CIPHER) *ciphers)
 {
-	if (!ciphers)
-		return NULL;
-
-	for (int i = 0; i < sk_SSL_CIPHER_num(ciphers); i++) {
-		const SSL_CIPHER *cipher = sk_SSL_CIPHER_value(ciphers, i);
-		if (cipher && tls13_cipher_version_matches(cipher))
-			return cipher;
-	}
-
+    if (!ciphers)
 	return NULL;
+
+    for (int i = 0; i < sk_SSL_CIPHER_num(ciphers); i++) {
+	const SSL_CIPHER *cipher = sk_SSL_CIPHER_value(ciphers, i);
+	if (cipher && tls13_cipher_version_matches(cipher))
+	    return cipher;
+    }
+
+    return NULL;
 }
 
 static const SSL_CIPHER *tls13_psk_cipher_find(SSL *ssl, char *cipher_suites)
 {
-	const STACK_OF(SSL_CIPHER) *ciphers = SSL_get_client_ciphers(ssl);
-	if (!ciphers)
-		ciphers = SSL_get_ciphers(ssl);
+    const STACK_OF(SSL_CIPHER) * ciphers = SSL_get_client_ciphers(ssl);
+    if (!ciphers)
+	ciphers = SSL_get_ciphers(ssl);
 
-	if (!cipher_suites)
-		return tls13_cipher_find_first(ciphers);
+    if (!cipher_suites)
+	return tls13_cipher_find_first(ciphers);
 
-	char *cipher_list = cipher_suites;
-	char cipher_list_buf[strlen(cipher_list) + 1];
-	memcpy(cipher_list_buf, cipher_list, strlen(cipher_list) + 1);
+    char *cipher_list = cipher_suites;
+    char cipher_list_buf[strlen(cipher_list) + 1];
+    memcpy(cipher_list_buf, cipher_list, strlen(cipher_list) + 1);
 
-	for (char *candidate = cipher_list_buf; candidate; ) {
-		char *next = strchr(candidate, ':');
-		if (next)
-			*next++ = 0;
-		size_t candidate_len = strlen(candidate);
-		if (!candidate_len) {
-			report(NULL, LOG_ERR, ~0, "%s:%d empty TLS 1.3 cipher suite entry", __FILE__, __LINE__);
-			return NULL;
-		}
-
-		const SSL_CIPHER *cipher = tls13_cipher_find_by_name(ciphers, candidate, candidate_len);
-		if (cipher)
-			return cipher;
-
-		report(NULL, LOG_ERR, ~0, "%s:%d TLS 1.3 cipher suite '%s' was not offered or enabled", __FILE__, __LINE__, candidate);
-		return NULL;
-		candidate = next;
+    for (char *candidate = cipher_list_buf; candidate;) {
+	char *next = strchr(candidate, ':');
+	if (next)
+	    *next++ = 0;
+	size_t candidate_len = strlen(candidate);
+	if (!candidate_len) {
+	    report(NULL, LOG_ERR, ~0, "%s:%d empty TLS 1.3 cipher suite entry", __FILE__, __LINE__);
+	    return NULL;
 	}
+
+	const SSL_CIPHER *cipher = tls13_cipher_find_by_name(ciphers, candidate, candidate_len);
+	if (cipher)
+	    return cipher;
+
+	report(NULL, LOG_ERR, ~0, "%s:%d TLS 1.3 cipher suite '%s' was not offered or enabled", __FILE__, __LINE__, candidate);
 	return NULL;
+	candidate = next;
+    }
+    return NULL;
 }
 #endif
 
@@ -568,7 +568,7 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
     r->debug = parent ? 0 : common_data.debug;
 #if defined(WITH_SSL)
     r->tls_verify_depth = -1;
-	r->tls_psk_key_exchange = S_unknown;
+    r->tls_psk_key_exchange = S_unknown;
     //r->tls_ciphers = "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256";
 #endif
 
@@ -1825,7 +1825,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    break;
 		default:
 		    parse_error_expect(sym, S_acl, S_equal, S_unknown);
-	        }
+		}
 		continue;
 	    case S_format:
 		sym_get(sym);
@@ -5706,7 +5706,7 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
     case S_custom_2:
     case S_custom_3:
 	session->mavis_custom_attr[m->code - S_custom_0] = m->b.v;
-	report(DEBACL, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, m->b.v ?  m->b.v : "");
+	report(DEBACL, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, m->b.v ? m->b.v : "");
 	break;
     case S_profile:
 	session->profile = (tac_profile *) (m->b.v);
@@ -6387,10 +6387,10 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls, int use_tls_psk)
 	report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_new", __func__, __LINE__);
 	return ctx;
     }
-	if (r->tls_ciphers && !SSL_CTX_set_cipher_list(ctx, r->tls_ciphers)) {
+    if (r->tls_ciphers && !SSL_CTX_set_cipher_list(ctx, r->tls_ciphers)) {
 	report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_set_cipher_list", __func__, __LINE__);
-	}
-	ssl_apply_options(ctx, r, use_tls_psk);
+    }
+    ssl_apply_options(ctx, r, use_tls_psk);
     if (r->tls_pass) {
 	SSL_CTX_set_default_passwd_cb(ctx, ssl_pem_phrase_cb);
 	SSL_CTX_set_default_passwd_cb_userdata(ctx, r->tls_pass);
