@@ -614,4 +614,5 @@ dscp				S_dscp
 threshold			S_threshold
 aggregate			S_aggregate
 mfa				S_mfa
+auto				S_auto
 #

@@ -758,6 +758,7 @@ struct context {
 	BISTATE(radius_1_1);
 	BISTATE(use_tls_psk);
 	BISTATE(fragmented);
+	TRISTATE(tls_autodetect);
     } __attribute__((__packed__));
     enum token mavis_result;
     enum token aaa_protocol;

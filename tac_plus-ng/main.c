@@ -1691,8 +1691,11 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 
     context_lru_append(ctx);
 #ifdef WITH_SSL
+    ctx->tls_autodetect = ctx->realm->tls_autodetect;
+    if (ctx->tls_autodetect == TRISTATE_DUNNO && sd_ext->sd.flags & SCM_FLAG_TLSAUTO)
+	ctx->tls_autodetect = TRISTATE_YES;
     ctx->tls_versions = sd_ext->sd.tls_versions;
-    if (ctx->realm->tls_autodetect && !ctx->tls_versions) {
+    if ((ctx->tls_autodetect == TRISTATE_YES) && !ctx->tls_versions) {
 	if (ctx->realm->tls && sd_ext->sd.type == SCM_ACCEPT) {
 	    ctx->tls_versions = TLS1_2_VERSION & 0xff;
 	    ctx->tls_versions <<= 8;
@@ -1707,7 +1710,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 #endif
 	}
     }
-    if (ctx->tls_versions) {
+    if (ctx->tls_versions && !ctx->tls_autodetect) {
 	ctx->use_tls = (sd_ext->sd.type == SCM_ACCEPT) ? BISTATE_YES : BISTATE_NO;
 	ctx->use_dtls = (sd_ext->sd.type == SCM_UDPDATA) ? BISTATE_YES : BISTATE_NO;
     }
@@ -1972,7 +1975,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    cleanup(ctx, ctx->sock);
 	    return;
 	}
-	if (ctx->realm->tls_autodetect == TRISTATE_YES && tmp[0] == 0x16) {
+	if (ctx->tls_autodetect == TRISTATE_YES && tmp[0] == 0x16) {
 	    if (ctx->udp)
 		ctx->use_dtls = (tmp[1] == 0xfe && dtls_ver_ok(ctx->tls_versions, tmp[2])) ? BISTATE_YES : BISTATE_NO;
 	    else
@@ -2011,7 +2014,7 @@ static void accept_control_check_tls_final(struct context *ctx)
     if (ctx->host && (ctx->use_tls || ctx->use_dtls)) {
 	if ((ctx->use_tls && !ctx->realm->tls && !ctx->realm->use_tls_psk) || (ctx->use_dtls && !ctx->realm->dtls && !ctx->realm->use_tls_psk)) {
 	    report(NULL, LOG_ERR, ~0, "%s but realm %s isn't configured suitably",
-		   (ctx->realm->tls_autodetect == TRISTATE_YES) ? "TLS detected" : "spawnd set TLS flag", ctx->realm->name.txt);
+		   (ctx->tls_autodetect == TRISTATE_YES) ? "TLS detected" : "spawnd set TLS flag", ctx->realm->name.txt);
 	    cleanup(ctx, ctx->sock);
 	    return;
 	}
