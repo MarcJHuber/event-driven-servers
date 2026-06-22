@@ -198,6 +198,84 @@ static unsigned int psk_server_cb(SSL * ssl, const char *identity, unsigned char
 static SSL_CTX *ssl_init(struct realm *, int dtls, int use_tls_psk);
 #endif
 
+#if defined(WITH_SSL) && !defined(OPENSSL_IS_BORINGSSL)
+static int tls13_cipher_name_matches(const SSL_CIPHER *cipher, char *name, size_t name_len)
+{
+	const char *cipher_name = SSL_CIPHER_get_name(cipher);
+
+	return cipher_name && strlen(cipher_name) == name_len && !strncmp(cipher_name, name, name_len);
+}
+
+static int tls13_cipher_version_matches(const SSL_CIPHER *cipher)
+{
+	const char *version = SSL_CIPHER_get_version(cipher);
+
+	return version && !strcmp(version, "TLSv1.3");
+}
+
+static const SSL_CIPHER *tls13_cipher_find_by_name(const STACK_OF(SSL_CIPHER) *ciphers, char *name, size_t name_len)
+{
+	if (!ciphers)
+		return NULL;
+
+	for (int i = 0; i < sk_SSL_CIPHER_num(ciphers); i++) {
+		const SSL_CIPHER *cipher = sk_SSL_CIPHER_value(ciphers, i);
+		if (cipher && tls13_cipher_version_matches(cipher) && tls13_cipher_name_matches(cipher, name, name_len))
+			return cipher;
+	}
+
+	return NULL;
+}
+
+static const SSL_CIPHER *tls13_cipher_find_first(const STACK_OF(SSL_CIPHER) *ciphers)
+{
+	if (!ciphers)
+		return NULL;
+
+	for (int i = 0; i < sk_SSL_CIPHER_num(ciphers); i++) {
+		const SSL_CIPHER *cipher = sk_SSL_CIPHER_value(ciphers, i);
+		if (cipher && tls13_cipher_version_matches(cipher))
+			return cipher;
+	}
+
+	return NULL;
+}
+
+static const SSL_CIPHER *tls13_psk_cipher_find(SSL *ssl, char *cipher_suites)
+{
+	const STACK_OF(SSL_CIPHER) *ciphers = SSL_get_client_ciphers(ssl);
+	if (!ciphers)
+		ciphers = SSL_get_ciphers(ssl);
+
+	if (!cipher_suites)
+		return tls13_cipher_find_first(ciphers);
+
+	char *cipher_list = cipher_suites;
+	char cipher_list_buf[strlen(cipher_list) + 1];
+	memcpy(cipher_list_buf, cipher_list, strlen(cipher_list) + 1);
+
+	for (char *candidate = cipher_list_buf; candidate; ) {
+		char *next = strchr(candidate, ':');
+		if (next)
+			*next++ = 0;
+		size_t candidate_len = strlen(candidate);
+		if (!candidate_len) {
+			report(NULL, LOG_ERR, ~0, "%s:%d empty TLS 1.3 cipher suite entry", __FILE__, __LINE__);
+			return NULL;
+		}
+
+		const SSL_CIPHER *cipher = tls13_cipher_find_by_name(ciphers, candidate, candidate_len);
+		if (cipher)
+			return cipher;
+
+		report(NULL, LOG_ERR, ~0, "%s:%d TLS 1.3 cipher suite '%s' was not offered or enabled", __FILE__, __LINE__, candidate);
+		return NULL;
+		candidate = next;
+	}
+	return NULL;
+}
+#endif
+
 static char *confdir_strdup(char *in)
 {
 #define S "$CONFDIR/"
@@ -290,7 +368,11 @@ void complete_realm(tac_realm *r)
 	RS(tls_accept_expired, TRISTATE_DUNNO);
 	RS(default_host->tls_peer_cert_validation, S_unknown);
 	RS(tls_psk_hint, NULL);
+	RS(tls_cipher_suites, NULL);
+	RS(tls_psk_dhe_groups, NULL);
 	RS(default_host->type6key, NULL);
+	if (r->tls_psk_key_exchange == S_unknown)
+	    r->tls_psk_key_exchange = rp->tls_psk_key_exchange;
 
 	if (!r->crl_basedir.txt) {
 	    r->crl_basedir.txt = rp->crl_basedir.txt;
@@ -486,6 +568,7 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
     r->debug = parent ? 0 : common_data.debug;
 #if defined(WITH_SSL)
     r->tls_verify_depth = -1;
+	r->tls_psk_key_exchange = S_unknown;
     //r->tls_ciphers = "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256";
 #endif
 
@@ -1961,13 +2044,34 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    sym_get(sym);
 		    parse(sym, S_equal);
 		    parse_tls_psk_key(sym, r->default_host);
+		    sym_get(sym);
+		    break;
+		case S_key_exchange:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    switch (sym->code) {
+		    case S_auto:
+		    case S_dhe:
+		    case S_no_dhe:
+			r->tls_psk_key_exchange = sym->code;
+			sym_get(sym);
+			break;
+		    default:
+			parse_error_expect(sym, S_auto, S_dhe, S_no_dhe, S_unknown);
+		    }
+		    break;
+		case S_dhe_supported_groups:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->tls_psk_dhe_groups = strdup(sym->buf);
+		    sym_get(sym);
 		    break;
 		case S_equal:
 		    sym_get(sym);
 		    r->use_tls_psk = parse_bool(sym) ? BISTATE_YES : BISTATE_NO;
 		    break;
 		default:
-		    parse_error_expect(sym, S_id, S_key, S_equal, S_unknown);
+		    parse_error_expect(sym, S_id, S_key, S_key_exchange, S_dhe_supported_groups, S_equal, S_unknown);
 		}
 		continue;
 #endif
@@ -2007,6 +2111,12 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		sym_get(sym);
 		parse(sym, S_equal);
 		r->tls_ciphers = strdup(sym->buf);
+		sym_get(sym);
+		continue;
+	    case S_cipher_suites:
+		sym_get(sym);
+		parse(sym, S_equal);
+		r->tls_cipher_suites = strdup(sym->buf);
 		sym_get(sym);
 		continue;
 	    case S_accept:
@@ -2049,8 +2159,8 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		r->tls_autodetect = parse_tristate(sym);
 		continue;
 	    default:
-		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_passphrase, S_ciphers, S_peer, S_accept, S_verify_depth, S_alpn, S_autodetect,
-				   S_psk, S_sni, S_unknown);
+		parse_error_expect(sym, S_cert_file, S_key_file, S_cafile, S_passphrase, S_ciphers, S_cipher_suites, S_peer,
+				   S_accept, S_verify_depth, S_alpn, S_autodetect, S_psk, S_sni, S_unknown);
 	    }
 	    continue;
 #endif
@@ -6074,28 +6184,14 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 
     // FIXME Use PSK session file?
 
-    // Constants from https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml
-    // and RFC8446, 8.4.
-    // FIXME. There's probably a way to map some standard string to the iana values, somewhere.
-    struct ciphers {
-	unsigned char c[2];
-    };
-    struct ciphers cipherlist[] = {
-//      { { 0x13, 0x02 } }, // TLS_AES_256_GCM_SHA384
-//      { { 0x13, 0x03 } }, // TLS_CHACHA20_POLY1305_SHA256
-	{ { 0x13, 0x01} },	// TLS_AES_128_GCM_SHA256
-	{ { 0x00, 0xFF} },	// TLS_EMPTY_RENEGOTIATION_INFO_SCSV
-    };
-    const SSL_CIPHER *cipher = NULL;
-    for (struct ciphers * i = cipherlist; !cipher && i->c[0]; i++)
-	cipher = SSL_CIPHER_find(ssl, i->c);
+    const SSL_CIPHER *cipher = tls13_psk_cipher_find(ssl, ctx->realm->tls_cipher_suites);
 
     if (!cipher) {
-	report(NULL, LOG_ERR, ~0, "%s:%d SSL_CIPHER_find() failed", __FILE__, __LINE__);
+	report(NULL, LOG_ERR, ~0, "%s:%d TLS 1.3 PSK cipher suite selection failed", __FILE__, __LINE__);
 	return 0;
     }
 
-    SSL_SESSION *nsession = nsession = SSL_SESSION_new();
+    SSL_SESSION *nsession = SSL_SESSION_new();
     if (!nsession) {
 	report(NULL, LOG_ERR, ~0, "%s:%d SSL_SESSION_new() failed", __FILE__, __LINE__);
 	return 0;
@@ -6206,6 +6302,56 @@ static int alpn_cb(SSL *ssl, const unsigned char **out, unsigned char *outlen, c
     return SSL_TLSEXT_ERR_OK;
 }
 
+static void ssl_apply_options(SSL_CTX *ctx, struct realm *r, int use_tls_psk)
+{
+    if (r->tls_cipher_suites) {
+#ifdef TLS1_3_VERSION
+	if (!SSL_CTX_set_ciphersuites(ctx, r->tls_cipher_suites)) {
+	    report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_set_ciphersuites", __func__, __LINE__);
+	    tac_exit(EX_CONFIG);
+	}
+#else
+	report(NULL, LOG_ERR, ~0, "%s %d: TLS 1.3 cipher suites are not supported by this OpenSSL build", __func__, __LINE__);
+	tac_exit(EX_CONFIG);
+#endif
+    }
+
+    if (use_tls_psk && r->tls_psk_dhe_groups && r->tls_psk_key_exchange != S_no_dhe) {
+#ifdef SSL_CTRL_SET_GROUPS_LIST
+	if (!SSL_CTX_ctrl(ctx, SSL_CTRL_SET_GROUPS_LIST, 0, r->tls_psk_dhe_groups)) {
+	    report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_set1_groups_list", __func__, __LINE__);
+	    tac_exit(EX_CONFIG);
+	}
+#else
+	report(NULL, LOG_ERR, ~0, "%s %d: TLS supported groups are not configurable with this OpenSSL build", __func__, __LINE__);
+	tac_exit(EX_CONFIG);
+#endif
+    }
+
+    if (use_tls_psk)
+	switch (r->tls_psk_key_exchange) {
+	case S_unknown:
+	case S_auto:
+#ifdef SSL_OP_ALLOW_NO_DHE_KEX
+	    SSL_CTX_set_options(ctx, SSL_OP_ALLOW_NO_DHE_KEX);
+#endif
+	    break;
+	case S_dhe:
+	    break;
+	case S_no_dhe:
+#if defined(SSL_OP_ALLOW_NO_DHE_KEX) && defined(SSL_OP_PREFER_NO_DHE_KEX)
+	    SSL_CTX_set_options(ctx, SSL_OP_ALLOW_NO_DHE_KEX | SSL_OP_PREFER_NO_DHE_KEX);
+#else
+	    report(NULL, LOG_ERR, ~0, "%s %d: TLS 1.3 PSK without DHE is not supported by this OpenSSL build", __func__, __LINE__);
+	    tac_exit(EX_CONFIG);
+#endif
+	    break;
+	default:
+	    report(NULL, LOG_ERR, ~0, "%s %d: unsupported TLS PSK key exchange mode", __func__, __LINE__);
+	    tac_exit(EX_CONFIG);
+	}
+}
+
 static int sni_cb(SSL *ssl, int *al __attribute__((unused)), void *arg __attribute__((unused)))
 {
     struct context *ctx = SSL_get_app_data(ssl);
@@ -6234,15 +6380,17 @@ static int sni_cb(SSL *ssl, int *al __attribute__((unused)), void *arg __attribu
 }
 
 
-static SSL_CTX *ssl_init(struct realm *r, int dtls, int use_tls_psk __attribute__((unused)))
+static SSL_CTX *ssl_init(struct realm *r, int dtls, int use_tls_psk)
 {
     SSL_CTX *ctx = SSL_CTX_new(dtls ? DTLS_server_method() : TLS_server_method());
     if (!ctx) {
 	report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_new", __func__, __LINE__);
 	return ctx;
     }
-    if (r->tls_ciphers && !SSL_CTX_set_cipher_list(ctx, r->tls_ciphers))
+	if (r->tls_ciphers && !SSL_CTX_set_cipher_list(ctx, r->tls_ciphers)) {
 	report(NULL, LOG_ERR, ~0, "%s %d: SSL_CTX_set_cipher_list", __func__, __LINE__);
+	}
+	ssl_apply_options(ctx, r, use_tls_psk);
     if (r->tls_pass) {
 	SSL_CTX_set_default_passwd_cb(ctx, ssl_pem_phrase_cb);
 	SSL_CTX_set_default_passwd_cb_userdata(ctx, r->tls_pass);
