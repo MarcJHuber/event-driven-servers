@@ -193,7 +193,7 @@ acl accept ::1
             This option sets the maximum number of entries in the
             "sticky" cache. Defaults to 1024.
        Directives which may be used in both cases are:
-          + tls = ( yes | no )
+          + tls = ( yes | no | auto)
             This directive indicates to a child process whether
             the connection is supposed to be encrypted using TLS
             or DTLS.
