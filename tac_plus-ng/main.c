@@ -1333,9 +1333,15 @@ void complete_host(tac_host *h)
 	HS(tls_peer_cert_san_validation, TRISTATE_DUNNO);
 #ifndef OPENSSL_NO_PSK
 	HS(tls_psk_id, NULL);
+	if (!h->tls_psk_id)
+	    h->tls_psk_id = h->realm->default_host->tls_psk_id;
 	if (!h->tls_psk_key) {
 	    h->tls_psk_key = hp->tls_psk_key;
 	    h->tls_psk_key_len = hp->tls_psk_key_len;
+	}
+	if (!h->tls_psk_key) {
+	    h->tls_psk_key = h->realm->default_host->tls_psk_key;
+	    h->tls_psk_key_len = h->realm->default_host->tls_psk_key_len;
 	}
 #endif
 	HS(tls_peer_cert_validation, S_unknown);

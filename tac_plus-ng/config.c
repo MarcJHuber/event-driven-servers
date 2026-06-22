@@ -6116,11 +6116,13 @@ static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char **key, si
 {
     char *t = identity;
     // host may have key set:
-    if (ctx->host->tls_psk_id && !strcmp(identity, ctx->host->tls_psk_id)
-	&& ctx->host->tls_psk_key_len) {
-	*key = ctx->host->tls_psk_key;
-	*keylen = ctx->host->tls_psk_key_len;
-	return 0;
+    if (ctx->host) {
+	if (ctx->host->tls_psk_id && !strcmp(identity, ctx->host->tls_psk_id)
+	    && ctx->host->tls_psk_key_len) {
+	    *key = ctx->host->tls_psk_key;
+	    *keylen = ctx->host->tls_psk_key_len;
+	    return 0;
+	}
     }
 
     // no key set for host, possibly because host is a parent and/or the NAC has
@@ -6139,6 +6141,14 @@ static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char **key, si
 	t = strchr(t, '.');
 	if (t)
 	    t++;
+    }
+
+    tac_host *h = ctx->realm->default_host;
+    if (h->tls_psk_id && !strcmp(identity, h->tls_psk_id)
+	&& h->tls_psk_key_len) {
+	*key = h->tls_psk_key;
+	*keylen = h->tls_psk_key_len;
+	return 0;
     }
 
     return -1;
