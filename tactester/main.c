@@ -166,8 +166,8 @@ static void parse_server(struct sym *sym, int skip)
 		case S_key:
 		    sym_get(sym);
 		    parse(sym, S_equal);
-		    if (!skip)
-			conn_set_tls_psk(conn, sym->buf, strlen(sym->buf));
+		    if (!skip && conn_set_tls_psk(conn, sym->buf, strlen(sym->buf)))
+			parse_error(sym, "BASE64 decode of TLS PSK key failed.");
 		    sym_get(sym);
 		    continue;
 		case S_key_exchange:

@@ -1711,7 +1711,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	ctx->use_tls = (sd_ext->sd.type == SCM_ACCEPT) ? BISTATE_YES : BISTATE_NO;
 	ctx->use_dtls = (sd_ext->sd.type == SCM_UDPDATA) ? BISTATE_YES : BISTATE_NO;
     }
-    ctx->use_tls_psk = (r->use_tls_psk && (sd_ext->sd.flags & SCM_FLAG_TLSPSK)) ? BISTATE_YES : BISTATE_NO;
+    ctx->use_tls_psk = (sd_ext->sd.flags & SCM_FLAG_TLSPSK) ? BISTATE_YES : BISTATE_NO;
 #endif
     if (inject_buf) {
 	ctx->udp = BISTATE_YES;
@@ -1980,7 +1980,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	}
     }
 #ifndef OPENSSL_NO_PSK
-    if (ctx->realm->use_tls_psk) {
+    if (ctx->use_tls_psk || ctx->realm->use_tls_psk) {
 	u_char buf[1024];
 	size_t buf_len = recv_inject(ctx, buf, sizeof(buf), MSG_PEEK, NULL);
 	if (buf_len > 0) {
@@ -2009,7 +2009,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 static void accept_control_check_tls_final(struct context *ctx)
 {
     if (ctx->host && (ctx->use_tls || ctx->use_dtls)) {
-	if ((ctx->use_tls && !ctx->realm->tls && !ctx->realm->use_tls_psk) || (ctx->use_dtls && !ctx->realm->dtls && !ctx->realm->use_tls_psk)) {
+	if ((ctx->use_tls && !ctx->realm->tls && !ctx->use_tls_psk) || (ctx->use_dtls && !ctx->realm->dtls && !ctx->use_tls_psk)) {
 	    report(NULL, LOG_ERR, ~0, "%s but realm %s isn't configured suitably",
 		   (ctx->realm->tls_autodetect == TRISTATE_YES) ? "TLS detected" : "spawnd set TLS flag", ctx->realm->name.txt);
 	    cleanup(ctx, ctx->sock);

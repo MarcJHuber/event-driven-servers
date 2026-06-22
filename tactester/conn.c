@@ -11,8 +11,8 @@
  */
 
 #include "conn.h"
+#include "misc/base64.h"
 #include <strings.h>
-#include <ctype.h>
 
 int conn_update_timeout(struct conn *conn)
 {
@@ -257,24 +257,22 @@ static int pem_phrase_cb(char *buf, int size, int rwflag __attribute__((unused))
     return i;
 }
 
-static char hexbyte(char *s)
+int conn_set_tls_psk(struct conn *conn, char *psk, size_t psk_len)
 {
-    char *h = "\0\01\02\03\04\05\06\07\010\011\0\0\0\0\0\0\0\012\013\014\015\016\017\0\0\0\0\0\0\0\0\0";
-    return (h[(s[0] - '0') & 0x1F] << 4) | h[(s[1] - '0') & 0x1F];
-}
+    size_t key_len = psk_len + 1;
+    char *key = calloc(1, key_len);
 
-void conn_set_tls_psk(struct conn *conn, char *psk, size_t psk_len)
-{
-    // FIXME -- no psk sanitity checking
-    char k[2];
-    psk_len >>= 1;
-    conn->client_psk_key = calloc(1, psk_len);
-    conn->client_psk_key_len = psk_len;
-    for (size_t i = 0; i < psk_len; i++) {
-	k[0] = toupper(*psk++);
-	k[1] = toupper(*psk++);
-	conn->client_psk_key[i] = hexbyte(k);
+    if (base64dec(psk, psk_len, (char *) key, &key_len) || !key_len) {
+	free(key);
+	return -1;
     }
+
+    if (conn->client_psk_key)
+	free(conn->client_psk_key);
+    conn->client_psk_key = key;
+    conn->client_psk_key_len = key_len;
+
+    return 0;
 }
 
 void conn_set_tls_psk_hint(struct conn *conn, char *hint, size_t hint_len)

@@ -74,7 +74,7 @@ void conn_init_timeout(struct conn *);
 void conn_set_timeout(struct conn *, time_t tv_sec, suseconds_t tv_usec);
 void conn_set_retries(struct conn *, int retries);
 void conn_set_vrf(struct conn *, char *vrf);	// FIXME, not yet implemented
-void conn_set_tls_psk(struct conn *, char *identity, size_t identity_len);
+int conn_set_tls_psk(struct conn *, char *identity, size_t identity_len);
 void conn_set_tls_psk_id(struct conn *, char *psk, size_t psk_len);
 void conn_set_tls_psk_hint(struct conn *, char *hint, size_t hint_len);
 

@@ -58,6 +58,7 @@
 
 #include "headers.h"
 #include "misc/version.h"
+#include "misc/base64.h"
 #include "misc/strops.h"
 #include "misc/crc32.h"
 #include "misc/mymd5.h"
@@ -312,18 +313,16 @@ void complete_realm(tac_realm *r)
 	    r->dtls = ssl_init(r, 1, 0);
     }
 #ifndef OPENSSL_NO_PSK
-    if (r->use_tls_psk) {
 	if (!r->tls_psk)
-	    r->tls_psk = ssl_init(r, 0, 1);
+	r->tls_psk = ssl_init(r, 0, 1);
 	if (!r->dtls_psk)
-	    r->dtls_psk = ssl_init(r, 1, 1);
+	r->dtls_psk = ssl_init(r, 1, 1);
 #ifndef OPENSSL_IS_BORINGSSL
 	SSL_CTX_set_psk_find_session_callback(r->tls_psk, psk_find_session_cb);	// tls1.3
 	SSL_CTX_set_psk_find_session_callback(r->dtls_psk, psk_find_session_cb);	// dtls1.3, eventually
 #endif
 	SSL_CTX_set_psk_server_callback(r->tls_psk, psk_server_cb);	// tls1.2 or BoringSSL
 	SSL_CTX_set_psk_server_callback(r->dtls_psk, psk_server_cb);	// dtls1.2 or BoringSSL
-    }
 #endif
 #endif
     if (rp) {
@@ -1051,19 +1050,12 @@ static char hexbyte(char *);
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 static void parse_tls_psk_key(struct sym *sym, tac_host *host)
 {
-    char k[2];
-    char *t = sym->buf;
-    size_t l = strlen(sym->buf);
-    if (l & 1)
-	parse_error(sym, "Illegal hex sequence (odd number of characters)");
-    l >>= 1;
-    host->tls_psk_key = mem_alloc(host->mem, l);
-    host->tls_psk_key_len = l;
-    for (size_t i = 0; i < l; i++) {
-	k[0] = toupper(*t++);
-	k[1] = toupper(*t++);
-	host->tls_psk_key[i] = hexbyte(k);
-    }
+    size_t psk_len = strlen(sym->buf) + 1;
+    host->tls_psk_key = mem_alloc(host->mem, psk_len);
+    host->tls_psk_key_len = psk_len;
+
+    if (base64dec(sym->buf, strlen(sym->buf), (char *) host->tls_psk_key, &host->tls_psk_key_len) || !host->tls_psk_key_len)
+	parse_error(sym, "BASE64 decode of TLS PSK key failed.");
 }
 #endif
 
