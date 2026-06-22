@@ -23,6 +23,23 @@ extern char *optarg;
 
 static struct conn *conn = NULL;
 
+static int parse_tls_psk_key(struct sym *sym, int skip)
+{
+    u_int line = sym->line;
+    size_t psk_len = strlen(sym->buf);
+    char psk[psk_len + 3];
+    memcpy(psk, sym->buf, psk_len + 1);
+
+    sym_get(sym);
+    while (sym->code == S_equal && sym->line == line && psk_len < sizeof(psk) - 1) {
+	psk[psk_len++] = '=';
+	psk[psk_len] = 0;
+	sym_get(sym);
+    }
+
+    return skip ? 0 : conn_set_tls_psk(conn, psk, psk_len);
+}
+
 static void parse_server(struct sym *sym, int skip)
 {
     sym_get(sym);
@@ -166,9 +183,8 @@ static void parse_server(struct sym *sym, int skip)
 		case S_key:
 		    sym_get(sym);
 		    parse(sym, S_equal);
-		    if (!skip && conn_set_tls_psk(conn, sym->buf, strlen(sym->buf)))
+		    if (parse_tls_psk_key(sym, skip))
 			parse_error(sym, "BASE64 decode of TLS PSK key failed.");
-		    sym_get(sym);
 		    continue;
 		case S_key_exchange:
 		    sym_get(sym);

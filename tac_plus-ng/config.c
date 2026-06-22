@@ -1050,11 +1050,22 @@ static char hexbyte(char *);
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 static void parse_tls_psk_key(struct sym *sym, tac_host *host)
 {
-    size_t psk_len = strlen(sym->buf) + 1;
+    u_int line = sym->line;
+    size_t psk_len = strlen(sym->buf);
+    char psk[psk_len + 3];
+    memcpy(psk, sym->buf, psk_len + 1);
+
+    sym_get(sym);
+    while (sym->code == S_equal && sym->line == line && psk_len < sizeof(psk) - 1) {
+	psk[psk_len++] = '=';
+	psk[psk_len] = 0;
+	sym_get(sym);
+    }
+
     host->tls_psk_key = mem_alloc(host->mem, psk_len);
     host->tls_psk_key_len = psk_len;
 
-    if (base64dec(sym->buf, strlen(sym->buf), (char *) host->tls_psk_key, &host->tls_psk_key_len) || !host->tls_psk_key_len)
+    if (base64dec(psk, psk_len, (char *) host->tls_psk_key, &host->tls_psk_key_len) || !host->tls_psk_key_len)
 	parse_error(sym, "BASE64 decode of TLS PSK key failed.");
 }
 #endif
@@ -2036,7 +2047,6 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    sym_get(sym);
 		    parse(sym, S_equal);
 		    parse_tls_psk_key(sym, r->default_host);
-		    sym_get(sym);
 		    break;
 		case S_key_exchange:
 		    sym_get(sym);
@@ -4067,7 +4077,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    sym_get(sym);
 	    parse(sym, S_equal);
 	    parse_tls_psk_key(sym, host);
-	    break;
+	    return;
 	default:
 	    parse_error_expect(sym, S_id, S_key, S_unknown);
 	}
