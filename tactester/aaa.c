@@ -12,8 +12,11 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <ctype.h>
 #include <arpa/inet.h>
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
 #include "misc/mymd5.h"
 #include "tac_plus-ng/protocol_tacacs.h"
 #include "tac_plus-ng/protocol_radius.h"

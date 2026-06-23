@@ -17,6 +17,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/uio.h>
+#include <openssl/ssl.h>
 #include "misc/net.h"
 #include "mavis/token.h"
 
