@@ -61,6 +61,7 @@
 #include "misc/strops.h"
 #include "misc/crc32.h"
 #include "misc/mymd5.h"
+#include "misc/base64.h"
 #include <setjmp.h>
 #include <pwd.h>
 #include <grp.h>
@@ -371,8 +372,7 @@ void complete_realm(tac_realm *r)
 	RS(tls_cipher_suites, NULL);
 	RS(tls_psk_dhe_groups, NULL);
 	RS(default_host->type6key, NULL);
-	if (r->tls_psk_key_exchange == S_unknown)
-	    r->tls_psk_key_exchange = rp->tls_psk_key_exchange;
+	RS(tls_psk_key_exchange, S_unknown);
 
 	if (!r->crl_basedir.txt) {
 	    r->crl_basedir.txt = rp->crl_basedir.txt;
@@ -1051,20 +1051,69 @@ static char hexbyte(char *);
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 static void parse_tls_psk_key(struct sym *sym, tac_host *host)
 {
+    if (!host->tls_psk_key)
+	host->tls_psk_key = mem_alloc(host->mem, sizeof(struct tls_psk_key));
+    else {
+	mem_free(host->mem, &host->tls_psk_key->key.txt);
+	host->tls_psk_key->key.len = 0;
+    }
+    switch (sym->code) {
+    case S_clear:
+	sym_get(sym);
+	str_set(&host->tls_psk_key->key, mem_strdup(host->mem, sym->buf), 0);
+	sym_get(sym);
+	return;
+    case S_7:
+	sym_get(sym);
+	if (c7decode(sym->buf))
+	    parse_error(sym, "type 7 psk is malformed");
+	str_set(&host->tls_psk_key->key, mem_strdup(host->mem, sym->buf), 0);
+	sym_get(sym);
+	return;
+    case S_6:
+	host->tls_psk_key->type = S_6;
+	sym->noescape = 1;
+	sym_get(sym);
+	str_set(&host->tls_psk_key->key, mem_strdup(host->mem, sym->buf), 0);
+	sym->noescape = 1;
+	sym_get(sym);
+	return;
+    case S_base64:{
+	    sym_get(sym);
+	    size_t len = strlen(sym->buf);
+	    size_t buflen = len * 3 / 4 + 1;
+	    char buf[buflen];
+	    if (base64dec(sym->buf, len, buf, &buflen))
+		parse_error(sym, "base64 psk is malformed");
+	    host->tls_psk_key->key.txt = mem_alloc(host->mem, buflen);
+	    host->tls_psk_key->key.len = buflen;
+	    sym_get(sym);
+	    return;
+	}
+    case S_hex:
+	sym_get(sym);
+	break;
+    case S_string:
+	break;
+    default:
+	parse_error_expect(sym, S_clear, S_6, S_7, S_base64, S_hex, S_unknown);
+    }
     char k[2];
     char *t = sym->buf;
     size_t l = strlen(sym->buf);
     if (l & 1)
 	parse_error(sym, "Illegal hex sequence (odd number of characters)");
     l >>= 1;
-    host->tls_psk_key = mem_alloc(host->mem, sizeof(struct tls_psk_key));
     host->tls_psk_key->key.txt = mem_alloc(host->mem, l);
     host->tls_psk_key->key.len = l;
     for (size_t i = 0; i < l; i++) {
+	if (!isxdigit(*t) || !isxdigit(*(t + 1)))
+	    parse_error(sym, "Invalid hex sequence");
 	k[0] = toupper(*t++);
 	k[1] = toupper(*t++);
 	host->tls_psk_key->key.txt[i] = hexbyte(k);
     }
+    sym_get(sym);
 }
 #endif
 
@@ -2045,7 +2094,6 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		    sym_get(sym);
 		    parse(sym, S_equal);
 		    parse_tls_psk_key(sym, r->default_host);
-		    sym_get(sym);
 		    break;
 		case S_key_exchange:
 		    sym_get(sym);
@@ -4071,6 +4119,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    sym_get(sym);
 	    parse(sym, S_equal);
 	    host->tls_psk_id = mem_strdup(host->mem, sym->buf);
+	    sym_get(sym);
 	    break;
 	case S_key:
 	    sym_get(sym);
@@ -4080,7 +4129,6 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	default:
 	    parse_error_expect(sym, S_id, S_key, S_unknown);
 	}
-	sym_get(sym);
 	break;
 #endif
 #ifdef WITH_SSL
@@ -6123,11 +6171,17 @@ static int tac_tag_regex_check(tac_session *session, struct mavis_cond *m, tac_t
 #ifndef OPENSSL_NO_PSK
 static str_t *cfg_get_tls_psk(struct context *ctx, char *identity)
 {
+    str_t *res = NULL;
+    enum token type = S_unknown;
+
     char *t = identity;
     // host may have key set:
     if (ctx->host->tls_psk_id && !strcmp(identity, ctx->host->tls_psk_id)
-	&& ctx->host->tls_psk_key)
-	return &ctx->host->tls_psk_key->key;
+	&& ctx->host->tls_psk_key && ctx->host->tls_psk_key->key.len) {
+	type = ctx->host->tls_psk_key->type;
+	res = &ctx->host->tls_psk_key->key;
+	goto final;
+    }
 
     // no key set for host, possibly because host is a parent and/or the NAC has
     // a dynamic IP. Try to map identity to hostname
@@ -6135,9 +6189,11 @@ static str_t *cfg_get_tls_psk(struct context *ctx, char *identity)
 	tac_host *h = lookup_host(t, ctx->realm);
 	if (h) {
 	    complete_host(h);
-	    if (h->tls_psk_key) {
+	    if (h->tls_psk_key && h->tls_psk_key->key.len) {
+		type = h->tls_psk_key->type;
+		res = &h->tls_psk_key->key;
 		ctx->host = h;
-		return &h->tls_psk_key->key;
+		goto final;
 	    }
 	}
 	t = strchr(t, '.');
@@ -6145,7 +6201,21 @@ static str_t *cfg_get_tls_psk(struct context *ctx, char *identity)
 	    t++;
     }
 
-    return NULL;
+  final:
+    if (type == S_6) {
+	if (!ctx->host->type6key)
+	    return NULL;
+	ctx->host->tls_psk_key->type = S_clear;
+	char *dec = decrypt_type6(res->txt, ctx->host->type6key);
+	if (!dec)
+	    return NULL;
+	size_t len = strlen(dec);
+	memcpy(res->txt, dec, len);
+	res->len = len;
+	if (!res->len)
+	    return NULL;
+    }
+    return res;
 }
 
 #ifndef OPENSSL_IS_BORINGSSL

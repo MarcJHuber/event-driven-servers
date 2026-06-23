@@ -184,6 +184,7 @@ struct fingerprint {
 
 struct tls_psk_key {
 	str_t key;
+	enum token type;
 };
 #endif
 

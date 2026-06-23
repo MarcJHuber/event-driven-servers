@@ -15,14 +15,116 @@
 #include "misc/memops.h"
 #include "mavis/mavis.h"
 #include "misc/version.h"
+#include "misc/base64.h"
 #include "tac_plus-ng/protocol_tacacs.h"
 #include "tac_plus-ng/config_radius.h"
+#include <ctype.h>
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 extern int optind, opterr;
 extern char *optarg;
 
 static struct conn *conn = NULL;
+
+static char hexbyte(char *s)
+{
+    char *h = "\0\01\02\03\04\05\06\07\010\011\0\0\0\0\0\0\0\012\013\014\015\016\017\0\0\0\0\0\0\0\0\0";
+    return (h[(s[0] - '0') & 0x1F] << 4) | h[(s[1] - '0') & 0x1F];
+}
+
+static int c7decode(char *in)
+{
+    char *out = in;
+    size_t len = strlen(in);
+    static char *c7 = NULL;
+    static size_t c7_len = 0;
+
+    if (!c7) {
+	char *e = "051207055A0A070E204D4F08180416130A0D052B2A2529323423120617020057585952550F021917585956525354550A5A07065956";
+	char *u, *t = e;
+
+	c7 = calloc(0, strlen(e) / 2 + 1);
+	u = c7;
+	while (*t) {
+	    *u = 'a' ^ hexbyte(t);
+	    u++, t += 2;
+	}
+	c7_len = strlen(c7);
+    }
+
+    if (len & 1 || len < 4)
+	return -1;
+
+    len -= 2;
+    int seed = 10 * (in[0] - '0') + in[1] - '0';
+    in += 2;
+
+    while (len) {
+	*out = hexbyte(in) ^ c7[seed % c7_len];
+	in += 2, seed++, len -= 2, out++;
+    }
+
+    *out = 0;
+
+    return 0;
+}
+
+static void parse_tls_psk_key(struct sym *sym, int skip)
+{
+    switch (sym->code) {
+    case S_clear:
+	sym_get(sym);
+	if (!skip)
+	    conn_set_tls_psk(conn, sym->buf, strlen(sym->buf));
+	sym_get(sym);
+	return;
+    case S_7:
+	sym_get(sym);
+	if (!skip) {
+	    if (c7decode(sym->buf))
+		parse_error(sym, "type 7 psk is malformed");
+	    conn_set_tls_psk(conn, sym->buf, strlen(sym->buf));
+	}
+	sym_get(sym);
+	return;
+    case S_base64:{
+	    sym_get(sym);
+	    size_t len = strlen(sym->buf);
+	    size_t buflen = len * 3 / 4 + 1;
+	    char buf[buflen];
+	    if (!skip) {
+		if (base64dec(sym->buf, len, buf, &buflen))
+		    parse_error(sym, "base64 psk is malformed");
+		conn_set_tls_psk(conn, sym->buf, buflen);
+	    }
+	    sym_get(sym);
+	    return;
+	}
+    case S_hex:
+	sym_get(sym);
+	break;
+    case S_string:
+	break;
+    default:
+	parse_error_expect(sym, S_clear, S_6, S_7, S_base64, S_hex, S_unknown);
+    }
+    char k[2];
+    char *t = sym->buf;
+    size_t l = strlen(sym->buf);
+    if (l & 1)
+	parse_error(sym, "Illegal hex sequence (odd number of characters)");
+    l >>= 1;
+    char buf[l];
+    for (size_t i = 0; i < l; i++) {
+	if (!isxdigit(*t) || !isxdigit(*(t + 1)))
+	    parse_error(sym, "Invalid hex sequence");
+	k[0] = toupper(*t++);
+	k[1] = toupper(*t++);
+	buf[i] = hexbyte(k);
+    }
+    sym_get(sym);
+    conn_set_tls_psk(conn, buf, l);
+}
 
 static void parse_server(struct sym *sym, int skip)
 {
@@ -167,9 +269,7 @@ static void parse_server(struct sym *sym, int skip)
 		case S_key:
 		    sym_get(sym);
 		    parse(sym, S_equal);
-		    if (!skip)
-			conn_set_tls_psk(conn, sym->buf, strlen(sym->buf));
-		    sym_get(sym);
+		    parse_tls_psk_key(sym, skip);
 		    continue;
 		case S_key_exchange:
 		    sym_get(sym);
