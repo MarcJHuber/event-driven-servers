@@ -1,10 +1,14 @@
-*.c ident
-*.pl ident
-*.cgi ident
-*.xml ident
-Makefile ident
-Makefile.obj ident
-GNUmakefile ident
+* text=auto eol=lf
+*.c text eol=lf ident
+*.h text eol=lf
+*.pl text eol=lf ident
+*.cgi text eol=lf ident
+*.xml text eol=lf ident
+Makefile text eol=lf ident
+Makefile.obj text eol=lf ident
+GNUmakefile text eol=lf ident
+configure text eol=lf
+LAST_COMMIT text eol=lf
 *.gif binary
 *.pdf binary
 

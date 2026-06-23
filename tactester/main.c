@@ -10,6 +10,7 @@
  *
  */
 
+#include <stdio.h>
 #include "aaa.h"
 #include "misc/memops.h"
 #include "mavis/mavis.h"
