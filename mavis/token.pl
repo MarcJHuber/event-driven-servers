@@ -621,4 +621,6 @@ dscp				S_dscp
 threshold			S_threshold
 aggregate			S_aggregate
 mfa				S_mfa
+hex				S_hex
+base64				S_base64
 #
