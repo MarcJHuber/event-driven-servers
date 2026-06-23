@@ -1057,12 +1057,13 @@ static void parse_tls_psk_key(struct sym *sym, tac_host *host)
     if (l & 1)
 	parse_error(sym, "Illegal hex sequence (odd number of characters)");
     l >>= 1;
-    host->tls_psk_key = mem_alloc(host->mem, l);
-    host->tls_psk_key_len = l;
+    host->tls_psk_key = mem_alloc(host->mem, sizeof(struct tls_psk_key));
+    host->tls_psk_key->key.txt = mem_alloc(host->mem, l);
+    host->tls_psk_key->key.len = l;
     for (size_t i = 0; i < l; i++) {
 	k[0] = toupper(*t++);
 	k[1] = toupper(*t++);
-	host->tls_psk_key[i] = hexbyte(k);
+	host->tls_psk_key->key.txt[i] = hexbyte(k);
     }
 }
 #endif
@@ -6120,16 +6121,13 @@ static int tac_tag_regex_check(tac_session *session, struct mavis_cond *m, tac_t
 
 #ifdef WITH_SSL
 #ifndef OPENSSL_NO_PSK
-static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char **key, size_t *keylen)
+static str_t *cfg_get_tls_psk(struct context *ctx, char *identity)
 {
     char *t = identity;
     // host may have key set:
     if (ctx->host->tls_psk_id && !strcmp(identity, ctx->host->tls_psk_id)
-	&& ctx->host->tls_psk_key_len) {
-	*key = ctx->host->tls_psk_key;
-	*keylen = ctx->host->tls_psk_key_len;
-	return 0;
-    }
+	&& ctx->host->tls_psk_key)
+	return &ctx->host->tls_psk_key->key;
 
     // no key set for host, possibly because host is a parent and/or the NAC has
     // a dynamic IP. Try to map identity to hostname
@@ -6137,11 +6135,9 @@ static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char **key, si
 	tac_host *h = lookup_host(t, ctx->realm);
 	if (h) {
 	    complete_host(h);
-	    if (h->tls_psk_key_len) {
+	    if (h->tls_psk_key) {
 		ctx->host = h;
-		*key = h->tls_psk_key;
-		*keylen = h->tls_psk_key_len;
-		return 0;
+		return &h->tls_psk_key->key;
 	    }
 	}
 	t = strchr(t, '.');
@@ -6149,7 +6145,7 @@ static int cfg_get_tls_psk(struct context *ctx, char *identity, u_char **key, si
 	    t++;
     }
 
-    return -1;
+    return NULL;
 }
 
 #ifndef OPENSSL_IS_BORINGSSL
@@ -6173,9 +6169,8 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 	return 0;
     }
 
-    u_char *key;
-    size_t key_len;
-    if (cfg_get_tls_psk(ctx, id, &key, &key_len)) {
+    str_t *key = cfg_get_tls_psk(ctx, id);
+    if (!key) {
 	char *t = id;
 	for (; *t && isprint(*t); t++);
 	report(NULL, LOG_ERR, ~0, "%s:%d psk for identity '%s' not found", __FILE__, __LINE__, *t ? "invalid" : id);
@@ -6197,7 +6192,7 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity, size_t i
 	return 0;
     }
 
-    if (!SSL_SESSION_set1_master_key(nsession, key, key_len)) {
+    if (!SSL_SESSION_set1_master_key(nsession, (u_char *) key->txt, key->len)) {
 	report(NULL, LOG_ERR, ~0, "%s:%d SSL_SESSION_set1_master_key() failed", __FILE__, __LINE__);
 	SSL_SESSION_free(nsession);
 	return 0;
@@ -6235,23 +6230,22 @@ static unsigned int psk_server_cb(SSL *ssl, const char *identity, unsigned char 
 	return 0;
     }
 
-    u_char *key;
-    size_t key_len;
-    if (cfg_get_tls_psk(ctx, (char *) identity, &key, &key_len)) {
+    str_t *key = cfg_get_tls_psk(ctx, (char *) identity);
+    if (!key) {
 	report(NULL, LOG_ERR, ~0, "%s:%d psk not found", __FILE__, __LINE__);
 	return 0;
     }
 
-    if (key_len > max_psk_len) {
+    if (key->len > max_psk_len) {
 	report(NULL, LOG_ERR, ~0, "%s:%d psk key length exceeds maximum", __FILE__, __LINE__);
 	return 0;
     }
 
-    memcpy(psk, key, key_len);
+    memcpy(psk, key->txt, key->len);
 
     str_set(&ctx->tls_psk_identity, mem_strdup(ctx->mem, (char *) identity), 0);
 
-    return key_len;
+    return key->len;
 }
 #endif
 

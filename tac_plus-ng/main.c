@@ -890,9 +890,9 @@ static void accept_control_tls(struct context *ctx, int cur)
 #ifndef OPENSSL_NO_PSK
     if (ctx->tls_psk_identity.txt) {
 	if (SSL_version(ctx->tls) == TLS1_3_VERSION) {
-	    unsigned char buf[ctx->host->tls_psk_key_len];
-	    if (ctx->host->tls_psk_key_len != SSL_SESSION_get_master_key(SSL_get_session(ctx->tls), buf, ctx->host->tls_psk_key_len)
-		|| memcmp(buf, ctx->host->tls_psk_key, ctx->host->tls_psk_key_len)) {
+	    unsigned char buf[ctx->host->tls_psk_key->key.len];
+	    if (ctx->host->tls_psk_key->key.len != SSL_SESSION_get_master_key(SSL_get_session(ctx->tls), buf, ctx->host->tls_psk_key->key.len)
+		|| memcmp(buf, ctx->host->tls_psk_key->key.txt, ctx->host->tls_psk_key->key.len)) {
 		// OpenSSL fall-through due to wrong client psk
 		reject_conn(ctx, "PSK", __func__, __LINE__);
 		return;
@@ -1333,10 +1333,7 @@ void complete_host(tac_host *h)
 	HS(tls_peer_cert_san_validation, TRISTATE_DUNNO);
 #ifndef OPENSSL_NO_PSK
 	HS(tls_psk_id, NULL);
-	if (!h->tls_psk_key) {
-	    h->tls_psk_key = hp->tls_psk_key;
-	    h->tls_psk_key_len = hp->tls_psk_key_len;
-	}
+	HS(tls_psk_key, NULL);
 #endif
 	HS(tls_peer_cert_validation, S_unknown);
 	if (!h->tls_client_cert_type_len) {

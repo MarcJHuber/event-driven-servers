@@ -181,6 +181,10 @@ struct fingerprint {
 	struct fingerprint *next;
     };
 };
+
+struct tls_psk_key {
+	str_t key;
+};
 #endif
 
 struct tac_host {
@@ -232,8 +236,7 @@ struct tac_host {
     u_int debug;
 #ifdef WITH_SSL
     char *tls_psk_id;
-    u_char *tls_psk_key;
-    size_t tls_psk_key_len;
+    struct tls_psk_key *tls_psk_key;
     struct fingerprint *fingerprint;	// set via MAVIS
     enum token tls_peer_cert_validation;
     u_char tls_client_cert_type[2];
