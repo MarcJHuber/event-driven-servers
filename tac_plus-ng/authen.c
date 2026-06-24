@@ -1360,7 +1360,6 @@ static void do_ascii_login(tac_session *session)
 
     mem_free(session->mem, &session->challenge);
 
-
     switch (res) {
     case S_error:
 	report_auth(session, info, hint, res);
@@ -1387,6 +1386,7 @@ static void do_ascii_login(tac_session *session)
 	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_PASS, resp, 0, NULL, 0, 0);
 	return;
     default:
+	report_auth(session, info, hint, res);
 	;
     }
 
