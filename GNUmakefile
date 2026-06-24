@@ -34,7 +34,7 @@ install: install_doc
 	@for D in $(DIRS) ; do $(MAKE) -r -C $$D BASE=$(BASE) install || exit 1; done
 
 $(INSTALLROOT)$(DOCDIR_DEST)/railroad: $(BASE)/doc/railroad
-	@mkdir -p -m 0755 $@; for D in $(DIRS) ; do mkdir -p -m 0755 $@/$$D ; $(INSTALL) -m 0644 $</$$D/* $@/$$D ; done
+	@mkdir -p -m 0755 $@; for D in $(DIRS) ; do test -d $</$$D || { echo "Skipping railroad docs for $$D: not present"; continue ; } ; mkdir -p -m 0755 $@/$$D ; $(INSTALL) -m 0644 $</$$D/* $@/$$D ; done
 
 $(INSTALLROOT)$(DOCDIR_DEST): $(BASE)/doc $(INSTALLROOT)$(DOCDIR_DEST)/railroad
 	@test -f $</mavis.html && mkdir -p -m 0755 $@ && $(INSTALL) -m 0644 $</*.* $@ ; exit 0
