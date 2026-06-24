@@ -39,7 +39,11 @@ $(INSTALLROOT)$(DOCDIR_DEST)/railroad: $(BASE)/doc/railroad
 $(INSTALLROOT)$(DOCDIR_DEST): $(BASE)/doc $(INSTALLROOT)$(DOCDIR_DEST)/railroad
 	@test -f $</mavis.html && mkdir -p -m 0755 $@ && $(INSTALL) -m 0644 $</*.* $@ ; exit 0
 
+ifeq ($(WITH_DOC),1)
 install_doc: $(INSTALLROOT)$(DOCDIR_DEST) $(INSTALLROOT)$(DOCDIR_DEST)/railroad
+else
+install_doc:
+endif
 
 else
 

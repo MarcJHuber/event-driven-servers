@@ -88,7 +88,7 @@ my @ALLDIRS = qw(mavis spawnd mavisd tac_plus tac_plus-ng );
 my $DIRS_DEFAULT = join(" ", @DIRS_DEFAULT);
 my $ALLDIRS = join(" ", @ALLDIRS);
 
-my @options = qw(pcre2 ssl zlib freeradius_client freeradius pam execinfo sctp curl ipc ares crypto ldap radcli);
+my @options = qw(pcre2 ssl zlib freeradius_client freeradius pam execinfo sctp curl ipc ares crypto ldap radcli doc);
 my %COMMENT;
 
 my $sbin = "sbin";
@@ -156,6 +156,10 @@ $COMMENT{"ldap"} =
 "This will add \"ldapmavis-mt\" to the build, a pthread() enabled LDAP backend.
 ";
 
+$COMMENT{"doc"} =
+"This one allows for skipping documentation file installs.
+";
+
 if ($#ARGV > -1 && $ARGV[0] =~ /^--help$/)
 {
 	wprint(
@@ -190,6 +194,10 @@ $COMMENT{'epoll'}
 $COMMENT{'sctp'}
   --without-sctp
   --with-sctp
+
+$COMMENT{'doc'}
+  --without-doc
+  --with-doc
 
 ");
 
@@ -752,6 +760,7 @@ wprint $hint . "\n" if $hint ne "";;
 
 wprint "Development files were not found for: " . join(", ", sort keys %NOT_FOUND) . "\n\n" if 0 < int keys %NOT_FOUND;
 wprint "Development files were found for: " . join(", ", sort keys %FOUND) . "\n\n" if 0 < int keys %FOUND;
+wprint "Documentation files will not be installed.\n\n" if exists $DEFS{"WITH_DOC"} and $DEFS{"WITH_DOC"} == 0;
 die "Building without PCRE2 is no longer supported. Exiting.\n" unless exists $FOUND{'LIB-PCRE2'};
 
 wprint "The file
