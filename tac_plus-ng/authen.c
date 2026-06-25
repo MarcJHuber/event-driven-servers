@@ -1701,10 +1701,10 @@ static void do_login(tac_session *session)
     if (!resp)
 	resp = session->user_msg.txt;
 
-    report_auth(session, info, hint, res);
-
     if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
 	return;
+
+    report_auth(session, info, hint, res);
 
     send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
 }
