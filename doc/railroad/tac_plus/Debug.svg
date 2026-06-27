@@ -1,6 +1,6 @@
 <?xml version='1.0'?>
  <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width='153.0pt' height='296.25pt' viewBox="0 0 204 395" version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
+<svg width='153pt' height='296pt' viewBox="0 0 204 395" version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
 	<ellipse cx='6.0' cy='23.0' rx='3.0' ry='3.0' id='x1' style='stroke: #000000; stroke-width: 1.0; fill: none;'/>
 	<text x='64.5' y='27.5' transform='rotate(-0.0 64.5,27.5)' id='x1' style='stroke-width: 0; font-style: italic; font-family: Helvetica; font-size: 10pt; fill: #000000;'>number</text>
 	<rect x='64.0' y='13.0' width='51.0' height='19.0' id='x1' style='stroke: #000000; stroke-width: 1.0; fill: none;'/>

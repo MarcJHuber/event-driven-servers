@@ -1,0 +1,35 @@
+<?xml version='1.0'?>
+ <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width='259pt' height='26pt' viewBox="0 0 346 35" version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
+	<ellipse cx='6.0' cy='23.0' rx='3.0' ry='3.0' id='x1' style='stroke: #000000; stroke-width: 1.0; fill: none;'/>
+	<text x='28.0' y='27.0' transform='rotate(-0.0 28.0,27.0)' id='x1' style='font-weight: bold; stroke-width: 0; font-family: Courier; font-size: 10pt; fill: #000000;'>acl</text>
+	<rect x='27.0' y='13.0' width='26.0' height='18.0' id='x1' style='stroke: #000000; stroke-width: 1.0; fill: none;'/>
+	<text x='73.0' y='27.0' transform='rotate(-0.0 73.0,27.0)' id='x1' style='font-weight: bold; stroke-width: 0; font-family: Courier; font-size: 10pt; fill: #000000;'>=</text>
+	<rect x='72.0' y='13.0' width='10.0' height='18.0' id='x1' style='stroke: #000000; stroke-width: 1.0; fill: none;'/>
+	<defs><marker id='arrowMarkerDef_#000000_8_10_3' markerWidth='10' markerHeight='6' refX='0' refY='3' orient='auto'><path d='M 0 3, 10 0, 8 3, 10 6 Z' style='fill: #000000; stroke: #000000;'/></marker></defs><defs><marker id='arrowMarkerLastDef_#000000_8_10_3' markerWidth='10' markerHeight='6' refX='10' refY='3' orient='auto'><path d='M 0 0, 10 3, 0 6, 2 3 Z' style='fill: #000000; stroke: #000000;'/></marker></defs><polyline points='53.0 23.0 71.0 23.0' id='x1' style='stroke: #000000; stroke-width: 1.0; stroke-linejoin: round; marker-end: url(#arrowMarkerLastDef_#000000_8_10_3); fill: none;'/>
+	<text x='102.0' y='27.5' transform='rotate(-0.0 102.0,27.5)' id='x1' style='stroke-width: 0; font-style: italic; font-family: Helvetica; font-size: 10pt; fill: #000000;'>aclName</text>
+	<rect x='101.0' y='13.0' width='58.0' height='19.0' id='x1' style='stroke: #000000; stroke-width: 1.0; fill: none;'/>
+	<polyline points='82.0 23.0 100.0 23.0' id='x1' style='stroke: #000000; stroke-width: 1.0; stroke-linejoin: round; marker-end: url(#arrowMarkerLastDef_#000000_8_10_3); fill: none;'/>
+	<text x='179.0' y='27.0' transform='rotate(-0.0 179.0,27.0)' id='x1' style='font-weight: bold; stroke-width: 0; font-family: Courier; font-size: 10pt; fill: #000000;'>{</text>
+	<rect x='178.0' y='13.0' width='10.0' height='18.0' id='x1' style='stroke: #000000; stroke-width: 1.0; fill: none;'/>
+	<polyline points='159.0 23.0 177.0 23.0' id='x1' style='stroke: #000000; stroke-width: 1.0; stroke-linejoin: round; marker-end: url(#arrowMarkerLastDef_#000000_8_10_3); fill: none;'/>
+	<text x='223.0' y='26.5' transform='rotate(-0.0 223.0,26.5)' id='x1' style='stroke-width: 0; font-family: Helvetica; font-size: 10pt; fill: #000000;'>AclExpr</text>
+	<path d='M 225.0 14.0 A 9.0 8.5 0.0 0 0 225.0 31.0' id='x1' style='stroke: #000000; stroke-width: 1.0; fill: none;'/>
+	<path d='M 269.0 31.0 A 9.0 8.5 0.0 0 0 269.0 14.0' id='x1' style='stroke: #000000; stroke-width: 1.0; fill: none;'/>
+	<polyline points='225.0 14.0 269.0 14.0' id='x1' style='stroke: #000000; stroke-width: 1.0; stroke-linejoin: round; fill: none;'/>
+	<polyline points='225.0 31.0 269.0 31.0' id='x1' style='stroke: #000000; stroke-width: 1.0; stroke-linejoin: round; fill: none;'/>
+	<polyline points='237.0 6.0 254.0 6.0' id='x1' style='stroke: #000000; stroke-width: 1.0; stroke-linejoin: round; fill: none;'/>
+	<polyline points='215.0 6.0 237.0 6.0' id='x1' style='stroke: #000000; stroke-width: 1.0; stroke-linejoin: round; fill: none;'/>
+	<polyline points='254.0 6.0 280.0 6.0' id='x1' style='stroke: #000000; marker-start: url(#arrowMarkerDef_#000000_8_10_3); stroke-width: 1.0; stroke-linejoin: round; fill: none;'/>
+	<polyline points='206.0 23.0 215.0 23.0' id='x1' style='stroke: #000000; stroke-width: 1.0; stroke-linejoin: round; fill: none;'/>
+	<path d='M 215.0 6.0 A 8.5 8.5 0.0 0 0 215.0 23.0' id='x1' style='stroke: #000000; stroke-width: 1.0; fill: none;'/>
+	<path d='M 280.0 6.0 A 8.5 8.5 0.0 0 1 280.0 23.0' id='x1' style='stroke: #000000; stroke-width: 1.0; fill: none;'/>
+	<polyline points='280.0 23.0 291.0 23.0' id='x1' style='stroke: #000000; stroke-width: 1.0; stroke-linejoin: round; fill: none;'/>
+	<polyline points='188.0 23.0 206.0 23.0' id='x1' style='stroke: #000000; stroke-width: 1.0; stroke-linejoin: round; marker-end: url(#arrowMarkerLastDef_#000000_8_10_3); fill: none;'/>
+	<text x='310.0' y='27.0' transform='rotate(-0.0 310.0,27.0)' id='x1' style='font-weight: bold; stroke-width: 0; font-family: Courier; font-size: 10pt; fill: #000000;'>}</text>
+	<rect x='309.0' y='13.0' width='10.0' height='18.0' id='x1' style='stroke: #000000; stroke-width: 1.0; fill: none;'/>
+	<polyline points='290.0 23.0 308.0 23.0' id='x1' style='stroke: #000000; stroke-width: 1.0; stroke-linejoin: round; marker-end: url(#arrowMarkerLastDef_#000000_8_10_3); fill: none;'/>
+	<polyline points='8.0 23.0 26.0 23.0' id='x1' style='stroke: #000000; stroke-width: 1.0; stroke-linejoin: round; marker-end: url(#arrowMarkerLastDef_#000000_8_10_3); fill: none;'/>
+	<ellipse cx='340.0' cy='23.0' rx='3.0' ry='3.0' id='x1' style='stroke: #000000; stroke-width: 1.0; fill: none;'/>
+	<polyline points='319.0 23.0 337.0 23.0' id='x1' style='stroke: #000000; stroke-width: 1.0; stroke-linejoin: round; marker-end: url(#arrowMarkerLastDef_#000000_8_10_3); fill: none;'/>
+</svg>
