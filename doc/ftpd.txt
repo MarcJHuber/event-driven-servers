@@ -2,7 +2,7 @@ FTP Daemon
 
 Marc Huber
 
-   $Id: 5f2c32c5cca23e2488a1cf109c6fc31c73f97b08 $
+   $Id: 2fbc30e6470340dde007f8b537d532a48aa18e1a $
      __________________________________________________________
 
    Table of Contents
