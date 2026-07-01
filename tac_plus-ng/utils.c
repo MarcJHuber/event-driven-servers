@@ -2119,7 +2119,7 @@ void log_exec(tac_session *session, struct context *ctx, enum token token, time_
 		}
 
 		if (lf->filter && tac_script_eval_r(session, lf->filter) == S_deny)
-		    return;
+		    continue;
 
 		sockaddr_union syslog_src;
 
