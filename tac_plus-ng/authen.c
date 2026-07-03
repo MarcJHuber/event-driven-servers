@@ -733,7 +733,7 @@ static void chap_helper(tac_session *session, enum token *res, enum hint_enum *h
 static void do_mfa(tac_session * session);
 static void do_rad_mfa(tac_session * session);
 
-static int init_mfa(tac_session *session, enum token res, char *info, enum hint_enum hint, char *msg, int msg_len, u_char *data, int data_len)
+static int authen_final(tac_session *session, enum token res, char *info, enum hint_enum hint, char *msg, int msg_len, u_char *data, int data_len)
 {
     if (res == S_permit && session->want_mfa == BISTATE_YES) {
 	session->authfn = do_mfa;
@@ -747,6 +747,8 @@ static int init_mfa(tac_session *session, enum token res, char *info, enum hint_
 	do_mfa(session);
 	return -1;
     }
+    report_auth(session, info, hint, res);
+    send_authen_reply(session, TAC_SYM_TO_CODE(res), msg, msg_len, data, data_len, 0);
     return 0;
 }
 
@@ -816,12 +818,7 @@ static void do_chap(tac_session *session)
 	chap_helper(session, &res, &hint, &resp);
     }
 
-    if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
-	return;
-
-    report_auth(session, info, hint, res);
-
-    send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
+    authen_final(session, res, info, hint, resp, 0, NULL, 0);
 }
 
 static enum token check_access(tac_session *session, struct pwdat *pwdat, char *passwd, enum hint_enum *hint, char **resp)
@@ -1054,12 +1051,7 @@ static void do_chpass(tac_session *session)
 	resp = set_motd_banner(session);
     }
 
-    if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
-	return;
-
-    report_auth(session, info, hint, res);
-
-    send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
+    authen_final(session, res, info, hint, resp, 0, NULL, 0);
 }
 
 static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*f)(tac_session *))
@@ -1142,13 +1134,10 @@ static void do_enable_login(tac_session *session)
 	return;
 
     enum token res = check_access(session, pwdat, session->password, &hint, &resp);
+    if (res == S_permit)
+	resp = NULL;
 
-    if (init_mfa(session, res, info, hint, NULL, 0, NULL, 0))
-	return;
-
-    report_auth(session, info, hint, res);
-
-    send_authen_reply(session, TAC_SYM_TO_CODE(res), (res == S_permit) ? NULL : resp, 0, NULL, 0, 0);
+    authen_final(session, res, info, hint, resp, 0, NULL, 0);
 }
 
 static void do_enable_getuser(tac_session *);
@@ -1207,12 +1196,10 @@ static void do_enable_augmented(tac_session *session)
 	}
     }
 
-    if (init_mfa(session, res, info, hint, NULL, 0, NULL, 0))
-	return;
+    if (res == S_permit)
+	resp = NULL;
 
-    report_auth(session, info, hint, res);
-
-    send_authen_reply(session, TAC_SYM_TO_CODE(res), (res == S_permit) ? NULL : resp, 0, NULL, 0, 0);
+    authen_final(session, res, info, hint, NULL, 0, NULL, 0);
 }
 
 static void do_enable(tac_session *session)
@@ -1275,13 +1262,9 @@ static void do_enable(tac_session *session)
 	    res = compare_pwdat(session->enable, session->username.txt, session->authen_data->msg, &hint);
     }
 
-    if (init_mfa(session, res, info, hint, NULL, 0, NULL, 0))
-	return;
+    char *resp = (res == S_permit) ? NULL : eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL);
 
-    report_auth(session, info, hint, res);
-
-    send_authen_reply(session, TAC_SYM_TO_CODE(res),
-		      (res == S_permit) ? NULL : eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL), 0, NULL, 0, 0);
+    authen_final(session, res, info, hint, resp, 0, NULL, 0);
 }
 
 static void do_ascii_login(tac_session *session)
@@ -1379,11 +1362,7 @@ static void do_ascii_login(tac_session *session)
 	    session->user_msg.txt = eval_log_format(session, session->ctx, NULL, li_account_expires, io_now.tv_sec, &session->user_msg.len);
 	char *resp = set_motd_banner(session);
 
-	if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
-	    return;
-
-	report_auth(session, info, hint, res);
-	send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_PASS, resp, 0, NULL, 0, 0);
+	authen_final(session, res, info, hint, resp, 0, NULL, 0);
 	return;
     default:
 	report_auth(session, info, hint, res);
@@ -1597,12 +1576,7 @@ static void do_mschap(tac_session *session)
     char *resp = NULL;
     mschap_helper(session, &res, &hint, &resp);
 
-    if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
-	return;
-
-    report_auth(session, info, hint, res);
-
-    send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
+    authen_final(session, res, info, hint, resp, 0, NULL, 0);
 }
 
 static void do_mschapv1(tac_session *session)
@@ -1701,12 +1675,7 @@ static void do_login(tac_session *session)
     if (!resp)
 	resp = session->user_msg.txt;
 
-    if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
-	return;
-
-    report_auth(session, info, hint, res);
-
-    send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
+    authen_final(session, res, info, hint, resp, 0, NULL, 0);
 }
 
 static void do_pap(tac_session *session)
@@ -1751,12 +1720,7 @@ static void do_pap(tac_session *session)
     if (!resp)
 	resp = session->user_msg.txt;
 
-    if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
-	return;
-
-    report_auth(session, info, hint, res);
-
-    send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
+    authen_final(session, res, info, hint, resp, 0, NULL, 0);
 }
 
 #ifdef TAC_PLUS_AUTHEN_TYPE_SSHKEY
@@ -1806,12 +1770,7 @@ static void do_sshkeyhash(tac_session *session)
     if (res == S_permit)
 	hint = hint_permitted;
 
-    if (init_mfa(session, res, info, hint, resp, 0, (u_char *) key, 0))
-	return;
-
-    report_auth(session, info, hint, res);
-
-    send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, (u_char *) key, 0, 0);
+    authen_final(session, res, info, hint, resp, 0, (u_char *) key, 0);
 }
 #endif
 
@@ -1895,12 +1854,7 @@ static void do_local(tac_session *session)
     if (res == S_permit)
 	hint = hint_permitted;
 
-    if (init_mfa(session, res, info, hint, resp, 0, NULL, 0))
-	return;
-
-    report_auth(session, info, hint, res);
-
-    send_authen_reply(session, TAC_SYM_TO_CODE(res), resp, 0, NULL, 0, 0);
+    authen_final(session, res, info, hint, resp, 0, NULL, 0);
 }
 #endif
 
