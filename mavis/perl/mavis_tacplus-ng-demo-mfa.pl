@@ -45,12 +45,21 @@ while ($in = <>) {
 		$V[AV_A_USER_RESPONSE] = "User not set.";
 		goto fatal;
 	}
+	my $max = 10;
 
-	if (-f "/tmp/mfa-succeeded") {
-		$V[AV_A_RESULT] = AV_V_RESULT_OK
-	} else {
-		$V[AV_A_RESULT] = AV_V_RESULT_FAIL;
-		$V[AV_A_USER_RESPONSE] = "MFA failed";
+	my $mfafile = "/tmp/mfa-$V[AV_A_USER]-succeeded";
+	for (my $i = 0; $i < $max; $i++) {
+		if (-f $mfafile) {
+			unlink $mfafile;
+			$V[AV_A_RESULT] = AV_V_RESULT_OK;
+			last;
+		}
+		if ($i == $max - 1) {
+			$V[AV_A_RESULT] = AV_V_RESULT_FAIL;
+			$V[AV_A_USER_RESPONSE] = "MFA failed";
+		} else {
+			sleep 1;
+		}
 	}
 
 	$result = MAVIS_FINAL;
