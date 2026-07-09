@@ -611,9 +611,16 @@ static uint32_t cidr2mask[] = {
 
 int v6_common_cidr(struct in6_addr *a, struct in6_addr *b, int min)
 {
-    int m;
-    for (m = 0; m < min && (v6_bitset(*a, m + 1) == v6_bitset(*b, m + 1)); m++);
-    return m;
+    int m = 0;
+    for (int i = 0; i < 4 && m < min; i++) {
+	u_int32_t diff = a->s6_addr32[i] ^ b->s6_addr32[i];
+	if (diff) {
+	    m += __builtin_clz(diff);
+	    return m > min ? min : m;
+	}
+	m += 32;
+    }
+    return m > min ? min : m;
 }
 
 void v6_network(struct in6_addr *n, struct in6_addr *a, int m)
@@ -655,18 +662,35 @@ void v6_ntoh(struct in6_addr *a, struct in6_addr *b)
 
 int v6_ptoh(struct in6_addr *a, int *cm, char *s)
 {
-    char *mask, *c = alloca(strlen(s) + 1);
+    char *mask;
     struct in6_addr m;
     int i, cmdummy;
 
     if (!cm)
 	cm = &cmdummy;
 
-    strcpy(c, s);
+    mask = strchr(s, '/');
+    if (!mask) {
+#ifdef AF_INET6
+	if (strchr(s, ':')) {
+	    *cm = 128;
+	    if (1 != inet_pton(AF_INET6, s, a))
+		return -1;
+	    v6_ntoh(a, a);
+	    return 0;
+	}
+#endif
+	*cm = 128;
+	a->s6_addr32[0] = a->s6_addr32[1] = 0;
+	a->s6_addr32[2] = 0x0000FFFF;
+	a->s6_addr32[3] = ntohl(inet_addr(s));
+	return a->s6_addr32[3] == INADDR_NONE;
+    }
 
+    char *c = alloca(strlen(s) + 1);
+    strcpy(c, s);
     mask = strchr(c, '/');
-    if (mask)
-	*mask++ = 0;
+    *mask++ = 0;
 
 #ifdef AF_INET6
     if (strchr(c, ':')) {

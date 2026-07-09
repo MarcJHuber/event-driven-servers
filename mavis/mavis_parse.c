@@ -280,6 +280,11 @@ static void sym_getchar(struct sym *sym)
     } else {
 	sym->chlen = 1;
 	sym->start = sym->tin;
+	if (!(*sym->tin & 0x80)) {
+	    sym->ch[0] = *sym->tin++;
+	    sym->tlen--;
+	    return;
+	}
 	if (sym->tlen > 1 && ((*sym->tin & 0xE0) == 0xC0) && (*(sym->tin + 1) & 0xC0) == 0x80)
 	    sym->chlen = 2;
 	else if (sym->tlen > 2 && (*sym->tin & 0xF0) == 0xE0 && (*(sym->tin + 1) & 0xC0) == 0x80 && (*(sym->tin + 2) & 0xC0) == 0x80)
@@ -305,6 +310,9 @@ static void substitute_envvar(struct sym *sym)
 {
     int found = 0;
     char *t = sym->buf;
+
+    if (!strchr(t, '$'))
+	return;
     char buf[MAX_INPUT_LINE_LEN];
     char *b = buf;
     char *be = buf + MAX_INPUT_LINE_LEN - 1;
@@ -1220,6 +1228,9 @@ void report_cfg_error(int priority, int level, char *fmt, ...)
     char *msg = alloca(len);
     va_list ap;
     int nlen;
+
+    if (!((common_data.debug & level) || ((priority & LOG_PRIMASK) != LOG_DEBUG)))
+	return;
 
     va_start(ap, fmt);
     nlen = vsnprintf(msg, len, fmt, ap);
