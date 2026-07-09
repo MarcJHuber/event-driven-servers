@@ -280,6 +280,16 @@ static void sym_getchar(struct sym *sym)
     } else {
 	sym->chlen = 1;
 	sym->start = sym->tin;
+	/* Fast path for single-byte ASCII, the overwhelmingly common case.
+	   sym->ch is a fixed-size buffer read together with sym->chlen and is
+	   intentionally not NUL-terminated: a 4-byte UTF-8 sequence fills the
+	   whole buffer, so callers must always use sym->chlen, never treat
+	   sym->ch as a C string. */
+	if (!(*sym->tin & 0x80)) {
+	    sym->ch[0] = *sym->tin++;
+	    sym->tlen--;
+	    return;
+	}
 	if (sym->tlen > 1 && ((*sym->tin & 0xE0) == 0xC0) && (*(sym->tin + 1) & 0xC0) == 0x80)
 	    sym->chlen = 2;
 	else if (sym->tlen > 2 && (*sym->tin & 0xF0) == 0xE0 && (*(sym->tin + 1) & 0xC0) == 0x80 && (*(sym->tin + 2) & 0xC0) == 0x80)
@@ -305,6 +315,12 @@ static void substitute_envvar(struct sym *sym)
 {
     int found = 0;
     char *t = sym->buf;
+
+    /* Hot path: if the token has no '$' there is nothing to expand, skip the
+       whole scan-and-copy. */
+    if (!strchr(t, '$'))
+	return;
+
     char buf[MAX_INPUT_LINE_LEN];
     char *b = buf;
     char *be = buf + MAX_INPUT_LINE_LEN - 1;
@@ -1214,12 +1230,27 @@ void sym_init(struct sym *sym)
     sym_get(sym);
 }
 
+/* Single source of truth for whether a config message is emitted at all.
+   The body below still decides *how* it is emitted (stderr vs syslog, debug
+   vs error), but "whether" must only be defined here so the early-return
+   guard and the emission code can never drift apart. */
+static int cfg_error_visible(int priority, int level)
+{
+    return (common_data.debug & level) || ((priority & LOG_PRIMASK) != LOG_DEBUG);
+}
+
 void report_cfg_error(int priority, int level, char *fmt, ...)
 {
     int len = 1024;
-    char *msg = alloca(len);
+    char *msg;
     va_list ap;
     int nlen;
+
+    /* Skip formatting entirely when the message would be suppressed. */
+    if (!cfg_error_visible(priority, level))
+	return;
+
+    msg = alloca(len);
 
     va_start(ap, fmt);
     nlen = vsnprintf(msg, len, fmt, ap);
