@@ -15,6 +15,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <grp.h>
@@ -609,13 +610,74 @@ static uint32_t cidr2mask[] = {
     0xfffffff8, 0xfffffffc, 0xfffffffe, 0xffffffff
 };
 
+static u_int32_t v6_word_get(struct in6_addr *a, int i)
+{
+    u_int32_t v;
+    memcpy(&v, &a->s6_addr[i * sizeof(v)], sizeof(v));
+    return v;
+}
+
+static void v6_word_set(struct in6_addr *a, int i, u_int32_t v)
+{
+    memcpy(&a->s6_addr[i * sizeof(v)], &v, sizeof(v));
+}
+
+static int ipv4_pton_compat(const char *s, u_int32_t *out)
+{
+    struct in_addr ia4;
+    in_addr_t legacy;
+
+    /* Strict form first so that the valid literal 255.255.255.255 is
+       accepted; inet_addr() alone cannot distinguish it from failure. */
+    if (1 == inet_pton(AF_INET, s, &ia4)) {
+	*out = ntohl(ia4.s_addr);
+	return 0;
+    }
+
+    /* Fall back to inet_addr() for legacy shorthand such as "10.1". */
+    legacy = inet_addr(s);
+    if (legacy == INADDR_NONE)
+	return -1;
+    *out = ntohl(legacy);
+    return 0;
+}
+
+/* Count leading zero bits of a known-nonzero 32-bit value. Promote to a
+   type guaranteed to be at least 64 bits so the result is correct
+   regardless of the platform width of "int" (which C only guarantees to be
+   >= 16 bits) and independent of any CHAR_BIT assumption. */
+static int clz32_nonzero(u_int32_t v)
+{
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_clzll((unsigned long long) v)
+	- (int) (sizeof(unsigned long long) * CHAR_BIT - 32);
+#else
+    int n = 0;
+    u_int32_t mask = 0x80000000u;
+    while (mask && !(v & mask)) {
+	n++;
+	mask >>= 1;
+    }
+    return n;
+#endif
+}
+
 int v6_common_cidr(struct in6_addr *a, struct in6_addr *b, int min)
 {
     int m = 0;
+
+    /* Historically min could exceed 128 and the old loop would then keep
+       counting matching (always-zero) bits past the address width and
+       return a bogus value > 128. Clamp defensively. */
+    if (min < 0)
+	min = 0;
+    else if (min > 128)
+	min = 128;
+
     for (int i = 0; i < 4 && m < min; i++) {
-	u_int32_t diff = a->s6_addr32[i] ^ b->s6_addr32[i];
+	u_int32_t diff = v6_word_get(a, i) ^ v6_word_get(b, i);
 	if (diff) {
-	    m += __builtin_clz(diff);
+	    m += clz32_nonzero(diff);
 	    return m > min ? min : m;
 	}
 	m += 32;
@@ -660,15 +722,43 @@ void v6_ntoh(struct in6_addr *a, struct in6_addr *b)
 	a->s6_addr32[i] = ntohl(b->s6_addr32[i]);
 }
 
+/* Parse a numeric CIDR prefix length with range validation. Keeps the
+   historical atoi()-style leniency (leading digits, empty/non-numeric => 0)
+   but rejects values outside [0, hi] instead of letting a bogus prefix such
+   as "/9999" flow downstream. Returns the length or -1 on out-of-range. */
+static int parse_cidr_len(const char *s, int hi)
+{
+    char *end;
+    long v = strtol(s, &end, 10);
+    (void) end;
+    if (v < 0 || v > (long) hi)
+	return -1;
+    return (int) v;
+}
+
+/* Return 0 if mask m (host order, in6_addr) is a contiguous left-aligned
+   netmask whose set-bit count equals cm, -1 otherwise. Rejects holes such
+   as 255.255.0.255 that the leading-bit scan would silently truncate. */
+static int mask_is_contiguous(struct in6_addr *m, int cm)
+{
+    for (int i = cm; i < 128; i++)
+	if (v6_bitset(*m, i + 1))
+	    return -1;
+    return 0;
+}
+
 int v6_ptoh(struct in6_addr *a, int *cm, char *s)
 {
     char *mask;
     struct in6_addr m;
+    u_int32_t ia;
     int i, cmdummy;
 
     if (!cm)
 	cm = &cmdummy;
 
+    /* Common, hot case: a bare address with no mask. Avoid alloca()/strcpy()
+       entirely here. */
     mask = strchr(s, '/');
     if (!mask) {
 #ifdef AF_INET6
@@ -681,56 +771,72 @@ int v6_ptoh(struct in6_addr *a, int *cm, char *s)
 	}
 #endif
 	*cm = 128;
-	a->s6_addr32[0] = a->s6_addr32[1] = 0;
-	a->s6_addr32[2] = 0x0000FFFF;
-	a->s6_addr32[3] = ntohl(inet_addr(s));
-	return a->s6_addr32[3] == INADDR_NONE;
+	v6_word_set(a, 0, 0);
+	v6_word_set(a, 1, 0);
+	v6_word_set(a, 2, 0x0000FFFF);
+	if (ipv4_pton_compat(s, &ia))
+	    return -1;
+	v6_word_set(a, 3, ia);
+	return 0;
     }
 
-    char *c = alloca(strlen(s) + 1);
-    strcpy(c, s);
-    mask = strchr(c, '/');
-    *mask++ = 0;
+    /* Masked form: we must split the string, so make a writable copy. */
+    {
+	size_t len = strlen(s);
+	char *c = alloca(len + 1);
+	memcpy(c, s, len + 1);
+	mask = strchr(c, '/');
+	*mask++ = 0;
 
 #ifdef AF_INET6
-    if (strchr(c, ':')) {
-	if (mask) {
+	if (strchr(c, ':')) {
 	    if (strchr(mask, ':')) {
-		if (1 != inet_pton(AF_INET6, c, &m))
+		/* IPv6 dotted-mask: derive the prefix from the MASK, not
+		   from the address. Also require a contiguous netmask. */
+		if (1 != inet_pton(AF_INET6, mask, &m))
 		    return -1;
 		v6_ntoh(&m, &m);
 		for (*cm = 0; *cm < 128 && v6_bitset(m, *cm + 1); (*cm)++);
-	    } else
-		*cm = atoi(mask);
+		if (mask_is_contiguous(&m, *cm))
+		    return -1;
+	    } else {
+		int p = parse_cidr_len(mask, 128);
+		if (p < 0)
+		    return -1;
+		*cm = p;
+	    }
+
+	    if (1 != inet_pton(AF_INET6, c, a))
+		return -1;
+	    v6_ntoh(a, a);
+	    return 0;
 	} else
-	    *cm = 128;
-
-	if (1 != inet_pton(AF_INET6, c, a))
-	    return -1;
-
-	v6_ntoh(a, a);
-	return 0;
-    } else
 #endif
-    {
-	if (mask) {
+	{
 	    if (strchr(mask, '.')) {
-		in_addr_t ia = inet_addr(mask);
-		if (ia == INADDR_NONE)
+		if (ipv4_pton_compat(mask, &ia))
 		    return -1;
 		for (i = 0; i < 3; i++)
-		    m.s6_addr32[i] = 0;
-		m.s6_addr32[3] = ntohl(ia);
+		    v6_word_set(&m, i, 0);
+		v6_word_set(&m, 3, ia);
 		for (*cm = 96; *cm < 128 && v6_bitset(m, *cm + 1); (*cm)++);
-	    } else
-		*cm = atoi(mask) + 96;
-	} else
-	    *cm = 128;
+		if (mask_is_contiguous(&m, *cm))
+		    return -1;
+	    } else {
+		int p = parse_cidr_len(mask, 32);
+		if (p < 0)
+		    return -1;
+		*cm = p + 96;
+	    }
 
-	a->s6_addr32[0] = a->s6_addr32[1] = 0;
-	a->s6_addr32[2] = 0x0000FFFF;
-	a->s6_addr32[3] = ntohl(inet_addr(c));
-	return a->s6_addr32[3] == INADDR_NONE;
+	    v6_word_set(a, 0, 0);
+	    v6_word_set(a, 1, 0);
+	    v6_word_set(a, 2, 0x0000FFFF);
+	    if (ipv4_pton_compat(c, &ia))
+		return -1;
+	    v6_word_set(a, 3, ia);
+	    return 0;
+	}
     }
 }
 
