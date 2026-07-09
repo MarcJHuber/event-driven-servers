@@ -610,14 +610,14 @@ static uint32_t cidr2mask[] = {
     0xfffffff8, 0xfffffffc, 0xfffffffe, 0xffffffff
 };
 
-static u_int32_t v6_word_get(struct in6_addr *a, int i)
+static inline u_int32_t v6_word_get(struct in6_addr *a, int i)
 {
     u_int32_t v;
     memcpy(&v, &a->s6_addr[i * sizeof(v)], sizeof(v));
     return v;
 }
 
-static void v6_word_set(struct in6_addr *a, int i, u_int32_t v)
+static inline void v6_word_set(struct in6_addr *a, int i, u_int32_t v)
 {
     memcpy(&a->s6_addr[i * sizeof(v)], &v, sizeof(v));
 }
