@@ -646,7 +646,7 @@ static int ipv4_pton_compat(const char *s, u_int32_t *out)
    type guaranteed to be at least 64 bits so the result is correct
    regardless of the platform width of "int" (which C only guarantees to be
    >= 16 bits) and independent of any CHAR_BIT assumption. */
-static int clz32_nonzero(u_int32_t v)
+static inline int clz32_nonzero(u_int32_t v)
 {
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_clzll((unsigned long long) v)
