@@ -107,6 +107,8 @@ void tac_script_set_exec_context(tac_session *session, char *ctxname)
 	sc = RB_payload(rb, struct shellctx *);
 	free(sc->ctxname);
     } else {
+	if (!ctxname || !*ctxname)
+	    return;
 	sc = calloc(1, sizeof(struct shellctx) + session->username.len + session->port.len);
 	sc->username = sc->data;
 	sc->portname = sc->data + session->username.len + 1;
