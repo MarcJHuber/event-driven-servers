@@ -5734,7 +5734,7 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 	return m->code;
     case S_context:
 	tac_script_set_exec_context(session, m->b.v);
-	report(DEBACL, " line %u: [%s]", m->line, codestring[m->code].txt);
+	report(DEBACL, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, m->b.v);
 	break;
     case S_message:
 	str_set(&session->message, eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->message.len), 0);
