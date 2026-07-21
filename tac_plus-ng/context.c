@@ -96,19 +96,19 @@ void tac_script_set_exec_context(tac_session *session, char *ctxname)
 
     if (session->ctx->shellctxcache)
 	rb = tac_script_lookup_exec_context(session);
-    else
+
+    if (!ctxname || !*ctxname) {
+	if (rb)
+	    RB_delete(session->ctx->shellctxcache, rb);
+	return;
+    }
+    if (!session->ctx->shellctxcache)
 	session->ctx->shellctxcache = RB_tree_new(shellctx_cmp, shellctx_free);
 
     if (rb) {
-	if (!ctxname || !*ctxname) {
-	    RB_delete(session->ctx->shellctxcache, rb);
-	    return;
-	}
 	sc = RB_payload(rb, struct shellctx *);
 	free(sc->ctxname);
     } else {
-	if (!ctxname || !*ctxname)
-	    return;
 	sc = calloc(1, sizeof(struct shellctx) + session->username.len + session->port.len);
 	sc->username = sc->data;
 	sc->portname = sc->data + session->username.len + 1;
