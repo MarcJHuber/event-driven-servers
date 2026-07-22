@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 1999-2022 Marc Huber (Marc.Huber@web.de)
+   Copyright (C) 1999-2026 Marc Huber (Marc.Huber@web.de)
    All rights reserved.
 
    Redistribution and use in source and binary  forms,  with or without
@@ -38,44 +38,50 @@
  */
 
 #include "headers.h"
+#include "misc/mymd5.h"
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
 struct shellctx {
-    struct in6_addr device_address;
-    char *username;
-    char *portname;
-    char *ctxname;
+    u_char digest[MD5_LEN];
     time_t expires;
-    char data[2];
+    char *ctxname;
 };
 
 static int shellctx_cmp(const void *a, const void *b)
 {
-    int i = strcmp(((struct shellctx *) a)->username, ((struct shellctx *) b)->username);
-    if (i)
-	return i;
-    i = strcmp(((struct shellctx *) a)->portname, ((struct shellctx *) b)->portname);
-    if (i)
-	return i;
-    return memcmp(&((struct shellctx *) a)->device_address, &((struct shellctx *) b)->device_address, sizeof(struct in6_addr));
+    return memcmp(&((struct shellctx *) a)->digest, &((struct shellctx *) b)->digest, sizeof(struct in6_addr));
 }
-
 
 static void shellctx_free(void *payload)
 {
-    free(((struct shellctx *) payload)->ctxname);
+    if (((struct shellctx *) payload)->ctxname)
+	free(((struct shellctx *) payload)->ctxname);
     free(payload);
 }
 
+static void set_digest(struct shellctx *sc, tac_session *session)
+{
+    struct iovec iov[5] = {
+	{.iov_base = session->username.txt, session->username.len },
+	{.iov_base = "", 1 },
+	{.iov_base = session->port.txt, session->port.len },
+	{.iov_base = "", 1 },
+	{.iov_base = &session->ctx->device_addr, sizeof(struct in6_addr) }
+    };
+    md5v(sc->digest, MD5_LEN, iov, 3);
+}
 
-static rb_node_t *tac_script_lookup_exec_context(tac_session *session)
+static rb_node_t *tac_script_lookup_exec_context(tac_session *session, u_char **digest)
 {
     if (!session->ctx->shellctxcache)
 	return NULL;
-    struct shellctx sc = {.username = session->username.txt,.portname = session->port.txt };
-    memcpy(&sc.device_address, &session->ctx->device_addr, sizeof(struct in6_addr));
-    return RB_search(session->ctx->shellctxcache, &sc);
+    static struct shellctx sc;
+    set_digest(&sc, session);
+    rb_node_t *res = RB_search(session->ctx->shellctxcache, &sc);
+    if (digest)
+	*digest = sc.digest;
+    return res;
 }
 
 void tac_script_set_exec_context(tac_session *session, char *ctxname)
@@ -83,19 +89,18 @@ void tac_script_set_exec_context(tac_session *session, char *ctxname)
     rb_node_t *rb = NULL;
     struct shellctx *sc;
 
-    if (!session->ctx->single_connection_flag) {
-	if (!session->ctx->single_connection_did_warn) {
-	    session->ctx->single_connection_did_warn = BISTATE_YES;
-	    report(session, LOG_INFO_SINGLECONNECT, ~0,
-		   "%s: Possibly no single-connection support. " "Context feature may or may not work.", session->ctx->device_addr_ascii.txt);
-	}
+    if (!session->ctx->single_connection_flag && !session->ctx->single_connection_did_warn) {
+	session->ctx->single_connection_did_warn = BISTATE_YES;
+	report(session, LOG_INFO_SINGLECONNECT, ~0, "%s: Possibly no single-connection support. Context feature may or may not work.",
+	       session->ctx->device_addr_ascii.txt);
     }
 
     if (!session->ctx->shellctxcache && (!ctxname || !*ctxname))
 	return;
 
+    u_char *digest = NULL;
     if (session->ctx->shellctxcache)
-	rb = tac_script_lookup_exec_context(session);
+	rb = tac_script_lookup_exec_context(session, &digest);
 
     if (!ctxname || !*ctxname) {
 	if (rb)
@@ -109,36 +114,36 @@ void tac_script_set_exec_context(tac_session *session, char *ctxname)
 	sc = RB_payload(rb, struct shellctx *);
 	free(sc->ctxname);
     } else {
-	sc = calloc(1, sizeof(struct shellctx) + session->username.len + session->port.len);
-	sc->username = sc->data;
-	sc->portname = sc->data + session->username.len + 1;
-	memcpy(sc->username, session->username.txt, session->username.len);
-	memcpy(sc->portname, session->port.txt, session->port.len);
-	memcpy(&sc->device_address, &session->ctx->device_addr, sizeof(struct in6_addr));
+	sc = calloc(1, sizeof(struct shellctx));
+	if (digest)
+	    memcpy(sc->digest, digest, MD5_LEN);
+	else
+	    set_digest(sc, session);
 	RB_insert(session->ctx->shellctxcache, sc);
     }
+
     sc->ctxname = strdup(ctxname);
     sc->expires = io_now.tv_sec + session->ctx->host->context_timeout;
 }
 
 char *tac_script_get_exec_context(tac_session *session)
 {
-    rb_node_t *rb = tac_script_lookup_exec_context(session);
+    rb_node_t *rb = tac_script_lookup_exec_context(session, NULL);
     if (rb) {
-	RB_payload(rb, struct shellctx *)->expires = io_now.tv_sec + session->ctx->host->context_timeout;
-	return RB_payload(rb, struct shellctx *)->ctxname;
+	struct shellctx *sc = RB_payload(rb, struct shellctx *);
+	sc->expires = io_now.tv_sec + session->ctx->host->context_timeout;
+	return sc->ctxname;
     }
     return NULL;
 }
 
 void tac_script_expire_exec_context(struct context *ctx)
 {
-
     if (ctx->shellctxcache) {
 	for (rb_node_t * rbnext, *rbn = RB_first(ctx->shellctxcache); rbn; rbn = rbnext) {
-	    time_t v = RB_payload(rbn, struct shellctx *)->expires;
+	    time_t ex = RB_payload(rbn, struct shellctx *)->expires;
 	    rbnext = RB_next(rbn);
-	    if (v < io_now.tv_sec)
+	    if (ex < io_now.tv_sec)
 		RB_delete(ctx->shellctxcache, rbn);
 	}
     }
