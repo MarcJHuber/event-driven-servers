@@ -747,6 +747,8 @@ static int authen_final(tac_session *session, enum token res, char *info, enum h
 	do_mfa(session);
 	return -1;
     }
+    if (res == S_permit)
+	tac_script_set_exec_context(session, NULL);
     report_auth(session, info, hint, res);
     send_authen_reply(session, TAC_SYM_TO_CODE(res), msg, msg_len, data, data_len, 0);
     return 0;
