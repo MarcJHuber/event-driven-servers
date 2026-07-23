@@ -124,7 +124,7 @@ void accounting(tac_session *session, tac_pak_hdr *hdr)
     if (session->nac_addr_valid)
 	get_revmap_nac(session);
 
-    if (acct->flags & TAC_PLUS_ACCT_FLAG_STOP && session->service.txt && !strcmp(session->service.txt, "shell"))
+    if (acct->flags & TAC_PLUS_ACCT_FLAG_STOP && session->service.txt && !strcmp(session->service.txt, "shell") && !session->cmdline.len)
 	tac_script_set_exec_context(session, NULL);
 
 #ifdef WITH_DNS
