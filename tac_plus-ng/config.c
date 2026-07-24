@@ -1338,7 +1338,7 @@ int rad_get_password(tac_session *session, char **val, size_t *val_len)
 		    }
 		    pass[i] = digest[i % 16] ^ p[i + 2];
 		}
-		if ((session->ctx->key_fixed == BISTATE_YES) || password_is_printable(pass)) {
+		if ((session->ctx->key_fixed == BISTATE_YES) || !key->next || password_is_printable(pass)) {
 		    *val = pass;
 		    if (val_len)
 			*val_len = strlen(pass);
@@ -1346,6 +1346,7 @@ int rad_get_password(tac_session *session, char **val, size_t *val_len)
 		}
 		key = key->next;
 	    } while (key && (session->ctx->key_fixed == BISTATE_NO));
+	    break;
 	}
 	p += p[1];
     }
