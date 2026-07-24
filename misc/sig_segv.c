@@ -48,7 +48,7 @@ void catchsegv(int sig __attribute__((unused)))
     char buf[1024];
     FILE *g;
 
-    logmsg("Catched SIGSEGV");
+    logmsg("Caught SIGSEGV");
     logmsg("Apologies ... this shouldn't have happened. Please verify that");
     logmsg("you are running the most current version from");
     logmsg("    https://github.com/MarcJHuber/event-driven-servers/");
