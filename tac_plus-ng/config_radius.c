@@ -456,7 +456,7 @@ void parse_radius_dictionary(struct sym *sym)
 	    parse_error(sym, "Expected a valid vendor number but got '%s'", sym->buf);
 	struct rad_dict *dict_by_id = rad_dict_lookup_by_id(vendorid);
 	if (dict && dict != dict_by_id)
-	    parse_error(sym, "RADIUS dictionary id %d is already defined at line %d, with vendor name %s", sym->buf, dict->id, dict->line, dict->name);
+	    parse_error(sym, "RADIUS dictionary id %d is already defined at line %d, with vendor name %s", dict->id, dict->line, dict->name);
 	if (!dict)
 	    dict = rad_dict_new(sym, vendor, vendorid);
 	free(vendor);
