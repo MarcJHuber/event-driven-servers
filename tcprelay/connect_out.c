@@ -23,7 +23,7 @@ static int select_peer(struct context *ctx, int cur)
 	    con_arr[i].dead = 0;
     count++;
 
-    for (i = 0; con_arr[i].dead && i < con_arr_len; i++)
+    for (i = 0; i < con_arr_len && con_arr[i].dead; i++)
 	/* empty */ ;
 
     Debug((DEBUG_PROC, "#A i = %d\n", i));
