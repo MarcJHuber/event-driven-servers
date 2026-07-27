@@ -17,7 +17,7 @@ static void catchbus(int sig __attribute__((unused)))
 {
     struct context *ctx;
     if (sigbus_cur > -1 && (ctx = io_get_ctx(ctx_spawnd->io, sigbus_cur))) {
-	logmsg("catched SIGBUS (%s)", ctx->filename);
+	logmsg("caught SIGBUS (%s)", ctx->filename);
 	ctx->dbuf = buffer_free_all(ctx->dbuf);
 	ctx->dbufi = buffer_free_all(ctx->dbufi);
 	ctx->chunk_start = NULL;
