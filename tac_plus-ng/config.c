@@ -1309,7 +1309,7 @@ static int password_is_printable(char *s)
 {
     // FIXME. We don't really know the character set, so checking for US ASCII is the best option right now.
     for (char *t = s; *t; t++)
-	if (*t < 0x20 || *t == 0x7f)
+	if (*t < 0x20 || *t > 0x7e)
 	    return 0;
     return 1;
 }
@@ -1326,7 +1326,6 @@ int rad_get_password(tac_session *session, char **val, size_t *val_len)
 	    struct tac_key *key = session->ctx->key;
 	    char *pass = mem_alloc(session->mem, p[1] - 1);
 	    do {
-		memset(pass, 0, p[1] - 1);
 		u_char digest[16];
 		for (int i = 0; i < p[1] - 2; i++) {
 		    if (!(i & 0xf)) {
@@ -1344,6 +1343,7 @@ int rad_get_password(tac_session *session, char **val, size_t *val_len)
 			*val_len = strlen(pass);
 		    return 0;
 		}
+		memset(pass, 0, p[1] - 1);
 		key = key->next;
 	    } while (key && (session->ctx->key_fixed == BISTATE_NO));
 	    break;
