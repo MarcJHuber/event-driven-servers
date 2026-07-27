@@ -2,7 +2,7 @@ MAVIS - Modular Attribute-Value Interchange System
 
 Marc Huber
 
-   $Id: fb641c839f3d085f9b6a924647c6c9d0120046fd $
+   $Id: 7d95a415212ec7b336fafddbf6a12f2dcb0fe6fe $
      __________________________________________________________
 
    Table of Contents
