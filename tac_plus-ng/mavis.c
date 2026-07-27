@@ -112,7 +112,7 @@ static void mavis_callback(tac_session *session)
     mavis_switch(session, avc, rc);
 }
 
-static void dump_hex_mschap(u_char *data, size_t data_len, char **buf)
+void dump_hex_mschap(u_char *data, size_t data_len, char **buf)
 {
     char *hex = "0123456789ABCDEF";
     for (size_t i = 0; i < data_len; i++) {
@@ -178,18 +178,36 @@ void mavis_lookup(tac_session *session, void (*f)(tac_session *), const char *co
 	    av_set(avc, AV_A_PASSWORD_NEW, session->password_new);
     }
 
-    if (session->chap_challenge_len && session->chap_response_len) {
-	char buf[((session->chap_challenge_len + session->chap_response_len) << 1) + 5];
-	char *b = buf;
-	if (!strcmp(type, AV_V_TACTYPE_CHAP)) {
-	    dump_hex_mschap(&session->chap_pppid, 1, &b);
+
+    if (!strcmp(type, AV_V_TACTYPE_CHAP)) {
+	if (session->chap.challenge_len && session->chap.response_len) {
+	    char buf[((session->chap.challenge_len + session->chap.response_len) << 1) + 5];
+	    char *b = buf;
+	    if (!strcmp(type, AV_V_TACTYPE_CHAP)) {
+		dump_hex_mschap(&session->chap.pppid, 1, &b);
+		*b++ = ' ';
+	    }
+	    dump_hex_mschap(session->chap.challenge, session->chap.challenge_len, &b);
 	    *b++ = ' ';
+	    dump_hex_mschap(session->chap.response, session->chap.response_len, &b);
+	    *b = 0;
+	    av_set(avc, AV_A_CHALLENGE, buf);
 	}
-	dump_hex_mschap(session->chap_challenge, session->chap_challenge_len, &b);
-	*b++ = ' ';
-	dump_hex_mschap(session->chap_response, session->chap_response_len, &b);
-	*b = 0;
-	av_set(avc, AV_A_CHALLENGE, buf);
+    }
+
+    if (!strcmp(type, AV_V_TACTYPE_MSCHAP)) {
+	if (session->mschap.challenge_len && session->mschap.nt_response) {
+#ifndef MSCHAP_NT_RESPONSE_LEN
+#define MSCHAP_NT_RESPONSE_LEN 24
+#endif
+	    char buf[((session->mschap.challenge_len + MSCHAP_NT_RESPONSE_LEN) << 1) + 5];
+	    char *b = buf;
+	    dump_hex_mschap(session->mschap.challenge, session->mschap.challenge_len, &b);
+	    *b++ = ' ';
+	    dump_hex_mschap(session->mschap.nt_response, MSCHAP_NT_RESPONSE_LEN, &b);
+	    *b = 0;
+	    av_set(avc, AV_A_CHALLENGE, buf);
+	}
     }
 
     if (!session->ctx->realm->caching_period && !strcmp(type, AV_V_TACTYPE_INFO) && session->author_data) {
@@ -305,7 +323,7 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 		session->authorized = 1;
 
 	    if (!u || (u->dynamic && (!strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_AUTH) || !strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_CHPW)
-		       || !strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_INFO)))) {
+				      || !strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_INFO)))) {
 		struct sym sym = {.filename = session->username.txt,.line = 1,.flag_prohibit_include = 1 };
 
 		if (!r->caching_period && session->user) {
