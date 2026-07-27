@@ -23,7 +23,10 @@ OBJ += packet.o report.o utils.o context.o udp-spoof.o
 
 ifeq ($(WITH_SSL), 1)
 	OBJ += type6.o
+	OBJ += mysha1.o
 endif
+
+#mysha1.o: $(BASE)/misc/mysha1.c
 
 $(OBJ): headers.h ../mavis/mavis.h protocol_tacacs.h protocol_radius.h config_radius.h
 
