@@ -618,16 +618,22 @@ struct tac_session {
     struct autonumber *autonumber;
     tac_profile *profile;
     union {
-	u_char mschap_version;
-	u_char chap_pppid;
-    };
-    union {
 	struct {
-	    u_char *chap_response;
-	    size_t chap_response_len;
-	    u_char *chap_challenge;
-	    size_t chap_challenge_len;
-	};
+	    u_char *challenge;
+	    size_t challenge_len;
+	    u_char *response;
+	    size_t response_len;
+	    u_char pppid;
+	} chap;
+	struct {
+	    u_char *challenge;
+	    size_t challenge_len;
+	    u_char *nt_response;
+	    u_char version;
+	    u_char ident;
+	} mschap;
+
+	// placed here to save memory
 	struct {
 	    char *mfa_info;
 	    enum hint_enum mfa_hint;
@@ -949,6 +955,7 @@ void update_bio(struct context *);
 
 ssize_t sendto_spoof(sockaddr_union * from_addr, sockaddr_union * dest_addr, void *buf, size_t len);
 void dump_hex(u_char * data, size_t data_len, char **buf);
+void dump_hex_mschap(u_char *data, size_t data_len, char **buf);
 
 int compare_fingerprint(const void *a, const void *b);
 struct fingerprint *lookup_fingerprint(struct context *ctx);
