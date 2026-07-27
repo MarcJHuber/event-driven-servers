@@ -74,8 +74,8 @@
 #include "misc/base64.h"
 
 #if defined(WITH_CRYPTO)
+#include "misc/mysha1.h"
 #if OPENSSL_VERSION_NUMBER < 0x30000000
-#include <openssl/sha.h>
 #else
 #include <openssl/types.h>
 #include <openssl/evp.h>
@@ -713,13 +713,13 @@ static void chap_helper(tac_session *session, enum token *res, enum hint_enum *h
 	    *hint = hint_no_cleartext;
 	} else {
 	    struct iovec iov[3] = {
-		{.iov_base = &session->chap_pppid,.iov_len = 1 },
+		{.iov_base = &session->chap.pppid,.iov_len = 1 },
 		{.iov_base = session->user->passwd[PW_CHAP]->value,.iov_len = strlen(session->user->passwd[PW_CHAP]->value) },
-		{.iov_base = session->chap_challenge, session->chap_challenge_len },
+		{.iov_base = session->chap.challenge, session->chap.challenge_len },
 	    };
 	    u_char digest[MD5_LEN];
 	    md5v(digest, MD5_LEN, iov, 3);
-	    if (memcmp(digest, session->chap_response, (size_t) MD5_LEN)) {
+	    if (memcmp(digest, session->chap.response, (size_t) MD5_LEN)) {
 		*hint = hint_failed;
 	    } else {
 		session->mavisauth_res = S_permit;
@@ -812,11 +812,11 @@ static void do_chap(tac_session *session)
 
     char *resp = NULL;
     if (session->authen_data->data_len > MD5_LEN) {
-	session->chap_pppid = session->authen_data->data[0];
-	session->chap_challenge = session->authen_data->data + 1;
-	session->chap_challenge_len = session->authen_data->data_len - 1 - MD5_LEN;
-	session->chap_response = session->chap_challenge + session->chap_challenge_len;
-	session->chap_response_len = MD5_LEN;
+	session->chap.pppid = session->authen_data->data[0];
+	session->chap.challenge = session->authen_data->data + 1;
+	session->chap.challenge_len = session->authen_data->data_len - 1 - MD5_LEN;
+	session->chap.response = session->chap.challenge + session->chap.challenge_len;
+	session->chap.response_len = MD5_LEN;
 	chap_helper(session, &res, &hint, &resp);
     }
 
@@ -1524,23 +1524,44 @@ static void mschap_nthash(char *password, u_char nt_hash[MSCHAP_NT_HASH_LEN])
     free(buf);
 }
 
-static void mschapv1_ntresp(u_char chal[MSCHAPv1_CHALLENGE_LEN], char *password, u_char resp[MSCHAP_NT_RESPONSE_LEN])
+//#define WITH_RADIUS_A_MS_CHAP_MPPE_KEYS
+#ifdef WITH_RADIUS_A_MS_CHAP_MPPE_KEYS
+static void mschap_deshash(u_char *clear, u_char *cypher)
 {
-    u_char nt_hash[MSCHAP_NT_HASH_LEN];
+    mschap_desencrypt((u_char *) "KGS!@#$%", clear, cypher);
+}
+
+static void mschap_lmhash(char *password, u_char *hash)
+{
+    u_char upassword[14] = { 0 };
+
+    for (unsigned int i = 0; i < sizeof(upassword) && password[i]; i++)
+	upassword[i] = (u_char) toupper((int) (password[i]));
+
+    mschap_deshash(upassword, hash);
+    mschap_deshash(upassword + 7, hash + 8);
+}
+#endif
+
+static void mschapv1_ntresp(u_char chal[MSCHAPv1_CHALLENGE_LEN], char *password, u_char resp[MSCHAP_NT_RESPONSE_LEN], u_char *nt_hash)
+{
+    u_char nt_hash_tmp[MSCHAP_NT_HASH_LEN];
+    if (!nt_hash)
+	nt_hash = nt_hash_tmp;
 
     mschap_nthash(password, nt_hash);
     mschap_chalresp(chal, nt_hash, resp);
 }
 
-static void mschap_helper(tac_session *session, enum token *res, enum hint_enum *hint, char **resp)
+static void mschap_helper(tac_session *session, enum token *res, enum hint_enum *hint, char **resp, u_char *nt_hash)
 {
     if (session->user) {
 	if (session->mavisauth_res != S_unknown)
 	    *res = session->mavisauth_res;
 	else if (session->user->passwd[PW_MSCHAP]->type == S_clear) {
-	    u_char response[MSCHAP_NT_RESPONSE_LEN];
-	    mschapv1_ntresp(session->chap_challenge, session->user->passwd[PW_MSCHAP]->value, response);
-	    if (!memcmp(response, session->chap_response, MSCHAP_NT_RESPONSE_LEN))
+	    u_char nt_response[MSCHAP_NT_RESPONSE_LEN];
+	    mschapv1_ntresp(session->mschap.challenge, session->user->passwd[PW_MSCHAP]->value, nt_response, nt_hash);
+	    if (!memcmp(nt_response, session->mschap.nt_response, MSCHAP_NT_RESPONSE_LEN))
 		*res = S_permit;
 	} else {
 	    *hint = hint_no_cleartext;
@@ -1561,7 +1582,7 @@ static void do_mschap(tac_session *session)
 {
     enum token res = S_deny;
     enum hint_enum hint = hint_nosuchuser;
-    char *info = (session->mschap_version == 1) ? "mschap login" : "mschapv2 login";
+    char *info = (session->mschap.version == 1) ? "mschap login" : "mschapv2 login";
 
     if (set_tac_user(session, info))
 	return;
@@ -1576,7 +1597,7 @@ static void do_mschap(tac_session *session)
 	return;
 
     char *resp = NULL;
-    mschap_helper(session, &res, &hint, &resp);
+    mschap_helper(session, &res, &hint, &resp, NULL);
 
     authen_final(session, res, info, hint, resp, 0, NULL, 0);
 }
@@ -1584,11 +1605,10 @@ static void do_mschap(tac_session *session)
 static void do_mschapv1(tac_session *session)
 {
     if (session->authen_data->data_len == MSCHAP_TAC_PRE_LEN + MSCHAPv1_CHALLENGE_LEN + MSCHAP_TAC_RESPONSE_LEN) {
-	session->mschap_version = 1;
-	session->chap_challenge = session->authen_data->data + MSCHAP_TAC_PRE_LEN;
-	session->chap_challenge_len = MSCHAPv1_CHALLENGE_LEN;
-	session->chap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_TAC_RESPONSE_LEN + MSCHAP_LM_RESPONSE_LEN;
-	session->chap_response_len = MSCHAP_NT_RESPONSE_LEN;
+	session->mschap.version = 1;
+	session->mschap.challenge = session->authen_data->data + MSCHAP_TAC_PRE_LEN;
+	session->mschap.challenge_len = MSCHAPv1_CHALLENGE_LEN;
+	session->mschap.nt_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_TAC_RESPONSE_LEN + MSCHAP_LM_RESPONSE_LEN;
 	do_mschap(session);
 	return;
     }
@@ -1596,44 +1616,31 @@ static void do_mschapv1(tac_session *session)
     send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_FAIL, NULL, 0, NULL, 0, 0);
 }
 
-static void mschapv2_chal(u_char peer_challenge[MSCHAPv2_CHALLENGE_LEN], u_char auth_challenge[MSCHAPv2_CHALLENGE_LEN], char *username,
-			  u_char out[MSCHAPv1_CHALLENGE_LEN])
+static void mschapv2_challenghash(u_char peer_challenge[MSCHAPv2_CHALLENGE_LEN], u_char auth_challenge[MSCHAPv2_CHALLENGE_LEN], char *username,
+				  u_char out[MSCHAPv1_CHALLENGE_LEN])
 {
     uint8_t digest[SHA_DIGEST_LENGTH];
-#if OPENSSL_VERSION_NUMBER < 0x30000000
-    SHA_CTX ctx;
-    SHA1_Init(&ctx);
-    SHA1_Update(&ctx, peer_challenge, MSCHAPv2_CHALLENGE_LEN);
-    SHA1_Update(&ctx, auth_challenge, MSCHAPv2_CHALLENGE_LEN);
-    SHA1_Update(&ctx, username, strlen(username));
-    SHA1_Final(digest, &ctx);
-#else
-    unsigned int digest_len = 0;
-    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
-    EVP_DigestInit_ex(ctx, EVP_sha1(), NULL);
-    EVP_DigestUpdate(ctx, peer_challenge, MSCHAPv2_CHALLENGE_LEN);
-    EVP_DigestUpdate(ctx, auth_challenge, MSCHAPv2_CHALLENGE_LEN);
-    EVP_DigestUpdate(ctx, username, strlen(username));
-    EVP_DigestFinal_ex(ctx, digest, &digest_len);
-    EVP_MD_CTX_free(ctx);
-#endif
+    struct iovec iov[3] = {
+	{.iov_base = (void *) peer_challenge,.iov_len = MSCHAPv2_CHALLENGE_LEN },
+	{.iov_base = (void *) auth_challenge,.iov_len = MSCHAPv2_CHALLENGE_LEN },
+	{.iov_base = (void *) username,.iov_len = strlen(username) }
+    };
+    sha1v(digest, sizeof(digest), iov, 3);
     memcpy(out, digest, MSCHAPv1_CHALLENGE_LEN);
 }
 
 static void do_mschapv2(tac_session *session)
 {
     if (session->authen_data->data_len == MSCHAP_TAC_PRE_LEN + MSCHAPv2_CHALLENGE_LEN + MSCHAP_TAC_RESPONSE_LEN) {
-	session->mschap_version = 2;
-	session->chap_challenge = session->authen_data->data + MSCHAP_TAC_PRE_LEN;
-	session->chap_challenge_len = MSCHAPv2_CHALLENGE_LEN;
-	session->chap_response = session->authen_data->data + session->authen_data->data_len - MSCHAP_TAC_RESPONSE_LEN;
-	session->chap_response_len = MSCHAP_TAC_RESPONSE_LEN;
+	session->mschap.version = 2;
+	session->mschap.challenge = session->authen_data->data + MSCHAP_TAC_PRE_LEN;
+	session->mschap.challenge_len = MSCHAPv2_CHALLENGE_LEN;
+	u_char *response = session->authen_data->data + session->authen_data->data_len - MSCHAP_TAC_RESPONSE_LEN;
 	u_char *chal = mem_alloc(session->mem, MSCHAPv1_CHALLENGE_LEN);
-	mschapv2_chal(session->chap_response, session->chap_challenge, session->username.txt, chal);
-	session->chap_challenge = chal;
-	session->chap_challenge_len = MSCHAPv1_CHALLENGE_LEN;
-	session->chap_response += MSCHAP_NT_RESPONSE_LEN;
-	session->chap_response_len = MSCHAP_NT_RESPONSE_LEN;
+	mschapv2_challenghash(session->mschap.nt_response, session->mschap.challenge, session->username.txt, chal);
+	session->mschap.challenge = chal;
+	session->mschap.challenge_len = MSCHAPv1_CHALLENGE_LEN;
+	session->mschap.nt_response = response + MSCHAP_LM_RESPONSE_LEN;
 	do_mschap(session);
 	return;
     }
@@ -2209,6 +2216,95 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 	send_authen_error(session, "Invalid or unsupported AUTHEN/START (action=%d authen_type=%d)", start->action, start->type);
 }
 
+#ifdef WITH_CRYPTO
+static void encrypt_mppe_key(tac_session *session, u_char *plain /* 32 bytes */ , uint16_t salt)
+{
+    u_char digest[MD5_LEN];
+    u_char salt_be[2] = { (u_char) (salt >> 8), (u_char) (salt & 0xff) };
+
+    // b(1) = MD5(Secret + Request-Authenticator + Salt)
+    struct iovec iov[3] = {
+	{.iov_base = (void *) session->ctx->key->key,.iov_len = session->ctx->key->len },
+	{.iov_base = (void *) session->radius_data->pak_in->authenticator,.iov_len = 16 },
+	{.iov_base = salt_be,.iov_len = 2 }
+    };
+    md5v(digest, MD5_LEN, iov, 3);
+    for (int i = 0; i < 16; i++)
+	plain[i] ^= digest[i];
+
+    // b(2) = MD5(Secret + c(1))
+    iov[1].iov_base = plain;
+    iov[1].iov_len = 16;
+    md5v(digest, MD5_LEN, iov, 2);
+    for (int i = 0; i < 16; i++)
+	plain[16 + i] ^= digest[i];
+}
+
+static void mppe_add_key(tac_session *session, u_char *masterkey, u_char attribute, int magic, u_char **data, size_t *data_len)
+{
+    // Magic constants (RFC 3079)
+    const u_char Magic2[84] = {	// MasterReceiveKey for server
+	0x4f, 0x6e, 0x20, 0x74, 0x68, 0x65, 0x20, 0x63, 0x6c, 0x69,
+	0x65, 0x6e, 0x74, 0x20, 0x73, 0x69, 0x64, 0x65, 0x2c, 0x20,
+	0x74, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x74, 0x68,
+	0x65, 0x20, 0x73, 0x65, 0x6e, 0x64, 0x20, 0x6b, 0x65, 0x79,
+	0x3b, 0x20, 0x6f, 0x6e, 0x20, 0x74, 0x68, 0x65, 0x20, 0x73,
+	0x65, 0x72, 0x76, 0x65, 0x72, 0x20, 0x73, 0x69, 0x64, 0x65,
+	0x2c, 0x20, 0x69, 0x74, 0x20, 0x69, 0x73, 0x20, 0x74, 0x68,
+	0x65, 0x20, 0x72, 0x65, 0x63, 0x65, 0x69, 0x76, 0x65, 0x20,
+	0x6b, 0x65, 0x79, 0x2e
+    };
+    const u_char Magic3[84] = {	// MasterSendKey for server
+	0x4f, 0x6e, 0x20, 0x74, 0x68, 0x65, 0x20, 0x63, 0x6c, 0x69,
+	0x65, 0x6e, 0x74, 0x20, 0x73, 0x69, 0x64, 0x65, 0x2c, 0x20,
+	0x74, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x74, 0x68,
+	0x65, 0x20, 0x72, 0x65, 0x63, 0x65, 0x69, 0x76, 0x65, 0x20,
+	0x6b, 0x65, 0x79, 0x3b, 0x20, 0x6f, 0x6e, 0x20, 0x74, 0x68,
+	0x65, 0x20, 0x73, 0x65, 0x72, 0x76, 0x65, 0x72, 0x20, 0x73,
+	0x69, 0x64, 0x65, 0x2c, 0x20, 0x69, 0x74, 0x20, 0x69, 0x73,
+	0x20, 0x74, 0x68, 0x65, 0x20, 0x73, 0x65, 0x6e, 0x64, 0x20,
+	0x6b, 0x65, 0x79, 0x2e
+    };
+    const u_char SHApad1[40] = { 0 };
+    const u_char SHApad2[40] = {
+	0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2,
+	0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2,
+	0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2,
+	0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2, 0xf2
+    };
+
+    const u_char *Magic = magic == 3 ? Magic3 : Magic2;
+    u_char key[SHA_DIGEST_LENGTH];
+    struct iovec iov[4] = {
+	{.iov_base = (void *) masterkey,.iov_len = 16 },
+	{.iov_base = (void *) SHApad1,.iov_len = sizeof(SHApad1) },
+	{.iov_base = (void *) Magic,.iov_len = sizeof(Magic) },
+	{.iov_base = (void *) SHApad2,.iov_len = sizeof(SHApad2) }
+    };
+    sha1v(key, sizeof(key), iov, 4);
+
+    *(*data)++ = RADIUS_A_VENDOR_SPECIFIC;
+    *(*data)++ = 42;
+    *data = set_uint(*data, RADIUS_VID_MICROSOFT, 4);
+    *(*data)++ = attribute;
+    *(*data)++ = 36;
+
+    uint16_t salt = arc4random_uniform(0xffff) | 0x8000;
+    *(*data)++ = (salt >> 8) & 0xff;
+    *(*data)++ = salt & 0xff;
+
+    u_char *plain = *data;
+    plain[0] = 16;
+    memcpy(plain + 1, key, 16);
+    memset(plain + 17, 0, 15);
+
+    encrypt_mppe_key(session, plain, salt);
+
+    *data += 32;
+    *data_len += 42;
+}
+#endif
+
 static void do_radius_login(tac_session *session)
 {
     enum token res = S_deny;
@@ -2233,47 +2329,51 @@ static void do_radius_login(tac_session *session)
     }
 
     if (rd->type == S_unknown) {
-	if (!rad_get(rd->pak_in, session->mem, -1, RADIUS_A_CHAP_PASSWORD, S_octets, &session->chap_response, &session->chap_response_len)
-	    && session->chap_response_len == 1 + MD5_LEN) {
-	    session->chap_pppid = session->chap_response[0];
-	    session->chap_response++;
-	    session->chap_response_len--;
-	    if (rad_get(rd->pak_in, session->mem, -1, RADIUS_A_CHAP_CHALLENGE, S_octets, &session->chap_challenge, &session->chap_challenge_len)) {
+	if (!rad_get(rd->pak_in, session->mem, -1, RADIUS_A_CHAP_PASSWORD, S_octets, &session->chap.response, &session->chap.response_len)
+	    && session->chap.response_len == 1 + MD5_LEN) {
+	    session->chap.pppid = session->chap.response[0];
+	    session->chap.response++;
+	    session->chap.response_len--;
+	    if (rad_get(rd->pak_in, session->mem, -1, RADIUS_A_CHAP_CHALLENGE, S_octets, &session->chap.challenge, &session->chap.challenge_len)) {
 		if (session->ctx->radius_1_1 == BISTATE_NO) {
-		    session->chap_challenge = rd->pak_in->authenticator;
-		    session->chap_challenge_len = 16;
+		    session->chap.challenge = rd->pak_in->authenticator;
+		    session->chap.challenge_len = 16;
 		}
 	    }
-	    if (session->chap_challenge_len)
+	    if (session->chap.challenge_len)
 		rd->type = S_chap;
 	}
     }
 #ifdef WITH_CRYPTO
     if (rd->type == S_unknown) {
+	u_char *s;
+	size_t s_len;
 	if (!rad_get
-	    (rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &session->chap_challenge, &session->chap_challenge_len)
-	    && (session->chap_challenge_len == MSCHAPv1_CHALLENGE_LEN)
-	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_RESPONSE, S_octets, &session->chap_response,
-			&session->chap_response_len) && (session->chap_response_len == MSCHAP_RAD_RESPONSE_LEN)) {
+	    (rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &session->mschap.challenge, &session->mschap.challenge_len)
+	    && (session->mschap.challenge_len == MSCHAPv1_CHALLENGE_LEN)
+	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_RESPONSE, S_octets, &s,
+			&s_len) && (s_len == MSCHAP_RAD_RESPONSE_LEN)) {
 	    rd->type = S_mschap;
-	    session->mschap_version = 1;
-	    session->chap_response += MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
-	    session->chap_response_len -= MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
+	    session->mschap.version = 1;
+	    session->mschap.ident = s[0];
+	    session->mschap.nt_response = s + MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
 	}
     }
 
     if (rd->type == S_unknown) {
+	u_char *s;
+	size_t s_len;
 	if (!rad_get
-	    (rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &session->chap_challenge, &session->chap_challenge_len)
-	    && (session->chap_challenge_len == MSCHAPv2_CHALLENGE_LEN)
-	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP2_RESPONSE, S_octets, &session->chap_response,
-			&session->chap_response_len) && (session->chap_response_len == MSCHAP_RAD_RESPONSE_LEN)) {
+	    (rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP_CHALLENGE, S_octets, &session->mschap.challenge, &session->mschap.challenge_len)
+	    && (session->mschap.challenge_len == MSCHAPv2_CHALLENGE_LEN)
+	    && !rad_get(rd->pak_in, session->mem, RADIUS_VID_MICROSOFT, RADIUS_A_MS_CHAP2_RESPONSE, S_octets, &s,
+			&s_len) && (s_len == MSCHAP_RAD_RESPONSE_LEN)) {
 	    rd->type = S_mschap;
-	    mschapv2_chal(session->chap_response + MSCHAP_RAD_PRE_LEN, session->chap_challenge, session->username.txt, session->chap_challenge);
-	    session->chap_challenge_len = MSCHAPv2_CHALLENGE_LEN;
-	    session->mschap_version = 2;
-	    session->chap_response += MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
-	    session->chap_response_len -= MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
+	    session->mschap.challenge_len = MSCHAPv2_CHALLENGE_LEN;
+	    session->mschap.version = 2;
+	    session->mschap.ident = s[0];
+	    session->mschap.nt_response = s + MSCHAP_RAD_PRE_LEN + MSCHAP_LM_RESPONSE_LEN;
+	    mschapv2_challenghash(s + MSCHAP_RAD_PRE_LEN /* peer challenge */ , session->mschap.challenge, session->username.txt, session->mschap.challenge);
 	}
     }
 #endif
@@ -2291,7 +2391,7 @@ static void do_radius_login(tac_session *session)
     else if (rd->type == S_chap)
 	info = "radius chap login";
     else if (rd->type == S_mschap)
-	info = session->mschap_version == 1 ? "radius mschap login" : "radius mschapv2 login";
+	info = session->mschap.version == 1 ? "radius mschap login" : "radius mschapv2 login";
 
     if (rd->type == S_unknown) {
 	report_auth(session, info, hint, res);
@@ -2306,6 +2406,9 @@ static void do_radius_login(tac_session *session)
 
     char *resp = NULL;
 
+#ifdef WITH_CRYPTO
+    u_char nt_hash[MSCHAP_NT_HASH_LEN];
+#endif
     if (rd->type == S_pap) {
 	if (query_mavis_info_login(session, do_radius_login))
 	    return;
@@ -2337,7 +2440,7 @@ static void do_radius_login(tac_session *session)
 	    return;
 	if (query_mavis_mschap_login(session, do_radius_login, PW_MSCHAP))
 	    return;
-	mschap_helper(session, &res, &hint, &resp);
+	mschap_helper(session, &res, &hint, &resp, nt_hash);
     }
 #endif
     else if (rd->type == S_authorization) {
@@ -2373,6 +2476,163 @@ static void do_radius_login(tac_session *session)
 
     if (!resp)
 	resp = session->user_msg.txt;
+
+#ifdef WITH_CRYPTO
+    if (rd->type == S_mschap && session->mschap.version == 2 && res == S_permit && session->ctx->key && session->user
+	&& session->user->passwd[PW_MSCHAP]->type == S_clear) {
+	size_t data_len = session->radius_data->data_len;
+	u_char *data = session->radius_data->data + data_len;
+	u_char *data_end = session->radius_data->data + sizeof(session->radius_data->data);
+
+	myMD4_CTX md4_ctx;
+	MD4Init(&md4_ctx);
+	MD4Update(&md4_ctx, nt_hash, MSCHAP_NT_HASH_LEN);
+	u_char nt_hashhash[MSCHAP_NT_HASH_LEN];
+	MD4Final(nt_hashhash, &md4_ctx);
+
+
+	// MS-CHAP2-Success: 1 + 1 + 4 + 45 = 51
+	if (data + 51 < data_end) {
+	    *data++ = RADIUS_A_VENDOR_SPECIFIC;
+	    *data++ = 51;
+	    data = set_uint(data, RADIUS_VID_MICROSOFT, 4);
+	    *data++ = RADIUS_A_MS_CHAP2_SUCCESS;
+	    *data++ = 45;
+	    data_len += 8;
+	    *data++ = session->mschap.ident;
+	    data_len++;
+	    *data++ = 'S';
+	    data_len++;
+	    *data++ = '=';
+	    data_len++;
+
+	    static const u_char Magic1[39] = {
+		0x4D, 0x61, 0x67, 0x69, 0x63, 0x20, 0x73, 0x65, 0x72, 0x76,
+		0x65, 0x72, 0x20, 0x74, 0x6F, 0x20, 0x63, 0x6C, 0x69, 0x65,
+		0x6E, 0x74, 0x20, 0x73, 0x69, 0x67, 0x6E, 0x69, 0x6E, 0x67,
+		0x20, 0x63, 0x6F, 0x6E, 0x73, 0x74, 0x61, 0x6E, 0x74
+	    };
+
+	    u_char digest[SHA_DIGEST_LENGTH];
+	    {
+		struct iovec iov[3] = {
+		    {.iov_base = (void *) nt_hashhash,.iov_len = MSCHAP_NT_HASH_LEN },
+		    {.iov_base = (void *) session->mschap.nt_response,.iov_len = MSCHAP_NT_RESPONSE_LEN },
+		    {.iov_base = (void *) Magic1,.iov_len = sizeof(Magic1) }
+		};
+		sha1v(digest, sizeof(digest), iov, 3);
+	    }
+
+	    static const u_char Magic2[41] = {
+		0x50, 0x61, 0x64, 0x20, 0x74, 0x6F, 0x20, 0x6D, 0x61, 0x6B,
+		0x65, 0x20, 0x69, 0x74, 0x20, 0x64, 0x6F, 0x20, 0x6D, 0x6F,
+		0x72, 0x65, 0x20, 0x74, 0x68, 0x61, 0x6E, 0x20, 0x6F, 0x6E,
+		0x65, 0x20, 0x69, 0x74, 0x65, 0x72, 0x61, 0x74, 0x69, 0x6F,
+		0x6E
+	    };
+	    {
+		struct iovec iov[3] = {
+		    {.iov_base = (void *) digest,.iov_len = SHA_DIGEST_LENGTH },
+		    {.iov_base = (void *) session->mschap.challenge,.iov_len = 8 },
+		    {.iov_base = (void *) Magic2,.iov_len = sizeof(Magic2) }
+		};
+		sha1v(digest, sizeof(digest), iov, 3);
+	    }
+
+	    dump_hex_mschap(digest, SHA_DIGEST_LENGTH, (char **) &data);
+	    data_len += 40;
+	    session->radius_data->data_len = data_len;
+	}
+	// MS-MPPE-Encryption-Types: 1 + 1 + 4 + 6 = 12
+	if (data + 12 < data_end) {
+	    *data++ = RADIUS_A_VENDOR_SPECIFIC;
+	    *data++ = 12;
+	    data = set_uint(data, RADIUS_VID_MICROSOFT, 4);
+	    data_len += 6;
+	    *data++ = RADIUS_A_MS_MPPE_ENCRYPTION_TYPES;
+	    *data++ = 6;
+	    data_len += 2;
+	    data = set_uint(data, 6 /* S (4) 128bit, L (2) 40bit */ , 4);	// FIXME, make this configurable?
+	    data_len += 4;
+	}
+	// MS-MPPE-Encryption-Policy: 1 + 1 + 4 + 6 = 12
+	if (data + 12 < data_end) {
+	    *data++ = RADIUS_A_VENDOR_SPECIFIC;
+	    *data++ = 12;
+	    data = set_uint(data, RADIUS_VID_MICROSOFT, 4);
+	    data_len += 6;
+	    *data++ = RADIUS_A_MS_MPPE_ENCRYPTION_POLICY;
+	    *data++ = 6;
+	    data_len += 2;
+	    data = set_uint(data, 1 /* 1 Encryption-Allowed, 2 Encryption-Required */ , 4);	// FIXME make this configurable?
+	    data_len += 4;
+	}
+#ifdef WITH_RADIUS_A_MS_CHAP_MPPE_KEYS
+	// MS-CHAP-MPPE-Keys: 1 + 1 + 4 + 34 = 40  (legacy, optional)
+	if (data + 40 < data_end) {
+	    *data++ = RADIUS_A_VENDOR_SPECIFIC;
+	    *data++ = 40;
+	    data = set_uint(data, RADIUS_VID_MICROSOFT, 4);
+	    data_len += 6;
+	    *data++ = RADIUS_A_MS_CHAP_MPPE_KEYS;
+	    *data++ = 34;
+	    data_len += 2;
+	    u_char *enc_start = data;
+	    // insert 8 byte LM key (mschap_lmhash() will actually copy 16 bytes)
+	    mschap_lmhash(session->user->passwd[PW_MSCHAP]->value, data);
+	    data += 8;
+	    data_len += 8;
+	    // insert 16 byte NT key
+	    memcpy(data, nt_hash, MSCHAP_NT_HASH_LEN);
+	    data += MSCHAP_NT_HASH_LEN;
+	    data_len += MSCHAP_NT_HASH_LEN;
+	    // padding -- 8 bytes
+	    memset(data, 0, 8);
+	    data += 8;
+	    data_len += 8;
+
+	    // Encryption (RFC 2548 style, 32 byte payload)
+	    u_char digest[MD5_LEN];
+	    struct iovec iov[2] = {
+		{.iov_base = (void *) session->ctx->key->key,.iov_len = session->ctx->key->len },
+		{.iov_base = (void *) session->radius_data->pak_in->authenticator,.iov_len = 16 }
+	    };
+	    md5v(digest, MD5_LEN, iov, 2);
+	    for (int i = 0; i < 16; i++)
+		enc_start[i] ^= digest[i];
+
+	    iov[1].iov_base = enc_start;
+	    enc_start += 16;
+	    md5v(digest, MD5_LEN, iov, 2);
+	    for (int i = 0; i < 16; i++)
+		enc_start[i] ^= digest[i];
+	}
+#endif // WITH_RADIUS_A_MS_CHAP_MPPE_KEYS
+
+	// MS-MPPE-Send-/Recv-Key: 1 + 1 + 4 + 2 + 2 + 32 = 42
+	if (data + 84 < data_end) {
+	    // Magic constants (RFC 3079)
+	    static const u_char Magic1[27] = {
+		0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x74, 0x68,
+		0x65, 0x20, 0x4d, 0x50, 0x50, 0x45, 0x20, 0x4d, 0x61, 0x73,
+		0x74, 0x65, 0x72, 0x20, 0x4b, 0x65, 0x79
+	    };
+	    // MasterKey = SHA1(PasswordHashHash || NT-Response || Magic1)[0..15]
+	    u_char masterkey[SHA_DIGEST_LENGTH];
+	    struct iovec iov[3] = {
+		{.iov_base = (void *) nt_hashhash,.iov_len = MSCHAP_NT_HASH_LEN },
+		{.iov_base = (void *) session->mschap.nt_response,.iov_len = MSCHAP_NT_RESPONSE_LEN },
+		{.iov_base = (void *) Magic1,.iov_len = sizeof(Magic1) },
+	    };
+	    sha1v(masterkey, sizeof(masterkey), iov, 3);
+
+	    mppe_add_key(session, masterkey, RADIUS_A_MS_MPPE_SEND_KEY, 3, &data, &data_len);
+	    mppe_add_key(session, masterkey, RADIUS_A_MS_MPPE_RECV_KEY, 2, &data, &data_len);
+
+	    session->radius_data->data_len = data_len;
+	}
+    }
+#endif
 
     if (rd->type != S_authorization && init_rad_mfa(session, res, info, hint, resp))
 	return;
