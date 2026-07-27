@@ -10,7 +10,7 @@ PROG=tactester
 LIB	+= $(LIB_MAVIS) $(LIB_SSL) $(LIB_CRYPTO) $(LIB_CRYPT) $(LIB_NET) $(LIB_PCRE) $(LIB_TLS)
 
 CFLAGS	+= $(DEF) $(INC) $(INC_SSL) $(INC_PCRE)
-VPATH	= $(BASE)/$(PROG):$(BASE)/misc:-I$(BASE)/tac_plus-ng
+VPATH	= $(BASE)/$(PROG):$(BASE)/misc:$(BASE)/tac_plus-ng
 
 ifeq ($(WITH_SSL),1)
 ALL = $(PROG)$(EXEC_EXT) install_stage
@@ -22,9 +22,9 @@ endif
 
 all: $(ALL)
 
-main.o: main.c $(BASE)/misc/version.h
+OBJ += conn.o aaa.o main.o config_radius.o
 
-OBJ += conn.o aaa.o main.o ../tac_plus-ng/config_radius.o
+main.o: main.c $(BASE)/misc/version.h
 
 $(OBJ): conn.h
 
