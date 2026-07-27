@@ -8,6 +8,8 @@
 # MSCHAP authentication using SAMBA's ntlm_auth tool. Requires winbindd et al. to
 # be running on your system.
 #
+# This will currently not work with MSCHAPv2 as NT_KEY isn't returned to the server for checking.
+#
 
 =pod
 
