@@ -1623,7 +1623,7 @@ enable user acl = custom_enable_acl</pre></li>
 </li>
 <li>
 <p><tt class="literal">ms-chap backend = mavis</tt> [ <tt class="literal">prefetch</tt> ]</p>
-<p>Verify MSCHAP passwords using the MAVIS back-end. This needs to be set to either <tt class="literal">mavis</tt> or <tt class="literal">mavis prefetch</tt> in order to authenticate MSCHAP requests using the MAVIS back-end. If unset, the MSCHAP password from the users' profile will be used. Please note that RADIUS/MSCHAPv2 is currently not expectd to work with MAVIS.</p>
+<p>Verify MSCHAP passwords using the MAVIS back-end. This needs to be set to either <tt class="literal">mavis</tt> or <tt class="literal">mavis prefetch</tt> in order to authenticate MSCHAP requests using the MAVIS back-end. If unset, the MSCHAP password from the users' profile will be used.</p>
 <p><tt class="literal">prefetch</tt> is actually enabled automatically. The daemon will first retrieve the users' profile from the back-end and then authenticate the user based on information eventually found there.</p>
 <p>This directive implies <tt class="literal">user backend = mavis</tt>.</p>
 </li>

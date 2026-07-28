@@ -1315,8 +1315,7 @@ login backend = mavis chalresp noecho
        needs to be set to either mavis or mavis prefetch in order
        to authenticate MSCHAP requests using the MAVIS back-end.
        If unset, the MSCHAP password from the users' profile will
-       be used. Please note that RADIUS/MSCHAPv2 is currently not
-       expectd to work with MAVIS.
+       be used.
        prefetch is actually enabled automatically. The daemon will
        first retrieve the users' profile from the back-end and
        then authenticate the user based on information eventually
