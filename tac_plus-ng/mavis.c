@@ -402,8 +402,13 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 	if (u->dynamic)
 	    u->dynamic = io_now.tv_sec + r->caching_period;
 
-	if (!strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_CHAP) || !strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_MSCHAP)) {
+	if (!strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_CHAP)) {
 	    session->mavisauth_res = S_permit;
+	} else if (!strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_MSCHAP)) {
+	    session->mavisauth_res = S_permit;
+	    char *s = av_get(avc, AV_A_PASSWORD);
+	    if (s)
+	        session->mschap.nt_key = mem_strdup(session->mem, s);
 	}
 
 	session->passwd_mustchange = av_get(avc, AV_A_PASSWORD_MUSTCHANGE) ? 1 : 0;
