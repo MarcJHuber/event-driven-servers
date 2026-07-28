@@ -526,7 +526,7 @@ static int query_mavis_auth_login(tac_session *session, void (*f)(tac_session *)
 {
     int res = !session->flag_mavis_auth
 	&& ((!session->user && (session->ctx->realm->mavis_login == TRISTATE_YES) && (session->ctx->realm->mavis_login_prefetch != TRISTATE_YES))
-	    || (session->user && pw_ix == PW_MAVIS));
+	    || (session->user && (pw_ix == PW_MAVIS || session->user->passwd[pw_ix]->type == S_mavis)));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_LOGIN);
@@ -575,7 +575,7 @@ static int query_mavis_chap_login(tac_session *session, void (*f)(tac_session *)
     // assumption: user was pre-fetched
     int res = !session->flag_mavis_auth
 	&& ((session->user && session->user->passwd[pw_ix] == &passwd_deny_dflt && (session->ctx->realm->mavis_chap == TRISTATE_YES))
-	    || (session->user && pw_ix == PW_MAVIS));
+	    || (session->user && (pw_ix == PW_MAVIS || session->user->passwd[pw_ix]->type == S_mavis)));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_CHAP, PW_CHAP);
@@ -597,7 +597,7 @@ static int query_mavis_mschap_login(tac_session *session, void (*f)(tac_session 
     // assumption: user was pre-fetched
     int res = !session->flag_mavis_auth
 	&& ((session->user && session->user->passwd[pw_ix] == &passwd_deny_dflt && (session->ctx->realm->mavis_mschap == TRISTATE_YES))
-	    || (session->user && pw_ix == PW_MAVIS));
+	    || (session->user && (pw_ix == PW_MAVIS || session->user->passwd[pw_ix]->type == S_mavis)));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_MSCHAP, PW_MSCHAP);
@@ -627,7 +627,7 @@ static int query_mavis_auth_pap(tac_session *session, void (*f)(tac_session *), 
 {
     int res = !session->flag_mavis_auth &&
 	((!session->user && (session->ctx->realm->mavis_pap == TRISTATE_YES) && (session->ctx->realm->mavis_pap_prefetch != TRISTATE_YES))
-	 || (session->user && pw_ix == PW_MAVIS));
+	 || (session->user && (pw_ix == PW_MAVIS || session->user->passwd[pw_ix]->type == S_mavis)));
     session->flag_mavis_auth = 1;
     if (res)
 	mavis_lookup(session, f, AV_V_TACTYPE_AUTH, PW_PAP);
@@ -1553,16 +1553,31 @@ static void mschapv1_ntresp(u_char chal[MSCHAPv1_CHALLENGE_LEN], char *password,
     mschap_chalresp(chal, nt_hash, resp);
 }
 
-static void mschap_helper(tac_session *session, enum token *res, enum hint_enum *hint, char **resp, u_char *nt_hash)
+static void mschap_helper(tac_session *session, enum token *res, enum hint_enum *hint, char **resp, u_char *nt_hash, int *nt_hash_set)
 {
     if (session->user) {
-	if (session->mavisauth_res != S_unknown)
+	if (session->mavisauth_res != S_unknown) {
 	    *res = session->mavisauth_res;
-	else if (session->user->passwd[PW_MSCHAP]->type == S_clear) {
+	    if (*res == S_permit && session->mschap.nt_key) {
+		char *s = session->mschap.nt_key;
+		if (s && strlen(s) == 2 * MSCHAP_NT_HASH_LEN) {
+		    int all_hex = 1;
+		    for (int i = 0; i < 2 * MSCHAP_NT_HASH_LEN && all_hex; i++)
+			all_hex = isxdigit(s[i]);
+		    if (all_hex) {
+			for (int i = 0; i < MSCHAP_NT_HASH_LEN; i++, s += 2)
+			    nt_hash[i] = hexbyte(s);
+			*nt_hash_set = 1;
+		    }
+		}
+	    }
+	} else if (session->user->passwd[PW_MSCHAP]->type == S_clear) {
 	    u_char nt_response[MSCHAP_NT_RESPONSE_LEN];
 	    mschapv1_ntresp(session->mschap.challenge, session->user->passwd[PW_MSCHAP]->value, nt_response, nt_hash);
-	    if (!memcmp(nt_response, session->mschap.nt_response, MSCHAP_NT_RESPONSE_LEN))
+	    if (!memcmp(nt_response, session->mschap.nt_response, MSCHAP_NT_RESPONSE_LEN)) {
 		*res = S_permit;
+		*nt_hash_set = 1;
+	    }
 	} else {
 	    *hint = hint_no_cleartext;
 	}
@@ -1597,7 +1612,7 @@ static void do_mschap(tac_session *session)
 	return;
 
     char *resp = NULL;
-    mschap_helper(session, &res, &hint, &resp, NULL);
+    mschap_helper(session, &res, &hint, &resp, NULL, NULL);
 
     authen_final(session, res, info, hint, resp, 0, NULL, 0);
 }
@@ -2408,6 +2423,7 @@ static void do_radius_login(tac_session *session)
 
 #ifdef WITH_CRYPTO
     u_char nt_hash[MSCHAP_NT_HASH_LEN];
+    int nt_hash_set = 0;
 #endif
     if (rd->type == S_pap) {
 	if (query_mavis_info_login(session, do_radius_login))
@@ -2428,7 +2444,7 @@ static void do_radius_login(tac_session *session)
 	    return;
 	if (refuse_rad_session(session, info, PW_CHAP))
 	    return;
-	if (query_mavis_chap_login(session, do_radius_login, PW_MSCHAP))
+	if (query_mavis_chap_login(session, do_radius_login, PW_CHAP))
 	    return;
 	chap_helper(session, &res, &hint, &resp);
     }
@@ -2440,7 +2456,7 @@ static void do_radius_login(tac_session *session)
 	    return;
 	if (query_mavis_mschap_login(session, do_radius_login, PW_MSCHAP))
 	    return;
-	mschap_helper(session, &res, &hint, &resp, nt_hash);
+	mschap_helper(session, &res, &hint, &resp, nt_hash, &nt_hash_set);
     }
 #endif
     else if (rd->type == S_authorization) {
@@ -2478,8 +2494,7 @@ static void do_radius_login(tac_session *session)
 	resp = session->user_msg.txt;
 
 #ifdef WITH_CRYPTO
-    if (rd->type == S_mschap && session->mschap.version == 2 && res == S_permit && session->ctx->key && session->user
-	&& session->user->passwd[PW_MSCHAP]->type == S_clear) {
+    if (rd->type == S_mschap && session->mschap.version == 2 && res == S_permit && session->ctx->key && nt_hash_set) {
 	size_t data_len = session->radius_data->data_len;
 	u_char *data = session->radius_data->data + data_len;
 	u_char *data_end = session->radius_data->data + sizeof(session->radius_data->data);
@@ -2607,7 +2622,7 @@ static void do_radius_login(tac_session *session)
 	    for (int i = 0; i < 16; i++)
 		enc_start[i] ^= digest[i];
 	}
-#endif // WITH_RADIUS_A_MS_CHAP_MPPE_KEYS
+#endif				// WITH_RADIUS_A_MS_CHAP_MPPE_KEYS
 
 	// MS-MPPE-Send-/Recv-Key: 1 + 1 + 4 + 2 + 2 + 32 = 42
 	if (data + 84 < data_end) {
