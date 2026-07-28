@@ -273,7 +273,7 @@ void dump_nas_pak(tac_session *session, int bogus)
 	    if (hdr->seq_no == 1) {
 		struct authen_start *start = tac_payload(hdr, struct authen_start *);
 
-		report(DEBPACK, "AUTHEN/START, priv_lvl=%d", start->priv_lvl);
+		report(DEBPACK, "%sAUTHEN/START, priv_lvl=%d%s", common_data.font_blue, start->priv_lvl, common_data.font_plain);
 		report(DEBPACK, "action=%s (%d)", i2s(map_action, start->action, NULL), start->action);
 		report(DEBPACK, "authen_type=%s (%d)", i2s(map_type, start->type, NULL), start->type);
 		report(DEBPACK, "service=%s (%d)", i2s(map_service, start->service, NULL), start->service);
@@ -299,7 +299,7 @@ void dump_nas_pak(tac_session *session, int bogus)
 	    } else {
 		struct authen_cont *cont = tac_payload(hdr, struct authen_cont *);
 
-		report(DEBPACK, "AUTHEN/CONT user_msg_len=%d, user_data_len=%d", ntohs(cont->user_msg_len), ntohs(cont->user_data_len));
+		report(DEBPACK, "%sAUTHEN/CONT user_msg_len=%d, user_data_len=%d%s", common_data.font_blue, ntohs(cont->user_msg_len), ntohs(cont->user_data_len), common_data.font_plain);
 		if (session->debug & DEBUG_USERINPUT_FLAG) {
 		    p = (char *) cont + TAC_AUTHEN_CONT_FIXED_FIELDS_SIZE;
 		    report_string(DEBPACK, "user_msg", p, ntohs(cont->user_msg_len));
@@ -312,7 +312,7 @@ void dump_nas_pak(tac_session *session, int bogus)
 	    {
 		struct author *author = tac_payload(hdr, struct author *);
 
-		report(DEBPACK, "AUTHOR, priv_lvl=%d", author->priv_lvl);
+		report(DEBPACK, "%sAUTHOR, priv_lvl=%d%s", common_data.font_blue, author->priv_lvl, common_data.font_plain);
 		report(DEBPACK, "authen_type=%s (%d)", i2s(map_type, author->authen_type, NULL), author->authen_type);
 		report(DEBPACK, "authen_method=%s (%d)", i2s(map_method, author->authen_method, NULL), author->authen_method);
 		report(DEBPACK, "service=%s (%d)", i2s(map_service, author->service, NULL), author->service);
@@ -335,7 +335,7 @@ void dump_nas_pak(tac_session *session, int bogus)
 	    {
 		struct acct *acct = tac_payload(hdr, struct acct *);
 
-		report(DEBPACK, "ACCT, priv_lvl=%d flags=0x%x", acct->priv_lvl, acct->flags);
+		report(DEBPACK, "%sACCT, priv_lvl=%d flags=0x%x%s", common_data.font_blue, acct->priv_lvl, acct->flags, common_data.font_plain);
 		report(DEBPACK, "authen_type=%s (%d)", i2s(map_type, acct->authen_type, NULL), acct->authen_type);
 		report(DEBPACK, "authen_method=%s (%d)", i2s(map_method, acct->authen_method, NULL), acct->authen_method);
 		report(DEBPACK, "service=%s (%d)", i2s(map_service, acct->authen_service, NULL), acct->authen_service);
@@ -373,7 +373,7 @@ void dump_tacacs_pak(tac_session *session, tac_pak_hdr *hdr)
 	{
 	    struct authen_reply *authen = tac_payload(hdr, struct authen_reply *);
 
-	    report(DEBPACK, "AUTHEN, status=%d (%s) flags=0x%x", authen->status, summarise_outgoing_packet_type(hdr), authen->flags);
+	    report(DEBPACK, "%sAUTHEN, status=%d (%s) flags=0x%x%s", common_data.font_blue, authen->status, summarise_outgoing_packet_type(hdr), authen->flags, common_data.font_plain);
 	    report(DEBPACK, "msg_len=%d, data_len=%d", ntohs(authen->msg_len), ntohs(authen->data_len));
 	    /* start of variable length data is here */
 	    p = (char *) authen + TAC_AUTHEN_REPLY_FIXED_FIELDS_SIZE;
@@ -387,7 +387,7 @@ void dump_tacacs_pak(tac_session *session, tac_pak_hdr *hdr)
 	    struct author_reply *author = tac_payload(hdr, struct author_reply *);
 	    unsigned char *argsizep;
 
-	    report(DEBPACK, "AUTHOR/REPLY, status=%d (%s) ", author->status, summarise_outgoing_packet_type(hdr));
+	    report(DEBPACK, "%sAUTHOR/REPLY, status=%d (%s)%s", common_data.font_blue, author->status, summarise_outgoing_packet_type(hdr), common_data.font_plain);
 	    report(DEBPACK, "msg_len=%d, data_len=%d, arg_cnt=%d", ntohs(author->msg_len), ntohs(author->data_len), author->arg_cnt);
 	    p = (char *) author + TAC_AUTHOR_REPLY_FIXED_FIELDS_SIZE;
 	    argsizep = (unsigned char *) p;
@@ -403,8 +403,8 @@ void dump_tacacs_pak(tac_session *session, tac_pak_hdr *hdr)
 	{
 	    struct acct_reply *acct = tac_payload(hdr, struct acct_reply *);
 
-	    report(DEBPACK, "ACCT/REPLY, status=%d (%s), msg_len=%d, data_len=%d", acct->status, summarise_outgoing_packet_type(hdr), ntohs(acct->msg_len),
-		   ntohs(acct->data_len));
+	    report(DEBPACK, "%sACCT/REPLY, status=%d (%s), msg_len=%d, data_len=%d%s", common_data.font_blue, acct->status, summarise_outgoing_packet_type(hdr), ntohs(acct->msg_len),
+		   ntohs(acct->data_len), common_data.font_plain);
 	    p = (char *) acct + TAC_ACCT_REPLY_FIXED_FIELDS_SIZE;
 	    report_string(DEBPACK, "msg", p, ntohs(acct->msg_len));
 	    p += ntohs(acct->msg_len);
