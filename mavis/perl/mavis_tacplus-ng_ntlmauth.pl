@@ -8,8 +8,6 @@
 # MSCHAP authentication using SAMBA's ntlm_auth tool. Requires winbindd et al. to
 # be running on your system.
 #
-# This will currently not work with MSCHAPv2 as NT_KEY isn't returned to the server for checking.
-#
 
 =pod
 
@@ -47,12 +45,12 @@ $| = 1;
 my $NTLM_AUTH = "/usr/bin/ntlm_auth";
 my $NT_DOMAIN = "EXAMPLE";
 
-$NTLM_AUTH		= $ENV{'NTLM_AUTH'} if exists $ENV{'NTLM_AUTH'};
-$NT_DOMAIN		= $ENV{'NT_DOMAIN'} if exists $ENV{'NT_DOMAIN'};
+$NTLM_AUTH	= $ENV{'NTLM_AUTH'} if exists $ENV{'NTLM_AUTH'};
+$NT_DOMAIN	= $ENV{'NT_DOMAIN'} if exists $ENV{'NT_DOMAIN'};
 
-sub run_ntlmauth($$) {
+sub run_ntlmauth($$$) {
 	my $pid = open3(my $chld_in, my $chld_out, undef,
-		$NTLM_AUTH, '--helper-protocol=ntlm-server-1', '--allow-mschapv2');
+		$NTLM_AUTH, '--helper-protocol=ntlm-server-1', '--allow-mschapv2', '--request-nt-key');
 
 	print $chld_in $_[0];
 	close $chld_in;
@@ -60,7 +58,9 @@ sub run_ntlmauth($$) {
 	my $res = 1;
 	local $/ = "\n";
 	while (<$chld_out>) {
-		if (/^Authentication-Error:\s(.*)$/) {
+		if (/^NT_KEY:\s+([0-9a-fA-F]+)/) {
+			$_[2]->[AV_A_PASSWORD] = $1;
+		} elsif (/^Authentication-Error:\s(.*)$/) {
 			print STDERR $_;
 			$_[1] = $_;
 		} else {
@@ -109,7 +109,7 @@ while ($in = <>) {
 		"NT-Domain: " . $NT_DOMAIN . "\n" .
 		"LANMAN-Challenge: " . $1 . "\n" .
 		"NT-Response: " . $2 . "\n" .
-		".\n", $err
+		".\n", $err, \@V
 	   )) {
 		$V[AV_A_RESULT] = AV_V_RESULT_FAIL;
 		$V[AV_A_USER_RESPONSE] = $err if $err;
