@@ -591,9 +591,6 @@ struct tac_session {
     str_t *msgid;
     str_t *result;
     str_t *acct_type;
-
-    struct radius_data *radius_data;
-
     u_char arg_cnt;
     u_char *arg_len;
     u_char *argp;
@@ -613,6 +610,7 @@ struct tac_session {
     time_t session_timeout;
     struct author_data *author_data;
     struct authen_data *authen_data;
+    struct radius_data *radius_data;
     struct mavis_data *mavis_data;
     struct pwdat *enable;
     struct autonumber *autonumber;
@@ -629,12 +627,11 @@ struct tac_session {
 	    u_char *challenge;
 	    size_t challenge_len;
 	    u_char *nt_response;
+	    char *nt_key; // plain hex text, mavis only
 	    u_char version;
 	    u_char ident;
 	} mschap;
-
-	// placed here to save memory
-	struct {
+	struct { // placed here to save memory, doesn't conflict with chap/mschap
 	    char *mfa_info;
 	    enum hint_enum mfa_hint;
 	    char *mfa_msg;
@@ -956,6 +953,8 @@ void update_bio(struct context *);
 ssize_t sendto_spoof(sockaddr_union * from_addr, sockaddr_union * dest_addr, void *buf, size_t len);
 void dump_hex(u_char * data, size_t data_len, char **buf);
 void dump_hex_mschap(u_char *data, size_t data_len, char **buf);
+
+char hexbyte(char *);
 
 int compare_fingerprint(const void *a, const void *b);
 struct fingerprint *lookup_fingerprint(struct context *ctx);
