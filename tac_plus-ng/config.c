@@ -1046,8 +1046,6 @@ static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm *parent, ta
     return nrealm;
 }
 
-static char hexbyte(char *);
-
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 static void parse_tls_psk_key(struct sym *sym, tac_host *host)
 {
@@ -2750,7 +2748,7 @@ int parse_user_profile_fmt(struct sym *sym, tac_user *user, char *fmt, ...)
     return parse_user_profile(sym, user);
 }
 
-static char hexbyte(char *s)
+char hexbyte(char *s)
 {
     char *h = "\0\01\02\03\04\05\06\07\010\011\0\0\0\0\0\0\0\012\013\014\015\016\017\0\0\0\0\0\0\0\0\0";
     return (h[(s[0] - '0') & 0x1F] << 4) | h[(s[1] - '0') & 0x1F];
