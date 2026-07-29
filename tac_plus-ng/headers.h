@@ -504,7 +504,6 @@ struct realm {
 struct tac_session;
 typedef struct tac_session tac_session;
 
-
 struct radius_data {
     enum token type;
     str_t device_dns_name;
@@ -546,6 +545,15 @@ struct author_data {
     char **out_args;		/* output arguments */
     int is_shell;
     int is_cmd;
+    // out args:
+    char **attrs_m;		/* mandatory */
+    char **attrs_o;		/* optional (from NAS) */
+    char **attrs_a;		/* add optional (to NAS) */
+    int cnt_m;
+    int cnt_o;
+    int cnt_a;
+    u_char authen_type;
+    u_char authen_method;
 };
 
 struct authen_data {
@@ -662,17 +670,9 @@ struct tac_session {
     u_int debug;
     u_char seq_no;		/* seq. no. of last packet exchanged */
     u_char version;
-    u_char pak_authen_type;
-    u_char pak_authen_method;
     void (*authfn)(tac_session *);
     void (*resumefn)(tac_session *);
-    char **attrs_m;		/* mandatory */
-    char **attrs_o;		/* optional (from NAS) */
-    char **attrs_a;		/* add optional (to NAS) */
     char *mavis_custom_attr[S_custom_3 - S_custom_0 + 1];
-    int cnt_m;
-    int cnt_o;
-    int cnt_a;
     enum token attr_dflt;
     time_t password_expiry;
     u_long mavis_latency;

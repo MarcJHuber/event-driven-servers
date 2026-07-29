@@ -1324,16 +1324,16 @@ int rad_get_password(tac_session *session, char **val, size_t *val_len)
 	    struct tac_key *key = session->ctx->key;
 	    char *pass = mem_alloc(session->mem, p[1] - 1);
 	    do {
-		u_char digest[16];
+		u_char digest[MD5_LEN];
 		for (int i = 0; i < p[1] - 2; i++) {
 		    if (!(i & 0xf)) {
 			struct iovec iov[2] = {
 			    {.iov_base = key->key,.iov_len = key->len },
 			    {.iov_base = i ? (p + i + 2 - 16) : session->radius_data->pak_in->authenticator,.iov_len = 16 }
 			};
-			md5v(digest, 16, iov, 2);
+			md5v(digest, sizeof(digest), iov, 2);
 		    }
-		    pass[i] = digest[i % 16] ^ p[i + 2];
+		    pass[i] = digest[i & 0xf] ^ p[i + 2];
 		}
 		if ((session->ctx->key_fixed == BISTATE_YES) || !key->next || password_is_printable(pass)) {
 		    *val = pass;
@@ -5803,17 +5803,17 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
     case S_add:
     case S_set:
     case S_optional:
-	{
+	if (session->author_data){
 	    session->eval_log_raw = 1;
 	    size_t v_len = 0;
 	    char *v = eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &v_len);
 	    session->eval_log_raw = 0;
 	    if (m->code == S_set)
-		attr_add(session, &session->attrs_m, &session->cnt_m, v, v_len);
+		attr_add(session, &session->author_data->attrs_m, &session->author_data->cnt_m, v, v_len);
 	    else if (m->code == S_add)
-		attr_add(session, &session->attrs_a, &session->cnt_a, v, v_len);
+		attr_add(session, &session->author_data->attrs_a, &session->author_data->cnt_a, v, v_len);
 	    else		// S_optional
-		attr_add(session, &session->attrs_o, &session->cnt_o, v, v_len);
+		attr_add(session, &session->author_data->attrs_o, &session->author_data->cnt_o, v, v_len);
 	    report(DEBACL, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, v);
 	    break;
 	}
