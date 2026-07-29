@@ -101,7 +101,6 @@ void author(tac_session *session, tac_pak_hdr *hdr)
     u_char *p, *argsizep;
     char **cmd_argp;
     struct author *pak = tac_payload(hdr, struct author *);
-    struct author_data *data;
 
 #define DEBAUTHZ session, LOG_DEBUG, DEBUG_AUTHOR_FLAG
 
@@ -115,6 +114,7 @@ void author(tac_session *session, tac_pak_hdr *hdr)
     /* arg length data starts here */
     p += pak->arg_cnt;
 
+    session->author_data = mem_alloc(session->mem, sizeof(struct author_data));
     session->author_data->authen_type = pak->authen_type;
     session->author_data->authen_method = pak->authen_method;
 
@@ -136,8 +136,7 @@ void author(tac_session *session, tac_pak_hdr *hdr)
     if (session->nac_addr_valid)
 	get_revmap_nac(session);
 
-    data = mem_alloc(session->mem, sizeof(struct author_data));
-    data->in_cnt = pak->arg_cnt;
+    session->author_data->in_cnt = pak->arg_cnt;
 
     eval_args(session, p, argsizep, pak->arg_cnt);
 
@@ -148,14 +147,13 @@ void author(tac_session *session, tac_pak_hdr *hdr)
 	p += *argsizep++;
     }
 
-    data->in_args = cmd_argp;	/* input command arguments */
-    session->author_data = data;
+    session->author_data->in_args = cmd_argp;	/* input command arguments */
 
     session->author_data->is_cmd = session->cmdline.len;
     if (session->service.txt)
 	session->author_data->is_shell = !strcmp(session->service.txt, "shell");
 
-    if (bad_nas_args(session, data)) {
+    if (bad_nas_args(session, session->author_data)) {
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt, NULL, 0, NULL);
 	return;
     }
