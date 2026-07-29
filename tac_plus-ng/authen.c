@@ -1558,7 +1558,7 @@ static void mschap_helper(tac_session *session, enum token *res, enum hint_enum 
     if (session->user) {
 	if (session->mavisauth_res != S_unknown) {
 	    *res = session->mavisauth_res;
-	    if (*res == S_permit && session->mschap.nt_key) {
+	    if (*res == S_permit && session->mschap.nt_key && nt_hash && nt_hash_set) {
 		char *s = session->mschap.nt_key;
 		if (s && strlen(s) == 2 * MSCHAP_NT_HASH_LEN) {
 		    int all_hex = 1;
