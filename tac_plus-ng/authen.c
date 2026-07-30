@@ -2293,7 +2293,7 @@ static void mppe_add_key(tac_session *session, u_char *masterkey, u_char attribu
     struct iovec iov[4] = {
 	{.iov_base = (void *) masterkey,.iov_len = 16 },
 	{.iov_base = (void *) SHApad1,.iov_len = sizeof(SHApad1) },
-	{.iov_base = (void *) Magic,.iov_len = sizeof(Magic) },
+	{.iov_base = (void *) Magic,.iov_len = sizeof(Magic2) },
 	{.iov_base = (void *) SHApad2,.iov_len = sizeof(SHApad2) }
     };
     sha1v(key, sizeof(key), iov, 4);
