@@ -98,12 +98,12 @@ static void av_write(av_ctx *ac, uint32_t result)
 
 	len += sizeof(struct mavis_ext_hdr_v1);
 	pthread_mutex_lock(&mutex_lock);
-	write(1, buf, len);
+	UNUSED_RESULT(write(1, buf, len));
 	pthread_mutex_unlock(&mutex_lock);
     } else {
 	len = av_array_to_char(ac, buf, len, NULL);
 	len += snprintf(buf + len, sizeof(struct mavis_ext_hdr_v1), "=%u\n", result);
-	write(1, buf, len);
+	UNUSED_RESULT(write(1, buf, len));
     }
     av_free(ac);
 }

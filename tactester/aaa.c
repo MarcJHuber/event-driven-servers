@@ -573,7 +573,7 @@ static int aaa_authc_radius(struct aaa *aaa, char *user, char *remoteaddr, char 
 	    *t++ = RADIUS_A_VENDOR_SPECIFIC;
 	    vlenp = t;
 	    *t++ = 6;
-	    u_char u = htonl(attr->dict->id);
+	    u_int u = htonl(attr->dict->id);
 	    memcpy(t, &u, 4);
 	    t += 4;
 	}
@@ -813,7 +813,7 @@ static int aaa_acct_radius(struct aaa *aaa, char *user, char *remoteaddr, char *
 	    *t++ = RADIUS_A_VENDOR_SPECIFIC;
 	    vlenp = t;
 	    *t++ = 6;
-	    u_char u = htonl(attr->dict->id);
+	    u_int u = htonl(attr->dict->id);
 	    memcpy(t, &u, 4);
 	    t += 4;
 	}

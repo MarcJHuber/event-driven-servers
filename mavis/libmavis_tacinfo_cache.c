@@ -246,10 +246,9 @@ static int mavis_send_in(mavis_ctx *mcx, av_ctx **ac)
 	    DebugOut(DEBUG_MAVIS);
 	    return MAVIS_DOWN;
 	}
-	char *c = alloca(st.st_size + 1);
+	char c[st.st_size + 1];
 	c[st.st_size] = 0;
-	if (read(fn, c, st.st_size)) {
-	}
+	UNUSED_RESULT(read(fn, c, st.st_size));
 	close(fn);
 	av_char_to_array(a, c, NULL);
 	for (int i = 0; keep[i] > -1; i++)

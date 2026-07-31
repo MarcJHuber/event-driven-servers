@@ -1968,7 +1968,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    // DTLS Application Data, but we haven't seen the handshake, possibly due to a daemon
 	    // restart. Just return some junk data back , the peer is likely to retry with a new handshake.
 	    char junk[128] = { 0 };
-	    write(ctx->sock, junk, sizeof(junk));
+	    UNUSED_RESULT(write(ctx->sock, junk, sizeof(junk)));
 	    cleanup(ctx, ctx->sock);
 	    return;
 	}

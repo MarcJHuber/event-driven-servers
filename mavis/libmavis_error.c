@@ -82,11 +82,11 @@ static int set_error_count(mavis_ctx *mcx, int add)
 	struct flock flock = {.l_type = F_WRLCK,.l_whence = SEEK_SET };
 	fcntl(fn, F_SETLK, &flock);
 	if (add) {
-	    read(fn, &count, sizeof(count));
+	    UNUSED_RESULT(read(fn, &count, sizeof(count)));
 	    count++;
 	}
 	lseek(fn, 0, SEEK_SET);
-	write(fn, &count, sizeof(count));
+	UNUSED_RESULT(write(fn, &count, sizeof(count)));
 	close(fn);
     }
     return count;

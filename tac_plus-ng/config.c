@@ -2765,7 +2765,7 @@ static int c7decode(char *in)
 	char *e = "051207055A0A070E204D4F08180416130A0D052B2A2529323423120617020057585952550F021917585956525354550A5A07065956";
 	char *u, *t = e;
 
-	c7 = calloc(0, strlen(e) / 2 + 1);
+	c7 = calloc(1, strlen(e) / 2 + 1);
 	u = c7;
 	while (*t) {
 	    *u = 'a' ^ hexbyte(t);
@@ -6338,8 +6338,8 @@ static void keylog_cb(const SSL *ssl __attribute__((unused)), const char *line)
 	fcntl(SSLKEYLOGFILE, F_SETLK, &flock);
 
 	lseek(SSLKEYLOGFILE, 0, SEEK_END);
-	write(SSLKEYLOGFILE, line, strlen(line));
-	write(SSLKEYLOGFILE, "\n", 1);
+	UNUSED_RESULT(write(SSLKEYLOGFILE, line, strlen(line)));
+	UNUSED_RESULT(write(SSLKEYLOGFILE, "\n", 1));
 
 	struct flock funlock = {.l_type = F_UNLCK,.l_whence = SEEK_SET };
 	fcntl(SSLKEYLOGFILE, F_SETLK, &funlock);

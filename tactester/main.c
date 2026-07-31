@@ -43,7 +43,7 @@ static int c7decode(char *in)
 	char *e = "051207055A0A070E204D4F08180416130A0D052B2A2529323423120617020057585952550F021917585956525354550A5A07065956";
 	char *u, *t = e;
 
-	c7 = calloc(0, strlen(e) / 2 + 1);
+	c7 = calloc(1, strlen(e) / 2 + 1);
 	u = c7;
 	while (*t) {
 	    *u = 'a' ^ hexbyte(t);
