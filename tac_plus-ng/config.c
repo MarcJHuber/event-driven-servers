@@ -1335,7 +1335,7 @@ int rad_get_password(tac_session *session, char **val, size_t *val_len)
 		    }
 		    pass[i] = digest[i & 0xf] ^ p[i + 2];
 		}
-		if ((session->ctx->key_fixed == BISTATE_YES) || !key->next || password_is_printable(pass)) {
+		if ((session->ctx->key_fixed == BISTATE_YES) || password_is_printable(pass)) {
 		    *val = pass;
 		    if (val_len)
 			*val_len = strlen(pass);
@@ -2616,8 +2616,8 @@ enum token eval_ruleset_r(tac_session *session, tac_realm *realm, int parent_fir
 	    res = eval_tac_acl(session, &rule->acl);
 #define DEBACL session, LOG_DEBUG, DEBUG_ACL_FLAG
 	    report(DEBACL | DEBUG_REGEX_FLAG,
-		   "%s@%s: ACL %s: %s (profile: %s)", session->username.txt,
-		   session->nac_addr_ascii.txt, rule->acl.name.txt, codestring[res].txt, session->profile ? session->profile->name.txt : "n/a");
+		   "%s@%s: ACL %s: %s (profile: %s)", session->username.txt, session->nac_addr_valid ? session->nac_addr_ascii.txt : "<unknown>",
+		   rule->acl.name.txt, codestring[res].txt, session->profile ? session->profile->name.txt : "n/a");
 	    switch (res) {
 	    case S_permit:
 	    case S_deny:
