@@ -187,6 +187,7 @@ use Net::LDAP::Extension::SetPassword;
 use Net::LDAP::Extra qw(AD);
 use IO::Socket::SSL;
 use Time::Local 'timegm';
+use Socket qw(SOL_SOCKET SO_KEEPALIVE);
 
 $| = 1;
 
@@ -337,6 +338,8 @@ retry_once:
 			$V[AV_A_USER_RESPONSE] = "No answer from LDAP backend.";
 			goto fatal;
 		}
+		my $sock = $ldap->socket();
+		setsockopt($sock, SOL_SOCKET, SO_KEEPALIVE, 1);
 		if (defined $use_starttls) {
 			my $mesg = $ldap->start_tls(%tls_options);
 			if ($mesg->code) {

@@ -122,7 +122,7 @@ LDAP_SKIP_GROUPOFNAMES
 	Default: unset
 """
 
-import os, sys, re, ldap3, time, calendar
+import os, sys, re, ldap3, time, calendar, socket
 from mavis import (Mavis,
 	MAVIS_DOWN, MAVIS_FINAL,
 	AV_V_RESULT_OK, AV_V_RESULT_ERROR, AV_V_RESULT_FAIL,
@@ -160,6 +160,7 @@ if eval_env('TLS_OPTIONS', None) is not None:
 eval_env('LDAP_HOSTS', 'ldaps://localhost')
 server_pool = ldap3.ServerPool(None, ldap3.FIRST, active=True)
 for server in LDAP_HOSTS.split():
+	keepalive_options = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
 	server_object = ldap3.Server(server, get_info=ldap3.DSA, tls=tls, connect_timeout=LDAP_CONNECT_TIMEOUT)
 	server_pool.add(server_object)
 
@@ -250,6 +251,9 @@ while True:
 			conn = ldap3.Connection(server_pool, user=LDAP_USER, password=LDAP_PASSWD,
 				receive_timeout=LDAP_CONNECT_TIMEOUT, auto_bind=True)
 			conn.bind()
+			raw_socket = conn.strategy.connection
+			if raw_socket is not None:
+				raw_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 			# Check for MS AD LDAP
 			if '1.2.840.113556.1.4.800' in map(
 				lambda x: x[0], conn.server.info.supported_features):

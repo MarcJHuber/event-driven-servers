@@ -187,8 +187,17 @@ static int LDAP_bind(LDAP *, const char *, const char *);
 static int LDAP_init(LDAP **ldap, int *capabilities)
 {
     int rc = ldap_initialize(ldap, ldap_url);
-    if (rc != LDAP_SUCCESS)
+    if (rc != LDAP_SUCCESS) {
 	fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
+	return rc;
+    }
+
+    int idle_timeout = 300;  // 5 minutes of total silence before probing
+    int probe_interval = 60; // Wait 60 seconds between individual probes
+    int probe_count = 1;     // Drop the connection after 1 unacknowledged probe
+    ldap_set_option(*ldap, LDAP_OPT_X_KEEPALIVE_IDLE, &idle_timeout);
+    ldap_set_option(*ldap, LDAP_OPT_X_KEEPALIVE_INTERVAL, &probe_interval);
+    ldap_set_option(*ldap, LDAP_OPT_X_KEEPALIVE_PROBES, &probe_count);
 
     int i = LDAP_VERSION3;
     rc = ldap_set_option(*ldap, LDAP_OPT_PROTOCOL_VERSION, &i);
@@ -722,12 +731,16 @@ static void av_write(av_ctx *ac, uint32_t result)
 
 static void *run_thread(void *arg)
 {
+    av_ctx *ac = (av_ctx *) arg;
     LDAP *ldap = NULL;
-    LDAP_init(&ldap, &capabilities);
+    if (LDAP_SUCCESS != LDAP_init(&ldap, &capabilities)) {
+	av_set(ac, AV_A_RESULT, AV_V_RESULT_ERROR);
+	av_write(ac, MAVIS_FINAL);
+	return NULL;
+    }
 
     char buf[4096];
     *buf = 0;
-    av_ctx *ac = (av_ctx *) arg;
     int result = MAVIS_DOWN;
 
     char *attrs[] = {
