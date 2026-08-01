@@ -72,22 +72,26 @@ static void md5_xor(tac_pak_hdr *hdr, char *key, int keylen)
 {
     if (key && *key) {
 	u_char *data = tac_payload(hdr, u_char *);
-	int data_len = ntohl(hdr->datalength), h = 0;
-	u_char hash[MD5_LEN][2];
+	int data_len = ntohl(hdr->datalength), h = 0, iovcnt = 4;
+	u_char digest[MD5_LEN][2];
+
+	struct iovec iov[5] = {
+	    {.iov_base = &hdr->session_id,.iov_len = sizeof(hdr->session_id) },
+	    {.iov_base = key,.iov_len = keylen },
+	    {.iov_base = &hdr->version,.iov_len = sizeof(hdr->version) },
+	    {.iov_base = &hdr->seq_no,.iov_len = sizeof(hdr->seq_no) },
+	    {.iov_base = NULL,.iov_len = MD5_LEN }
+	};
 
 	for (int i = 0; i < data_len; i += 16) {
 	    int min = minimum(data_len - i, 16);
-	    struct iovec iov[5] = {
-		{.iov_base = &hdr->session_id,.iov_len = sizeof(hdr->session_id) },
-		{.iov_base = key,.iov_len = keylen },
-		{.iov_base = &hdr->version,.iov_len = sizeof(hdr->version) },
-		{.iov_base = &hdr->seq_no,.iov_len = sizeof(hdr->seq_no) },
-		{.iov_base = hash[h ^ 1],.iov_len = MD5_LEN }
-	    };
-	    md5v(hash[h], MD5_LEN, iov, i ? 5 : 4);
+	    md5v(digest[h], MD5_LEN, iov, iovcnt);
 
 	    for (int j = 0; j < min; j++)
-		data[i + j] ^= hash[h][j];
+		data[i + j] ^= digest[h][j];
+
+	    iovcnt = 5;
+	    iov[4].iov_base = digest[h];
 	    h ^= 1;
 	}
 	hdr->flags ^= TAC_PLUS_UNENCRYPTED_FLAG;
