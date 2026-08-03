@@ -2082,15 +2082,17 @@ static void accept_control_check_tls_final(struct context *ctx)
 	accept_control_tls(ctx, ctx->sock);
 	return;
     }
-    if (!ctx->host)
-	reject_conn(ctx, ctx->hint, __func__, __LINE__);
-    else
-	accept_control_final(ctx);
+    accept_control_final(ctx);
 }
 #endif
 
 static void accept_control_final(struct context *ctx)
 {
+    if (!ctx->host) {
+	reject_conn(ctx, ctx->hint, __func__, __LINE__);
+	return;
+    }
+
     static int count = 0;
     tac_session session = {.ctx = ctx };
 
