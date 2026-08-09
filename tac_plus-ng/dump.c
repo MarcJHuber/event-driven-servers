@@ -119,7 +119,7 @@ static struct i2s map_type[] = {
 #ifdef TAC_PLUS_AUTHEN_TYPE_SSHCERT
     I2S(TAC_PLUS_AUTHEN_TYPE_SSHCERT, "sshcert"),
 #endif
-#ifdef TAC_PLUS_AUTHEN_TYPE_SSHCERT
+#ifdef TAC_PLUS_AUTHEN_TYPE_LOCAL
     I2S(TAC_PLUS_AUTHEN_TYPE_LOCAL, "local"),
 #endif
     { 0 }
