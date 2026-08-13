@@ -1286,6 +1286,9 @@ void parse_debug(struct sym *sym, u_int *d)
     int bit, add = ~0;
     while (sym->code != S_eof) {
 	switch (sym->code) {
+	case S_comma:
+	    sym_get(sym);
+	    continue;
 	case S_string:
 	    if (isdigit((int) (sym->buf[0]))
 		|| ((sym->buf[0] == '-')
