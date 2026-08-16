@@ -34,36 +34,26 @@ static char hexbyte(char *s)
 
 static int c7decode(char *in)
 {
-    char *out = in;
     size_t len = strlen(in);
-    static char *c7 = NULL;
-    static size_t c7_len = 0;
-
-    if (!c7) {
-	char *e = "051207055A0A070E204D4F08180416130A0D052B2A2529323423120617020057585952550F021917585956525354550A5A07065956";
-	char *u, *t = e;
-
-	c7 = calloc(1, strlen(e) / 2 + 1);
-	u = c7;
-	while (*t) {
-	    *u = 'a' ^ hexbyte(t);
-	    u++, t += 2;
-	}
-	c7_len = strlen(c7);
-    }
-
     if (len & 1 || len < 4)
 	return -1;
 
-    len -= 2;
     int seed = 10 * (in[0] - '0') + in[1] - '0';
     in += 2;
+    len -= 2;
 
+    static const char c7[53] = {
+	0x64, 0x73, 0x66, 0x64, 0x3B, 0x6B, 0x66, 0x6F, 0x41, 0x2C, 0x2E, 0x69, 0x79, 0x65,
+	0x77, 0x72, 0x6B, 0x6C, 0x64, 0x4A, 0x4B, 0x44, 0x48, 0x53, 0x55, 0x42, 0x73, 0x67,
+	0x76, 0x63, 0x61, 0x36, 0x39, 0x38, 0x33, 0x34, 0x6E, 0x63, 0x78, 0x76, 0x39, 0x38,
+	0x37, 0x33, 0x32, 0x35, 0x34, 0x6B, 0x3B, 0x66, 0x67, 0x38, 0x37
+    };
+
+    char *out = in;
     while (len) {
-	*out = hexbyte(in) ^ c7[seed % c7_len];
+	*out = hexbyte(in) ^ c7[seed % sizeof(c7)];
 	in += 2, seed++, len -= 2, out++;
     }
-
     *out = 0;
 
     return 0;
