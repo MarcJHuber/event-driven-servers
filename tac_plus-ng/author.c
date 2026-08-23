@@ -149,9 +149,9 @@ void author(tac_session *session, tac_pak_hdr *hdr)
 
     session->author_data->in_args = cmd_argp;	/* input command arguments */
 
-    session->author_data->is_cmd = session->cmdline.len;
+    session->author_data->is_cmd = session->cmdline.len ? BISTATE_YES : BISTATE_NO;
     if (session->service.txt)
-	session->author_data->is_shell = !strcmp(session->service.txt, "shell");
+	session->author_data->is_shell = strcmp(session->service.txt, "shell") ? BISTATE_NO : BISTATE_YES;
 
     if (bad_nas_args(session, session->author_data)) {
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt, NULL, 0, NULL);
