@@ -5932,6 +5932,8 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	m->b.v = mem_strdup(mem, sym->buf);
 	sym_get(sym);
 	break;
+    case S_mavis:
+	sym_get(sym);
     case S_mfa:
 	m = mavis_action_new(sym, mem);
 	switch (sym->code) {
