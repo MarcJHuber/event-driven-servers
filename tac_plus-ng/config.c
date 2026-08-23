@@ -5712,9 +5712,9 @@ int rad_attr_add_dacl(tac_session *session, struct rad_dacl *dacl, uint32_t *i)
 
 enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 {
-    enum token r;
-    if (!m)
+    if (!session || !m)
 	return S_unknown;
+    enum token r;
     switch (m->code) {
     case S_return:
     case S_permit:
@@ -5807,6 +5807,12 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 	    report(DEBACL, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, v);
 	    break;
 	}
+    case S_mfa:
+	if (session->author_data) {
+	    session->author_data->require_mfa = m->b.v ? BISTATE_YES : BISTATE_NO;
+	    report(DEBACL, " line %u: [%s] '%d'", m->line, codestring[m->code].txt, session->author_data->require_mfa);
+	}
+	break;
     case S_if:
 	if (tac_script_cond_eval(session, m->a.c)) {
 	    r = tac_script_eval_r(session, m->b.a);
@@ -5923,6 +5929,11 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	parse(sym, S_equal);
 	m->b.v = mem_strdup(mem, sym->buf);
 	sym_get(sym);
+	break;
+    case S_mfa:
+	m = mavis_action_new(sym, mem);
+	parse(sym, S_equal);
+	m->b.v = parse_bool(sym) ? "" : NULL;
 	break;
     case S_add:
     case S_optional:

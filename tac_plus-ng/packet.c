@@ -171,7 +171,7 @@ void send_acct_reply(tac_session *session, u_char status, char *msg, char *data)
 }
 
 /* send an authorization reply packet */
-void send_author_reply(tac_session *session, u_char status, char *msg, char *data, int arg_cnt, char **args)
+void send_author_reply_final(tac_session *session, u_char status, char *msg, char *data, int arg_cnt, char **args)
 {
     int msg_len = msg ? (int) strlen(msg) : 0;
     int data_len = data ? (int) strlen(data) : 0;
@@ -266,6 +266,37 @@ static str_t msgid_ ## A = { .txt = B, .len = sizeof(B) - 1 }
     write_packet(session->ctx, pak);
 
     cleanup_session(session);
+}
+
+void send_author_reply_mfa(tac_session *session)
+{
+    if (!session->flag_mavis_mfa) {
+	session->flag_mavis_mfa = 1;
+	mavis_lookup(session, send_author_reply_mfa, AV_V_TACTYPE_MFA, PW_LOGIN);
+	return;
+    }
+    if (session->mavisauth_res != S_permit)
+	session->author_data->status = TAC_PLUS_AUTHOR_STATUS_FAIL;
+
+    send_author_reply_final(session, session->author_data->status, session->author_data->msg, session->author_data->data, session->author_data->out_cnt,
+			    session->author_data->out_args);
+}
+
+void send_author_reply(tac_session *session, u_char status, char *msg, char *data, int arg_cnt, char **args)
+{
+    session->author_data->status = status;
+    session->author_data->msg = msg;
+    session->author_data->data = data;
+    session->author_data->out_cnt = arg_cnt;;
+    session->author_data->out_args = args;
+
+
+    if (session->user && session->author_data->require_mfa
+	&& (status == TAC_PLUS_AUTHEN_STATUS_PASS || status == TAC_PLUS_AUTHOR_STATUS_PASS_ADD || status == TAC_PLUS_AUTHOR_STATUS_PASS_REPL)) {
+	send_author_reply_mfa(session);
+	return;
+    }
+    send_author_reply_final(session, status, msg, data, arg_cnt, args);
 }
 
 /* Send an authentication reply packet indicating an error has occurred. */
