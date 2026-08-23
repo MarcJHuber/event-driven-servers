@@ -537,14 +537,19 @@ typedef struct tac_pak tac_pak;
 typedef struct rad_pak rad_pak;
 
 struct author_data {
+    char *msg;
+    char *data;
     char *admin_msg;		/* admin message (optional) */
     int status;			/* return status */
     int in_cnt;			/* input arg count */
     char **in_args;		/* input arguments */
     int out_cnt;		/* output arg cnt */
     char **out_args;		/* output arguments */
-    int is_shell;
-    int is_cmd;
+    struct {
+	BISTATE(is_shell);
+	BISTATE(is_cmd);
+	BISTATE(require_mfa);
+    } __attribute__((__packed__));
     // out args:
     char **attrs_m;		/* mandatory */
     char **attrs_o;		/* optional (from NAS) */
