@@ -2757,11 +2757,13 @@ char hexbyte(char *s)
 
 static int c7decode(char *in)
 {
+char *in_orig = in;
     size_t len = strlen(in);
     if (len & 1 || len < 4)
 	return -1;
 
     int seed = 10 * (in[0] - '0') + in[1] - '0';
+    char *out = in;
     in += 2;
     len -= 2;
 
@@ -2772,7 +2774,6 @@ static int c7decode(char *in)
 	0x37, 0x33, 0x32, 0x35, 0x34, 0x6B, 0x3B, 0x66, 0x67, 0x38, 0x37
     };
 
-    char *out = in;
     while (len) {
 	*out = hexbyte(in) ^ c7[seed % sizeof(c7)];
 	in += 2, seed++, len -= 2, out++;
