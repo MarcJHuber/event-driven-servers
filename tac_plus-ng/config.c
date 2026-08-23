@@ -1863,6 +1863,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		switch (sym->code) {
 		case S_acl:
 		    sym_get(sym);
+		    parse(sym, S_equal);
 		    r->mavis_mfa_acl = tac_acl_lookup(sym->buf, r);
 		    if (!r->mavis_mfa_acl)
 			parse_error(sym, "ACL '%s' not found", sym->buf);
@@ -3414,6 +3415,7 @@ static void parse_user_attr(struct sym *sym, tac_user *user)
 	    switch (sym->code) {
 	    case S_acl:
 		sym_get(sym);
+		parse(sym, S_equal);
 		user->mavis_mfa_acl = tac_acl_lookup(sym->buf, r);
 		if (!user->mavis_mfa_acl)
 		    parse_error(sym, "ACL '%s' not found", sym->buf);
@@ -5809,8 +5811,8 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 	}
     case S_mfa:
 	if (session->author_data) {
-	    session->author_data->require_mfa = m->b.v ? BISTATE_YES : BISTATE_NO;
-	    report(DEBACL, " line %u: [%s] '%d'", m->line, codestring[m->code].txt, session->author_data->require_mfa);
+	    session->want_mfa = (S_permit == eval_tac_acl(session, (struct tac_acl *) m->b.v)) ? BISTATE_YES : BISTATE_NO;
+	    report(DEBACL, " line %u: [%s] '%d'", m->line, codestring[m->code].txt, session->want_mfa);
 	}
 	break;
     case S_if:
@@ -5932,8 +5934,21 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	break;
     case S_mfa:
 	m = mavis_action_new(sym, mem);
-	parse(sym, S_equal);
-	m->b.v = parse_bool(sym) ? "" : NULL;
+	switch (sym->code) {
+	case S_acl:
+	    sym_get(sym);
+	    m->b.v = (char *) tac_acl_lookup(sym->buf, realm);
+	    if (!m->b.v)
+		parse_error(sym, "ACL '%s' not found", sym->buf);
+	    sym_get(sym);
+	    break;
+	case S_equal:
+	    sym_get(sym);
+	    m->b.v = (char *) tac_acl_lookup(parse_bool(sym) ? "__internal__permit__" : "__internal__deny__", realm);
+	    break;
+	default:
+	    parse_error_expect(sym, S_acl, S_equal, S_unknown);
+	}
 	break;
     case S_add:
     case S_optional:

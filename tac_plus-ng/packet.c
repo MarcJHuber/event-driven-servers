@@ -291,7 +291,7 @@ void send_author_reply(tac_session *session, u_char status, char *msg, char *dat
     session->author_data->out_args = args;
 
 
-    if (session->user && session->author_data->require_mfa
+    if (session->user && session->want_mfa
 	&& (status == TAC_PLUS_AUTHEN_STATUS_PASS || status == TAC_PLUS_AUTHOR_STATUS_PASS_ADD || status == TAC_PLUS_AUTHOR_STATUS_PASS_REPL)) {
 	send_author_reply_mfa(session);
 	return;

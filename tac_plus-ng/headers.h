@@ -548,7 +548,6 @@ struct author_data {
     struct {
 	BISTATE(is_shell);
 	BISTATE(is_cmd);
-	BISTATE(require_mfa);
     } __attribute__((__packed__));
     // out args:
     char **attrs_m;		/* mandatory */
