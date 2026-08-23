@@ -1349,7 +1349,8 @@ mavis format custom_0 = "${server.address} ${server.port}"
      * mavis mfa = ( yes | no )
        mavis mfa acl = acl
        Authenticate users via MAVIS MFA. These directives work in
-       user context, too.
+       user context, too. Also, you may use them in scripts (for
+       authorizing shell access, for example.)
      __________________________________________________________
 
 4.7.3. TLS and DTLS
