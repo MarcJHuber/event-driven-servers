@@ -2757,7 +2757,6 @@ char hexbyte(char *s)
 
 static int c7decode(char *in)
 {
-char *in_orig = in;
     size_t len = strlen(in);
     if (len & 1 || len < 4)
 	return -1;
