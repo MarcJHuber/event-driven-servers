@@ -166,24 +166,24 @@ enum token eval_ftp_acl(struct context *ctx, struct ftp_acl *acl, char *arg, cha
 	    } else {
 
 		if (r->state_anon_check) {
-		    if (r->state_anon && ctx->anonymous)
+		    if (r->state_anon && !ctx->anonymous)
 			continue;
-		    if (!r->state_anon && !ctx->anonymous)
+		    if (!r->state_anon && ctx->anonymous)
 			continue;
 		}
 
 		if (r->state_real_check) {
-		    if (r->state_real && ctx->real)
+		    if (r->state_real && !ctx->real)
 			continue;
-		    if (!r->state_real && !ctx->real)
+		    if (!r->state_real && ctx->real)
 			continue;
 		}
 	    }
 #ifdef WITH_SSL
 	    if (r->state_secure_check) {
-		if (r->state_secure && ctx->ssl_c)
+		if (r->state_secure && !ctx->ssl_c)
 		    continue;
-		if (!r->state_secure && !ctx->ssl_c)
+		if (!r->state_secure && ctx->ssl_c)
 		    continue;
 	    }
 #endif
