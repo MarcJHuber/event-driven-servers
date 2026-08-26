@@ -13,7 +13,7 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 
 void buffer2socket(struct context *ctx, int cur)
 {
-    size_t l;
+    ssize_t l;
     off_t o;
     int fd_in;
     struct buffer *b;
