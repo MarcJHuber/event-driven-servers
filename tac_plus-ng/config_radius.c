@@ -260,7 +260,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 		    *buf_len -= val->name.len;
 		} else {
 		    int len = snprintf(*buf, *buf_len, "%u", i);
-		    if (len > 0) {
+		    if (len < *buf_len) {
 			*buf += len;
 			*buf_len -= len;
 		    }
