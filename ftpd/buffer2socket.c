@@ -260,7 +260,7 @@ void buffer2socket(struct context *ctx, int cur __attribute__((unused)))
 	    ctx->dbuf = buffer_append(ctx->dbuf, buf);
 
 	    t = buf->buf;
-	    tl = t + buf->size;
+	    tl = t + buf->size - 1;
 
 	    if (ctx->chunk_length > buf->size) {
 		for (; t < tl; *t++ = lastchar = *u++)
