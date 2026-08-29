@@ -467,7 +467,7 @@ retry_once:
 		if (defined $gidNumber && (!defined $LDAP_SKIP_POSIXGROUP || $LDAP_SKIP_POSIXGROUP ne "1")) {
 			my @G = ($gidNumber);
 			unless (exists $gidHash{$gidNumber}) {
-				debug_timer_start("gidNumber");
+				debug_timer_start("ldap gidNumber");
 				$mesg = $ldap->search(base => $LDAP_BASE_POSIXGROUP, scope => $LDAP_SCOPE_POSIXGROUP, attrs => ['cn'],
 					filter => sprintf('(&(objectclass=posixGroup)(gidNumber=%s))', $gidNumber));
 				$gidHash{$gidNumber} = $mesg->entry(0)->get_value('cn') if $mesg->count() == 1;
@@ -475,7 +475,7 @@ retry_once:
 			}
 			push @M, $gidHash{$gidNumber} if exists $gidHash{$gidNumber};
 
-			debug_timer_start("gidNumber");
+			debug_timer_start("ldap gidNumber");
 			$mesg = $ldap->search(base => $LDAP_BASE_POSIXGROUP, scope => $LDAP_SCOPE_POSIXGROUP, attrs => ['cn', 'gidNumber'],
 				filter => sprintf('(&(objectclass=posixGroup)(memberUid=%s))', $V[AV_A_USER]));
 			debug_timer_stop;
@@ -516,7 +516,7 @@ retry_once:
 					$V[AV_A_PASSWORD_EXPIRY] = $expiry;
 				}
 			}
-			debug_timer_start("bind");
+			debug_timer_start("ldap user bind");
 			$mesg =  $ldap->bind($authdn, password => $V[AV_A_PASSWORD]);
 			debug_timer_stop;
 			my $code = $mesg->code;
