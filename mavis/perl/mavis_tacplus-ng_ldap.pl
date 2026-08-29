@@ -153,6 +153,7 @@ my $LDAP_SKIP_POSIXGROUP	= undef;
 my $LDAP_SKIP_GROUPOFNAMES	= undef;
 my $use_starttls;
 my %tls_options;
+my $LDAP_DEBUG_TIME		= undef;
 
 %tls_options = eval $ENV{'TLS_OPTIONS'} if exists $ENV{'TLS_OPTIONS'};
 
@@ -179,7 +180,9 @@ $LDAP_NESTED_GROUP_DEPTH	= $ENV{'LDAP_NESTED_GROUP_DEPTH'} if exists $ENV{'LDAP_
 
 $LDAP_SKIP_MEMBEROF	= $ENV{'LDAP_SKIP_MEMBEROF'} if exists $ENV{'LDAP_SKIP_MEMBEROF'};
 $LDAP_SKIP_POSIXGROUP	= $ENV{'LDAP_SKIP_POSIXGROUP'} if exists $ENV{'LDAP_SKIP_POSIXGROUP'};
+
 $LDAP_SKIP_GROUPOFNAMES	= $ENV{'LDAP_SKIP_GROUPOFNAMES'} if exists $ENV{'LDAP_SKIP_GROUPOFNAMES'};
+$LDAP_DEBUG_TIME	= $ENV{'LDAP_DEBUG_TIME'} if exists $ENV{'LDAP_DEBUG_TIME'};
 
 use Net::LDAP qw(LDAP_INVALID_CREDENTIALS LDAP_CONSTRAINT_VIOLATION);
 use Net::LDAP::Constant qw(LDAP_EXTENSION_PASSWORD_MODIFY LDAP_CAP_ACTIVE_DIRECTORY);
@@ -187,6 +190,7 @@ use Net::LDAP::Extension::SetPassword;
 use Net::LDAP::Extra qw(AD);
 use IO::Socket::SSL;
 use Time::Local 'timegm';
+use Time::HiRes qw(gettimeofday tv_interval);
 use Socket qw(SOL_SOCKET SO_KEEPALIVE);
 
 $| = 1;
@@ -267,6 +271,24 @@ sub expand_memberof($) {
 	return \@res;
 }
 
+my $debug_timer;
+my $debug_title = "";
+
+sub debug_timer_start($)
+{
+	return unless $LDAP_DEBUG_TIME;
+	$debug_title = $_[0];
+	$debug_timer = [gettimeofday];
+}
+
+sub debug_timer_stop()
+{
+	return unless $LDAP_DEBUG_TIME;
+	my $line;
+	(undef, undef, $line) = caller;
+	print STDERR $debug_title , " ($line): " , tv_interval($debug_timer, [gettimeofday]), "\n";
+}
+
 use Time::Local;
 my @now = localtime(time);
 
@@ -333,6 +355,7 @@ while ($in = <>) {
 retry_once:
 
 	unless ($ldap) {
+		debug_timer_start("ldap init");
 		$ldap = Net::LDAP->new($LDAP_HOSTS, timeout=>$LDAP_CONNECT_TIMEOUT, %tls_options);
 		unless ($ldap) {
 			$V[AV_A_USER_RESPONSE] = "No answer from LDAP backend.";
@@ -344,12 +367,14 @@ retry_once:
 			my $mesg = $ldap->start_tls(%tls_options);
 			if ($mesg->code) {
 				$V[AV_A_USER_RESPONSE] = "TLS negotiation failed.";
+				debug_timer_stop;
 				goto fatal;
 			}
 		}
 		my $mesg = $ldap->bind(@LDAP_BIND);
 		if ($mesg->code){
 			$V[AV_A_USER_RESPONSE] = $mesg->error . " (" . __LINE__ . ")";
+			debug_timer_stop;
 			goto fatal;
 		}
 		unless (defined $LDAP_SERVER_TYPE) {
@@ -368,9 +393,11 @@ retry_once:
 			printf STDERR "The 389 directory server will not return the memberOf attribute for anonymous binds. " .
 				      "Please set the LDAP_USER and LDAP_PASSWD environment variables.\n";
 		}
+		debug_timer_stop;
 	}
 
 	my $authdn = undef;
+	debug_timer_start("ldap bind");
 	my $mesg = $ldap->bind(@LDAP_BIND);
 	if ($mesg->code && defined($retry)) {
 		$retry = undef;
@@ -380,6 +407,7 @@ retry_once:
 		printf STDERR "ldap retry, due to bind failure (" . __LINE__ . ")\n";
 		goto retry_once;
 	}
+	debug_timer_stop;
 	if ($mesg->code){
 		$V[AV_A_USER_RESPONSE] = $mesg->error . " (" . __LINE__ . ")";
 		goto fatal;
@@ -388,9 +416,11 @@ retry_once:
 		$has_extension_password_modify =
 			$ldap->root_dse->supported_extension(LDAP_EXTENSION_PASSWORD_MODIFY);
 	}
+	debug_timer_start("ldap search");
 	$mesg = $ldap->search(base => $LDAP_BASE, filter => sprintf($LDAP_FILTER, $V[AV_A_USER]), scope => $LDAP_SCOPE,
 		attrs => ['shadowExpire','memberOf','dn', 'uidNumber', 'gidNumber', 'loginShell', 'homeDirectory', 'sshPublicKey',
 			  'krbPasswordExpiration', $LDAP_TACMEMBER]);
+	debug_timer_stop;
 	if ($mesg->count() == 1) {
 		my $entry = $mesg->entry(0);
 
@@ -400,9 +430,13 @@ retry_once:
 		my (@M, @MO);
 		if ($#{$val} > -1) {
 			$LDAP_SKIP_GROUPOFNAMES = "1" unless defined $LDAP_SKIP_GROUPOFNAMES;
+			debug_timer_start("ldap expand memberOf");
 			$val = expand_memberof($val) unless defined $LDAP_SKIP_MEMBEROF && $LDAP_SKIP_MEMBEROF eq "1";
+			debug_timer_stop;
 		} else {
+			debug_timer_start("ldap expand groupOfNames");
 			$val = expand_groupOfNames($entry->dn) unless defined $LDAP_SKIP_GROUPOFNAMES && $LDAP_SKIP_GROUPOFNAMES eq "1";
+			debug_timer_stop;
 		}
 		foreach my $m (sort @$val) {
 			if ($m =~ /$LDAP_MEMBEROF_REGEX/i) {
@@ -433,14 +467,18 @@ retry_once:
 		if (defined $gidNumber && (!defined $LDAP_SKIP_POSIXGROUP || $LDAP_SKIP_POSIXGROUP ne "1")) {
 			my @G = ($gidNumber);
 			unless (exists $gidHash{$gidNumber}) {
+				debug_timer_start("gidNumber");
 				$mesg = $ldap->search(base => $LDAP_BASE_POSIXGROUP, scope => $LDAP_SCOPE_POSIXGROUP, attrs => ['cn'],
 					filter => sprintf('(&(objectclass=posixGroup)(gidNumber=%s))', $gidNumber));
 				$gidHash{$gidNumber} = $mesg->entry(0)->get_value('cn') if $mesg->count() == 1;
+				debug_timer_stop;
 			}
 			push @M, $gidHash{$gidNumber} if exists $gidHash{$gidNumber};
 
+			debug_timer_start("gidNumber");
 			$mesg = $ldap->search(base => $LDAP_BASE_POSIXGROUP, scope => $LDAP_SCOPE_POSIXGROUP, attrs => ['cn', 'gidNumber'],
 				filter => sprintf('(&(objectclass=posixGroup)(memberUid=%s))', $V[AV_A_USER]));
+			debug_timer_stop;
 			for (my $i = 0; $i < $mesg->count(); $i++) {
 				push @M, $mesg->entry($i)->get_value('cn');
 				push @G, $mesg->entry($i)->get_value('gidNumber');
@@ -478,7 +516,9 @@ retry_once:
 					$V[AV_A_PASSWORD_EXPIRY] = $expiry;
 				}
 			}
+			debug_timer_start("bind");
 			$mesg =  $ldap->bind($authdn, password => $V[AV_A_PASSWORD]);
+			debug_timer_stop;
 			my $code = $mesg->code;
 			my $userresponse = undef;
 			if ($code == LDAP_INVALID_CREDENTIALS && $LDAP_SERVER_TYPE eq 'microsoft') {
@@ -518,7 +558,9 @@ retry_once:
 					$V[AV_A_USER_RESPONSE] = "Password change is unsupported.";
 					goto fail;
 				}
+				debug_timer_start("bind chpw");
 				$mesg =  $ldap->bind($authdn, password => $V[AV_A_PASSWORD]);
+				debug_timer_stop;
 				if ($mesg->code) {
 					$V[AV_A_USER_RESPONSE] = $mesg->error . " (" . __LINE__ . ")";
 					goto fail if ($mesg->code == LDAP_INVALID_CREDENTIALS || $mesg->code == LDAP_CONSTRAINT_VIOLATION);
