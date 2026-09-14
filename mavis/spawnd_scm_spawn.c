@@ -34,6 +34,7 @@ void spawnd_cleanup_internal(struct spawnd_context *ctx, int fd __attribute__((u
 	for (i = 0; i < common_data.servers_cur && ctx != spawnd_data.server_arr[i]; i++);
 	if (i < common_data.servers_cur) {
 	    common_data.users_cur -= ctx->use;
+	    ctx->use = 0;
 	    spawnd_adjust_tracking(i, -1);
 	    common_data.servers_cur--;
 	    spawnd_data.server_arr[i] = spawnd_data.server_arr[common_data.servers_cur];
