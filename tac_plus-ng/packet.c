@@ -1304,7 +1304,7 @@ void cleanup_session(tac_session *session)
 	mavis_cancel(mcx, session);
     mem_destroy(session->mem);
     mem_free(ctx->mem, &session);
-    if ((ctx->cleanup_when_idle == TRISTATE_YES)
+    if ((ctx->host->cleanup_when_idle == TRISTATE_YES)
 	&& (!ctx->single_connection_flag || (die_when_idle && !RB_first(ctx->sessions) && !RB_first(ctx->shellctxcache)))) {
 	if (ctx->out || ctx->delayed)	// pending output
 	    ctx->dying = 1;

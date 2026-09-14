@@ -753,7 +753,6 @@ struct context {
 	BISTATE(sni_passed);
 	BISTATE(fingerprint_matched);
 #endif
-	TRISTATE(cleanup_when_idle);	/* cleanup context when idle */
 	BISTATE(unencrypted_flag);	/* not MD5 encrypted? */
 	BISTATE(single_connection_flag);	/* single-connection enabled? */
 	BISTATE(single_connection_test);	/* single-connection capable, but not telling? */

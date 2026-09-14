@@ -328,7 +328,7 @@ static void periodics_ctx(struct context *ctx, int cur __attribute__((unused)))
 
     tac_script_expire_exec_context(ctx);
 
-    if (ctx->cleanup_when_idle && !ctx->out && !ctx->delayed && !RB_first(ctx->sessions) && !RB_first(ctx->shellctxcache))
+    if (ctx->host->cleanup_when_idle && !ctx->out && !ctx->delayed && !RB_first(ctx->sessions) && !RB_first(ctx->shellctxcache))
 	cleanup(ctx, ctx->sock);
     else
 	io_sched_renew_proc(ctx->io, ctx, (void *) periodics_ctx);
