@@ -6509,7 +6509,7 @@ static SSL_CTX *ssl_init(struct realm *r, int dtls, int use_tls_psk)
     char *sslkeylogfile = getenv("SSLKEYLOGFILE");
     if (sslkeylogfile) {
 	if (SSLKEYLOGFILE < 0)
-	    SSLKEYLOGFILE = open(sslkeylogfile, O_CREAT | O_APPEND, 0644);
+	    SSLKEYLOGFILE = open(sslkeylogfile, O_WRONLY | O_CREAT | O_APPEND, 0600);
 	if (SSLKEYLOGFILE > -1)
 	    SSL_CTX_set_keylog_callback(ctx, keylog_cb);
     }
