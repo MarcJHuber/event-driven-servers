@@ -2024,10 +2024,16 @@ static void accept_control_check_tls_final(struct context *ctx)
 	if (ctx->realm->tls_sni_required != TRISTATE_YES)
 	    ctx->sni_passed = BISTATE_YES;
 
+	SSL_CTX *ssl_ctx = NULL;
+	ctx->tls = NULL;
+
 	if (ctx->use_tls_psk)
-	    ctx->tls = SSL_new(ctx->use_tls ? ctx->realm->tls_psk : (ctx->use_dtls ? ctx->realm->dtls_psk : NULL));
+	    ssl_ctx = ctx->use_tls ? ctx->realm->tls_psk : (ctx->use_dtls ? ctx->realm->dtls_psk : NULL);
 	else
-	    ctx->tls = SSL_new(ctx->use_tls ? ctx->realm->tls : (ctx->use_dtls ? ctx->realm->dtls : NULL));
+	    ssl_ctx = ctx->use_tls ? ctx->realm->tls : (ctx->use_dtls ? ctx->realm->dtls : NULL);
+
+	if (ssl_ctx)
+	    ctx->tls = SSL_new(ssl_ctx);
 
 	if (ctx->tls) {
 	    SSL_set_app_data(ctx->tls, ctx);
