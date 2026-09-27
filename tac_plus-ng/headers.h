@@ -294,7 +294,13 @@ struct tac_profile {
     u_int debug;		/* debug flags */
 };
 
-struct ssh_key;
+struct ssh_key {
+    struct ssh_key *next;
+    char *key;
+    size_t key_len;
+    char hash[1];
+};
+
 struct ssh_key_id;
 struct tac_alias;
 typedef struct tac_alias tac_alias;
@@ -618,6 +624,7 @@ struct tac_session {
     char *welcome_banner;
     char *ssh_key_hash;
     char *ssh_key_id;
+    struct ssh_key *ssh_key;
     int session_id;
     time_t session_timeout;
     struct author_data *author_data;

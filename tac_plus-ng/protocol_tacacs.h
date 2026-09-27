@@ -95,6 +95,7 @@ struct authen_start {
 #define TAC_PLUS_AUTHEN_CHPASS   0x02
 #define TAC_PLUS_AUTHEN_SENDPASS 0x03	/* deprecated */
 #define TAC_PLUS_AUTHEN_SENDAUTH 0x04
+#define TAC_PLUS_AUTHEN_SEND_PUBLIC_KEYS 0x05
 
     u_char priv_lvl;
 #define TAC_PLUS_PRIV_LVL_MIN 0x0
@@ -107,8 +108,12 @@ struct authen_start {
 #define TAC_PLUS_AUTHEN_TYPE_ARAP   4
 #define TAC_PLUS_AUTHEN_TYPE_MSCHAP 5
 #define TAC_PLUS_AUTHEN_TYPE_MSCHAPV2 6
+
+// draft-dahm-tacacs-sshpk, disabled for now:
+//#define TAC_PLUS_AUTHEN_TYPE_SSH    7
+
 // experimental authen types:
-#define TAC_PLUS_AUTHEN_TYPE_SSHKEY 240
+//#define TAC_PLUS_AUTHEN_TYPE_SSHKEY 240
 //#define TAC_PLUS_AUTHEN_TYPE_SSHCERT 241
 //#define TAC_PLUS_AUTHEN_TYPE_LOCAL 243
 
@@ -160,6 +165,7 @@ struct authen_reply {
 #define TAC_PLUS_AUTHEN_STATUS_RESTART  0x06
 #define TAC_PLUS_AUTHEN_STATUS_ERROR    0x07
 #define TAC_PLUS_AUTHEN_STATUS_FOLLOW   0x21
+#define TAC_PLUS_AUTHEN_STATUS_MORE	0x22
 
     u_char flags;
 #define	TAC_PLUS_REPLY_FLAG_NOECHO	0x01

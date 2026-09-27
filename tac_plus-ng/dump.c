@@ -102,6 +102,7 @@ static struct i2s map_action[] = {
     I2S(TAC_PLUS_AUTHEN_CHPASS, "chpass"),
     I2S(TAC_PLUS_AUTHEN_SENDPASS, "sendpass"),
     I2S(TAC_PLUS_AUTHEN_SENDAUTH, "sendauth"),
+    I2S(TAC_PLUS_AUTHEN_SEND_PUBLIC_KEYS, "sendpublickeys"),
     { 0 }
 };
 
@@ -121,6 +122,9 @@ static struct i2s map_type[] = {
 #endif
 #ifdef TAC_PLUS_AUTHEN_TYPE_LOCAL
     I2S(TAC_PLUS_AUTHEN_TYPE_LOCAL, "local"),
+#endif
+#ifdef TAC_PLUS_AUTHEN_TYPE_SSH
+    I2S(TAC_PLUS_AUTHEN_TYPE_SSH, "ssh"),
 #endif
     { 0 }
 };

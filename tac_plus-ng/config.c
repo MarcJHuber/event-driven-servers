@@ -3048,12 +3048,6 @@ static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm 
 // MD5 *and* SHA256.
 //
 
-struct ssh_key {
-    struct ssh_key *next;
-    char *key;
-    char hash[1];
-};
-
 enum token validate_ssh_hash(tac_session *session, char *hash, char **key)
 {
     enum token res = S_deny;
@@ -3358,6 +3352,7 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 	*ssh_key = mem_alloc(user->mem, sizeof(struct ssh_key) + len);
 	memcpy((*ssh_key)->hash, hash, len + 1);
 	(*ssh_key)->key = key;
+	(*ssh_key)->key_len = len;
 
 	sym_get(sym);
 	ssh_key = &((*ssh_key)->next);
