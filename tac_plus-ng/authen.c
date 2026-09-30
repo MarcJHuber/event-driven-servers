@@ -2234,7 +2234,7 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 #endif
 #ifdef TAC_PLUS_AUTHEN_TYPE_SSH
 		case TAC_PLUS_AUTHEN_TYPE_SSH:
-		    if (start->type == TAC_PLUS_AUTHEN_TYPE_SSH)
+		    if (hdr->version == TAC_PLUS_VER_TWO)
 			session->authfn = do_ssh;
 		    break;
 #endif
