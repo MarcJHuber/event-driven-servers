@@ -548,7 +548,11 @@ int conn_connect(struct conn *conn)
     SSL_set_app_data(conn->ssl, conn);
     if (conn->sni) {
 	SSL_set_tlsext_host_name(conn->ssl, conn->sni);
+#if OPENSSL_VERSION_NUMBER < 0x40000000
 	SSL_set1_host(conn->ssl, conn->sni);
+#else
+	SSL_set1_dnsname(conn->ssl, conn->sni);
+#endif
     }
     if (conn->alpn) {
 	if (SSL_set_alpn_protos(conn->ssl, conn->alpn, conn->alpn_len))
