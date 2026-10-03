@@ -929,15 +929,22 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    ASN1_INTEGER *serial_asn1 = X509_get_serialNumber(cert);
 	    if (serial_asn1) {
 		char *b = buf;
-		for (int i = 0; i < serial_asn1->length; i++) {
-		    *b++ = hex[serial_asn1->data[i] >> 4];
-		    *b++ = hex[serial_asn1->data[i] & 0xf];
+#if OPENSSL_VERSION_NUMBER < 0x40100000
+		u_char *data = serial_asn1->data;
+		int data_len = serial_asn1->length;
+#else
+		const u_char *data = ASN1_STRING_get0_data(serial_asn1);
+		int data_len = ASN1_STRING_get_length(serial_asn1);
+#endif
+		for (int i = 0; i < data_len; i++) {
+		    *b++ = hex[data[i] >> 4];
+		    *b++ = hex[data[i] & 0xf];
 		}
 		*b = 0;
 		str_set(&ctx->tls_peer_serial, mem_strdup(ctx->mem, buf), 0);
 	    }
 
-	    X509_NAME *x;
+	    const X509_NAME *x;
 
 	    if ((x = X509_get_subject_name(cert))) {
 		char *t = X509_NAME_oneline(x, buf, sizeof(buf));
@@ -952,13 +959,21 @@ static void accept_control_tls(struct context *ctx, int cur)
 
 	    AUTHORITY_KEYID *aki = (AUTHORITY_KEYID *) X509_get_ext_d2i(cert, NID_authority_key_identifier, NULL, NULL);
 	    if (aki) {
-		char *s = mem_alloc(ctx->mem, 2 * aki->keyid->length + 1);
+#if OPENSSL_VERSION_NUMBER < 0x40100000
+		u_char *data = aki->keyid->->data;
+		int data_len = aki->keyid->->length;
+#else
+		const u_char *data = ASN1_STRING_get0_data(aki->keyid);
+		int data_len = ASN1_STRING_get_length(aki->keyid);
+#endif
+		char *s = mem_alloc(ctx->mem, 2 * data_len + 1);
 		char *p = s;
-		for (int i = 0; i < aki->keyid->length; i++) {
-		    *p++ = hex[aki->keyid->data[i] >> 4];
-		    *p++ = hex[aki->keyid->data[i] & 0xf];
+
+		for (int i = 0; i < data_len; i++) {
+		    *p++ = hex[data[i] >> 4];
+		    *p++ = hex[data[i] & 0xf];
 		}
-		str_set(&ctx->tls_peer_cert_aki, s, 2 * aki->keyid->length);
+		str_set(&ctx->tls_peer_cert_aki, s, 2 * data_len);
 		AUTHORITY_KEYID_free(aki);
 	    }
 
@@ -1002,21 +1017,36 @@ static void accept_control_tls(struct context *ctx, int cur)
 			    AUTHORITY_KEYID *aki = (AUTHORITY_KEYID *) X509_get_ext_d2i(cer, NID_authority_key_identifier, NULL, NULL);
 			    size_t aki_len = 0;
 			    if (aki)
+#if OPENSSL_VERSION_NUMBER < 0x40100000
 				aki_len = aki->keyid->length * 2;
+#else
+				aki_len = ASN1_STRING_get_length(aki->keyid) + 2;
+#endif
 			    char aki_txt[aki_len + 1];
 
 			    if (aki) {
 				char *p = aki_txt;
-				for (int i = 0; i < aki->keyid->length; i++) {
-				    *p++ = hex[aki->keyid->data[i] >> 4];
-				    *p++ = hex[aki->keyid->data[i] & 0xf];
+#if OPENSSL_VERSION_NUMBER < 0x40100000
+				u_char *data = aki->keyid->data;
+				int data_len = aki->keyid->length;
+#else
+				const u_char *data = ASN1_STRING_get0_data(aki->keyid);
+				int data_len = ASN1_STRING_get_length(aki->keyid);
+#endif
+				for (int i = 0; i < data_len; i++) {
+				    *p++ = hex[data[i] >> 4];
+				    *p++ = hex[data[i] & 0xf];
 				}
 				AUTHORITY_KEYID_free(aki);
 			    }
 			    aki_txt[aki_len] = 0;
 
 			    ASN1_INTEGER *serial_asn1 = X509_get_serialNumber(cer);
+#if OPENSSL_VERSION_NUMBER < 0x40100000
 			    size_t serial_len = serial_asn1->length * 2;
+#else
+			    size_t serial_len = ASN1_STRING_get_length(serial_asn1);
+#endif
 			    size_t crlfile_len = ctx->host->realm->crl_basedir.len + 1 + (aki_len ? aki_len : (2 * MD5_LEN)) + 1 + serial_len + 1;
 
 			    char crlfile[crlfile_len];
@@ -1080,10 +1110,17 @@ static void accept_control_tls(struct context *ctx, int cur)
 			    }
 			    *p++ = '/';
 
+#if OPENSSL_VERSION_NUMBER < 0x40100000
+				u_char *data = serial_asn1->data;
+				int data_len = serial_asn1->length;
+#else
+				const u_char *data = ASN1_STRING_get0_data(serial_asn1);
+				int data_len = ASN1_STRING_get_length(serial_asn1);
+#endif
 			    if (serial_asn1) {
-				for (int i = 0; i < serial_asn1->length; i++) {
-				    *p++ = hex[serial_asn1->data[i] >> 4];
-				    *p++ = hex[serial_asn1->data[i] & 0xf];
+				for (int i = 0; i < data_len; i++) {
+				    *p++ = hex[data[i] >> 4];
+				    *p++ = hex[data[i] & 0xf];
 				}
 			    }
 			    *p = 0;
@@ -1134,12 +1171,23 @@ static void accept_control_tls(struct context *ctx, int cur)
 		    ctx->tls_peer_cert_san = mem_alloc(ctx->mem, san_count);
 		    for (int i = 0; i < san_count; i++) {
 			GENERAL_NAME *val = sk_GENERAL_NAME_value(san, i);
-			switch (val->type) {
+#if OPENSSL_VERSION_NUMBER < 0x40100000
+			int type = val->type;
+#else
+			int type;
+			GENERAL_NAME_get0_value(val, &type);
+#endif
+			switch (type) {
 			case GEN_IPADD:
 #define CERT_SAN_PRIO 8
 			    if (prio < CERT_SAN_PRIO /* just once, so no <= */ ) {
+#if OPENSSL_VERSION_NUMBER < 0x40100000
 				u_char *data = val->d.iPAddress->data;
 				int data_len = val->d.iPAddress->length;
+#else
+				const u_char *data = ASN1_STRING_get0_data(val->d.iPAddress);
+				int data_len = ASN1_STRING_get_length(val->d.iPAddress);
+#endif
 				sockaddr_union su = { 0 };
 				switch (data_len) {
 				case 4:
