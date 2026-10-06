@@ -960,8 +960,8 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    AUTHORITY_KEYID *aki = (AUTHORITY_KEYID *) X509_get_ext_d2i(cert, NID_authority_key_identifier, NULL, NULL);
 	    if (aki) {
 #if OPENSSL_VERSION_NUMBER < 0x40100000
-		u_char *data = aki->keyid->->data;
-		int data_len = aki->keyid->->length;
+		u_char *data = aki->keyid->data;
+		int data_len = aki->keyid->length;
 #else
 		const u_char *data = ASN1_STRING_get0_data(aki->keyid);
 		int data_len = ASN1_STRING_get_length(aki->keyid);
