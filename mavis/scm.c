@@ -75,7 +75,7 @@ int scm_recv_msg(int sock, struct scm_data_accept *sd, size_t sd_len, int *fd)
     struct msghdr msg = {.msg_iov = &vector,.msg_iovlen = 1,.msg_controllen = CMSG_SPACE(sizeof(int)),.msg_control = (caddr_t) cmsg };
     size_t len = 0;
 
-    int res = recvmsg(sock, &msg, MSG_PEEK);
+    int res = Recvmsg(sock, &msg, MSG_PEEK);
     if (res < 1) {
 	logmsg("scm_recv_msg: recvmsg: EoF");
 	return -1;
@@ -96,7 +96,7 @@ int scm_recv_msg(int sock, struct scm_data_accept *sd, size_t sd_len, int *fd)
 
     errno = 0;
     msg.msg_controllen = CMSG_SPACE(sizeof(int));
-    res = recvmsg(sock, &msg, 0);
+    res = Recvmsg(sock, &msg, 0);
 
     if (len && len > sd_len) {
 	logmsg("scm_recv_msg: recvmsg: buffer too small (%lu < %lu)", sd_len, len);

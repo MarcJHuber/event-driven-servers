@@ -199,7 +199,7 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	    .msg_controllen = sizeof(cbuf)
 	};
 
-	ssize_t len = recvmsg(cur, &msg, 0);
+	ssize_t len = Recvmsg(cur, &msg, 0);
 	if (len < 1) {
 	    DebugOut(DEBUG_NET);
 	    return;

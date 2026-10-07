@@ -201,7 +201,7 @@ static void parse_listen(struct sym *sym)
 		parse(sym, S_equal);
 		fn = open(sym->buf, O_RDONLY);
 		if (fn > -1) {
-		    blowfish_key_len = read(fn, blowfish_key, 72);
+		    blowfish_key_len = Read(fn, blowfish_key, 72);
 		    close(fn);
 		    if (blowfish_key_len < 0)
 			blowfish_key_len = 0;

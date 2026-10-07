@@ -248,7 +248,7 @@ static int mavis_send_in(mavis_ctx *mcx, av_ctx **ac)
 	}
 	char c[st.st_size + 1];
 	c[st.st_size] = 0;
-	UNUSED_RESULT(read(fn, c, st.st_size));
+	UNUSED_RESULT(Read(fn, c, st.st_size));
 	close(fn);
 	av_char_to_array(a, c, NULL);
 	for (int i = 0; keep[i] > -1; i++)
@@ -272,10 +272,10 @@ static int write_av(av_ctx *ac, int fn, int attr)
 	char buf[40];
 	size_t len;
 	len = snprintf(buf, sizeof(buf), "%d ", attr);
-	res |= ((ssize_t) len != write(fn, buf, len));
+	res |= ((ssize_t) len != Write(fn, buf, len));
 	len = strlen(t);
-	res |= ((ssize_t) len != write(fn, t, len));
-	res |= (1 != write(fn, "\n", 1));
+	res |= ((ssize_t) len != Write(fn, t, len));
+	res |= (1 != Write(fn, "\n", 1));
     }
     return res;
 }

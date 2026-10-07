@@ -414,7 +414,7 @@ void update_bio(struct context *ctx)
 {
     if (ctx->rbio) {
 	char buf[8192];
-	ssize_t len = read(ctx->sock, buf, sizeof(buf));
+	ssize_t len = Read(ctx->sock, buf, sizeof(buf));
 	if (len > 0)
 	    BIO_write(ctx->rbio, buf, len);
     }
@@ -603,7 +603,7 @@ static void read_px(struct context_px *ctx, int cur)
     char tmp[240] = { 0 };
     struct proxy_hdr_v2 *hdr = (struct proxy_hdr_v2 *) tmp;
     union proxy_addr *addr = (union proxy_addr *) &tmp[sizeof(struct proxy_hdr_v2)];
-    ssize_t len = recv(cur, &tmp, sizeof(tmp), MSG_PEEK);
+    ssize_t len = Recv(cur, &tmp, sizeof(tmp), MSG_PEEK);
     ctx->last_io = io_now.tv_sec;
     uint16_t hlen;
     if ((len < (ssize_t) sizeof(struct proxy_hdr_v2))
@@ -618,7 +618,7 @@ static void read_px(struct context_px *ctx, int cur)
 	    cleanup_px(ctx, cur);
 	return;
     }
-    UNUSED_RESULT(read(cur, &tmp, sizeof(struct proxy_hdr_v2) + hlen));
+    UNUSED_RESULT(Read(cur, &tmp, sizeof(struct proxy_hdr_v2) + hlen));
 
     sockaddr_union from = { 0 };
     switch (hdr->fam) {
@@ -1847,7 +1847,7 @@ ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags, enum 
 
     if (ctx->inject_buf) {
 	if (!ctx->inject_len) {
-	    res = recv(ctx->sock, ctx->inject_buf, INJECT_BUF_SIZE, 0);
+	    res = Recv(ctx->sock, ctx->inject_buf, INJECT_BUF_SIZE, 0);
 	    if (res > -1)
 		ctx->inject_len = res;
 	}
@@ -1864,7 +1864,7 @@ ssize_t recv_inject(struct context *ctx, void *buf, size_t len, int flags, enum 
 		ctx->inject_off = ctx->inject_len = 0;
 	}
     } else
-	res = recv(ctx->sock, buf, len, flags);
+	res = Recv(ctx->sock, buf, len, flags);
 
     if (res < 0) {
 	if (errno == EAGAIN || errno == EWOULDBLOCK) {
@@ -2016,7 +2016,7 @@ static void accept_control_check_tls(struct context *ctx, int cur __attribute__(
 	    // DTLS Application Data, but we haven't seen the handshake, possibly due to a daemon
 	    // restart. Just return some junk data back , the peer is likely to retry with a new handshake.
 	    char junk[128] = { 0 };
-	    UNUSED_RESULT(write(ctx->sock, junk, sizeof(junk)));
+	    UNUSED_RESULT(Write(ctx->sock, junk, sizeof(junk)));
 	    cleanup(ctx, ctx->sock);
 	    return;
 	}

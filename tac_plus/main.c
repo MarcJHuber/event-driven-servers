@@ -438,7 +438,7 @@ static void read_px(struct context_px *ctx, int cur)
     struct proxy_hdr_v2 *hdr = (struct proxy_hdr_v2 *) tmp;
     union proxy_addr *addr = (union proxy_addr *) &tmp[sizeof(struct proxy_hdr_v2)];
     memset(&tmp, 0, sizeof(tmp));
-    len = recv(cur, &tmp, sizeof(tmp), MSG_PEEK);
+    len = Recv(cur, &tmp, sizeof(tmp), MSG_PEEK);
     if ((len < (ssize_t) sizeof(struct proxy_hdr_v2))
 	|| ((hdr->ver_cmd >> 4) != 2)
 	|| (memcmp(hdr->sig, "\x0D\x0A\x0D\x0A\x00\x0D\x0A\x51\x55\x49\x54\x0A", 12))
@@ -448,7 +448,7 @@ static void read_px(struct context_px *ctx, int cur)
 	try_raw(ctx, cur);
 	return;
     }
-    UNUSED_RESULT(read(cur, &tmp, sizeof(struct proxy_hdr_v2) + hlen));
+    UNUSED_RESULT(Read(cur, &tmp, sizeof(struct proxy_hdr_v2) + hlen));
 
     switch (hdr->fam) {
     case 0x11:

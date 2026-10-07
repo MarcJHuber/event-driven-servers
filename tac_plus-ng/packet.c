@@ -1177,7 +1177,7 @@ void rad_read(struct context *ctx, int cur)
 
 static ssize_t write_ex(int fd, const void *buf, size_t count, enum io_status *status)
 {
-    ssize_t len = write(fd, buf, count);
+    ssize_t len = Write(fd, buf, count);
     if (len == 0)
 	*status = io_status_close;
     else if (len < -1) {

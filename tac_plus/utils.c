@@ -142,7 +142,7 @@ static void logwrite(struct context_logfile *ctx, int cur)
 	    lseek(cur, 0, SEEK_END);
 
 	while (b) {
-	    ssize_t len = write(cur, b->buf + b->offset,
+	    ssize_t len = Write(cur, b->buf + b->offset,
 				b->length - b->offset);
 	    if (len < 0 && errno == EAGAIN) {
 		if (!ctx->lf->flag_pipe)
@@ -182,7 +182,7 @@ static void logwrite_sync(struct context_logfile *ctx, int cur)
 	int count = 10;
 	buffer_setv(ctx->buf, v, &count, buffer_getlen(ctx->buf));
 	if (count) {
-	    ssize_t l = writev(cur, v, count);
+	    ssize_t l = Writev(cur, v, count);
 	    off_t o = (off_t) l;
 	    if (l < 0) {
 		//FIXME. Disk full, probably.
@@ -233,7 +233,7 @@ static void log_start_one(struct logfile *lf, struct context_logfile *deadctx)
 			buffer_setv(lf->ctx->buf, v, &count, len);
 			if (count) {
 			    off_t o = (off_t) len;
-			    count = writev(lf->ctx->fd, v, count);
+			    count = Writev(lf->ctx->fd, v, count);
 			    lf->ctx->buf = buffer_release(lf->ctx->buf, &o);
 			}
 		    }
@@ -523,9 +523,9 @@ static void log_flush_syslog_udp(struct logfile *lf __attribute__((unused)))
 	off_t len = (off_t) buffer_getlen(lf->ctx->buf);
 	int r;
 	if (lf->syslog_destination.sa.sa_family == AF_UNIX)
-	    r = send(lf->sock, lf->ctx->buf->buf + lf->ctx->buf->offset, (int) len, 0);
+	    r = Send(lf->sock, lf->ctx->buf->buf + lf->ctx->buf->offset, (int) len, 0);
 	else
-	    r = sendto(lf->sock, lf->ctx->buf->buf + lf->ctx->buf->offset, (int) len, 0, &lf->syslog_destination.sa, su_len(&lf->syslog_destination));
+	    r = Sendto(lf->sock, lf->ctx->buf->buf + lf->ctx->buf->offset, (int) len, 0, &lf->syslog_destination.sa, su_len(&lf->syslog_destination));
 	if (r < 0)
 	    report(NULL, LOG_DEBUG, ~0, "send/sendto (%s:%d): %s", __FILE__, __LINE__, strerror(errno));
 	lf->ctx->buf = buffer_release(lf->ctx->buf, &len);

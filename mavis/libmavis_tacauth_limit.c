@@ -238,7 +238,7 @@ static int mavis_send_in(mavis_ctx *mcx, av_ctx **ac)
 	} else {
 	    uint32_t i = 0;
 	    char buf[80];
-	    ssize_t len = read(fn, buf, sizeof(buf));
+	    ssize_t len = Read(fn, buf, sizeof(buf));
 	    if (len > 0) {
 		buf[len] = 0;
 		sscanf(buf, "count = %u", &i);
@@ -311,7 +311,7 @@ static int mavis_recv_out(mavis_ctx *mcx, av_ctx **ac)
     uint32_t i = 0;
     if (fn > -1) {
 	char buf[80];
-	ssize_t len = read(fn, buf, sizeof(buf));
+	ssize_t len = Read(fn, buf, sizeof(buf));
 	if (len > 0) {
 	    buf[len] = 0;
 	    sscanf(buf, "count = %u", &i);
@@ -323,7 +323,7 @@ static int mavis_recv_out(mavis_ctx *mcx, av_ctx **ac)
 	i++;
 	char buf[80];
 	int len = snprintf(buf, sizeof(buf), "count = %u\n", i);
-	UNUSED_RESULT(write(fn, buf, len));
+	UNUSED_RESULT(Write(fn, buf, len));
 	uint64_t hashbits = mcx->hashbits;
 	for (int j = 0; j < AV_A_ARRAYSIZE; j++) {
 	    char *t;
@@ -334,7 +334,7 @@ static int mavis_recv_out(mavis_ctx *mcx, av_ctx **ac)
 		    {.iov_base = t,.iov_len = strlen(t) },
 		    {.iov_base = "\n",.iov_len = 1 }
 		};
-		UNUSED_RESULT(writev(fn, iov, 4));
+		UNUSED_RESULT(Writev(fn, iov, 4));
 	    }
 	    hashbits >>= 1;
 	}

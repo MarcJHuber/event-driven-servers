@@ -128,7 +128,7 @@ void client_io(struct context *ctx, int cur)
     Debug((DEBUG_PROC, "client_io\n"));
 
 /* Receive request from client */
-    buflen = recvfrom(cur, buf, sizeof(buf) - 1, 0, &sa.sa, &sinlen);
+    buflen = Recvfrom(cur, buf, sizeof(buf) - 1, 0, &sa.sa, &sinlen);
     if (buflen <= 0)
 	return;
 

@@ -18,7 +18,7 @@ void ident_buffer2socket(struct context *ctx, int cur __attribute__((unused)))
 
     DebugIn(DEBUG_BUFFER);
 
-    l = write(ctx->ifn, ctx->ident_buf + ctx->ident_bufoff, ctx->ident_buflen - ctx->ident_bufoff);
+    l = Write(ctx->ifn, ctx->ident_buf + ctx->ident_bufoff, ctx->ident_buflen - ctx->ident_bufoff);
     if (l < 0) {
 	if (errno != EAGAIN)
 	    cleanup_ident(ctx, ctx->ifn);

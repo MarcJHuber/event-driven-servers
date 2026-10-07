@@ -43,7 +43,7 @@ void buffer2socket(struct context *ctx, int cur)
     else
 #endif
 #endif
-	l = write(cur, b->buf + b->offset, b->length - b->offset);
+	l = Write(cur, b->buf + b->offset, b->length - b->offset);
 
     if (l <= 0) {
 	if (errno != EAGAIN)

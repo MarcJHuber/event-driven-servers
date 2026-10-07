@@ -24,6 +24,7 @@
 #include <setjmp.h>
 
 #include "misc/sysconf.h"
+#include "misc/io.h"
 
 #include "scm.h"
 #include "debug.h"

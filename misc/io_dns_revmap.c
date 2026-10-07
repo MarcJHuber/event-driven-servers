@@ -10,6 +10,7 @@
 #include "misc/io_dns_revmap.h"
 #include "misc/rb.h"
 #include "misc/net.h"
+#include "misc/io.h"
 #include "misc/memops.h"
 
 #ifdef WITH_ARES
@@ -175,32 +176,32 @@ static int aclose(ares_socket_t fd, void *opaque)
 #if ARES_VERSION < 0x012200
 static int aconnect(ares_socket_t fd, const struct sockaddr *addr, ares_socklen_t addrlen, void *opaque __attribute__((unused)))
 {
-    return connect(fd, addr, addrlen);
+    return Connect(fd, addr, addrlen);
 }
 #else
 static int aconnect(ares_socket_t fd, const struct sockaddr *addr, ares_socklen_t addrlen, unsigned int flags __attribute__((unused)), void *opaque
 		    __attribute__((unused)))
 {
-    return connect(fd, addr, addrlen);
+    return Connect(fd, addr, addrlen);
 }
 #endif
 
 static ares_ssize_t arecvfrom(ares_socket_t fd, void *buf, size_t len, int flags, struct sockaddr *src_addr, ares_socklen_t *addrlen, void *opaque
 			      __attribute__((unused)))
 {
-    return recvfrom(fd, buf, len, flags, src_addr, addrlen);
+    return Recvfrom(fd, buf, len, flags, src_addr, addrlen);
 }
 
 #if ARES_VERSION < 0x012200
 static ares_ssize_t asendv(ares_socket_t fd, const struct iovec *iov, int iovcnt, void *opaque __attribute__((unused)))
 {
-    return writev(fd, iov, iovcnt);
+    return Writev(fd, iov, iovcnt);
 }
 #else
 static ares_ssize_t asendto(ares_socket_t sock, const void *buffer, size_t length,
 			    int flags, const struct sockaddr *address, ares_socklen_t address_len, void *user_data __attribute__((unused)))
 {
-    return sendto(sock, buffer, length, flags, address, address_len);
+    return Sendto(sock, buffer, length, flags, address, address_len);
 }
 #endif
 #endif

@@ -30,7 +30,7 @@ void quota_add(struct context *ctx, long long q)
     if (f > -1) {
 	if (!lock(f)) {
 	    buffer[0] = 0;
-	    i = read(f, buffer, sizeof(buffer) - 1);
+	    i = Read(f, buffer, sizeof(buffer) - 1);
 
 	    if (i > 0)
 		buffer[i] = 0;
@@ -49,7 +49,7 @@ void quota_add(struct context *ctx, long long q)
 		}
 
 		snprintf(buffer, sizeof(buffer), "%lld", ctx->quota_ondisk);
-		if (write(f, buffer, strlen(buffer))) {
+		if (Write(f, buffer, strlen(buffer)) < 0) {
 		    //FIXME
 		}
 	    }

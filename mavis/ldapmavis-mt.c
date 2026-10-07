@@ -719,12 +719,12 @@ static void av_write(av_ctx *ac, uint32_t result)
 
 	len += sizeof(struct mavis_ext_hdr_v1);
 	pthread_mutex_lock(&mutex_lock);
-	UNUSED_RESULT(write(1, buf, len));
+	UNUSED_RESULT(Write(1, buf, len));
 	pthread_mutex_unlock(&mutex_lock);
     } else {
 	len = av_array_to_char(ac, buf, len, NULL);
 	len += snprintf(buf + len, sizeof(struct mavis_ext_hdr_v1), "=%u\n", result);
-	UNUSED_RESULT(write(1, buf, len));
+	UNUSED_RESULT(Write(1, buf, len));
     }
     av_free(ac);
 }
@@ -1234,7 +1234,7 @@ int main(int argc, char **argv __attribute__((unused)))
 
 	if (is_mt != TRISTATE_NO) {
 	    while (sizeof(struct mavis_ext_hdr_v1) != hdr_off) {
-		int len = read(0, (char *) &hdr + hdr_off, sizeof(struct mavis_ext_hdr_v1) - hdr_off);
+		int len = Read(0, (char *) &hdr + hdr_off, sizeof(struct mavis_ext_hdr_v1) - hdr_off);
 		if (len < 1) {
 		    exit(-1);
 		}
@@ -1252,7 +1252,7 @@ int main(int argc, char **argv __attribute__((unused)))
 	    char *b = calloc(1, len + 1);
 	    size_t off = 0;
 	    while (len - off > 0) {
-		size_t nlen = read(0, b + off, len - off);
+		size_t nlen = Read(0, b + off, len - off);
 		if (nlen < 1) {
 		    fprintf(stderr, "Short read (body).\n");
 		    exit(1);
@@ -1282,7 +1282,7 @@ int main(int argc, char **argv __attribute__((unused)))
 		char *end = strstr(buf, "\n=\n");
 		while (end || (1 == poll(&pfd, 1, -1) && off < BUFSIZE)) {
 		    if (!end) {
-			ssize_t len = read(0, buf + off, BUFSIZE - off);
+			ssize_t len = Read(0, buf + off, BUFSIZE - off);
 			if (len < 1) {
 			    exit(-1);
 			}

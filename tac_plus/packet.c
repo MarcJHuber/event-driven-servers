@@ -399,7 +399,7 @@ void tac_read(struct context *ctx, int cur)
     ctx->last_io = io_now.tv_sec;
 
     if (ctx->hdroff != TAC_PLUS_HDR_SIZE) {
-	len = read(cur, ((u_char *) & ctx->hdr) + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff);
+	len = Read(cur, ((u_char *) & ctx->hdr) + ctx->hdroff, TAC_PLUS_HDR_SIZE - ctx->hdroff);
 	if (len <= 0) {
 	    cleanup(ctx, cur);
 	    return;
@@ -427,7 +427,7 @@ void tac_read(struct context *ctx, int cur)
 	ctx->in->length = TAC_PLUS_HDR_SIZE + data_len;
 	memcpy(&ctx->in->hdr, &ctx->hdr, TAC_PLUS_HDR_SIZE);
     }
-    len = read(cur, (u_char *) & ctx->in->hdr + ctx->in->offset, ctx->in->length - ctx->in->offset);
+    len = Read(cur, (u_char *) & ctx->in->hdr + ctx->in->offset, ctx->in->length - ctx->in->offset);
     if (len < min_len && min_len) {
 	cleanup(ctx, cur);
 	return;
@@ -554,7 +554,7 @@ void tac_write(struct context *ctx, int cur)
 {
     ctx->last_io = io_now.tv_sec;
     while (ctx->out) {
-	ssize_t len = write(cur,
+	ssize_t len = Write(cur,
 			    (u_char *) & ctx->out->hdr + ctx->out->offset,
 			    ctx->out->length - ctx->out->offset);
 	if (len < 0) {

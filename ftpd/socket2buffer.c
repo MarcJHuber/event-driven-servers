@@ -23,7 +23,7 @@ void buffer2file(struct context *ctx, int cur __attribute__((unused)))
 	    int count = 10;
 
 	    buffer_setv(ctx->dbuf, v, &count, 0);
-	    l = writev(ctx->ffn, v, count);
+	    l = Writev(ctx->ffn, v, count);
 	    if (l > 0) {
 		off_t l2 = (off_t) l;
 		len += l;
@@ -105,7 +105,7 @@ void socket2buffer(struct context *ctx, int cur __attribute__((unused)))
 	l = io_SSL_read(ctx->ssl_d, b->buf + b->length, b->size - b->length, ctx->io, ctx->dfn, (void *) socket2buffer);
     else
 #endif
-	l = read(ctx->dfn, b->buf + b->length, b->size - b->length);
+	l = Read(ctx->dfn, b->buf + b->length, b->size - b->length);
 
     if (l > 0)
 	ctx->traffic_total += l, ctx->traffic_files += l;

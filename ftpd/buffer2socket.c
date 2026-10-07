@@ -295,7 +295,7 @@ void buffer2socket(struct context *ctx, int cur __attribute__((unused)))
 	    int count = 10;
 	    buffer_setv(db, v, &count, bufsize);
 	    if (count)
-		l = writev(ctx->dfn, v, count);
+		l = Writev(ctx->dfn, v, count);
 	}
     }
 

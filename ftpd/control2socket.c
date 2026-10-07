@@ -29,7 +29,7 @@ void control2socket(struct context *ctx, int cur)
 #ifdef WITH_SSL
 		!ctx->ssl_c &&
 #endif
-		!(i = write(ctx->cfn, b->buf + b->offset, b->length - b->offset)))
+		!(i = Write(ctx->cfn, b->buf + b->offset, b->length - b->offset)))
 	cleanup_control(ctx, ctx->cfn);
     else if (i > 0) {
 	b->offset += i;

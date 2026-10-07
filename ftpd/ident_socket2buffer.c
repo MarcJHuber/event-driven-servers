@@ -19,7 +19,7 @@ void ident_socket2buffer(struct context *ctx, int cur)
 
     DebugIn(DEBUG_NET);
 
-    l = read(cur, ctx->ident_buf + ctx->ident_buflen, MAXBUFSIZE1413 - ctx->ident_buflen - 1);
+    l = Read(cur, ctx->ident_buf + ctx->ident_buflen, MAXBUFSIZE1413 - ctx->ident_buflen - 1);
 
     if (l > 0) {
 	char *t;

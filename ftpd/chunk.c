@@ -70,7 +70,7 @@ int chunk_get(struct context *ctx, off_t * offset)
 		ctx->remaining -= *offset;
 		*offset = 0;
 	    }
-	    len = read(ctx->ffn, buf->buf, (size_t) MIN(ctx->remaining, (off_t) buf->size));
+	    len = Read(ctx->ffn, buf->buf, (size_t) MIN(ctx->remaining, (off_t) buf->size));
 	    if (len <= 0) {
 		if (len < 0)
 		    logerr("read (%s:%d): %s", __FILE__, __LINE__, ctx->filename);

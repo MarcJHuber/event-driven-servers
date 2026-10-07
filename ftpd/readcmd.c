@@ -46,7 +46,7 @@ void readcmd(struct context *ctx, int cur __attribute__((unused)))
 	i = io_SSL_read(ctx->ssl_c, b->buf + b->length, b->size - b->length, ctx->io, ctx->cfn, (void *) readcmd);
     else
 #endif
-	i = read(ctx->cfn, b->buf + b->length, b->size - b->length);
+	i = Read(ctx->cfn, b->buf + b->length, b->size - b->length);
 
     if (i <= 0) {
 	if (i != -1 || errno != EAGAIN)

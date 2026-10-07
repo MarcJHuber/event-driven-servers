@@ -150,7 +150,7 @@ static void logwrite(struct context_logfile *ctx, int cur)
 	    lseek(cur, 0, SEEK_END);
 
 	while (b) {
-	    ssize_t len = write(cur, b->buf + b->offset,
+	    ssize_t len = Write(cur, b->buf + b->offset,
 				b->length - b->offset);
 	    if (len < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
 		if (!ctx->lf->flag_pipe)
@@ -190,7 +190,7 @@ static void logwrite_sync(struct context_logfile *ctx, int cur)
 	int count = 10;
 	buffer_setv(ctx->buf, v, &count, buffer_getlen(ctx->buf));
 	if (count) {
-	    ssize_t l = writev(cur, v, count);
+	    ssize_t l = Writev(cur, v, count);
 	    off_t o = (off_t) l;
 	    if (l < 0) {
 		//FIXME. Disk full, probably.
@@ -240,7 +240,7 @@ static void log_start(struct logfile *lf, struct context_logfile *deadctx)
 			size_t len = buffer_getlen(lf->ctx->buf);
 			buffer_setv(lf->ctx->buf, v, &count, len);
 			if (count) {
-			    off_t o = writev(lf->ctx->fd, v, count);
+			    off_t o = Writev(lf->ctx->fd, v, count);
 			    if (o > 0)
 				lf->ctx->buf = buffer_release(lf->ctx->buf, &o);
 			}

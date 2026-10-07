@@ -6351,8 +6351,8 @@ static void keylog_cb(const SSL *ssl __attribute__((unused)), const char *line)
 	fcntl(SSLKEYLOGFILE, F_SETLK, &flock);
 
 	lseek(SSLKEYLOGFILE, 0, SEEK_END);
-	UNUSED_RESULT(write(SSLKEYLOGFILE, line, strlen(line)));
-	UNUSED_RESULT(write(SSLKEYLOGFILE, "\n", 1));
+	UNUSED_RESULT(Write(SSLKEYLOGFILE, line, strlen(line)));
+	UNUSED_RESULT(Write(SSLKEYLOGFILE, "\n", 1));
 
 	struct flock funlock = {.l_type = F_UNLCK,.l_whence = SEEK_SET };
 	fcntl(SSLKEYLOGFILE, F_SETLK, &funlock);

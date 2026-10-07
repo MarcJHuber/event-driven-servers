@@ -73,7 +73,7 @@ void read_mimetypes(char *file)
 	return;
     }
 
-    while ((inlength = read(fn, inbuf + offset, sizeof(inbuf) - 1 - offset)) > 0) {
+    while ((inlength = Read(fn, inbuf + offset, sizeof(inbuf) - 1 - offset)) > 0) {
 	inlength += offset;
 	inbuf[inlength] = 0;
 	linestart = inbuf;

@@ -37,7 +37,7 @@ void socket2buffer(struct context *ctx, int cur)
     else
 #endif
 #endif
-	l = read(cur, b->buf, b->size);
+	l = Read(cur, b->buf, b->size);
 
     if (l > 0) {
 	b->length = l;

@@ -121,7 +121,7 @@ void file2control(struct context *ctx, char *arg, char *file)
 	    size_t offset = 0;
 	    ssize_t inlength;
 
-	    while ((inlength = read(i, tbuf + offset, sizeof(tbuf) - 1 - offset)) > 0) {
+	    while ((inlength = Read(i, tbuf + offset, sizeof(tbuf) - 1 - offset)) > 0) {
 		inlength += offset;
 		tbuf[inlength] = 0;
 		linestart = tbuf;
