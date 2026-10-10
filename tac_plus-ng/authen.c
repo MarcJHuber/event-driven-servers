@@ -1773,7 +1773,7 @@ static void do_ssh(tac_session *session)
 	for (struct ssh_key * tmp_key = session->ssh_key; tmp_key; tmp_key = tmp_key->next)
 	    tmp_len += tmp_key->key_len;
 
-	res = tmp_len ? S_permit : S_deny;
+	res = tmp_len ? S_permit : S_deny; // FIXME -- is this actually correct, or does it break local fallback on the NAD?
 
 	if (res == S_permit) {
 	    res = session->authorized ? S_permit : ((S_deny == author_eval_host(session, session->ctx->host, session->ctx->realm->script_host_parent_first)
