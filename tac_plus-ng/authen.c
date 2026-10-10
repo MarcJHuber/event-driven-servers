@@ -1789,7 +1789,7 @@ static void do_ssh(tac_session *session)
 	if (res == S_permit) {
 	    u_char *tmp_ptr = data;
 	    while (session->ssh_key) {
-		if (session->ssh_key->key_len && session->ssh_key->key_len < 65535) {
+		if (session->ssh_key->key_len && session->ssh_key->key_len < data_len_max) {
 		    if (data_len_max >= 1 + session->ssh_key->key_len) {
 			memcpy(tmp_ptr, session->ssh_key->key, session->ssh_key->key_len);
 			tmp_ptr += session->ssh_key->key_len;
