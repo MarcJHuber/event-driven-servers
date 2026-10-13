@@ -104,7 +104,13 @@ class Mavis:
 			self.av_pairs[AV_A_USER_RESPONSE] = user_response
 		for key in sorted(self.av_pairs):
 			if self.av_pairs[key]:
-				val = self.av_pairs[key].replace('\n', '\r')
+				# A newline ends an attribute on the wire, so it is sent as a
+				# carriage return; a NUL ends the whole reply as a C string in
+				# the daemon, dropping this attribute and every one after it
+				# (including the request type), so strip it. An Active
+				# Directory "AcceptSecurityContext error\\0, data ..." text is
+				# the usual source. The Perl backends do the same (1e8d35a).
+				val = self.av_pairs[key].replace('\n', '\r').replace('\0', '')
 				print(str(key) + " " + val)
 		print("=" + str(verdict))
 		sys.stdout.flush()

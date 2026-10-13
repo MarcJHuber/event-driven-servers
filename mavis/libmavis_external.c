@@ -516,28 +516,37 @@ static void read_from_child(struct context *ctx, int cur)
 
 		    io_clr_i(ctx->mcx->io, ctx->fd_in);
 
-		    av_clear(ctx->ac);
+		    // Parse the answer into a fresh context instead of over
+		    // ctx->ac. ctx->ac holds the request this child is working
+		    // on; if the serial does not match it -- a child that
+		    // answered an earlier request twice sends the stale answer
+		    // here -- we must keep the request so child_died() can hand
+		    // it to a new child, exactly as for a child that dies before
+		    // answering. Clearing ctx->ac first (as before) lost the
+		    // request and the client waited forever.
+		    av_ctx *ans = av_new(ctx->ac->app_cb, ctx->ac->app_ctx);
 		    *++t = 0;
-		    av_char_to_array(ctx->ac, ctx->b_in, NULL);
+		    av_char_to_array(ans, ctx->b_in, NULL);
 		    int result = atoi(++t);
 
-		    ctx->in_use = 0;
-		    ctx->mcx->usage--;
-
-		    serial = av_get(ctx->ac, AV_A_SERIAL);
+		    serial = av_get(ans, AV_A_SERIAL);
 
 		    if (!serial || strcmp(serial, serial_old)) {
 			if (serial)
 			    logmsg("%s: %lu: out of sync: " "got %s, expected %s. Terminating.", ctx->mcx->argv[0], (u_long) ctx->pid, serial, serial_old);
 			else
 			    logmsg("%s: %lu: missing serial. Terminating.", ctx->mcx->argv[0], (u_long) ctx->pid);
-			av_free(ctx->ac);
-			ctx->ac = NULL;
+			av_free(ans);
 			kill(ctx->pid, SIGTERM);
 			child_died(ctx, ctx->fd_in);
 			DebugOut(DEBUG_MAVIS);
 			return;
 		    }
+
+		    av_free(ctx->ac);
+		    ctx->ac = ans;
+		    ctx->in_use = 0;
+		    ctx->mcx->usage--;
 		    if (result == MAVIS_FINAL) {
 			char *r = av_get(ctx->ac, AV_A_RESULT);
 			if (r && (!strcmp(r, AV_V_RESULT_OK) || !strcmp(r, AV_V_RESULT_FAIL)))
