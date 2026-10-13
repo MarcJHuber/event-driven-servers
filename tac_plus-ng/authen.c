@@ -942,7 +942,7 @@ static char *set_welcome_banner(tac_session *session, struct log_item *fmt_dflt)
 
 static char *set_motd_banner(tac_session *session)
 {
-    struct log_item *fmt = session->ctx->host->motd;
+    struct log_item *fmt = session->motd_banner ? session->motd_banner : session->ctx->host->motd;
 
     if (!fmt)
 	fmt = li_motd_dflt;

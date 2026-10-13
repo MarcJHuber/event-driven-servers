@@ -623,6 +623,7 @@ struct tac_session {
     char *challenge;
     char *motd;
     char *welcome_banner;
+    struct log_item *motd_banner;	/* set by script action */
     char *ssh_key_hash;
     char *ssh_key_id;
     struct ssh_key *ssh_key;
@@ -693,6 +694,7 @@ struct tac_session {
 struct user_profile_cache {
     tac_user *user;
     tac_profile *profile;
+    struct log_item *motd_banner;
     time_t valid_until;
     enum token res;
     uint32_t crc32;
