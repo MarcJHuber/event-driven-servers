@@ -2697,6 +2697,48 @@ enum token eval_ruleset(tac_session *session, tac_realm *realm)
     return S_deny;
 }
 
+// Set if any script uses "message PASSWORD". Without it there's no need for a prompt pass.
+static int script_password_prompt = 0;
+
+static enum token eval_ruleset_prompt_r(tac_session *session, tac_realm *realm, int parent_first)
+{
+    enum token res = S_unknown;
+
+    if (!realm || (session->user && session->user->profile))
+	return res;
+
+    if (parent_first == TRISTATE_YES && realm->skip_parent_script != BISTATE_YES)
+	res = eval_ruleset_prompt_r(session, realm->parent, parent_first);
+
+    for (struct tac_rule * rule = realm->rules; rule && res != S_permit && res != S_deny; rule = rule->next)
+	if (rule->enabled) {
+	    res = eval_tac_acl(session, &rule->acl);
+	    report(DEBACL | DEBUG_REGEX_FLAG,
+		   "%s@%s: ACL %s: %s (prompt pass)", session->username.txt, session->nac_addr_valid ? session->nac_addr_ascii.txt : "<unknown>",
+		   rule->acl.name.txt, codestring[res].txt);
+	}
+
+    if (parent_first != TRISTATE_YES && res != S_permit && res != S_deny && realm->skip_parent_script != BISTATE_YES)
+	res = eval_ruleset_prompt_r(session, realm->parent, parent_first);
+    return res;
+}
+
+/*
+ * Runs the ruleset once before the ASCII login password prompt is sent, to
+ * pick up "message PASSWORD". Only conditions, ACLs and permit/deny/return
+ * are evaluated, other actions are skipped. The result is discarded: the
+ * profile, rule name and profile cache are left to the full evaluation after
+ * authentication, so this pass never denies.
+ */
+void eval_ruleset_prompt(tac_session *session)
+{
+    if (!script_password_prompt || session->flag_rule_prompt)
+	return;
+    session->flag_rule_prompt = BISTATE_YES;
+    session->eval_prompt_only = BISTATE_YES;
+    eval_ruleset_prompt_r(session, session->ctx->realm, session->ctx->realm->script_realm_parent_first);
+    session->eval_prompt_only = BISTATE_NO;
+}
 
 static void parse_user(struct sym *sym, tac_realm *r)
 {
@@ -5743,6 +5785,18 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
 {
     if (!session || !m)
 	return S_unknown;
+    if (session->eval_prompt_only)
+	switch (m->code) {
+	case S_return:
+	case S_permit:
+	case S_deny:
+	case S_if:
+	case S_acl:
+	case S_PASSWORD:
+	    break;
+	default:
+	    return m->n ? tac_script_eval_r(session, m->n) : S_unknown;
+	}
     enum token r;
     switch (m->code) {
     case S_return:
@@ -5753,6 +5807,13 @@ enum token tac_script_eval_r(tac_session *session, struct mavis_action *m)
     case S_context:
 	tac_script_set_exec_context(session, m->b.v);
 	report(DEBACL, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, m->b.v);
+	break;
+    case S_PASSWORD:
+	// Only the prompt pass applies this, after authentication it's too late anyway.
+	if (session->eval_prompt_only) {
+	    session->password_prompt = m->b.v;
+	    report(DEBACL, " line %u: [%s] '%s'", m->line, codestring[m->code].txt, m->b.v);
+	}
 	break;
     case S_message:
 	str_set(&session->message, eval_log_format(session, session->ctx, NULL, (struct log_item *) m->b.v, io_now.tv_sec, &session->message.len), 0);
@@ -5912,6 +5973,15 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	break;
     case S_message:
 	m = mavis_action_new(sym, mem);
+	if (sym->code == S_PASSWORD) {
+	    m->code = S_PASSWORD;
+	    sym_get(sym);
+	    parse(sym, S_equal);
+	    m->b.v = mem_strdup(mem, sym->buf);
+	    sym_get(sym);
+	    script_password_prompt = 1;
+	    break;
+	}
 	parse(sym, S_equal);
 	m->b.v = (char *) parse_log_format(sym, mem);
 	break;

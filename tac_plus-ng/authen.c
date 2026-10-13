@@ -1311,6 +1311,7 @@ static void do_ascii_login(tac_session *session)
 	}
 
 	if (!session->password) {
+	    eval_ruleset_prompt(session);
 	    send_password_prompt(session, pw_ix, do_ascii_login);
 	    return;
 	}
