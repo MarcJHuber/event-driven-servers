@@ -1576,7 +1576,8 @@ static void mschap_helper(tac_session *session, enum token *res, enum hint_enum 
 	    mschapv1_ntresp(session->mschap.challenge, session->user->passwd[PW_MSCHAP]->value, nt_response, nt_hash);
 	    if (!memcmp(nt_response, session->mschap.nt_response, MSCHAP_NT_RESPONSE_LEN)) {
 		*res = S_permit;
-		*nt_hash_set = 1;
+		if (nt_hash_set)
+		    *nt_hash_set = 1;
 	    }
 	} else {
 	    *hint = hint_no_cleartext;
