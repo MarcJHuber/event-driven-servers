@@ -30,7 +30,7 @@ int mavis_method_add(mavis_ctx **mcx, struct io_context *ioctx, char *path, char
 {
     Debug((DEBUG_MAVIS, "+ %s(%s)\n", __func__, path));
 
-    void *(*mn)(void *, struct io_context *, char *);
+    mavis_ctx *(*mn)(void *, struct io_context *, char *);
 
     void *handle = dlopen(path, RTLD_LAZY | RTLD_GLOBAL);
 
@@ -39,7 +39,7 @@ int mavis_method_add(mavis_ctx **mcx, struct io_context *ioctx, char *path, char
 	return -1;
     }
 
-    if (!(mn = (void *(*)(void *, struct io_context *, char *))
+    if (!(mn = (mavis_ctx *(*)(void *, struct io_context *, char *))
 	  dlsym(handle, DLSYM_PREFIX "Mavis_new"))) {
 	Debug( (DEBUG_MAVIS, "- %s(%s): dlsym (%s) failed: %s\n", __func__, path, DLSYM_PREFIX "Mavis_new", dlerror()));
 	return -1;
