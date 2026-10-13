@@ -73,7 +73,7 @@ static void md5_xor(tac_pak_hdr *hdr, char *key, int keylen)
     if (key && *key) {
 	u_char *data = tac_payload(hdr, u_char *);
 	int data_len = ntohl(hdr->datalength), h = 0, iovcnt = 4;
-	u_char digest[MD5_LEN][2];
+	u_char digest[2][MD5_LEN];
 
 	struct iovec iov[5] = {
 	    {.iov_base = &hdr->session_id,.iov_len = sizeof(hdr->session_id) },
