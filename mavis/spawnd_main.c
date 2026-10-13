@@ -517,6 +517,10 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 	int status;
 	spawnd_spawn_child(NULL);
 	waitpid(-1, &status, 0);
+	// A parser killed by a signal (e.g. a crash on a malformed configuration)
+	// would otherwise leave WEXITSTATUS() at 0 and "-P" would report success.
+	if (WIFSIGNALED(status))
+	    exit(128 + WTERMSIG(status));
 	exit(WEXITSTATUS(status));
     }
 
