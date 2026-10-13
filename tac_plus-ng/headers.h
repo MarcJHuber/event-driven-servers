@@ -310,6 +310,7 @@ typedef struct {
     TAC_NAME_ATTRIBUTES;
     char *msg;			/* message for this user */
     u_int line;			/* line number defined on */
+    uint32_t serial;
     time_t valid_from;		/* validity period start */
     time_t valid_until;		/* validity period end */
     time_t dynamic;		/* caching timeout. Always 0 for static users */
@@ -695,6 +696,7 @@ struct user_profile_cache {
     time_t valid_until;
     enum token res;
     uint32_t crc32;
+    uint32_t serial;
 };
 
 struct context {

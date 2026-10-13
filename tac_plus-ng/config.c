@@ -2542,15 +2542,26 @@ static void parse_ruleset(struct sym *sym, tac_realm *realm)
     sym_get(sym);
 }
 
-static enum token lookup_user_profile(tac_session *session)
+static uint32_t calc_user_profile_crc(tac_session *session)
 {
-    uint32_t crc32 = INITCRC32;
+    uint32_t crc32 = crc32_update(INITCRC32, (u_char *) session->user->name.txt, session->user->name.len);
     if (session->nac_addr_ascii.txt)
 	crc32 = crc32_update(crc32, (u_char *) session->nac_addr_ascii.txt, session->nac_addr_ascii.len);
     if (session->port.txt)
 	crc32 = crc32_update(crc32, (u_char *) session->port.txt, session->port.len);
+    return crc32;
+}
+
+static enum token lookup_user_profile(tac_session *session)
+{
+    if (session->user_is_session_specific)
+	return S_unknown;
+
+    uint32_t crc32 = calc_user_profile_crc(session);
+
     for (int i = 0; i < USER_PROFILE_CACHE_SIZE; i++) {
-	if (session->ctx->user_profile_cache[i].user == session->user && session->ctx->user_profile_cache[i].crc32 == crc32) {
+	if (session->ctx->user_profile_cache[i].user == session->user && session->ctx->user_profile_cache[i].crc32 == crc32 &&
+	    session->ctx->user_profile_cache[i].user->serial == session->user->serial) {
 	    if (session->ctx->user_profile_cache[i].valid_until >= io_now.tv_sec) {
 		session->profile = session->ctx->user_profile_cache[i].profile;
 		return session->ctx->user_profile_cache[i].res;
@@ -2565,11 +2576,10 @@ static enum token lookup_user_profile(tac_session *session)
 
 static void cache_user_profile(tac_session *session, enum token res)
 {
-    uint32_t crc32 = INITCRC32;
-    if (session->nac_addr_ascii.txt)
-	crc32 = crc32_update(crc32, (u_char *) session->nac_addr_ascii.txt, session->nac_addr_ascii.len);
-    if (session->port.txt)
-	crc32 = crc32_update(crc32, (u_char *) session->port.txt, session->port.len);
+    if (session->user_is_session_specific)
+	return;
+
+    uint32_t crc32 = calc_user_profile_crc(session);
 
     int j = 0;
     for (int i = 0; i < USER_PROFILE_CACHE_SIZE; i++) {
@@ -2588,6 +2598,7 @@ static void cache_user_profile(tac_session *session, enum token res)
     }
   set:
     session->ctx->user_profile_cache[j].user = session->user;
+    session->ctx->user_profile_cache[j].serial = session->user->serial;
     session->ctx->user_profile_cache[j].crc32 = crc32;
     session->ctx->user_profile_cache[j].profile = session->profile;
     session->ctx->user_profile_cache[j].res = res;

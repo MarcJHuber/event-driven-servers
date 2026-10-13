@@ -402,8 +402,12 @@ static void mavis_lookup_final(tac_session *session, av_ctx *avc)
 	    }
 	}
 
-	if (u->dynamic)
+	if (u->dynamic) {
+	    static uint32_t serial = 1;
 	    u->dynamic = io_now.tv_sec + r->caching_period;
+	    u->serial = serial;
+	    serial += 2;
+	}
 
 	if (!strcmp(session->mavis_data->mavistype, AV_V_TACTYPE_CHAP)) {
 	    session->mavisauth_res = S_permit;
