@@ -620,6 +620,7 @@ struct tac_session {
     char *password;
     char *password_new;
     char *password_bad;
+    char *password_prompt;	/* set by "message PASSWORD" in a rule */
     char *challenge;
     char *motd;
     char *welcome_banner;
@@ -676,6 +677,8 @@ struct tac_session {
 	BISTATE(authorized);
 	BISTATE(eval_log_raw);
 	BISTATE(want_mfa);
+	BISTATE(eval_prompt_only);
+	BISTATE(flag_rule_prompt);
     } __attribute__((__packed__));
     enum token mavisauth_res;
     u_int authfail_delay;
@@ -885,6 +888,7 @@ void free_user(tac_user *);
 void cfg_init(void);
 enum token tac_keycode(char *);
 enum token eval_ruleset(tac_session *, tac_realm *);
+void eval_ruleset_prompt(tac_session *);
 
 static __inline__ int minimum(int a, int b)
 {

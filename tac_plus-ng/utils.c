@@ -1299,8 +1299,10 @@ static str_t *eval_log_format_realm(tac_session *session __attribute__((unused))
     return NULL;
 }
 
-static str_t *eval_log_format_PASSWORD(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+static str_t *eval_log_format_PASSWORD(tac_session *session, struct context *ctx, struct logfile *lf __attribute__((unused)))
 {
+    if (session && session->password_prompt)
+	return str_set(&str, session->password_prompt, 0);
     if (ctx)
 	return str_set(&str, ctx->host->user_messages[UM_PASSWORD], 0);
     return NULL;
