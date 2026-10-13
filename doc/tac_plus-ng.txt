@@ -1090,6 +1090,9 @@ message USERNAME = "Utilisateur: "
    RESPONSE_INCORRECT "Response incorrect."
    USERNAME "Username: "
    USER_ACCESS_VERIFICATION "User Access Verification"
+
+   The PASSWORD prompt of an ASCII login may also be set by a rule,
+   see the message PASSWORD action in "Syntax" (scripts).
      __________________________________________________________
 
 4.7. Limits and timeouts
@@ -2082,6 +2085,31 @@ le\\.com$/) deny
    processing the configured cmd statements in shell context) or
    standard ACLs (in ACL context). The assignment operations
    (context =, message =) do make sense in shell context only.
+
+   The message PASSWORD = string action sets the password prompt of
+   an ASCII login, taking precedence over the PASSWORD user message
+   of the device and realm (see "User Messages"). It's honoured in
+   the ruleset only, by a separate pass that runs once before the
+   prompt is sent. That pass evaluates conditions, ACLs and the
+   permit, deny and return actions, skips everything else and
+   discards its result; profile, rule name and profile cache are
+   left to the regular evaluation after authentication. With MAVIS
+   users, groups are known before the prompt only with login
+   backend = mavis prefetch. Enable and PAP are not affected.
+   Example:
+
+rule otp_users {
+    script {
+        if (member == otp) {
+            message PASSWORD = "Password+OTP: "
+            profile = admin
+            permit
+        }
+    }
+}
+
+   A rule specific prompt tells whoever enters a user name which
+   rule that name matches, before any password is checked.
 
    Setting the context variable makes sense in shell context only.
    See the example in the corresponding section.
