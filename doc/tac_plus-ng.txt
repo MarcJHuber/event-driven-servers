@@ -1091,8 +1091,8 @@ message USERNAME = "Utilisateur: "
    USERNAME "Username: "
    USER_ACCESS_VERIFICATION "User Access Verification"
 
-   The PASSWORD prompt of an ASCII login may also be set by a rule,
-   see the message PASSWORD action in "Syntax" (scripts).
+   The PASSWORD prompt of an ASCII login may also be set by a
+   rule, see the message PASSWORD action in "Syntax" (scripts).
      __________________________________________________________
 
 4.7. Limits and timeouts
@@ -1858,9 +1858,6 @@ aaa authentication enable default group tacacs+ enable
 
    motd banner
 
-   A motd banner set by a script (see "Access Control Lists")
-   takes precedence over the device motd banner.
-
    Neither the motd banner nor a message defined in the users'
    profile will be displayed if hushlogin is set for the user.
 
@@ -2089,18 +2086,18 @@ le\\.com$/) deny
    standard ACLs (in ACL context). The assignment operations
    (context =, message =) do make sense in shell context only.
 
-   The message PASSWORD = string action sets the password prompt of
-   an ASCII login, taking precedence over the PASSWORD user message
-   of the device and realm (see "User Messages"). It's honoured in
-   the ruleset only, by a separate pass that runs once before the
-   prompt is sent. That pass evaluates conditions, ACLs and the
-   permit, deny and return actions, skips everything else and
-   discards its result; profile, rule name and profile cache are
-   left to the regular evaluation after authentication. With MAVIS
-   users, groups are known before the prompt only with login
+   The message PASSWORD = string action sets the password prompt
+   of an ASCII login, taking precedence over the PASSWORD user
+   message of the device and realm (see "User Messages"). It's
+   honoured in the ruleset only, by a separate pass that runs once
+   before the prompt is sent. That pass evaluates conditions, ACLs
+   and the permit, deny and return actions, skips everything else
+   and discards its result; profile, rule name and profile cache
+   are left to the regular evaluation after authentication. With
+   MAVIS users, groups are known before the prompt only with login
    backend = mavis prefetch. Enable and PAP are not affected.
-   Example:
 
+   Example:
 rule otp_users {
     script {
         if (member == otp) {
@@ -2112,19 +2109,16 @@ rule otp_users {
 }
 
    A rule specific prompt tells whoever enters a user name which
-   rule that name matches, before any password is checked.
-
-   Setting the context variable makes sense in shell context only.
-   See the example in the corresponding section.
-
-   The motd banner = string action sets the motd banner for the
-   session, see "Banners and Messages". It takes precedence over the
-   device motd banner. The device script is evaluated at
-   authentication time, then the ruleset, then the acl of the
-   profile assigned by the ruleset; the last motd banner set wins.
-   Profile scripts are evaluated for authorization and accounting
-   only, too late for the login dialogue. Example:
-
+   rule that name matches, before any password is checked. Setting
+   the context variable makes sense in shell context only. See the
+   example in the corresponding section. The motd banner = string
+   action sets the motd banner for the session, see "Banners and
+   Messages". It takes precedence over the device motd banner. The
+   device script is evaluated at authentication time, then the
+   ruleset, then the acl of the profile assigned by the ruleset;
+   the last motd banner set wins. Profile scripts are evaluated
+   for authorization and accounting only, too late for the login
+   dialogue. Example:
 rule netadmins {
     script {
         if (member == netadmin) {
@@ -2134,6 +2128,9 @@ rule netadmins {
         }
     }
 }
+
+   Setting the context variable makes sense in shell context only.
+   See the example in the corresponding section.
 
    Attribute-related directives are:
 
