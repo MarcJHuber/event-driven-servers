@@ -345,9 +345,12 @@ void send_authen_reply(tac_session *session, int status, char *msg, int msg_len,
     reply->flags = flags;
 
     u_char *p = (u_char *) reply + TAC_AUTHEN_REPLY_FIXED_FIELDS_SIZE;
-    memcpy(p, msg, msg_len);
+    // msg and data may be NULL with length 0, memcpy() wants valid pointers even then
+    if (msg_len)
+	memcpy(p, msg, msg_len);
     p += msg_len;
-    memcpy(p, data, data_len);
+    if (data_len)
+	memcpy(p, data, data_len);
 
     if (status == TAC_PLUS_AUTHEN_STATUS_FAIL)
 	session->authfail_delay++;

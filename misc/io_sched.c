@@ -347,7 +347,7 @@ int io_poll(struct io_context *io, int poll_timeout)
 {
     int cax = 0;
     int res = mech_io_poll(io, poll_timeout, &cax);
-    int unreg[cax];
+    int unreg[cax + 1];		// a zero-length VLA is undefined, cax may be 0
     int unreg_count = 0;
 
     for (int i = 0; i < cax; i++) {

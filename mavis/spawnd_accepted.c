@@ -368,14 +368,16 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	// cover destination port
 	iov[iov_len].iov_base = &ctx->port;
 	iov[iov_len++].iov_len = sizeof(ctx->port);
+	// u is hashed by md5v() below, so it has to outlive the if/else
+	u_char u;
 	if (sd) {
 	    // TCP: cover protocol
-	    u_char u = IPPROTO_TCP;
+	    u = IPPROTO_TCP;
 	    iov[iov_len].iov_base = &u;
 	    iov[iov_len++].iov_len = 1;
 	} else {
 	    // UDP: cover protocol and source port
-	    u_char u = IPPROTO_UDP;
+	    u = IPPROTO_UDP;
 	    iov[iov_len].iov_base = &u;
 	    iov[iov_len++].iov_len = 1;
 	    switch (sa.sa.sa_family) {
