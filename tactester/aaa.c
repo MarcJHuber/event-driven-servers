@@ -67,7 +67,7 @@ static void md5_xor(tac_pak_hdr *hdr, char *key, int keylen)
     if (key && *key) {
 	u_char *data = tac_payload(hdr, u_char *);
 	int data_len = ntohl(hdr->datalength), h = 0;
-	u_char hash[MD5_LEN][2];
+	u_char hash[2][MD5_LEN];
 
 	for (int i = 0; i < data_len; i += 16) {
 	    int min = minimum(data_len - i, 16);
