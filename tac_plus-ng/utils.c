@@ -967,8 +967,10 @@ struct log_item *parse_log_format(struct sym *sym, mem_t *mem)
     sym_get(sym);
 
     if (!start) {
-	static struct log_item li = {.token = S_string,.text = "" };
-	start = &li;
+	// Not static: callers may append to the list (see fixup_banner()).
+	start = mem_alloc(mem, sizeof(struct log_item));
+	start->token = S_string;
+	start->text = "";
     }
 
     return start;
