@@ -1577,7 +1577,8 @@ static void mschap_helper(tac_session *session, enum token *res, enum hint_enum 
 	    mschapv1_ntresp(session->mschap.challenge, session->user->passwd[PW_MSCHAP]->value, nt_response, nt_hash);
 	    if (!memcmp(nt_response, session->mschap.nt_response, MSCHAP_NT_RESPONSE_LEN)) {
 		*res = S_permit;
-		*nt_hash_set = 1;
+		if (nt_hash_set)
+		    *nt_hash_set = 1;
 	    }
 	} else {
 	    *hint = hint_no_cleartext;
@@ -1653,7 +1654,10 @@ static void do_mschapv2(tac_session *session)
 	session->mschap.challenge_len = MSCHAPv2_CHALLENGE_LEN;
 	u_char *response = session->authen_data->data + session->authen_data->data_len - MSCHAP_TAC_RESPONSE_LEN;
 	u_char *chal = mem_alloc(session->mem, MSCHAPv1_CHALLENGE_LEN);
-	mschapv2_challenghash(session->mschap.nt_response, session->mschap.challenge, session->username.txt, chal);
+	// The peer challenge is the first MSCHAPv2_CHALLENGE_LEN bytes of the response.
+	// session->mschap.nt_response is still NULL here; it is set a few lines below.
+	// (The RADIUS path in this file already passes the response pointer, with that comment.)
+	mschapv2_challenghash(response, session->mschap.challenge, session->username.txt, chal);
 	session->mschap.challenge = chal;
 	session->mschap.challenge_len = MSCHAPv1_CHALLENGE_LEN;
 	session->mschap.nt_response = response + MSCHAP_LM_RESPONSE_LEN;
