@@ -4202,6 +4202,9 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    }
 
 	    if (fp->type == S_tls_peer_cert_sha1 || fp->type == S_tls_peer_cert_sha256) {
+		// "=" as documented; configurations written without it keep working
+		if (sym->code == S_equal)
+		    sym_get(sym);
 		char *t = sym->buf;
 		for (int i = 0; i < len;) {
 		    char k[2];
