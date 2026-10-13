@@ -287,14 +287,15 @@ static char *confdir_strdup(char *in)
     char b[in_len + cd_len];
     memcpy(b, common_data.conffile, cd_len);
     b[cd_len] = 0;
+    // r points to the last '/' of the configuration file path, the copy starts with the '/' of "$CONFDIR/"
     char *r = strrchr(b, '/');
     if (!r) {
-	r = b + cd_len;
+	r = b;
 	*r++ = '.';
-	*r++ = '/';
     }
-    memcpy(r, in + sizeof(S) - 2, in_len - sizeof(S) - 2);
-    return strndup(b, r - b + in_len - sizeof(S) - 2);
+    size_t tail_len = in_len - (sizeof(S) - 2);
+    memcpy(r, in + sizeof(S) - 2, tail_len);
+    return strndup(b, r - b + tail_len);
 #undef S
 }
 
@@ -4265,6 +4266,9 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    }
 
 	    if (fp->type == S_tls_peer_cert_sha1 || fp->type == S_tls_peer_cert_sha256) {
+		// "=" as documented; configurations written without it keep working
+		if (sym->code == S_equal)
+		    sym_get(sym);
 		char *t = sym->buf;
 		for (int i = 0; i < len;) {
 		    char k[2];
