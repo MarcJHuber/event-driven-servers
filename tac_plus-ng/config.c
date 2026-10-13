@@ -2946,6 +2946,16 @@ static void parse_member(struct sym *sym, tac_groups **groups, mem_t *mem, tac_r
     if (!*groups)
 	*groups = mem_alloc(mem, sizeof(tac_groups));
 
+    // We install our own setjmp() below to turn a "Group not found" parse
+    // error into a warning and carry on. That overwrites sym->env, the
+    // jmp_buf the caller (e.g. parse_user_profile()) set for its own parse
+    // errors. Save it and put it back before returning: once this frame is
+    // gone, a longjmp() into our setjmp() target -- which the next parse
+    // error would do -- lands in a dead stack frame (crash, or a silent
+    // "success" that admits the user).
+    jmp_buf env;
+    memcpy(env, sym->env, sizeof(jmp_buf));
+
     do {
 	tac_group *g = lookup_group(sym->buf, r);
 	if (g)
@@ -2958,6 +2968,8 @@ static void parse_member(struct sym *sym, tac_groups **groups, mem_t *mem, tac_r
 	sym_get(sym);
     }
     while (parse_comma(sym));
+
+    memcpy(sym->env, env, sizeof(jmp_buf));
 }
 
 static void parse_enable(struct sym *sym, mem_t *mem, struct pwdat **enable)
