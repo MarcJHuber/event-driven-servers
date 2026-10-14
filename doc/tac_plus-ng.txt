@@ -1858,6 +1858,9 @@ aaa authentication enable default group tacacs+ enable
 
    motd banner
 
+   A motd banner set by a script (see "Access Control Lists")
+   takes precedence over the device motd banner.
+
    Neither the motd banner nor a message defined in the users'
    profile will be displayed if hushlogin is set for the user.
 
@@ -2109,16 +2112,17 @@ rule otp_users {
 }
 
    A rule specific prompt tells whoever enters a user name which
-   rule that name matches, before any password is checked. Setting
-   the context variable makes sense in shell context only. See the
-   example in the corresponding section. The motd banner = string
-   action sets the motd banner for the session, see "Banners and
-   Messages". It takes precedence over the device motd banner. The
-   device script is evaluated at authentication time, then the
-   ruleset, then the acl of the profile assigned by the ruleset;
-   the last motd banner set wins. Profile scripts are evaluated
-   for authorization and accounting only, too late for the login
-   dialogue. Example:
+   rule that name matches, before any password is checked.
+
+   The motd banner = string action sets the motd banner for the
+   session, see "Banners and Messages". It takes precedence over
+   the device motd banner. The device script is evaluated at
+   authentication time, then the ruleset, then the acl of the
+   profile assigned by the ruleset; the last motd banner set wins.
+   Profile scripts are evaluated for authorization and accounting
+   only, too late for the login dialogue.
+
+   Example:
 rule netadmins {
     script {
         if (member == netadmin) {
