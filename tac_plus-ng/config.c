@@ -1086,6 +1086,7 @@ static void parse_tls_psk_key(struct sym *sym, tac_host *host)
 		parse_error(sym, "base64 psk is malformed");
 	    host->tls_psk_key->key.txt = mem_alloc(host->mem, buflen);
 	    host->tls_psk_key->key.len = buflen;
+	    memcpy(host->tls_psk_key->key.txt, buf, buflen);
 	    sym_get(sym);
 	    return;
 	}
