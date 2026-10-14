@@ -4523,7 +4523,9 @@ static struct rad_dacl *add_dacl(char *name, size_t name_len, struct sym *sym, t
     if (dynamic)
 	dacl->dynamic = io_now.tv_sec + r->caching_period;
 
-    if (r->caching_period)
+    // A static dACL (from the configuration) must stay in the tree so that
+    // lookup_dacl() finds it; only a dynamic (MAVIS) dACL depends on caching.
+    if (!dynamic || r->caching_period)
 	RB_insert(r->dacls, dacl);
     return dacl;
 }
