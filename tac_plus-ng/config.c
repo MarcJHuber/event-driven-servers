@@ -1376,8 +1376,8 @@ int rad_check_dacl(tac_session *session)
 			if (vp[1] - 1 == sizeof(A) && !strncasecmp((char *) vp + 2, A, sizeof(A) - 1))
 #undef A
 			    found |= 2;
-			vp += vp[1];
 		    }
+		    vp += vp[1];
 		}
 	    }
 	    if (found == 3)
