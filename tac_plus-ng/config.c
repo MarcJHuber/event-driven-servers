@@ -3425,7 +3425,7 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 	    key = mem_strdup(user->mem, ck);
 	}
 	(*ssh_key)->key = key;
-	memcpy((*ssh_key)->hash, hash, len + 1);
+	memcpy((*ssh_key)->hash, hash, hash_len + 1);
 	ssh_key = &((*ssh_key)->next);
 
 	hash = calc_ssh_key_hash("SHA256", t, len);
@@ -3437,7 +3437,7 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 	    hash[hash_len] = 0;
 	}
 	*ssh_key = mem_alloc(user->mem, sizeof(struct ssh_key) + len);
-	memcpy((*ssh_key)->hash, hash, len + 1);
+	memcpy((*ssh_key)->hash, hash, hash_len + 1);
 	(*ssh_key)->key = key;
 	(*ssh_key)->key_len = len;
 
