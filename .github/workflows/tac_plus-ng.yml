@@ -1,0 +1,162 @@
+# Copyright (C) 2026 TaranacLabs
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#
+# THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL ITS AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+# Build tac_plus-ng and run tac_plus-ng/tests (see tac_plus-ng/tests/README).
+# The YAML only installs packages and calls tac_plus-ng/tests/run-tests, so a
+# local run and a CI run are the same thing.
+
+name: tac_plus-ng
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "tac_plus-ng/**"
+      - "mavis/**"
+      - "misc/**"
+      - configure
+      - GNUmakefile
+      - Makefile
+      - Makefile.inc
+      - .github/workflows/tac_plus-ng.yml
+  pull_request:
+    paths:
+      - "tac_plus-ng/**"
+      - "mavis/**"
+      - "misc/**"
+      - configure
+      - GNUmakefile
+      - Makefile
+      - Makefile.inc
+      - .github/workflows/tac_plus-ng.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # a newer push to a pull request replaces its run; runs on a branch all finish
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  UBUNTU_PACKAGES: build-essential clang llvm perl libpcre2-dev libssl-dev libcrypt-dev python3
+
+jobs:
+  alpine-gcc:
+    # musl, the package list of a typical container build
+    runs-on: ubuntu-24.04
+    container: alpine:3.20
+    timeout-minutes: 15
+    steps:
+      - run: apk add --no-cache gcc musl-dev make perl openssl-dev pcre2-dev linux-headers python3
+      - uses: actions/checkout@v5
+      - run: tac_plus-ng/tests/run-tests
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests-work-alpine-gcc
+          path: build/tests-work
+          if-no-files-found: ignore
+
+  ubuntu-gcc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq $UBUNTU_PACKAGES
+      - uses: actions/checkout@v5
+      - run: tac_plus-ng/tests/run-tests
+        env:
+          CC: gcc
+      - if: failure()
+        run: mkdir -p build/tests-work && sudo journalctl --no-pager -t tac_plus-ng > build/tests-work/journal.txt || true
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests-work-ubuntu-gcc
+          path: build/tests-work
+          if-no-files-found: ignore
+
+  ubuntu-clang-asan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      # configure keeps only "clang" of --with-cc, run-tests passes the flags
+      # again as "make CC=...".
+      # sanitizer-ignorelist.txt: known findings that only the compiler can
+      #   leave out, each with its reason; the path must be absolute.
+      # UBSan stays recoverable so that tests/ubsan.supp can suppress single
+      #   findings; halt_on_error=1 (tactest/daemon.py) stops on the rest.
+      TACTEST_CC: >-
+        clang -g -fno-omit-frame-pointer -fsanitize=address,undefined
+        -fsanitize-ignorelist=${{ github.workspace }}/tac_plus-ng/tests/sanitizer-ignorelist.txt
+    steps:
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq $UBUNTU_PACKAGES
+      # high mmap randomization on recent kernels breaks the ASan runtime
+      - run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - uses: actions/checkout@v5
+      - run: tac_plus-ng/tests/run-tests --build-only
+      # a "green" ASan job must not be a plain build
+      - run: nm build/*/tests-prefix/sbin/tac_plus-ng | grep -q __asan_init
+      - run: nm build/*/tests-prefix/sbin/tac_plus-ng | grep -q __ubsan_handle_
+      - run: TACTEST_PREFIX=$(echo $PWD/build/*/tests-prefix) tac_plus-ng/tests/run-tests
+      - if: failure()
+        run: mkdir -p build/tests-work && sudo journalctl --no-pager -t tac_plus-ng > build/tests-work/journal.txt || true
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests-work-ubuntu-clang-asan
+          path: build/tests-work
+          if-no-files-found: ignore
+
+  ubuntu-debug-minimum:
+    # --debug: -O0 and -Werror (the other jobs build with -O2). The --minimum
+    # build (no OpenSSL) is the one tested: it takes other code paths (no TLS
+    # detection before the first read)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq $UBUNTU_PACKAGES
+      - uses: actions/checkout@v5
+      - run: tac_plus-ng/tests/run-tests --build-only
+        env:
+          CC: ${{ matrix.cc }}
+          TACTEST_CONFIGURE: --debug
+      - run: tac_plus-ng/tests/run-tests
+        env:
+          CC: ${{ matrix.cc }}
+          TACTEST_CONFIGURE: --debug --minimum
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests-work-ubuntu-debug-minimum-${{ matrix.cc }}
+          path: build/tests-work
+          if-no-files-found: ignore
