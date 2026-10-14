@@ -34,8 +34,13 @@ make; llvm puts llvm-symbolizer, for the stack traces in the reports,
 on PATH):
 
     sudo apt-get install clang llvm
-    TACTEST_CC="clang -g -fsanitize=address,undefined" tac_plus-ng/tests/run-tests
+    TACTEST_CC="clang -g -fsanitize=address,undefined \
+        -fsanitize-ignorelist=$PWD/tac_plus-ng/tests/sanitizer-ignorelist.txt" \
+        tac_plus-ng/tests/run-tests
 
+sanitizer-ignorelist.txt (compile time) and ubsan.supp (run time) list
+the findings that are known and not fixed yet, each with the reason;
+test_harness.py checks that every ubsan.supp line is still needed.
 Changing TACTEST_CC or TACTEST_CONFIGURE rebuilds from scratch. On
 kernels with high mmap randomization, ASan binaries of older clang
 versions crash at start; "setarch $(uname -m) -R tac_plus-ng/tests/run-tests"

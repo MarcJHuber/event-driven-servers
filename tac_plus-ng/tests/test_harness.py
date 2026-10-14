@@ -40,7 +40,7 @@ import socket
 import time
 import unittest
 
-from tactest import LINUX, DaemonTestCase, detect, sanitizers
+from tactest import LINUX, SUPPRESSIONS, Closed, DaemonTestCase, ProtocolError, detect, sanitizers
 from tactest.daemon import proc_stat
 
 POLICY = """
@@ -58,6 +58,47 @@ POLICY = """
 	}
 """
 
+UBSAN_WAIT = 5.0
+
+# UBSan check name in ubsan.supp: the text of its runtime error
+UBSAN_MESSAGES = {
+    "bounds": "out of bounds for type",
+    "nonnull-attribute": "null pointer passed as argument",
+    "vla-bound": "variable length array bound evaluates to non-positive value",
+    "signed-integer-overflow": "cannot be represented in type",
+}
+
+
+def _pap(d):
+    with d.connect(timeout=2.0) as c:
+        c.pap("alice", "alicepw")
+
+
+def _author(d):
+    with d.connect(timeout=2.0) as c:
+        c.author("alice", ["service=shell", "cmd="])
+
+
+def _acct(d):
+    with d.connect(timeout=2.0) as c:
+        c.acct("alice", ["task_id=1", "service=shell"])
+
+
+def _two_sessions(d):
+    """Two open sessions on one connection whose ids differ by more than INT_MAX.
+
+    The ids read the same in either byte order, so the daemon compares
+    0x7f00007f with (int) 0x80000080 on any host.
+    """
+    with d.connect(timeout=2.0, source="127.0.0.3", single_connect=True) as c:
+        c.session(0x7F00007F).start(user="alice")
+        c.session(0x80000080).start(user="alice")
+
+
+# every reply type, and a connection with two sessions: each has its own findings
+REQUESTS = (_pap, _author, _acct, _two_sessions)
+
+
 def poll(fn, timeout):
     """Call fn() until it returns something true or the deadline passes."""
     deadline = time.monotonic() + timeout
@@ -66,6 +107,18 @@ def poll(fn, timeout):
         if value or time.monotonic() > deadline:
             return value
         select.select([], [], [], 0.05)
+
+
+def suppressions(path=SUPPRESSIONS):
+    """[(check, function)] of the active lines of a UBSan suppressions file."""
+    out = []
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                check, function = line.split(":", 1)
+                out.append((check, function))
+    return out
 
 
 class Harness(DaemonTestCase):
@@ -199,6 +252,41 @@ class Harness(DaemonTestCase):
         with d.connect() as c:
             self.assertEqual(c.pap("alice", "alicepw").status_name, "FAIL")
 
+    def _ubsan_run(self, path):
+        """Start a daemon with the suppressions in path, send requests, wait for UBSan reports."""
+        d = self.start_daemon(POLICY, check=False, suppressions=path,
+                              name="ubsan-%s" % os.path.basename(path))
+        base = detect.Baseline(d)
+        for request in REQUESTS:
+            try:
+                request(d)
+            except (OSError, Closed, ProtocolError):
+                pass                    # halt_on_error=1 may stop the worker mid-reply
+        # a finding outside the request path (io_poll) needs a periodic tick
+        return poll(base.sanitizer, UBSAN_WAIT)
+
+    def test_harness_ubsan_suppressions_are_needed(self):
+        """Every line of ubsan.supp still fires without it, and none fires with the whole file.
+
+        An unused suppression is silently ignored, so a fixed finding would
+        otherwise leave a line behind that hides the next one.
+        """
+        if "undefined" not in sanitizers():
+            self.skipTest("built without UBSan")
+        lines = suppressions()
+        self.assertTrue(lines)
+        self.assertEqual(self._ubsan_run(SUPPRESSIONS), [], "a finding ubsan.supp does not cover")
+        for check, function in lines:
+            with self.subTest(suppression="%s:%s" % (check, function)):
+                path = os.path.join(self._scratch[0].tmp, "without-%s.supp" % function)
+                with open(path, "w") as f:
+                    f.writelines("%s:%s\n" % line for line in lines if line != (check, function))
+                reports = "\n".join(self._ubsan_run(path))
+                self.assertIn(check, UBSAN_MESSAGES, "add the runtime error text of %s to UBSAN_MESSAGES" % check)
+                self.assertIn(UBSAN_MESSAGES[check], reports,
+                              "drop %s:%s from ubsan.supp, it no longer fires" % (check, function))
+                if "#0 " in reports:        # some reports come without a stack trace
+                    self.assertIn(" in %s " % function, reports)
 
 
 if __name__ == "__main__":

@@ -89,6 +89,9 @@ def binary():
     return path
 
 
+SUPPRESSIONS = os.path.join(TESTS, "ubsan.supp")
+
+
 def symbolizer():
     """llvm-symbolizer for the stack traces of sanitizer reports.
 
@@ -108,7 +111,7 @@ def _quote(path):
     return '"%s"' % path
 
 
-def sanitizer_env(tmp=None, suppressions=None):
+def sanitizer_env(tmp=None, suppressions=SUPPRESSIONS):
     """Sanitizer runtime options; harmless for a binary built without them.
 
     allow_user_segv_handler=0: the daemon's own SIGSEGV handler would
@@ -299,7 +302,7 @@ def alive(pid, starttime=None):
 
 class Daemon:
     def __init__(self, body="", name="daemon", key=config.KEY, address="127.0.0.1",
-                 spawnd="", top="", template=config.BASE, suppressions=None, udp=False):
+                 spawnd="", top="", template=config.BASE, suppressions=SUPPRESSIONS, udp=False):
         """udp: also listen for RADIUS on a UDP port (udp_port) of the same address."""
         self.body, self.key, self.address = body, key, address
         self.udp = udp
