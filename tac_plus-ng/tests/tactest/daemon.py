@@ -44,7 +44,7 @@ import subprocess
 import tempfile
 import time
 
-from . import config
+from . import config, radius
 from .tacacs import Closed, Connection, ProtocolError
 
 EX_TEMPFAIL = 75        # spawnd: failed to bind any listener
@@ -174,6 +174,13 @@ def free_port(address):
         return s.getsockname()[1]
 
 
+def free_udp_port(address):
+    family = socket.AF_INET6 if ":" in address else socket.AF_INET
+    with socket.socket(family, socket.SOCK_DGRAM) as s:
+        s.bind((address, 0))
+        return s.getsockname()[1]
+
+
 _features = {}
 
 
@@ -292,8 +299,11 @@ def alive(pid, starttime=None):
 
 class Daemon:
     def __init__(self, body="", name="daemon", key=config.KEY, address="127.0.0.1",
-                 spawnd="", top="", template=config.BASE, suppressions=None):
+                 spawnd="", top="", template=config.BASE, suppressions=None, udp=False):
+        """udp: also listen for RADIUS on a UDP port (udp_port) of the same address."""
         self.body, self.key, self.address = body, key, address
+        self.udp = udp
+        self.udp_port = None
         self.suppressions = suppressions
         self.spawnd, self.top, self.template = spawnd, top, template
         self.generation = 0
@@ -308,8 +318,11 @@ class Daemon:
     # configuration
 
     def config_text(self):
+        spawnd = self.spawnd
+        if self.udp:
+            spawnd += "\tlisten { address = %s port = %d protocol = UDP }\n" % (self.address, self.udp_port)
         return config.render(self.template, tmp=self.tmp, address=self.address, port=self.port, key=self.key,
-                             generation=self.generation, spawnd=self.spawnd, top=self.top, body=self.body)
+                             generation=self.generation, spawnd=spawnd, top=self.top, body=self.body)
 
     def write_config(self):
         tmp = self.cfg + ".new"
@@ -322,6 +335,10 @@ class Daemon:
     @property
     def addr(self):
         return (self.address, self.port)
+
+    @property
+    def udp_addr(self):
+        return (self.address, self.udp_port)
 
     @property
     def pid(self):
@@ -337,6 +354,8 @@ class Daemon:
         ports = list(ports)
         for _ in range(START_ATTEMPTS):
             self.port = ports.pop(0) if ports else free_port(self.address)
+            if self.udp:
+                self.udp_port = free_udp_port(self.address)
             self.write_config()
             stderr = open(self.stderr_path, "ab")
             argv = [binary()]
@@ -423,6 +442,11 @@ class Daemon:
     def connect(self, **kw):
         kw.setdefault("timeout", 5.0)
         return Connection(self.addr, kw.pop("key", self.key), **kw)
+
+    def radius(self, secret, tcp=False, **kw):
+        """A RADIUS client: UDP to udp_port, or RADIUS/TCP to the TACACS+ port (the daemon tells them apart)."""
+        kw.setdefault("timeout", 5.0)
+        return radius.Client(self.addr if tcp else self.udp_addr, secret, tcp=tcp, **kw)
 
     def reload(self, body=None, probe=None, timeout=20.0):
         """Rewrite the config, SIGHUP the master, wait until a new connection sees it.

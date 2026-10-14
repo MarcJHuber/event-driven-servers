@@ -45,12 +45,12 @@ Environment:
 import sys
 import unittest
 
-from . import config, daemon, detect, tacacs
+from . import config, daemon, detect, radius, tacacs
 from .daemon import LINUX, Daemon, DaemonError, binary, features, ipv6_available, prefix, sanitizers
 from .tacacs import Closed, Connection, Packet, ProtocolError
 
 __all__ = ["DaemonTestCase", "Daemon", "DaemonError", "Connection", "Packet", "Closed", "ProtocolError",
-           "binary", "prefix", "sanitizers", "features", "ipv6_available", "config", "detect",
+           "binary", "prefix", "sanitizers", "features", "ipv6_available", "config", "detect", "radius",
            "tacacs", "LINUX", "SOURCE"]
 
 # top of the source tree: the samples, the RADIUS dictionary
@@ -68,6 +68,7 @@ class DaemonTestCase(unittest.TestCase):
     ADDRESS = "127.0.0.1"
     SPAWND = ""
     TOP = ""
+    UDP = False             # also listen for RADIUS over UDP
 
     daemon = None
     _failed = False
@@ -79,7 +80,8 @@ class DaemonTestCase(unittest.TestCase):
         cls._last = None
         if cls.CONFIG is None:
             return
-        cls.daemon = Daemon(cls.CONFIG, name=cls.__name__, address=cls.ADDRESS, spawnd=cls.SPAWND, top=cls.TOP)
+        cls.daemon = Daemon(cls.CONFIG, name=cls.__name__, address=cls.ADDRESS, spawnd=cls.SPAWND, top=cls.TOP,
+                            udp=cls.UDP)
         try:
             cls.daemon.start()
         except Exception:
@@ -167,6 +169,11 @@ class DaemonTestCase(unittest.TestCase):
 
     def connect(self, daemon=None, **kw):
         c = (daemon or self.daemon).connect(**kw)
+        self.addCleanup(c.close)
+        return c
+
+    def radius(self, secret, daemon=None, **kw):
+        c = (daemon or self.daemon).radius(secret, **kw)
         self.addCleanup(c.close)
         return c
 
