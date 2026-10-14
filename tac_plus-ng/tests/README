@@ -1,0 +1,125 @@
+tac_plus-ng tests
+=================
+
+Functional tests for tac_plus-ng: the daemon runs under spawnd on a
+loopback port, as in production, and Python clients talk TACACS+ to it.
+Only the Python 3 standard library is needed (3.8 or newer).
+
+The tests are written for Linux. Elsewhere they run, but the checks
+that look at processes through /proc (dead workers, sockets a worker
+keeps open, MAVIS children left behind) are skipped, and so are the
+self-tests of those checks; run-tests uses gmake if there is one.
+
+Quick start on a fresh Ubuntu:
+
+    sudo apt-get install build-essential perl libpcre2-dev libssl-dev \
+        libcrypt-dev python3
+    tac_plus-ng/tests/run-tests
+
+run-tests configures and builds tac_plus-ng, installs it into
+build/<OS>/tests-prefix (no root needed, nothing outside the tree is
+touched) and runs every test. Arguments after the options go to
+"python3 -m unittest", e.g.
+
+    tac_plus-ng/tests/run-tests -k pap         # tests with "pap" in the name
+    tac_plus-ng/tests/run-tests --build-only   # build and install only
+
+To test an existing installation, or a build of another tree:
+
+    TACTEST_PREFIX=/usr/local tac_plus-ng/tests/run-tests
+
+To build with AddressSanitizer and UndefinedBehaviorSanitizer (configure
+keeps only the compiler name, so run-tests passes the flags again to
+make; llvm puts llvm-symbolizer, for the stack traces in the reports,
+on PATH):
+
+    sudo apt-get install clang llvm
+    TACTEST_CC="clang -g -fsanitize=address,undefined" tac_plus-ng/tests/run-tests
+
+Changing TACTEST_CC or TACTEST_CONFIGURE rebuilds from scratch. On
+kernels with high mmap randomization, ASan binaries of older clang
+versions crash at start; "setarch $(uname -m) -R tac_plus-ng/tests/run-tests"
+or "sysctl vm.mmap_rnd_bits=28" helps.
+
+Other environment variables: TACTEST_CONFIGURE (extra configure
+arguments), TACTEST_WORKDIR, TACTEST_KEEP=1, TACTEST_DEBUG=<mask>,
+TACTEST_TIMEOUT (seconds, default 600).
+
+Layout
+------
+
+    run-tests        build + install + run, the one entry point
+    tactest/         the harness
+      daemon.py        start/stop/reload the daemon, process discovery
+      detect.py        worker crash detectors, checked after every test
+      config.py        the configuration template around a test's policy
+      tacacs.py        TACACS+ client (RFC 8907): PAP
+    configs/         complete configurations for "tac_plus-ng -P":
+                     good-*.cfg must parse, bad-*.cfg must be rejected
+    test_*.py        the tests, one file per topic
+
+Writing a test
+--------------
+
+Derive from tactest.DaemonTestCase and write the policy into the class:
+
+    class Example(DaemonTestCase):
+        CONFIG = """
+            user alice { password pap = clear secret }
+            ruleset { rule { script { permit } } }
+        """
+
+        def test_pap(self):
+            self.assertTrue(self.connect().pap("alice", "secret").ok)
+
+The daemon is started once per class. After every test the harness
+checks that no worker crashed, hung or kept a socket open -- spawnd
+restarts a crashed worker, so a crash is otherwise invisible to the
+client. A test for an issue is named test_issue<N>_<what>, so that
+"run-tests -k issue<N>" selects it.
+
+A test that needs a daemon of its own -- a configuration the daemon
+under test may not accept, a reload -- sets CONFIG = None and calls
+self.start_daemon(policy); the same checks run when the test ends.
+self.wait_log(name, text) looks only at what was logged during the test.
+
+The policy is a template like the rest of the configuration: "$tmp" is
+the daemon's scratch directory, a literal "$" is written "$$".
+
+A regression test goes into the same change as its fix, not before it
+as an expectedFailure: the fix would turn that into an unexpected
+success, and expectedFailure doesn't cover the checks that run after
+the test anyway.
+
+Scratch directories (configuration, logs, sanitizer reports) of failed
+test classes are kept under build/tests-work and their paths printed.
+
+Copyright
+---------
+
+Copyright (C) 2026 TaranacLabs
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+
+1. Redistributions of source code must retain the above copyright
+   notice, this list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in
+   the documentation and/or other materials provided with the
+   distribution.
+
+THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+IN NO EVENT SHALL ITS AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.

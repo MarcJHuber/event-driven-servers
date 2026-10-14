@@ -1,0 +1,116 @@
+#!/bin/sh
+# Copyright (C) 2026 TaranacLabs
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
+#
+# THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+# WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL ITS AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+#
+# Build tac_plus-ng into a private prefix and run the tests against it.
+#
+# usage: tac_plus-ng/tests/run-tests [--build-only] [unittest arguments ...]
+#
+#   run-tests                     build, install, run everything
+#   run-tests -k issue132         run the tests whose name contains issue132
+#   run-tests --build-only        build and install only
+#
+# Environment:
+#   TACTEST_PREFIX     test an existing installation instead of building one
+#   TACTEST_CC         compiler with flags, e.g. "clang -fsanitize=address".
+#                      configure keeps only the compiler name, so the flags
+#                      are passed again as "make CC=..."
+#   TACTEST_CONFIGURE  extra configure arguments, e.g. "--debug --minimum"
+#   TACTEST_WORKDIR    scratch directories (default build/tests-work); left
+#                      behind for the tests that failed
+#   TACTEST_KEEP=1     keep all scratch directories
+#   TACTEST_TIMEOUT    limit for the whole test run in seconds (default 600)
+#   MAKE               GNU make (default: gmake if there is one, else make)
+
+set -e
+
+TOP=$(cd "$(dirname "$0")/../.." && pwd)
+TESTS=$TOP/tac_plus-ng/tests
+
+BUILD_ONLY=
+if [ "$1" = "--build-only" ]; then
+	BUILD_ONLY=1
+	shift
+fi
+
+now() { date +%s; }
+
+if [ -z "$TACTEST_PREFIX" ]; then
+	# build/<OS> exactly as GNUmakefile names it
+	OS=$(uname -s | tr '[:upper:]/ ' '[:lower:]--')-$(uname -r | sed 's/(.*)//' | tr '[:upper:]/ ' '[:lower:]--')-$(uname -m | tr '[:upper:]/ ' '[:lower:]--')
+	TACTEST_PREFIX=$TOP/build/$OS/tests-prefix
+	MAKE=${MAKE:-$(command -v gmake || echo make)}
+	START=$(now)
+	cd "$TOP"
+	# configure cleans the build only when Makefile.inc changes, and the
+	# flags of "make CC=..." don't go there: a build with other flags must
+	# not reuse the objects of the previous one
+	STAMP=build/$OS/tests-build-flags
+	FLAGS="CC=${CC-} TACTEST_CC=${TACTEST_CC-} TACTEST_CONFIGURE=${TACTEST_CONFIGURE-}"
+	if [ -d "build/$OS" ] && [ "$(cat "$STAMP" 2>/dev/null)" != "$FLAGS" ]; then
+		echo "run-tests: build flags changed, cleaning build/$OS"
+		$MAKE clean
+	fi
+	# no -j: the Makefiles don't declare the dependencies a parallel build needs
+	if [ -n "$TACTEST_CC" ]; then
+		# shellcheck disable=SC2086
+		./configure --prefix="$TACTEST_PREFIX" --with-cc="$TACTEST_CC" $TACTEST_CONFIGURE tac_plus-ng
+		$MAKE CC="$TACTEST_CC"
+		$MAKE install CC="$TACTEST_CC"
+	else
+		# shellcheck disable=SC2086
+		./configure --prefix="$TACTEST_PREFIX" $TACTEST_CONFIGURE tac_plus-ng
+		$MAKE
+		$MAKE install
+	fi
+	echo "$FLAGS" > "$STAMP"
+	echo "run-tests: build and install took $(( $(now) - START )) s"
+fi
+
+# detect_leaks=0: under ASan, LeakSanitizer would fail even "-v" (see tactest/daemon.py)
+ASAN_OPTIONS=detect_leaks=0${ASAN_OPTIONS:+:$ASAN_OPTIONS} "$TACTEST_PREFIX/sbin/tac_plus-ng" -v
+
+[ -n "$BUILD_ONLY" ] && exit 0
+
+export TACTEST_PREFIX
+TACTEST_WORKDIR=${TACTEST_WORKDIR:-$TOP/build/tests-work}
+export TACTEST_WORKDIR
+mkdir -p "$TACTEST_WORKDIR"
+
+TIMEOUT=
+command -v timeout >/dev/null 2>&1 && TIMEOUT="timeout ${TACTEST_TIMEOUT:-600}"
+
+START=$(now)
+set +e
+cd "$TESTS"
+$TIMEOUT python3 -m unittest discover -s "$TESTS" -t "$TESTS" -v "$@"
+RC=$?
+set -e
+echo "run-tests: tests took $(( $(now) - START )) s, exit code $RC"
+[ $RC -eq 124 ] && echo "run-tests: the test run hit the ${TACTEST_TIMEOUT:-600} s limit"
+rmdir "$TACTEST_WORKDIR" 2>/dev/null || echo "run-tests: scratch directories kept in $TACTEST_WORKDIR"
+exit $RC
