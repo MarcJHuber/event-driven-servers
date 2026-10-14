@@ -2562,7 +2562,7 @@ static enum token lookup_user_profile(tac_session *session)
 
     for (int i = 0; i < USER_PROFILE_CACHE_SIZE; i++) {
 	if (session->ctx->user_profile_cache[i].user == session->user && session->ctx->user_profile_cache[i].crc32 == crc32 &&
-	    session->ctx->user_profile_cache[i].user->serial == session->user->serial) {
+	    session->ctx->user_profile_cache[i].serial == session->user->serial) {
 	    if (session->ctx->user_profile_cache[i].valid_until >= io_now.tv_sec) {
 		session->profile = session->ctx->user_profile_cache[i].profile;
 		if (session->ctx->user_profile_cache[i].motd_banner)
