@@ -3369,9 +3369,10 @@ id = spawnd {
    RADIUS.
 
    The device will see the demoacl portion as something like
-   #ACSACL#demoacl-12345678, with 12345678 being the manually set
-   version number (version = 12345678) or the first 4 bytes of the
-   ACL MD5 checksum in hex.
+   #ACSACL#demoacl-00bc614e, where the suffix is, in hexadecimal,
+   either the manually set version number (version = 12345678, that
+   is 0x00bc614e) or the first 4 bytes of the ACL MD5 checksum. The
+   version is always printed as 8 hex digits, never in decimal.
 
    MAVIS support is there, too. One of the demo scripts
    (mavis_tacplus-ng-demo-database.pl) shows how to handle that.
