@@ -3249,19 +3249,6 @@ static char *calc_ssh_key_hash(char *hashname, unsigned char *in, size_t in_len)
     size_t md_len = sizeof(md);
     size_t hashname_len;
     unsigned char *o;
-    char *t = strchr(hashname, ':');
-    if (t) {
-	// <HASHNAME>:<HASH> => <HASHNAME>
-	ssize_t len = t - hashname;
-	t = alloca(len);
-	len--;
-	t[len] = 0;
-	while (len > -1) {
-	    len--;
-	    t[len] = hashname[len];
-	}
-	hashname = t;
-    }
     if (!in_len)
 	in_len = strlen((char *) in);
 #if OPENSSL_VERSION_NUMBER < 0x30000000
@@ -3405,18 +3392,17 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 	if (is_rfc4716)
 	    key = mem_strdup(user->mem, sym->buf);
 	else {
-	    int l = slen;
-	    char ck[slen + 200];
+	    // p isn't NUL-terminated at slen; split it into lines of 72 characters
+	    char ck[slen + slen / 72 + 200];
 	    char *t = ck;
 	    memcpy(t, begin_marker, begin_marker_len);
 	    t += begin_marker_len;
 	    *t++ = '\n';
-	    while (l > 0) {
-		strncpy(t, p, 72);
-		while (*t)
-		    t++;
+	    for (size_t l = 0; l < slen; l += 72) {
+		size_t n = (slen - l < 72) ? slen - l : 72;
+		memcpy(t, p + l, n);
+		t += n;
 		*t++ = '\n';
-		l -= 72;
 	    }
 	    memcpy(t, end_marker, end_marker_len);
 	    t += end_marker_len;
@@ -4431,20 +4417,22 @@ dacl test {
 
 static struct rad_dacl *add_dacl(char *name, size_t name_len, struct sym *sym, tac_realm *r, int dynamic)
 {
-    struct rad_dacl *dacl = alloca(sizeof(struct rad_dacl));
-    str_set(&dacl->name, name, name_len);
+    struct rad_dacl key = { 0 };
+    str_set(&key.name, name, name_len);
     char *prefix = "ip:inacl";
+    char *data = NULL;
+    uint32_t version = 0;
     mem_t *mem = NULL;		// for now
 
     if (!r->dacls)
 	r->dacls = RB_tree_new(compare_name, (void (*)(void *)) free_dacl);
 
-    struct rad_dacl *n = (struct rad_dacl *) RB_lookup(r->dacls, (void *) dacl);
+    struct rad_dacl *n = (struct rad_dacl *) RB_lookup(r->dacls, (void *) &key);
     if (n)
-	parse_error(sym, "DACL '%s' already defined at line %u", dacl->name, n->line);
+	parse_error(sym, "DACL '%s' already defined at line %u", key.name.txt, n->line);
 
+    // Collect everything first: prefix, version and data may come in any order.
     parse(sym, S_openbra);
-    int data_seen = 0;
     while (sym->code != S_closebra) {
 	switch (sym->code) {
 	case S_prefix:
@@ -4455,33 +4443,35 @@ static struct rad_dacl *add_dacl(char *name, size_t name_len, struct sym *sym, t
 	    break;
 	case S_data:
 	    sym_get(sym);
-	    if (data_seen)
+	    if (data)
 		parse_error(sym, "data portion already defined");
-	    data_seen = 1;
 	    parse(sym, S_equal);
-	    int count = 0;
-	    for (char *s = sym->buf; *s; s++)
-		if (*s == '\n' || *s == '\r')
-		    count++;
-	    dacl = mem_alloc(mem, sizeof(struct rad_dacl) + count * sizeof(struct iovec));
-	    str_set(&dacl->name, mem_strdup(mem, name), name_len);
-	    dacl->data = mem_strdup(mem, sym->buf);
+	    data = mem_strdup(mem, sym->buf);
 	    sym_get(sym);
-	    str_set(&dacl->prefix, prefix, 0);
-	    dacl->realm = r;
 	    break;
 	case S_version:
 	    sym_get(sym);
 	    parse(sym, S_equal);
-	    dacl->version = parse_uint(sym);
+	    version = parse_uint(sym);
 	    break;
 	default:
 	    parse_error_expect(sym, S_prefix, S_data, S_closebra, S_unknown);
 	}
     }
 
-    if (!data_seen)
+    if (!data)
 	parse_error(sym, "dacl data portion not defined");
+
+    int count = 0;
+    for (char *s = data; *s; s++)
+	if (*s == '\n' || *s == '\r')
+	    count++;
+    struct rad_dacl *dacl = mem_alloc(mem, sizeof(struct rad_dacl) + count * sizeof(struct iovec));
+    str_set(&dacl->name, mem_strdup(mem, name), name_len);
+    dacl->data = data;
+    str_set(&dacl->prefix, prefix, 0);
+    dacl->version = version;
+    dacl->realm = r;
 
     sym_get(sym);
 
@@ -4548,7 +4538,7 @@ static void parse_dacl(struct sym *sym, tac_realm *r)
 
     size_t name_len = strlen(sym->buf);
     char name[name_len + 1];
-    strncpy(name, sym->buf, name_len);
+    memcpy(name, sym->buf, name_len + 1);
     sym_get(sym);
     add_dacl(name, name_len, sym, r, 0);
 }

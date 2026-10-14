@@ -887,6 +887,8 @@ static void accept_control_tls(struct context *ctx, int cur)
 	reject_conn(ctx, "SNI", __func__, __LINE__);
 	return;
     }
+    tac_host *by_address = ctx->host;	// before the PSK branch: "goto done" uses it
+
 #ifndef OPENSSL_NO_PSK
     if (ctx->tls_psk_identity.txt) {
 	if (SSL_version(ctx->tls) == TLS1_3_VERSION) {
@@ -908,7 +910,6 @@ static void accept_control_tls(struct context *ctx, int cur)
 	return;
     }
 
-    tac_host *by_address = ctx->host;
     //ctx->host = NULL;
 
 #if OPENSSL_VERSION_NUMBER < 0x30000000
