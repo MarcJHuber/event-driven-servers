@@ -45,12 +45,13 @@ Environment:
 import sys
 import unittest
 
-from . import config, daemon, detect, radius, tacacs
+from . import config, daemon, detect, mavis_stub, radius, tacacs
 from .daemon import LINUX, Daemon, DaemonError, binary, features, ipv6_available, prefix, sanitizers
+from .mavis_stub import Stub
 from .tacacs import Closed, Connection, Packet, ProtocolError
 
-__all__ = ["DaemonTestCase", "Daemon", "DaemonError", "Connection", "Packet", "Closed", "ProtocolError",
-           "binary", "prefix", "sanitizers", "features", "ipv6_available", "config", "detect", "radius",
+__all__ = ["DaemonTestCase", "Daemon", "DaemonError", "Connection", "Packet", "Closed", "ProtocolError", "Stub",
+           "binary", "prefix", "sanitizers", "features", "ipv6_available", "config", "detect", "mavis_stub", "radius",
            "tacacs", "LINUX", "SOURCE"]
 
 # top of the source tree: the samples, the RADIUS dictionary

@@ -58,6 +58,9 @@ Layout
                        split packets; several sessions on one connection
       crypto.py        MD4 and DES for MS-CHAP (not in the standard library)
       radius.py        RADIUS client: PAP Access-Request over UDP or TCP
+      mavis_stub.py    a MAVIS backend for the "external" module, on top of
+                       the installed mavis.py; tests change its answers
+                       through a JSON file while the daemon runs
     configs/         complete configurations for "tac_plus-ng -P":
                      good-*.cfg must parse, bad-*.cfg must be rejected
     test_*.py        the tests, one file per topic
@@ -87,6 +90,22 @@ under test may not accept, a reload -- sets CONFIG = None and calls
 self.start_daemon(policy); the same checks run when the test ends.
 self.wait_log(name, text) looks only at what was logged during the test.
 A class with UDP = True also gets a RADIUS listener (self.radius(secret)).
+
+For users from a MAVIS backend, put tactest.Stub.module() into the
+policy and drive the backend from the test:
+
+    class Backend(DaemonTestCase):
+        CONFIG = Stub.module(childs=(1, 1)) + """
+            user backend = mavis
+            pap backend = mavis
+            ruleset { rule { script { permit } } }
+        """
+
+        def test_error(self):
+            stub = Stub(self.daemon)
+            stub.set(users={"alice": {"password": "pw"}}, result={"AUTH": "ERROR"})
+            self.assertEqual(self.connect().pap("alice", "pw").status_name, "FAIL")
+            self.assertEqual(stub.requests()[-1]["result"], "ERROR")
 
 The policy is a template like the rest of the configuration: "$tmp" is
 the daemon's scratch directory, a literal "$" is written "$$".
