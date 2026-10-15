@@ -217,6 +217,64 @@ class TacacsOverTls(TlsTestCase):
                          {"tactest-device": "localhost", "tactest-transport": "tcp"})
 
 
+class PeerCertSan(TlsTestCase):
+    """The subjectAltNames of a client certificate select the device; a DNS name in there crashed the worker.
+
+    accept_control_tls() keeps the DNS names of the certificate in an
+    array of pointers, but allocated it with one byte per name: the first
+    DNS name looked at wrote 8 bytes into a 2-byte block. On musl (Alpine)
+    the worker died with SIGSEGV when that memory was freed, on glibc the
+    heap was quietly damaged; AddressSanitizer reports it at once. Found
+    with Cisco IOS-XR and a certificate from an EST server: DNS name
+    first, then the IP address of the device. An IP address SAN that
+    comes first selects the device before any DNS name is looked at, so
+    the order matters.
+    """
+
+    LISTEN = {"tls": "tls = yes"}
+    BODY = TLS_REALM + """
+	device xr {
+		address = 127.0.0.65
+		key = xrkey
+	}
+	device dnsnas.tactest {
+	}
+""" + policy(("xr", "dnsnas.tactest", "localhost"))
+    CLIENTS = {
+        # the shape from the field: CN first, then serialNumber; DNS name, then the address
+        "dns_then_ip": ("/CN=xr.tactest.invalid/serialNumber=e3d752c5",
+                        "DNS:xr.tactest.invalid, IP:127.0.0.65"),
+        "dns_names": ("/CN=other.tactest.invalid", "DNS:a.tactest.invalid, DNS:b.tactest.invalid, "
+                      "DNS:c.tactest.invalid, DNS:d.tactest.invalid, DNS:dnsnas.tactest"),
+        "ip_then_dns": ("/CN=xr.tactest.invalid", "IP:127.0.0.65, DNS:xr.tactest.invalid"),
+        "ip_twice": ("/serialNumber=e3d752c5/CN=xr.tactest.invalid", "IP:127.0.0.65, IP:127.0.0.65"),
+    }
+
+    def device(self, client, source="127.0.0.65", single_connect=False):
+        c = self.connect_tls(client, source=source, single_connect=single_connect)
+        self.assertTrue(c.pap("alice", "alicepw").ok)
+        return self.device_and_transport(c)["tactest-device"]
+
+    def test_dns_san_before_ip_san(self):
+        self.assertEqual(self.device("dns_then_ip"), "xr")
+
+    def test_dns_san_before_ip_san_single_connection(self):
+        self.assertEqual(self.device("dns_then_ip", single_connect=True), "xr")
+
+    def test_dns_san_before_ip_san_from_another_address(self):
+        """The address SAN selects the device, wherever the connection comes from."""
+        self.assertEqual(self.device("dns_then_ip", source="127.0.0.9"), "xr")
+
+    def test_several_dns_sans(self):
+        self.assertEqual(self.device("dns_names", source="127.0.0.9"), "dnsnas")
+
+    def test_ip_san_before_dns_san(self):
+        self.assertEqual(self.device("ip_then_dns"), "xr")
+
+    def test_ip_san_twice(self):
+        self.assertEqual(self.device("ip_twice"), "xr")
+
+
 class AutoDetect(TlsTestCase):
     """#236: "tls auto-detect = yes" in the realm made the daemon expect TLS only where spawnd said "tls = yes".
 
