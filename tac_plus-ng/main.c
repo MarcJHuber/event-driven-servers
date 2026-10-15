@@ -1755,7 +1755,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 #endif
 	}
     }
-    if (ctx->tls_versions && !ctx->tls_autodetect) {
+    if (ctx->tls_versions && ctx->tls_autodetect != TRISTATE_YES) {
 	ctx->use_tls = (sd_ext->sd.type == SCM_ACCEPT) ? BISTATE_YES : BISTATE_NO;
 	ctx->use_dtls = (sd_ext->sd.type == SCM_UDPDATA) ? BISTATE_YES : BISTATE_NO;
     }
