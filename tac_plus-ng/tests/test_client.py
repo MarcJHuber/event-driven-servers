@@ -88,6 +88,22 @@ class Tacacs(unittest.TestCase):
         self.assertEqual(conn.recv(2).session_id, 2)
         self.assertEqual(conn.recv(1).session_id, 1)
 
+    def test_proxy_v1(self):
+        """The example of proxy-protocol.txt section 2.1."""
+        self.assertEqual(tacacs.proxy_v1("192.168.0.1", "192.168.0.11", 56324, 443),
+                         b"PROXY TCP4 192.168.0.1 192.168.0.11 56324 443\r\n")
+
+    def test_proxy_v2_as_an_aws_load_balancer_sends_it(self):
+        """The header from the packet capture in #88: IPv4, a CRC32C TLV and 62 bytes of NOOP padding."""
+        tlvs = (tacacs.proxy_tlv(tacacs.PP2_TYPE_CRC32C, h("a6b09ed3"))
+                + tacacs.proxy_tlv(tacacs.PP2_TYPE_NOOP, bytes(62)))
+        captured = h("0d0a0d0a000d0a515549540a" "21110054" "0a0a0014" "0a40d038" "c6890031"
+                     "030004a6b09ed3" "04003e") + bytes(62)
+        self.assertEqual(tacacs.proxy_v2("10.10.0.20", "10.64.208.56", 50825, 49, tlvs=tlvs), captured)
+
+    def test_proxy_v2_local(self):
+        self.assertEqual(tacacs.proxy_v2(command=tacacs.PROXY_LOCAL), tacacs.PROXY_V2_SIGNATURE + h("20000000"))
+
 
 class Radius(unittest.TestCase):
     def test_user_password(self):
@@ -109,6 +125,22 @@ class Radius(unittest.TestCase):
         mac = q.get(radius.MESSAGE_AUTHENTICATOR)[0]
         zeroed = data[:-16] + bytes(16)
         self.assertEqual(mac, hmac.new(b"s", zeroed, hashlib.md5).digest())
+
+    def test_reply_message_authenticator(self):
+        """RFC 3579 3.2: the HMAC of a reply covers it with the Request Authenticator in place."""
+        request_auth = bytes(range(16))
+        attrs = bytes([radius.REPLY_MESSAGE, 4]) + b"hi" + bytes([radius.MESSAGE_AUTHENTICATOR, 18]) + bytes(16)
+        head = bytes([2, 7, 0, 20 + len(attrs)])
+        mac = hmac.new(b"s", head + request_auth + attrs, hashlib.md5).digest()
+        reply = head + bytes(16) + attrs[:-16] + mac   # the Response Authenticator doesn't matter here
+        self.assertIs(radius.reply_message_authenticator(reply, request_auth, b"s"), True)
+        self.assertIs(radius.reply_message_authenticator(reply, request_auth, b"other"), False)
+        self.assertIsNone(radius.reply_message_authenticator(head + bytes(16) + attrs[:4], request_auth, b"s"))
+
+    def test_wrong_message_authenticator_on_request(self):
+        p = radius.Packet(radius.ACCESS_REQUEST, 1, bytes(16), [(radius.USER_NAME, "u")])
+        q = radius.Packet.decode(p.encode("s", message_authenticator=bytes(range(16))))
+        self.assertEqual(q.get(radius.MESSAGE_AUTHENTICATOR), [bytes(range(16))])
 
 
 if __name__ == "__main__":

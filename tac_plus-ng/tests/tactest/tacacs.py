@@ -43,12 +43,17 @@ author, acct. Each returns the final reply; an
 authentication dialog returns a Dialog with every REPLY on the way, for
 tests of banners and prompts.
 
-Not here: TLS (RFC 9887) and the PROXY protocol header.
+Transports: plain TCP; TLS (RFC 9887) with an ssl.SSLContext (tls=), where
+packets go without obfuscation and with TAC_PLUS_UNENCRYPTED_FLAG; any
+socket-like object (sock=, e.g. tls.PskSocket for TLS 1.3 PSK); and a PROXY
+protocol header (proxy=, see proxy_v1() and proxy_v2()) sent before
+anything else, as a load balancer does.
 """
 
 import hashlib
 import os
 import socket
+import ssl
 import struct
 import time
 
@@ -335,6 +340,45 @@ class AcctReply:
         return "AcctReply(%s, server_msg=%r)" % (self.status_name, self.server_msg)
 
 
+# --- PROXY protocol (haproxy.org/download/1.8/doc/proxy-protocol.txt) ------------
+
+PROXY_V2_SIGNATURE = b"\r\n\r\n\x00\r\nQUIT\n"
+PROXY_LOCAL = 0
+PROXY_PROXY = 1
+PP2_TYPE_CRC32C = 0x03
+PP2_TYPE_NOOP = 0x04
+
+
+def proxy_v1(src, dst, sport=4711, dport=49):
+    """The text header: "PROXY TCP4 <src> <dst> <sport> <dport>\\r\\n"."""
+    family = "TCP6" if ":" in src else "TCP4"
+    return ("PROXY %s %s %s %d %d\r\n" % (family, src, dst, sport, dport)).encode()
+
+
+def proxy_tlv(type, value):
+    return bytes([type]) + struct.pack("!H", len(value)) + value
+
+
+def proxy_v2(src=None, dst=None, sport=4711, dport=49, tlvs=b"", command=PROXY_PROXY):
+    """The binary header; src None: no addresses (family UNSPEC), as a LOCAL health check sends it.
+
+    tlvs follow the addresses and count in the length field, e.g. the
+    padding an AWS network load balancer adds (#88).
+    """
+    if src is None:
+        family, addresses = 0x00, b""
+    elif ":" in src:
+        family = 0x21
+        addresses = socket.inet_pton(socket.AF_INET6, src) + socket.inet_pton(socket.AF_INET6, dst)
+        addresses += struct.pack("!HH", sport, dport)
+    else:
+        family = 0x11
+        addresses = socket.inet_pton(socket.AF_INET, src) + socket.inet_pton(socket.AF_INET, dst)
+        addresses += struct.pack("!HH", sport, dport)
+    body = addresses + tlvs
+    return PROXY_V2_SIGNATURE + bytes([0x20 | command, family]) + struct.pack("!H", len(body)) + body
+
+
 # --- transport --------------------------------------------------------------
 
 class Connection:
@@ -343,21 +387,38 @@ class Connection:
     source binds the local end, e.g. to 127.0.0.2, so the daemon sees
     another device address. With single_connect, every packet carries the
     flag, and replies for several sessions may be read in any order.
+
+    proxy: bytes sent right after the TCP handshake (a PROXY header).
+    tls: an ssl.SSLContext; the handshake follows the PROXY header, if any.
+    sock: an already connected socket-like object instead of a new socket;
+    packets then go as over TLS (no obfuscation).
+    With TLS the key is not used: RFC 9887 forbids obfuscation there.
     """
 
-    def __init__(self, addr, key, timeout=5.0, source=None, single_connect=False):
+    def __init__(self, addr, key, timeout=5.0, source=None, single_connect=False, proxy=None, tls=None,
+                 server_hostname=None, sock=None):
         host, port = addr[0], addr[1]
         family = socket.AF_INET6 if ":" in host else socket.AF_INET
-        self.key = _b(key)
+        self.tls = tls is not None or sock is not None
+        self.key = b"" if self.tls else _b(key)
         self.timeout = timeout
         self.single_connect = single_connect
         self.pending = []           # packets read for another session than the one waited for
+        self.buffered = b""         # bytes read by closed()/silent() but not consumed
+        if sock is not None:
+            self.sock = sock
+            self.sock.settimeout(timeout)
+            return
         self.sock = socket.socket(family, socket.SOCK_STREAM)
         self.sock.settimeout(timeout)
         try:
             if source is not None:
                 self.sock.bind((source, 0))
             self.sock.connect((host, port))
+            if proxy:
+                self.sock.sendall(proxy)
+            if tls is not None:
+                self.sock = tls.wrap_socket(self.sock, server_hostname=server_hostname or host)
         except Exception:
             self.sock.close()
             raise
@@ -377,6 +438,8 @@ class Connection:
     def _wire(self, pkt):
         if self.single_connect:
             pkt.flags |= FLAG_SINGLE_CONNECT
+        if self.tls:
+            pkt.flags |= FLAG_UNENCRYPTED
         return pkt.encode(self.key)
 
     def send(self, pkt):
@@ -394,14 +457,14 @@ class Connection:
         self.send_raw(data[at:])
 
     def _exact(self, n):
-        buf = b""
+        buf, self.buffered = self.buffered[:n], self.buffered[n:]
         while len(buf) < n:
             try:
                 chunk = self.sock.recv(n - len(buf))
             except socket.timeout:
                 raise TimeoutError("no reply from the daemon within %.1f s" % self.timeout)
-            except ConnectionResetError:
-                raise Closed("connection reset by the daemon after %d of %d bytes" % (len(buf), n))
+            except (ConnectionResetError, ssl.SSLError) as e:
+                raise Closed("connection reset by the daemon after %d of %d bytes (%s)" % (len(buf), n, e))
             if not chunk:
                 raise Closed("connection closed by the daemon after %d of %d bytes" % (len(buf), n))
             buf += chunk
@@ -430,31 +493,31 @@ class Connection:
                 return pkt
             self.pending.append(pkt)
 
-    def closed(self, timeout=None):
-        """True if the daemon closes the connection without sending anything."""
-        self.sock.settimeout(self.timeout if timeout is None else timeout)
+    def _peek(self, timeout):
+        """b"" if the daemon closed the connection, None if nothing came within timeout, else the byte read."""
+        if self.buffered:
+            return self.buffered[:1]
+        self.sock.settimeout(timeout)
         try:
-            return self.sock.recv(1) == b""
+            data = self.sock.recv(1)
         except socket.timeout:
-            return False
-        except ConnectionResetError:
-            return True
+            return None
+        except (ConnectionResetError, ssl.SSLError):
+            return b""
         finally:
             self.sock.settimeout(self.timeout)
+        self.buffered += data
+        return data
+
+    def closed(self, timeout=None):
+        """True if the daemon closes the connection without sending anything."""
+        return self._peek(self.timeout if timeout is None else timeout) == b""
 
     def silent(self, timeout=1.0):
         """True if nothing arrives within timeout (or the daemon closes the connection)."""
         if self.pending:
             return False
-        self.sock.settimeout(timeout)
-        try:
-            return self.sock.recv(1, socket.MSG_PEEK) == b""
-        except socket.timeout:
-            return True
-        except ConnectionResetError:
-            return True
-        finally:
-            self.sock.settimeout(self.timeout)
+        return not self._peek(timeout)
 
     def session(self, session_id=None):
         return Session(self, session_id)

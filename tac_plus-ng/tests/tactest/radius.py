@@ -26,15 +26,17 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 
-"""Minimal RADIUS client (RFC 2865/2866, RADIUS/TCP RFC 6613), standard library only.
+"""Minimal RADIUS client (RFC 2865/2866, RADIUS/TCP RFC 6613, RADIUS/TLS RFC 6614), standard library only.
 
   Packet      code, identifier, authenticator and attributes as fields;
-              encode() can override the length, decode() checks the
-              Response Authenticator
-  Client      UDP or TCP: send(), send_raw(), recv() with a timeout,
+              encode() can override the length and the Message-Authenticator
+  Client      UDP, TCP or TLS over TCP: send_raw(), recv_raw() with a
+              timeout, exchange() checks the Response Authenticator,
               access_request() with a PAP User-Password of arbitrary bytes
 
-Message-Authenticator (RFC 3579 3.2) is added on request.
+Message-Authenticator (RFC 3579 3.2) is added on request;
+reply_message_authenticator() checks the one in a reply. Over TLS the
+shared secret is "radsec" (RFC 6614 2.3).
 """
 
 import hashlib
@@ -104,13 +106,19 @@ class Packet:
         return out
 
     def encode(self, secret=None, length=None, message_authenticator=False):
-        """Serialize; message_authenticator adds an HMAC-MD5 over the packet (needs secret)."""
+        """Serialize; message_authenticator adds an HMAC-MD5 over the packet (needs secret).
+
+        message_authenticator may also be 16 bytes to send instead of the
+        right value.
+        """
         attrs = self._attrs()
         if message_authenticator:
             attrs += bytes([MESSAGE_AUTHENTICATOR, 18]) + bytes(16)
         real = HEADER_LEN + len(attrs)
         data = struct.pack("!BBH", self.code, self.identifier, real) + self.authenticator + attrs
-        if message_authenticator:
+        if isinstance(message_authenticator, bytes):
+            data = data[:-16] + message_authenticator
+        elif message_authenticator:
             mac = hmac.new(_b(secret), data, hashlib.md5).digest()
             data = data[:-16] + mac
         if length is not None:
@@ -138,21 +146,44 @@ class Packet:
         return "Packet(%s, id=%d, attributes=%r)" % (self.code_name, self.identifier, self.attributes)
 
 
-class Client:
-    """One UDP socket (or TCP connection with tcp=True) to the daemon. Usable as a context manager."""
+def reply_message_authenticator(raw, request_authenticator, secret):
+    """None if the reply has no Message-Authenticator, else whether it is right.
 
-    def __init__(self, addr, secret, timeout=5.0, source=None, tcp=False):
+    RFC 3579 3.2: HMAC-MD5 over the reply with the Request Authenticator in
+    place of the Response Authenticator and the attribute's value zeroed.
+    """
+    p, found = HEADER_LEN, None
+    while p + 2 <= len(raw) and raw[p + 1] >= 2 and p + raw[p + 1] <= len(raw):
+        if raw[p] == MESSAGE_AUTHENTICATOR and raw[p + 1] == 18:
+            found = p + 2
+        p += raw[p + 1]
+    if found is None:
+        return None
+    data = raw[:4] + request_authenticator + raw[20:found] + bytes(16) + raw[found + 16:]
+    return hmac.compare_digest(hmac.new(_b(secret), data, hashlib.md5).digest(), raw[found:found + 16])
+
+
+class Client:
+    """One UDP socket (or TCP connection with tcp=True) to the daemon. Usable as a context manager.
+
+    tls: an ssl.SSLContext for RADIUS over TLS (implies tcp); the secret
+    should then be "radsec".
+    """
+
+    def __init__(self, addr, secret, timeout=5.0, source=None, tcp=False, tls=None):
         host, port = addr[0], addr[1]
         family = socket.AF_INET6 if ":" in host else socket.AF_INET
         self.secret = _b(secret)
         self.timeout = timeout
-        self.tcp = tcp
-        self.sock = socket.socket(family, socket.SOCK_STREAM if tcp else socket.SOCK_DGRAM)
+        self.tcp = tcp or tls is not None
+        self.sock = socket.socket(family, socket.SOCK_STREAM if self.tcp else socket.SOCK_DGRAM)
         self.sock.settimeout(timeout)
         try:
             if source is not None:
                 self.sock.bind((source, 0))
             self.sock.connect((host, port))
+            if tls is not None:
+                self.sock = tls.wrap_socket(self.sock, server_hostname=host)
         except Exception:
             self.sock.close()
             raise
@@ -188,7 +219,10 @@ class Client:
             raise TimeoutError("no RADIUS reply from the daemon within %.1f s" % self.timeout)
 
     def exchange(self, request, message_authenticator=False):
-        """Send request, return the reply after checking identifier and Response Authenticator."""
+        """Send request, return the reply after checking identifier and Response Authenticator.
+
+        reply.message_authenticator: None (none in the reply), True or False (wrong).
+        """
         self.send_raw(request.encode(self.secret, message_authenticator=message_authenticator))
         reply = Packet.decode(self.recv_raw())
         if reply.identifier != request.identifier:
@@ -197,6 +231,7 @@ class Client:
         expected = hashlib.md5(raw[:4] + request.authenticator + raw[20:] + self.secret).digest()
         if expected != reply.authenticator:
             raise ProtocolError("wrong Response Authenticator -- wrong secret?")
+        reply.message_authenticator = reply_message_authenticator(raw, request.authenticator, self.secret)
         return reply
 
     def access_request(self, user, password, attributes=(), message_authenticator=False):
