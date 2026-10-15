@@ -1086,6 +1086,7 @@ static void parse_tls_psk_key(struct sym *sym, tac_host *host)
 		parse_error(sym, "base64 psk is malformed");
 	    host->tls_psk_key->key.txt = mem_alloc(host->mem, buflen);
 	    host->tls_psk_key->key.len = buflen;
+	    memcpy(host->tls_psk_key->key.txt, buf, buflen);
 	    sym_get(sym);
 	    return;
 	}
@@ -3411,7 +3412,7 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 	    key = mem_strdup(user->mem, ck);
 	}
 	(*ssh_key)->key = key;
-	memcpy((*ssh_key)->hash, hash, len + 1);
+	memcpy((*ssh_key)->hash, hash, hash_len + 1);
 	ssh_key = &((*ssh_key)->next);
 
 	hash = calc_ssh_key_hash("SHA256", t, len);
@@ -3423,7 +3424,7 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 	    hash[hash_len] = 0;
 	}
 	*ssh_key = mem_alloc(user->mem, sizeof(struct ssh_key) + len);
-	memcpy((*ssh_key)->hash, hash, len + 1);
+	memcpy((*ssh_key)->hash, hash, hash_len + 1);
 	(*ssh_key)->key = key;
 	(*ssh_key)->key_len = len;
 
@@ -4512,7 +4513,9 @@ static struct rad_dacl *add_dacl(char *name, size_t name_len, struct sym *sym, t
     if (dynamic)
 	dacl->dynamic = io_now.tv_sec + r->caching_period;
 
-    if (r->caching_period)
+    // A static dACL (from the configuration) must stay in the tree so that
+    // lookup_dacl() finds it; only a dynamic (MAVIS) dACL depends on caching.
+    if (!dynamic || r->caching_period)
 	RB_insert(r->dacls, dacl);
     return dacl;
 }
