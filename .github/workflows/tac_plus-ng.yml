@@ -64,7 +64,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  UBUNTU_PACKAGES: build-essential clang llvm perl libpcre2-dev libssl-dev libcrypt-dev python3
+  # openssl: the command makes the certificates of the TLS tests and is their TLS-PSK client
+  UBUNTU_PACKAGES: build-essential clang llvm perl libpcre2-dev libssl-dev libcrypt-dev python3 openssl
 
 jobs:
   alpine-gcc:
@@ -73,7 +74,7 @@ jobs:
     container: alpine:3.20
     timeout-minutes: 15
     steps:
-      - run: apk add --no-cache gcc musl-dev make perl openssl-dev pcre2-dev linux-headers python3
+      - run: apk add --no-cache gcc musl-dev make perl openssl-dev pcre2-dev linux-headers python3 openssl
       - uses: actions/checkout@v5
       - run: tac_plus-ng/tests/run-tests
       - if: failure()
