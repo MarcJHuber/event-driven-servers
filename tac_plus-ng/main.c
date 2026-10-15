@@ -629,7 +629,7 @@ static void read_px(struct context_px *ctx, int cur)
 	break;
     case 0x21:
 	from.sin6.sin6_family = AF_INET6;
-	from.sin6.sin6_port = addr->ipv6_addr.dst_port;
+	from.sin6.sin6_port = addr->ipv6_addr.src_port;
 	memcpy(&from.sin6.sin6_addr, addr->ipv6_addr.src_addr, 16);
 	break;
     case 0x00:
@@ -1787,7 +1787,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	ctx->device_port_ascii = ctx->peer_port_ascii;
     } else {
 	str_set(&ctx->device_addr_ascii, mem_strdup(ctx->mem, su_ntoa(device_addr, buf, sizeof(buf)) ? buf : "<unknown>"), 0);
-	snprintf(buf, sizeof(buf), "%u", (short) su_get_port(device_addr));
+	snprintf(buf, sizeof(buf), "%u", su_get_port(device_addr));
 	str_set(&ctx->device_port_ascii, mem_strdup(ctx->mem, buf), 0);
     }
     ctx->host = h;
