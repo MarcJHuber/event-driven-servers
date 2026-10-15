@@ -370,7 +370,7 @@ static int verify_cisco_type89(char *password, char *p, char type)
 static int verify_cisco_asa_md5(const char *username, const char *password, const char *hash_in)
 {
     char buf[33] = { 0 };
-    char *bufp = stpncpy(buf, password, sizeof(buf));
+    char *bufp = stpncpy(buf, password, sizeof(buf) - 1);
     if (username && *username && (bufp - buf < 28)) {
 	char *e = bufp + 4;
 	while (bufp < e)
