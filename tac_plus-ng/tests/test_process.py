@@ -35,6 +35,7 @@ import time
 import unittest
 
 from tactest import LINUX, DaemonTestCase, detect
+from tactest.daemon import proc_stat
 
 POLICY = """
 	user alice { password pap = clear alicepw }
@@ -82,6 +83,44 @@ class KeepOpen(DaemonTestCase):
         c = self.connect()
         for _ in range(2):
             self.assertEqual(c.pap("alice", "alicepw").status_name, "PASS")
+
+
+@unittest.skipUnless(LINUX, "workers are found through /proc")
+class StopAndContinue(DaemonTestCase):
+    """#255: epoll_wait() interrupted (EINTR) made master and worker exit with status 70.
+
+    Linux lets epoll_wait() fail with EINTR when the process was stopped and
+    continued -- SIGSTOP/SIGCONT, a debugger attaching, the freezer of a
+    container snapshot (the case in #255) -- even without a signal handler.
+    io_sched.c took every error of the poll call for fatal. Both processes
+    must sleep in epoll_wait() when stopped, so the test waits for idle.
+    """
+
+    CONFIG = POLICY
+    STOPPED = 0.5
+
+    def stop_and_continue(self, pid):
+        os.kill(pid, signal.SIGSTOP)
+        deadline = time.monotonic() + 5
+        while proc_stat(pid)[0] != "T" and time.monotonic() < deadline:
+            select.select([], [], [], 0.02)
+        self.assertEqual(proc_stat(pid)[0], "T", "process %d did not stop" % pid)
+        select.select([], [], [], self.STOPPED)
+        os.kill(pid, signal.SIGCONT)
+
+    def test_issue255_worker_survives_stop_and_continue(self):
+        self.assertEqual(self.connect().pap("alice", "alicepw").status_name, "PASS")
+        (worker,) = self.daemon.workers()
+        self.stop_and_continue(worker)
+        self.assertEqual(self.connect().pap("alice", "alicepw").status_name, "PASS")
+        self.assertEqual(list(self.daemon.workers()), [worker], "the worker was replaced")
+
+    def test_issue255_master_survives_stop_and_continue(self):
+        self.stop_and_continue(self.daemon.pid)
+        # the master looks at its state once per second (periodics)
+        select.select([], [], [], 1.5)
+        self.assertIsNone(self.daemon.proc.poll(), "master exited:\n" + self.daemon.stderr_tail())
+        self.assertEqual(self.connect().pap("alice", "alicepw").status_name, "PASS")
 
 
 @unittest.skipUnless(LINUX, "workers are found through /proc")
