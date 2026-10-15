@@ -290,6 +290,13 @@ def tcp_fds(pid):
 TCP_LISTEN = "0A"
 
 
+def cpu_seconds(pid):
+    """utime + stime of a process (Linux)."""
+    with open("/proc/%d/stat" % pid) as f:
+        fields = f.read().rsplit(")", 1)[1].split()
+    return (int(fields[11]) + int(fields[12])) / os.sysconf("SC_CLK_TCK")
+
+
 def alive(pid, starttime=None):
     """True unless the process is gone, a zombie, or a recycled PID."""
     st = proc_stat(pid)
@@ -302,11 +309,19 @@ def alive(pid, starttime=None):
 
 class Daemon:
     def __init__(self, body="", name="daemon", key=config.KEY, address="127.0.0.1",
-                 spawnd="", top="", template=config.BASE, suppressions=SUPPRESSIONS, udp=False):
-        """udp: also listen for RADIUS on a UDP port (udp_port) of the same address."""
+                 spawnd="", top="", template=config.BASE, suppressions=SUPPRESSIONS, udp=False, listen=None):
+        """udp: also listen for RADIUS on a UDP port (udp_port) of the same address.
+
+        listen: more listeners on the same address, {name: options}, e.g.
+        {"tls": "tls = yes", "radius": "protocol = UDP realm = r"}; each
+        gets a port of its own, ports[name]. The first listener stays plain
+        TACACS+, because the crash detectors probe it.
+        """
         self.body, self.key, self.address = body, key, address
         self.udp = udp
         self.udp_port = None
+        self.listen = dict(listen or {})
+        self.ports = {}
         self.suppressions = suppressions
         self.spawnd, self.top, self.template = spawnd, top, template
         self.generation = 0
@@ -324,6 +339,8 @@ class Daemon:
         spawnd = self.spawnd
         if self.udp:
             spawnd += "\tlisten { address = %s port = %d protocol = UDP }\n" % (self.address, self.udp_port)
+        for name, options in self.listen.items():
+            spawnd += "\tlisten { address = %s port = %d %s }\n" % (self.address, self.ports[name], options)
         return config.render(self.template, tmp=self.tmp, address=self.address, port=self.port, key=self.key,
                              generation=self.generation, spawnd=spawnd, top=self.top, body=self.body)
 
@@ -359,6 +376,9 @@ class Daemon:
             self.port = ports.pop(0) if ports else free_port(self.address)
             if self.udp:
                 self.udp_port = free_udp_port(self.address)
+            for name, options in self.listen.items():
+                udp = re.search(r"protocol\s*=\s*udp", options, re.I)
+                self.ports[name] = (free_udp_port if udp else free_port)(self.address)
             self.write_config()
             stderr = open(self.stderr_path, "ab")
             argv = [binary()]
@@ -442,14 +462,23 @@ class Daemon:
                 raise AssertionError("%r not in %s.log within %.0f s:\n%s" % (text, name, timeout, content[-2000:]))
             select.select([], [], [], 0.02)
 
-    def connect(self, **kw):
+    def connect(self, listener=None, **kw):
+        """A TACACS+ connection to the first listener, or to ports[listener]."""
         kw.setdefault("timeout", 5.0)
-        return Connection(self.addr, kw.pop("key", self.key), **kw)
+        addr = self.addr if listener is None else (self.address, self.ports[listener])
+        return Connection(addr, kw.pop("key", self.key), **kw)
 
-    def radius(self, secret, tcp=False, **kw):
-        """A RADIUS client: UDP to udp_port, or RADIUS/TCP to the TACACS+ port (the daemon tells them apart)."""
+    def radius(self, secret, tcp=False, listener=None, **kw):
+        """A RADIUS client: UDP to udp_port, or RADIUS/TCP to the TACACS+ port (the daemon tells them apart).
+
+        listener: to ports[listener] instead (TCP if tcp, else UDP).
+        """
         kw.setdefault("timeout", 5.0)
-        return radius.Client(self.addr if tcp else self.udp_addr, secret, tcp=tcp, **kw)
+        if listener is not None:
+            addr = (self.address, self.ports[listener])
+        else:
+            addr = self.addr if tcp else self.udp_addr
+        return radius.Client(addr, secret, tcp=tcp, **kw)
 
     def reload(self, body=None, probe=None, timeout=20.0):
         """Rewrite the config, SIGHUP the master, wait until a new connection sees it.

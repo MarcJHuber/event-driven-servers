@@ -13,8 +13,12 @@ self-tests of those checks; run-tests uses gmake if there is one.
 Quick start on a fresh Ubuntu:
 
     sudo apt-get install build-essential perl libpcre2-dev libssl-dev \
-        libcrypt-dev python3
+        libcrypt-dev python3 openssl
     tac_plus-ng/tests/run-tests
+
+The openssl command makes the certificates of the TLS tests (in their
+scratch directories; none are kept in the tree) and is the TLS-PSK client;
+without it those tests are skipped.
 
 run-tests configures and builds tac_plus-ng, installs it into
 build/<OS>/tests-prefix (no root needed, nothing outside the tree is
@@ -60,9 +64,13 @@ Layout
       config.py        the configuration template around a test's policy
       tacacs.py        TACACS+ client (RFC 8907): ASCII login, PAP, CHAP,
                        MS-CHAP, enable, authorization, accounting; raw and
-                       split packets; several sessions on one connection
+                       split packets; several sessions on one connection;
+                       over TLS (RFC 9887); PROXY protocol v1/v2 headers
+      tls.py           a throw-away CA (openssl command), client contexts,
+                       TLS 1.3 PSK through "openssl s_client"
       crypto.py        MD4 and DES for MS-CHAP (not in the standard library)
-      radius.py        RADIUS client: PAP Access-Request over UDP or TCP
+      radius.py        RADIUS client: PAP Access-Request over UDP, TCP or
+                       TLS; Message-Authenticator in requests and replies
       mavis_stub.py    a MAVIS backend for the "external" module, on top of
                        the installed mavis.py; tests change its answers
                        through a JSON file while the daemon runs
@@ -95,6 +103,8 @@ under test may not accept, a reload -- sets CONFIG = None and calls
 self.start_daemon(policy); the same checks run when the test ends.
 self.wait_log(name, text) looks only at what was logged during the test.
 A class with UDP = True also gets a RADIUS listener (self.radius(secret)).
+LISTEN = {name: options} adds spawnd listeners with ports of their own,
+e.g. {"tls": "tls = yes"}; self.connect(listener="tls", tls=context).
 
 For users from a MAVIS backend, put tactest.Stub.module() into the
 policy and drive the backend from the test:
