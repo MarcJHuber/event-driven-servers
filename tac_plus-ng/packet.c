@@ -941,9 +941,9 @@ static int rad_check_failed(struct context *ctx, rad_pak_hdr *pak)
 	return -1;
     }
 #ifdef WITH_SSL
-// The Message-Authenticator attribute is mandatory for RADIUS BLAST mitigation
-    int message_authenticator_required = pak->code == RADIUS_CODE_ACCESS_ACCEPT || pak->code == RADIUS_CODE_ACCESS_REJECT
-	|| pak->code == RADIUS_CODE_ACCESS_CHALLENGE;
+// The Message-Authenticator attribute is mandatory for RADIUS BLAST mitigation (but optional with TLS/DTLS)
+    int message_authenticator_required = ctx->aaa_protocol != S_radius_dtls && ctx->aaa_protocol != S_radius_tls &&
+	(pak->code == RADIUS_CODE_ACCESS_ACCEPT || pak->code == RADIUS_CODE_ACCESS_REJECT || pak->code == RADIUS_CODE_ACCESS_CHALLENGE);
     if ((ctx->radius_1_1 == BISTATE_NO) && !message_authenticator && message_authenticator_required
 	&& !(ctx->host->bug_compatibility & CLIENT_BUG_NO_MESSAGE_AUTHENTICATOR)) {
 	report(NULL, LOG_INFO_CONN, ~0, "%s did not set Message-Authenticator attribute", ctx->device_addr_ascii.txt);
