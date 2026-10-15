@@ -1169,7 +1169,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 		    int current_dn_len = 0;
 		    int current_cn_len = 0;
 		    int san_count = sk_GENERAL_NAME_num(san);
-		    ctx->tls_peer_cert_san = mem_alloc(ctx->mem, san_count);
+		    ctx->tls_peer_cert_san = mem_alloc(ctx->mem, san_count * sizeof(char *));
 		    for (int i = 0; i < san_count; i++) {
 			GENERAL_NAME *val = sk_GENERAL_NAME_value(san, i);
 #if OPENSSL_VERSION_NUMBER < 0x40100000
