@@ -94,7 +94,11 @@ def need_tls():
 
 
 class TlsTestCase(DaemonTestCase):
-    """A daemon with a CA of its own; CONFIG is formatted with the paths of its certificates."""
+    """A daemon with a CA of its own; CONFIG is formatted with the paths of its certificates.
+
+    CLIENTS maps a name to the subject of its client certificate, or to
+    (subject, subjectAltName).
+    """
 
     BODY = ""
     CLIENTS = {"certnas": "/CN=certnas.tactest", "nobody": "/CN=nobody.tactest"}
@@ -103,7 +107,10 @@ class TlsTestCase(DaemonTestCase):
     def setUpClass(cls):
         need_tls()
         cls.ca = tls.CA(cls.__name__ + "-ca")
-        cls.certs = {name: cls.ca.issue(name, subject) for name, subject in cls.CLIENTS.items()}
+        cls.certs = {}
+        for name, subject in cls.CLIENTS.items():
+            subject, san = (subject, None) if isinstance(subject, str) else subject
+            cls.certs[name] = cls.ca.issue(name, subject, san=san)
         paths = dict(ca=cls.ca.cert, server_crt=cls.ca.server[0], server_key=cls.ca.server[1])
         cls.CONFIG = cls.BODY % paths
         try:
@@ -416,3 +423,43 @@ class PeerCloses(TlsTestCase):
         req = radius.Packet(radius.ACCESS_REQUEST, attributes=[(radius.USER_NAME, b"alice")])
         c.send_raw(self.half(req.encode("radsecret", message_authenticator=True)))
         self.idle_after(c.close)
+
+
+class PeerCertSanValidation(TlsTestCase):
+    """tls.peer.cert.san.validation = yes: an IP address SAN selects a device only if it is the peer's address.
+
+    The address SAN was compared with the peer address over its own
+    length, 4 bytes for IPv4, but both are kept as IPv4-mapped IPv6
+    addresses, whose first 4 bytes are zero: every IPv4 SAN passed, and a
+    certificate naming another device's address selected that device.
+    """
+
+    LISTEN = {"tls": "tls = yes"}
+    BODY = TLS_REALM + """
+	device checked {
+		address = 127.0.0.9
+		key = checkedkey
+		tls.peer.cert.san.validation = yes
+	}
+	device xr {
+		address = 127.0.0.65
+		key = xrkey
+	}
+""" + policy(("checked", "xr", "localhost"))
+    CLIENTS = {
+        "xr_address": ("/CN=nothing.tactest.invalid", "IP:127.0.0.65"),
+        "own_address": ("/CN=nothing.tactest.invalid", "IP:127.0.0.9"),
+    }
+
+    def device(self, client, source):
+        return self.device_and_transport(self.connect_tls(client, source=source))["tactest-device"]
+
+    def test_ip_san_of_another_device_is_ignored(self):
+        self.assertEqual(self.device("xr_address", "127.0.0.9"), "checked")
+
+    def test_ip_san_of_the_peer_is_used(self):
+        self.assertEqual(self.device("own_address", "127.0.0.9"), "checked")
+
+    def test_without_validation_the_ip_san_selects_the_device(self):
+        """localhost (127.0.0.0/8) doesn't validate: the SAN wins over the address."""
+        self.assertEqual(self.device("xr_address", "127.0.0.10"), "xr")

@@ -1205,7 +1205,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 				su_convert(&su, AF_INET);
 				struct in6_addr addr = { };
 				su_ptoh(&su, &addr);
-				if (by_address->tls_peer_cert_san_validation == TRISTATE_YES && memcmp(&addr, &ctx->device_addr, data_len))
+				if (by_address->tls_peer_cert_san_validation == TRISTATE_YES && memcmp(&addr, &ctx->device_addr, sizeof(addr)))
 				    continue;
 				radixtree_t *rxt = lookup_hosttree(ctx->realm);
 				if (rxt) {
