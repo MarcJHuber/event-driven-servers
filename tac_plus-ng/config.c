@@ -2546,7 +2546,9 @@ static void parse_ruleset(struct sym *sym, tac_realm *realm)
 
 static uint32_t calc_user_profile_crc(tac_session *session)
 {
-    uint32_t crc32 = crc32_update(INITCRC32, (u_char *) session->user->name.txt, session->user->name.len);
+    uint32_t crc32 = INITCRC32;
+    if (session->user)
+	 crc32 = crc32_update(crc32, (u_char *) session->user->name.txt, session->user->name.len);
     if (session->nac_addr_ascii.txt)
 	crc32 = crc32_update(crc32, (u_char *) session->nac_addr_ascii.txt, session->nac_addr_ascii.len);
     if (session->port.txt)
