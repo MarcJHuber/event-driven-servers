@@ -414,6 +414,12 @@ class RadiusOverTls(TlsTestCase):
     def test_access_reject(self):
         self.assertEqual(self.radsec().access_request("alice", "wrong").code_name, "Access-Reject")
 
+    def test_issue281_no_message_authenticator_needed_over_tls(self):
+        """#281 (3): over TLS a request without Message-Authenticator is answered (bug compatibility 32 not set)."""
+        self.assertNotIn("bug compatibility", self.BODY)
+        r = self.radsec().access_request("alice", "alicepw")
+        self.assertEqual(r.code_name, "Access-Accept", r)
+
     def test_wrong_shared_secret_gets_no_accept(self):
         """Over TLS the shared secret is "radsec"; a request under another one is not accepted."""
         c = self.radius("not-radsec", listener="tls", tls=self.context("certnas"), timeout=2.0)

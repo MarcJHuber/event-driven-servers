@@ -28,7 +28,9 @@
 
 """RADIUS: Access-Request with PAP over UDP and RADIUS/TCP."""
 
+import hashlib
 import os
+import struct
 import unittest
 
 from tactest import SOURCE, DaemonTestCase, config, features, radius, tacacs
@@ -36,6 +38,8 @@ from tactest import SOURCE, DaemonTestCase, config, features, radius, tacacs
 DICTIONARY = os.path.join(SOURCE, "tac_plus-ng", "sample", "radius-dict.cfg")
 SECRET = "radsecret"
 NAS = "127.0.0.6"
+ACCOUNTING_REQUEST = 4
+ACCT_STATUS_TYPE = 40
 CLOSE_TIMEOUT = 10.0    # waiting for the daemon to close a connection: generous, it does come
 
 POLICY = """
@@ -73,12 +77,12 @@ class Pap(DaemonTestCase):
         return super().radius(secret, **kw)
 
     def test_access_accept(self):
-        r = self.radius(SECRET).access_request("alice", "alicepw")
+        r = self.radius(SECRET).access_request("alice", "alicepw", message_authenticator=True)
         self.assertEqual(r.code_name, "Access-Accept", r)
         self.assertEqual(r.get(radius.REPLY_MESSAGE), [b"welcome"])
 
     def test_access_reject(self):
-        r = self.radius(SECRET).access_request("alice", "wrong")
+        r = self.radius(SECRET).access_request("alice", "wrong", message_authenticator=True)
         self.assertEqual(r.code_name, "Access-Reject", r)
 
     def test_message_authenticator_accepted(self):
@@ -89,13 +93,15 @@ class Pap(DaemonTestCase):
         """The User-Password decodes to garbage: a reject or no answer, never an accept.
 
         The reply is read without the check of the Response Authenticator,
-        which a reply under the daemon's secret could not pass anyway.
+        which a reply under the daemon's secret could not pass anyway. The
+        Message-Authenticator is computed with the daemon's secret, so that
+        the request gets past it to the password check.
         """
         c = self.radius(SECRET, timeout=2.0)
         req = radius.Packet(radius.ACCESS_REQUEST)
         password = radius.encrypt_password("alicepw", "not-the-secret", req.authenticator)
         req.attributes = [(radius.USER_NAME, b"alice"), (radius.USER_PASSWORD, password)]
-        c.send_raw(req.encode())
+        c.send_raw(req.encode(SECRET, message_authenticator=True))
         try:
             r = radius.Packet.decode(c.recv_raw())
         except TimeoutError:
@@ -106,7 +112,7 @@ class Pap(DaemonTestCase):
         """#247 was first blamed on a password that doesn't decode as UTF-8: it is just a wrong password."""
         for password in (b"\xff\xfe\xfd", b"caf\xe9", bytes(range(1, 40))):
             with self.subTest(password=password):
-                r = self.radius(SECRET).access_request("alice", password)
+                r = self.radius(SECRET).access_request("alice", password, message_authenticator=True)
                 self.assertEqual(r.code_name, "Access-Reject", r)
 
     def test_radius_over_tcp(self):
@@ -157,12 +163,7 @@ class MessageAuthenticator(DaemonTestCase):
         self.assertEqual(r.code_name, "Access-Accept")
 
     def test_issue200_reply_has_a_message_authenticator(self):
-        """#200: clients with "Require Message-Authenticator" need it in the reply (RFC 3579 3.2, BLAST).
-
-        Only for requests that have one: whether a request without it should
-        be answered at all is open (bug compatibility 32 is documented to
-        allow what the daemon does anyway).
-        """
+        """#200: clients with "Require Message-Authenticator" need it in the reply (RFC 3579 3.2, BLAST)."""
         for password, code in (("alicepw", "Access-Accept"), ("wrong", "Access-Reject")):
             with self.subTest(reply=code):
                 r = self.radius(SECRET).access_request("alice", password, message_authenticator=True)
@@ -179,6 +180,72 @@ class MessageAuthenticator(DaemonTestCase):
         r = self.radius(SECRET, tcp=True).access_request("alice", "alicepw", message_authenticator=True)
         self.assertEqual(r.code_name, "Access-Accept", r)
         self.assertIs(r.message_authenticator, True)
+
+
+@unittest.skipUnless("openssl" in features(), "the Message-Authenticator needs a build with OpenSSL")
+class MessageAuthenticatorRequired(DaemonTestCase):
+    """#281 (3): an Access-Request without Message-Authenticator is dropped, unless bug compatibility 32.
+
+    BLAST mitigation as documented for bug compatibility bit 5 (32). The
+    check in rad_check_failed() listed only reply codes (Access-Accept,
+    -Reject, -Challenge), which the daemon never receives, so every
+    request was answered. Over TLS/DTLS the attribute stays optional (see
+    test_tls.RadiusOverTls).
+    """
+
+    CONFIG = """
+	include = "%s"
+	device strict {
+		address = 127.0.0.6
+		radius.key = %s
+	}
+	device lenient {
+		address = 127.0.0.7
+		radius.key = %s
+		bug compatibility = 32
+	}
+	user alice {
+		password login = clear alicepw
+		password pap = login
+	}
+	ruleset {
+		rule { script { permit } }
+	}
+""" % (DICTIONARY, SECRET, SECRET)
+    UDP = True
+
+    def test_issue281_access_request_without_it_is_dropped(self):
+        c = self.radius(SECRET, source="127.0.0.6", timeout=2.0)
+        with self.assertRaises(TimeoutError, msg="answered an Access-Request without Message-Authenticator"):
+            c.access_request("alice", "alicepw")
+
+    def test_issue281_access_request_without_it_over_tcp_closes(self):
+        c = self.radius(SECRET, tcp=True, source="127.0.0.6", timeout=CLOSE_TIMEOUT)
+        with self.assertRaises(ConnectionError):
+            c.access_request("alice", "alicepw")
+
+    def test_issue281_access_request_with_it(self):
+        for tcp in (False, True):
+            with self.subTest(tcp=tcp):
+                r = self.radius(SECRET, tcp=tcp, source="127.0.0.6").access_request("alice", "alicepw",
+                                                                                    message_authenticator=True)
+                self.assertEqual(r.code_name, "Access-Accept", r)
+
+    def test_issue281_bug_compatibility_32_accepts_it_without(self):
+        for tcp in (False, True):
+            with self.subTest(tcp=tcp):
+                r = self.radius(SECRET, tcp=tcp, source="127.0.0.7").access_request("alice", "alicepw")
+                self.assertEqual(r.code_name, "Access-Accept", r)
+
+    def test_issue281_accounting_request_needs_none(self):
+        """RFC 2866 has no Message-Authenticator in accounting; not required there."""
+        attrs = bytes([radius.USER_NAME, 7]) + b"alice" + bytes([ACCT_STATUS_TYPE, 6]) + struct.pack("!I", 1)
+        head = struct.pack("!BBH", ACCOUNTING_REQUEST, 9, radius.HEADER_LEN + len(attrs))
+        # RFC 2866 3: the Request Authenticator is MD5(packet with 16 zero bytes + secret)
+        auth = hashlib.md5(head + bytes(16) + attrs + SECRET.encode()).digest()
+        c = self.radius(SECRET, source="127.0.0.6")
+        c.send_raw(head + auth + attrs)
+        self.assertEqual(radius.Packet.decode(c.recv_raw()).code_name, "Accounting-Response")
 
 
 class RealmOnUdpListener(DaemonTestCase):
