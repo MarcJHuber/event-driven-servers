@@ -2556,7 +2556,7 @@ static uint32_t calc_user_profile_crc(tac_session *session)
 
 static enum token lookup_user_profile(tac_session *session)
 {
-    if (session->user_is_session_specific)
+    if (!session->user || session->user_is_session_specific)
 	return S_unknown;
 
     uint32_t crc32 = calc_user_profile_crc(session);
@@ -2580,7 +2580,7 @@ static enum token lookup_user_profile(tac_session *session)
 
 static void cache_user_profile(tac_session *session, enum token res)
 {
-    if (session->user_is_session_specific)
+    if (!session->user || session->user_is_session_specific)
 	return;
 
     uint32_t crc32 = calc_user_profile_crc(session);
@@ -2613,7 +2613,7 @@ static void cache_user_profile(tac_session *session, enum token res)
 // A cache hit skips the profile acl, too. Keep the motd banner it may have set.
 static void cache_user_profile_motd(tac_session *session)
 {
-    if (session->user_is_session_specific)
+    if (!session->user || session->user_is_session_specific)
 	return;
 
     uint32_t crc32 = calc_user_profile_crc(session);
@@ -4835,7 +4835,7 @@ int cfg_get_enable(tac_session *session, struct pwdat **p)
     }
     if (session->profile && session->profile->enable) {
 #ifdef WITH_SSL
-	type6key[m] = session->user->realm->default_host->type6key;
+	type6key[m] = session->profile->realm->default_host->type6key;
 #endif
 	d[m++] = session->profile->enable;
     }
