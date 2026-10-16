@@ -92,7 +92,7 @@ class CiscoVsaHang(DaemonTestCase):
     def login_with_vsa(self, sub_type, sub_value=b"\x00\x00\x00\x00", name="vsa"):
         d = self.start_daemon(POLICY, udp=True, name=name)
         c = self.radius(SECRET, daemon=d, timeout=3.0, source=NAS)
-        return c.access_request("alice", "alicepw",
+        return c.access_request("alice", "alicepw", message_authenticator=True,
                                 attributes=[(VENDOR_SPECIFIC, cisco_vsa_value(sub_type, sub_value))])
 
     def test_issue279_cisco_nas_port_does_not_hang(self):
