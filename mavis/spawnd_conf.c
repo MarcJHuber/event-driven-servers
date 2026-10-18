@@ -297,6 +297,18 @@ static void parse_listen(struct sym *sym)
 	    ctx->aaa_protocol = sym->code;
 	    sym_get(sym);
 	    break;
+	case S_reuse_port:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+#ifndef SO_REUSEPORT
+	    if (sym->code == S_yes || sym->code == S_true || sym->code == S_permit)
+		parse_error(sym, "reuse-port = yes is not supported on this platform.");
+#endif
+	    ctx->reuse_port = parse_bool(sym);
+	    ctx->reuse_port_set = 1;
+	    if (ctx->reuse_port && spawnd_data.inetd)
+		logmsg("Warning: reuse-port is ignored in inetd mode.");
+	    break;
 	case S_haproxy:
 	    sym_get(sym);
 	    parse(sym, S_equal);
@@ -426,7 +438,7 @@ static void parse_listen(struct sym *sym)
 	    parse_sticky(sym, &ctx->track_data);
 	    break;
 	default:
-	    parse_error_expect(sym, S_address, S_path, S_port, S_realm, S_tls, S_userid, S_groupid, S_backlog, S_type, S_protocol, S_retry, S_tcp, S_flag,
+	    parse_error_expect(sym, S_address, S_path, S_port, S_realm, S_tls, S_userid, S_groupid, S_backlog, S_type, S_protocol, S_reuse_port, S_retry, S_tcp, S_flag,
 			       S_sticky, S_unknown);
 	}
     }

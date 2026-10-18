@@ -203,6 +203,30 @@ int spawnd_note_listener(sockaddr_union *sa __attribute__((unused)), void *data)
     return 0;
 }
 
+static int spawnd_is_inet_family(int family)
+{
+    if (family == AF_INET)
+	return 1;
+#ifdef AF_INET6
+    if (family == AF_INET6)
+	return 1;
+#endif
+    return 0;
+}
+
+static void spawnd_bind_failed(struct spawnd_context *ctx, int cur)
+{
+    close(cur);
+    if (ctx->retry_delay) {
+	io_sched_add(common_data.io, ctx, (void *) spawnd_bind_listener, (time_t) ctx->retry_delay, (suseconds_t) 0);
+	return;
+    }
+    if (++spawnd_data.bind_failures >= spawnd_data.listeners_max) {
+	logmsg("Failed to bind to any address or port. Exiting.");
+	exit(EX_TEMPFAIL);
+    }
+}
+
 void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 {
     char buf[INET6_ADDRSTRLEN];
@@ -210,6 +234,14 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
     DebugIn(DEBUG_NET);
     if (ctx->fn < 0) {
 	io_sched_del(common_data.io, ctx, (void *) spawnd_bind_listener);
+
+	if (ctx->reuse_port_set && ctx->reuse_port && !spawnd_is_inet_family(ctx->sa.sa.sa_family)) {
+	    char *addr = su_ntoa(&ctx->sa, buf, (socklen_t) sizeof(buf));
+
+	    logmsg("FATAL: reuse-port = yes is not supported for [%s] (socket family %d).",
+		   addr ? addr : "(unknown)", ctx->sa.sa.sa_family);
+	    exit(EX_CONFIG);
+	}
 
 	cur = su_socket(ctx->sa.sa.sa_family, ctx->socktype, ctx->protocol);
 #if defined(IP_PKTINFO) || defined(IPV6_PKTINFO)
@@ -259,9 +291,27 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 	}
 #endif
 #ifdef SO_REUSEPORT
-	if (ctx->protocol == IPPROTO_UDP) {
+	if (spawnd_is_inet_family(ctx->sa.sa.sa_family)
+	    && (ctx->reuse_port_set ? ctx->reuse_port : ctx->protocol == IPPROTO_UDP)) {
 	    int one = 1;
-	    setsockopt(cur, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
+
+	    if (setsockopt(cur, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one))) {
+		/* Explicitly requested: this is fatal. Legacy UDP behaviour keeps ignoring errors. */
+		if (ctx->reuse_port_set) {
+		    if (!ctx->logged_reuseport_retry) {
+			logerr("setsockopt(SO_REUSEPORT) for [%s]:%d failed",
+			       su_ntoa(&ctx->sa, buf, (socklen_t) sizeof(buf)), su_get_port(&ctx->sa));
+			ctx->logged_reuseport_retry = 1;
+			if (ctx->retry_delay)
+			    logmsg("Setting SO_REUSEPORT failed. Will retry every %d seconds.", ctx->retry_delay);
+		    }
+		    spawnd_bind_failed(ctx, cur);
+		    Debug((DEBUG_NET, "- %s (SO_REUSEPORT error)\n", __func__));
+		    DebugOut(DEBUG_NET);
+		    return;
+		}
+	    } else
+		ctx->logged_reuseport_retry = 0;
 	}
 #endif
 	ctx->port = su_get_port(&ctx->sa);
@@ -288,18 +338,9 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 		else
 		    logmsg("bind to [%s]:%d failed.", su_ntoa(&ctx->sa, buf, (socklen_t) sizeof(buf)), su_get_port(&ctx->sa));
 	    }
-	    if (ctx->retry_delay)
-		io_sched_add(common_data.io, ctx, (void *) spawnd_bind_listener, (time_t) ctx->retry_delay, (suseconds_t) 0);
-	    else {
-		spawnd_data.bind_failures++;
-		if (spawnd_data.bind_failures == spawnd_data.listeners_max) {
-		    logmsg("Failed to bind to any address or port. Exiting.");
-		    exit(EX_TEMPFAIL);
-		}
-	    }
-
 	    Debug((DEBUG_NET, "- %s (bind error)\n", __func__));
-	    close(cur);
+	    spawnd_bind_failed(ctx, cur);
+	    DebugOut(DEBUG_NET);
 	    return;
 	}
 

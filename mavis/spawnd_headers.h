@@ -94,6 +94,9 @@ struct spawnd_context {
     u_int is_listener:1;	/* 0: server, 1: listener */
     u_int dying:1;		/* server only */
     u_int logged_retry:1;	/* server only */
+    u_int reuse_port:1;		/* listener only */
+    u_int reuse_port_set:1;	/* listener only */
+    u_int logged_reuseport_retry:1;	/* listener only */
     uint32_t sd_flags;
     u_int tls_versions;
     u_int dtls_versions;

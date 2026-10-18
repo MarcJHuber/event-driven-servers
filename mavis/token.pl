@@ -406,6 +406,7 @@ missing 			S_missing
 conflicting 			S_conflicting
 groups 				S_groups
 retry 				S_retry
+reuse-port			S_reuse_port
 delay 				S_delay
 bind				S_bind
 debug-cmd			S_debug_cmd
