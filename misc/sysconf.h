@@ -498,5 +498,13 @@
 static inline uint32_t arc4random(void) { return (uint32_t) random(); }
 static inline uint32_t arc4random_uniform(uint32_t n) { return (uint32_t) (random() % n); }
 #endif
+/*******************************************************************************
+ * SO_REUSEPORT/SO_REUSEPORT_LB
+ */
+#if defined(__FreeBSD__) && defined(SO_REUSEPORT_LB)
+# define SOCKOPT_REUSEPORT SO_REUSEPORT_LB
+#elif (defined(__linux__) || defined(__DragonFly__)) && defined(SO_REUSEPORT)
+# define SOCKOPT_REUSEPORT SO_REUSEPORT
+#endif
 /******************************************************************************/
 #endif				/* __SYSCONF_H__ */

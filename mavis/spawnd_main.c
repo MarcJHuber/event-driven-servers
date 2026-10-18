@@ -258,11 +258,11 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 		logerr("setsockopt failed to set the VRF to \"%d\" [%s:%d]", ctx->vrf_id, __FILE__, __LINE__);
 	}
 #endif
-#ifdef SO_REUSEPORT
+#ifdef SOCKOPT_REUSEPORT
 	if (spawnd_data.reuse_port && (ctx->protocol == IPPROTO_UDP || ctx->protocol == IPPROTO_TCP)) {
 	    int one = 1;
-	    if (setsockopt(cur, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one)))
-		logerr("setsockopt failed to set SO_REUSEPORT [%s:%d]", __FILE__, __LINE__);
+	    if (setsockopt(cur, SOL_SOCKET, SOCKOPT_REUSEPORT, &one, sizeof(one)))
+		logerr("setsockopt failed to set SO_REUSEPORT option [%s:%d]", __FILE__, __LINE__);
 	}
 #endif
 	ctx->port = su_get_port(&ctx->sa);

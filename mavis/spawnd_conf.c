@@ -459,7 +459,7 @@ void spawnd_parse_decls(struct sym *sym)
 	case S_reuse_port:
 	    sym_get(sym);
 	    parse(sym, S_equal);
-#ifdef SO_REUSEPORT
+#ifdef SOCKOPT_REUSEPORT
 	    spawnd_data.reuse_port = parse_bool(sym);
 #else
 	    parse_bool(sym);
