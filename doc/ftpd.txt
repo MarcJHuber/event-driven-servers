@@ -1,4 +1,4 @@
-FTP Daemon
+FTP Daemon (legacy, no longer maintained)
 
 Marc Huber
 
