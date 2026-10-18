@@ -68,6 +68,7 @@ struct spawnd_data {
     gid_t gid;
     char *cwd;			/* child's working directory */
     int inetd;
+    int reuse_port;
     int abandon;
     int background;
     int background_lock;

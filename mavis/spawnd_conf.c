@@ -456,6 +456,16 @@ void spawnd_parse_decls(struct sym *sym)
 	case S_listen:
 	    parse_listen(sym);
 	    continue;
+	case S_reuse_port:
+	    sym_get(sym);
+	    parse(sym, S_equal);
+#ifdef SO_REUSEPORT
+	    spawnd_data.reuse_port = parse_bool(sym);
+#else
+	    parse_bool(sym);
+	    logmsg("%s is unsupported on this system", codestring[S_reuse_port].txt);
+#endif
+	    continue;
 	case S_background:
 	    sym_get(sym);
 	    parse(sym, S_equal);

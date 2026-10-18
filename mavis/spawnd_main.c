@@ -259,9 +259,10 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 	}
 #endif
 #ifdef SO_REUSEPORT
-	if (ctx->protocol == IPPROTO_UDP) {
+	if (spawnd_data.reuse_port && (ctx->protocol == IPPROTO_UDP || ctx->protocol == IPPROTO_TCP)) {
 	    int one = 1;
-	    setsockopt(cur, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one));
+	    if (setsockopt(cur, SOL_SOCKET, SO_REUSEPORT, &one, sizeof(one)))
+		logerr("setsockopt failed to set SO_REUSEPORT [%s:%d]", __FILE__, __LINE__);
 	}
 #endif
 	ctx->port = su_get_port(&ctx->sa);
