@@ -662,6 +662,8 @@ void reject_conn(struct context *ctx, const char *hint, const char *func, int li
 
     if (!hint)
 	hint = "";
+    if (*hint && hint != ctx->hint)
+	ctx->hint = mem_strdup(ctx->mem, (char *) hint);	// ${hint} for the connection log
     char *prehint = "", *posthint = "";
     if (*hint)
 	prehint = " (", posthint = ")";
@@ -841,6 +843,28 @@ static int ASN1_TIME_to_tm(const ASN1_TIME *s, struct tm *tm)
 
 static int cert_verify(struct context *ctx);
 
+// SSL_accept() failed: keep what OpenSSL knows about the failure for the connection log
+// before the error queue is consumed and the SSL object is freed by cleanup()
+static void set_tls_error(struct context *ctx)
+{
+    char buf[40];
+    str_set(&ctx->tls_conn_version, (char *) SSL_get_version(ctx->tls), 0);
+    unsigned long e = ERR_peek_error();
+    if (e) {
+	const char *reason = ERR_reason_error_string(e);
+	snprintf(buf, sizeof(buf), "%08lX", e);
+	str_set(&ctx->tls_conn_error_code, mem_strdup(ctx->mem, buf), 0);
+	if (reason)
+	    str_set(&ctx->tls_conn_error, mem_strdup(ctx->mem, (char *) reason), 0);
+    }
+    long v = SSL_get_verify_result(ctx->tls);
+    if (v != X509_V_OK) {
+	snprintf(buf, sizeof(buf), "%ld", v);
+	str_set(&ctx->tls_peer_cert_verify_code, mem_strdup(ctx->mem, buf), 0);
+	str_set(&ctx->tls_peer_cert_verify, mem_strdup(ctx->mem, (char *) X509_verify_cert_error_string(v)), 0);
+    }
+}
+
 static void accept_control_tls(struct context *ctx, int cur)
 {
     const char *hint = "";
@@ -861,11 +885,13 @@ static void accept_control_tls(struct context *ctx, int cur)
 	    io_set_o(ctx->io, cur);
 	    return;
 	default:
+	    set_tls_error(ctx);
 	    hint = (ctx->hint && *ctx->hint) ? ctx->hint : ERR_error_string(ERR_get_error(), NULL);
 	    reject_conn(ctx, hint, __func__, __LINE__);
 	    return;
 	}
     case 0:
+	set_tls_error(ctx);
 	hint = ERR_error_string(ERR_get_error(), NULL);
 	reject_conn(ctx, hint, __func__, __LINE__);
 	return;

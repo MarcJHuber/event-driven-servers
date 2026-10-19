@@ -103,8 +103,12 @@ class CA:
                                     "keyUsage = critical, keyCertSign, cRLSign\n"
                                     "subjectKeyIdentifier = hash\n")
 
-    def issue(self, name, subject, server=False, san=None, days=2):
-        """(certificate, key) for subject, e.g. "/CN=nas1"; san e.g. "DNS:nas1, IP:127.0.0.5"."""
+    def issue(self, name, subject, server=False, san=None, days=2, expired=False):
+        """(certificate, key) for subject, e.g. "/CN=nas1"; san e.g. "DNS:nas1, IP:127.0.0.5".
+
+        expired: valid for one day in 2020. "openssl x509 -req" takes no
+        dates in the past before OpenSSL 3.4, "openssl ca" does.
+        """
         key, csr, crt = self.path(name + ".key"), self.path(name + ".csr"), self.path(name + ".crt")
         self._newkey(key)
         _openssl("req", "-batch", "-new", "-key", key, "-subj", subject, "-config", self._config(), "-out", csr)
@@ -113,8 +117,22 @@ class CA:
         ext += "authorityKeyIdentifier = keyid\n"
         if san:
             ext += "subjectAltName = %s\n" % san
-        _openssl("x509", "-req", "-in", csr, "-CA", self.cert, "-CAkey", self.key, "-CAcreateserial",
-                 "-days", str(days), "-sha256", "-extfile", self._ext(name + ".ext", ext), "-out", crt)
+        ext = self._ext(name + ".ext", ext)
+        if expired:
+            db = self.path(name + ".db")
+            os.mkdir(db)
+            open(os.path.join(db, "index.txt"), "w").close()
+            with open(os.path.join(db, "serial"), "w") as f:
+                f.write("01\n")
+            cnf = self._ext(name + ".ca.cnf", "[ca]\ndefault_ca = c\n[c]\ndatabase = %s/index.txt\nserial = %s/serial\n"
+                                              "new_certs_dir = %s\ndefault_md = sha256\npolicy = p\n"
+                                              "unique_subject = no\n[p]\ncommonName = optional\n" % (db, db, db))
+            _openssl("ca", "-batch", "-notext", "-config", cnf, "-cert", self.cert, "-keyfile", self.key,
+                     "-in", csr, "-extfile", ext, "-startdate", "20200101000000Z", "-enddate", "20200102000000Z",
+                     "-out", crt)
+        else:
+            _openssl("x509", "-req", "-in", csr, "-CA", self.cert, "-CAkey", self.key, "-CAcreateserial",
+                     "-days", str(days), "-sha256", "-extfile", ext, "-out", crt)
         return crt, key
 
     def context(self, cert=None, minimum=ssl.TLSVersion.TLSv1_3, maximum=None):
