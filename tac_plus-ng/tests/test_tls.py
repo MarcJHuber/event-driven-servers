@@ -97,7 +97,8 @@ class TlsTestCase(DaemonTestCase):
     """A daemon with a CA of its own; CONFIG is formatted with the paths of its certificates.
 
     CLIENTS maps a name to the subject of its client certificate, or to
-    (subject, subjectAltName).
+    (subject, subjectAltName). BODY = None: the tests start their own
+    daemons (cls.paths for the certificates).
     """
 
     BODY = ""
@@ -111,8 +112,8 @@ class TlsTestCase(DaemonTestCase):
         for name, subject in cls.CLIENTS.items():
             subject, san = (subject, None) if isinstance(subject, str) else subject
             cls.certs[name] = cls.ca.issue(name, subject, san=san)
-        paths = dict(ca=cls.ca.cert, server_crt=cls.ca.server[0], server_key=cls.ca.server[1])
-        cls.CONFIG = cls.BODY % paths
+        cls.paths = dict(ca=cls.ca.cert, server_crt=cls.ca.server[0], server_key=cls.ca.server[1])
+        cls.CONFIG = None if cls.BODY is None else cls.BODY % cls.paths
         try:
             super().setUpClass()
         except Exception:
@@ -319,6 +320,128 @@ class ListenerTlsAuto(TlsTestCase):
 
     def test_plain_listener_does_not_auto_detect(self):
         self.assertRefused(lambda: self.connect_tls(listener=None))
+
+
+REJECT_LOG_FIELDS = ("version", "error_code", "error", "verify_code", "verify", "hint")
+
+REJECT_LOG = """
+	log connection {
+		destination = "$tmp/connection.log"
+		connection format = "$${msgid}$${FS}$${tls.conn.version}$${FS}$${tls.conn.error.code}$${FS}$${tls.conn.error}$${FS}$${tls.peer.cert.verify.code}$${FS}$${tls.peer.cert.verify}$${FS}$${hint}"
+	}
+	connection log = connection
+"""
+
+
+def tls11_client_hello():
+    """A ClientHello of a client that speaks TLS 1.1 at most (no supported_versions extension)."""
+    body = b"\x03\x02" + os.urandom(32) + b"\x00" + b"\x00\x04\xc0\x13\x00\x2f" + b"\x01\x00"
+    handshake = b"\x01" + len(body).to_bytes(3, "big") + body
+    return b"\x16\x03\x01" + len(handshake).to_bytes(2, "big") + handshake
+
+
+class TlsRejectReason(TlsTestCase):
+    """A failed TLS handshake: the connection log says why.
+
+    The syslog line of the reject carried the OpenSSL error ("rejected
+    (error:0A000418:SSL routines::tlsv1 alert unknown ca)"), but the
+    CONN-REJECT record of the connection log got nothing of it:
+    accept_control_tls() handed the error text to reject_conn() for
+    syslog only, and ${hint}, documented as the error message for TLS
+    failures, stayed empty. ${tls.conn.error} and ${tls.conn.error.code}
+    give the OpenSSL error, ${tls.peer.cert.verify} and
+    ${tls.peer.cert.verify.code} the result of the client certificate
+    verification. The daemon is started in every test, as the format
+    uses variables an older daemon rejects.
+    """
+
+    BODY = None
+    CLIENTS = {"certnas": "/CN=certnas.tactest"}
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.other = tls.CA(cls.__name__ + "-other")
+        cls.certs["untrusted"] = cls.other.issue("untrusted", "/CN=certnas.tactest")
+        cls.certs["expired"] = cls.ca.issue("expired", "/CN=certnas.tactest", expired=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            super().tearDownClass()
+        finally:
+            if not cls._failed:
+                cls.other.remove()
+
+    def record(self, client, msgid="CONN-REJECT"):
+        """Run client(daemon) against a daemon of this test; the fields of the first msgid record."""
+        d = self.start_daemon(TLS_REALM % self.paths + REJECT_LOG + POLICY, listen={"tls": "tls = yes"})
+        try:
+            client(d)
+        except (OSError, ssl.SSLError, tacacs.Closed):
+            pass
+        for line in d.wait_log("connection", msgid + "\t").splitlines():
+            fields = line.split("\t")
+            if fields[0].endswith(" " + msgid):
+                return dict(zip(REJECT_LOG_FIELDS, fields[1:]))
+
+    def tls_client(self, ctx):
+        def client(d):
+            c = self.connect(daemon=d, listener="tls", tls=ctx, server_hostname="localhost", timeout=10.0)
+            c.pap("alice", "alicepw")   # TLS 1.3: a refused client certificate shows up after the handshake
+        return client
+
+    def raw_client(self, data):
+        def client(d):
+            with socket.create_connection((d.address, d.ports["tls"]), timeout=5) as s:
+                if data:
+                    s.sendall(data)
+                    s.settimeout(2)
+                    try:
+                        while s.recv(4096):
+                            pass
+                    except OSError:
+                        pass
+        return client
+
+    def assertRejected(self, r, code, error, verify_code="", verify=""):
+        self.assertIsNotNone(r, "no CONN-REJECT record")
+        self.assertEqual((r["error_code"], r["error"], r["verify_code"], r["verify"]), (code, error, verify_code, verify))
+        self.assertEqual(r["hint"], "error:%s:SSL routines::%s" % (code, error))
+
+    def test_client_does_not_trust_the_server(self):
+        """The case from the field: the device has the wrong CA and aborts with an alert."""
+        r = self.record(self.tls_client(self.other.context(self.certs["certnas"])))
+        self.assertRejected(r, "0A000418", "tlsv1 alert unknown ca")
+        self.assertEqual(r["version"], "TLSv1.3")
+
+    def test_client_certificate_from_an_unknown_ca(self):
+        r = self.record(self.tls_client(self.context("untrusted")))
+        self.assertRejected(r, "0A000086", "certificate verify failed", "20", "unable to get local issuer certificate")
+
+    def test_expired_client_certificate(self):
+        r = self.record(self.tls_client(self.context("expired")))
+        self.assertRejected(r, "0A000086", "certificate verify failed", "10", "certificate has expired")
+
+    def test_no_client_certificate(self):
+        """The handshake succeeds, the daemon refuses afterwards: no OpenSSL error, the reason is in ${hint}."""
+        r = self.record(self.tls_client(self.context()))
+        self.assertEqual(r, dict(version="TLSv1.3", error_code="", error="", verify_code="", verify="", hint="no cert"))
+
+    def test_tcp_close_without_handshake(self):
+        self.assertRejected(self.record(self.raw_client(b"")), "0A000126", "unexpected eof while reading")
+
+    def test_not_tls(self):
+        self.assertRejected(self.record(self.raw_client(b"GET / HTTP/1.0\r\n\r\n")), "0A00009C", "http request")
+
+    def test_tls11_only_client(self):
+        r = self.record(self.raw_client(tls11_client_hello()))
+        self.assertRejected(r, "0A000102", "unsupported protocol")
+        self.assertEqual(r["version"], "TLSv1.1")
+
+    def test_accepted_connection_has_no_error(self):
+        r = self.record(self.tls_client(self.context("certnas")), "CONN-START")
+        self.assertEqual(r, dict(version="TLSv1.3", error_code="", error="", verify_code="", verify="", hint=""))
 
 
 PSK_KEY = "0123456789abcdef0123456789abcdef"

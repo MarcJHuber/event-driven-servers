@@ -907,6 +907,10 @@ struct log_item *parse_log_format(struct sym *sym, mem_t *mem)
 	    case S_tls_conn_sni:
 	    case S_tls_peer_cert_sha1:
 	    case S_tls_peer_cert_sha256:
+	    case S_tls_conn_error:
+	    case S_tls_conn_error_code:
+	    case S_tls_peer_cert_verify:
+	    case S_tls_peer_cert_verify_code:
 	    case S_nacname:
 	    case S_nasname:
 	    case S_mavis_latency:
@@ -1742,6 +1746,37 @@ static str_t *eval_log_format_tls_conn_sni(tac_session *session __attribute__((u
     return NULL;
 }
 
+static str_t *eval_log_format_tls_conn_error(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf __attribute__((unused)))
+{
+    if (ctx)
+	return &ctx->tls_conn_error;
+    return NULL;
+}
+
+static str_t *eval_log_format_tls_conn_error_code(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+						  __attribute__((unused)))
+{
+    if (ctx)
+	return &ctx->tls_conn_error_code;
+    return NULL;
+}
+
+static str_t *eval_log_format_tls_peer_cert_verify(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+						   __attribute__((unused)))
+{
+    if (ctx)
+	return &ctx->tls_peer_cert_verify;
+    return NULL;
+}
+
+static str_t *eval_log_format_tls_peer_cert_verify_code(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
+							__attribute__((unused)))
+{
+    if (ctx)
+	return &ctx->tls_peer_cert_verify_code;
+    return NULL;
+}
+
 static str_t *eval_log_format_tls_peer_cert_sha1(tac_session *session __attribute__((unused)), struct context *ctx, struct logfile *lf
 						 __attribute__((unused)))
 {
@@ -1889,6 +1924,10 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 	efun[S_tls_conn_sni] = &eval_log_format_tls_conn_sni;
 	efun[S_tls_peer_cert_sha1] = &eval_log_format_tls_peer_cert_sha1;
 	efun[S_tls_peer_cert_sha256] = &eval_log_format_tls_peer_cert_sha256;
+	efun[S_tls_conn_error] = &eval_log_format_tls_conn_error;
+	efun[S_tls_conn_error_code] = &eval_log_format_tls_conn_error_code;
+	efun[S_tls_peer_cert_verify] = &eval_log_format_tls_peer_cert_verify;
+	efun[S_tls_peer_cert_verify_code] = &eval_log_format_tls_peer_cert_verify_code;
 #endif
     }
 
