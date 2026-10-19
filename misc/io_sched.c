@@ -851,11 +851,15 @@ static void poll_io_register(struct io_context *io, int fd)
 #ifdef WITH_EPOLL
 static void epoll_io_close(struct io_context *io, int fd)
 {
-    if (io->Epoll.changemap[fd] > -1) {
-	io->Epoll.changelist[io->Epoll.changemap[fd]] = -1;
-	io->Epoll.changemap[fd] = -1;
-	io->Epoll.nchanges--;
+    int i = io->Epoll.changemap[fd];
+    if (i > -1 && i < io->Epoll.nchanges && io->Epoll.changelist[i] == fd) {
+	// Move the last pending change into the slot of fd. Just decrementing
+	// nchanges would drop the change of whatever fd is queued last.
+	int last = io->Epoll.changelist[--io->Epoll.nchanges];
+	io->Epoll.changelist[i] = last;
+	io->Epoll.changemap[last] = i;
     }
+    io->Epoll.changemap[fd] = -1;
 }
 
 static void epoll_addchange(struct io_context *io, int fd)
@@ -996,13 +1000,14 @@ static int epoll_io_poll(struct io_context *io, int poll_timeout, int *cax)
 	    struct epoll_event e;
 	    e.data.fd = fd;
 	    e.events = (io->handler[fd].want_read ? EPOLLIN : 0) | (io->handler[fd].want_write ? EPOLLOUT : 0);
+	    // Unmap first, so io_close() below doesn't reorder the list while it's being walked.
+	    io->Epoll.changemap[fd] = -1;
 	    if (epoll_ctl(io->Epoll.fd, EPOLL_CTL_MOD, fd, &e) < 0) {
 #ifndef DEBUG
 		logerr("epoll_ctl (%s:%d)", __FILE__, __LINE__);
 #endif
 		io_close(io, fd);
 	    }
-	    io->Epoll.changemap[fd] = -1;
 	}
     }
     io->Epoll.nchanges = 0;

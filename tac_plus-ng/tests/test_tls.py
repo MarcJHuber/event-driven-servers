@@ -527,3 +527,32 @@ class PeerCertSanValidation(TlsTestCase):
     def test_without_validation_the_ip_san_selects_the_device(self):
         """localhost (127.0.0.0/8) doesn't validate: the SAN wins over the address."""
         self.assertEqual(self.device("xr_address", "127.0.0.10"), "xr")
+
+
+class PipeLogAfterReject(TlsTestCase):
+    """#299: after a refused TLS handshake, a pipe log destination of the worker got no more records.
+
+    The CONN-REJECT record queues the pipe for writing after the client
+    socket, then the socket is closed. epoll_io_close() dropped the last
+    entry of the pending change list instead of the socket's: the pipe was
+    never armed for writing again, and every later record stayed in its
+    buffer. A file destination doesn't go through that list.
+    """
+
+    LISTEN = {"tls": "tls = yes"}
+    BODY = TLS_REALM + """
+	log connpipe { destination = "|exec cat >> '$tmp/connpipe.log'" }
+	connection log = connpipe
+""" + POLICY
+
+    def test_issue299_pipe_log_after_a_refused_handshake(self):
+        other = tls.CA("other-ca")
+        self.addCleanup(other.remove)
+        with self.assertRaises(ssl.SSLError):
+            self.connect(listener="tls", tls=other.context(), server_hostname="localhost", timeout=10.0)
+        c = self.connect()
+        port = c.sock.getsockname()[1]
+        self.assertTrue(c.pap("alice", "alicepw").ok)
+        c.close()
+        text = self.wait_log("connpipe", "stop\ttcp\t127.0.0.1\t%d\t" % port)
+        self.assertIn("reject\ttcp\t127.0.0.1\t", text)
