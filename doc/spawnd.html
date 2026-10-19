@@ -152,7 +152,7 @@ acl accept ::1</pre></li>
 </li>
 <li>
 <p><tt class="literal">reuse-port =</tt> ( <tt class="literal">yes</tt> | <tt class="literal">no</tt> )</p>
-<p>On Linux, use <tt class="literal">SO_REUSEPORT</tt> to allow multiple <tt class="literal">spawnd</tt> instances to bind to the same TCP or UDP ports. Disabled by default.</p>
+<p>On Linux, FreeBSD and DragonFly: use <tt class="literal">SO_REUSEPORT</tt> to allow multiple <tt class="literal">spawnd</tt> instances to bind to the same TCP or UDP ports. Disabled by default.</p>
 </li>
 </ul>
 <p>For listening on UNIX domain sockets, a different syntax applies:</p>

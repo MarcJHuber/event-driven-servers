@@ -175,9 +175,9 @@ acl accept ::1
             Seconds, then try again. Default: 0 seconds (no
             retries).
           + reuse-port = ( yes | no )
-            On Linux, use SO_REUSEPORT to allow multiple spawnd
-            instances to bind to the same TCP or UDP ports.
-            Disabled by default.
+            On Linux, FreeBSD and DragonFly: use SO_REUSEPORT to
+            allow multiple spawnd instances to bind to the same
+            TCP or UDP ports. Disabled by default.
        For listening on UNIX domain sockets, a different syntax
        applies:
           + path = Path

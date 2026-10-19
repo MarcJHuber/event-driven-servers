@@ -921,9 +921,9 @@ syslog filter = 46 # 2 + 4 + 8 + 32
    e.g. tlsv1 alert unknown ca (requires OpenSSL)
    ${tls.conn.error.code} OpenSSL error code for a failed TLS
    handshake, in hex, e.g. 0A000418 (requires OpenSSL)
-   ${tls.peer.cert.verify} Peer certificate verification error
-   for a failed TLS handshake, e.g. certificate has expired
-   (requires OpenSSL)
+   ${tls.peer.cert.verify} Peer certificate verification error for
+   a failed TLS handshake, e.g. certificate has expired (requires
+   OpenSSL)
    ${tls.peer.cert.verify.code} Peer certificate verification
    error code (X509_V_ERR_*) for a failed TLS handshake, e.g. 10
    (requires OpenSSL)
