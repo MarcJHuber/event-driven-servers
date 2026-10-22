@@ -111,6 +111,10 @@ Project page:
 
   https://www.pro-bono-publico.de/projects
 
+Note
+====
+tac_plus-ng is continuously hardened by the community. A major 2026 security and stability audit by Aleksey Mochalin (utilizing Claude) resulted in about 50 solved issues, significantly elevating the software's resilience.
+
 Author
 ======
 
