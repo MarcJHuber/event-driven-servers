@@ -103,18 +103,24 @@ class CA:
                                     "keyUsage = critical, keyCertSign, cRLSign\n"
                                     "subjectKeyIdentifier = hash\n")
 
-    def issue(self, name, subject, server=False, san=None, days=2, expired=False):
+    def issue(self, name, subject, server=False, san=None, days=2, expired=False, aki="keyid"):
         """(certificate, key) for subject, e.g. "/CN=nas1"; san e.g. "DNS:nas1, IP:127.0.0.5".
 
         expired: valid for one day in 2020. "openssl x509 -req" takes no
         dates in the past before OpenSSL 3.4, "openssl ca" does.
+
+        aki chooses the authorityKeyIdentifier extension: "keyid" (the
+        default) a keyIdentifier, "issuer:always" the issuer name and
+        serial without a keyIdentifier, None no AuthorityKeyIdentifier at
+        all. The last two are how a certificate reaches the daemon with
+        aki->keyid == NULL or no AKI.
         """
         key, csr, crt = self.path(name + ".key"), self.path(name + ".csr"), self.path(name + ".crt")
         self._newkey(key)
         _openssl("req", "-batch", "-new", "-key", key, "-subj", subject, "-config", self._config(), "-out", csr)
         ext = "basicConstraints = CA:false\nkeyUsage = critical, digitalSignature\n"
         ext += "extendedKeyUsage = %s\n" % ("serverAuth" if server else "clientAuth")
-        ext += "authorityKeyIdentifier = keyid\n"
+        ext += "authorityKeyIdentifier = %s\n" % (aki if aki else "none")
         if san:
             ext += "subjectAltName = %s\n" % san
         ext = self._ext(name + ".ext", ext)

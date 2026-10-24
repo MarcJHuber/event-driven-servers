@@ -986,21 +986,23 @@ static void accept_control_tls(struct context *ctx, int cur)
 
 	    AUTHORITY_KEYID *aki = (AUTHORITY_KEYID *) X509_get_ext_d2i(cert, NID_authority_key_identifier, NULL, NULL);
 	    if (aki) {
+		if (aki->keyid) {
 #if OPENSSL_VERSION_NUMBER < 0x40100000
-		u_char *data = aki->keyid->data;
-		int data_len = aki->keyid->length;
+		    u_char *data = aki->keyid->data;
+		    int data_len = aki->keyid->length;
 #else
-		const u_char *data = ASN1_STRING_get0_data(aki->keyid);
-		int data_len = ASN1_STRING_get_length(aki->keyid);
+		    const u_char *data = ASN1_STRING_get0_data(aki->keyid);
+		    int data_len = ASN1_STRING_get_length(aki->keyid);
 #endif
-		char *s = mem_alloc(ctx->mem, 2 * data_len + 1);
-		char *p = s;
+		    char *s = mem_alloc(ctx->mem, 2 * data_len + 1);
+		    char *p = s;
 
-		for (int i = 0; i < data_len; i++) {
-		    *p++ = hex[data[i] >> 4];
-		    *p++ = hex[data[i] & 0xf];
+		    for (int i = 0; i < data_len; i++) {
+			*p++ = hex[data[i] >> 4];
+			*p++ = hex[data[i] & 0xf];
+		    }
+		    str_set(&ctx->tls_peer_cert_aki, s, 2 * data_len);
 		}
-		str_set(&ctx->tls_peer_cert_aki, s, 2 * data_len);
 		AUTHORITY_KEYID_free(aki);
 	    }
 
@@ -1043,7 +1045,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 			do {
 			    AUTHORITY_KEYID *aki = (AUTHORITY_KEYID *) X509_get_ext_d2i(cer, NID_authority_key_identifier, NULL, NULL);
 			    size_t aki_len = 0;
-			    if (aki)
+			    if (aki && aki->keyid)
 #if OPENSSL_VERSION_NUMBER < 0x40100000
 				aki_len = aki->keyid->length * 2;
 #else
@@ -1052,17 +1054,19 @@ static void accept_control_tls(struct context *ctx, int cur)
 			    char aki_txt[aki_len + 1];
 
 			    if (aki) {
-				char *p = aki_txt;
+				if (aki->keyid) {
+				    char *p = aki_txt;
 #if OPENSSL_VERSION_NUMBER < 0x40100000
-				u_char *data = aki->keyid->data;
-				int data_len = aki->keyid->length;
+				    u_char *data = aki->keyid->data;
+				    int data_len = aki->keyid->length;
 #else
-				const u_char *data = ASN1_STRING_get0_data(aki->keyid);
-				int data_len = ASN1_STRING_get_length(aki->keyid);
+				    const u_char *data = ASN1_STRING_get0_data(aki->keyid);
+				    int data_len = ASN1_STRING_get_length(aki->keyid);
 #endif
-				for (int i = 0; i < data_len; i++) {
-				    *p++ = hex[data[i] >> 4];
-				    *p++ = hex[data[i] & 0xf];
+				    for (int i = 0; i < data_len; i++) {
+					*p++ = hex[data[i] >> 4];
+					*p++ = hex[data[i] & 0xf];
+				    }
 				}
 				AUTHORITY_KEYID_free(aki);
 			    }
