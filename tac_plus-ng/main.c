@@ -1047,7 +1047,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 #if OPENSSL_VERSION_NUMBER < 0x40100000
 				aki_len = aki->keyid->length * 2;
 #else
-				aki_len = ASN1_STRING_get_length(aki->keyid) + 2;
+				aki_len = ASN1_STRING_get_length(aki->keyid) * 2;
 #endif
 			    char aki_txt[aki_len + 1];
 
@@ -1072,7 +1072,7 @@ static void accept_control_tls(struct context *ctx, int cur)
 #if OPENSSL_VERSION_NUMBER < 0x40100000
 			    size_t serial_len = serial_asn1->length * 2;
 #else
-			    size_t serial_len = ASN1_STRING_get_length(serial_asn1);
+			    size_t serial_len = ASN1_STRING_get_length(serial_asn1) * 2;
 #endif
 			    size_t crlfile_len = ctx->host->realm->crl_basedir.len + 1 + (aki_len ? aki_len : (2 * MD5_LEN)) + 1 + serial_len + 1;
 
