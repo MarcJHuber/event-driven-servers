@@ -288,6 +288,7 @@ static void do_author(tac_session *session)
 	report(DEBAUTHZ, "user %s realm %s denied by ACL", session->username.txt, session->ctx->realm->name.txt);
 	send_author_reply(session, TAC_PLUS_AUTHOR_STATUS_FAIL, session->message.txt,
 			  eval_log_format(session, session->ctx, NULL, li_denied_by_acl, io_now.tv_sec, NULL), 0, NULL);
+	return;
     }
 
     if (!session->user && session->username.len) {
