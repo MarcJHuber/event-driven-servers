@@ -97,8 +97,10 @@ class TlsTestCase(DaemonTestCase):
     """A daemon with a CA of its own; CONFIG is formatted with the paths of its certificates.
 
     CLIENTS maps a name to the subject of its client certificate, or to
-    (subject, subjectAltName). BODY = None: the tests start their own
-    daemons (cls.paths for the certificates).
+    (subject, subjectAltName), or to (subject, subjectAltName, aki) where
+    aki is the authorityKeyIdentifier form (see tls.CA.issue). BODY =
+    None: the tests start their own daemons (cls.paths for the
+    certificates).
     """
 
     BODY = ""
@@ -109,9 +111,9 @@ class TlsTestCase(DaemonTestCase):
         need_tls()
         cls.ca = tls.CA(cls.__name__ + "-ca")
         cls.certs = {}
-        for name, subject in cls.CLIENTS.items():
-            subject, san = (subject, None) if isinstance(subject, str) else subject
-            cls.certs[name] = cls.ca.issue(name, subject, san=san)
+        for name, spec in cls.CLIENTS.items():
+            subject, san, aki = (spec, None, "keyid") if isinstance(spec, str) else (spec + ("keyid",))[:3]
+            cls.certs[name] = cls.ca.issue(name, subject, san=san, aki=aki)
         cls.paths = dict(ca=cls.ca.cert, server_crt=cls.ca.server[0], server_key=cls.ca.server[1])
         cls.CONFIG = None if cls.BODY is None else cls.BODY % cls.paths
         try:
@@ -679,3 +681,42 @@ class PipeLogAfterReject(TlsTestCase):
         c.close()
         text = self.wait_log("connpipe", "stop\ttcp\t127.0.0.1\t%d\t" % port)
         self.assertIn("reject\ttcp\t127.0.0.1\t", text)
+
+
+class AkiWithoutKeyIdentifier(TlsTestCase):
+    """A client certificate whose AuthorityKeyIdentifier has no keyIdentifier crashed the worker.
+
+    accept_control_tls() reads aki->keyid without a NULL check. An
+    AuthorityKeyIdentifier that carries only authorityCertIssuer and
+    authorityCertSerialNumber (OpenSSL "authorityKeyIdentifier =
+    issuer:always") leaves keyid NULL: the daemon dereferences it first
+    when it records ${tls.peer.cert.aki}, and again, when "tls crl-dir"
+    is set, while it builds the <crl-dir>/<AKI>/<serial> revocation path.
+    A realm that trusts a CA it does not control and has crl-dir
+    configured is hit by any peer certificate issued that way. A
+    certificate with no AKI at all was already handled -- the revocation
+    path falls back to an MD5 of the issuer DN -- and is kept here so
+    that path stays covered.
+    """
+
+    LISTEN = {"tls": "tls = yes"}
+    BODY = TLS_REALM + '\ttls crl-dir = "$tmp/crl"\n' + POLICY
+    CLIENTS = {
+        "keyid": "/CN=certnas.tactest",                              # a keyIdentifier (the working case)
+        "issuer_serial": ("/CN=certnas.tactest", None, "issuer:always"),  # issuer + serial, keyid NULL
+        "no_aki": ("/CN=certnas.tactest", None, None),              # no AuthorityKeyIdentifier at all
+    }
+
+    def selected(self, client):
+        return self.device_and_transport(self.connect_tls(client=client))
+
+    def test_aki_with_issuer_and_serial_only(self):
+        """keyid NULL: the worker dereferenced it; the certificate must now be served normally."""
+        self.assertEqual(self.selected("issuer_serial"), {"tactest-device": "certnas", "tactest-transport": "tls"})
+
+    def test_no_authority_key_identifier(self):
+        """No AKI: the revocation path uses the MD5 of the issuer DN; this always worked."""
+        self.assertEqual(self.selected("no_aki"), {"tactest-device": "certnas", "tactest-transport": "tls"})
+
+    def test_key_identifier_still_works(self):
+        self.assertEqual(self.selected("keyid"), {"tactest-device": "certnas", "tactest-transport": "tls"})
