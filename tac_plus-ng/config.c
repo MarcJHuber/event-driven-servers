@@ -6020,9 +6020,9 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	m->b.v = (char *) parse_log_format(sym, mem);
 	break;
     case S_attr:
-	sym_get(sym);
-	parse(sym, S_default);
 	m = mavis_action_new(sym, mem);
+	parse(sym, S_default);
+	parse(sym, S_equal);
 	m->b.v = (char *) (keycode(sym->buf));
 	sym_get(sym);
 	break;
