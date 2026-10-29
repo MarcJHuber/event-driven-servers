@@ -21,7 +21,7 @@ static void catchhup(int i __attribute__((unused)))
 
     logmsg("SIGHUP: restarting");
     pid_unlink(&common_data.pidfile);
-    execve(common_data.progpath, common_data.argv, common_data.envp);
+    execve(common_data.progpath, common_data.argv, spawnd_keep_listeners());
     exit(EX_OSERR);
 }
 

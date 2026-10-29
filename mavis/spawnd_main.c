@@ -203,6 +203,121 @@ int spawnd_note_listener(sockaddr_union *sa __attribute__((unused)), void *data)
     return 0;
 }
 
+/*
+ * SIGHUP re-executes spawnd. The listening sockets survive the execve() and
+ * the new image takes them over, so the ports stay open during a reload.
+ * Their descriptors are passed in the environment.
+ */
+#define LISTEN_FDS "SPAWND_LISTEN_FDS"
+
+static int *inherited = NULL;
+static int inherited_cur = 0;
+
+char **spawnd_keep_listeners(void)
+{
+    size_t len = sizeof(LISTEN_FDS "=") + 12 * spawnd_data.listeners_max;
+    char *e = Xcalloc(1, len);
+    char *p = e + snprintf(e, len, "%s=", LISTEN_FDS);
+    int n = 0;
+
+    for (int i = 0; i < spawnd_data.listeners_max; i++) {
+	int fd = spawnd_data.listener_arr[i]->fn;
+	if (fd > -1 && !fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) & ~FD_CLOEXEC))
+	    p += snprintf(p, len - (p - e), "%s%d", (p[-1] == '=') ? "" : ",", fd);
+    }
+
+    while (common_data.envp[n])
+	n++;
+    char **envp = Xcalloc(n + 2, sizeof(char *));
+    n = 0;
+    for (char **v = common_data.envp; *v; v++)
+	if (strncmp(*v, LISTEN_FDS "=", sizeof(LISTEN_FDS)))
+	    envp[n++] = *v;
+    envp[n] = e;
+    return envp;
+}
+
+static void get_inherited(void)
+{
+    char *e = getenv(LISTEN_FDS);
+    if (!e)
+	return;
+    while (*e) {
+	char *t;
+	long fd = strtol(e, &t, 10);
+	sockaddr_union sa;
+	socklen_t sa_len = (socklen_t) sizeof(sa);
+	if (t == e)
+	    break;
+	if (fd > -1 && fd < INT_MAX && !getsockname((int) fd, &sa.sa, &sa_len)) {
+	    inherited = Xrealloc(inherited, (inherited_cur + 1) * sizeof(int));
+	    inherited[inherited_cur++] = (int) fd;
+	}
+	e = (*t == ',') ? t + 1 : t;
+    }
+    unsetenv(LISTEN_FDS);
+}
+
+static int same_vrf(struct spawnd_context *ctx, int fd)
+{
+    if (ctx->sa.sa.sa_family != AF_INET && ctx->sa.sa.sa_family != AF_INET6)
+	return -1;
+#ifdef VRF_BINDTODEVICE
+    char dev[256] = { 0 };
+    socklen_t dev_len = (socklen_t) sizeof(dev) - 1;
+    if (getsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, dev, &dev_len))
+	return 0;
+    return !strcmp(dev, ctx->vrf ? ctx->vrf : "");
+#endif
+#if defined(VRF_RTABLE) || defined(VRF_SETFIB)
+    int opt = -1;
+    socklen_t opt_len = (socklen_t) sizeof(opt);
+    if (getsockopt(fd, SOL_SOCKET,
+#ifdef VRF_RTABLE
+		   SO_RTABLE
+#endif
+#ifdef VRF_SETFIB
+		   SO_SETFIB
+#endif
+		   , &opt, &opt_len))
+	return 0;
+#ifdef VRF_RTABLE
+    if (ctx->vrf_id < 0)
+	return opt == getrtable();
+#endif
+    return opt == ctx->vrf_id;
+#endif
+    return -1;
+}
+
+// Take over the inherited socket bound to the address of ctx, if any.
+static void adopt_listener(struct spawnd_context *ctx)
+{
+    for (int i = 0; i < inherited_cur; i++) {
+	int fd = inherited[i], type = -1;
+	sockaddr_union sa = { 0 };
+	socklen_t sa_len = (socklen_t) sizeof(sa), type_len = (socklen_t) sizeof(type);
+	if (fd < 0 || getsockname(fd, &sa.sa, &sa_len)
+	    || getsockopt(fd, SOL_SOCKET, SO_TYPE, &type, &type_len)
+	    || type != ctx->socktype || sa.sa.sa_family != ctx->sa.sa.sa_family || !su_equal(&sa, &ctx->sa) || !same_vrf(ctx, fd))
+	    continue;
+#ifdef SO_PROTOCOL
+	if (sa.sa.sa_family == AF_INET || sa.sa.sa_family == AF_INET6) {
+	    int protocol = -1;
+	    socklen_t protocol_len = (socklen_t) sizeof(protocol);
+	    if (getsockopt(fd, SOL_SOCKET, SO_PROTOCOL, &protocol, &protocol_len) || protocol != ctx->protocol)
+		continue;
+	}
+#endif
+	fcntl(fd, F_SETFD, fcntl(fd, F_GETFD, 0) | FD_CLOEXEC);
+	inherited[i] = -1;
+	ctx->fn = fd;
+	ctx->port = su_get_port(&ctx->sa);
+	ctx->inherited = 1;
+	return;
+    }
+}
+
 void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 {
     char buf[INET6_ADDRSTRLEN];
@@ -319,7 +434,9 @@ void spawnd_bind_listener(struct spawnd_context *ctx, int cur)
 #endif				/* AF_UNIX */
     }
 
-    logmsg("bind to [%s]:%d succeeded%s", su_ntoa(&ctx->sa, buf, (socklen_t) sizeof(buf)), su_get_port(&ctx->sa), ctx->fn ? "" : " (via inetd)");
+    logmsg("bind to [%s]:%d succeeded%s", su_ntoa(&ctx->sa, buf, (socklen_t) sizeof(buf)), su_get_port(&ctx->sa),
+	   ctx->inherited ? " (kept across restart)" : (ctx->fn ? "" : " (via inetd)"));
+    ctx->inherited = 0;
 
     if (ctx->socktype != SOCK_DGRAM && listen(ctx->fn, ctx->listen_backlog)) {
 	logerr("listen (%s:%d)", __FILE__, __LINE__);
@@ -402,7 +519,10 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
     spawnd_data.abandon = 0;
     spawnd_data.track_data.tracking_size = 1024;
 
-    if (!getsockopt(0, SOL_SOCKET, SO_TYPE, &socktype, &socktypelen))
+    get_inherited();
+
+    // a listener kept across SIGHUP may sit on descriptor 0 -- that's no inetd
+    if (!inherited_cur && !getsockopt(0, SOL_SOCKET, SO_TYPE, &socktype, &socktypelen))
 	switch (socktype) {
 	case SOCK_DGRAM:
 	    logmsg("FATAL: Recursive execution prohibited.");
@@ -560,6 +680,17 @@ int spawnd_main(int argc, char **argv, char **envp, char *id)
 	logerr("pid_write(%s) (%s:%d)", spawnd_data.pidfile, __FILE__, __LINE__);
 
     common_data.io = io_init();
+
+    // Listeners kept across SIGHUP: take over those still configured, close
+    // the others before binding, as a new listener may want their address.
+    for (i = 0; i < spawnd_data.listeners_max; i++)
+	if (spawnd_data.listener_arr[i]->fn < 0)
+	    adopt_listener(spawnd_data.listener_arr[i]);
+    for (i = 0; i < inherited_cur; i++)
+	if (inherited[i] > -1)
+	    close(inherited[i]);
+    Xfree(&inherited);
+    inherited_cur = 0;
 
     for (i = 0; i < spawnd_data.listeners_max; i++) {
 	if (spawnd_data.listener_arr[i]->keepcnt < 0)
