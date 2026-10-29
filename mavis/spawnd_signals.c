@@ -8,16 +8,43 @@
 #include "spawnd_headers.h"
 #include "misc/sysconf.h"
 #include <sysexits.h>
+#ifdef __linux__
+#include <sys/ioctl.h>
+#include <linux/sockios.h>
+#endif
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
 static sigset_t master_set;
+
+/*
+ * A worker that writes to the master after the master is gone makes the
+ * kernel discard what is still queued for it, connections passed with
+ * SCM_ACCEPT included, and these are reset. So before going away, give the
+ * workers up to a second to read their queues, SCM_MAY_DIE being the last
+ * message in them.
+ */
+static void wait_for_servers(void)
+{
+#ifdef SIOCOUTQ
+    for (int k = 0; k < 100; k++) {
+	int queued = 0;
+	for (int j = 0; j < common_data.servers_cur && !queued; j++)
+	    if (ioctl(spawnd_data.server_arr[j]->fn, SIOCOUTQ, &queued))
+		queued = 0;
+	if (!queued)
+	    return;
+	usleep(10000);
+    }
+#endif
+}
 
 static void catchhup(int i __attribute__((unused)))
 {
     struct scm_data sd = {.type = SCM_MAY_DIE };
     for (int j = 0; j < common_data.servers_cur; j++)
 	common_data.scm_send_msg(spawnd_data.server_arr[j]->fn, &sd, -1);
+    wait_for_servers();
 
     logmsg("SIGHUP: restarting");
     pid_unlink(&common_data.pidfile);
@@ -30,6 +57,7 @@ static void catchterm(int i __attribute__((unused)))
     struct scm_data sd = {.type = SCM_MAY_DIE };
     for (int j = 0; j < common_data.servers_cur; j++)
 	common_data.scm_send_msg(spawnd_data.server_arr[j]->fn, &sd, -1);
+    wait_for_servers();
 
     logmsg("SIGTERM: exiting");
     pid_unlink(&common_data.pidfile);
