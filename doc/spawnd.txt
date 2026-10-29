@@ -408,8 +408,8 @@ syslog severity = INFO
 
    spawnd will terminate upon receiving a SIGTERM or SIGINT
    signal. SIGHUP will cause spawnd to restart itself from
-   scratch. Listening sockets that the new configuration still
-   has are kept open across the restart, so clients are neither
+   scratch. Listening sockets that the new configuration still has
+   are kept open across the restart, so clients are neither
    refused nor reset during a reload.
 
    The daemon is only checking for signals every couple of

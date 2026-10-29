@@ -418,7 +418,7 @@ syslog severity = INFO</pre></li>
 <div class="section">
 <hr>
 <h2 class="section"><a name="AEN498" id="AEN498">4. Signals</a></h2>
-<p><span class="bold"><b class="emphasis">spawnd</b></span> will terminate upon receiving a SIGTERM or SIGINT signal. SIGHUP will cause <span class="bold"><b class="emphasis">spawnd</b></span> to restart itself from scratch.</p>
+<p><span class="bold"><b class="emphasis">spawnd</b></span> will terminate upon receiving a SIGTERM or SIGINT signal. SIGHUP will cause <span class="bold"><b class="emphasis">spawnd</b></span> to restart itself from scratch. Listening sockets that the new configuration still has are kept open across the restart, so clients are neither refused nor reset during a reload.</p>
 <p>The daemon is only checking for signals every couple of seconds, so actions aren't necessarily immediate.</p>
 </div>
 <div class="section">
