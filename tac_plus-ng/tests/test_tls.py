@@ -720,3 +720,29 @@ class AkiWithoutKeyIdentifier(TlsTestCase):
 
     def test_key_identifier_still_works(self):
         self.assertEqual(self.selected("keyid"), {"tactest-device": "certnas", "tactest-transport": "tls"})
+
+
+class CrlDirPathBuffer(TlsTestCase):
+    """With "tls crl-dir" the <crl-dir>/<AKI>/<serial> path is built per handshake; its buffers are too small on OpenSSL >= 4.1.
+
+    accept_control_tls() sizes the AuthorityKeyIdentifier and serial
+    parts of the path for the raw byte lengths on OpenSSL >= 4.1
+    (aki_len = length + 2, serial_len = length) but then writes them as
+    hex, which is twice as long. A 20-byte keyIdentifier writes 40
+    characters into a 23-byte stack buffer (aki_txt), and the serial
+    overruns crlfile the same way. AddressSanitizer reports the overflow
+    of aki_txt at the first TLS handshake; without a sanitizer the stack
+    or the resulting path is corrupted. The OpenSSL < 4.1 branch sizes
+    both parts *2 and is correct, so a build against OpenSSL 3.x is not
+    affected -- this test needs a daemon built against OpenSSL >= 4.1 to
+    turn red.
+    """
+
+    LISTEN = {"tls": "tls = yes"}
+    BODY = TLS_REALM + '\ttls crl-dir = "$tmp/crl"\n' + POLICY
+
+    def test_crl_dir_handshake_does_not_overflow(self):
+        c = self.connect_tls()
+        self.assertTrue(c.pap("alice", "alicepw").ok)
+        self.assertEqual(self.device_and_transport(c),
+                         {"tactest-device": "certnas", "tactest-transport": "tls"})
