@@ -95,6 +95,7 @@ struct spawnd_context {
     u_int is_listener:1;	/* 0: server, 1: listener */
     u_int dying:1;		/* server only */
     u_int logged_retry:1;	/* server only */
+    u_int inherited:1;		/* listener only, kept across SIGHUP */
     uint32_t sd_flags;
     u_int tls_versions;
     u_int dtls_versions;
@@ -140,6 +141,7 @@ void spawnd_add_child(void);
 void spawnd_del_child(int);
 void spawnd_accepted(struct spawnd_context *, int);
 void spawnd_bind_listener(struct spawnd_context *, int);
+char **spawnd_keep_listeners(void);
 int spawnd_acl_check(sockaddr_union *);
 void spawnd_cleanup_internal(struct spawnd_context *, int);
 struct spawnd_context *spawnd_new_context(struct io_context *);

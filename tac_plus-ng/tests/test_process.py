@@ -28,14 +28,16 @@
 
 """spawnd and the workers: signals, connection life time."""
 
+import collections
 import os
 import select
 import signal
+import threading
 import time
 import unittest
 
-from tactest import LINUX, DaemonTestCase, detect
-from tactest.daemon import proc_stat
+from tactest import LINUX, Closed, DaemonTestCase, ProtocolError, detect
+from tactest.daemon import free_port, proc_stat
 
 POLICY = """
 	user alice { password pap = clear alicepw }
@@ -156,3 +158,111 @@ class AbandonWorkers(DaemonTestCase):
         # the abandoned worker leaves when its last connection is gone
         d.baseline = detect.Baseline(d, since=d.baseline)
         d.baseline.forget(old)
+
+
+def listeners(pid):
+    """{(protocol, port): socket inode} of the listening TCP and the UDP sockets of pid (Linux)."""
+    table = {}
+    for name, proto, state in (("tcp", "tcp", "0A"), ("tcp6", "tcp", "0A"), ("udp", "udp", "07"), ("udp6", "udp", "07")):
+        try:
+            with open("/proc/%d/net/%s" % (pid, name)) as f:
+                next(f)
+                for line in f:
+                    fields = line.split()
+                    if fields[3] == state:
+                        table[fields[9]] = (proto, int(fields[1].rsplit(":", 1)[1], 16))
+        except (OSError, StopIteration):
+            pass
+    out = {}
+    for fd in os.listdir("/proc/%d/fd" % pid):
+        try:
+            target = os.readlink("/proc/%d/fd/%s" % (pid, fd))
+        except OSError:
+            continue
+        if target.startswith("socket:[") and target[8:-1] in table:
+            out[table[target[8:-1]]] = target[8:-1]
+    return out
+
+
+@unittest.skipUnless(LINUX, "sockets and workers are found through /proc")
+class ReloadKeepsListeners(DaemonTestCase):
+    """SIGHUP re-executes spawnd; its listening sockets must survive that.
+
+    The listeners were created with FD_CLOEXEC, so execve() closed them and
+    the new image bound them again. In between the port was closed: new
+    connections were refused, and those still in the listen backlog were
+    reset. Every reload of the configuration did that to the clients.
+    """
+
+    CONFIG = None
+    RELOADS = 3
+    THREADS = 4
+
+    def settle(self, d):
+        """Wait until the workers retired by the reloads are gone, then take a new baseline.
+
+        descendants(), not workers(): an exiting worker may no longer show
+        its executable in /proc, but it isn't gone yet.
+        """
+        deadline = time.monotonic() + 10
+        while len(d.descendants()) > 1 and time.monotonic() < deadline:
+            select.select([], [], [], 0.05)
+        self.assertEqual(list(d.descendants()), list(d.workers()), "retired workers did not exit")
+        d.baseline = detect.Baseline(d, since=d.baseline)
+
+    def test_sighup_keeps_the_listeners_under_load(self):
+        d = self.start_daemon(POLICY, udp=True)
+        before = listeners(d.pid)
+        self.assertEqual(sorted(before), [("tcp", d.port), ("udp", d.udp_port)])
+
+        failures = collections.Counter()
+        done = [0]
+        stop = threading.Event()
+
+        def load():
+            while not stop.is_set():
+                try:
+                    with d.connect(timeout=5.0) as c:
+                        c.pap("alice", "alicepw")
+                    done[0] += 1
+                except (OSError, Closed, ProtocolError) as e:
+                    failures[type(e).__name__] += 1
+
+        threads = [threading.Thread(target=load) for _ in range(self.THREADS)]
+        for t in threads:
+            t.start()
+        replaced = []
+        try:
+            for _ in range(self.RELOADS):
+                d.reload()
+                if listeners(d.pid) != before:
+                    replaced.append(listeners(d.pid))
+        finally:
+            stop.set()
+            for t in threads:
+                t.join()
+        self.assertGreater(done[0], 0)
+        self.assertEqual(dict(failures), {}, "failed connections during %d reloads (%d succeeded)"
+                         % (self.RELOADS, done[0]))
+        self.assertEqual(replaced, [], "listening sockets replaced, before: %s" % before)
+        self.settle(d)
+
+    def test_sighup_honours_added_and_removed_listeners(self):
+        d = self.start_daemon(POLICY, listen={"old": ""})
+        before = listeners(d.pid)
+        with d.connect(listener="old") as c:
+            self.assertEqual(c.pap("alice", "alicepw").status_name, "PASS")
+
+        del d.listen["old"]
+        d.listen["new"] = ""
+        d.ports["new"] = free_port(d.address)
+        d.reload()
+
+        after = listeners(d.pid)
+        self.assertEqual(sorted(after), sorted([("tcp", d.port), ("tcp", d.ports["new"])]))
+        self.assertEqual(after[("tcp", d.port)], before[("tcp", d.port)], "the kept listener was replaced")
+        with d.connect(listener="new") as c:
+            self.assertEqual(c.pap("alice", "alicepw").status_name, "PASS")
+        with self.assertRaises(ConnectionRefusedError):
+            d.connect(timeout=2.0, listener="old").close()
+        self.settle(d)
