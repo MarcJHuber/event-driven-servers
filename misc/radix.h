@@ -10,6 +10,7 @@
 
 #define __RADIX_H__
 #include "misc/net.h"
+#include <stdint.h>
 
 struct radixtree;
 typedef struct radixtree radixtree_t;
@@ -21,4 +22,8 @@ void *radix_lookup_str(radixtree_t *, char *, void **);
 void radix_drop(radixtree_t **, void *);
 radixtree_t *radix_new(void (*)(void *, void *), int(*)(void *, void *));
 void radix_walk(radixtree_t *, void (*f)(struct in6_addr *, int, void *, void *), void *);
+void radix_retain(radixtree_t *);
+void radix_set_payload_hash(radixtree_t *, uint64_t (*)(const void *));
+uint64_t radix_fingerprint(radixtree_t *);
+int radix_equal(radixtree_t *, radixtree_t *, int (*)(const void *, const void *));
 #endif
