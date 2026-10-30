@@ -77,6 +77,12 @@
 
 #ifdef WITH_PCRE2
 #include <pcre2.h>
+
+static void pcre2_jit_compile_pattern(pcre2_code *code)
+{
+    if (code)
+	(void) pcre2_jit_compile(code, PCRE2_JIT_COMPLETE);
+}
 #endif
 
 #include <regex.h>
@@ -1106,9 +1112,12 @@ void parse_decls_real(struct sym *sym, tac_realm * r)
 	}
 }
 
+static void radix_intern_clear(void);
+
 void parse_decls(struct sym *sym)
 {
     parse_decls_real(sym, config.top_realm);
+    radix_intern_clear();
 }
 
 
@@ -1578,6 +1587,7 @@ static void parse_password(struct sym *sym, tac_user * user)
 struct groups_s {
     tac_user **g;
     int i;
+    uint64_t hash;
 };
 
 static int cmp_groups(struct groups_s *a, struct groups_s *b)
@@ -1589,6 +1599,83 @@ static int cmp_groups(struct groups_s *a, struct groups_s *b)
 	if (a->g[i] != b->g[i])
 	    return 1;
     return 0;
+}
+
+#define RADIX_INTERN_BUCKETS 4096
+
+struct radix_intern_entry {
+    uint64_t hash;
+    radixtree_t *tree;
+    struct radix_intern_entry *next;
+};
+
+static struct radix_intern_entry *radix_fingerprint_table[RADIX_INTERN_BUCKETS];
+
+static void radix_intern_clear(void)
+{
+    for (unsigned int i = 0; i < RADIX_INTERN_BUCKETS; i++) {
+	while (radix_fingerprint_table[i]) {
+	    struct radix_intern_entry *e = radix_fingerprint_table[i];
+	    radix_fingerprint_table[i] = e->next;
+	    free(e);
+	}
+    }
+}
+
+static uint64_t groups_hash(const void *data)
+{
+    return ((const struct groups_s *) data)->hash;
+}
+
+static uint64_t groups_hash_compute(const struct groups_s *g)
+{
+    uint64_t h = UINT64_C(1469598103934665603);
+    h ^= g->i;
+    h *= UINT64_C(1099511628211);
+    for (int i = 0; i < g->i; i++) {
+	uintptr_t p = (uintptr_t) g->g[i];
+	h ^= p;
+	h *= UINT64_C(1099511628211);
+    }
+    return h;
+}
+
+static int groups_equal(const void *a, const void *b)
+{
+    return !cmp_groups((struct groups_s *) a, (struct groups_s *) b);
+}
+
+static void radix_intern_add(struct radix_intern_entry **table, uint64_t hash, radixtree_t *tree)
+{
+    unsigned int bucket = hash % RADIX_INTERN_BUCKETS;
+    struct radix_intern_entry *e = Xcalloc(1, sizeof(*e));
+    e->hash = hash;
+    e->tree = tree;
+    e->next = table[bucket];
+    table[bucket] = e;
+}
+
+static int radix_intern_match(struct radix_intern_entry **table, uint64_t hash, radixtree_t **tree)
+{
+    unsigned int bucket = hash % RADIX_INTERN_BUCKETS;
+    for (struct radix_intern_entry *e = table[bucket]; e; e = e->next)
+	if (e->hash == hash && radix_equal(e->tree, *tree, groups_equal)) {
+	    radixtree_t *duplicate = *tree;
+	    radix_retain(e->tree);
+	    *tree = e->tree;
+	    radix_drop(&duplicate, NULL);
+	    return 1;
+	}
+    return 0;
+}
+
+static void radix_intern(radixtree_t **tree)
+{
+    if (!tree || !*tree)
+	return;
+    uint64_t fingerprint = radix_fingerprint(*tree);
+    if (!radix_intern_match(radix_fingerprint_table, fingerprint, tree))
+	radix_intern_add(radix_fingerprint_table, fingerprint, *tree);
 }
 
 static void add_member(struct sym *sym, radixtree_t * rt, tac_user * user, char *grp, char *range, tac_realm * r)
@@ -1626,9 +1713,10 @@ static void add_member(struct sym *sym, radixtree_t * rt, tac_user * user, char 
 	}
 	p = sl;
     }
-    if (ams->i)
+    if (ams->i) {
+	ams->hash = groups_hash_compute(ams);
 	radix_add_members(sym, rt, range, ams, r);
-    else {
+    } else {
 	mem_free(user->mem, ams->g);
 	mem_free(user->mem, ams);
     }
@@ -1662,6 +1750,7 @@ static void parse_member(struct sym *sym, tac_user * user, tac_realm * r)
 	if (!(*aclgrp)) {
 	    *aclgrp = mem_alloc(user->mem, sizeof(struct tac_acllist));
 	    (*aclgrp)->u.rt = radix_new(NULL, (int (*)(void *, void *)) cmp_groups);
+	    radix_set_payload_hash((*aclgrp)->u.rt, groups_hash);
 	    (*aclgrp)->acl = acfg;
 	    (*aclgrp)->negate = negate;
 	} else if ((*aclgrp)->next) {
@@ -1733,6 +1822,7 @@ static void parse_member(struct sym *sym, tac_user * user, tac_realm * r)
 		if (!(*aclgrp)) {
 		    *aclgrp = mem_alloc(user->mem, sizeof(struct tac_acllist));
 		    (*aclgrp)->u.rt = radix_new(NULL, (int (*)(void *, void *)) cmp_groups);
+		    radix_set_payload_hash((*aclgrp)->u.rt, groups_hash);
 		    (*aclgrp)->acl = a;
 		    (*aclgrp)->negate = negate;
 		} else if ((*aclgrp)->next) {
@@ -2096,7 +2186,20 @@ static int merge_group(tac_user * to, tac_user * from, char *from_name)
     }
     append_aclelement(&to->nac_regex, from->nac_regex);
     append_acllist(&to->acllist, from->acllist);
-    append_acllist(&to->nas_member_acl, from->nas_member_acl);
+    {
+	struct tac_acllist **tail = &to->nas_member_acl;
+	while (*tail)
+	    tail = &(*tail)->next;
+	append_acllist(tail, from->nas_member_acl);
+	/* deep copy: later "member" statements in "to" must not mutate trees owned by "from" */
+	for (struct tac_acllist *a = *tail; a; a = a->next)
+	    if (a->u.rt) {
+		radixtree_t *rt = radix_new(NULL, (int (*)(void *, void *)) cmp_groups);
+		radix_set_payload_hash(rt, groups_hash);
+		radix_walk(a->u.rt, radix_copy_func, rt);
+		a->u.rt = rt;
+	    }
+    }
     append_acllist(&to->tag_acl, from->tag_acl);
 
 #if 0				// FIXME? Just using append_aclelement isn't sufficient here.
@@ -2120,6 +2223,9 @@ void parse_user_final(tac_user * user)
 	*pa = mem_alloc(user->mem, sizeof(struct tac_acllist));
 	(*pa)->u.passwdp = new_upwdat(user->mem, user->realm);
     }
+    if (!user->dynamic)
+	for (struct tac_acllist *a = user->nas_member_acl; a; a = a->next)
+	    radix_intern(&a->u.rt);
 }
 
 static void parse_user_attr(struct sym *sym, tac_user * user, enum token user_or_group)
@@ -2451,6 +2557,7 @@ static void parse_rewrite(struct sym *sym, tac_realm * r)
 		pcre2_get_error_message(errcode, buffer, sizeof(buffer));
 		parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
 	    }
+	    pcre2_jit_compile_pattern((*e)->code);
 	    (*e)->name = strdup(sym->buf);
 	    tac_sym_get(sym);
 	    (*e)->replacement = (PCRE2_SPTR) strdup(sym->buf);
@@ -3692,6 +3799,7 @@ static enum tac_acl_type parse_regex(struct sym *sym, tac_user * user, void **rp
 	PCRE2_SIZE erroffset;
 	*rptr = pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
 	if (*rptr) {
+	    pcre2_jit_compile_pattern(*rptr);
 	    mem_add_free(user->mem, pcre2_code_free, *rptr);
 	} else {
 	    PCRE2_UCHAR buffer[256];
@@ -3729,6 +3837,7 @@ static enum tac_acl_type parse_aclregex(struct sym *sym, struct acl_element *ae)
 	    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
 	    parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
 	}
+	pcre2_jit_compile_pattern(ae->blob.p);
 	tac_sym_get(sym);
 	return T_regex_pcre;
 #else
@@ -4368,6 +4477,39 @@ int cfg_get_client_bug(tac_session * session, u_int * i)
 
 #undef C
 
+#ifdef WITH_PCRE2
+static pcre2_match_data *pcre2_session_match_data(tac_session *session)
+{
+    if (!session->pcre2_match_data) {
+	/* Boolean matches only; rc == 0 (ovec too small) is still success. */
+	session->pcre2_match_data = pcre2_match_data_create(1, NULL);
+	if (session->pcre2_match_data)
+	    mem_add_free(session->mem, pcre2_match_data_free, session->pcre2_match_data);
+    }
+    return session->pcre2_match_data;
+}
+
+static int pcre2_session_match(tac_session *session, pcre2_code *code, char *txt)
+{
+    pcre2_match_data *match_data = pcre2_session_match_data(session);
+    int res;
+    if (!match_data)
+	return PCRE2_ERROR_NOMEMORY;
+    if (!session->mem) {
+	/* transient sessions (lookup keys etc.) do not own the cached match_data */
+	res = pcre2_match(code, (PCRE2_SPTR) txt, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
+	if (res == PCRE2_ERROR_JIT_STACKLIMIT)
+	    res = pcre2_match(code, (PCRE2_SPTR) txt, PCRE2_ZERO_TERMINATED, 0, PCRE2_NO_JIT, match_data, NULL);
+	pcre2_match_data_free(match_data);
+	session->pcre2_match_data = NULL;
+	return res;
+    }
+    res = pcre2_match(code, (PCRE2_SPTR) txt, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
+    if (res == PCRE2_ERROR_JIT_STACKLIMIT)
+	res = pcre2_match(code, (PCRE2_SPTR) txt, PCRE2_ZERO_TERMINATED, 0, PCRE2_NO_JIT, match_data, NULL);
+    return res;
+}
+#endif
 
 // 0: no match
 static int match_regex(tac_session * session, void *reg, char *txt, enum tac_acl_type tat, char *string)
@@ -4381,9 +4523,7 @@ static int match_regex(tac_session * session, void *reg, char *txt, enum tac_acl
     case T_regex_pcre:
 #ifdef WITH_PCRE2
 	{
-	    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) reg, NULL);
-	    res = pcre2_match((pcre2_code *) reg, (PCRE2_SPTR) txt, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
-	    pcre2_match_data_free(match_data);
+	    res = pcre2_session_match(session, (pcre2_code *) reg, txt);
 	    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", string, txt, res);
 	}
 #endif
@@ -4439,12 +4579,12 @@ static void lookup_svc(tac_session * session, tac_user * u,
     }
 
     if (protocol && *protocol) {
-	protp = mem_alloc(session->mem, sizeof(struct node_svc) + strlen(protocol));
+	protp = alloca(sizeof(struct node_svc) + strlen(protocol));
 	protp->type = keycode(protocol);
 	strcpy(protp->name, protocol);
     }
     if (cmd && *cmd) {
-	cmdp = mem_alloc(session->mem, sizeof(struct node_cmd) + strlen(cmd));
+	cmdp = alloca(sizeof(struct node_cmd) + strlen(cmd));
 	strcpy(cmdp->name, cmd);
     }
 
@@ -4963,6 +5103,7 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 		    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
 		    parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
 		}
+		pcre2_jit_compile_pattern(m->s.rhs);
 		sym->flag_parse_pcre = 0;
 		tac_sym_get(sym);
 		return p ? p : m;
@@ -5131,9 +5272,7 @@ static int tac_script_cond_eval(tac_session * session, char *cmd, struct mavis_c
 	if (m->type == S_slash) {
 	    int res = -1;
 #ifdef WITH_PCRE2
-	    pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->s.rhs, NULL);
-	    res = pcre2_match((pcre2_code *) m->s.rhs, (PCRE2_SPTR) v, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
-	    pcre2_match_data_free(match_data);
+	    res = pcre2_session_match(session, (pcre2_code *) m->s.rhs, v);
 	    report(session, LOG_DEBUG, DEBUG_REGEX_FLAG, "pcre2: '%s' <=> '%s' = %d", m->s.rhs_txt, v, res);
 #endif
 	    return -1 < res;
