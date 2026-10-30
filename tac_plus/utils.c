@@ -102,17 +102,46 @@ struct logfile {
     time_t last;
 };
 
+#define LOGWRITE_RETRY_INITIAL_USEC 1000
+#define LOGWRITE_RETRY_MAX_USEC 100000
+
 static void log_start_one(struct logfile *, struct context_logfile *);
+static void logwrite_retry(struct context_logfile *ctx, int cur __attribute__((unused)));
+
+static void logwrite_backoff_reset(struct context_logfile *ctx)
+{
+    ctx->logwrite_retry_usec = LOGWRITE_RETRY_INITIAL_USEC;
+}
 
 static void logdied(pid_t pid __attribute__((unused)), struct context_logfile *ctx, int status __attribute__((unused)))
 {
     if (ctx) {
-	io_close(common_data.io, ctx->fd);
-	ctx->lf->ctx = NULL;
-	if (ctx->buf) {
-	    log_start_one(ctx->lf, ctx);
-	    io_set_o(common_data.io, ctx->fd);
+	if (ctx->logwrite_retry_scheduled) {
+	    io_sched_del(common_data.io, ctx, (void *) logwrite_retry);
+	    ctx->logwrite_retry_scheduled = 0;
 	}
+	logwrite_backoff_reset(ctx);
+	io_close(common_data.io, ctx->fd);
+	if (ctx->lf->ctx == ctx)
+	    ctx->lf->ctx = NULL;
+	if (ctx->dying) {
+	    /* Rotated-out pipe: its reader is gone, so records still pending
+	       for the old path cannot be delivered anymore. Drop them instead
+	       of re-attaching a context that no longer owns lf->ctx. */
+	    ctx->buf = buffer_free_all(ctx->buf);
+	    free(ctx);
+	    return;
+	}
+
+	/* Reopen the destination unconditionally. Reopening only when data was
+	   buffered left lf->ctx NULL (i.e. this destination silently disabled)
+	   after an error on an empty buffer. log_start_one() reuses ctx when
+	   possible, keeping any pending records across the reopen. */
+	log_start_one(ctx->lf, ctx);
+	if (ctx->lf->ctx == ctx)
+	    io_set_o(common_data.io, ctx->fd);
+	else
+	    free(ctx);
     }
 }
 
@@ -125,7 +154,29 @@ static void logdied_handler(struct context_logfile *ctx, int cur __attribute__((
 static void logwrite_retry(struct context_logfile *ctx, int cur __attribute__((unused)))
 {
     io_sched_del(common_data.io, ctx, (void *) logwrite_retry);
+    ctx->logwrite_retry_scheduled = 0;
     io_set_o(common_data.io, ctx->fd);
+}
+
+static void logwrite_schedule_retry(struct context_logfile *ctx, int cur)
+{
+    suseconds_t delay = ctx->logwrite_retry_usec;
+
+    io_clr_o(common_data.io, cur);
+    if (ctx->logwrite_retry_scheduled)
+	return;
+    if (delay < LOGWRITE_RETRY_INITIAL_USEC)
+	delay = LOGWRITE_RETRY_INITIAL_USEC;
+    else if (delay > LOGWRITE_RETRY_MAX_USEC)
+	delay = LOGWRITE_RETRY_MAX_USEC;
+
+    ctx->logwrite_retry_scheduled = 1;
+    io_sched_add(common_data.io, ctx, (void *) logwrite_retry,
+		 delay / 1000000, delay % 1000000);
+    if (delay <= LOGWRITE_RETRY_MAX_USEC / 2)
+	ctx->logwrite_retry_usec = delay * 2;
+    else
+	ctx->logwrite_retry_usec = LOGWRITE_RETRY_MAX_USEC;
 }
 
 static void logwrite(struct context_logfile *ctx, int cur)
@@ -133,8 +184,7 @@ static void logwrite(struct context_logfile *ctx, int cur)
     struct buffer *b = ctx->buf;
     if (b) {
 	if (!ctx->lf->flag_pipe && tac_lockfd(cur)) {
-	    io_clr_o(common_data.io, cur);
-	    io_sched_add(common_data.io, ctx, (void *) logwrite_retry, 1, 0);
+	    logwrite_schedule_retry(ctx, cur);
 	    return;
 	}
 
@@ -144,24 +194,36 @@ static void logwrite(struct context_logfile *ctx, int cur)
 	while (b) {
 	    ssize_t len = Write(cur, b->buf + b->offset,
 				b->length - b->offset);
-	    if (len < 0 && errno == EAGAIN) {
+	    if ((len < 0 && errno == EAGAIN) || (!len && b->length > b->offset)) {
 		if (!ctx->lf->flag_pipe)
 		    tac_unlockfd(cur);
-		io_clr_o(common_data.io, cur);
-		io_sched_add(common_data.io, ctx, (void *) logwrite_retry, 1, 0);
+		logwrite_schedule_retry(ctx, cur);
 		return;
 	    }
 	    if (len < 0) {
+		if (!ctx->lf->flag_pipe)
+		    tac_unlockfd(cur);
 		logdied_handler(ctx, cur);
+		/* fd torn down by logdied(); in the rotated-out (dying) case ctx
+		* has already been freed here. Do not fall through to the write loop
+		* with a stale/closed fd or a freed ctx; let the io layer re-invoke
+		* logwrite on any reopened fd. */
+		return;
 	    } else {
 		off_t o = (off_t) len;
+		logwrite_backoff_reset(ctx);
 		ctx->buf = buffer_release(ctx->buf, &o);
 		if (!ctx->buf && ctx->dying) {
 		    if (!ctx->lf->flag_pipe)
 			tac_unlockfd(cur);
 		    io_clr_o(common_data.io, cur);
+		    if (ctx->lf->flag_pipe)
+			io_child_ign(ctx->pid);
 		    io_close(common_data.io, cur);
-		    ctx->lf->ctx = NULL;
+		    if (ctx->logwrite_retry_scheduled)
+			io_sched_del(common_data.io, ctx, (void *) logwrite_retry);
+		    if (ctx->lf->ctx == ctx)
+			ctx->lf->ctx = NULL;
 		    free(ctx);
 		    return;
 		}
@@ -201,6 +263,7 @@ static struct context_logfile *new_context_logfile(char *path)
 	path = "";
     len = strlen(path);
     ctx = calloc(1, sizeof(struct context_logfile) + len);
+    logwrite_backoff_reset(ctx);
     memcpy(ctx->path, path, len);
     return ctx;
 }
@@ -238,12 +301,16 @@ static void log_start_one(struct logfile *lf, struct context_logfile *deadctx)
 			}
 		    }
 		    close(lf->ctx->fd);
+		    if (lf->ctx->logwrite_retry_scheduled)
+			io_sched_del(common_data.io, lf->ctx, (void *) logwrite_retry);
 		    free(lf->ctx);
 		    lf->ctx = NULL;
 		} else {
 		    if (lf->ctx->buf == NULL) {
 			if (lf->ctx->fd > -1)
 			    io_close(common_data.io, lf->ctx->fd);
+			if (lf->ctx->logwrite_retry_scheduled)
+			    io_sched_del(common_data.io, lf->ctx, (void *) logwrite_retry);
 			free(lf->ctx);
 			lf->ctx = NULL;
 		    } else {
@@ -257,7 +324,11 @@ static void log_start_one(struct logfile *lf, struct context_logfile *deadctx)
 
     if (!lf->ctx) {
 
-	if (lf->last + 5 > io_now.tv_sec) {
+	/* Rate-limit only pipe respawns: for a plain file a (re)open is cheap,
+	   and throttling it would disable the destination on fast rotation or
+	   after an error, silently dropping records for at least five seconds
+	   (and forever, since nothing retries). */
+	if (lf->flag_pipe && lf->last + 5 > io_now.tv_sec) {
 	    report(NULL, LOG_INFO, ~0, "\"%s\" respawning too fast", lf->format);
 	    return;
 	}
@@ -292,6 +363,8 @@ static void log_start_one(struct logfile *lf, struct context_logfile *deadctx)
 		exit(EX_OSERR);
 	    case -1:
 		report(NULL, LOG_DEBUG, ~0, "fork (%s:%d): %s", __FILE__, __LINE__, strerror(errno));
+		close(fds[0]);
+		close(fds[1]);
 		break;
 	    default:
 		close(fds[0]);
@@ -316,8 +389,14 @@ static void log_start_one(struct logfile *lf, struct context_logfile *deadctx)
 		create_dirs(path);
 		cur = open(path, O_CREAT | O_WRONLY | O_APPEND, config.mask);
 	    }
-	    if (cur > -1 && !lf->ctx)
-		lf->ctx = new_context_logfile(path);
+	    if (cur > -1 && !lf->ctx) {
+		/* Reuse the failed context while reopening the same path, so
+		   that records still buffered for that path are not lost. */
+		if (deadctx && !deadctx->dying)
+		    lf->ctx = deadctx;
+		else
+		    lf->ctx = new_context_logfile(path);
+	    }
 	}
 
 	if (lf->ctx) {
