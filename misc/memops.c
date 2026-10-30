@@ -128,7 +128,7 @@ static __inline__ void memlist_add(memlist_t * list, void *p)
 {
     if (list && p) {
 	if (!((list->arr_count) % 128))
-	    list->arr = realloc(list->arr, (list->arr_count + 128) * sizeof(memlist_t));
+	    list->arr = Xrealloc(list->arr, (list->arr_count + 128) * sizeof(*list->arr));
 	list->arr[list->arr_count] = p;
 	list->arr_count++;
     }

@@ -812,6 +812,8 @@ struct context_logfile {
     struct buffer *buf;
     pid_t pid;
     int dying;
+    int logwrite_retry_scheduled;
+    suseconds_t logwrite_retry_usec;
     struct logfile *lf;
     char path[1];		/* current log file name */
 };

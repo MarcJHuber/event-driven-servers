@@ -580,6 +580,9 @@ struct tac_session {
     struct upwdat *passwdp;
     struct pwdat *enable;
     struct tac_acl_cache *tac_acl_cache;
+#ifdef WITH_PCRE2
+    pcre2_match_data *pcre2_match_data;
+#endif
     tac_realm *mavis_realm;
      BISTATE(nac_address_valid);
      BISTATE(flag_mavis_info);
@@ -664,6 +667,8 @@ struct context_logfile {
     struct buffer *buf;
     pid_t pid;
     int dying;
+    int logwrite_retry_scheduled;
+    suseconds_t logwrite_retry_usec;
     struct logfile *lf;
     char path[1];		/* current log file name */
 };
