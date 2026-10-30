@@ -366,7 +366,7 @@ struct common_data {
     u_int syslog_dflt:1;
     u_int syslog_filter; // currently used by tac_plus-ng only
     unsigned long long regex_match_case;
-#if defined(WITH_PCRE) || defined(WITH_PCRE2)
+#ifdef WITH_PCRE2
     int regex_pcre_flags;
 #endif
     int regex_posix_flags;
