@@ -39,6 +39,9 @@ struct radixtree {
     struct radixnode *root;
     void (*free)(void * /* payload */ , void * /* data */ );
     int (*cmp)(void * /* payload 1 */ , void * /* payload 2 */ );
+    uint64_t (*payload_hash)(const void *);
+    uint64_t fingerprint;
+    unsigned int refs;
 };
 
 static int radixtree_count = 0;
@@ -70,30 +73,45 @@ static void radixnode_free(struct radixnode *n)
 #define v6_bitset(a,b) ((b > 0) && ((b) < 129) && \
 	((a).s6_addr32[(b-1)>>5] & (0x80000000 >> ((b-1)&0x1f))))
 
+static uint64_t mix64(uint64_t x)
+{
+    x ^= x >> 30;
+    x *= UINT64_C(0xbf58476d1ce4e5b9);
+    x ^= x >> 27;
+    x *= UINT64_C(0x94d049bb133111eb);
+    return x ^ (x >> 31);
+}
+
+static void radix_fingerprint_add(struct radixtree *rt, const struct in6_addr *a, int m, const void *d)
+{
+    uint64_t lo, hi;
+    memcpy(&lo, a, sizeof(lo));
+    memcpy(&hi, (const unsigned char *) a + sizeof(lo), sizeof(hi));
+    uint64_t payload = rt->payload_hash ? rt->payload_hash(d) : (uint64_t) (uintptr_t) d;
+    rt->fingerprint += mix64(lo ^ mix64(hi) ^ mix64(payload) ^ (uint64_t) m);
+}
+
 void *radix_add(struct radixtree *rt, struct in6_addr *a, int m, void *d)
 {
     struct radixnode *r, *n, **rp;
-    struct in6_addr bca;	/* broadcast addresses */
 
     v6_network(a, a, m);
 
     if (!rt->root) {
 	rt->root = radixnode_alloc();
 	rt->root->a = *a, rt->root->m = m, rt->root->d = d;
+	radix_fingerprint_add(rt, a, m, d);
 	return NULL;
     }
 
     r = rt->root;
 
-    v6_broadcast(&bca, a, m);
-
     while (1) {
-	struct in6_addr bc;	/* broadcast addresses */
-
 	if (!v6_cmp(&r->a, a) && (r->m == m)) {
 	    /* new node identical to current root */
-	    if (r->i) {		/* infrastructural only? */
+	    if (r->i) {
 		r->i = 0, r->d = d;
+		radix_fingerprint_add(rt, a, m, d);
 		return NULL;
 	    }
 	    /* node already defined, but succeed if identical payload */
@@ -103,7 +121,7 @@ void *radix_add(struct radixtree *rt, struct in6_addr *a, int m, void *d)
 		return rt->cmp(r->d, d) ? r->d : NULL;
 	    return r->d;
 	}
-	if (m < r->m && 1 > v6_cmp(a, &r->a) && 1 > v6_cmp(&r->a, &bca)) {
+	if (m < r->m && v6_contains(a, m, &r->a)) {
 	    /* current root is subnode of new node */
 	    struct radixnode *nr = radixnode_alloc();
 	    *nr = *r;
@@ -112,12 +130,11 @@ void *radix_add(struct radixtree *rt, struct in6_addr *a, int m, void *d)
 	    else
 		r->l = nr, r->r = NULL;
 	    r->a = *a, r->d = d, r->m = m, r->i = 0;
+	    radix_fingerprint_add(rt, a, m, d);
 	    return NULL;
 	}
 
-	v6_broadcast(&bc, &r->a, r->m);
-
-	if (r->m < m && 1 > v6_cmp(&r->a, a) && 1 > v6_cmp(a, &bc)) {
+	if (r->m < m && v6_contains(&r->a, r->m, a)) {
 	    /* new node is subnode of current root */
 	    if (v6_bitset(*a, r->m + 1)) {
 		if (r->r) {
@@ -140,7 +157,7 @@ void *radix_add(struct radixtree *rt, struct in6_addr *a, int m, void *d)
 	    r->i = 1, r->d = NULL;
 	    v6_network(&r->a, &r->a, r->m);
 
-	    if (1 > v6_cmp(&bc, a))
+	    if (v6_bitset(*a, r->m + 1))
 		r->l = n, rp = &r->r;
 	    else
 		r->r = n, rp = &r->l;
@@ -148,6 +165,7 @@ void *radix_add(struct radixtree *rt, struct in6_addr *a, int m, void *d)
 
 	*rp = radixnode_alloc();
 	(*rp)->a = *a, (*rp)->d = d, (*rp)->m = m;
+	radix_fingerprint_add(rt, a, m, d);
 	return NULL;
     }
 }
@@ -201,9 +219,12 @@ static void radix_dropnode(struct radixtree *rt, struct radixnode *rn, void *dat
 void radix_drop(struct radixtree **rt, void *data)
 {
     if (*rt) {
-	radix_dropnode(*rt, (*rt)->root, data);
-	free(*rt);
+	struct radixtree *r = *rt;
 	*rt = NULL;
+	if (--r->refs)
+	    return;
+	radix_dropnode(r, r->root, data);
+	free(r);
 	if (!--radixtree_count) {
 	    while (radix_nodes) {
 		struct radixnode_array *a = radix_nodes->next;
@@ -219,8 +240,46 @@ struct radixtree *radix_new(void (*f)(void *, void *), int(*c)(void *, void *))
     struct radixtree *rt = Xcalloc(1, sizeof(struct radixtree));
     rt->free = f;
     rt->cmp = c;
+    rt->refs = 1;
     radixtree_count++;
     return rt;
+}
+
+void radix_retain(struct radixtree *rt)
+{
+    if (rt)
+	rt->refs++;
+}
+
+void radix_set_payload_hash(struct radixtree *rt, uint64_t (*payload_hash)(const void *))
+{
+    if (rt)
+	rt->payload_hash = payload_hash;
+}
+
+uint64_t radix_fingerprint(struct radixtree *rt)
+{
+    return rt ? rt->fingerprint : 0;
+}
+
+static int radix_equalnode(struct radixnode *a, struct radixnode *b, int (*payload_equal)(const void *, const void *))
+{
+    if (!a || !b)
+	return a == b;
+    if (a->m != b->m || a->i != b->i || v6_cmp(&a->a, &b->a))
+	return 0;
+    if (!a->i && payload_equal && !payload_equal(a->d, b->d))
+	return 0;
+    return radix_equalnode(a->l, b->l, payload_equal) && radix_equalnode(a->r, b->r, payload_equal);
+}
+
+int radix_equal(struct radixtree *a, struct radixtree *b, int (*payload_equal)(const void *, const void *))
+{
+    if (a == b)
+	return 1;
+    if (!a || !b)
+	return 0;
+    return radix_equalnode(a->root, b->root, payload_equal);
 }
 
 static void radix_walknode(struct radixnode *rn, void (*f)(struct in6_addr *, int, void *, void *), void *data)
