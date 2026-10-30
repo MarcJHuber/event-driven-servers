@@ -5300,7 +5300,7 @@ static int tac_mavis_cond_compare(tac_session *session, struct mavis_cond *m, ch
     } else if (m->type == S_slash) {
 #ifdef WITH_PCRE2
 	pcre2_match_data *match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->s.rhs, NULL);
-	res = pcre2_match((pcre2_code *) m->s.rhs, (PCRE2_SPTR) name, (PCRE2_SIZE) name_len, 0, 0, match_data, NULL);
+	res = mypcre2_match((pcre2_code *) m->s.rhs, (PCRE2_SPTR) name, (PCRE2_SIZE) name_len, 0, 0, match_data, NULL);
 	pcre2_match_data_free(match_data);
 	hint = "pcre2";
 #endif
