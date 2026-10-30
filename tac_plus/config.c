@@ -76,13 +76,7 @@
 #endif
 
 #ifdef WITH_PCRE2
-#include <pcre2.h>
-
-static void pcre2_jit_compile_pattern(pcre2_code *code)
-{
-    if (code)
-	(void) pcre2_jit_compile(code, PCRE2_JIT_COMPLETE);
-}
+#include "misc/mypcre2.h"
 #endif
 
 #include <regex.h>
@@ -2551,13 +2545,12 @@ static void parse_rewrite(struct sym *sym, tac_realm * r)
 	if (sym->code == S_slash) {
 	    PCRE2_SIZE erroffset;
 	    (*e)->code =
-		pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
+		mypcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
 	    if (!(*e)->code) {
 		PCRE2_UCHAR buffer[256];
 		pcre2_get_error_message(errcode, buffer, sizeof(buffer));
 		parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
 	    }
-	    pcre2_jit_compile_pattern((*e)->code);
 	    (*e)->name = strdup(sym->buf);
 	    tac_sym_get(sym);
 	    (*e)->replacement = (PCRE2_SPTR) strdup(sym->buf);
@@ -3797,9 +3790,8 @@ static enum tac_acl_type parse_regex(struct sym *sym, tac_user * user, void **rp
     if (sym->code == S_slash) {
 #ifdef WITH_PCRE2
 	PCRE2_SIZE erroffset;
-	*rptr = pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
+	*rptr = mypcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
 	if (*rptr) {
-	    pcre2_jit_compile_pattern(*rptr);
 	    mem_add_free(user->mem, pcre2_code_free, *rptr);
 	} else {
 	    PCRE2_UCHAR buffer[256];
@@ -3831,13 +3823,12 @@ static enum tac_acl_type parse_aclregex(struct sym *sym, struct acl_element *ae)
     if (sym->code == S_slash) {
 #ifdef WITH_PCRE2
 	PCRE2_SIZE erroffset;
-	ae->blob.p = pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
+	ae->blob.p = mypcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
 	if (!ae->blob.p) {
 	    PCRE2_UCHAR buffer[256];
 	    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
 	    parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
 	}
-	pcre2_jit_compile_pattern(ae->blob.p);
 	tac_sym_get(sym);
 	return T_regex_pcre;
 #else
@@ -4497,16 +4488,12 @@ static int pcre2_session_match(tac_session *session, pcre2_code *code, char *txt
 	return PCRE2_ERROR_NOMEMORY;
     if (!session->mem) {
 	/* transient sessions (lookup keys etc.) do not own the cached match_data */
-	res = pcre2_match(code, (PCRE2_SPTR) txt, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
-	if (res == PCRE2_ERROR_JIT_STACKLIMIT)
-	    res = pcre2_match(code, (PCRE2_SPTR) txt, PCRE2_ZERO_TERMINATED, 0, PCRE2_NO_JIT, match_data, NULL);
+	res = mypcre2_match(code, (PCRE2_SPTR) txt, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
 	pcre2_match_data_free(match_data);
 	session->pcre2_match_data = NULL;
 	return res;
     }
-    res = pcre2_match(code, (PCRE2_SPTR) txt, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
-    if (res == PCRE2_ERROR_JIT_STACKLIMIT)
-	res = pcre2_match(code, (PCRE2_SPTR) txt, PCRE2_ZERO_TERMINATED, 0, PCRE2_NO_JIT, match_data, NULL);
+    res = mypcre2_match(code, (PCRE2_SPTR) txt, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
     return res;
 }
 #endif
@@ -5103,7 +5090,6 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 		    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
 		    parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
 		}
-		pcre2_jit_compile_pattern(m->s.rhs);
 		sym->flag_parse_pcre = 0;
 		tac_sym_get(sym);
 		return p ? p : m;

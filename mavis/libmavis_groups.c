@@ -27,7 +27,7 @@
 #include "log.h"
 
 #ifdef WITH_PCRE2
-#include <pcre2.h>
+#include "misc/mypcre2.h"
 #endif
 
 #include <regex.h>
@@ -83,7 +83,7 @@ static void parse_filter_regex(struct sym *sym, struct regex_list **l)
 	    PCRE2_SIZE erroffset;
 	    (*l)->type = S_slash;
 	    (*l)->p = (void *)
-		pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
+		mypcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
 	    if (!(*l)->p) {
 		PCRE2_UCHAR buffer[256];
 		pcre2_get_error_message(errcode, buffer, sizeof(buffer));
@@ -270,7 +270,7 @@ static int rxmatch(void *v, char *s, enum token token)
     case S_slash:
 #ifdef WITH_PCRE2
 	match_data = pcre2_match_data_create_from_pattern((pcre2_code *) v, NULL);
-	pcre_res = pcre2_match((pcre2_code *) v, (PCRE2_SPTR8) s, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
+	pcre_res = mypcre2_match((pcre2_code *) v, (PCRE2_SPTR8) s, PCRE2_ZERO_TERMINATED, 0, 0, match_data, NULL);
 	if (pcre_res < 0 && pcre_res != PCRE2_ERROR_NOMATCH) {
 	    report_cfg_error(LOG_INFO, ~0, "PCRE2 matching error: %d", pcre_res);
 	}

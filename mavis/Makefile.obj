@@ -130,6 +130,10 @@ LIBMAVISOBJS	+= spawnd_accepted.o spawnd_conf.o spawnd_main.o
 LIBMAVISOBJS	+= spawnd_scm_spawn.o spawnd_signals.o pid_write.o
 LIBMAVISOBJS	+= sig_segv.o md5crypt.o av_send.o utf16.o
 
+ifeq ($(WITH_PCRE2),1)
+	LIBMAVISOBJS += mypcre2.o
+endif
+
 ifeq ($(WITH_DNS), 1)
 	LIBMAVISOBJS += io_dns_revmap.o
 endif

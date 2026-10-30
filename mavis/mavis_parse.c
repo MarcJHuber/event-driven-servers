@@ -85,7 +85,7 @@
 #endif
 
 #ifdef WITH_PCRE2
-#include <pcre2.h>
+#include "misc/mypcre2.h"
 #endif
 
 #include <regex.h>
@@ -2175,7 +2175,7 @@ static struct mavis_cond *mavis_cond_parse_r(struct sym *sym, mem_t *mem)
 		PCRE2_SIZE erroffset;
 		m->type = S_slash;
 		m->s.rhs =
-		    pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
+		    mypcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
 		if (!m->s.rhs) {
 		    PCRE2_UCHAR buffer[256];
 		    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
@@ -2309,7 +2309,7 @@ static int mavis_cond_eval(mavis_ctx *mcx, av_ctx *ac, struct mavis_cond *m)
 	}
 	match_data = pcre2_match_data_create_from_pattern((pcre2_code *) m->s.rhs, NULL);
 	pcre_arg = (PCRE2_SPTR8) v;
-	pcre_res = pcre2_match((pcre2_code *) m->s.rhs, pcre_arg, (PCRE2_SIZE) strlen(v), 0, 0, match_data, NULL);
+	pcre_res = mypcre2_match((pcre2_code *) m->s.rhs, pcre_arg, (PCRE2_SIZE) strlen(v), 0, 0, match_data, NULL);
 	if (pcre_res < 0 && pcre_res != PCRE2_ERROR_NOMATCH)
 	    report_cfg_error(LOG_INFO, ~0, "PCRE2 matching error: %d", pcre_res);
 	ovector = pcre2_get_ovector_pointer(match_data);

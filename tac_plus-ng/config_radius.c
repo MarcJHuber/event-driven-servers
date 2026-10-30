@@ -45,12 +45,6 @@
 #include "misc/mymd5.h"
 #include <setjmp.h>
 
-#ifdef WITH_PCRE2
-#include <pcre2.h>
-#endif
-
-#include <regex.h>
-
 #ifdef WITH_SSL
 #include <openssl/ssl.h>
 #include <openssl/err.h>

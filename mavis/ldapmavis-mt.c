@@ -17,7 +17,7 @@
 #include <ctype.h>
 #include <sys/resource.h>
 #ifdef WITH_PCRE2
-#include <pcre2.h>
+#include "misc/mypcre2.h"
 #endif
 #include "misc/utf.h"
 #include "misc/version.h"
@@ -466,7 +466,7 @@ static int dnhash_match(struct dnhash **h, char *dn)
 {
     if (ldap_memberof_filter) {
 	pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(ldap_memberof_filter, NULL);
-	int pcre_res = pcre2_match((pcre2_code *) ldap_memberof_filter, (PCRE2_SPTR8) dn, (PCRE2_SIZE) strlen(dn), 0, 0, match_data, NULL);
+	int pcre_res = mypcre2_match((pcre2_code *) ldap_memberof_filter, (PCRE2_SPTR8) dn, (PCRE2_SIZE) strlen(dn), 0, 0, match_data, NULL);
 
 	pcre2_match_data_free(match_data);
 	match_data = NULL;
@@ -480,7 +480,7 @@ static int dnhash_match(struct dnhash **h, char *dn)
     }
 
     pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(ldap_memberof_regex, NULL);
-    int pcre_res = pcre2_match((pcre2_code *) ldap_memberof_regex, (PCRE2_SPTR8) dn, (PCRE2_SIZE) strlen(dn), 0, 0, match_data, NULL);
+    int pcre_res = mypcre2_match((pcre2_code *) ldap_memberof_regex, (PCRE2_SPTR8) dn, (PCRE2_SIZE) strlen(dn), 0, 0, match_data, NULL);
     if (pcre_res < 0 && pcre_res != PCRE2_ERROR_NOMATCH) {
 	fprintf(stderr, "PCRE2 matching error: %d [%d]\n", pcre_res, __LINE__);
 	return -1;
@@ -664,7 +664,7 @@ static char *translate_ldap_error(char *err /* from ldap_err2string() */ , char 
 {
     if (capabilities & CAP_AD && diag) {
 	pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(ad_result_regex, NULL);
-	int pcre_res = pcre2_match((pcre2_code *) ad_result_regex, (PCRE2_SPTR8) diag, (PCRE2_SIZE) strlen(diag), 0, 0, match_data, NULL);
+	int pcre_res = mypcre2_match((pcre2_code *) ad_result_regex, (PCRE2_SPTR8) diag, (PCRE2_SIZE) strlen(diag), 0, 0, match_data, NULL);
 	if (!pcre_res) {
 	    PCRE2_SIZE *ovector = pcre2_get_ovector_pointer(match_data);
 	    uint32_t ovector_count = pcre2_get_ovector_count(match_data);
@@ -937,7 +937,7 @@ static void *run_thread(void *arg)
 		ldap_get_option(ldap, LDAP_OPT_DIAGNOSTIC_MESSAGE, (void *) &diag);
 		char *err = ldap_err2string(rc);
 		if (rc == LDAP_INVALID_CREDENTIALS && (capabilities & CAP_AD) && caller_cap_chpw
-		    && !pcre2_match((pcre2_code *) ad_dsid_regex, (PCRE2_SPTR8) diag, (PCRE2_SIZE) strlen(diag), 0, 0, NULL, NULL)
+		    && !mypcre2_match((pcre2_code *) ad_dsid_regex, (PCRE2_SPTR8) diag, (PCRE2_SIZE) strlen(diag), 0, 0, NULL, NULL)
 		    ) {
 		    if (!strcmp(tactype, AV_V_TACTYPE_AUTH)) {
 			av_set(ac, AV_A_USER_RESPONSE, "Password has expired.");
@@ -1127,7 +1127,7 @@ int main(int argc, char **argv __attribute__((unused)))
     }
     PCRE2_SIZE erroffset;
     int errcode = 0;
-    ldap_memberof_regex = pcre2_compile((PCRE2_SPTR8) tmp, PCRE2_ZERO_TERMINATED, PCRE2_CASELESS | PCRE2_UTF, &errcode, &erroffset, NULL);
+    ldap_memberof_regex = mypcre2_compile((PCRE2_SPTR8) tmp, PCRE2_ZERO_TERMINATED, PCRE2_CASELESS | PCRE2_UTF, &errcode, &erroffset, NULL);
     if (!ldap_memberof_regex) {
 	PCRE2_UCHAR buffer[256];
 	pcre2_get_error_message(errcode, buffer, sizeof(buffer));
@@ -1137,7 +1137,7 @@ int main(int argc, char **argv __attribute__((unused)))
     tmp = getenv("LDAP_MEMBEROF_FILTER");
     errcode = 0;
     if (tmp) {
-	ldap_memberof_filter = pcre2_compile((PCRE2_SPTR8) tmp, PCRE2_ZERO_TERMINATED, PCRE2_CASELESS | PCRE2_UTF, &errcode, &erroffset, NULL);
+	ldap_memberof_filter = mypcre2_compile((PCRE2_SPTR8) tmp, PCRE2_ZERO_TERMINATED, PCRE2_CASELESS | PCRE2_UTF, &errcode, &erroffset, NULL);
 	if (!ldap_memberof_filter) {
 	    PCRE2_UCHAR buffer[256];
 	    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
@@ -1185,7 +1185,7 @@ int main(int argc, char **argv __attribute__((unused)))
 	ldap_skip_groupofnames = atoi(tmp);
 
     errcode = 0;
-    ad_result_regex = pcre2_compile((PCRE2_SPTR8) ",\\s+data\\s+([^,]+),", PCRE2_ZERO_TERMINATED, 0, &errcode, &erroffset, NULL);
+    ad_result_regex = mypcre2_compile((PCRE2_SPTR8) ",\\s+data\\s+([^,]+),", PCRE2_ZERO_TERMINATED, 0, &errcode, &erroffset, NULL);
 
     if (!ad_result_regex)
 	fprintf(stderr, "trouble at line %d\n", __LINE__ - 1);
@@ -1195,7 +1195,7 @@ int main(int argc, char **argv __attribute__((unused)))
 	fprintf(stderr, "PCRE2 error: %s\n", buffer);
     }
 
-    ad_dsid_regex = pcre2_compile((PCRE2_SPTR8) "DSID-.*, data (532|533|773) ", PCRE2_ZERO_TERMINATED, 0, &errcode, &erroffset, NULL);
+    ad_dsid_regex = mypcre2_compile((PCRE2_SPTR8) "DSID-.*, data (532|533|773) ", PCRE2_ZERO_TERMINATED, 0, &errcode, &erroffset, NULL);
     if (!ad_dsid_regex)
 	fprintf(stderr, "trouble at line %d\n", __LINE__ - 1);
     if (!ad_result_regex) {

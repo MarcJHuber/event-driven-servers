@@ -79,7 +79,7 @@
 #endif
 
 #ifdef WITH_PCRE2
-#include <pcre2.h>
+#include "misc/mypcre2.h"
 #endif
 
 #include <regex.h>
@@ -3714,7 +3714,7 @@ static void parse_rewrite(struct sym *sym, tac_realm *r)
 	if (sym->code == S_slash) {
 	    PCRE2_SIZE erroffset;
 	    (*e)->code =
-		pcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
+		mypcre2_compile((PCRE2_SPTR8) sym->buf, PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
 	    if (!(*e)->code) {
 		PCRE2_UCHAR buffer[256];
 		pcre2_get_error_message(errcode, buffer, sizeof(buffer));
@@ -5210,7 +5210,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		    PCRE2_SIZE erroffset;
 		    m->type = S_slash;
 		    m->s.rhs =
-			pcre2_compile((PCRE2_SPTR8) sym->buf,
+			mypcre2_compile((PCRE2_SPTR8) sym->buf,
 				      PCRE2_ZERO_TERMINATED, PCRE2_MULTILINE | common_data.regex_pcre_flags, &errcode, &erroffset, NULL);
 		    mem_add_free(mem, pcre2_code_free, m->s.rhs);
 		    if (!m->s.rhs) {

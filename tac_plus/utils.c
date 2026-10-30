@@ -40,12 +40,6 @@
 #include "headers.h"
 #include "misc/buffer.h"
 
-#ifdef WITH_PCRE2
-#include <pcre2.h>
-#endif
-
-#include <regex.h>
-
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
 int tac_exit(int status)
