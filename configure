@@ -252,7 +252,7 @@ while ($#ARGV > -1) {
 	$ARGV[0] =~ s/-freeradius-client/-freeradius_client/;
 	if ($ARGV[0] =~ /^(--[^=]+)=(.*)$/) {
 		$A{$1} = $2;
-	} elsif ($ARGV[0] =~ /^--([^-]+-[^-]+|debug)$/) {
+	} elsif ($ARGV[0] =~ /^--([^-]+-[^-]+|debug|asan)$/) {
 		$A{$ARGV[0]} = "1";
 	} elsif ($ARGV[0] =~ /^--[^-]+-[^-]+-[^-]+$/) {
 		$A{$ARGV[0]} = $ARGV[1];
@@ -328,6 +328,11 @@ if (exists $A{"--debug"}) {
 if (exists $A{"--ggdb"}) {
 	$DEFS{"GGDB"} = $A{"--ggdb"};
 	delete $A{"--ggdb"};
+}
+
+if (exists $A{"--asan"}) {
+	$DEFS{"ASAN"} = $A{"--asan"};
+	delete $A{"--asan"};
 }
 
 $A{"--prefix"} = "/usr/local" unless exists $A{"--prefix"};
@@ -469,7 +474,11 @@ if ($cctest =~ /clang/) {
 
 if (defined $DEFS{"CC_GCC"}) {
 	$DEFS{"CFLAGS"} = "-Wall -W -Wno-strict-prototypes -Wno-implicit-fallthrough";
-	if (!exists $DEFS{'DEBUG'} && !exists $DEFS{'GGDB'}) {
+	if (exists $DEFS{'ASAN'}) {
+		$DEFS{"CFLAGS"} .= " -g";
+		$DEFS{"CC"} .= " -fsanitize=address";
+	}
+	if (!exists $DEFS{'DEBUG'} && !exists $DEFS{'GGDB'} && !exists $DEFS{'ASAN'}) {
 		$DEFS{"CFLAGS"} .= " -O2";
 	} else {
 		$DEFS{"CFLAGS"} .= " -O0";
