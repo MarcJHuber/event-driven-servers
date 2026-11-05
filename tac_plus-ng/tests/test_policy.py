@@ -35,6 +35,8 @@ Each condition that holds adds an AV pair "tactest-<name>=yes" to the
 shell authorization, so one request shows all of them.
 """
 
+import os
+import tempfile
 import unittest
 
 from tactest import LINUX, DaemonTestCase
@@ -182,6 +184,32 @@ class DeviceTagWithoutTags(PolicyTestCase):
     def test_issue104_device_tag_without_any_tag(self):
         self.assertTrue(self.connect().pap("alice", "alicepw").ok)
         self.assertEqual(self.holds(), [])
+
+
+class DeviceAddressFromHostsFile(DaemonTestCase):
+    """A device name in "dns preload file" gives the device those addresses."""
+
+    CONFIG = None
+
+    def test_connection_from_that_address_uses_the_device(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            hosts = os.path.join(tmp, "hosts")
+            with open(hosts, "w") as f:
+                f.write("127.0.0.9 nas\n")
+            d = self.start_daemon("""
+	dns preload file = "%s"
+	device nas {
+		key = naskey
+	}
+	user alice {
+		password pap = clear alicepw
+	}
+	ruleset {
+		rule { script { permit } }
+	}
+""" % hosts)
+        with d.connect(source="127.0.0.9", key="naskey") as c:
+            self.assertEqual(c.pap("alice", "alicepw").status_name, "PASS")
 
 
 if __name__ == "__main__":
