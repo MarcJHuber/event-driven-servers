@@ -272,7 +272,7 @@ static inline int parse_user_profile_single(av_ctx *avc, struct sym *sym, tac_us
 {
     char *a = av_get(avc, attribute);
     if (a)
-	return parse_user_profile_fmt(sym, u, format, strlen(a), a);
+	return parse_user_profile_fmt(sym, u, format, (int) strlen(a), a);
     return 0;
 }
 
