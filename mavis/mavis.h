@@ -327,7 +327,8 @@ struct sym {
     struct sym *next;
 };
 
-void parse_error(struct sym *, char *, ...);
+void parse_error(struct sym *, char *, ...)
+    __attribute__((format(printf, 2, 3)));
 void parse_error_expect(struct sym *, ...);
 enum token parse_permission(struct sym *);
 u_int parse_bool(struct sym *);
