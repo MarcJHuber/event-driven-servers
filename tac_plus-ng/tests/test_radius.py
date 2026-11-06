@@ -537,6 +537,55 @@ class RegexOnOtherAttributes(DaemonTestCase):
         self.assertEqual(self.messages((self.NAS_IP_ADDRESS, bytes([10, 0, 0, 2]))), [b"pcre", b"posix"])
 
 
+class EqualOnOtherAttributes(DaemonTestCase):
+    """"==" and "!=" on a string or address attribute compare its text."""
+
+    NAS_IP_ADDRESS = 4
+    CONFIG = """
+	include = "%s"
+	device radius-nas {
+		address = 127.0.0.6
+		key = tactest
+		radius.key = %s
+	}
+	user alice {
+		password login = clear alicepw
+		password pap = login
+	}
+	profile admin {
+		script {
+			if (radius[User-Name] == alice) set radius[Reply-Message] = "name is alice"
+			if (radius[User-Name] == bob) set radius[Reply-Message] = "name is bob"
+			if (radius[User-Name] != alice) set radius[Reply-Message] = "name is not alice"
+			if (radius[User-Name] != bob) set radius[Reply-Message] = "name is not bob"
+			if (radius[NAS-IP-Address] == 10.0.0.1) set radius[Reply-Message] = "address is 10.0.0.1"
+			if (radius[NAS-IP-Address] != 10.0.0.1) set radius[Reply-Message] = "address is not 10.0.0.1"
+			permit
+		}
+	}
+	ruleset {
+		rule { script { profile = admin permit } }
+	}
+""" % (DICTIONARY, SECRET)
+    UDP = True
+
+    def messages(self, *attributes):
+        r = self.radius(SECRET, source=NAS).access_request("alice", "alicepw", attributes=attributes,
+                                                           message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Accept", r)
+        return r.get(radius.REPLY_MESSAGE)
+
+    def test_string(self):
+        self.assertEqual(self.messages()[:2], [b"name is alice", b"name is not bob"])
+
+    def test_address(self):
+        self.assertEqual(self.messages((self.NAS_IP_ADDRESS, bytes([10, 0, 0, 1])))[2:], [b"address is 10.0.0.1"])
+        self.assertEqual(self.messages((self.NAS_IP_ADDRESS, bytes([10, 0, 0, 2])))[2:], [b"address is not 10.0.0.1"])
+
+    def test_missing_attribute_is_not_equal(self):
+        self.assertEqual(self.messages()[2:], [b"address is not 10.0.0.1"])
+
+
 class RealmOnUdpListener(DaemonTestCase):
     """#232: "realm =" on a UDP listener was ignored, every RADIUS request went to the default realm.
 
