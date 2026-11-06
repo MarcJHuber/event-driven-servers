@@ -37,6 +37,7 @@ so the list doesn't rot.
 
 import glob
 import os
+import re
 import tempfile
 import unittest
 
@@ -133,6 +134,42 @@ class Samples(unittest.TestCase):
                     texts = expected if isinstance(expected, tuple) else (expected,)
                     self.assertTrue(any(t in out for t in texts),
                                     "%s fails for another reason than: %s\n%s" % (name, reason, out))
+
+
+class DuplicateNames(unittest.TestCase):
+    """parse_error() got a str_t by value: its second word, the length, was read as the next argument."""
+
+    def error_of(self, body, **files):
+        with tempfile.TemporaryDirectory() as tmp:
+            for name, text in files.items():
+                with open(os.path.join(tmp, name), "w") as f:
+                    f.write(text)
+            path = os.path.join(tmp, "dup.cfg")
+            with open(path, "w") as f:
+                f.write("id = spawnd { listen = { port = 4949 } }\nid = tac_plus-ng {\n" + body.replace("$TMP", tmp) + "}\n")
+            code, out = check(path)
+            self.assertGreater(code, 0, out)
+            return out
+
+    def assert_first_on_the_line_before(self, out, text):
+        m = re.search(r"dup\.cfg:(\d+): %s already defined at line (\d+)" % re.escape(text), out)
+        self.assertIsNotNone(m, out)
+        self.assertEqual(int(m.group(2)), int(m.group(1)) - 1, out)
+
+    def test_duplicate_profile_names_the_line_of_the_first_one(self):
+        out = self.error_of("\tprofile abcdefghijklmnopqrstuvwxyz { }\n" * 2)
+        self.assert_first_on_the_line_before(out, "Profile 'abcdefghijklmnopqrstuvwxyz'")
+
+    def test_duplicate_user_names_the_line_of_the_first_one(self):
+        out = self.error_of("\tuser thirteenchars { password login = clear x }\n" * 2)
+        self.assert_first_on_the_line_before(out, "User 'thirteenchars'")
+
+    def test_address_of_a_device_names_the_device_that_has_it(self):
+        out = self.error_of("\tdns preload file = $TMP/hosts\n"
+                            "\tdevice first { address = 10.0.0.1 key = k }\n"
+                            "\tdevice second { key = k }\n",
+                            hosts="10.0.0.1 {\n")
+        self.assertIn("already assigned to host 'first'", out)
 
 
 class OwnConfigs(unittest.TestCase):

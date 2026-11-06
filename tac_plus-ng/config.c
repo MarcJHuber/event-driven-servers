@@ -1295,7 +1295,7 @@ static void add_sni(struct sym *sym, tac_realm *r)
     size_t len = strlen(sym->buf);
     tac_realm *q = lookup_sni(sym->buf, len, r, NULL, NULL);
     if (q)
-	parse_error(sym, "SNI %s already associated to realm %s", sym->buf, q->name);
+	parse_error(sym, "SNI %s already associated to realm %s", sym->buf, q->name.txt);
     struct sni_list *l = calloc(1, sizeof(struct sni_list) + len);
     l->next = r->sni_list;
     memcpy(l->name, sym->buf, len);
@@ -2454,7 +2454,7 @@ static void parse_profile(struct sym *sym, tac_realm *r, tac_profile *parent, ta
     tac_profile *profile = new_profile(NULL, sym->buf, r);
     tac_profile *n = (tac_profile *) RB_lookup(r->profiletable, (void *) profile);
     if (n)
-	parse_error(sym, "Profile '%s' already defined at line %u", profile->name, n->line);
+	parse_error(sym, "Profile '%s' already defined at line %u", profile->name.txt, n->line);
 
     profile->parent = parent;
     profile->line = sym->line;
@@ -2777,7 +2777,7 @@ static void parse_user(struct sym *sym, tac_realm *r)
 
     tac_user *n = (tac_user *) RB_lookup(r->usertable, (void *) user);
     if (n)
-	parse_error(sym, "User '%s' already defined at line %u", user->name, n->line);
+	parse_error(sym, "User '%s' already defined at line %u", user->name.txt, n->line);
 
     sym_get(sym);
     parse_user_attr(sym, user);
@@ -3521,7 +3521,7 @@ static void parse_user_attr(struct sym *sym, tac_user *user)
 		    tac_alias ta = {.name.txt = sym->buf,.name.len = strlen(sym->buf) };
 		    a = RB_lookup(r->aliastable, &ta);
 		    if (a)
-			parse_error(sym, "Alias '%s' already assigned to user '%s'.", sym->buf, a->name);
+			parse_error(sym, "Alias '%s' already assigned to user '%s'.", sym->buf, a->name.txt);
 		} else
 		    r->aliastable = RB_tree_new(compare_name, NULL);
 		a = mem_alloc(user->mem, sizeof(tac_alias));
@@ -3635,7 +3635,7 @@ static void add_host(struct sym *sym, radixtree_t *ht, tac_host *host)
 
     tac_host *h;
     if (ht && (h = radix_add(ht, &a, cm, host)))
-	parse_error(sym, "Address '%s' already assigned to host '%s'.", sym->buf, h->name);
+	parse_error(sym, "Address '%s' already assigned to host '%s'.", sym->buf, h->name.txt);
 }
 
 static void add_net(struct sym *sym, radixtree_t *ht, tac_net *net)
@@ -4395,7 +4395,7 @@ static void parse_host(struct sym *sym, tac_realm *r, tac_host *parent)
     while (d) {
 	tac_host *exists;
 	if (ht && (exists = radix_add(ht, &d->a, 128, host)))
-	    parse_error(sym, "Address '%s' already assigned to host '%d'", sym->buf, exists->name);
+	    parse_error(sym, "Address '%s' already assigned to host '%s'", sym->buf, exists->name.txt);
 	d = d->next;
     }
 
@@ -5179,7 +5179,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		    } else {	// non-numeric
 			struct rad_dict_val *val = rad_dict_val_lookup_by_name(attr, sym->buf);
 			if (attr->val && !val)
-			    parse_error(sym, "RADIUS value '%s' not found (attribute: %s)", sym->buf, attr->name);
+			    parse_error(sym, "RADIUS value '%s' not found (attribute: %s)", sym->buf, attr->name.txt);
 			sym_get(sym);
 			m->s.rhs_txt = val->name.txt;
 			m->s.rhs = (void *) (long) val->id;

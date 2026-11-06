@@ -561,7 +561,7 @@ void parse_log(struct sym *sym, tac_realm *r)
     str_set(&lf->name, strdup(sym->buf), 0);
     sym_get(sym);
     if (r->logdestinations && RB_search(r->logdestinations, lf))
-	parse_error(sym, "log destination '%s' already defined", lf->name);
+	parse_error(sym, "log destination '%s' already defined", lf->name.txt);
     lf->dest = "syslog";
     str_set(&lf->syslog_ident, "tacplus", 0);
     lf->syslog_priority = common_data.syslog_level | common_data.syslog_facility;
