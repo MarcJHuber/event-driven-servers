@@ -250,6 +250,188 @@ class MessageAuthenticatorRequired(DaemonTestCase):
         self.assertEqual(radius.Packet.decode(c.recv_raw()).code_name, "Accounting-Response")
 
 
+class ConditionTypes(DaemonTestCase):
+    """A condition on a "time" or "enum" attribute compares numbers, as for "integer"."""
+
+    VENDOR = 99999
+    MODE = 1
+    EVENT_TIMESTAMP = 55
+    SERVICE_TYPE = 6
+    VENDOR_SPECIFIC = 26
+    CONFIG = """
+	include = "%s"
+	radius.dictionary tactest %d {
+		attribute Mode %d enum {
+			On 1
+			Off 2
+		}
+	}
+	device radius-nas {
+		address = 127.0.0.6
+		key = tactest
+		radius.key = %s
+	}
+	user alice {
+		password login = clear alicepw
+		password pap = login
+	}
+	profile admin {
+		script {
+			if (radius[Event-Timestamp] == 1234) set radius[Reply-Message] = "time"
+			if (radius[tactest:Mode] == On) set radius[Reply-Message] = "enum by name"
+			if (radius[tactest:Mode] == 2) set radius[Reply-Message] = "enum by number"
+			if (radius[Service-Type] == Login-User) set radius[Reply-Message] = "integer"
+			permit
+		}
+	}
+	ruleset {
+		rule { script { profile = admin permit } }
+	}
+""" % (DICTIONARY, VENDOR, MODE, SECRET)
+    UDP = True
+
+    def messages(self, *attributes):
+        r = self.radius(SECRET, source=NAS).access_request("alice", "alicepw", attributes=attributes,
+                                                           message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Accept", r)
+        return r.get(radius.REPLY_MESSAGE)
+
+    def mode(self, value):
+        value = struct.pack("!I", value)
+        vsa = bytes([self.MODE, 2 + len(value)]) + value
+        return (self.VENDOR_SPECIFIC, struct.pack("!I", self.VENDOR) + vsa)
+
+    def test_time(self):
+        self.assertEqual(self.messages((self.EVENT_TIMESTAMP, struct.pack("!I", 1234))), [b"time"])
+        self.assertEqual(self.messages((self.EVENT_TIMESTAMP, struct.pack("!I", 1235))), [])
+
+    def test_enum_by_name(self):
+        self.assertEqual(self.messages(self.mode(1)), [b"enum by name"])
+
+    def test_enum_by_number(self):
+        self.assertEqual(self.messages(self.mode(2)), [b"enum by number"])
+        self.assertEqual(self.messages(self.mode(3)), [])
+
+    def test_integer_still_compares(self):
+        self.assertEqual(self.messages((self.SERVICE_TYPE, struct.pack("!I", 1))), [b"integer"])
+        self.assertEqual(self.messages((self.SERVICE_TYPE, struct.pack("!I", 2))), [])
+
+
+class ConditionWithoutNamedValues(unittest.TestCase):
+    """A name for an attribute that has no named values dereferenced a NULL value."""
+
+    def error_of(self, attribute):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "cond.cfg")
+            with open(path, "w") as f:
+                f.write("""id = spawnd { listen = { port = 4949 } }
+id = tac_plus-ng {
+	include = "%s"
+	profile admin {
+		script {
+			if (radius[%s] == bogus) permit
+		}
+	}
+}
+""" % (DICTIONARY, attribute))
+            code, out = parse_only(path)
+            self.assertGreater(code, 0, out)
+            return out
+
+    def test_integer(self):
+        self.assertIn("RADIUS attribute 'NAS-Port' has no named values", self.error_of("NAS-Port"))
+
+    def test_time(self):
+        self.assertIn("RADIUS attribute 'Event-Timestamp' has no named values", self.error_of("Event-Timestamp"))
+
+
+class RegexOnNumericAttribute(unittest.TestCase):
+    """A regex on a number compared the value with the pointer to the compiled regex."""
+
+    def error_of(self, condition):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "cond.cfg")
+            with open(path, "w") as f:
+                f.write("""id = spawnd { listen = { port = 4949 } }
+id = tac_plus-ng {
+	include = "%s"
+	radius.dictionary tactest 99999 {
+		attribute Mode 1 enum {
+			On 1
+		}
+	}
+	profile admin {
+		script {
+			if (%s) permit
+		}
+	}
+}
+""" % (DICTIONARY, condition))
+            code, out = parse_only(path)
+            self.assertGreater(code, 0, out)
+            return out
+
+    def test_integer(self):
+        self.assertIn("REGEX matching isn't supported for numeric RADIUS attribute 'NAS-Port'",
+                      self.error_of("radius[NAS-Port] =~ /1/"))
+
+    def test_time(self):
+        self.assertIn("REGEX matching isn't supported for numeric RADIUS attribute 'Event-Timestamp'",
+                      self.error_of("radius[Event-Timestamp] =~ /1/"))
+
+    def test_enum(self):
+        self.assertIn("REGEX matching isn't supported for numeric RADIUS attribute 'Mode'",
+                      self.error_of("radius[tactest:Mode] =~ /1/"))
+
+    def test_negated_posix_regex(self):
+        self.assertIn("REGEX matching isn't supported for numeric RADIUS attribute 'NAS-Port'",
+                      self.error_of('radius[NAS-Port] !~ "1"'))
+
+
+class RegexOnOtherAttributes(DaemonTestCase):
+    """A regex on a string or address attribute matches its text."""
+
+    NAS_IP_ADDRESS = 4
+    CONFIG = """
+	include = "%s"
+	device radius-nas {
+		address = 127.0.0.6
+		key = tactest
+		radius.key = %s
+	}
+	user alice {
+		password login = clear alicepw
+		password pap = login
+	}
+	profile admin {
+		script {
+			if (radius[User-Name] =~ /^ali/) set radius[Reply-Message] = "pcre"
+			if (radius[User-Name] =~ "^ali") set radius[Reply-Message] = "posix"
+			if (radius[User-Name] =~ /^bob/) set radius[Reply-Message] = "other name"
+			if (radius[NAS-IP-Address] =~ /^10[.]0[.]0[.]1/) set radius[Reply-Message] = "address"
+			permit
+		}
+	}
+	ruleset {
+		rule { script { profile = admin permit } }
+	}
+""" % (DICTIONARY, SECRET)
+    UDP = True
+
+    def messages(self, *attributes):
+        r = self.radius(SECRET, source=NAS).access_request("alice", "alicepw", attributes=attributes,
+                                                           message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Accept", r)
+        return r.get(radius.REPLY_MESSAGE)
+
+    def test_string(self):
+        self.assertEqual(self.messages(), [b"pcre", b"posix"])
+
+    def test_address(self):
+        self.assertEqual(self.messages((self.NAS_IP_ADDRESS, bytes([10, 0, 0, 1]))), [b"pcre", b"posix", b"address"])
+        self.assertEqual(self.messages((self.NAS_IP_ADDRESS, bytes([10, 0, 0, 2]))), [b"pcre", b"posix"])
+
+
 class RealmOnUdpListener(DaemonTestCase):
     """#232: "realm =" on a UDP listener was ignored, every RADIUS request went to the default realm.
 

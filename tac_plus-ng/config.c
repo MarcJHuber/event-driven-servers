@@ -5175,12 +5175,14 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 	    if (m->s.token == S_radius) {
 		m->type = m->s.token;
 		struct rad_dict_attr *attr = (struct rad_dict_attr *) m->s.lhs;
-		if (attr->type == S_integer || S_type == S_time || S_type == S_enum) {
+		if (attr->type == S_integer || attr->type == S_time || attr->type == S_enum) {
 		    if (isdigit((int) sym->buf[0])) {
 			m->s.rhs_txt = mem_strdup(mem, sym->buf);
 			m->s.rhs = (void *) (long) parse_int(sym);
 		    } else {	// non-numeric
 			struct rad_dict_val *val = rad_dict_val_lookup_by_name(attr, sym->buf);
+			if (!attr->val)
+			    parse_error(sym, "RADIUS attribute '%s' has no named values, expected a number but got '%s'", attr->name.txt, sym->buf);
 			if (attr->val && !val)
 			    parse_error(sym, "RADIUS value '%s' not found (attribute: %s)", sym->buf, attr->name.txt);
 			sym_get(sym);
@@ -5200,6 +5202,12 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 
 		if (m->s.token == S_clientname)
 		    parse_error(sym, "REGEX matching isn't supported for '%s'", codestring[m->s.token].txt);
+
+		if (m->s.token == S_radius) {
+		    struct rad_dict_attr *attr = (struct rad_dict_attr *) m->s.lhs;
+		    if (attr->type == S_integer || attr->type == S_time || attr->type == S_enum)
+			parse_error(sym, "REGEX matching isn't supported for numeric RADIUS attribute '%s'", attr->name.txt);
+		}
 
 		if (m->s.token == S_group)
 		    m->s.token = S_member;
@@ -5413,7 +5421,7 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
     case S_radius:
 	{
 	    struct rad_dict_attr *attr = (struct rad_dict_attr *) m->s.lhs;
-	    if (attr->type == S_integer || attr->type == S_time || S_type == S_enum) {
+	    if (attr->type == S_integer || attr->type == S_time || attr->type == S_enum) {
 		int i;
 		int id = (int) (long) m->s.rhs;
 		if (session->radius_data)
@@ -5610,12 +5618,6 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	case S_radius:
 	    if (session->radius_data) {
 		struct rad_dict_attr *attr = (struct rad_dict_attr *) m->s.lhs;
-		if (attr->type == S_integer || attr->type == S_time || S_type == S_enum) {
-		    int i;
-		    int id = (int) (long) m->s.rhs;
-		    int res = !rad_get(session->radius_data->pak_in, session->mem, attr->dict->id, attr->id, attr->type, &i, NULL) && (i == id);
-		    return tac_script_cond_eval_res(session, m, res);
-		}
 		if (attr->type == S_ipv4addr || attr->type == S_ipaddr || attr->type == S_address) {
 		    char buf[256];
 		    sockaddr_union from = { 0 };
