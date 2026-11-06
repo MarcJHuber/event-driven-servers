@@ -597,7 +597,7 @@ static void buf_add(struct sym *sym, char c)
     if (sym->pos >= (int) sizeof(sym->buf)) {
 	sym->buf[sizeof(sym->buf) - 1] = '\0';
 	parse_error(sym, "Line too long: sym=[%s%s%s] buf='%s%.*s%s'",
-		    common_data.font_red, codestring[sym->code].txt, common_data.font_plain, sym->pos, common_data.font_blue, sym->buf,
+		    common_data.font_red, codestring[sym->code].txt, common_data.font_plain, common_data.font_blue, sym->pos, sym->buf,
 		    common_data.font_plain);
     }
     sym->buf[sym->pos++] = c;
