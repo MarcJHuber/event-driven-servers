@@ -31,10 +31,8 @@
 import base64
 import glob
 import os
-import platform
 import pwd
 import re
-import resource
 import shutil
 import struct
 import subprocess
@@ -428,20 +426,15 @@ BACKEND_TIMEOUT = 60
 class MtWorker(unittest.TestCase):
     """The real -mt backends, through the external-mt protocol. They need no server: a worker thread writes the reply."""
 
-    def round_trip(self, name, size, args=(), env=None, stack_limit=None):
+    def round_trip(self, name, size, args=(), env=None):
         path = os.path.join(prefix(), "sbin", name)
         self.assertTrue(os.path.exists(path), "configure found the library, but no pthreads")
         value = b"x" * size
         # an existing user makes pammavis-mt start a thread, which writes the reply
         user = pwd.getpwuid(os.getuid()).pw_name.encode()
         body = b"4 " + user + b"\n8 pw\n21 serial\n49 AUTH\n32 " + value + b"\n\n"
-
-        def limit():
-            if stack_limit:
-                resource.setrlimit(resource.RLIMIT_STACK, (stack_limit, resource.getrlimit(resource.RLIMIT_STACK)[1]))
-
         with subprocess.Popen([path, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                              env={**sanitizer_env(), **(env or {})}, preexec_fn=limit) as p:
+                              env={**sanitizer_env(), **(env or {})}) as p:
             # a hung backend fails the test, it does not block the run
             watchdog = threading.Timer(BACKEND_TIMEOUT, p.kill)
             watchdog.start()
@@ -464,25 +457,30 @@ class MtWorker(unittest.TestCase):
 class PamMtBackend(MtWorker):
     """pammavis-mt. No PAM service is necessary, the answer is a NAK."""
 
-    def round_trip_pam(self, size, stack_limit=None):
-        reply = self.round_trip("pammavis-mt", size, stack_limit=stack_limit)
+    def round_trip_pam(self, size):
+        reply = self.round_trip("pammavis-mt", size)
         self.assertTrue(b"\n6 ACK\n" in reply or b"\n6 NAK\n" in reply, "no PAM result")
 
     def test_reply_above_the_default_thread_stack_of_musl(self):
         self.round_trip_pam(1000000)
 
-    @unittest.skipUnless(platform.libc_ver()[0] == "glibc", "only glibc takes the thread stack from the limit")
-    def test_larger_stack_limit_of_the_system_stays(self):
-        """The backends raise a small thread stack to 8 MB, they must not reduce a larger one."""
-        self.round_trip_pam(16000000, stack_limit=64 * 1024 * 1024)
+    def test_reply_above_the_thread_stack(self):
+        """The reply must not go on the stack of the worker thread, which has 8 MB."""
+        self.round_trip_pam(16000000)
 
 
 @unittest.skipUnless(os.path.exists(os.path.join(prefix(), "sbin", "ldapmavis-mt")), "the build has no LDAP backend")
 class LdapMtBackend(MtWorker):
     """ldapmavis-mt without a server. The worker thread answers with the connection error."""
 
+    def round_trip_ldap(self, size):
+        self.round_trip("ldapmavis-mt", size, env={"LDAP_HOSTS": "ldap://127.0.0.1:1", "LDAP_BASE": "dc=example"})
+
     def test_reply_above_the_default_thread_stack_of_musl(self):
-        self.round_trip("ldapmavis-mt", 1000000, env={"LDAP_HOSTS": "ldap://127.0.0.1:1", "LDAP_BASE": "dc=example"})
+        self.round_trip_ldap(1000000)
+
+    def test_reply_above_the_thread_stack(self):
+        self.round_trip_ldap(16000000)
 
 
 @unittest.skipUnless(os.path.exists(os.path.join(prefix(), "sbin", "radmavis")), "the build has no RADIUS backend")
@@ -503,12 +501,18 @@ radius_retries 1
 serv-type udp
 """
 
-    def test_reply_above_the_default_thread_stack_of_musl(self):
+    def round_trip_radius(self, size):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "radiusclient.conf")
             with open(path, "w") as f:
                 f.write(self.CONFIG % tmp)
-            self.round_trip("radmavis-mt", 1000000, args=["-c", path])
+            self.round_trip("radmavis-mt", size, args=["-c", path])
+
+    def test_reply_above_the_default_thread_stack_of_musl(self):
+        self.round_trip_radius(1000000)
+
+    def test_reply_above_the_thread_stack(self):
+        self.round_trip_radius(16000000)
 
 
 class ConfigurePthread(unittest.TestCase):
