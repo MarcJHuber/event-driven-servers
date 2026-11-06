@@ -1716,7 +1716,10 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 
 			if (!r->dns_tree_ptr[0])
 			    r->dns_tree_ptr[0] = radix_new(free_reverse, NULL);
-			radix_add(r->dns_tree_ptr[0], &a, cm, strdup(sym->buf));
+			struct revmap *rev = calloc(1, sizeof(struct revmap));
+			rev->name = strdup(sym->buf);
+			rev->ttl = -1;
+			radix_add(r->dns_tree_ptr[0], &a, cm, rev);
 
 			sym_get(sym);
 			continue;
