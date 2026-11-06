@@ -168,8 +168,28 @@ class DuplicateNames(unittest.TestCase):
         out = self.error_of("\tdns preload file = $TMP/hosts\n"
                             "\tdevice first { address = 10.0.0.1 key = k }\n"
                             "\tdevice second { key = k }\n",
-                            hosts="10.0.0.1 {\n")
-        self.assertIn("already assigned to host 'first'", out)
+                            hosts="10.0.0.1 second\n")
+        self.assertIn("Address of 'second' already assigned to host 'first'", out)
+
+
+class DeviceNameInHostsFile(unittest.TestCase):
+    def parse(self, body, hosts):
+        with tempfile.TemporaryDirectory() as tmp:
+            with open(os.path.join(tmp, "hosts"), "w") as f:
+                f.write(hosts)
+            path = os.path.join(tmp, "device.cfg")
+            with open(path, "w") as f:
+                f.write('id = spawnd { listen = { port = 4949 } }\nid = tac_plus-ng {\n'
+                        '\tdns preload file = "%s/hosts"\n%s}\n' % (tmp, body))
+            return check(path)
+
+    def test_same_address_in_hosts_file_and_device_is_valid(self):
+        code, out = self.parse("\tdevice nas { address = 10.0.0.1 key = k }\n", "10.0.0.1 nas\n")
+        self.assertEqual(code, 0, out)
+
+    def test_hosts_entry_of_another_name_adds_nothing(self):
+        code, out = self.parse("\tdevice a { key = k }\n\tdevice b { key = k }\n", "10.0.0.1 c\n")
+        self.assertEqual(code, 0, out)
 
 
 class OwnConfigs(unittest.TestCase):
