@@ -3086,7 +3086,7 @@ static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm 
 	    continue;
 	case S_profile:
 	    if (profile->mem)
-		parse_error(sym, "User profiles may not contain sub profiles", sym->buf);
+		parse_error(sym, "User profiles may not contain sub profiles");
 	    parse_profile(sym, r, profile, user);
 	    continue;
 	case S_parent:
@@ -6091,7 +6091,7 @@ static struct mavis_action *tac_script_parse_r(struct sym *sym, mem_t *mem, int 
 	    if (attr->val && (attr->type == S_integer || attr->type == S_time || attr->type == S_enum) && !isdigit(*sym->buf)) {
 		val = rad_dict_val_lookup_by_name(attr, sym->buf);
 		if (!val)
-		    parse_error(sym, "RADIUS value '$s' not found (attribute: %s)", sym->buf, attr->name);
+		    parse_error(sym, "RADIUS value '%s' not found (attribute: %s)", sym->buf, attr->name.txt);
 		u.u = htonl(val->id);
 		m->b.v = (void *) new_rad_action(mem, attr, &u, NULL);
 		sym_get(sym);

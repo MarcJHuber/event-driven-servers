@@ -31,9 +31,11 @@
 import hashlib
 import os
 import struct
+import tempfile
 import unittest
 
 from tactest import SOURCE, DaemonTestCase, config, features, radius, tacacs
+from tactest.daemon import parse_only
 
 DICTIONARY = os.path.join(SOURCE, "tac_plus-ng", "sample", "radius-dict.cfg")
 SECRET = "radsecret"
@@ -286,6 +288,28 @@ class RealmOnUdpListener(DaemonTestCase):
 
 # no device for 127.0.0.2: the base configuration covers all of 127/8, NAS is 127.0.0.6
 UNKNOWN_HOSTS = config.BASE.replace("address = 127.0.0.0/8", "address = 127.0.0.1/32")
+
+
+class UnknownValue(unittest.TestCase):
+    def test_set_with_an_unknown_value_names_value_and_attribute(self):
+        """The format had '$s' for '%s', so the value appeared as the attribute and the attribute not at all."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "value.cfg")
+            with open(path, "w") as f:
+                f.write("""id = spawnd { listen = { port = 4949 } }
+id = tac_plus-ng {
+	include = "%s"
+	profile admin {
+		script {
+			set radius[Service-Type] = bogus
+			permit
+		}
+	}
+}
+""" % DICTIONARY)
+            code, out = parse_only(path)
+            self.assertGreater(code, 0, out)
+            self.assertIn("RADIUS value 'bogus' not found (attribute: Service-Type)", out)
 
 
 class UnknownHost(DaemonTestCase):
