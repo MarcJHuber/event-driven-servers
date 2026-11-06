@@ -33,6 +33,7 @@ import os
 import struct
 import subprocess
 import sys
+import tempfile
 import time
 import unittest
 
@@ -346,6 +347,72 @@ class Children(DaemonTestCase):
                 Stub(d).set(users={"alice": {"password": "pw"}})
                 with d.connect() as c:
                     self.assertEqual(c.pap("alice", "pw").status_name, "PASS")
+
+
+# Answers every request of the external-mt protocol with ACK and the profile from argv[1].
+MT_BACKEND = r"""
+import os, struct, sys
+
+def exact(n):
+    buf = b""
+    while len(buf) < n:
+        part = os.read(0, n - len(buf))
+        if not part:
+            sys.exit(0)
+        buf += part
+    return buf
+
+with open(sys.argv[1]) as f:
+    profile = f.read()
+while True:
+    magic, length, _ = struct.unpack("!III", exact(12))
+    av = dict(line.split(" ", 1) for line in exact(length).decode().split("\n") if line)
+    av["6"], av["48"] = "ACK", profile
+    out = ("".join("%s %s\n" % kv for kv in av.items()) + "\n").encode()
+    out = struct.pack("!III", magic, len(out), 0) + out
+    while out:
+        out = out[os.write(1, out):]
+"""
+
+
+@unittest.skipUnless(os.path.exists(os.path.join(prefix(), "lib", "mavis", "libmavis_external-mt.so")),
+                     "configure builds external-mt only if it finds pthread")
+class MtBackend(DaemonTestCase):
+    """The external-mt module, with a backend that speaks its protocol."""
+
+    CONFIG = None
+
+    def login_with_profile(self, text):
+        with tempfile.TemporaryDirectory() as tmp:
+            backend, profile = os.path.join(tmp, "backend.py"), os.path.join(tmp, "profile")
+            with open(backend, "w") as f:
+                f.write(MT_BACKEND)
+            with open(profile, "w") as f:
+                f.write(text)
+            d = self.start_daemon("""
+	mavis module = external-mt {
+		exec = "%s" "%s" "-u" "%s" "%s"
+	}
+""" % (sys.executable, sys.executable, backend, profile) + BACKEND + """
+	group admins { }
+	profile admin {
+		script { if (service == shell) { set priv-lvl = 15 permit } }
+	}
+	ruleset {
+		rule admins {
+			script { if (member == admins) { profile = admin permit } }
+		}
+	}
+""")
+            with d.connect() as c:
+                self.assertEqual(c.pap("alice", "pw").status_name, "PASS")
+            with d.connect() as c:
+                r = c.author("alice", ["service=shell", "cmd="])
+            self.assertEqual((r.status_name, r.args), ("PASS_ADD", ["priv-lvl=15"]))
+
+    def test_login_uses_the_profile_of_the_backend(self):
+        """The sanitizer builds catch the use of the freed serial of the request."""
+        self.login_with_profile("{ member = admins }")
 
 
 if __name__ == "__main__":

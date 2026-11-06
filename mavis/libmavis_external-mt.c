@@ -401,6 +401,7 @@ static void read_from_child(struct context *ctx, int cur __attribute__((unused))
     ac_in->app_cb = q->ac->app_cb;
     av_free(q->ac);
     q->ac = ac_in;
+    q->serial = q_tmp.serial;
     q->result = ntohl(ctx->hdr.result);
 
     if (q->result == MAVIS_FINAL) {
