@@ -2822,6 +2822,8 @@ int parse_user_profile_fmt(struct sym *sym, tac_user *user, char *fmt, ...)
     l = vsnprintf(s, len, fmt, ap) + 1;
     if (l > len) {
 	s = alloca(l);
+	va_end(ap);
+	va_start(ap, fmt);
 	vsnprintf(s, l, fmt, ap);
     }
     va_end(ap);
