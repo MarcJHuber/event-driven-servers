@@ -46,7 +46,8 @@ void buffer_strncpy(struct buffer *, char *, size_t, size_t);
 int buffer_chr(struct buffer *, int, size_t, size_t);
 struct buffer *buffer_write(struct buffer *, char *, size_t);
 #define buffer_print(A,B) buffer_write(A,B,strlen(B))
-struct buffer *buffer_printf(struct buffer *, char *, ...);
+struct buffer *buffer_printf(struct buffer *, char *, ...)
+    __attribute__((format(printf, 2, 3)));
 struct buffer *buffer_truncate(struct buffer *, size_t);
 void buffer_destroy(void);
 #ifdef WITH_MMAP
