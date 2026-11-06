@@ -87,7 +87,7 @@ static void parse_filter_regex(struct sym *sym, struct regex_list **l)
 	    if (!(*l)->p) {
 		PCRE2_UCHAR buffer[256];
 		pcre2_get_error_message(errcode, buffer, sizeof(buffer));
-		parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
+		parse_error(sym, "In PCRE2 expression /%s/ at offset %zu: %s", sym->buf, erroffset, buffer);
 	    }
 #else
 	    parse_error(sym, "You're using PCRE2 syntax, but this binary wasn't compiled with PCRE2 support.");

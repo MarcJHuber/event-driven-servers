@@ -3718,7 +3718,7 @@ static void parse_rewrite(struct sym *sym, tac_realm *r)
 	    if (!(*e)->code) {
 		PCRE2_UCHAR buffer[256];
 		pcre2_get_error_message(errcode, buffer, sizeof(buffer));
-		parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
+		parse_error(sym, "In PCRE2 expression /%s/ at offset %zu: %s", sym->buf, erroffset, buffer);
 	    }
 	    (*e)->name = strdup(sym->buf);
 	    sym_get(sym);
@@ -5216,7 +5216,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		    if (!m->s.rhs) {
 			PCRE2_UCHAR buffer[256];
 			pcre2_get_error_message(errcode, buffer, sizeof(buffer));
-			parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
+			parse_error(sym, "In PCRE2 expression /%s/ at offset %zu: %s", sym->buf, erroffset, buffer);
 		    }
 		    sym->flag_parse_pcre = 0;
 		    sym_get(sym);

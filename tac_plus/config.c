@@ -2549,7 +2549,7 @@ static void parse_rewrite(struct sym *sym, tac_realm * r)
 	    if (!(*e)->code) {
 		PCRE2_UCHAR buffer[256];
 		pcre2_get_error_message(errcode, buffer, sizeof(buffer));
-		parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
+		parse_error(sym, "In PCRE2 expression /%s/ at offset %zu: %s", sym->buf, erroffset, buffer);
 	    }
 	    (*e)->name = strdup(sym->buf);
 	    tac_sym_get(sym);
@@ -3796,7 +3796,7 @@ static enum tac_acl_type parse_regex(struct sym *sym, tac_user * user, void **rp
 	} else {
 	    PCRE2_UCHAR buffer[256];
 	    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
-	    parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
+	    parse_error(sym, "In PCRE2 expression /%s/ at offset %zu: %s", sym->buf, erroffset, buffer);
 	}
 	tac_sym_get(sym);
 	return T_regex_pcre;
@@ -3827,7 +3827,7 @@ static enum tac_acl_type parse_aclregex(struct sym *sym, struct acl_element *ae)
 	if (!ae->blob.p) {
 	    PCRE2_UCHAR buffer[256];
 	    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
-	    parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
+	    parse_error(sym, "In PCRE2 expression /%s/ at offset %zu: %s", sym->buf, erroffset, buffer);
 	}
 	tac_sym_get(sym);
 	return T_regex_pcre;
@@ -5088,7 +5088,7 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 		if (!m->s.rhs) {
 		    PCRE2_UCHAR buffer[256];
 		    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
-		    parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
+		    parse_error(sym, "In PCRE2 expression /%s/ at offset %zu: %s", sym->buf, erroffset, buffer);
 		}
 		sym->flag_parse_pcre = 0;
 		tac_sym_get(sym);
