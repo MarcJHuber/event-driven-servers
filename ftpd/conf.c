@@ -833,7 +833,7 @@ static enum ftp_acl_type parse_aclregex(struct sym *sym, struct acl_element *ae,
 	if (!ae->blob.p) {
 	    PCRE2_UCHAR buffer[256];
 	    pcre2_get_error_message(errcode, buffer, sizeof(buffer));
-	    parse_error(sym, "In PCRE2 expression /%s/ at offset %d: %s", sym->buf, erroffset, buffer);
+	    parse_error(sym, "In PCRE2 expression /%s/ at offset %zu: %s", sym->buf, erroffset, buffer);
 	}
 	sym_get(sym);
 	return T_regex_pcre;
