@@ -29,7 +29,13 @@
 """MAVIS: the external module with the stub backend (tactest/mavis_stub.py)."""
 
 import base64
+import glob
 import os
+import platform
+import pwd
+import re
+import resource
+import shutil
 import struct
 import subprocess
 import sys
@@ -38,7 +44,7 @@ import time
 import unittest
 
 from tactest import LINUX, DaemonTestCase, Stub, config, detect, features, prefix
-from tactest.daemon import alive as daemon_alive
+from tactest.daemon import alive as daemon_alive, sanitizer_env
 
 BACKEND = """
 	user backend = mavis
@@ -413,6 +419,109 @@ class MtBackend(DaemonTestCase):
     def test_login_uses_the_profile_of_the_backend(self):
         """The sanitizer builds catch the use of the freed serial of the request."""
         self.login_with_profile("{ member = admins }")
+
+
+class MtWorker(unittest.TestCase):
+    """The real -mt backends, through the external-mt protocol. They need no server: a worker thread writes the reply."""
+
+    def round_trip(self, name, size, args=(), env=None, stack_limit=None):
+        path = os.path.join(prefix(), "sbin", name)
+        self.assertTrue(os.path.exists(path), "configure found the library, but no pthreads")
+        value = b"x" * size
+        # an existing user makes pammavis-mt start a thread, which writes the reply
+        user = pwd.getpwuid(os.getuid()).pw_name.encode()
+        body = b"4 " + user + b"\n8 pw\n21 serial\n49 AUTH\n32 " + value + b"\n\n"
+
+        def limit():
+            if stack_limit:
+                resource.setrlimit(resource.RLIMIT_STACK, (stack_limit, resource.getrlimit(resource.RLIMIT_STACK)[1]))
+
+        with subprocess.Popen([path, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                              env={**sanitizer_env(), **(env or {})}, preexec_fn=limit) as p:
+            p.stdin.write(struct.pack("!III", 0x4d610001, len(body), 0) + body)
+            p.stdin.flush()
+            header = p.stdout.read(12)
+            reply = p.stdout.read(struct.unpack("!III", header)[1]) if len(header) == 12 else b""
+            p.kill()
+        self.assertEqual(len(header), 12, "no reply, exit status %s" % p.returncode)
+        self.assertIn(b"21 serial\n", reply)
+        self.assertTrue(value in reply, "the reply lost the value")
+        self.assertFalse(re.search(rb"(?m)^17 \w+\(\): ", reply), "the main thread answered: no worker thread started")
+        return reply
+
+
+@unittest.skipUnless(os.path.exists(os.path.join(prefix(), "sbin", "pammavis")), "the build has no PAM backends")
+class PamMtBackend(MtWorker):
+    """pammavis-mt. No PAM service is necessary, the answer is a NAK."""
+
+    def round_trip_pam(self, size, stack_limit=None):
+        reply = self.round_trip("pammavis-mt", size, stack_limit=stack_limit)
+        self.assertTrue(b"\n6 ACK\n" in reply or b"\n6 NAK\n" in reply, "no PAM result")
+
+    def test_reply_above_the_default_thread_stack_of_musl(self):
+        self.round_trip_pam(1000000)
+
+    @unittest.skipUnless(platform.libc_ver()[0] == "glibc", "only glibc takes the thread stack from the limit")
+    def test_larger_stack_limit_of_the_system_stays(self):
+        """The backends raise a small thread stack to 8 MB, they must not reduce a larger one."""
+        self.round_trip_pam(16000000, stack_limit=64 * 1024 * 1024)
+
+
+@unittest.skipUnless(os.path.exists(os.path.join(prefix(), "sbin", "ldapmavis-mt")), "the build has no LDAP backend")
+class LdapMtBackend(MtWorker):
+    """ldapmavis-mt without a server. The worker thread answers with the connection error."""
+
+    def test_reply_above_the_default_thread_stack_of_musl(self):
+        self.round_trip("ldapmavis-mt", 1000000, env={"LDAP_HOSTS": "ldap://127.0.0.1:1", "LDAP_BASE": "dc=example"})
+
+
+@unittest.skipUnless(os.path.exists(os.path.join(prefix(), "sbin", "radmavis")), "the build has no RADIUS backend")
+class RadiusMtBackend(MtWorker):
+    """radmavis-mt without a server."""
+
+    CONFIG = """
+nas-identifier tactest
+authserver 127.0.0.1:1:secret
+acctserver 127.0.0.1:1:secret
+dictionary /etc/radcli/dictionary
+seqfile %s/seq
+mapfile /dev/null
+auth_order radius
+login_tries 1
+radius_timeout 1
+radius_retries 1
+serv-type udp
+"""
+
+    def test_reply_above_the_default_thread_stack_of_musl(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "radiusclient.conf")
+            with open(path, "w") as f:
+                f.write(self.CONFIG % tmp)
+            self.round_trip("radmavis-mt", 1000000, args=["-c", path])
+
+
+class ConfigurePthread(unittest.TestCase):
+    """configure must find the same pthread support whatever the path of the temporary directory is."""
+
+    def finds_pthread(self, name):
+        source = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "configure")
+        with tempfile.TemporaryDirectory() as top:
+            tmp = os.path.join(top, name)
+            os.mkdir(tmp)
+            os.makedirs(os.path.join(top, "spawnd", "perl"))  # configure writes a file there
+            shutil.copy(source, top)
+            subprocess.run(["./configure"], cwd=top, env={**os.environ, "TMPDIR": tmp}, check=True,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            (makefile,) = glob.glob(os.path.join(top, "build", "Makefile.inc.*"))
+            with open(makefile) as f:
+                return "WITH_PTHREAD=1" in f.read()
+
+    def test_tmpdir_with_special_characters(self):
+        expected = self.finds_pthread("plain")
+        for name in ("with space", "with'quote"):
+            with self.subTest(name):
+                self.assertEqual(self.finds_pthread(name), expected)
 
 
 if __name__ == "__main__":

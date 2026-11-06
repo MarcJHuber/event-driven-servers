@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <pthread.h>
+#include "mavis_mt.h"
 #ifdef HAVE_SECURITY_PAM_APPL_H
 #include <security/pam_appl.h>
 #else
@@ -352,6 +353,8 @@ int main(int argc, char **argv)
 		int res = pthread_attr_setdetachstate(&thread_attr, PTHREAD_CREATE_DETACHED);
 		if (res)
 		    fname = "pthread_attr_setdetachstate";
+		else if ((res = mavis_mt_raise_stack(&thread_attr)))
+		    fname = "mavis_mt_raise_stack";
 		else
 		    res = pthread_create(&thread, &thread_attr, run_thread, ac);
 		if (res) {
