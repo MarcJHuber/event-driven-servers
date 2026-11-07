@@ -680,6 +680,20 @@ check_for("PAM", "libpam", "security/pam_appl.h", "pam", "-DHAVE_SECURITY_PAM_AP
 check_for("PAM", "libpam", "pam/pam_appl.h", "pam", undef);
 check_for("SCTP", "sctp", "netinet/sctp.h", "sctp", undef);
 check_for("PTHREAD", "pthread", "pthread.h", "pthread", undef);
+# musl has pthreads in libc and no libpthread.so, so ask the linker if the search found nothing.
+unless (exists $DEFS{"WITH_PTHREAD"}) {
+	require File::Temp;
+	my $dir = File::Temp::tempdir(CLEANUP => 1);
+	open(my $src, ">", "$dir/t.c") or die "$dir/t.c: $!\n";
+	print $src "#include <pthread.h>\nstatic void *f(void *a) { return a; }\n"
+		. "int main(void) { pthread_t t; return pthread_create(&t, 0, f, 0); }\n";
+	close($src);
+	(my $shdir = $dir) =~ s/'/'\\''/g;
+	if (system("$DEFS{'CC'} -o '$shdir/t' '$shdir/t.c' -lpthread >/dev/null 2>&1") == 0) {
+		$DEFS{"WITH_PTHREAD"} = 1;
+		check_for("PTHREAD", "pthread", "pthread.h", "pthread", undef);
+	}
+}
 check_for("LDAP", "ldap", "ldap.h", "ldap", undef);
 check_for("LBER", "lber", "lber.h", "lber", undef);
 

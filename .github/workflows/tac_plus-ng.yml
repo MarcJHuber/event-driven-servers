@@ -65,18 +65,21 @@ concurrency:
 
 env:
   # openssl: the command makes the certificates of the TLS tests and is their TLS-PSK client
-  UBUNTU_PACKAGES: build-essential clang llvm perl libpcre2-dev libssl-dev libcrypt-dev python3 openssl
+  # libpam0g-dev, libldap-dev, libradcli-dev: the -mt backends
+  UBUNTU_PACKAGES: build-essential clang llvm perl libpcre2-dev libssl-dev libcrypt-dev python3 openssl libpam0g-dev libldap-dev libradcli-dev
 
 jobs:
   alpine-gcc:
-    # musl, the package list of a typical container build
+    # musl, the package list of a typical container build, plus the libraries of the -mt backends
     runs-on: ubuntu-24.04
     container: alpine:3.20
     timeout-minutes: 15
     steps:
-      - run: apk add --no-cache gcc musl-dev make perl openssl-dev pcre2-dev linux-headers python3 openssl
+      - run: apk add --no-cache gcc musl-dev make perl openssl-dev pcre2-dev linux-headers python3 openssl linux-pam-dev openldap-dev radcli-dev
       - uses: actions/checkout@v5
       - run: tac_plus-ng/tests/run-tests
+      # the tests of these backends skip if the build left them out
+      - run: ls build/*/tests-prefix/sbin/ldapmavis-mt build/*/tests-prefix/sbin/radmavis-mt
       - if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -93,6 +96,8 @@ jobs:
       - run: tac_plus-ng/tests/run-tests
         env:
           CC: gcc
+      # the tests of these backends skip if the build left them out
+      - run: ls build/*/tests-prefix/sbin/ldapmavis-mt build/*/tests-prefix/sbin/radmavis-mt
       - if: failure()
         run: mkdir -p build/tests-work && sudo journalctl --no-pager -t tac_plus-ng > build/tests-work/journal.txt || true
       - if: failure()
