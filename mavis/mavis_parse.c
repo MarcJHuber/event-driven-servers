@@ -67,6 +67,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <limits.h>
 #include <pwd.h>
 #include <grp.h>
 #include <time.h>
@@ -1160,35 +1161,31 @@ int parse_int(struct sym *sym)
 
 u_int parse_uint(struct sym *sym)
 {
-    int i;
-    char c;
-
-    int r = sscanf(sym->buf, "%u%c", &i, &c);
-    if (r == 2 && i == 0 && (c == 'x' || c == 'X'))
-	r = sscanf(sym->buf, "%x%c", &i, &c);
-    switch (r) {
-    case 2:
-	switch (c) {
-	default:
-	    goto bye;
+    if (isdigit((int) sym->buf[0])) {
+	char *end;
+	int base = (sym->buf[0] == '0' && (sym->buf[1] == 'x' || sym->buf[1] == 'X')) ? 16 : 10;
+	int shift = 0;
+	errno = 0;
+	unsigned long long u = strtoull(sym->buf, &end, base);
+	switch (*end) {
 	case 'g':
 	case 'G':
-	    i <<= 10;
+	    shift += 10;
 	case 'm':
 	case 'M':
-	    i <<= 10;
+	    shift += 10;
 	case 'k':
 	case 'K':
-	    i <<= 10;
+	    shift += 10;
+	    end++;
 	}
-    case 1:
-	sym_get(sym);
-	return i;
-    default:
-      bye:
-	parse_error(sym, "expected an unsigned integer, but got '%s'", sym->buf);
-	return -1;
+	if (!errno && !*end && u <= (UINT_MAX >> shift)) {
+	    sym_get(sym);
+	    return (u_int) (u << shift);
+	}
     }
+    parse_error(sym, "expected an unsigned integer from 0 to %u, but got '%s'", UINT_MAX, sym->buf);
+    return -1;
 }
 
 int parse_seconds(struct sym *sym)

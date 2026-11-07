@@ -264,6 +264,7 @@ class ConditionTypes(DaemonTestCase):
 		attribute Mode %d enum {
 			On 1
 			Off 2
+			Max 4294967295
 		}
 	}
 	device radius-nas {
@@ -281,6 +282,9 @@ class ConditionTypes(DaemonTestCase):
 			if (radius[tactest:Mode] == On) set radius[Reply-Message] = "enum by name"
 			if (radius[tactest:Mode] == 2) set radius[Reply-Message] = "enum by number"
 			if (radius[Service-Type] == Login-User) set radius[Reply-Message] = "integer"
+			if (radius[Event-Timestamp] == 4294967295) set radius[Reply-Message] = "max time"
+			if (radius[tactest:Mode] == Max) set radius[Reply-Message] = "max enum by name"
+			if (radius[tactest:Mode] == 0x80000000) set radius[Reply-Message] = "high enum by number"
 			permit
 		}
 	}
@@ -315,6 +319,54 @@ class ConditionTypes(DaemonTestCase):
     def test_integer_still_compares(self):
         self.assertEqual(self.messages((self.SERVICE_TYPE, struct.pack("!I", 1))), [b"integer"])
         self.assertEqual(self.messages((self.SERVICE_TYPE, struct.pack("!I", 2))), [])
+
+    def test_full_unsigned_range(self):
+        self.assertEqual(self.messages((self.EVENT_TIMESTAMP, struct.pack("!I", 0xffffffff))), [b"max time"])
+        self.assertEqual(self.messages(self.mode(0xffffffff)), [b"max enum by name"])
+        self.assertEqual(self.messages(self.mode(0x80000000)), [b"high enum by number"])
+        self.assertEqual(self.messages(self.mode(0x7fffffff)), [])
+
+
+class NumberOutOfRange(unittest.TestCase):
+    """A RADIUS number above 4294967295 wrapped silently, "4294967296" compared as 0."""
+
+    def error_of(self, value, condition_value="1"):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "range.cfg")
+            with open(path, "w") as f:
+                f.write("""id = spawnd { listen = { port = 4949 } }
+id = tac_plus-ng {
+	include = "%s"
+	radius.dictionary tactest 99999 {
+		attribute Mode 1 enum {
+			On %s
+		}
+	}
+	profile admin {
+		script {
+			if (radius[Event-Timestamp] == %s) permit
+		}
+	}
+}
+""" % (DICTIONARY, value, condition_value))
+            code, out = parse_only(path)
+            self.assertGreater(code, 0, out)
+            return out
+
+    def test_condition_value(self):
+        self.assertIn("expected an unsigned integer from 0 to 4294967295, but got '4294967296'",
+                      self.error_of("1", "4294967296"))
+
+    def test_condition_value_with_suffix(self):
+        self.assertIn("expected an unsigned integer from 0 to 4294967295, but got '4G'", self.error_of("1", "4G"))
+
+    def test_condition_hex_value(self):
+        self.assertIn("expected an unsigned integer from 0 to 4294967295, but got '0x100000000'",
+                      self.error_of("1", "0x100000000"))
+
+    def test_dictionary_value(self):
+        self.assertIn("expected an unsigned integer from 0 to 4294967295, but got '4294967296'",
+                      self.error_of("4294967296"))
 
 
 class ConditionWithoutNamedValues(unittest.TestCase):

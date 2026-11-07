@@ -108,7 +108,7 @@ struct rad_dict_attr *rad_dict_attr_lookup_by_name(struct rad_dict *dict, char *
     return NULL;
 }
 
-struct rad_dict_val *rad_dict_val_lookup_by_id(struct rad_dict_attr *attr, int id)
+struct rad_dict_val *rad_dict_val_lookup_by_id(struct rad_dict_attr *attr, u_int id)
 {
     for (struct rad_dict_val * val = attr->val; val; val = val->next)
 	if (val->id == id)
@@ -139,7 +139,7 @@ static struct rad_dict_attr *rad_dict_attr_add(struct sym *sym, struct rad_dict 
     return *attr;
 }
 
-static void rad_dict_attr_add_val(struct sym *sym, struct rad_dict_attr *attr, char *name, int id)
+static void rad_dict_attr_add_val(struct sym *sym, struct rad_dict_attr *attr, char *name, u_int id)
 {
     struct rad_dict_val **val = &(attr->val);
     while (*val)
@@ -414,7 +414,7 @@ char *rad_attr_val_dump1(mem_t *mem, u_char **data, size_t *data_len)
     return buf_start;
 }
 
-void rad_dict_get_val(int dict_id, int attr_id, int val_id, char **s, size_t *s_len)
+void rad_dict_get_val(int dict_id, int attr_id, u_int val_id, char **s, size_t *s_len)
 {
     struct rad_dict *dict = rad_dict_lookup_by_id(dict_id);
     if (dict) {
@@ -496,8 +496,7 @@ void parse_radius_dictionary(struct sym *sym)
 	    while (sym->code != S_closebra && sym->code != S_eof) {
 		name = strdup(sym->buf);
 		sym_get(sym);
-		id = parse_int(sym);
-		rad_dict_attr_add_val(sym, attr, name, id);
+		rad_dict_attr_add_val(sym, attr, name, parse_uint(sym));
 		free(name);
 	    }
 	    parse(sym, S_closebra);

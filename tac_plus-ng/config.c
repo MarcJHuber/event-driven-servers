@@ -5178,7 +5178,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		if (attr->type == S_integer || attr->type == S_time || attr->type == S_enum) {
 		    if (isdigit((int) sym->buf[0])) {
 			m->s.rhs_txt = mem_strdup(mem, sym->buf);
-			m->s.rhs = (void *) (long) parse_int(sym);
+			m->s.rhs = (void *) (uintptr_t) parse_uint(sym);
 		    } else {	// non-numeric
 			struct rad_dict_val *val = rad_dict_val_lookup_by_name(attr, sym->buf);
 			if (!attr->val)
@@ -5187,7 +5187,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 			    parse_error(sym, "RADIUS value '%s' not found (attribute: %s)", sym->buf, attr->name.txt);
 			sym_get(sym);
 			m->s.rhs_txt = val->name.txt;
-			m->s.rhs = (void *) (long) val->id;
+			m->s.rhs = (void *) (uintptr_t) val->id;
 		    }
 		    return p ? p : m;
 		}
@@ -5422,8 +5422,8 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	{
 	    struct rad_dict_attr *attr = (struct rad_dict_attr *) m->s.lhs;
 	    if (attr->type == S_integer || attr->type == S_time || attr->type == S_enum) {
-		int i;
-		int id = (int) (long) m->s.rhs;
+		u_int i;
+		u_int id = (u_int) (uintptr_t) m->s.rhs;
 		if (session->radius_data)
 		    res = !rad_get(session->radius_data->pak_in, session->mem, attr->dict->id, attr->id, attr->type, &i, NULL) && (i == id);
 	    }
