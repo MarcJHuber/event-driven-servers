@@ -529,6 +529,8 @@ class ConfigurePthread(unittest.TestCase):
 
     def test_tmpdir_with_special_characters(self):
         expected = self.finds_pthread("plain")
+        if LINUX:
+            self.assertTrue(expected, "configure found no pthread support, glibc and musl have it")
         for name in ("with space", "with'quote"):
             with self.subTest(name):
                 self.assertEqual(self.finds_pthread(name), expected)
