@@ -39,7 +39,7 @@ import os
 import tempfile
 import unittest
 
-from tactest import LINUX, DaemonTestCase
+from tactest import LINUX, DaemonTestCase, tacacs
 
 USER = """
 	user alice {
@@ -210,6 +210,70 @@ class DeviceAddressFromHostsFile(DaemonTestCase):
 """ % hosts)
         with d.connect(source="127.0.0.9", key="naskey") as c:
             self.assertEqual(c.pap("alice", "alicepw").status_name, "PASS")
+
+
+class DeviceAddressFromParentRealmHostsFile(DaemonTestCase):
+    """A device in a realm gets the addresses that "dns preload file" of the parent realm gives its name."""
+
+    CONFIG = None
+
+    def test_connection_from_that_address_uses_the_device(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            hosts = os.path.join(tmp, "hosts")
+            with open(hosts, "w") as f:
+                f.write("127.0.0.9 nas\n")
+            d = self.start_daemon("""
+	dns preload file = "%s"
+	realm lab {
+		device nas {
+			key = naskey
+		}
+		user alice {
+			password pap = clear alicepw
+		}
+		ruleset {
+			rule { script { permit } }
+		}
+	}
+""" % hosts, listen={"lab": "realm = lab"})
+        with d.connect(listener="lab", source="127.0.0.9", key="naskey") as c:
+            self.assertEqual(c.pap("alice", "alicepw").status_name, "PASS")
+
+
+class DeviceAddressFromOwnRealmHostsFile(DaemonTestCase):
+    """A mapping in the realm of the device has priority over the mapping of the parent realm."""
+
+    CONFIG = None
+
+    def test_only_the_address_of_the_own_realm_uses_the_device(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            parent_hosts = os.path.join(tmp, "parent-hosts")
+            with open(parent_hosts, "w") as f:
+                f.write("127.0.0.9 nas\n")
+            lab_hosts = os.path.join(tmp, "lab-hosts")
+            with open(lab_hosts, "w") as f:
+                f.write("127.0.0.10 nas\n")
+            d = self.start_daemon("""
+	dns preload file = "%s"
+	realm lab {
+		dns preload file = "%s"
+		device nas {
+			key = naskey
+		}
+		user alice {
+			password pap = clear alicepw
+		}
+		ruleset {
+			rule { script { permit } }
+		}
+	}
+""" % (parent_hosts, lab_hosts), listen={"lab": "realm = lab"})
+        with d.connect(listener="lab", source="127.0.0.10", key="naskey") as c:
+            self.assertEqual(c.pap("alice", "alicepw").status_name, "PASS")
+        c = d.connect(listener="lab", source="127.0.0.9", key="naskey", timeout=10.0)
+        self.addCleanup(c.close)
+        with self.assertRaises((tacacs.Closed, ConnectionError)):
+            c.pap("alice", "alicepw")
 
 
 if __name__ == "__main__":
