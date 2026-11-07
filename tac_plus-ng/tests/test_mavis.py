@@ -40,6 +40,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 
@@ -421,6 +422,9 @@ class MtBackend(DaemonTestCase):
         self.login_with_profile("{ member = admins }")
 
 
+BACKEND_TIMEOUT = 60
+
+
 class MtWorker(unittest.TestCase):
     """The real -mt backends, through the external-mt protocol. They need no server: a worker thread writes the reply."""
 
@@ -438,11 +442,17 @@ class MtWorker(unittest.TestCase):
 
         with subprocess.Popen([path, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                               env={**sanitizer_env(), **(env or {})}, preexec_fn=limit) as p:
-            p.stdin.write(struct.pack("!III", 0x4d610001, len(body), 0) + body)
-            p.stdin.flush()
-            header = p.stdout.read(12)
-            reply = p.stdout.read(struct.unpack("!III", header)[1]) if len(header) == 12 else b""
-            p.kill()
+            # a hung backend fails the test, it does not block the run
+            watchdog = threading.Timer(BACKEND_TIMEOUT, p.kill)
+            watchdog.start()
+            try:
+                p.stdin.write(struct.pack("!III", 0x4d610001, len(body), 0) + body)
+                p.stdin.flush()
+                header = p.stdout.read(12)
+                reply = p.stdout.read(struct.unpack("!III", header)[1]) if len(header) == 12 else b""
+            finally:
+                watchdog.cancel()
+                p.kill()
         self.assertEqual(len(header), 12, "no reply, exit status %s" % p.returncode)
         self.assertIn(b"21 serial\n", reply)
         self.assertTrue(value in reply, "the reply lost the value")
