@@ -33,6 +33,7 @@ import glob
 import os
 import pwd
 import re
+import resource
 import shutil
 import struct
 import subprocess
@@ -421,35 +422,61 @@ class MtBackend(DaemonTestCase):
 
 
 BACKEND_TIMEOUT = 60
+# below the large replies; glibc gives a thread the stack limit of the process
+BACKEND_STACK = 8 * 1024 * 1024
+
+
+def limit_stack():
+    hard = resource.getrlimit(resource.RLIMIT_STACK)[1]
+    soft = BACKEND_STACK if hard == resource.RLIM_INFINITY else min(BACKEND_STACK, hard)
+    resource.setrlimit(resource.RLIMIT_STACK, (soft, hard))
+
+
+def read_framed(out):
+    header = out.read(12)
+    return out.read(struct.unpack("!III", header)[1]) if len(header) == 12 else b""
+
+
+def read_legacy(out):
+    """The legacy reply ends with the result line "=<result>"."""
+    lines = []
+    for line in iter(out.readline, b""):
+        lines.append(line)
+        if line.startswith(b"="):
+            break
+    return b"".join(lines)
 
 
 class MtWorker(unittest.TestCase):
     """The real -mt backends, through the external-mt protocol. They need no server: a worker thread writes the reply."""
 
-    def round_trip(self, name, size, args=(), env=None):
+    def round_trip(self, name, size, args=(), env=None, legacy=False):
+        """With legacy, the request has no header and the main thread answers."""
         path = os.path.join(prefix(), "sbin", name)
         self.assertTrue(os.path.exists(path), "configure found the library, but no pthreads")
         value = b"x" * size
         # an existing user makes pammavis-mt start a thread, which writes the reply
         user = pwd.getpwuid(os.getuid()).pw_name.encode()
-        body = b"4 " + user + b"\n8 pw\n21 serial\n49 AUTH\n32 " + value + b"\n\n"
+        body = b"4 " + user + b"\n8 pw\n21 serial\n49 AUTH\n32 " + value + b"\n"
+        request = body + b"=\n" if legacy else struct.pack("!III", 0x4d610001, len(body) + 1, 0) + body + b"\n"
         with subprocess.Popen([path, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                              env={**sanitizer_env(), **(env or {})}) as p:
+                              env={**sanitizer_env(), **(env or {})}, preexec_fn=limit_stack) as p:
             # a hung backend fails the test, it does not block the run
             watchdog = threading.Timer(BACKEND_TIMEOUT, p.kill)
             watchdog.start()
             try:
-                p.stdin.write(struct.pack("!III", 0x4d610001, len(body), 0) + body)
+                p.stdin.write(request)
                 p.stdin.flush()
-                header = p.stdout.read(12)
-                reply = p.stdout.read(struct.unpack("!III", header)[1]) if len(header) == 12 else b""
+                reply = (read_legacy if legacy else read_framed)(p.stdout)
             finally:
                 watchdog.cancel()
                 p.kill()
-        self.assertEqual(len(header), 12, "no reply, exit status %s" % p.returncode)
+        self.assertTrue(reply, "no reply, exit status %s" % p.returncode)
         self.assertIn(b"21 serial\n", reply)
         self.assertTrue(value in reply, "the reply lost the value")
         self.assertFalse(re.search(rb"(?m)^17 \w+\(\): ", reply), "the main thread answered: no worker thread started")
+        if legacy:
+            self.assertRegex(reply, rb"\n=\d+\n\Z")
         return reply
 
 
@@ -457,8 +484,8 @@ class MtWorker(unittest.TestCase):
 class PamMtBackend(MtWorker):
     """pammavis-mt. No PAM service is necessary, the answer is a NAK."""
 
-    def round_trip_pam(self, size):
-        reply = self.round_trip("pammavis-mt", size)
+    def round_trip_pam(self, size, legacy=False):
+        reply = self.round_trip("pammavis-mt", size, legacy=legacy)
         self.assertTrue(b"\n6 ACK\n" in reply or b"\n6 NAK\n" in reply, "no PAM result")
 
     def test_reply_above_the_default_thread_stack_of_musl(self):
@@ -468,19 +495,26 @@ class PamMtBackend(MtWorker):
         """The reply must not go on the stack of the worker thread, which has 8 MB."""
         self.round_trip_pam(16000000)
 
+    def test_legacy_protocol(self):
+        self.round_trip_pam(1000, legacy=True)
+
 
 @unittest.skipUnless(os.path.exists(os.path.join(prefix(), "sbin", "ldapmavis-mt")), "the build has no LDAP backend")
 class LdapMtBackend(MtWorker):
     """ldapmavis-mt without a server. The worker thread answers with the connection error."""
 
-    def round_trip_ldap(self, size):
-        self.round_trip("ldapmavis-mt", size, env={"LDAP_HOSTS": "ldap://127.0.0.1:1", "LDAP_BASE": "dc=example"})
+    def round_trip_ldap(self, size, legacy=False):
+        self.round_trip("ldapmavis-mt", size, env={"LDAP_HOSTS": "ldap://127.0.0.1:1", "LDAP_BASE": "dc=example"},
+                        legacy=legacy)
 
     def test_reply_above_the_default_thread_stack_of_musl(self):
         self.round_trip_ldap(1000000)
 
     def test_reply_above_the_thread_stack(self):
         self.round_trip_ldap(16000000)
+
+    def test_legacy_protocol(self):
+        self.round_trip_ldap(1000, legacy=True)
 
 
 @unittest.skipUnless(os.path.exists(os.path.join(prefix(), "sbin", "radmavis")), "the build has no RADIUS backend")
@@ -501,18 +535,21 @@ radius_retries 1
 serv-type udp
 """
 
-    def round_trip_radius(self, size):
+    def round_trip_radius(self, size, legacy=False):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "radiusclient.conf")
             with open(path, "w") as f:
                 f.write(self.CONFIG % tmp)
-            self.round_trip("radmavis-mt", size, args=["-c", path])
+            self.round_trip("radmavis-mt", size, args=["-c", path], legacy=legacy)
 
     def test_reply_above_the_default_thread_stack_of_musl(self):
         self.round_trip_radius(1000000)
 
     def test_reply_above_the_thread_stack(self):
         self.round_trip_radius(16000000)
+
+    def test_legacy_protocol(self):
+        self.round_trip_radius(1000, legacy=True)
 
 
 class ConfigurePthread(unittest.TestCase):
