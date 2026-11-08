@@ -285,6 +285,7 @@ class ConditionTypes(DaemonTestCase):
 			if (radius[Event-Timestamp] == 4294967295) set radius[Reply-Message] = "max time"
 			if (radius[tactest:Mode] == Max) set radius[Reply-Message] = "max enum by name"
 			if (radius[tactest:Mode] == 0x80000000) set radius[Reply-Message] = "high enum by number"
+			if (radius[Event-Timestamp] == 1K) set radius[Reply-Message] = "scaled time"
 			permit
 		}
 	}
@@ -325,6 +326,10 @@ class ConditionTypes(DaemonTestCase):
         self.assertEqual(self.messages(self.mode(0xffffffff)), [b"max enum by name"])
         self.assertEqual(self.messages(self.mode(0x80000000)), [b"high enum by number"])
         self.assertEqual(self.messages(self.mode(0x7fffffff)), [])
+
+    def test_scaled_value(self):
+        self.assertEqual(self.messages((self.EVENT_TIMESTAMP, struct.pack("!I", 1024))), [b"scaled time"])
+        self.assertEqual(self.messages((self.EVENT_TIMESTAMP, struct.pack("!I", 1))), [])
 
 
 class NumberOutOfRange(unittest.TestCase):
