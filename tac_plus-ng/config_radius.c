@@ -461,17 +461,22 @@ void parse_radius_dictionary(struct sym *sym)
 	sym_get(sym);
 	parse(sym, S_equal);
 	dict->type_len = parse_uint(sym);
+	if (dict->type_len != 1 && dict->type_len != 2 && dict->type_len != 4)
+	    parse_error(sym, "RADIUS dictionary format: expected 1, 2 or 4 attribute bytes, but got '%u'", dict->type_len);
 	parse(sym, S_comma);
 	dict->vendor_len = parse_uint(sym);
+	if (dict->vendor_len > 2)
+	    parse_error(sym, "RADIUS dictionary format: expected 0, 1 or 2 length bytes, but got '%u'", dict->vendor_len);
     }
+    u_int max_id = dict->type_len < 4 ? (1U << (8 * dict->type_len)) - 1 : ~0U;
     parse(sym, S_openbra);
     while (sym->code == S_attr) {
 	sym_get(sym);
 	char *name = strdup(sym->buf);
 	sym_get(sym);
-	int id = parse_uint(sym);
-	if (!id || (id & (~0U << (8 * dict->type_len))))
-	    parse_error(sym, "Expected a number from 1 to %d but got '%d'", (1U << (8 * dict->type_len)) - 1, id);
+	u_int id = parse_uint(sym);
+	if (!id || id > max_id)
+	    parse_error(sym, "Expected a number from 1 to %u but got '%u'", max_id, id);
 	enum token type = sym->code;
 	switch (type) {
 	case S_string_keyword:

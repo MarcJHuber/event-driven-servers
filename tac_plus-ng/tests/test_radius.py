@@ -374,6 +374,44 @@ id = tac_plus-ng {
                       self.error_of("4294967296"))
 
 
+class DictionaryFormat(unittest.TestCase):
+    """A dictionary "format" outside the sizes of FreeRADIUS shifted by 32 bits or more."""
+
+    def parse(self, fmt, attribute="Mode 1"):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "format.cfg")
+            with open(path, "w") as f:
+                f.write("""id = spawnd { listen = { port = 4949 } }
+id = tac_plus-ng {
+	radius.dictionary tactest 99999 format = %s {
+		attribute %s integer
+	}
+}
+""" % (fmt, attribute))
+            return parse_only(path)
+
+    def error_of(self, fmt, attribute="Mode 1"):
+        code, out = self.parse(fmt, attribute)
+        self.assertGreater(code, 0, out)
+        return out
+
+    def test_attribute_bytes(self):
+        for fmt, value in (("3, 1", "3"), ("5, 1", "5"), ("4294967295, 1", "4294967295")):
+            self.assertIn("expected 1, 2 or 4 attribute bytes, but got '%s'" % value, self.error_of(fmt))
+
+    def test_length_bytes(self):
+        self.assertIn("expected 0, 1 or 2 length bytes, but got '3'", self.error_of("1, 3"))
+
+    def test_four_attribute_bytes(self):
+        """"format = 4, 1" rejected every attribute number."""
+        code, out = self.parse("4, 1", "Big 70000")
+        self.assertEqual(code, 0, out)
+
+    def test_attribute_above_the_attribute_bytes(self):
+        self.assertIn("Expected a number from 1 to 65535 but got '65536'",
+                      self.error_of("2, 1", "Big 65536"))
+
+
 class ConditionWithoutNamedValues(unittest.TestCase):
     """A name for an attribute that has no named values dereferenced a NULL value."""
 
