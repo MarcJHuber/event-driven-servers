@@ -108,7 +108,7 @@ struct rad_dict_attr *rad_dict_attr_lookup_by_name(struct rad_dict *dict, char *
     return NULL;
 }
 
-struct rad_dict_val *rad_dict_val_lookup_by_id(struct rad_dict_attr *attr, int id)
+struct rad_dict_val *rad_dict_val_lookup_by_id(struct rad_dict_attr *attr, u_int id)
 {
     for (struct rad_dict_val * val = attr->val; val; val = val->next)
 	if (val->id == id)
@@ -139,7 +139,7 @@ static struct rad_dict_attr *rad_dict_attr_add(struct sym *sym, struct rad_dict 
     return *attr;
 }
 
-static void rad_dict_attr_add_val(struct sym *sym, struct rad_dict_attr *attr, char *name, int id)
+static void rad_dict_attr_add_val(struct sym *sym, struct rad_dict_attr *attr, char *name, u_int id)
 {
     struct rad_dict_val **val = &(attr->val);
     while (*val)
@@ -414,13 +414,13 @@ char *rad_attr_val_dump1(mem_t *mem, u_char **data, size_t *data_len)
     return buf_start;
 }
 
-void rad_dict_get_val(int dict_id, int attr_id, int val_id, char **s, size_t *s_len)
+void rad_dict_get_val(int dict_id, int attr_id, u_int val_id, char **s, size_t *s_len)
 {
     struct rad_dict *dict = rad_dict_lookup_by_id(dict_id);
     if (dict) {
 	struct rad_dict_attr *attr = rad_dict_attr_lookup_by_id(dict, attr_id);
 	if (attr) {
-	    for (struct rad_dict_val * val = rad_dict_val_lookup_by_id(attr, attr_id); val; val = val->next)
+	    for (struct rad_dict_val * val = rad_dict_val_lookup_by_id(attr, val_id); val; val = val->next)
 		if (val->id == val_id) {
 		    *s = val->name.txt;
 		    *s_len = val->name.len;
@@ -461,17 +461,22 @@ void parse_radius_dictionary(struct sym *sym)
 	sym_get(sym);
 	parse(sym, S_equal);
 	dict->type_len = parse_uint(sym);
+	if (dict->type_len != 1 && dict->type_len != 2 && dict->type_len != 4)
+	    parse_error(sym, "RADIUS dictionary format: expected 1, 2 or 4 attribute bytes, but got '%u'", dict->type_len);
 	parse(sym, S_comma);
 	dict->vendor_len = parse_uint(sym);
+	if (dict->vendor_len > 2)
+	    parse_error(sym, "RADIUS dictionary format: expected 0, 1 or 2 length bytes, but got '%u'", dict->vendor_len);
     }
+    u_int max_id = dict->type_len < 4 ? (1U << (8 * dict->type_len)) - 1 : ~0U;
     parse(sym, S_openbra);
     while (sym->code == S_attr) {
 	sym_get(sym);
 	char *name = strdup(sym->buf);
 	sym_get(sym);
-	int id = parse_uint(sym);
-	if (!id || (id & (~0U << (8 * dict->type_len))))
-	    parse_error(sym, "Expected a number from 1 to %d but got '%d'", (1U << (8 * dict->type_len)) - 1, id);
+	u_int id = parse_uint(sym);
+	if (!id || id > max_id)
+	    parse_error(sym, "Expected a number from 1 to %u but got '%u'", max_id, id);
 	enum token type = sym->code;
 	switch (type) {
 	case S_string_keyword:
@@ -496,8 +501,7 @@ void parse_radius_dictionary(struct sym *sym)
 	    while (sym->code != S_closebra && sym->code != S_eof) {
 		name = strdup(sym->buf);
 		sym_get(sym);
-		id = parse_int(sym);
-		rad_dict_attr_add_val(sym, attr, name, id);
+		rad_dict_attr_add_val(sym, attr, name, parse_uint(sym));
 		free(name);
 	    }
 	    parse(sym, S_closebra);
