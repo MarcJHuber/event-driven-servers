@@ -286,6 +286,7 @@ class ConditionTypes(DaemonTestCase):
 			if (radius[tactest:Mode] == Max) set radius[Reply-Message] = "max enum by name"
 			if (radius[tactest:Mode] == 0x80000000) set radius[Reply-Message] = "high enum by number"
 			if (radius[Event-Timestamp] == 1K) set radius[Reply-Message] = "scaled time"
+			if (service == Callback-Login-User) set radius[Reply-Message] = "service by name"
 			permit
 		}
 	}
@@ -330,6 +331,11 @@ class ConditionTypes(DaemonTestCase):
     def test_scaled_value(self):
         self.assertEqual(self.messages((self.EVENT_TIMESTAMP, struct.pack("!I", 1024))), [b"scaled time"])
         self.assertEqual(self.messages((self.EVENT_TIMESTAMP, struct.pack("!I", 1))), [])
+
+    def test_service_from_service_type(self):
+        """The Service-Type value names the service; the lookup started at value 6, so 1 to 5 got no name."""
+        self.assertEqual(self.messages((self.SERVICE_TYPE, struct.pack("!I", 3))), [b"service by name"])
+        self.assertEqual(self.messages((self.SERVICE_TYPE, struct.pack("!I", 4))), [])
 
 
 class NumberOutOfRange(unittest.TestCase):

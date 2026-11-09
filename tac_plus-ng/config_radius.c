@@ -420,7 +420,7 @@ void rad_dict_get_val(int dict_id, int attr_id, u_int val_id, char **s, size_t *
     if (dict) {
 	struct rad_dict_attr *attr = rad_dict_attr_lookup_by_id(dict, attr_id);
 	if (attr) {
-	    for (struct rad_dict_val * val = rad_dict_val_lookup_by_id(attr, attr_id); val; val = val->next)
+	    for (struct rad_dict_val * val = rad_dict_val_lookup_by_id(attr, val_id); val; val = val->next)
 		if (val->id == val_id) {
 		    *s = val->name.txt;
 		    *s_len = val->name.len;
