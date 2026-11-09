@@ -364,6 +364,8 @@ id = tac_plus-ng {
 
     def test_condition_value_with_suffix(self):
         self.assertIn("expected an unsigned integer from 0 to 4294967295, but got '4G'", self.error_of("1", "4G"))
+        self.assertIn("expected an unsigned integer from 0 to 4294967295, but got '1Kjunk'",
+                      self.error_of("1", "1Kjunk"))
 
     def test_condition_hex_value(self):
         self.assertIn("expected an unsigned integer from 0 to 4294967295, but got '0x100000000'",
