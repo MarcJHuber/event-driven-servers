@@ -2815,19 +2815,24 @@ int parse_user_profile(struct sym *sym, tac_user *user)
 int parse_user_profile_fmt(struct sym *sym, tac_user *user, char *fmt, ...)
 {
     va_list ap;
-    int l, len = 2 * MAX_INPUT_LINE_LEN;
-    char *s = alloca(len);
 
     va_start(ap, fmt);
-    l = vsnprintf(s, len, fmt, ap) + 1;
-    if (l > len) {
-	s = alloca(l);
-	vsnprintf(s, l, fmt, ap);
-    }
+    int n = vsnprintf(NULL, 0, fmt, ap);
     va_end(ap);
+    if (n < 0 || n == INT_MAX)
+	return -1;
+
+    int l = n + 1;
+    char *s = Xcalloc(1, l);
+    va_start(ap, fmt);
+    vsnprintf(s, l, fmt, ap);
+    va_end(ap);
+
     sym->in = sym->tin = s;
     sym->len = sym->tlen = l;
-    return parse_user_profile(sym, user);
+    int res = parse_user_profile(sym, user);
+    free(s);
+    return res;
 }
 
 char hexbyte(char *s)
