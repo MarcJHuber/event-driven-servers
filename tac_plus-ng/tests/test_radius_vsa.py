@@ -26,6 +26,7 @@ VID_WIDE = 64999            # format = 4, 0
 VID_SHORT = 64998           # format = 2, 1
 VID_BIG = 256               # format = 4, 1; the old dump read the vendor id byte 0x01 as a length
 VID_JUNIPER = 2636          # no format: 1 byte type, 1 byte length
+VID_UNKNOWN = 64997         # no dictionary
 
 POLICY = """
 	include = "@DICTIONARY@"
@@ -162,6 +163,11 @@ class VendorFormat(DaemonTestCase):
 
     def test_format_2_1_sub_attribute_overrunning_the_vsa_is_dropped(self):
         self.assert_dropped(vsa(VID_SHORT, struct.pack("!HB", 301, 7) + b"ops"))
+
+    def test_vsa_of_a_vendor_without_a_dictionary_is_ignored(self):
+        """RFC 2865 5.26: a server MUST ignore vendor-specific information that it cannot interpret."""
+        r = self.login(vsa(VID_UNKNOWN, bytes([1, 0, 0, 2])))
+        self.assertEqual(r.code_name, "Access-Accept", r)
 
 
 CISCO_POLICY = """
