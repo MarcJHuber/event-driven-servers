@@ -398,6 +398,8 @@ id = tac_plus-ng {
     def test_attribute_bytes(self):
         for fmt, value in (("3, 1", "3"), ("5, 1", "5"), ("4294967295, 1", "4294967295")):
             self.assertIn("expected 1, 2 or 4 attribute bytes, but got '%s'" % value, self.error_of(fmt))
+        self.assertIn("expected an unsigned integer from 0 to 4294967295, but got '4294967296'",
+                      self.error_of("4294967296, 1"))
 
     def test_length_bytes(self):
         self.assertIn("expected 0, 1 or 2 length bytes, but got '3'", self.error_of("1, 3"))
