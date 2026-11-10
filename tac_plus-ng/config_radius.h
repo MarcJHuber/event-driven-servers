@@ -89,6 +89,7 @@ int rad_dict_initialized(void);
 void rad_dict_get_val(int dict_id, int attr_id, u_int val_id, char **s, size_t *s_len);
 
 struct rad_dict *rad_dict_lookup_by_id(int vendorid);
+int rad_vsa_next(struct rad_dict *dict, u_char ** p, u_char * e, u_int * type, u_char ** val, size_t *val_len);
 struct rad_dict_attr *rad_dict_attr_lookup_by_id(struct rad_dict *dict, int id);
 struct rad_dict_val *rad_dict_val_lookup_by_id(struct rad_dict_attr *attr, u_int id);
 struct rad_dict_attr *rad_dict_attr_lookup_by_id(struct rad_dict *dict, int id);

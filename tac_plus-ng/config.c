@@ -1371,14 +1371,15 @@ int rad_check_dacl(tac_session *session)
 		       && p[5] == (RADIUS_VID_CISCO & 0xff)) {
 		u_char *ve = p + p[1];
 		u_char *vp = p + 6;
-		while (vp < ve && vp[1] > 1) {
-		    if (vp[0] == RADIUS_A_CISCO_AVPAIR) {
+		struct rad_dict *dict = rad_dict_lookup_by_id(RADIUS_VID_CISCO);
+		u_int type;
+		u_char *val;
+		size_t val_len;
+		while (!rad_vsa_next(dict, &vp, ve, &type, &val, &val_len)) {
 #define A "aaa:event=acl-download"
-			if (vp[1] - 1 == sizeof(A) && !strncasecmp((char *) vp + 2, A, sizeof(A) - 1))
+		    if (type == RADIUS_A_CISCO_AVPAIR && val_len == sizeof(A) - 1 && !strncasecmp((char *) val, A, sizeof(A) - 1))
 #undef A
-			    found |= 2;
-		    }
-		    vp += vp[1];
+			found |= 2;
 		}
 	    }
 	    if (found == 3)
