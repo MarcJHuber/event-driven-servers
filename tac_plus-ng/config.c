@@ -5002,7 +5002,10 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 	    sym_get(sym);
 	    parse(sym, S_leftsquarebra);
 	    m->type = m->s.token;
-	    m->s.lhs = rad_dict_attr_lookup(sym);
+	    struct rad_dict_attr *attr = rad_dict_attr_lookup(sym);
+	    if (attr->type == S_octets || attr->type == S_vsa)
+		parse_error(sym, "Conditions aren't supported for RADIUS attribute '%s' (type %s)", attr->name.txt, codestring[attr->type].txt);
+	    m->s.lhs = attr;
 	    m->s.lhs_txt = mem_strdup(mem, sym->buf);
 	    sym_get(sym);
 	    parse(sym, S_rightsquarebra);
@@ -5636,8 +5639,6 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 		    if (!rad_get(session->radius_data->pak_in, session->mem, attr->dict->id, attr->id, S_ipv6addr, &from.sin6.sin6_addr, NULL)
 			&& su_ntoa(&from, buf, sizeof(buf)))
 			v->txt = mem_strdup(session->mem, buf);
-		    if (!res)
-			v->txt = mem_strdup(session->mem, su_ntoa(&from, buf, sizeof(buf)) ? buf : "<unknown>");
 		} else if (attr->type == S_string_keyword) {
 		    rad_get(session->radius_data->pak_in, session->mem, attr->dict->id, attr->id, S_string_keyword, &v->txt, &v->len);
 		}

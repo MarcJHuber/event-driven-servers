@@ -450,14 +450,12 @@ id = tac_plus-ng {
         self.assertIn("RADIUS attribute 'Event-Timestamp' has no named values", self.error_of("Event-Timestamp"))
 
 
-class RegexOnNumericAttribute(unittest.TestCase):
-    """A regex on a number compared the value with the pointer to the compiled regex."""
-
-    def error_of(self, condition):
-        with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "cond.cfg")
-            with open(path, "w") as f:
-                f.write("""id = spawnd { listen = { port = 4949 } }
+def condition_error(test, condition):
+    """The output of a parse-only run of a profile script with this condition; the parse must fail."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "cond.cfg")
+        with open(path, "w") as f:
+            f.write("""id = spawnd { listen = { port = 4949 } }
 id = tac_plus-ng {
 	include = "%s"
 	radius.dictionary tactest 99999 {
@@ -472,9 +470,16 @@ id = tac_plus-ng {
 	}
 }
 """ % (DICTIONARY, condition))
-            code, out = parse_only(path)
-            self.assertGreater(code, 0, out)
-            return out
+        code, out = parse_only(path)
+        test.assertGreater(code, 0, out)
+        return out
+
+
+class RegexOnNumericAttribute(unittest.TestCase):
+    """A regex on a number compared the value with the pointer to the compiled regex."""
+
+    def error_of(self, condition):
+        return condition_error(self, condition)
 
     def test_integer(self):
         self.assertIn("REGEX matching isn't supported for numeric RADIUS attribute 'NAS-Port'",
@@ -584,6 +589,77 @@ class EqualOnOtherAttributes(DaemonTestCase):
 
     def test_missing_attribute_is_not_equal(self):
         self.assertEqual(self.messages()[2:], [b"address is not 10.0.0.1"])
+
+
+class EqualOnIpv6Address(DaemonTestCase):
+    """A missing IPv6 attribute compared as "::"."""
+
+    NAS_IPV6_ADDRESS = 95
+    CONFIG = """
+	include = "%s"
+	device radius-nas {
+		address = 127.0.0.6
+		key = tactest
+		radius.key = %s
+	}
+	user alice {
+		password login = clear alicepw
+		password pap = login
+	}
+	profile admin {
+		script {
+			if (radius[NAS-IPv6-Address] == "::") set radius[Reply-Message] = "address is ::"
+			if (radius[NAS-IPv6-Address] == "2001:db8::1") set radius[Reply-Message] = "address is 2001:db8::1"
+			if (radius[NAS-IPv6-Address] != "2001:db8::1") set radius[Reply-Message] = "address is not 2001:db8::1"
+			permit
+		}
+	}
+	ruleset {
+		rule { script { profile = admin permit } }
+	}
+""" % (DICTIONARY, SECRET)
+    UDP = True
+
+    def messages(self, *attributes):
+        r = self.radius(SECRET, source=NAS).access_request("alice", "alicepw", attributes=attributes,
+                                                           message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Accept", r)
+        return r.get(radius.REPLY_MESSAGE)
+
+    def test_address(self):
+        address = bytes.fromhex("20010db8000000000000000000000001")
+        self.assertEqual(self.messages((self.NAS_IPV6_ADDRESS, address)), [b"address is 2001:db8::1"])
+
+    def test_unspecified_address(self):
+        self.assertEqual(self.messages((self.NAS_IPV6_ADDRESS, bytes(16))),
+                         [b"address is ::", b"address is not 2001:db8::1"])
+
+    def test_missing_attribute_is_not_equal(self):
+        self.assertEqual(self.messages(), [b"address is not 2001:db8::1"])
+
+
+class ConditionOnOctetsOrVsa(unittest.TestCase):
+    """A condition on an "octets" or "vsa" attribute had no text to compare and never matched."""
+
+    def test_equal_on_octets(self):
+        self.assertIn("Conditions aren't supported for RADIUS attribute 'State' (type octets)",
+                      condition_error(self, "radius[State] == abc"))
+
+    def test_not_equal_on_octets(self):
+        self.assertIn("Conditions aren't supported for RADIUS attribute 'State' (type octets)",
+                      condition_error(self, "radius[State] != abc"))
+
+    def test_regex_on_octets(self):
+        self.assertIn("Conditions aren't supported for RADIUS attribute 'State' (type octets)",
+                      condition_error(self, "radius[State] =~ /abc/"))
+
+    def test_vendor_octets(self):
+        self.assertIn("Conditions aren't supported for RADIUS attribute 'MS-CHAP-Challenge' (type octets)",
+                      condition_error(self, "radius[Microsoft:MS-CHAP-Challenge] == abc"))
+
+    def test_vsa(self):
+        self.assertIn("Conditions aren't supported for RADIUS attribute 'Vendor-Specific' (type vsa)",
+                      condition_error(self, "radius[Vendor-Specific] == abc"))
 
 
 class RealmOnUdpListener(DaemonTestCase):
