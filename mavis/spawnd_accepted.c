@@ -404,17 +404,20 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 	min_i = tracking_lookup(track_data, digest);
 	do {
 	    min = common_data.users_max;
-	    if (min_i > -1 && spawnd_data.server_arr[min_i]->use >= common_data.users_max)
+	    // A server told it may die (SCM_MAY_DIE) exits as soon as it is idle,
+	    // without reading what is still queued on its socket: a connection
+	    // handed to it now would be reset.
+	    if (min_i > -1 && (spawnd_data.server_arr[min_i]->use >= common_data.users_max || spawnd_data.server_arr[min_i]->dying))
 		min_i = -1;
 
 	    if (min_i < 0)
 		for (int i = 0; i < common_data.servers_min && i < common_data.servers_cur; i++)
-		    if (spawnd_data.server_arr[i]->use < common_data.users_min && spawnd_data.server_arr[i]->use < min)
+		    if (!spawnd_data.server_arr[i]->dying && spawnd_data.server_arr[i]->use < common_data.users_min && spawnd_data.server_arr[i]->use < min)
 			min_i = i, min = spawnd_data.server_arr[i]->use;
 
 	    if (min_i < 0)
 		for (int i = common_data.servers_min; i < common_data.servers_cur; i++)
-		    if (spawnd_data.server_arr[i]->use < common_data.users_min && spawnd_data.server_arr[i]->use < min)
+		    if (!spawnd_data.server_arr[i]->dying && spawnd_data.server_arr[i]->use < common_data.users_min && spawnd_data.server_arr[i]->use < min)
 			min_i = i, min = spawnd_data.server_arr[i]->use;
 
 	    if (min_i < 0 && common_data.servers_cur < common_data.servers_max) {
@@ -422,6 +425,13 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 		min_i = common_data.servers_cur - 1, min = 0;
 	    }
 
+	    if (min_i < 0)
+		for (int i = 0; i < common_data.servers_cur; i++)
+		    if (!spawnd_data.server_arr[i]->dying && spawnd_data.server_arr[i]->use < common_data.users_max && spawnd_data.server_arr[i]->use < min)
+			min_i = i, min = spawnd_data.server_arr[i]->use;
+
+	    // Only servers that were told they may die have room left: use one
+	    // anyway, as before, rather than give up on the connection.
 	    if (min_i < 0)
 		for (int i = 0; i < common_data.servers_cur; i++)
 		    if (spawnd_data.server_arr[i]->use < common_data.users_max && spawnd_data.server_arr[i]->use < min)
