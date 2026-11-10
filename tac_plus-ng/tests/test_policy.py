@@ -35,11 +35,9 @@ Each condition that holds adds an AV pair "tactest-<name>=yes" to the
 shell authorization, so one request shows all of them.
 """
 
-import os
-import tempfile
 import unittest
 
-from tactest import LINUX, DaemonTestCase, tacacs
+from tactest import LINUX, DaemonTestCase, features, tacacs
 
 USER = """
 	user alice {
@@ -192,11 +190,8 @@ class DeviceAddressFromHostsFile(DaemonTestCase):
     CONFIG = None
 
     def test_connection_from_that_address_uses_the_device(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            hosts = os.path.join(tmp, "hosts")
-            with open(hosts, "w") as f:
-                f.write("127.0.0.9 nas\n")
-            d = self.start_daemon("""
+        hosts = self.scratch_file("hosts", "127.0.0.9 nas\n")
+        d = self.start_daemon("""
 	dns preload file = "%s"
 	device nas {
 		key = naskey
@@ -218,11 +213,8 @@ class DeviceAddressFromParentRealmHostsFile(DaemonTestCase):
     CONFIG = None
 
     def test_connection_from_that_address_uses_the_device(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            hosts = os.path.join(tmp, "hosts")
-            with open(hosts, "w") as f:
-                f.write("127.0.0.9 nas\n")
-            d = self.start_daemon("""
+        hosts = self.scratch_file("hosts", "127.0.0.9 nas\n")
+        d = self.start_daemon("""
 	dns preload file = "%s"
 	realm lab {
 		device nas {
@@ -246,14 +238,9 @@ class DeviceAddressFromOwnRealmHostsFile(DaemonTestCase):
     CONFIG = None
 
     def test_only_the_address_of_the_own_realm_uses_the_device(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            parent_hosts = os.path.join(tmp, "parent-hosts")
-            with open(parent_hosts, "w") as f:
-                f.write("127.0.0.9 nas\n")
-            lab_hosts = os.path.join(tmp, "lab-hosts")
-            with open(lab_hosts, "w") as f:
-                f.write("127.0.0.10 nas\n")
-            d = self.start_daemon("""
+        parent_hosts = self.scratch_file("parent-hosts", "127.0.0.9 nas\n")
+        lab_hosts = self.scratch_file("lab-hosts", "127.0.0.10 nas\n")
+        d = self.start_daemon("""
 	dns preload file = "%s"
 	realm lab {
 		dns preload file = "%s"
@@ -274,6 +261,31 @@ class DeviceAddressFromOwnRealmHostsFile(DaemonTestCase):
         self.addCleanup(c.close)
         with self.assertRaises((tacacs.Closed, ConnectionError)):
             c.pap("alice", "alicepw")
+
+
+@unittest.skipUnless(LINUX, "127.0.0.0/8 local addresses")
+@unittest.skipUnless("ares" in features(), "the reverse map needs a build with c-ares")
+class DeviceDnsNameFromHostsFile(PolicyTestCase):
+    """The first name on a "dns preload file" line is the reverse name of the address (device.dnsname)."""
+
+    CONFIG = None
+
+    def test_first_name_is_the_reverse_name(self):
+        hosts = self.scratch_file("hosts", "127.0.6.1 primary alias1\n")
+        # add_revmap() keeps nothing without a DNS context; "dns servers" creates it
+        self.daemon = self.start_daemon(USER + """
+	dns servers = "127.0.0.1"
+	dns preload file = "%s"
+	device nas {
+		address = 127.0.6.0/24
+		key = tactest
+	}
+""" % hosts + shell_profile([
+            ("primary", "device.dnsname == primary"),
+            ("alias1", "device.dnsname == alias1"),
+        ]))
+        self.assertEqual(self.holds("127.0.6.1"), ["primary"])
+        self.assertEqual(self.holds("127.0.6.2"), [])
 
 
 if __name__ == "__main__":

@@ -32,6 +32,10 @@ detectors (tactest/detect.py) notice. Without these, a green run would not
 show that a crash had been looked for.
 """
 
+import ast
+import contextlib
+import glob
+import io
 import os
 import select
 import shutil
@@ -287,6 +291,43 @@ class Harness(DaemonTestCase):
                               "drop %s:%s from ubsan.supp, it no longer fires" % (check, function))
                 if "#0 " in reports:        # some reports come without a stack trace
                     self.assertIn(" in %s " % function, reports)
+
+
+class TestFiles(unittest.TestCase):
+    """A worker reads its configuration when it starts, which can be after the test removed a file in it."""
+
+    def test_no_daemon_starts_inside_a_temporary_directory(self):
+        found = []
+        for path in sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_*.py"))):
+            with open(path) as f:
+                tree = ast.parse(f.read())
+            for node in ast.walk(tree):
+                if isinstance(node, ast.With) and any(
+                        isinstance(i.context_expr, ast.Call) and getattr(i.context_expr.func, "attr", "") == "TemporaryDirectory"
+                        for i in node.items):
+                    found += ["%s:%d" % (os.path.basename(path), call.lineno) for call in ast.walk(node)
+                              if isinstance(call, ast.Call) and getattr(call.func, "attr", "") == "start_daemon"]
+        self.assertEqual(found, [], "write the files of the daemon with self.scratch_file()")
+
+
+class ScratchFiles(unittest.TestCase):
+    """A failed test keeps its scratch files, also when run() makes its own result."""
+
+    def test_run_without_a_result_keeps_the_files_of_a_failed_test(self):
+        paths = []
+
+        class Failing(DaemonTestCase):
+            CONFIG = None
+
+            def test_fails(self):
+                paths.append(self.scratch_file("hosts", "127.0.0.9 nas\n"))
+                self.fail("on purpose")
+
+        with contextlib.redirect_stderr(io.StringIO()):
+            out = Failing("test_fails").run()
+        self.addCleanup(shutil.rmtree, os.path.dirname(paths[0]), True)
+        self.assertEqual(len(out.failures), 1)
+        self.assertTrue(os.path.exists(paths[0]), "run() removed the files of a failed test")
 
 
 if __name__ == "__main__":
