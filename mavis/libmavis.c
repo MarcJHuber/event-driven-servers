@@ -128,6 +128,11 @@ char *av_addserial(av_ctx *ac)
 	for (size_t i = 0; i < AV_A_ARRAYSIZE; i++)
 	    if (ac->arr[i])
 		myMD5Update(&m, (u_char *) ac->arr[i], strlen(ac->arr[i]));
+	static u_int serial = 0;
+	myMD5Update(&m, (u_char *) &serial, sizeof(serial));
+	serial++;
+	myMD5Update(&m, (u_char *) &io_now.tv_sec, sizeof(io_now.tv_sec));
+	myMD5Update(&m, (u_char *) &io_now.tv_usec, sizeof(io_now.tv_usec));
 	myMD5Final(u, &m);
 
 	char b[30];
