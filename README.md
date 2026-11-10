@@ -111,9 +111,13 @@ Project page:
 
   https://www.pro-bono-publico.de/projects
 
-Note
-====
-tac_plus-ng is continuously hardened by the community. A major 2026 security and stability audit by Aleksey Mochalin (utilizing Claude) resulted in about 50 solved issues, significantly elevating the software's resilience.
+## Contributors and acknowledgements
+
+tac_plus-ng is continuously improved and hardened through community contributions.
+
+- **Marcin Zieba** ([marcinpsk](https://github.com/marcinpsk)) – for his numerous contributions to tac_plus-ng and his ongoing efforts to improve the codebase.
+
+- **Aleksey Mochalin** ([gurkin33](https://github.com/gurkin33), [Taranac](https://github.com/TaranacLabs/) ) – for conducting a major security and stability audit in 2026 (utilizing Claude), resulting in approximately 50 issues being resolved and significantly improving the software's resilience.
 
 Author
 ======
