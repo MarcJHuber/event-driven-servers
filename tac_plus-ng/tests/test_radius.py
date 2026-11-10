@@ -638,6 +638,51 @@ class EqualOnIpv6Address(DaemonTestCase):
         self.assertEqual(self.messages(), [b"address is not 2001:db8::1"])
 
 
+class StringWithNul(DaemonTestCase):
+    """A string attribute "abc\\0suffix" compared equal to "abc": strcmp() and regexec() stop at the NUL."""
+
+    CALLING_STATION_ID = 31
+    CONFIG = """
+	include = "%s"
+	device radius-nas {
+		address = 127.0.0.6
+		key = tactest
+		radius.key = %s
+	}
+	user alice {
+		password login = clear alicepw
+		password pap = login
+	}
+	profile admin {
+		script {
+			if (radius[Calling-Station-Id] == abc) set radius[Reply-Message] = "equal"
+			if (radius[Calling-Station-Id] != abc) set radius[Reply-Message] = "not equal"
+			if (radius[Calling-Station-Id] =~ "^abc$$") set radius[Reply-Message] = "posix"
+			if (radius[Calling-Station-Id] =~ /^abc$$/) set radius[Reply-Message] = "pcre"
+			if (radius[Calling-Station-Id] =~ /suffix$$/) set radius[Reply-Message] = "pcre suffix"
+			permit
+		}
+	}
+	ruleset {
+		rule { script { profile = admin permit } }
+	}
+""" % (DICTIONARY, SECRET)
+    UDP = True
+
+    def messages(self, value):
+        r = self.radius(SECRET, source=NAS).access_request("alice", "alicepw",
+                                                           attributes=[(self.CALLING_STATION_ID, value)],
+                                                           message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Accept", r)
+        return r.get(radius.REPLY_MESSAGE)
+
+    def test_without_nul(self):
+        self.assertEqual(self.messages(b"abc"), [b"equal", b"posix", b"pcre"])
+
+    def test_with_nul(self):
+        self.assertEqual(self.messages(b"abc\0suffix"), [b"not equal", b"pcre suffix"])
+
+
 class ConditionOnOctetsOrVsa(unittest.TestCase):
     """A condition on an "octets" or "vsa" attribute had no text to compare and never matched."""
 

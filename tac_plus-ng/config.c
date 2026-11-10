@@ -5641,6 +5641,9 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 			v->txt = mem_strdup(session->mem, buf);
 		} else if (attr->type == S_string_keyword) {
 		    rad_get(session->radius_data->pak_in, session->mem, attr->dict->id, attr->id, S_string_keyword, &v->txt, &v->len);
+		    // strcmp() and regexec() see only the text before a NUL, so such a value never equals or POSIX-matches
+		    if (v->txt && m->type != S_slash && memchr(v->txt, 0, v->len))
+			return tac_script_cond_eval_res(session, m, 0);
 		}
 	    }
 	    break;
