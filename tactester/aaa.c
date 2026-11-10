@@ -1017,7 +1017,8 @@ int aaa_acct(struct aaa *aaa, char *user, char *remoteaddr, char *remotetty)
 int aaa_set(struct aaa *aaa, u_char *data, size_t data_len)
 {
     if (aaa->oc < AAA_ATTR_MAX) {
-	aaa->ov[aaa->oc].iov_base = calloc(1, data_len);
+	// the RADIUS request builders read the attribute as a string
+	aaa->ov[aaa->oc].iov_base = calloc(1, data_len + 1);
 	memcpy(aaa->ov[aaa->oc].iov_base, data, data_len);
 	aaa->ov[aaa->oc].iov_len = data_len;
 	aaa->oc++;
