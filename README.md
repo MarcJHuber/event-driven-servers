@@ -111,8 +111,8 @@ Project page:
 
   https://www.pro-bono-publico.de/projects
 
-## Contributors and acknowledgements
-
+Contributors and acknowledgements
+====
 tac_plus-ng is continuously improved and hardened through community contributions.
 
 - **Marcin Zieba** ([marcinpsk](https://github.com/marcinpsk)) – for his numerous contributions to tac_plus-ng and his ongoing efforts to improve the codebase.
