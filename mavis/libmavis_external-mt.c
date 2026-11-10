@@ -329,9 +329,10 @@ static void child_died(struct context *ctx, int cur __attribute__((unused)))
 		struct query *q = RB_payload(rbn, struct query *);
 		rb_node_t *next = RB_next(rbn);
 		if (q->canceled) {
+		    // rbn is a by_serial node; a canceled query is no longer in
+		    // by_app_ctx (mavis_cancel_in() took it out).
 		    RB_delete(ctx->mcx->by_serial, rbn);
-		    RB_delete(ctx->mcx->by_app_ctx, rbn);
-		    free(q->ac);
+		    av_free(q->ac);
 		    free(q);
 		} else
 		    start_query(ctx, q->ac);
@@ -397,6 +398,15 @@ static void read_from_child(struct context *ctx, int cur __attribute__((unused))
 	goto bye;
     }
     struct query *q = RB_payload(rbn, struct query *);
+    if (q->canceled) {
+	// Its session is gone and mavis_cancel_in() already unhooked it from
+	// by_app_ctx; the reply has nobody to go to.
+	RB_delete(ctx->mcx->by_serial, rbn);
+	av_free(ac_in);
+	av_free(q->ac);
+	free(q);
+	goto bye;
+    }
     ac_in->app_ctx = q->ac->app_ctx;
     ac_in->app_cb = q->ac->app_cb;
     av_free(q->ac);
@@ -668,7 +678,13 @@ static int mavis_cancel_in(mavis_ctx *mcx, void *app_ctx)
 
     q.ac = av_new(NULL, app_ctx);
     if ((rbn = RB_search(mcx->by_app_ctx, &q))) {
+	// The caller frees app_ctx right after this, and the next session may be
+	// allocated at the same address. Left in by_app_ctx, this query would
+	// answer that session (mavis_recv_in() searches by address), and the new
+	// session's own query could not even be inserted. Keep it in by_serial
+	// only, so its reply is recognised and dropped by read_from_child().
 	RB_payload(rbn, struct query *)->canceled = 1;
+	RB_delete(mcx->by_app_ctx, rbn);
 	res = MAVIS_FINAL;
     }
     av_free(q.ac);
@@ -696,7 +712,8 @@ static int mavis_recv_in(mavis_ctx *mcx, av_ctx **ac, void *app_ctx)
 	*ac = qp->ac;
 	av_set(*ac, AV_A_CURRENT_MODULE, mcx->identifier);
 	RB_delete(mcx->by_app_ctx, ra);
-	RB_delete(mcx->by_serial, rs);
+	if (rs)
+	    RB_delete(mcx->by_serial, rs);
 	res = mavis_send(mcx->top, ac);
 	if (res == MAVIS_FINAL)
 	    res = MAVIS_FINAL_DEFERRED;
