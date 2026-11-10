@@ -37,7 +37,7 @@ shell authorization, so one request shows all of them.
 
 import unittest
 
-from tactest import LINUX, DaemonTestCase, tacacs
+from tactest import LINUX, DaemonTestCase, features, tacacs
 
 USER = """
 	user alice {
@@ -261,6 +261,31 @@ class DeviceAddressFromOwnRealmHostsFile(DaemonTestCase):
         self.addCleanup(c.close)
         with self.assertRaises((tacacs.Closed, ConnectionError)):
             c.pap("alice", "alicepw")
+
+
+@unittest.skipUnless(LINUX, "127.0.0.0/8 local addresses")
+@unittest.skipUnless("ares" in features(), "the reverse map needs a build with c-ares")
+class DeviceDnsNameFromHostsFile(PolicyTestCase):
+    """The first name on a "dns preload file" line is the reverse name of the address (device.dnsname)."""
+
+    CONFIG = None
+
+    def test_first_name_is_the_reverse_name(self):
+        hosts = self.scratch_file("hosts", "127.0.6.1 primary alias1\n")
+        # add_revmap() keeps nothing without a DNS context; "dns servers" creates it
+        self.daemon = self.start_daemon(USER + """
+	dns servers = "127.0.0.1"
+	dns preload file = "%s"
+	device nas {
+		address = 127.0.6.0/24
+		key = tactest
+	}
+""" % hosts + shell_profile([
+            ("primary", "device.dnsname == primary"),
+            ("alias1", "device.dnsname == alias1"),
+        ]))
+        self.assertEqual(self.holds("127.0.6.1"), ["primary"])
+        self.assertEqual(self.holds("127.0.6.2"), [])
 
 
 if __name__ == "__main__":

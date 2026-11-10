@@ -188,10 +188,10 @@ _features = {}
 
 
 def features():
-    """What the daemon binary was built with, from "tac_plus-ng -v": {"pcre2", "openssl"}.
+    """What the daemon binary was built with, from "tac_plus-ng -v": {"pcre2", "openssl", "ares"}.
 
     "openssl" also means MS-CHAP, TLS and the RADIUS Message-Authenticator;
-    "configure --minimum" leaves it out.
+    "ares" (c-ares) means the DNS code (WITH_DNS). "configure --minimum" leaves both out.
     """
     path = binary()
     if path not in _features:
@@ -202,6 +202,8 @@ def features():
             found.add("pcre2")
         if "/OpenSSL" in out:
             found.add("openssl")
+        if "/ARES" in out:
+            found.add("ares")
         _features[path] = found
     return _features[path]
 
