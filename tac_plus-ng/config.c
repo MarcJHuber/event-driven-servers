@@ -5002,7 +5002,10 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 	    sym_get(sym);
 	    parse(sym, S_leftsquarebra);
 	    m->type = m->s.token;
-	    m->s.lhs = rad_dict_attr_lookup(sym);
+	    struct rad_dict_attr *attr = rad_dict_attr_lookup(sym);
+	    if (attr->type == S_octets || attr->type == S_vsa)
+		parse_error(sym, "Conditions aren't supported for RADIUS attribute '%s' (type %s)", attr->name.txt, codestring[attr->type].txt);
+	    m->s.lhs = attr;
 	    m->s.lhs_txt = mem_strdup(mem, sym->buf);
 	    sym_get(sym);
 	    parse(sym, S_rightsquarebra);
@@ -5178,9 +5181,9 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 		return p ? p : m;
 	    }
 	    if (m->s.token == S_radius) {
-		m->type = m->s.token;
 		struct rad_dict_attr *attr = (struct rad_dict_attr *) m->s.lhs;
 		if (attr->type == S_integer || attr->type == S_time || attr->type == S_enum) {
+		    m->type = m->s.token;
 		    if (isdigit((int) sym->buf[0])) {
 			m->s.rhs_txt = mem_strdup(mem, sym->buf);
 			m->s.rhs = (void *) (uintptr_t) parse_uint(sym);
@@ -5425,13 +5428,12 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 	return tac_script_cond_eval_res(session, m, res);
     case S_radius:
 	{
+	    // numeric attributes only, the others are S_equal or a regex
 	    struct rad_dict_attr *attr = (struct rad_dict_attr *) m->s.lhs;
-	    if (attr->type == S_integer || attr->type == S_time || attr->type == S_enum) {
-		u_int i;
-		u_int id = (u_int) (uintptr_t) m->s.rhs;
-		if (session->radius_data)
-		    res = !rad_get(session->radius_data->pak_in, session->mem, attr->dict->id, attr->id, attr->type, &i, NULL) && (i == id);
-	    }
+	    u_int i;
+	    u_int id = (u_int) (uintptr_t) m->s.rhs;
+	    if (session->radius_data)
+		res = !rad_get(session->radius_data->pak_in, session->mem, attr->dict->id, attr->id, attr->type, &i, NULL) && (i == id);
 	    return tac_script_cond_eval_res(session, m, res);
 	}
     case S_equal:
@@ -5637,10 +5639,11 @@ static int tac_script_cond_eval(tac_session *session, struct mavis_cond *m)
 		    if (!rad_get(session->radius_data->pak_in, session->mem, attr->dict->id, attr->id, S_ipv6addr, &from.sin6.sin6_addr, NULL)
 			&& su_ntoa(&from, buf, sizeof(buf)))
 			v->txt = mem_strdup(session->mem, buf);
-		    if (!res)
-			v->txt = mem_strdup(session->mem, su_ntoa(&from, buf, sizeof(buf)) ? buf : "<unknown>");
 		} else if (attr->type == S_string_keyword) {
 		    rad_get(session->radius_data->pak_in, session->mem, attr->dict->id, attr->id, S_string_keyword, &v->txt, &v->len);
+		    // strcmp() and regexec() see only the text before a NUL, so such a value never equals or POSIX-matches
+		    if (v->txt && m->type != S_slash && memchr(v->txt, 0, v->len))
+			return tac_script_cond_eval_res(session, m, 0);
 		}
 	    }
 	    break;
