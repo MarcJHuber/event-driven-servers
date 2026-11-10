@@ -35,8 +35,6 @@ Each condition that holds adds an AV pair "tactest-<name>=yes" to the
 shell authorization, so one request shows all of them.
 """
 
-import os
-import tempfile
 import unittest
 
 from tactest import LINUX, DaemonTestCase, tacacs
@@ -192,11 +190,8 @@ class DeviceAddressFromHostsFile(DaemonTestCase):
     CONFIG = None
 
     def test_connection_from_that_address_uses_the_device(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            hosts = os.path.join(tmp, "hosts")
-            with open(hosts, "w") as f:
-                f.write("127.0.0.9 nas\n")
-            d = self.start_daemon("""
+        hosts = self.scratch_file("hosts", "127.0.0.9 nas\n")
+        d = self.start_daemon("""
 	dns preload file = "%s"
 	device nas {
 		key = naskey
@@ -218,11 +213,8 @@ class DeviceAddressFromParentRealmHostsFile(DaemonTestCase):
     CONFIG = None
 
     def test_connection_from_that_address_uses_the_device(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            hosts = os.path.join(tmp, "hosts")
-            with open(hosts, "w") as f:
-                f.write("127.0.0.9 nas\n")
-            d = self.start_daemon("""
+        hosts = self.scratch_file("hosts", "127.0.0.9 nas\n")
+        d = self.start_daemon("""
 	dns preload file = "%s"
 	realm lab {
 		device nas {
@@ -246,14 +238,9 @@ class DeviceAddressFromOwnRealmHostsFile(DaemonTestCase):
     CONFIG = None
 
     def test_only_the_address_of_the_own_realm_uses_the_device(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            parent_hosts = os.path.join(tmp, "parent-hosts")
-            with open(parent_hosts, "w") as f:
-                f.write("127.0.0.9 nas\n")
-            lab_hosts = os.path.join(tmp, "lab-hosts")
-            with open(lab_hosts, "w") as f:
-                f.write("127.0.0.10 nas\n")
-            d = self.start_daemon("""
+        parent_hosts = self.scratch_file("parent-hosts", "127.0.0.9 nas\n")
+        lab_hosts = self.scratch_file("lab-hosts", "127.0.0.10 nas\n")
+        d = self.start_daemon("""
 	dns preload file = "%s"
 	realm lab {
 		dns preload file = "%s"

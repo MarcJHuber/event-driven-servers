@@ -42,6 +42,8 @@ Environment:
   TACTEST_DEBUG    debug mask, passed as "-d <mask> -D"
 """
 
+import os
+import shutil
 import sys
 import unittest
 
@@ -110,9 +112,10 @@ class DaemonTestCase(unittest.TestCase):
 
     def run(self, result=None):
         self._scratch = []
+        self._files = None
         before = self._bad(result)
         out = super().run(result)
-        failed = result is not None and self._bad(result) != before
+        failed = self._bad(out) != before    # out is result, or the result run() made
         if failed:
             type(self)._failed = True
         for d in self._scratch:
@@ -120,7 +123,24 @@ class DaemonTestCase(unittest.TestCase):
                 print("\nkept %s" % d.tmp, file=sys.stderr)
             else:
                 d.remove()
+        if self._files:
+            if failed:
+                print("\nkept %s" % self._files, file=sys.stderr)
+            elif not os.environ.get("TACTEST_KEEP"):
+                shutil.rmtree(self._files, ignore_errors=True)
         return out
+
+    def scratch_file(self, name, text):
+        """Write a file for the configuration of a daemon of this test; it is removed after the daemons stopped.
+
+        A worker reads the configuration when it starts, which can be long after start_daemon() returned.
+        """
+        if self._files is None:
+            self._files = daemon.scratch_dir(self.id().split(".")[-1] + "-files")
+        path = os.path.join(self._files, name)
+        with open(path, "w") as f:
+            f.write(text)
+        return path
 
     @staticmethod
     def _bad(result):

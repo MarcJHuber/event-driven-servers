@@ -389,13 +389,8 @@ class MtBackend(DaemonTestCase):
     CONFIG = None
 
     def login_with_profile(self, text):
-        with tempfile.TemporaryDirectory() as tmp:
-            backend, profile = os.path.join(tmp, "backend.py"), os.path.join(tmp, "profile")
-            with open(backend, "w") as f:
-                f.write(MT_BACKEND)
-            with open(profile, "w") as f:
-                f.write(text)
-            d = self.start_daemon("""
+        backend, profile = self.scratch_file("backend.py", MT_BACKEND), self.scratch_file("profile", text)
+        d = self.start_daemon("""
 	mavis module = external-mt {
 		exec = "%s" "%s" "-u" "%s" "%s"
 	}
@@ -410,11 +405,11 @@ class MtBackend(DaemonTestCase):
 		}
 	}
 """)
-            with d.connect() as c:
-                self.assertEqual(c.pap("alice", "pw").status_name, "PASS")
-            with d.connect() as c:
-                r = c.author("alice", ["service=shell", "cmd="])
-            self.assertEqual((r.status_name, r.args), ("PASS_ADD", ["priv-lvl=15"]))
+        with d.connect() as c:
+            self.assertEqual(c.pap("alice", "pw").status_name, "PASS")
+        with d.connect() as c:
+            r = c.author("alice", ["service=shell", "cmd="])
+        self.assertEqual((r.status_name, r.args), ("PASS_ADD", ["priv-lvl=15"]))
 
     def test_login_uses_the_profile_of_the_backend(self):
         """The sanitizer builds catch the use of the freed serial of the request."""
