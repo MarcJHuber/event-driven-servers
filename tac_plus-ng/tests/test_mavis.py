@@ -429,6 +429,7 @@ class MtBackend(DaemonTestCase):
 
 
 BACKEND_TIMEOUT = 60
+MAVIS_DOWN = 16              # mavis/mavis.h
 # below the large replies; glibc gives a thread the stack limit of the process
 BACKEND_STACK = 8 * 1024 * 1024
 
@@ -440,8 +441,12 @@ def limit_stack():
 
 
 def read_framed(out):
+    """Return the body and the result from the header."""
     header = out.read(12)
-    return out.read(struct.unpack("!III", header)[1]) if len(header) == 12 else b""
+    if len(header) != 12:
+        return b"", None
+    _, length, result = struct.unpack("!III", header)
+    return out.read(length), result
 
 
 def read_legacy(out):
@@ -465,15 +470,14 @@ def backend_built(name):
 class MtWorker(unittest.TestCase):
     """The real -mt backends, through the external-mt protocol. They need no server: a worker thread writes the reply."""
 
-    def round_trip(self, name, size, args=(), env=None, legacy=False):
-        """With legacy, the request has no header and the main thread answers."""
+    def exchange(self, name, body, args=(), env=None, legacy=False, result=None):
+        """Send one request and return the reply. With legacy, the request has no header.
+
+        With result, the result in the header of a framed reply must be that value.
+        """
         path = os.path.join(prefix(), "sbin", name)
         self.assertTrue(os.path.exists(path), "configure found the library, but no pthreads")
-        value = b"x" * size
-        # an existing user makes pammavis-mt start a thread, which writes the reply
-        user = pwd.getpwuid(os.getuid()).pw_name.encode()
-        body = b"4 " + user + b"\n8 pw\n21 serial\n49 AUTH\n32 " + value + b"\n"
-        request = body + b"=\n" if legacy else struct.pack("!III", 0x4d610001, len(body) + 1, 0) + body + b"\n"
+        request = body + b"=\n" if legacy else struct.pack("!III", 0x4d610001, len(body), 0) + body
         with subprocess.Popen([path, *args], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                               env={**sanitizer_env(), **(env or {})}, preexec_fn=limit_stack) as p:
             # a hung backend fails the test, it does not block the run
@@ -482,11 +486,22 @@ class MtWorker(unittest.TestCase):
             try:
                 p.stdin.write(request)
                 p.stdin.flush()
-                reply = (read_legacy if legacy else read_framed)(p.stdout)
+                reply, header_result = (read_legacy(p.stdout), None) if legacy else read_framed(p.stdout)
             finally:
                 watchdog.cancel()
                 p.kill()
         self.assertTrue(reply, "no reply, exit status %s" % p.returncode)
+        if result is not None and not legacy:
+            self.assertEqual(header_result, result)
+        return reply
+
+    def round_trip(self, name, size, args=(), env=None, legacy=False):
+        """With legacy, the request has no header and the main thread answers."""
+        value = b"x" * size
+        # an existing user makes pammavis-mt start a thread, which writes the reply
+        user = pwd.getpwuid(os.getuid()).pw_name.encode()
+        body = b"4 " + user + b"\n8 pw\n21 serial\n49 AUTH\n32 " + value + b"\n"
+        reply = self.exchange(name, body if legacy else body + b"\n", args, env, legacy)
         self.assertIn(b"21 serial\n", reply)
         self.assertTrue(value in reply, "the reply lost the value")
         self.assertFalse(re.search(rb"(?m)^17 \w+\(\): ", reply), "the main thread answered: no worker thread started")
@@ -512,6 +527,14 @@ class PamMtBackend(MtWorker):
 
     def test_legacy_protocol(self):
         self.round_trip_pam(1000, legacy=True)
+
+    def test_short_attributes_before_attribute_10(self):
+        """av_array_to_char_len() took the digits of the attribute number from the length so far, not the number."""
+        # no tactype: the main thread answers MAVIS_DOWN. A legacy request needs 12 bytes, the size of the header.
+        body = b"4 u\n10 a\n21 s\n"
+        for legacy, reply in ((False, body), (True, body + b"=16\n")):
+            with self.subTest(legacy=legacy):
+                self.assertEqual(self.exchange("pammavis-mt", body, legacy=legacy, result=MAVIS_DOWN), reply)
 
 
 @unittest.skipUnless(os.path.exists(os.path.join(prefix(), "sbin", "ldapmavis-mt")), "the build has no LDAP backend")
