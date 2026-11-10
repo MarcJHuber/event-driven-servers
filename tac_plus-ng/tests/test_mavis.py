@@ -454,6 +454,14 @@ def read_legacy(out):
     return b"".join(lines)
 
 
+def backend_built(name):
+    """configure found the library of the backend: the installation has the backend, its -mt variant, or both.
+
+    With only the backend, the -mt variant is missing because configure found no pthreads, and the test fails.
+    """
+    return any(os.path.exists(os.path.join(prefix(), "sbin", n)) for n in (name, name + "-mt"))
+
+
 class MtWorker(unittest.TestCase):
     """The real -mt backends, through the external-mt protocol. They need no server: a worker thread writes the reply."""
 
@@ -487,7 +495,7 @@ class MtWorker(unittest.TestCase):
         return reply
 
 
-@unittest.skipUnless(os.path.exists(os.path.join(prefix(), "sbin", "pammavis")), "the build has no PAM backends")
+@unittest.skipUnless(backend_built("pammavis"), "the build has no PAM backends")
 class PamMtBackend(MtWorker):
     """pammavis-mt. No PAM service is necessary, the answer is a NAK."""
 
@@ -524,7 +532,7 @@ class LdapMtBackend(MtWorker):
         self.round_trip_ldap(1000, legacy=True)
 
 
-@unittest.skipUnless(os.path.exists(os.path.join(prefix(), "sbin", "radmavis")), "the build has no RADIUS backend")
+@unittest.skipUnless(backend_built("radmavis"), "the build has no RADIUS backend")
 class RadiusMtBackend(MtWorker):
     """radmavis-mt without a server."""
 
