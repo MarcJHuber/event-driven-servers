@@ -82,6 +82,24 @@ struct rad_dict *rad_dict_lookup_by_id(int vendorid)
     return NULL;
 }
 
+int rad_vsa_next(struct rad_dict *dict, u_char **p, u_char *e, u_int *type, u_char **val, size_t *val_len)
+{
+    // Without a dictionary, use the RFC 2865 5.26 format: 1 byte type, 1 byte length.
+    u_int type_len = dict ? dict->type_len : 1;
+    u_int len_len = dict ? dict->vendor_len : 1;
+    size_t hdr_len = type_len + len_len;
+    if (*p >= e || (size_t) (e - *p) < hdr_len)
+	return -1;
+    size_t len = len_len ? get_uint(*p + type_len, len_len) : (size_t) (e - *p);
+    if (len < hdr_len || len > (size_t) (e - *p))
+	return -1;
+    *type = get_uint(*p, type_len);
+    *val = *p + hdr_len;
+    *val_len = len - hdr_len;
+    *p += len;
+    return 0;
+}
+
 struct rad_dict *rad_dict_lookup_by_name(char *vendorname)
 {
     size_t vendorname_len = strlen(vendorname);
@@ -198,7 +216,7 @@ static void rad_attr_val_dump_hex(u_char *data, size_t data_len, char **buf, siz
     }
 }
 
-static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, size_t *buf_len, struct rad_dict *dict)
+static void rad_attr_val_dump_helper(struct rad_dict *dict, u_int id, u_char *val, size_t val_len, char **buf, size_t *buf_len)
 {
     // dump exactly one av pair, type is attr->type, prefixed with attr->dict->name (vendor name)
 
@@ -209,15 +227,7 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 	*(*buf)++ = ':';
 	*buf_len -= 1;
     }
-    struct rad_dict_attr *attr = rad_dict_attr_lookup_by_id(dict, get_uint(data, dict->type_len));
-    size_t vendor_len = get_uint(data + dict->type_len, dict->vendor_len);
-    if (!vendor_len)
-	vendor_len = data_len;
-    if (vendor_len < data_len)
-	return;
-
-    size_t val_len = vendor_len - dict->type_len - dict->vendor_len;
-    u_char *val = data + dict->type_len + dict->vendor_len;
+    struct rad_dict_attr *attr = rad_dict_attr_lookup_by_id(dict, id);
 
     if (attr) {
 	if (*buf_len > attr->name.len + 2) {
@@ -294,7 +304,8 @@ static void rad_attr_val_dump_helper(u_char *data, size_t data_len, char **buf, 
 	    ;
 	}
     } else {
-	rad_attr_val_dump_hex(data, data[1], buf, buf_len);
+	size_t hdr_len = dict->type_len + dict->vendor_len;
+	rad_attr_val_dump_hex(val - hdr_len, val_len + hdr_len, buf, buf_len);
     }
 }
 
@@ -327,7 +338,11 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 
 	if ((cur_dict && cur_dict->id != -1) || *d_start != RADIUS_A_USER_PASSWORD) {
 	    if (cur_dict) {
-		while (d_len > cur_dict->type_len + cur_dict->vendor_len) {
+		u_char *d_end = d_start + d_len;
+		u_int id;
+		u_char *val;
+		size_t val_len;
+		while (!rad_vsa_next(cur_dict, &d_start, d_end, &id, &val, &val_len)) {
 		    if (add_separator) {
 			if (*buf_len > separator_len) {
 			    memcpy(*buf, separator, separator_len);
@@ -335,12 +350,7 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 			    *buf_len -= separator_len;
 			}
 		    }
-		    rad_attr_val_dump_helper(d_start, d_len, buf, buf_len, cur_dict);
-		    size_t vendor_len = get_uint(data + cur_dict->type_len, cur_dict->vendor_len);
-		    if (!vendor_len)
-			vendor_len = d_len;
-		    d_len -= vendor_len;
-		    d_start += vendor_len;
+		    rad_attr_val_dump_helper(cur_dict, id, val, val_len, buf, buf_len);
 		    add_separator = 1;
 		}
 	    } else {
@@ -393,14 +403,12 @@ char *rad_attr_val_dump1(mem_t *mem, u_char **data, size_t *data_len)
 
     if ((dict && dict->id != -1) || (*d_start != RADIUS_A_USER_PASSWORD)) {
 	if (dict) {
-	    while (d_len > dict->type_len + dict->vendor_len) {
-		rad_attr_val_dump_helper(d_start, d_len, &buf, &buf_len, dict);
-		size_t vendor_len = get_uint(d_start + dict->type_len, dict->vendor_len);
-		if (!vendor_len)
-			vendor_len = d_len;
-		d_len -= vendor_len;
-		d_start += vendor_len;
-	    }
+	    u_char *d_end = d_start + d_len;
+	    u_int id;
+	    u_char *val;
+	    size_t val_len;
+	    while (!rad_vsa_next(dict, &d_start, d_end, &id, &val, &val_len))
+		rad_attr_val_dump_helper(dict, id, val, val_len, &buf, &buf_len);
 	} else {
 	    rad_attr_val_dump_hex(d_start, d_len, &buf, &buf_len);
 	    *d_start += d_len;
@@ -575,14 +583,12 @@ int rad_get(rad_pak_hdr *pak_in, mem_t *mem, int vendorid, int id, enum token ty
 	    if (vendorid > -1 && p[0] == RADIUS_A_VENDOR_SPECIFIC && (get_uint(p + 2, 4) == (u_int) vendorid)) {
 		u_char *ve = p + p[1];
 		u_char *vp = p + 6;
-
-		while (vp < ve && get_uint(vp + dict->type_len, dict->vendor_len) > 1) {
-		    u_int vsa_type = get_uint(vp, dict->type_len);
-		    u_int attr_len = get_uint(vp + dict->type_len, dict->vendor_len);
+		u_int vsa_type;
+		u_char *vsa_val;
+		size_t vsa_val_len;
+		while (!rad_vsa_next(dict, &vp, ve, &vsa_type, &vsa_val, &vsa_val_len))
 		    if (vsa_type == (u_int) id)
-			return rad_get_helper(mem, type, val, val_len, vp + dict->type_len + dict->vendor_len, attr_len - dict->type_len - dict->vendor_len);
-		    vp += attr_len;
-		}
+			return rad_get_helper(mem, type, val, val_len, vsa_val, vsa_val_len);
 	    }
 	    if (!p[1])		// packet malformed, attribut length zero
 		return -1;

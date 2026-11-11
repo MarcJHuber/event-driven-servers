@@ -918,15 +918,20 @@ static int rad_check_failed(struct context *ctx, rad_pak_hdr *pak)
 	if (p + 1 == e || p[1] < 2)
 	    break;
 	if (p[0] == RADIUS_A_VENDOR_SPECIFIC) {
-	    u_char *pv = p + 6;
-	    u_char *ev = p + p[1];
-	    while (pv < ev) {
-		if (pv + 1 == ev || pv[1] < 2)
-		    break;
-		pv += pv[1];
-	    }
-	    if (pv != ev)
+	    if (p[1] < 6 || p + p[1] > e)
 		break;
+	    // RFC 2865 5.26: ignore the content of a VSA without a vendor dictionary.
+	    struct rad_dict *dict = rad_dict_lookup_by_id(get_uint(p + 2, 4));
+	    if (dict) {
+		u_char *pv = p + 6;
+		u_char *ev = p + p[1];
+		u_int type;
+		u_char *val;
+		size_t val_len;
+		while (!rad_vsa_next(dict, &pv, ev, &type, &val, &val_len));
+		if (pv != ev)
+		    break;
+	    }
 #ifdef WITH_SSL
 	} else if (p[0] == RADIUS_A_MESSAGE_AUTHENTICATOR && p[1] == 18) {
 	    message_authenticator = p + 2;
