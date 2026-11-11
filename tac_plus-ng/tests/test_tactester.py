@@ -1,18 +1,31 @@
-"""tactester: the RADIUS client prints the attributes of the reply, and nothing else."""
+"""tactester: the RADIUS client prints the attributes of the reply, and nothing else.
 
+rad_attr_val_dump1() did not compare the length of an attribute with the
+bytes left in the reply. An attribute that claims more bytes than the
+packet has made it dump bytes after the packet, and the unsigned rest
+length wrapped, so the walk went on through the uninitialized reply
+buffer.
+"""
+
+import hashlib
+import hmac
 import os
 import re
+import socket
+import struct
 import subprocess
 import tempfile
+import threading
 import unittest
 from unittest import mock
 
-from tactest import SOURCE, DaemonTestCase, tactester
+from tactest import SOURCE, DaemonTestCase, radius, tactester
 from tactest.daemon import sanitizer_env
 
 DICTIONARY = os.path.join(SOURCE, "tac_plus-ng", "sample", "radius-dict.cfg")
 SECRET = "radsecret"
 NAS = "127.0.0.6"
+ACCESS_ACCEPT = 2
 
 POLICY = """
 	include = "@DICTIONARY@"
@@ -112,6 +125,58 @@ class RadiusUdp(DaemonTestCase):
     def test_accounting_response_lists_no_attributes(self):
         self.assertEqual(self.client("-m", "acct", "-u", "alice", "Acct-Status-Type=Start"),
                          ["acct ack", "Message-Authenticator=..."])
+
+
+@unittest.skipUnless(tactester.binary(), "no tactester; run-tests builds it only with OpenSSL")
+class MalformedReply(unittest.TestCase):
+    """A server that answers with an attribute longer than the rest of the Access-Accept."""
+
+    ADDRESS = "127.0.0.1"
+
+    def serve(self, attributes, trailer):
+        """Answer one Access-Request with an Access-Accept: attributes, Message-Authenticator, trailer.
+
+        tactester looks for the Message-Authenticator before it dumps the
+        reply, so a malformed attribute must come after it.
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.addCleanup(sock.close)
+        sock.bind((self.ADDRESS, 0))
+        port = sock.getsockname()[1]
+        sock.settimeout(30)
+
+        def answer():
+            req, peer = sock.recvfrom(4096)
+            identifier, request_authenticator = req[1], req[4:20]
+            ma = len(attributes) + 2
+            attrs = attributes + bytes([radius.MESSAGE_AUTHENTICATOR, 18]) + bytes(16) + trailer
+            head = struct.pack("!BBH", ACCESS_ACCEPT, identifier, radius.HEADER_LEN + len(attrs))
+            mac = hmac.new(SECRET.encode(), head + request_authenticator + attrs, hashlib.md5).digest()
+            attrs = attrs[:ma] + mac + attrs[ma + 16:]
+            # RFC 2865 3: MD5(Code + Identifier + Length + Request Authenticator + Attributes + secret)
+            auth = hashlib.md5(head + request_authenticator + attrs + SECRET.encode()).digest()
+            sock.sendto(head + auth + attrs, peer)
+
+        t = threading.Thread(target=answer, daemon=True)
+        t.start()
+        self.addCleanup(t.join, 30)
+        return port
+
+    def test_malformed_attribute_ends_the_dump(self):
+        for name, trailer in (("longer than the rest of the packet", bytes([radius.REPLY_MESSAGE, 40]) + b"abc"),
+                              ("length below 2", bytes([radius.REPLY_MESSAGE, 1]) + b"abc")):
+            with self.subTest(name):
+                port = self.serve(bytes([radius.REPLY_MESSAGE, 4]) + b"ok", trailer)
+                with tempfile.TemporaryDirectory() as tmp:
+                    lines = run_tactester(self, tmp, self.ADDRESS, port, "-m", "authc", "-u", "alice", "-p", "alicepw")
+                self.assertEqual(lines, ["authc ack", "Reply-Message=ok", "Message-Authenticator=..."])
+
+    def test_two_byte_attribute_at_the_end(self):
+        """An attribute of only type and length is valid at the end of the packet too."""
+        port = self.serve(b"", bytes([radius.REPLY_MESSAGE, 2]))
+        with tempfile.TemporaryDirectory() as tmp:
+            lines = run_tactester(self, tmp, self.ADDRESS, port, "-m", "authc", "-u", "alice", "-p", "alicepw")
+        self.assertEqual(lines, ["authc ack", "Message-Authenticator=...", "Reply-Message="])
 
 
 if __name__ == "__main__":
