@@ -20,9 +20,10 @@ The openssl command makes the certificates of the TLS tests (in their
 scratch directories; none are kept in the tree) and is the TLS-PSK client;
 without it those tests are skipped.
 
-run-tests configures and builds tac_plus-ng, installs it into
-build/<OS>/tests-prefix (no root needed, nothing outside the tree is
-touched) and runs every test. Arguments after the options go to
+run-tests configures and builds tac_plus-ng and the tactester client
+(only with OpenSSL; without it the tactester tests are skipped), installs
+them into build/<OS>/tests-prefix (no root needed, nothing outside the
+tree is touched) and runs every test. Arguments after the options go to
 "python3 -m unittest", e.g.
 
     tac_plus-ng/tests/run-tests -k pap         # tests with "pap" in the name

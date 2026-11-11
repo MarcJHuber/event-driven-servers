@@ -380,7 +380,7 @@ void rad_attr_val_dump(mem_t *mem, u_char *data, size_t data_len, char **buf, si
 
 char *rad_attr_val_dump1(mem_t *mem, u_char **data, size_t *data_len)
 {
-    if (*data_len < 3 || !(*data)[1])
+    if (*data_len < 2 || (*data)[1] < 2 || (*data)[1] > *data_len)
 	return NULL;
 
     struct rad_dict *dict = rad_dict_lookup_by_id(-1);
@@ -390,8 +390,6 @@ char *rad_attr_val_dump1(mem_t *mem, u_char **data, size_t *data_len)
 
     u_char *d_start = *data;
     ssize_t d_len = (*data)[1];
-    if (!d_len)
-	return NULL;
     if ((*data)[0] == RADIUS_A_VENDOR_SPECIFIC && (*data)[1] > 6) {
 	u_int vendorid = get_uint(*data + 2, 4);
 	dict = rad_dict_lookup_by_id(vendorid);
@@ -411,10 +409,7 @@ char *rad_attr_val_dump1(mem_t *mem, u_char **data, size_t *data_len)
 		rad_attr_val_dump_helper(dict, id, val, val_len, &buf, &buf_len);
 	} else {
 	    rad_attr_val_dump_hex(d_start, d_len, &buf, &buf_len);
-	    *d_start += d_len;
 	}
-    } else {
-	*d_start += d_len;
     }
     *data_len -= (*data)[1];
     *data += (*data)[1];
