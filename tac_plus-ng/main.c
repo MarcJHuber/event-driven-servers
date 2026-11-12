@@ -2267,14 +2267,17 @@ static void accept_control(struct context *ctx, int cur)
     case SCM_UDPDATA:
 	if (rad_dict_initialized()) {
 	    rad_pak_hdr *hdr = (rad_pak_hdr *) (&u.sd_udp.data);
-	    if (u.sd_udp.data_len != ntohs(hdr->length))
+	    if (u.sd_udp.data_len == ntohs(hdr->length)) {
+		sd_ext.sd_udp = u.sd_udp;
+		users_inc();
+		set_sd_realm(s, &sd_ext);
+		accept_control_common(s, &sd_ext, NULL, u.sd_udp.data, u.sd_udp.data_len);
 		return;
-	    sd_ext.sd_udp = u.sd_udp;
-	    users_inc();
-	    set_sd_realm(s, &sd_ext);
-	    accept_control_common(s, &sd_ext, NULL, u.sd_udp.data, u.sd_udp.data_len);
-	    return;
+	    }
 	}
+	// Dropped: later datagrams of this source must not go to a socket nobody reads.
+	if (s > -1)
+	    close(s);
 	users_inc();
 	users_dec();
 	return;

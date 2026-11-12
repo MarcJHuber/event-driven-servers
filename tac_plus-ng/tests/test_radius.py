@@ -30,10 +30,12 @@
 
 import hashlib
 import os
+import select
 import socket
 import struct
 import subprocess
 import tempfile
+import time
 import unittest
 
 from tactest import LINUX, SOURCE, DaemonTestCase, config, features, radius, tacacs
@@ -250,6 +252,67 @@ class MessageAuthenticatorRequired(DaemonTestCase):
         c = self.radius(SECRET, source="127.0.0.6")
         c.send_raw(head + auth + attrs)
         self.assertEqual(radius.Packet.decode(c.recv_raw()).code_name, "Accounting-Response")
+
+
+class DroppedDatagram(DaemonTestCase):
+    """The worker drops a UDP datagram that is not RADIUS; it must close the socket that spawnd passed with it.
+
+    spawnd passes each new source address and port with a socket connected
+    to it. A socket the worker kept open after a drop got the later
+    datagrams of that source, and nobody read them.
+    """
+
+    CONFIG = POLICY
+    UDP = True
+
+    def bad(self, client):
+        """A datagram whose RADIUS length field is not its size."""
+        req = radius.Packet(radius.ACCESS_REQUEST, attributes=[(radius.USER_NAME, b"alice")])
+        client.send_raw(req.encode(length=200))
+
+    def fds(self, daemon=None):
+        (worker,) = (daemon or self.daemon).workers()
+        return len(os.listdir("/proc/%d/fd" % worker))
+
+    def assertFdsBack(self, before, daemon=None):
+        deadline = time.monotonic() + 5.0
+        while self.fds(daemon) > before and time.monotonic() < deadline:
+            select.select([], [], [], 0.05)
+        self.assertLessEqual(self.fds(daemon), before, "the worker keeps the sockets of dropped datagrams")
+
+    def test_same_source_port_is_answered_after_a_bad_datagram(self):
+        c = self.radius(SECRET, source=NAS, timeout=1.0)
+        self.bad(c)
+        with self.assertRaises(TimeoutError):
+            c.recv_raw()
+        c.timeout = 5.0
+        c.sock.settimeout(5.0)
+        r = c.access_request("alice", "alicepw", message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Accept", r)
+
+    @unittest.skipUnless(LINUX, "file descriptors through /proc")
+    def test_bad_datagrams_leave_no_socket_open(self):
+        before = self.fds()
+        for _ in range(10):
+            self.bad(self.radius(SECRET, source=NAS))
+        self.assertFdsBack(before)
+
+    @unittest.skipUnless(LINUX, "file descriptors through /proc")
+    def test_datagrams_without_a_dictionary_leave_no_socket_open(self):
+        d = self.start_daemon("", udp=True)
+        before = self.fds(d)
+        for _ in range(10):
+            req = radius.Packet(radius.ACCESS_REQUEST, attributes=[(radius.USER_NAME, b"alice")])
+            self.radius(SECRET, daemon=d, source=NAS).send_raw(req.encode())
+        self.assertFdsBack(before, d)
+
+    def test_bad_datagrams_do_not_use_up_the_user_limit(self):
+        """spawnd counts each passed datagram as a user until the worker reports it done."""
+        d = self.start_daemon(POLICY, udp=True, spawnd="\tspawn { users max = 4 }\n")
+        for _ in range(6):
+            self.bad(self.radius(SECRET, daemon=d, source=NAS))
+        r = self.radius(SECRET, daemon=d, source=NAS).access_request("alice", "alicepw", message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Accept", r)
 
 
 class ConditionTypes(DaemonTestCase):
