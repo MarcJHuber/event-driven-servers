@@ -35,6 +35,7 @@ Each condition that holds adds an AV pair "tactest-<name>=yes" to the
 shell authorization, so one request shows all of them.
 """
 
+import time
 import unittest
 
 from tactest import LINUX, DaemonTestCase, dns, features, tacacs
@@ -333,6 +334,7 @@ class DeviceDnsNameFromDnsServer(PolicyTestCase):
     def test_reverse_name_of_the_device(self):
         server = dns.Server("nas.example")
         self.addCleanup(server.close)
+        # "dns timeout" lets the request wait for the answer; an answer used only after it expires is too late
         self.daemon = self.start_daemon(USER + """
 	dns servers = "127.0.0.1:""" + str(server.addr[1]) + """"
 	dns reverse-lookup = yes
@@ -344,7 +346,9 @@ class DeviceDnsNameFromDnsServer(PolicyTestCase):
 """ + shell_profile([
             ("nas-example", "device.dnsname == nas.example"),
         ]))
+        start = time.monotonic()
         self.assertEqual(self.holds("127.0.6.1"), ["nas-example"])
+        self.assertLess(time.monotonic() - start, 4.0)
         self.assertGreater(server.queries, 0)
 
 
