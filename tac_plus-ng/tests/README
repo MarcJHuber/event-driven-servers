@@ -85,6 +85,8 @@ Layout
       crypto.py        MD4 and DES for MS-CHAP (not in the standard library)
       radius.py        RADIUS client: PAP Access-Request over UDP, TCP or
                        TLS; Message-Authenticator in requests and replies
+      dns.py           a UDP DNS server that answers every query with
+                       one PTR record, for reverse lookups of the daemon
       mavis_stub.py    a MAVIS backend for the "external" module, on top of
                        the installed mavis.py; tests change its answers
                        through a JSON file while the daemon runs
