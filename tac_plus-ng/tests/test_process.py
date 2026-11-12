@@ -37,7 +37,7 @@ import time
 import unittest
 
 from tactest import LINUX, Closed, DaemonTestCase, ProtocolError, detect
-from tactest.daemon import free_port, proc_stat
+from tactest.daemon import alive, free_port, proc_stat
 
 POLICY = """
 	user alice { password pap = clear alicepw }
@@ -87,6 +87,15 @@ class KeepOpen(DaemonTestCase):
             self.assertEqual(c.pap("alice", "alicepw").status_name, "PASS")
 
 
+def stop(test, pid):
+    """SIGSTOP pid and wait until it is stopped."""
+    os.kill(pid, signal.SIGSTOP)
+    deadline = time.monotonic() + 5
+    while proc_stat(pid)[0] != "T" and time.monotonic() < deadline:
+        select.select([], [], [], 0.02)
+    test.assertEqual(proc_stat(pid)[0], "T", "process %d did not stop" % pid)
+
+
 @unittest.skipUnless(LINUX, "workers are found through /proc")
 class StopAndContinue(DaemonTestCase):
     """#255: epoll_wait() interrupted (EINTR) made master and worker exit with status 70.
@@ -102,11 +111,7 @@ class StopAndContinue(DaemonTestCase):
     STOPPED = 0.5
 
     def stop_and_continue(self, pid):
-        os.kill(pid, signal.SIGSTOP)
-        deadline = time.monotonic() + 5
-        while proc_stat(pid)[0] != "T" and time.monotonic() < deadline:
-            select.select([], [], [], 0.02)
-        self.assertEqual(proc_stat(pid)[0], "T", "process %d did not stop" % pid)
+        stop(self, pid)
         select.select([], [], [], self.STOPPED)
         os.kill(pid, signal.SIGCONT)
 
@@ -266,3 +271,75 @@ class ReloadKeepsListeners(DaemonTestCase):
         with self.assertRaises(ConnectionRefusedError):
             d.connect(timeout=2.0, listener="old").close()
         self.settle(d)
+
+
+@unittest.skipUnless(LINUX, "workers are found through /proc")
+class DyingWorker(DaemonTestCase):
+    """A new connection when the only worker with room left was told it may die.
+
+    spawnd_main() sends SCM_MAY_DIE to idle workers above "instances min"
+    and flags them dying. Such a worker closes its spawnd socket and exits
+    without reading what is still queued there. #328 made
+    spawnd_accepted() skip these workers, but when "instances max" was
+    reached and every other worker was full, it still handed the
+    connection to one of them, and the client lost the connection.
+
+    The test stops the idle worker before the periodic tells it that it
+    may die, so spawnd still has it, flagged dying, when the connection
+    comes. Then the worker continues and reads SCM_MAY_DIE first.
+    """
+
+    CONFIG = None
+    SPAWND = "\tspawn { instances min = 1 instances max = 2 users min = 1 users max = 1 }\n"
+
+    @staticmethod
+    def after_next_tick(margin=2):
+        """Wait until margin seconds after the next time spawnd flags idle workers dying.
+
+        periodics() in mavis/spawnd_main.c runs once a second and flags them only in a
+        second that is a multiple of 8, so the flag comes up to 1 s after that boundary.
+        """
+        now = time.time()
+        select.select([], [], [], (int(now) // 8 + 1) * 8 + margin - now)
+
+    @staticmethod
+    def resume(pid):
+        try:
+            os.kill(pid, signal.SIGCONT)
+        except ProcessLookupError:
+            pass        # the worker exited, as the test expects
+
+    def test_connection_while_the_free_worker_may_die(self):
+        d = self.start_daemon(POLICY, spawnd=self.SPAWND)
+        (first,) = d.workers()
+        full = self.connect(daemon=d)
+        self.assertEqual(full.pap("alice", "alicepw").status_name, "PASS")
+        # the second worker must stop before spawnd can flag it: start right after a flag run
+        self.after_next_tick()
+        with d.connect() as c:
+            self.assertEqual(c.pap("alice", "alicepw").status_name, "PASS")
+        (idle,) = set(d.workers()) - {first}
+        # let spawnd count the closed connection before the worker stops
+        select.select([], [], [], 0.5)
+        stop(self, idle)
+        self.addCleanup(self.resume, idle)
+
+        self.after_next_tick()
+
+        c = self.connect(daemon=d, timeout=5.0)
+        select.select([], [], [], 0.5)
+        self.resume(idle)
+        try:
+            reply = c.pap("alice", "alicepw")
+        except (Closed, ConnectionResetError):
+            self.fail("spawnd passed the connection to the worker that was told it may die")
+        self.assertEqual(reply.status_name, "PASS")
+
+        deadline = time.monotonic() + 5
+        while alive(idle) and time.monotonic() < deadline:
+            select.select([], [], [], 0.05)
+        self.assertFalse(alive(idle), "the idle worker was not told it may die")
+        # with the connections closed, spawnd may retire any worker above "instances min"
+        d.baseline = detect.Baseline(d, since=d.baseline)
+        for pid in d.workers():
+            d.baseline.forget(pid)

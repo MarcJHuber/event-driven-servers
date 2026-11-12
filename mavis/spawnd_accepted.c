@@ -420,18 +420,19 @@ void spawnd_accepted(struct spawnd_context *ctx, int cur)
 		    if (!spawnd_data.server_arr[i]->dying && spawnd_data.server_arr[i]->use < common_data.users_min && spawnd_data.server_arr[i]->use < min)
 			min_i = i, min = spawnd_data.server_arr[i]->use;
 
+	    // A dying server is idle and exits soon: free its slot now, as it would be a moment later.
+	    if (min_i < 0 && common_data.servers_cur == common_data.servers_max)
+		for (int i = 0; i < common_data.servers_cur; i++)
+		    if (spawnd_data.server_arr[i]->dying) {
+			spawnd_cleanup_internal(spawnd_data.server_arr[i], spawnd_data.server_arr[i]->fn);
+			break;
+		    }
+
 	    if (min_i < 0 && common_data.servers_cur < common_data.servers_max) {
 		spawnd_add_child();
 		min_i = common_data.servers_cur - 1, min = 0;
 	    }
 
-	    if (min_i < 0)
-		for (int i = 0; i < common_data.servers_cur; i++)
-		    if (!spawnd_data.server_arr[i]->dying && spawnd_data.server_arr[i]->use < common_data.users_max && spawnd_data.server_arr[i]->use < min)
-			min_i = i, min = spawnd_data.server_arr[i]->use;
-
-	    // Only servers that were told they may die have room left: use one
-	    // anyway, as before, rather than give up on the connection.
 	    if (min_i < 0)
 		for (int i = 0; i < common_data.servers_cur; i++)
 		    if (spawnd_data.server_arr[i]->use < common_data.users_max && spawnd_data.server_arr[i]->use < min)
