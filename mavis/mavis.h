@@ -435,8 +435,8 @@ struct mavis_tm {
     unsigned long long min;	/* minute, 0-59 */
     unsigned long hour;		/* hour, 0-23 */
     unsigned long mday;		/* day of month, 1-31 */
-    unsigned long mon;		/* month, 1-12 */
-    unsigned long wday;		/* day of week, 1-7 */
+    unsigned long mon;		/* month, 0-11 */
+    unsigned long wday;		/* day of week, 0-6, 0 is Sunday */
 };
 
 struct mavis_timespec {
