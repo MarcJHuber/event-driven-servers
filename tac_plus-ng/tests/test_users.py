@@ -556,50 +556,60 @@ class ChpassDialog(DaemonTestCase):
     def setUp(self):
         super().setUp()
         self.stub = Stub(self.daemon)
-        self.stub.set(users={"alice": {"password": "old"}, "bob": {"password": "old", "mustchange": True}})
+        self.stub.set(users={"alice": {"password": "old", "new_password": "new"},
+                             "bob": {"password": "old", "mustchange": True, "new_password": "new"}})
 
     def change(self, user, password, data, source="127.0.0.1"):
         return self.connect(source=source).ascii_login(user, password, data=data)
 
-    def last_request(self):
-        last = self.stub.requests()[-1]
-        return last["type"], last["result"]
+    def chpw(self, dialog):
+        """Run dialog(); return (result, new password right) of each CHPW request it sent."""
+        before = self.stub.count(type="CHPW")
+        reply = dialog()
+        return reply, [(e["result"], e.get("new_password")) for e in self.stub.requests(type="CHPW")[before:]]
 
     def test_empty_password_starts_the_dialog(self):
-        r = self.change("alice", "", ["old", "new", "new"])
+        r, chpw = self.chpw(lambda: self.change("alice", "", ["old", "new", "new"]))
         self.assertEqual(r.prompts, [BANNER + "Password: ", "Entering password change dialog\n\nOld password: ",
                                      "New password: ", "Retype new password: "], r)
         self.assertEqual((r.status_name, r.server_msg), ("PASS", "Password change succeeded."), r)
-        self.assertEqual(self.last_request(), ("CHPW", "ACK"))
+        self.assertEqual(chpw, [("ACK", True)])
 
     def test_messages_of_the_dialog(self):
-        r = self.change("alice", "", ["old", "new", "new"], source="127.0.0.71")
+        r, chpw = self.chpw(lambda: self.change("alice", "", ["old", "new", "new"], source="127.0.0.71"))
         self.assertEqual(r.prompts, [BANNER + "Password: ", "Change your password now.\n\nCurrent: ", "Next: ",
                                      "Next again: "], r)
         self.assertEqual((r.status_name, r.server_msg), ("PASS", "Changed."), r)
+        self.assertEqual(chpw, [("ACK", True)])
 
     def test_new_passwords_differ(self):
-        r = self.change("alice", "", ["old", "new", "other"], source="127.0.0.71")
+        r, chpw = self.chpw(lambda: self.change("alice", "", ["old", "new", "other"], source="127.0.0.71"))
         self.assertEqual(r.status_name, "FAIL", r)
         self.assertTrue(r.server_msg.startswith("No match."), r)
+        self.assertEqual(chpw, [])
 
     def test_empty_new_password_aborts(self):
-        r = self.change("alice", "", ["old", ""], source="127.0.0.71")
+        r, chpw = self.chpw(lambda: self.change("alice", "", ["old", ""], source="127.0.0.71"))
         self.assertEqual((r.status_name, r.server_msg), ("FAIL", "Stopped.\n"), r)
+        self.assertEqual(chpw, [])
 
     def test_backend_asks_for_a_change(self):
-        r = self.change("bob", "old", ["new", "new"], source="127.0.0.71")
+        r, chpw = self.chpw(lambda: self.change("bob", "old", ["new", "new"], source="127.0.0.71"))
         self.assertEqual(r.prompts, [BANNER + "Password: ", "Your password is too old.\nNext: ", "Next again: "], r)
         self.assertEqual((r.status_name, r.server_msg), ("PASS", "Changed."), r)
+        self.assertEqual(chpw, [("ACK", True)])
 
     def test_change_password_request(self):
         """The TACACS+ CHPASS action of RFC 8907 5.4.4.3."""
         s = self.connect(source="127.0.0.71").session()
-        first = s.start(user="alice", action=2)
-        r = s.dialog(first, {"GETDATA": ["old"], "GETPASS": ["new", "new"]})
+
+        def dialog():
+            first = s.start(user="alice", action=2)
+            return s.dialog(first, {"GETDATA": ["old"], "GETPASS": ["new", "new"]})
+        r, chpw = self.chpw(dialog)
         self.assertEqual(r.prompts, ["Current: ", "Next: ", "Next again: "], r)
         self.assertEqual((r.status_name, r.server_msg), ("PASS", "Changed."), r)
-        self.assertEqual(self.last_request(), ("CHPW", "ACK"))
+        self.assertEqual(chpw, [("ACK", True)])
 
 
 # a MAVIS backend for what the stub does not answer: a challenge (CHAL) and a password expiry date
