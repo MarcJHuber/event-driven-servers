@@ -743,6 +743,81 @@ class RealmOnUdpListener(DaemonTestCase):
         self.assertEqual(r.code_name, "Access-Accept", r)
 
 
+class AaaProtocolAllowed(DaemonTestCase):
+    """aaa.protocol.allowed in a realm: a protocol not in the list gets no answer.
+
+    CHECK_PROTOCOL in packet.c rejected only if the protocol of the
+    connection was already known, which it never is at the first packet,
+    so every protocol was answered. Realm "inherited" has no keyword of its
+    own and gets the list of its parent. The default realm has no keyword
+    and answers all protocols (the default listeners).
+    """
+
+    UDP = True
+    LISTEN = {
+        "tacacs-only": "realm = tacacs-only",
+        "tacacs-only-udp": "protocol = UDP realm = tacacs-only",
+        "radius-udp-only": "realm = radius-udp-only",
+        "radius-udp-only-udp": "protocol = UDP realm = radius-udp-only",
+        "radius-tcp-only": "realm = radius-tcp-only",
+        "radius-tcp-only-udp": "protocol = UDP realm = radius-tcp-only",
+        "inherited": "realm = inherited",
+        "inherited-udp": "protocol = UDP realm = inherited",
+    }
+    CONFIG = POLICY + """
+	realm tacacs-only {
+		aaa.protocol.allowed = tacacs.tcp
+		realm inherited { }
+	}
+	realm radius-udp-only { aaa.protocol.allowed = radius.udp }
+	realm radius-tcp-only { aaa.protocol.allowed = radius.tcp }
+"""
+
+    def tacacs_answers(self, listener=None):
+        return self.connect(listener=listener).pap("alice", "alicepw").ok
+
+    def tacacs_refused(self, listener):
+        c = self.connect(listener=listener, timeout=CLOSE_TIMEOUT)
+        c.send(tacacs.Packet.authen_start(user="alice"))
+        return c.closed()
+
+    def radius_udp(self, listener=None):
+        c = self.radius(SECRET, listener=listener, source=NAS, timeout=2.0)
+        return c.access_request("alice", "alicepw", message_authenticator=True).code_name
+
+    def radius_tcp(self, listener=None):
+        c = self.radius(SECRET, tcp=True, listener=listener, source=NAS, timeout=CLOSE_TIMEOUT)
+        return c.access_request("alice", "alicepw", message_authenticator=True).code_name
+
+    def assert_radius_refused(self, request, listener):
+        with self.assertRaises((TimeoutError, ConnectionError)):
+            request(listener)
+
+    def test_tacacs_only(self):
+        self.assertTrue(self.tacacs_answers("tacacs-only"))
+        self.assert_radius_refused(self.radius_udp, "tacacs-only-udp")
+        self.assert_radius_refused(self.radius_tcp, "tacacs-only")
+
+    def test_radius_udp_only(self):
+        self.assertEqual(self.radius_udp("radius-udp-only-udp"), "Access-Accept")
+        self.assertTrue(self.tacacs_refused("radius-udp-only"))
+        self.assert_radius_refused(self.radius_tcp, "radius-udp-only")
+
+    def test_radius_tcp_only(self):
+        self.assertEqual(self.radius_tcp("radius-tcp-only"), "Access-Accept")
+        self.assertTrue(self.tacacs_refused("radius-tcp-only"))
+        self.assert_radius_refused(self.radius_udp, "radius-tcp-only-udp")
+
+    def test_inherited_from_the_parent_realm(self):
+        self.assertTrue(self.tacacs_answers("inherited"))
+        self.assert_radius_refused(self.radius_udp, "inherited-udp")
+
+    def test_realm_without_the_keyword_answers_all(self):
+        self.assertTrue(self.tacacs_answers())
+        self.assertEqual(self.radius_udp(), "Access-Accept")
+        self.assertEqual(self.radius_tcp(), "Access-Accept")
+
+
 # no device for 127.0.0.2: the base configuration covers all of 127/8, NAS is 127.0.0.6
 UNKNOWN_HOSTS = config.BASE.replace("address = 127.0.0.0/8", "address = 127.0.0.1/32")
 
