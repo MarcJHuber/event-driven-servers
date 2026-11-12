@@ -137,6 +137,16 @@ class Transport(DaemonTestCase):
         c.send_split(pkt, gap=0.3, at=tacacs.HEADER_LEN + 5)
         self.assertEqual(tacacs.AuthenReply(s.recv()).status_name, "PASS")
 
+    def test_unobfuscated_packet_is_refused(self):
+        """A device with a key: a packet with TAC_PLUS_UNENCRYPTED_FLAG gets ERROR, then the close."""
+        c = self.connect()
+        s = c.session()
+        s.send(tacacs.Packet.authen_start(user="alice", data="alicepw", authen_type=tacacs.AUTHEN_TYPE_PAP,
+                                          version=tacacs.VERSION_ONE, flags=tacacs.FLAG_UNENCRYPTED))
+        r = tacacs.AuthenReply(s.recv())
+        self.assertEqual((r.status_name, r.server_msg), ("ERROR", "Peers MUST use Obfuscation."), r)
+        self.assertTrue(c.closed(), "the connection stays open")
+
 
 class SingleConnection(DaemonTestCase):
     """Several sessions on one connection (RFC 8907 4.3), here from the single-connection device."""

@@ -802,6 +802,11 @@ void tac_read(struct context *ctx, int cur)
 	       ctx->tls ? "TLS " :
 #endif
 	       "", ntohl(ctx->hdr.tac.session_id));
+#ifdef WITH_SSL
+	// RFC 9887: the reply over TLS is not obfuscated either
+	if (ctx->tls)
+	    ctx->unencrypted_flag = 1;
+#endif
 	switch (ctx->hdr.tac.type) {
 	case TAC_PLUS_AUTHEN:
 	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_ERROR, msg, 0, NULL, 0, 0);
@@ -813,9 +818,17 @@ void tac_read(struct context *ctx, int cur)
 	    send_acct_reply(session, TAC_PLUS_ACCT_STATUS_ERROR, msg, NULL);
 	    break;
 	default:
-	    ;
+	    cleanup(ctx, cur);
+	    return;
 	}
-	cleanup(ctx, cur);
+	// tac_write() closes the connection after the reply
+	io_clr_i(ctx->io, cur);
+	if (detached)
+	    ctx->in = NULL;
+	else
+	    mem_free(ctx->mem, &ctx->in);
+	ctx->hdroff = 0;
+	ctx->dying = 1;
 	return;
     }
 

@@ -199,16 +199,14 @@ class TacacsOverTls(TlsTestCase):
         self.assertRefused(lambda: c)
 
     def test_obfuscated_packet_over_tls_is_refused(self):
-        """RFC 9887: no obfuscation over TLS; a packet without TAC_PLUS_UNENCRYPTED_FLAG is refused."""
+        """RFC 9887: no obfuscation over TLS; a packet without TAC_PLUS_UNENCRYPTED_FLAG gets ERROR, then the close."""
         c = self.connect_tls()
         pkt = tacacs.Packet.authen_start(user="alice", data="alicepw", authen_type=tacacs.AUTHEN_TYPE_PAP,
                                          version=tacacs.VERSION_ONE)
         c.send_raw(pkt.encode("tactest"))
-        try:
-            reply = c.recv()
-        except tacacs.Closed:
-            return
-        self.assertNotEqual(tacacs.AuthenReply(reply).status_name, "PASS")
+        r = tacacs.AuthenReply(c.recv())
+        self.assertEqual((r.status_name, r.server_msg), ("ERROR", "Peers MUST NOT use Obfuscation with TLS."), r)
+        self.assertTrue(c.closed(), "the connection stays open")
 
     def test_plain_tacacs_on_a_tls_listener_is_refused(self):
         c = self.connect(listener="tls", timeout=2.0)
