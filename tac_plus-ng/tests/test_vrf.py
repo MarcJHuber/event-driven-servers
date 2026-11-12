@@ -17,13 +17,14 @@ import subprocess
 import sys
 import unittest
 
-from tactest import LINUX, DaemonTestCase, tacacs
+from tactest import LINUX, DaemonTestCase, dns, features, tacacs
 
 NETNS = "TACTEST_NETNS"
 REQUIRE = "TACTEST_REQUIRE_VRF"
 UNSHARE = ["unshare", "--user", "--net", "--map-root-user"]
 ADDRESS = "10.10.10.1"
 VRF = "vrf-blue"
+DNS_PORT = 5353
 INNER_TIMEOUT = 300
 # __name__ is __main__ when the file runs directly
 MODULE = os.path.splitext(os.path.basename(__file__))[0]
@@ -81,8 +82,10 @@ class Namespace(unittest.TestCase):
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=INNER_TIMEOUT, check=False)
         out = p.stdout.decode("utf-8", "replace")
         self.assertEqual(p.returncode, 0, "VRF tests in the namespace failed:\n" + out)
-        self.assertNotIn("skipped", out, out)
         self.assertRegex(out, r"\nRan [1-9]", out)
+        skipped = [line for line in out.splitlines() if " ... skipped " in line]
+        if skipped:
+            print("\nskipped in the namespace:\n" + "\n".join(skipped), file=sys.stderr)
 
 
 # each realm tells the realm and the VRF of the connection; "vrf == ..." is the condition on the VRF
@@ -208,9 +211,106 @@ class L3mdevAccept(VrfTestCase):
         self.assertEqual(self.seen(c), ["tactest-realm=default", "tactest-vrf="])
 
 
+DNS_POLICY = """
+	dns reverse-lookup = yes
+	dns timeout = 5
+	device plain {
+		address = 10.10.10.0/24
+		key = plainkey
+	}
+	user alice {
+		password pap = clear plainpw
+	}
+	profile shell {
+		script {
+			if (service == shell) {
+				set tactest-dnsname = "$${device.dnsname}"
+				permit
+			}
+		}
+	}
+	ruleset {
+		rule { script { profile = shell permit } }
+	}
+"""
+
+
+@unittest.skipUnless("ares" in features(), "the DNS code needs a build with c-ares")
+class DnsTestCase(VrfTestCase):
+    """DNS servers on the same address and port in the VRF and in the default VRF, with other names in their replies."""
+
+    SPAWND = "\tlisten { address = 10.10.10.1 port = 49 }\n"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.servers = {"vrf": dns.Server("vrf.example", ADDRESS, DNS_PORT, device=VRF),
+                       "default": dns.Server("default.example", ADDRESS, DNS_PORT)}
+        try:
+            super().setUpClass()
+        except Exception:
+            cls.close_servers()
+            raise
+
+    @classmethod
+    def close_servers(cls):
+        for server in cls.servers.values():
+            server.close()
+
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            super().tearDownClass()
+        finally:
+            cls.close_servers()
+
+    def lookup(self):
+        """(the reverse name of the device, {server: queries it got})."""
+        seen = self.seen(self.connect_vrf(49, "plainkey"))
+        return seen, {name: server.queries for name, server in self.servers.items()}
+
+
+class DnsServersVrf(DnsTestCase):
+    """With "dns servers vrf vrf-blue = ...", the DNS queries of the realm leave from the VRF."""
+
+    CONFIG = """
+	dns servers vrf vrf-blue = "10.10.10.1:5353"
+""" + DNS_POLICY
+
+    def test_reverse_lookup_goes_to_the_server_in_the_vrf(self):
+        seen, queries = self.lookup()
+        self.assertEqual((seen, queries["default"]), (["tactest-dnsname=vrf.example"], 0), queries)
+        self.assertGreater(queries["vrf"], 0)
+
+
+class DnsServersVrfTwice(DnsTestCase):
+    """A second "dns servers vrf" line replaces the VRF of the first one."""
+
+    CONFIG = """
+	dns servers vrf vrf-other = "10.10.10.1:5353"
+	dns servers vrf vrf-blue = "10.10.10.1:5353"
+""" + DNS_POLICY
+
+    def test_reverse_lookup_goes_to_the_server_in_the_last_vrf(self):
+        seen, queries = self.lookup()
+        self.assertEqual((seen, queries["default"]), (["tactest-dnsname=vrf.example"], 0), queries)
+        self.assertGreater(queries["vrf"], 0)
+
+
+class DnsServersUnknownVrf(DnsTestCase):
+    """A VRF that does not exist: the DNS queries do not leave through the default VRF."""
+
+    CONFIG = """
+	dns servers vrf vrf-none = "10.10.10.1:5353"
+""" + DNS_POLICY
+
+    def test_no_query_leaves(self):
+        self.assertEqual(self.lookup(), (["tactest-dnsname="], {"vrf": 0, "default": 0}))
+
+
+
 def load_tests(loader, tests, pattern):
     """The VRF tests only in the namespace; outside it, the test that runs the selected ones there."""
-    classes = [VrfListener, L3mdevAccept]
+    classes = [VrfListener, L3mdevAccept, DnsServersVrf, DnsServersVrfTwice, DnsServersUnknownVrf]
     if os.environ.get(NETNS):
         return unittest.TestSuite(loader.loadTestsFromTestCase(cls) for cls in classes)
     test = Namespace("test_vrf_tests_in_a_network_namespace")

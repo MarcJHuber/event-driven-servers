@@ -159,8 +159,12 @@ static ares_socket_t asocket(int domain, int type, int protocol, void *opaque)
     }
 #endif
 #ifdef VRF_BINDTODEVICE
-    if (idc->vrf)
-	setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, idc->vrf, idc->vrflen);
+    // a query that cannot use the VRF must not go out through the default VRF
+    if (fd > -1 && idc->vrf && setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, idc->vrf, idc->vrflen)) {
+	logerr("setsockopt(SO_BINDTODEVICE, \"%s\") failed for a DNS socket (%s:%d)", idc->vrf, __FILE__, __LINE__);
+	close(fd);
+	return ARES_SOCKET_BAD;
+    }
 #endif
 #ifdef VRF_RTABLE
     if (idc->intvrf >= 0)
@@ -317,6 +321,9 @@ void io_dns_destroy(struct io_dns_ctx *idc)
     ares_destroy(idc->channel);
     idc->channel = NULL;
 #endif
+#ifdef VRF_BINDTODEVICE
+    free(idc->vrf);
+#endif
     free(idc);
 }
 
@@ -461,9 +468,8 @@ int io_dns_set_servers(struct io_dns_ctx *idc, char *servers)
 void io_dns_set_vrf(struct io_dns_ctx *idc __attribute__((unused)), char *vrf __attribute__((unused)))
 {
 #ifdef VRF_BINDTODEVICE
-    if (idc->vrf)
-	free(idc->vrf);
-    idc->vrf = vrf;
+    free(idc->vrf);
+    idc->vrf = Xstrdup(vrf);
     idc->vrflen = strlen(vrf) + 1;
 #endif
 #if defined(VRF_RTABLE) || defined(VRF_SETFIB)
