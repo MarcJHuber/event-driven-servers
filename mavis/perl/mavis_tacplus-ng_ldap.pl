@@ -188,6 +188,7 @@ use Net::LDAP qw(LDAP_INVALID_CREDENTIALS LDAP_CONSTRAINT_VIOLATION);
 use Net::LDAP::Constant qw(LDAP_EXTENSION_PASSWORD_MODIFY LDAP_CAP_ACTIVE_DIRECTORY);
 use Net::LDAP::Extension::SetPassword;
 use Net::LDAP::Extra qw(AD);
+use Net::LDAP::Util qw(escape_filter_value);
 use IO::Socket::SSL;
 use Time::Local 'timegm';
 use Time::HiRes qw(gettimeofday tv_interval);
@@ -212,7 +213,7 @@ sub expand_groupOfNames($) {
 		sub get_groupOfNames($$) {
 			my ($dn, $H) = @_;
 			my @res = ( );
-			my $mesg = $ldap->search(base => $LDAP_BASE_GROUP, scope=>$LDAP_SCOPE_GROUP, filter=>sprintf($LDAP_FILTER_GROUP, $dn), attrs=>['memberOf']);
+			my $mesg = $ldap->search(base => $LDAP_BASE_GROUP, scope=>$LDAP_SCOPE_GROUP, filter=>sprintf($LDAP_FILTER_GROUP, escape_filter_value($dn)), attrs=>['memberOf']);
 			if ($mesg->code){
 				$V[AV_A_USER_RESPONSE] = $mesg->error . " (" . __LINE__ . ")";
 				goto fatal;
@@ -417,7 +418,7 @@ retry_once:
 			$ldap->root_dse->supported_extension(LDAP_EXTENSION_PASSWORD_MODIFY);
 	}
 	debug_timer_start("ldap search");
-	$mesg = $ldap->search(base => $LDAP_BASE, filter => sprintf($LDAP_FILTER, $V[AV_A_USER]), scope => $LDAP_SCOPE,
+	$mesg = $ldap->search(base => $LDAP_BASE, filter => sprintf($LDAP_FILTER, escape_filter_value($V[AV_A_USER])), scope => $LDAP_SCOPE,
 		attrs => ['shadowExpire','memberOf','dn', 'uidNumber', 'gidNumber', 'loginShell', 'homeDirectory', 'sshPublicKey',
 			  'krbPasswordExpiration', $LDAP_TACMEMBER]);
 	debug_timer_stop;
@@ -469,7 +470,7 @@ retry_once:
 			unless (exists $gidHash{$gidNumber}) {
 				debug_timer_start("ldap gidNumber");
 				$mesg = $ldap->search(base => $LDAP_BASE_POSIXGROUP, scope => $LDAP_SCOPE_POSIXGROUP, attrs => ['cn'],
-					filter => sprintf('(&(objectclass=posixGroup)(gidNumber=%s))', $gidNumber));
+					filter => sprintf('(&(objectclass=posixGroup)(gidNumber=%s))', escape_filter_value($gidNumber)));
 				$gidHash{$gidNumber} = $mesg->entry(0)->get_value('cn') if $mesg->count() == 1;
 				debug_timer_stop;
 			}
@@ -477,7 +478,7 @@ retry_once:
 
 			debug_timer_start("ldap gidNumber");
 			$mesg = $ldap->search(base => $LDAP_BASE_POSIXGROUP, scope => $LDAP_SCOPE_POSIXGROUP, attrs => ['cn', 'gidNumber'],
-				filter => sprintf('(&(objectclass=posixGroup)(memberUid=%s))', $V[AV_A_USER]));
+				filter => sprintf('(&(objectclass=posixGroup)(memberUid=%s))', escape_filter_value($V[AV_A_USER])));
 			debug_timer_stop;
 			for (my $i = 0; $i < $mesg->count(); $i++) {
 				push @M, $mesg->entry($i)->get_value('cn');

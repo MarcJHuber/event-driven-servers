@@ -508,78 +508,117 @@ static int dnhash_match(struct dnhash **h, char *dn)
     return rc;
 }
 
+// DNs of one level of the group walk; it grows, as a group tree can be wide
+struct dnlist {
+    char **dn;
+    size_t count;
+    size_t size;
+};
+
+static void dnlist_add(struct dnlist *l, const char *dn)
+{
+    if (l->count == l->size) {
+	l->size = l->size ? 2 * l->size : 64;
+	l->dn = Xrealloc(l->dn, l->size * sizeof(char *));
+    }
+    l->dn[l->count++] = Xstrdup(dn);
+}
+
+static void dnlist_clear(struct dnlist *l)
+{
+    for (size_t i = 0; i < l->count; i++)
+	free(l->dn[i]);
+    l->count = 0;
+}
+
+static void dnlist_free(struct dnlist *l)
+{
+    dnlist_clear(l);
+    free(l->dn);
+}
+
+// RFC 4515 3: escape a value for a search filter; out has room for FILTER_ESCAPED_LEN(in)
+#define FILTER_ESCAPED_LEN(in) (3 * strlen(in) + 1)
+static char *filter_escape(const char *in, char *out)
+{
+    static const char hex[] = "0123456789abcdef";
+    char *o = out;
+    for (; *in; in++)
+	if (*in == '*' || *in == '(' || *in == ')' || *in == '\\') {
+	    *o++ = '\\';
+	    *o++ = hex[(u_char) * in >> 4];
+	    *o++ = hex[(u_char) * in & 15];
+	} else
+	    *o++ = *in;
+    *o = 0;
+    return out;
+}
+
+// searches of the group walk in flight at a time: slapd limits them per connection (conn_max_pending)
+#define GROUP_SEARCHES_PENDING 64
+
 static int dnhash_add_entry(LDAP *ldap, struct dnhash **h, char *dn, int level)
 {
     if (level < 1 && ldap_group_depth != -2)
 	return -1;
-    struct iovec iov[2][1024] = { 0 };
-    int iov_count[2] = { 0 };
-
-    int iov_cur = 0;
-    int iov_next = 1;
     if (dnhash_match(h, dn))
 	return -1;
     level--;
     if (level < 1 && ldap_group_depth != -2)
 	return -1;
 
-    iov[iov_cur][iov_count[iov_cur]].iov_base = strdup(dn);
-    iov_count[iov_cur]++;
+    struct dnlist list[2] = { 0 };
+    int cur = 0;
+    dnlist_add(&list[cur], dn);
 
     do {
 	char *attrs[] = { "memberOf", NULL };
-	LDAPMessage *res = NULL;
-	int msgid_dummy;
-	int success = 0;
-	iov_count[iov_next] = 0;
+	int next = cur ^ 1;
 
-	for (int i = 0; i < iov_count[iov_cur]; i++) {
-	    int rc =
-		ldap_search_ext(ldap, iov[iov_cur][i].iov_base, LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &msgid_dummy);
-	    if (rc == LDAP_SUCCESS)
-		success++;
-	    else
-		fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
-	}
-	for (int i = 0; i < success; i++) {
-	    struct timeval tv = {.tv_sec = ldap_timeout };
-
-	    int rc = ldap_result(ldap, LDAP_RES_ANY, 1, &tv, &res);
-
-	    if (rc == LDAP_RES_SEARCH_RESULT && ldap_count_entries(ldap, res) == 1) {
-		LDAPMessage *entry = ldap_first_entry(ldap, res);
-
-		BerElement *be = NULL;
-		for (char *attribute = ldap_first_attribute(ldap, entry, &be); attribute; attribute = ldap_next_attribute(ldap, entry, be)) {
-		    struct berval **v = ldap_get_values_len(ldap, entry, attribute);
-		    if (v) {
-			if (!strcasecmp(attribute, "memberOf")) {
-			    for (int i = 0; v[i]; i++) {
-				if (!dnhash_match(h, v[i]->bv_val)) {
-				    iov[iov_cur][iov_count[iov_next]].iov_base = strdup(v[i]->bv_val);
-				    iov_count[iov_next]++;
-				}
-			    }
-			}
-		    }
-		    ldap_value_free_len(v);
-		    ldap_memfree(attribute);
-		}
-		if (be)
-		    ber_free(be, 0);
+	for (size_t first = 0; first < list[cur].count; first += GROUP_SEARCHES_PENDING) {
+	    int msgid_dummy;
+	    int success = 0;
+	    for (size_t i = first; i < list[cur].count && i < first + GROUP_SEARCHES_PENDING; i++) {
+		int rc = ldap_search_ext(ldap, list[cur].dn[i], LDAP_SCOPE_BASE, "(objectClass=*)", attrs, 0, NULL, NULL, NULL, ldap_sizelimit,
+					 &msgid_dummy);
+		if (rc == LDAP_SUCCESS)
+		    success++;
+		else
+		    fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 	    }
-	    if (res)
-		ldap_msgfree(res);
-	}
-	for (int i = 0; i < iov_count[iov_cur]; i++) {
-	    free(iov[iov_cur][i].iov_base);
-	    iov[iov_cur][i].iov_base = NULL;
-	}
-	iov_cur ^= 1;
-	iov_next ^= 1;
-	level--;
-    } while (iov_count[iov_cur] && (level > 0 || ldap_group_depth == -2));
+	    for (int i = 0; i < success; i++) {
+		struct timeval tv = {.tv_sec = ldap_timeout };
+		LDAPMessage *res = NULL;
 
+		int rc = ldap_result(ldap, LDAP_RES_ANY, 1, &tv, &res);
+
+		if (rc == LDAP_RES_SEARCH_RESULT && ldap_count_entries(ldap, res) == 1) {
+		    LDAPMessage *entry = ldap_first_entry(ldap, res);
+
+		    BerElement *be = NULL;
+		    for (char *attribute = ldap_first_attribute(ldap, entry, &be); attribute; attribute = ldap_next_attribute(ldap, entry, be)) {
+			struct berval **v = ldap_get_values_len(ldap, entry, attribute);
+			if (v && !strcasecmp(attribute, "memberOf"))
+			    for (int j = 0; v[j]; j++)
+				if (!dnhash_match(h, v[j]->bv_val))
+				    dnlist_add(&list[next], v[j]->bv_val);
+			ldap_value_free_len(v);
+			ldap_memfree(attribute);
+		    }
+		    if (be)
+			ber_free(be, 0);
+		}
+		if (res)
+		    ldap_msgfree(res);
+	    }
+	}
+	dnlist_clear(&list[cur]);
+	cur = next;
+	level--;
+    } while (list[cur].count && (level > 0 || ldap_group_depth == -2));
+
+    dnlist_free(&list[0]);
+    dnlist_free(&list[1]);
     return 0;
 }
 
@@ -587,60 +626,55 @@ static int dnhash_add_entry_groupOfNames(LDAP *ldap, struct dnhash **h, char *dn
 {
     if (level < 1)
 	return -1;
-    struct iovec iov[2][1024] = { 0 };
-    int iov_count[2] = { 0 };
 
-    int iov_cur = 0;
-    int iov_next = 1;
-
-    iov[iov_cur][iov_count[iov_cur]].iov_base = strdup(dn);
-    iov_count[iov_cur]++;
+    struct dnlist list[2] = { 0 };
+    int cur = 0;
+    dnlist_add(&list[cur], dn);
 
     do {
 	char *attrs[] = { "member", NULL };
-	LDAPMessage *res = NULL;
-	int msgid_dummy;
-	int success = 0;
-	iov_count[iov_next] = 0;
+	int next = cur ^ 1;
 
-	for (int i = 0; i < iov_count[iov_cur]; i++) {
-	    size_t filter_len = strlen(iov[iov_cur][i].iov_base) + ldap_filter_group_len;
-	    char filter[filter_len];
-	    snprintf(filter, filter_len, ldap_filter_group, iov[iov_cur][i].iov_base);
-	    int rc = ldap_search_ext(ldap, base_dn_group, scope_group, filter, attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &msgid_dummy);
-	    if (rc == LDAP_SUCCESS)
-		success++;
-	    else
-		fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
-	}
-	for (int i = 0; i < success; i++) {
-	    struct timeval tv = {.tv_sec = ldap_timeout };
-
-	    int rc = ldap_result(ldap, LDAP_RES_ANY, 1, &tv, &res);
-
-	    if (rc == LDAP_RES_SEARCH_RESULT && ldap_count_entries(ldap, res) > 0) {
-		LDAPMessage *entry;
-		for (entry = ldap_first_entry(ldap, res); entry; entry = ldap_next_entry(ldap, entry)) {
-		    char *gdn = ldap_get_dn(ldap, entry);
-		    if (!dnhash_match(h, gdn)) {
-			iov[iov_next][iov_count[iov_next]].iov_base = strdup(gdn);
-			iov_count[iov_next]++;
-		    }
-		    ldap_memfree(gdn);
-		}
+	for (size_t first = 0; first < list[cur].count; first += GROUP_SEARCHES_PENDING) {
+	    int msgid_dummy;
+	    int success = 0;
+	    for (size_t i = first; i < list[cur].count && i < first + GROUP_SEARCHES_PENDING; i++) {
+		char value[FILTER_ESCAPED_LEN(list[cur].dn[i])];
+		filter_escape(list[cur].dn[i], value);
+		size_t filter_len = strlen(value) + ldap_filter_group_len;
+		char filter[filter_len];
+		snprintf(filter, filter_len, ldap_filter_group, value);
+		int rc = ldap_search_ext(ldap, base_dn_group, scope_group, filter, attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &msgid_dummy);
+		if (rc == LDAP_SUCCESS)
+		    success++;
+		else
+		    fprintf(stderr, "%d: %s\n", __LINE__, ldap_err2string(rc));
 	    }
-	    if (res)
-		ldap_msgfree(res);
-	}
-	for (int i = 0; i < iov_count[iov_cur]; i++) {
-	    free(iov[iov_cur][i].iov_base);
-	    iov[iov_cur][i].iov_base = NULL;
-	}
-	iov_cur ^= 1;
-	iov_next ^= 1;
-	level--;
-    } while (iov_count[iov_cur] && (level > 0 || ldap_group_depth == -2));
+	    for (int i = 0; i < success; i++) {
+		struct timeval tv = {.tv_sec = ldap_timeout };
+		LDAPMessage *res = NULL;
 
+		int rc = ldap_result(ldap, LDAP_RES_ANY, 1, &tv, &res);
+
+		if (rc == LDAP_RES_SEARCH_RESULT && ldap_count_entries(ldap, res) > 0) {
+		    for (LDAPMessage * entry = ldap_first_entry(ldap, res); entry; entry = ldap_next_entry(ldap, entry)) {
+			char *gdn = ldap_get_dn(ldap, entry);
+			if (!dnhash_match(h, gdn))
+			    dnlist_add(&list[next], gdn);
+			ldap_memfree(gdn);
+		    }
+		}
+		if (res)
+		    ldap_msgfree(res);
+	    }
+	}
+	dnlist_clear(&list[cur]);
+	cur = next;
+	level--;
+    } while (list[cur].count && (level > 0 || ldap_group_depth == -2));
+
+    dnlist_free(&list[0]);
+    dnlist_free(&list[1]);
     return 0;
 }
 
@@ -751,9 +785,11 @@ static void *run_thread(void *arg)
 	"homeDirectory", "sshPublicKey", "krbPasswordExpiration", ldap_tacmember_attr, NULL
     };
     char *username = av_get(ac, AV_A_USER);
-    size_t filter_len = ldap_filter_len + strlen(username);
+    char username_escaped[FILTER_ESCAPED_LEN(username)];
+    filter_escape(username, username_escaped);
+    size_t filter_len = ldap_filter_len + strlen(username_escaped);
     char filter[filter_len];
-    snprintf(filter, filter_len, ldap_filter, username);
+    snprintf(filter, filter_len, ldap_filter, username_escaped);
 
     LDAPMessage *res = NULL;
     int rc = ldap_search_ext_s(ldap, base_dn, scope, filter, attrs, 0, NULL, NULL, NULL, ldap_sizelimit, &res);
@@ -805,9 +841,9 @@ static void *run_thread(void *arg)
 			    snprintf(filter1, len, FILTER, v[0]->bv_val);
 #undef FILTER
 #define FILTER "(&(objectclass=posixGroup)(memberUid=%s))"
-			    len = sizeof(FILTER) + strlen(username);
+			    len = sizeof(FILTER) + strlen(username_escaped);
 			    char filter2[len];
-			    snprintf(filter2, len, FILTER, username);
+			    snprintf(filter2, len, FILTER, username_escaped);
 #undef FILTER
 			    int success = 0;
 
@@ -1309,6 +1345,7 @@ int main(int argc, char **argv __attribute__((unused)))
 	}
 
 	char *tactype = av_get(ac, AV_A_TACTYPE);
+	char *user = av_get(ac, AV_A_USER);
 
 	char *password = av_get(ac, AV_A_PASSWORD);
 	if (password && !*password)
@@ -1319,6 +1356,9 @@ int main(int argc, char **argv __attribute__((unused)))
 
 	if (!tactype) {
 	    av_write(ac, MAVIS_DOWN);
+	} else if (!user || !*user) {
+	    av_set(ac, AV_A_RESULT, AV_V_RESULT_FAIL);
+	    av_write(ac, MAVIS_FINAL);
 	} else if (!password && !strcmp(tactype, AV_V_TACTYPE_AUTH)) {
 	    av_set(ac, AV_A_RESULT, AV_V_RESULT_FAIL);
 	    av_write(ac, MAVIS_FINAL);
