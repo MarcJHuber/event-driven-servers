@@ -14,6 +14,7 @@ import shutil
 import socket
 import string
 import subprocess
+import tempfile
 import time
 import unittest
 
@@ -208,7 +209,7 @@ MODULE = string.Template("""
 		setenv LDAP_PASSWD = "readerpw"
 		setenv LDAP_FILTER = "(&(objectClass=inetOrgPerson)(uid=%s))"
 		setenv LDAP_NESTED_GROUP_DEPTH = "10"
-		exec = $exec
+$extra		exec = $exec
 	}
 """)
 
@@ -240,13 +241,16 @@ $module
 
 
 class LdapTests:
-    """The tests for both back-ends; a subclass sets module(url) to its "mavis module" block."""
+    """The tests for both back-ends; a subclass sets module(url, extra) to its "mavis module" block."""
 
-    def start(self):
-        slapd = Slapd(os.path.dirname(self.scratch_file("slapd.conf", "")))
+    def start(self, **env):
+        """Start slapd and the daemon; env: more environment variables for the back-end."""
+        # a directory of its own for every slapd: a test may start more than one
+        slapd = Slapd(tempfile.mkdtemp(prefix="slapd-", dir=os.path.dirname(self.scratch_file("slapd", ""))))
         self.addCleanup(slapd.stop)
         slapd.start()
-        return slapd, self.start_daemon(POLICY.substitute(module=self.module(slapd.url), staff=STAFF))
+        extra = "".join(f'\t\tsetenv {name} = "{value}"\n' for name, value in env.items())
+        return slapd, self.start_daemon(POLICY.substitute(module=self.module(slapd.url, extra), staff=STAFF))
 
     def test_pap(self):
         _, d = self.start()
@@ -303,8 +307,8 @@ class LdapTests:
 class LdapMt(LdapTests, DaemonTestCase):
     CONFIG = None
 
-    def module(self, url):
-        return MODULE.substitute(module="external-mt", url=url, base=BASE, reader=READER,
+    def module(self, url, extra):
+        return MODULE.substitute(module="external-mt", url=url, base=BASE, reader=READER, extra=extra,
                                  exec=f'"{LDAPMAVIS}" "ldapmavis-mt"')
 
 
@@ -313,8 +317,8 @@ class LdapMt(LdapTests, DaemonTestCase):
 class LdapPerl(LdapTests, DaemonTestCase):
     CONFIG = None
 
-    def module(self, url):
-        return MODULE.substitute(module="external", url=url, base=BASE, reader=READER,
+    def module(self, url, extra):
+        return MODULE.substitute(module="external", url=url, base=BASE, reader=READER, extra=extra,
                                  exec=f'"{PERL}" "perl" "{LDAP_PERL}"')
 
 
