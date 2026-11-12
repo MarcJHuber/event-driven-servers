@@ -47,7 +47,7 @@ import shutil
 import sys
 import unittest
 
-from . import config, daemon, detect, mavis_stub, radius, tacacs, tls
+from . import config, daemon, detect, mavis_stub, radius, sample, tacacs, tls
 from .daemon import (LINUX, SUPPRESSIONS, Daemon, DaemonError, binary, cpu_seconds, features, ipv6_available, prefix,
                      sanitizers)
 from .mavis_stub import Stub
@@ -55,7 +55,7 @@ from .tacacs import Closed, Connection, Packet, ProtocolError
 
 __all__ = ["DaemonTestCase", "Daemon", "DaemonError", "Connection", "Packet", "Closed", "ProtocolError", "Stub",
            "binary", "cpu_seconds", "prefix", "sanitizers", "features", "ipv6_available", "config", "detect",
-           "mavis_stub", "radius", "tacacs", "tls", "LINUX", "SUPPRESSIONS", "SOURCE"]
+           "mavis_stub", "radius", "sample", "tacacs", "tls", "LINUX", "SUPPRESSIONS", "SOURCE"]
 
 # top of the source tree: the samples, the RADIUS dictionary
 SOURCE = daemon.TOP
@@ -73,6 +73,8 @@ class DaemonTestCase(unittest.TestCase):
     SPAWND = ""
     TOP = ""
     UDP = False             # also listen for RADIUS over UDP
+    TEMPLATE = config.BASE  # what surrounds CONFIG; sample.template() makes one of a shipped sample
+    KEY = config.KEY        # key of the TACACS+ clients
     LISTEN = None           # more listeners, {name: options}; see Daemon
 
     daemon = None
@@ -86,7 +88,7 @@ class DaemonTestCase(unittest.TestCase):
         if cls.CONFIG is None:
             return
         cls.daemon = Daemon(cls.CONFIG, name=cls.__name__, address=cls.ADDRESS, spawnd=cls.SPAWND, top=cls.TOP,
-                            udp=cls.UDP, listen=cls.LISTEN)
+                            udp=cls.UDP, listen=cls.LISTEN, template=cls.TEMPLATE, key=cls.KEY)
         try:
             cls.daemon.start()
         except Exception:
