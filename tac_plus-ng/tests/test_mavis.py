@@ -177,11 +177,11 @@ class Cache(DaemonTestCase):
         self.assertEqual([e["type"] for e in self.login_then_authorize(config.BASE)], ["INFO"])
 
 
-def ssh_ed25519_key():
+def ssh_ed25519_key(size=32):
     """An OpenSSH public key line ("ssh-ed25519 <base64> comment"), the key itself made up."""
     def string(b):
         return struct.pack("!I", len(b)) + b
-    blob = string(b"ssh-ed25519") + string(bytes(range(32)))
+    blob = string(b"ssh-ed25519") + string(bytes(range(size)))
     return "ssh-ed25519 %s alice@example" % base64.b64encode(blob).decode()
 
 
@@ -239,6 +239,40 @@ class SshKeys(DaemonTestCase):
             with self.subTest(keys=len(keys)):
                 stub.set(users={"bob": {"password": "pw", "sshkey": ",".join(keys)}})
                 self.assertEqual(self.connect().pap("bob", "pw").status_name, "PASS")
+
+
+@unittest.skipUnless("openssl" in features(), "SSH keys need a build with OpenSSL")
+class SshKeyLength(DaemonTestCase):
+    """An SSH key that decodes to fewer bytes than its fingerprint text has.
+
+    The parser sized the stored fingerprint by the key length, so a key
+    of 40 to 43 bytes (40 is the shortest it accepts) wrote past the
+    allocation. Both a user in the configuration and one from the
+    backend must log in.
+    """
+
+    CONFIG = Stub.module(childs=(1, 1)) + BACKEND + PERMIT
+    SHORT = ssh_ed25519_key(21)     # 40 bytes decoded
+    NORMAL = ssh_ed25519_key()      # 51 bytes, a real ed25519 key
+
+    def test_short_ssh_key_from_the_backend(self):
+        self.assertEqual(len(base64.b64decode(self.SHORT.split()[1])), 40)
+        stub = Stub(self.daemon)
+        for key in (self.SHORT, self.NORMAL):
+            with self.subTest(key=key.split()[1]):
+                stub.set(users={"bob": {"password": "pw", "sshkey": '"%s"' % key}})
+                self.assertEqual(self.connect().pap("bob", "pw").status_name, "PASS")
+
+    def test_short_ssh_key_in_the_configuration(self):
+        for key in (self.SHORT, self.NORMAL):
+            with self.subTest(key=key.split()[1]):
+                d = self.start_daemon("""
+	user carol {
+		password pap = clear carolpw
+		ssh-key = "%s"
+	}
+""" % key + PERMIT)
+                self.assertEqual(self.connect(d).pap("carol", "carolpw").status_name, "PASS")
 
 
 class PasswordChange(DaemonTestCase):

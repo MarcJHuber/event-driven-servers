@@ -3400,7 +3400,7 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 	if (!hash)
 	    parse_error(sym, "MD5 hashing failed.");
 	hash_len = strlen(hash);
-	*ssh_key = mem_alloc(user->mem, sizeof(struct ssh_key) + len);
+	*ssh_key = mem_alloc(user->mem, sizeof(struct ssh_key) + hash_len);
 	if (is_rfc4716)
 	    key = mem_strdup(user->mem, sym->buf);
 	else {
@@ -3434,7 +3434,7 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 	    hash_len--;
 	    hash[hash_len] = 0;
 	}
-	*ssh_key = mem_alloc(user->mem, sizeof(struct ssh_key) + len);
+	*ssh_key = mem_alloc(user->mem, sizeof(struct ssh_key) + hash_len);
 	memcpy((*ssh_key)->hash, hash, hash_len + 1);
 	(*ssh_key)->key = key;
 	(*ssh_key)->key_len = len;
