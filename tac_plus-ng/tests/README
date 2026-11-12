@@ -20,6 +20,13 @@ The openssl command makes the certificates of the TLS tests (in their
 scratch directories; none are kept in the tree) and is the TLS-PSK client;
 without it those tests are skipped.
 
+The VRF tests (test_vrf.py) make a VRF device in a user and network
+namespace of their own, with "unshare" (util-linux) and "ip" (iproute2);
+no root is needed. Where the kernel does not allow that, they are skipped.
+On Ubuntu 24.04, AppArmor blocks unprivileged user namespaces:
+
+    sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
 run-tests configures and builds tac_plus-ng, the tactester client
 (only with OpenSSL; without it the tactester tests are skipped) and the
 older tac_plus daemon, installs them into build/<OS>/tests-prefix (no root needed, nothing outside the
@@ -53,7 +60,8 @@ or "sysctl vm.mmap_rnd_bits=28" helps.
 
 Other environment variables: TACTEST_CONFIGURE (extra configure
 arguments), TACTEST_WORKDIR, TACTEST_KEEP=1, TACTEST_DEBUG=<mask>,
-TACTEST_TIMEOUT (seconds, default 600).
+TACTEST_TIMEOUT (seconds, default 600), TACTEST_REQUIRE_VRF=1 (the VRF
+tests fail instead of skipping).
 
 Layout
 ------
