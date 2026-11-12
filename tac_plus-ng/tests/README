@@ -23,9 +23,14 @@ without it those tests are skipped.
 The VRF tests (test_vrf.py) make a VRF device in a user and network
 namespace of their own, with "unshare" (util-linux) and "ip" (iproute2);
 no root is needed. Where the kernel does not allow that, they are skipped.
-On Ubuntu 24.04, AppArmor blocks unprivileged user namespaces:
+On Ubuntu 24.04, AppArmor blocks unprivileged user namespaces. The
+setting applies to the whole host until a reboot, so set it back after
+the tests:
 
+    prev=$(sysctl -n kernel.apparmor_restrict_unprivileged_userns)
     sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+    tac_plus-ng/tests/run-tests
+    sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns="$prev"
 
 run-tests configures and builds tac_plus-ng, the tactester client
 (only with OpenSSL; without it the tactester tests are skipped) and the

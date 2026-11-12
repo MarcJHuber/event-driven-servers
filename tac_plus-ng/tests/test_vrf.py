@@ -25,6 +25,8 @@ UNSHARE = ["unshare", "--user", "--net", "--map-root-user"]
 ADDRESS = "10.10.10.1"
 VRF = "vrf-blue"
 INNER_TIMEOUT = 300
+# __name__ is __main__ when the file runs directly
+MODULE = os.path.splitext(os.path.basename(__file__))[0]
 
 # the local table after the l3mdev rule (pref 1000), so that the VRF finds its own local address first
 NETWORK = f"""\
@@ -64,6 +66,8 @@ def namespace_problem():
 
 
 class Namespace(unittest.TestCase):
+    patterns = ()
+
     def test_vrf_tests_in_a_network_namespace(self):
         problem = namespace_problem()
         if problem:
@@ -71,12 +75,14 @@ class Namespace(unittest.TestCase):
                 self.fail(f"{REQUIRE} is set, but {problem}")
             self.skipTest(problem)
         env = dict(os.environ, **{NETNS: "1"})
-        p = subprocess.run(UNSHARE + [sys.executable, "-m", "unittest", "-v", __name__],
+        selection = [arg for pattern in self.patterns for arg in ("-k", pattern)]
+        p = subprocess.run(UNSHARE + [sys.executable, "-m", "unittest", "-v", *selection, MODULE],
                            cwd=os.path.dirname(os.path.abspath(__file__)), env=env, stdin=subprocess.DEVNULL,
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=INNER_TIMEOUT, check=False)
         out = p.stdout.decode("utf-8", "replace")
         self.assertEqual(p.returncode, 0, "VRF tests in the namespace failed:\n" + out)
         self.assertNotIn("skipped", out, out)
+        self.assertRegex(out, r"\nRan [1-9]", out)
 
 
 # each realm tells the realm and the VRF of the connection; "vrf == ..." is the condition on the VRF
@@ -203,12 +209,16 @@ class L3mdevAccept(VrfTestCase):
 
 
 def load_tests(loader, tests, pattern):
-    """The VRF tests only in the namespace; outside it, the test that runs them there."""
-    classes = [VrfListener, L3mdevAccept] if os.environ.get(NETNS) else [Namespace]
-    suite = unittest.TestSuite()
-    for cls in classes:
-        suite.addTests(loader.loadTestsFromTestCase(cls))
-    return suite
+    """The VRF tests only in the namespace; outside it, the test that runs the selected ones there."""
+    classes = [VrfListener, L3mdevAccept]
+    if os.environ.get(NETNS):
+        return unittest.TestSuite(loader.loadTestsFromTestCase(cls) for cls in classes)
+    test = Namespace("test_vrf_tests_in_a_network_namespace")
+    if loader.testNamePatterns and any(loader.getTestCaseNames(cls) for cls in classes):
+        test.patterns = loader.testNamePatterns
+    elif loader.testNamePatterns and not loader.getTestCaseNames(Namespace):
+        return unittest.TestSuite()
+    return unittest.TestSuite([test])
 
 
 if __name__ == "__main__":
