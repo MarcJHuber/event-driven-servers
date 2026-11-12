@@ -90,6 +90,37 @@ $body
 """
 
 
+# the older tac_plus daemon (directory tac_plus/), in its own syntax
+TAC_PLUS = """\
+debug-cmd = "echo $$CRASHPID >> '$tmp/crash.pids'"
+$top
+id = spawnd {
+	background = no
+	listen = { address = $address port = $port }
+	spawn = { instances min = 1 instances max = 1 }
+$spawnd
+}
+
+id = tac_plus {
+	access log = "$tmp/authentication.log"
+	authorization log = "$tmp/authorization.log"
+	accounting log = "$tmp/accounting.log"
+
+	host = localhost {
+		address = 127.0.0.0/8
+		address = ::1/128
+		key = $key
+	}
+
+	user = tactest-generation-$generation {
+		pap = clear tactest
+	}
+
+$body
+}
+"""
+
+
 def render(template=BASE, **values):
     defaults = dict(top="", spawnd="", body="", key=KEY, generation=0, address="127.0.0.1", port=49, tmp="/tmp")
     defaults.update(values)

@@ -76,6 +76,7 @@ class DaemonTestCase(unittest.TestCase):
     TEMPLATE = config.BASE  # what surrounds CONFIG; sample.template() makes one of a shipped sample
     KEY = config.KEY        # key of the TACACS+ clients
     LISTEN = None           # more listeners, {name: options}; see Daemon
+    PROGRAM = "tac_plus-ng"     # or "tac_plus", with TEMPLATE = config.TAC_PLUS
 
     daemon = None
     _failed = False
@@ -88,7 +89,8 @@ class DaemonTestCase(unittest.TestCase):
         if cls.CONFIG is None:
             return
         cls.daemon = Daemon(cls.CONFIG, name=cls.__name__, address=cls.ADDRESS, spawnd=cls.SPAWND, top=cls.TOP,
-                            udp=cls.UDP, listen=cls.LISTEN, template=cls.TEMPLATE, key=cls.KEY)
+                            udp=cls.UDP, listen=cls.LISTEN, program=cls.PROGRAM, template=cls.TEMPLATE,
+                            key=cls.KEY)
         try:
             cls.daemon.start()
         except Exception:

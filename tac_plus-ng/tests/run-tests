@@ -26,7 +26,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
-# Build tac_plus-ng and tactester into a private prefix and run the tests against it.
+# Build tac_plus-ng, tactester and tac_plus into a private prefix and run the tests against it.
 #
 # usage: tac_plus-ng/tests/run-tests [--build-only] [unittest arguments ...]
 #
@@ -78,12 +78,12 @@ if [ -z "$TACTEST_PREFIX" ]; then
 	# no -j: the Makefiles don't declare the dependencies a parallel build needs
 	if [ -n "$TACTEST_CC" ]; then
 		# shellcheck disable=SC2086
-		./configure --prefix="$TACTEST_PREFIX" --with-cc="$TACTEST_CC" $TACTEST_CONFIGURE tac_plus-ng tactester
+		./configure --prefix="$TACTEST_PREFIX" --with-cc="$TACTEST_CC" $TACTEST_CONFIGURE tac_plus-ng tactester tac_plus
 		$MAKE CC="$TACTEST_CC"
 		$MAKE install CC="$TACTEST_CC"
 	else
 		# shellcheck disable=SC2086
-		./configure --prefix="$TACTEST_PREFIX" $TACTEST_CONFIGURE tac_plus-ng tactester
+		./configure --prefix="$TACTEST_PREFIX" $TACTEST_CONFIGURE tac_plus-ng tactester tac_plus
 		$MAKE
 		$MAKE install
 	fi
