@@ -502,6 +502,11 @@ PSK = """
 		tls psk id = pskclear
 		tls psk key = clear demoDemo
 	}
+	device psk6 {
+		tls psk id = psk6
+		tls psk key = 6 'ZKAb`S]hPDBAbXWZNJQ_BecWeZIMFYAAB' # demoDemo
+	}
+	type6-key = demo
 """ % PSK_KEY
 
 
@@ -535,6 +540,12 @@ class Psk(TlsTestCase):
 
     def test_clear_text_psk(self):
         self.assertTrue(self.connect_psk("pskclear", b"demoDemo".hex()).pap("alice", "alicepw").ok)
+
+    def test_type6_psk(self):
+        self.assertTrue(self.connect_psk("psk6", b"demoDemo".hex()).pap("alice", "alicepw").ok)
+
+    def test_type6_psk_encrypted_text_is_refused(self):
+        self.assertRefused(lambda: self.connect_psk("psk6", b"ZKAb`S]hPDBAbXWZNJQ_BecWeZIMFYAAB".hex()))
 
     def test_wrong_psk_is_refused(self):
         self.assertRefused(lambda: self.connect_psk(key="00" * 16))

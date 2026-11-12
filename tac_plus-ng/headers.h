@@ -135,7 +135,6 @@ struct tac_key {
     u_int line;			/* configuration file line number */
     time_t warn;
     char *key;
-    enum token keytype;
 };
 
 struct tac_host;
@@ -184,7 +183,6 @@ struct fingerprint {
 
 struct tls_psk_key {
 	str_t key;
-	enum token type;
 };
 #endif
 
