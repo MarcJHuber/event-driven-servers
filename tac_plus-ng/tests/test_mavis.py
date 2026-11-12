@@ -270,6 +270,14 @@ class PasswordChange(DaemonTestCase):
         self.assertEqual(r.statuses, ["GETPASS", "GETDATA", "GETDATA", "PASS"], r)
         self.assertEqual([e["type"] for e in stub.requests()], ["AUTH", "AUTH", "CHPW"])
 
+    def test_new_passwords_do_not_match(self):
+        """Two different new passwords end the dialog with FAIL; the message ends with a newline."""
+        d = self.start_daemon(Stub.module(childs=(1, 1)) + BACKEND + PERMIT)
+        Stub(d).set(users={"alice": {"password": "old", "mustchange": True}})
+        r = self.connect(daemon=d).ascii_login("alice", "old", data=["new", "other"])
+        self.assertEqual(r.statuses, ["GETPASS", "GETDATA", "GETDATA", "FAIL"], r)
+        self.assertEqual(r.server_msg, "Passwords do not match.\n", r)
+
 
 def cpu_seconds(pid):
     """utime + stime of a process (Linux)."""
