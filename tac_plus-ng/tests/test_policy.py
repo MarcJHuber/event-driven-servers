@@ -37,7 +37,7 @@ shell authorization, so one request shows all of them.
 
 import unittest
 
-from tactest import LINUX, DaemonTestCase, features, tacacs
+from tactest import LINUX, DaemonTestCase, dns, features, tacacs
 
 USER = """
 	user alice {
@@ -321,6 +321,31 @@ class AclAndTimeNegation(PolicyTestCase):
 
     def test_time_ne_is_the_negation_of_time_eq(self):
         self.assertEqual(self.holds_of("time"), ["time-always-eq", "time-never-ne"])
+
+
+@unittest.skipUnless(LINUX, "127.0.0.0/8 local addresses")
+@unittest.skipUnless("ares" in features(), "the reverse lookup needs a build with c-ares")
+class DeviceDnsNameFromDnsServer(PolicyTestCase):
+    """With "dns reverse-lookup = yes", device.dnsname is the PTR name that the DNS server sends back."""
+
+    CONFIG = None
+
+    def test_reverse_name_of_the_device(self):
+        server = dns.Server("nas.example")
+        self.addCleanup(server.close)
+        self.daemon = self.start_daemon(USER + """
+	dns servers = "127.0.0.1:""" + str(server.addr[1]) + """"
+	dns reverse-lookup = yes
+	dns timeout = 5
+	device nas {
+		address = 127.0.6.0/24
+		key = tactest
+	}
+""" + shell_profile([
+            ("nas-example", "device.dnsname == nas.example"),
+        ]))
+        self.assertEqual(self.holds("127.0.6.1"), ["nas-example"])
+        self.assertGreater(server.queries, 0)
 
 
 if __name__ == "__main__":
