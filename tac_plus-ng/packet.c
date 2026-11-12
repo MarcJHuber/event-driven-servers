@@ -753,8 +753,13 @@ void tac_read(struct context *ctx, int cur)
 	    report(session, LOG_ERR, ~0,
 		   "%s: Limit of %d rounds reached for session %.8x", ctx->device_addr_ascii.txt, (int) ctx->host->max_rounds,
 		   ntohl(ctx->hdr.tac.session_id));
+	    session->seq_no++;
 	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_ERROR, "Too many rounds.", 0, NULL, 0, 0);
-	    cleanup(ctx, cur);
+	    // tac_write() closes the connection after the reply
+	    io_clr_i(ctx->io, cur);
+	    mem_free(ctx->mem, &ctx->in);
+	    ctx->hdroff = 0;
+	    ctx->dying = 1;
 	    return;
 	}
 	session->seq_no++;
