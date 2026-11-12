@@ -77,6 +77,7 @@ HASHES = """
 """
 
 
+@unittest.skipUnless("openssl" in features(), "types 6, 8 and 9 and the ASA hashes need a build with OpenSSL")
 class PasswordTypes(DaemonTestCase):
     """The password types of "password login", "pap" and "enable" (doc: "password login", "Password Hashes")."""
 

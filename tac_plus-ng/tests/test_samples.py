@@ -226,7 +226,6 @@ class RadiusSample(DaemonTestCase):
     def test_radius_user_gets_priv_lvl_7_and_the_dacl(self):
         r = self.access("demo", "demo")
         self.assertEqual(r.code_name, "Access-Accept", r)
-        self.assertTrue(r.message_authenticator, "no valid Message-Authenticator in the reply")
         pairs = cisco_avpairs(r)
         self.assertEqual(pairs[0], "shell:priv-lvl=7")
         self.assertRegex(dacl_name(r), r"^#ACSACL#demoacl-[0-9a-f]{8}$")
@@ -249,6 +248,11 @@ class RadiusSample(DaemonTestCase):
     def test_wrong_password_rejects(self):
         self.assertEqual(self.access("demo", "wrong").code_name, "Access-Reject")
 
+    @unittest.skipUnless("openssl" in features(), "the Message-Authenticator needs a build with OpenSSL")
+    def test_reply_has_a_message_authenticator(self):
+        self.assertTrue(self.access("demo", "demo").message_authenticator, "no valid Message-Authenticator in the reply")
+
+    @unittest.skipUnless("openssl" in features(), "the Message-Authenticator needs a build with OpenSSL")
     def test_request_without_message_authenticator_gets_no_answer(self):
         """No "bug compatibility = 32" in the sample: the BLAST attack mitigation is on."""
         with self.assertRaises(TimeoutError):
