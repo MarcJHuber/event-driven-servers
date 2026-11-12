@@ -208,14 +208,14 @@ def features():
     return _features[path]
 
 
-def parse_only(path, cwd=None, timeout=30):
-    """tac_plus-ng -P path: (exit code, output); a negative code is the signal that killed the parser.
+def parse_only(path, cwd=None, timeout=30, program="tac_plus-ng"):
+    """program -P path: (exit code, output); a negative code is the signal that killed the parser.
 
     Since #264 "-P" turns a parser killed by signal n into exit code 128 + n
     (mavis/spawnd_main.c), so a crashing configuration no longer hides behind
     exit code 0; map it back to the -n this returns for a signal.
     """
-    p = subprocess.run([binary(), "-P", path], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    p = subprocess.run([binary(program), "-P", path], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                        stdin=subprocess.DEVNULL, timeout=timeout, cwd=cwd, env=sanitizer_env())
     code = p.returncode
     out = p.stdout.decode("utf-8", "replace")
