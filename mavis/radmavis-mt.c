@@ -163,13 +163,10 @@ static void *run_thread(void *arg)
 	    if (*buf)
 		av_set(ac, AV_A_TACMEMBER, buf);
 	}
-    } else
-	result = REJECT_RC;
+    }
 
     rc_avpair_free(send);
     rc_avpair_free(received);
-
-    int res = MAVIS_FINAL;
 
     switch (result) {
     case OK_RC: {
@@ -185,14 +182,12 @@ static void *run_thread(void *arg)
     case REJECT_RC:
 	av_set(ac, AV_A_RESULT, AV_V_RESULT_FAIL);
 	break;
-    case TIMEOUT_RC:
-	res = MAVIS_TIMEOUT;
     default:
 	av_set(ac, AV_A_RESULT, AV_V_RESULT_ERROR);
 	break;
     }
 
-    av_write(ac, res);
+    av_write(ac, MAVIS_FINAL);
     return NULL;
 }
 

@@ -14,9 +14,9 @@ RADMAVIS = os.path.join(prefix(), "sbin", "radmavis-mt")
 DICTIONARY = os.path.join(SOURCE, "tac_plus-ng", "sample", "radius-dict.cfg")
 SECRET = "radsecret"
 NAS = "127.0.0.6"
+RADCLI_DICTIONARY = "/etc/radcli/dictionary"
 
 # radcli 1.2 and 1.3 send no Message-Authenticator: B must not require it (bug compatibility 32)
-# Reply-Message: radmavis-mt rejects an Access-Accept without attributes (a B without OpenSSL adds none)
 SERVER = string.Template("""
 	include = "$dictionary"
 	device nas {
@@ -26,8 +26,10 @@ SERVER = string.Template("""
 	}
 	user alice { password login = clear alicepw }
 	user bob { password login = clear bobpw }
+	user carol { password login = clear carolpw }
 	profile reply {
 		script {
+			if (user == carol) permit
 			if (user == alice) set radius[Class] = "netadmins"
 			set radius[Reply-Message] = "welcome"
 			permit
@@ -43,7 +45,7 @@ nas-identifier tactest
 authserver 127.0.0.1:{port}:{secret}
 acctserver 127.0.0.1:{port}:{secret}
 bindaddr {nas}
-dictionary /etc/radcli/dictionary
+dictionary {dictionary}
 seqfile {seqfile}
 mapfile /dev/null
 auth_order radius
@@ -62,6 +64,11 @@ CLIENT = string.Template("""
 	user backend = mavis
 	login backend = mavis
 	pap backend = mavis
+	authentication fallback = permit
+	user rescue {
+		fallback-only
+		password pap = clear rescuepw
+	}
 	group netadmins { }
 	ruleset {
 		rule netadmins {
@@ -78,12 +85,13 @@ class RadiusServer(DaemonTestCase):
 
     CONFIG = None
 
-    def start_pair(self, check_server=True):
+    def start_pair(self, check_server=True, dictionary=RADCLI_DICTIONARY):
         server = self.start_daemon(SERVER, udp=True, name=self.id().split(".")[-1] + "-server", check=check_server)
         port = server.udp_port
         seqfile = self.scratch_file("radius.seq", "")
         conf = self.scratch_file("radiusclient.conf",
-                                 RADIUSCLIENT_CONF.format(port=port, secret=SECRET, nas=NAS, seqfile=seqfile))
+                                 RADIUSCLIENT_CONF.format(port=port, secret=SECRET, nas=NAS, seqfile=seqfile,
+                                                          dictionary=dictionary))
         client = self.start_daemon(CLIENT.substitute(radmavis=RADMAVIS, conf=conf))
         return server, client
 
@@ -112,14 +120,30 @@ class RadiusServer(DaemonTestCase):
                 r = c.ascii_login(user, password)
                 self.assertEqual((r.status_name, r.server_msg), ("PASS", motd), r)
 
+    def test_access_accept_without_attributes(self):
+        """B adds no attribute for carol, and radcli keeps no Message-Authenticator: radmavis-mt gets no pairs.
+
+        radcli drops the attributes that its dictionary does not have. A
+        build of B without OpenSSL sends no Message-Authenticator at all.
+        """
+        with open(RADCLI_DICTIONARY) as f:
+            lines = [line for line in f if "Message-Authenticator" not in line]
+        _, a = self.start_pair(dictionary=self.scratch_file("dictionary", "".join(lines)))
+        with a.connect() as c:
+            self.assertEqual(c.pap("carol", "carolpw").status_name, "PASS")
+
     def test_server_stopped(self):
-        """Without an answer of the RADIUS server the login fails after radius_timeout, it does not hang."""
+        """No answer from the RADIUS server is a backend error: the fallback-only user can log in."""
         b, a = self.start_pair(check_server=False)
         with a.connect() as c:
             self.assertEqual(c.pap("alice", "alicepw").status_name, "PASS")
+        with a.connect() as c:
+            self.assertEqual(c.pap("rescue", "rescuepw").status_name, "FAIL")
         self.assertEqual(b.stop(remove=False), [])
         with a.connect(timeout=10.0) as c:
             self.assertEqual(c.pap("alice", "alicepw").status_name, "FAIL")
+        with a.connect() as c:
+            self.assertEqual(c.pap("rescue", "rescuepw").status_name, "PASS")
 
 
 if __name__ == "__main__":
