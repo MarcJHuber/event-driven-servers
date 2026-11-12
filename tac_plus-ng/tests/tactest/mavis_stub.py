@@ -45,6 +45,7 @@ State, all keys optional:
 
   users         {name: {"password": str,
                         "member": [groups] or a string as it is,
+                        "memberof": [LDAP group DNs] or a string as it is,
                         "sshkey": str, "mustchange": bool}}
   result        {key: "ACK" | "NAK" | "NOTFOUND" | "ERROR"}; the first of
                 "<user>:<TYPE>", "<user>", "<TYPE>", "*" decides, TYPE
@@ -202,6 +203,9 @@ def serve(libdir):
             member = known.get("member")
             if member:
                 d.set_tacmember(member if isinstance(member, str) else ",".join('"%s"' % m for m in member))
+            memberof = known.get("memberof")
+            if memberof:
+                d.set_memberof(memberof if isinstance(memberof, str) else ",".join('"%s"' % m for m in memberof))
             if known.get("sshkey"):
                 d.set_sshpubkey(known["sshkey"])
             d.password_mustchange(bool(known.get("mustchange")))

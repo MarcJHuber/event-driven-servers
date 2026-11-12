@@ -100,7 +100,8 @@ class Baseline:
         self._read = (self.crash_offset, dict(self.reports))
         self.processes = daemon.snapshot()
         self.sockets = {pid: tcp_sockets(pid) for pid in daemon.workers()} if LINUX else {}
-        self.logs = {name: daemon.log_size(name) for name in daemon.LOGS}
+        names = set(daemon.LOGS) | {os.path.basename(p)[:-4] for p in glob.glob(os.path.join(daemon.tmp, "*.log"))}
+        self.logs = {name: daemon.log_size(name) for name in names}
 
     @property
     def _crash_file(self):

@@ -12,6 +12,7 @@ A sample whose rules deny that user still answers the probe, only later.
 """
 
 import os
+import re
 
 from .daemon import TOP
 
@@ -28,11 +29,14 @@ def path(name):
 def template(name, edits=()):
     with open(path(name)) as f:
         text = f.read().replace("$", "$$")
-    edits = list(edits) + [("id = tac_plus-ng {", "id = tac_plus-ng {" + GENERATION_USER)]
     for old, new in edits:
         old = old.replace("$", "$$")
         count = text.count(old)
         if count != 1:
             raise ValueError("%s: %r occurs %d times, not once" % (name, old, count))
         text = text.replace(old, new)
-    return HEAD + text
+    # the "=" after "id" is optional in the configuration syntax
+    found = list(re.finditer(r"\bid\s*=?\s*tac_plus-ng\s*\{", text))
+    if len(found) != 1:
+        raise ValueError("%s: \"id = tac_plus-ng {\" occurs %d times, not once" % (name, len(found)))
+    return HEAD + text[:found[0].end()] + GENERATION_USER + text[found[0].end():]
