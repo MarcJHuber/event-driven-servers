@@ -410,6 +410,54 @@ class PasswordChange(DaemonTestCase):
         self.assertEqual(r.server_msg, "Passwords do not match.\n", r)
 
 
+# a backend with a challenge for otpuser; argv[1] is the directory of mavis.py
+CHALRESP_BACKEND = """
+import sys
+sys.path.insert(0, sys.argv[1])
+import mavis as M
+
+while True:
+	d = M.Mavis()
+	user, tactype = d.av_pairs.get(M.AV_A_USER), d.av_pairs.get(M.AV_A_TACTYPE)
+	if user != "otpuser":
+		d.write(M.MAVIS_DOWN, M.AV_V_RESULT_NOTFOUND, None)
+	elif tactype == M.AV_V_TACTYPE_CHAL:
+		d.av_pairs[M.AV_A_CHALLENGE] = "otp-md5 99 tactest"
+		d.write(M.MAVIS_FINAL, M.AV_V_RESULT_OK, None)
+	elif tactype == M.AV_V_TACTYPE_AUTH:
+		ok = d.av_pairs.get(M.AV_A_PASSWORD) == "response99"
+		d.write(M.MAVIS_FINAL, M.AV_V_RESULT_OK if ok else M.AV_V_RESULT_FAIL, None)
+	else:
+		d.write(M.MAVIS_FINAL, M.AV_V_RESULT_OK, None)
+"""
+
+
+class ChallengeResponse(DaemonTestCase):
+    """"login backend = mavis chalresp": the backend sends a challenge, the user answers it."""
+
+    CONFIG = None
+
+    def start(self):
+        script = self.scratch_file("backend.py", CHALRESP_BACKEND)
+        return self.start_daemon("""
+	mavis module = external {
+		exec = "%s" "%s" "-u" "%s" "%s"
+		childs min = 1
+		childs max = 1
+	}
+	user backend = mavis
+	login backend = mavis chalresp
+""" % (sys.executable, sys.executable, script, os.path.join(prefix(), "lib", "mavis")) + PERMIT)
+
+    def test_right_response(self):
+        self.assertTrue(self.connect(daemon=self.start()).ascii_login("otpuser", "response99").ok)
+
+    def test_wrong_response_is_response_incorrect(self):
+        """The RESPONSE_INCORRECT user message, as PASSWORD_INCORRECT for a password."""
+        r = self.connect(daemon=self.start()).ascii_login("otpuser", "bad")
+        self.assertEqual((r.status_name, r.server_msg), ("FAIL", "Response incorrect.\n"), r)
+
+
 def cpu_seconds(pid):
     """utime + stime of a process (Linux)."""
     with open("/proc/%d/stat" % pid) as f:
