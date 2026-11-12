@@ -278,6 +278,21 @@ class LdapTests:
                 r = c.ascii_login(user, password)
                 self.assertEqual((r.status_name, r.server_msg), ("PASS", motd), r)
 
+    def test_scope(self):
+        """LDAP_SCOPE takes the documented values; the users are two levels below LDAP_BASE."""
+        for scope, status in (("sub", "PASS"), ("one", "FAIL"), ("base", "FAIL")):
+            with self.subTest(scope=scope):
+                _, d = self.start(LDAP_SCOPE=scope)
+                with d.connect() as c:
+                    self.assertEqual(c.pap("alice", "alicepw").status_name, status)
+
+    def test_group_scope(self):
+        """LDAP_SCOPE_GROUP = one below LDAP_BASE_GROUP = ou=groups finds both groups of alice."""
+        _, d = self.start(LDAP_SCOPE_GROUP="one", LDAP_BASE_GROUP="ou=groups," + BASE)
+        with d.connect() as c:
+            r = c.ascii_login("alice", "alicepw")
+        self.assertEqual((r.status_name, r.server_msg), ("PASS", "netadmins in staff\n"), r)
+
     def test_password_change(self):
         """An empty password at an ASCII login starts the password change dialog ("login backend = mavis chpass")."""
         _, d = self.start()
