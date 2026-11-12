@@ -410,7 +410,7 @@ class PasswordChange(DaemonTestCase):
         self.assertEqual(r.server_msg, "Passwords do not match.\n", r)
 
 
-# a backend with a challenge for otpuser; argv[1] is the directory of mavis.py
+# a backend with a challenge for the users whose name starts with otpuser; argv[1] is the directory of mavis.py
 CHALRESP_BACKEND = """
 import sys
 sys.path.insert(0, sys.argv[1])
@@ -419,7 +419,7 @@ import mavis as M
 while True:
 	d = M.Mavis()
 	user, tactype = d.av_pairs.get(M.AV_A_USER), d.av_pairs.get(M.AV_A_TACTYPE)
-	if user != "otpuser":
+	if not (user or "").startswith("otpuser"):
 		d.write(M.MAVIS_DOWN, M.AV_V_RESULT_NOTFOUND, None)
 	elif tactype == M.AV_V_TACTYPE_CHAL:
 		d.av_pairs[M.AV_A_CHALLENGE] = "otp-md5 99 tactest"
@@ -437,7 +437,7 @@ class ChallengeResponse(DaemonTestCase):
 
     CONFIG = None
 
-    def start(self):
+    def start(self, policy=""):
         script = self.scratch_file("backend.py", CHALRESP_BACKEND)
         return self.start_daemon("""
 	mavis module = external {
@@ -447,7 +447,12 @@ class ChallengeResponse(DaemonTestCase):
 	}
 	user backend = mavis
 	login backend = mavis chalresp
-""" % (sys.executable, sys.executable, script, os.path.join(prefix(), "lib", "mavis")) + PERMIT)
+""" % (sys.executable, sys.executable, script, os.path.join(prefix(), "lib", "mavis")) + policy + PERMIT)
+
+    def prompt(self, policy="", user="otpuser", **kw):
+        r = self.connect(daemon=self.start(policy)).ascii_login(user, "response99", **kw)
+        self.assertTrue(r.ok, r)
+        return r.prompts[-1]
 
     def test_right_response(self):
         self.assertTrue(self.connect(daemon=self.start()).ascii_login("otpuser", "response99").ok)
@@ -456,6 +461,22 @@ class ChallengeResponse(DaemonTestCase):
         """The RESPONSE_INCORRECT user message, as PASSWORD_INCORRECT for a password."""
         r = self.connect(daemon=self.start()).ascii_login("otpuser", "bad")
         self.assertEqual((r.status_name, r.server_msg), ("FAIL", "Response incorrect.\n"), r)
+
+    def test_prompt_after_getuser(self):
+        self.assertEqual(self.prompt(user_in_start=False), "otp-md5 99 tactest\nResponse: ")
+
+    def test_prompt_without_banner(self):
+        """The user is in START, so the GETPASS prompt is the first text the user sees."""
+        self.assertEqual(self.prompt(), "\notp-md5 99 tactest\nResponse: ")
+
+    def test_prompt_after_welcome_banner(self):
+        """The line breaks around the challenge reach the client as line breaks, not as "\\012"."""
+        self.assertEqual(self.prompt('\twelcome banner = "Welcome.\\n"\n'), "Welcome.\n\notp-md5 99 tactest\nResponse: ")
+
+    def test_banner_escapes_the_user_name(self):
+        """Only the challenge is unescaped: a control character in the user name from the client stays escaped."""
+        prompt = self.prompt('\twelcome banner = "Hello $${user}.\\n"\n', user="otpuser\x07")
+        self.assertEqual(prompt, "Hello otpuser\\007.\n\notp-md5 99 tactest\nResponse: ")
 
 
 def cpu_seconds(pid):
