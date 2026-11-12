@@ -2793,7 +2793,17 @@ rb_tree_t *init_timespec(void)
     return RB_tree_new(compare_timespec, (void (*)(void *)) free_timespec);
 }
 
-static int parse_uucptime(struct mavis_tm *, char *in);
+static int parse_uucptime(struct mavis_tm ***, char *in);
+
+// Append a list entry for the cron entry cron; string is the entry of the configuration.
+static int add_cron(struct mavis_tm ***tail, char *string, char *cron)
+{
+    struct mavis_tm *tm = calloc(1, sizeof(struct mavis_tm));
+    tm->string = strdup(string);
+    **tail = tm;
+    *tail = &tm->next;
+    return parse_cron(tm, cron);
+}
 
 void parse_timespec(rb_tree_t *timespectable, struct sym *sym)
 {
@@ -2830,16 +2840,11 @@ void parse_timespec(rb_tree_t *timespectable, struct sym *sym)
 		struct mavis_tm **tm = &ts->tm;
 		while (*tm)
 		    tm = &(*tm)->next;
-		*tm = calloc(1, sizeof(struct mavis_tm));
-		(*tm)->string = strdup(sym->buf);
 		if (isalpha((int) sym->buf[0])) {
-		    if (parse_uucptime(*tm, sym->buf))
+		    if (parse_uucptime(&tm, sym->buf))
 			parse_error(sym, "Unrecognized 'uucp' style time specification '%s'", sym->buf);
-
-		} else {
-		    if (parse_cron(*tm, sym->buf))
-			parse_error(sym, "Unrecognized 'cron' style time specification '%s'", sym->buf);
-		}
+		} else if (add_cron(&tm, sym->buf, sym->buf))
+		    parse_error(sym, "Unrecognized 'cron' style time specification '%s'", sym->buf);
 		sym_get(sym);
 	    }
 	}
@@ -2874,42 +2879,43 @@ static char *uucpdow2n(char **t)
     return NULL;
 }
 
-static void uucptime2cron(struct mavis_tm *tm, int from, int to, char *dow)
+static void uucptime2cron(struct mavis_tm ***tail, char *string, int from, int to, char *dow)
 {
     char tmp[80];
     if (from / 100 == to / 100) {
 	snprintf(tmp, sizeof(tmp), "%d-%d %d * * %s", from % 100, to % 100, from / 100, dow);
-	parse_cron(tm, tmp);
+	add_cron(tail, string, tmp);
 	return;
     }
     if (from % 100) {
 	snprintf(tmp, sizeof(tmp), "%d-59 %d * * %s", from % 100, from / 100, dow);
-	parse_cron(tm, tmp);
+	add_cron(tail, string, tmp);
 	from /= 100;
 	from++;
 	from *= 100;
     }
     if (to % 100 != 59) {
 	snprintf(tmp, sizeof(tmp), "0-%d %d * * %s", to % 100, to / 100, dow);
-	parse_cron(tm, tmp);
+	add_cron(tail, string, tmp);
 	to /= 100;
 	to--;
 	to *= 100;
     }
     if (from == to) {
 	snprintf(tmp, sizeof(tmp), "* %d * * %s", from / 100, dow);
-	parse_cron(tm, tmp);
+	add_cron(tail, string, tmp);
     } else if (from < to) {
 	snprintf(tmp, sizeof(tmp), "* %d-%d * * %s", from / 100, to / 100, dow);
-	parse_cron(tm, tmp);
+	add_cron(tail, string, tmp);
     }
 }
 
-static int parse_uucptime(struct mavis_tm *tm, char *in)
+static int parse_uucptime(struct mavis_tm ***tail, char *in)
 {
-    char *uucptime;
-    while ((uucptime = strtok(in, ",|"))) {
-	in = NULL;
+    char buf[strlen(in) + 1];
+    char *uucptime, *next = strcpy(buf, in);
+    while ((uucptime = strtok(next, ",|"))) {
+	next = NULL;
 	char *dow = uucpdow2n(&uucptime);
 	if (!dow)
 	    return -1;
@@ -2937,10 +2943,10 @@ static int parse_uucptime(struct mavis_tm *tm, char *in)
 		uucptime++;
 	    }
 	    if (from < to) {
-		uucptime2cron(tm, from, to, dow);
+		uucptime2cron(tail, in, from, to, dow);
 	    } else {
-		uucptime2cron(tm, from, 2359, dow);
-		uucptime2cron(tm, 0, to, dow);
+		uucptime2cron(tail, in, from, 2359, dow);
+		uucptime2cron(tail, in, 0, to, dow);
 	    }
 	    if (to / 100 > 23 || to % 100 > 59)
 		return -1;
@@ -2949,7 +2955,7 @@ static int parse_uucptime(struct mavis_tm *tm, char *in)
 	} else {
 	    char tmp[80];
 	    snprintf(tmp, sizeof(tmp), "* * * * %s", dow);
-	    parse_cron(tm, tmp);
+	    add_cron(tail, in, tmp);
 	}
     }
     return 0;
