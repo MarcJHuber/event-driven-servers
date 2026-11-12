@@ -68,11 +68,11 @@ void h_mff(struct context *ctx, char *arg)
 		    if (1 == sscanf(v, "%u", &ug))
 			for (i = 0; i < ctx->gids_size && (gid_t) ug != ctx->gids[i]; i++);
 		    else
-			for (i = 0; i < ctx->gids_size && strcmp(arg, lookup_gid(ctx, ctx->gids[i])); i++);
+			for (i = 0; i < ctx->gids_size && strcmp(v, lookup_gid(ctx, ctx->gids[i])); i++);
 
 		    if (i < ctx->gids_size) {
 			flags |= flag_unix_group;
-			unix_group = (gid_t) i;
+			unix_group = ctx->gids[i];
 		    }
 		} else {
 		    replyf(ctx, MSG_504_Parameter_not_implemented, u);
