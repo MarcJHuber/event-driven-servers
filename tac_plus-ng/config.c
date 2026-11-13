@@ -402,13 +402,13 @@ static int type6_decrypt_values(void)
 
 void complete_realm(tac_realm *r)
 {
-    if (r->complete)
-	return;
-
-    r->complete = 1;
     tac_realm *rp = r->parent;
     if (rp)			// "parent = <realm>" can name a realm that completes later
 	complete_realm(rp);
+    if (r->complete)		// a child of rp can have completed r
+	return;
+
+    r->complete = 1;
 #ifdef WITH_SSL
     if (r->tls_cert || r->tls_key) {
 	if (!r->tls)

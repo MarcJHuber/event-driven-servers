@@ -327,9 +327,10 @@ class Type6SiblingParentRealm(DaemonTestCase):
     """A realm with a sibling as its parent gets the type6-key that the sibling inherits.
 
     Realms complete in name order, so sibling-a completes before its parent sibling-z.
+    nest-c, a child of nest-z with parent nest-a, completes while nest-a waits for nest-z.
     """
 
-    LISTEN = {"a": "realm = sibling-a"}
+    LISTEN = {"a": "realm = sibling-a", "c": "realm = nest-c"}
     CONFIG = PERMIT + """
 	realm sibling-z {
 	}
@@ -339,11 +340,27 @@ class Type6SiblingParentRealm(DaemonTestCase):
 			password login = 6 '%s'
 		}
 	}
+	realm nest-z {
+	}
+	realm nest-a {
+		parent = nest-z
+	}
+	realm nest-z {
+		realm nest-c {
+			parent = nest-a
+			user carol {
+				password login = 6 '%s'
+			}
+		}
+	}
 	type6-key = demo
-""" % ALICEPW_6
+""" % (ALICEPW_6, ALICEPW_6)
 
     def test_type6_key_of_the_parent_of_the_parent_realm(self):
         self.assertEqual(self.connect(listener="a").ascii_login("bob", "alicepw").status_name, "PASS")
+
+    def test_type6_key_of_a_parent_realm_that_completes_from_a_child_of_its_parent(self):
+        self.assertEqual(self.connect(listener="c").ascii_login("carol", "alicepw").status_name, "PASS")
 
 
 @unittest.skipUnless("openssl" in features(), "type 6 needs a build with OpenSSL")
