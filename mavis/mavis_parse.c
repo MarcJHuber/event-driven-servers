@@ -2651,6 +2651,7 @@ int parse_cron(struct mavis_tm *tm, char *t)
     int start = -1, val = 0, field = 0, valid = 0, i;
     long long a[5] = { 0 };
     int amax[5] = { 60, 24, 31, 12, 7 };
+    int nmax[5] = { 59, 23, 31, 12, 7 };	// the largest number crontab(5) takes in each field
 
     while (*t && field < 5) {
 	switch (*t) {
@@ -2701,8 +2702,8 @@ int parse_cron(struct mavis_tm *tm, char *t)
 		    t++;
 		}
 		valid = 1;
-		if (val > amax[field])
-		    val = amax[field];
+		if (val > nmax[field])
+		    return 1;
 		if (field == 3) {	// crontab months are 1-12, tm_mon is 0-11
 		    if (val < 1)
 			return 1;
