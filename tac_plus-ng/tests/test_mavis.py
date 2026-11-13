@@ -529,6 +529,44 @@ class Type6UserProfile(DaemonTestCase):
         self.assertEqual(self.connect().enable(ENABLEPW_6, user="alice").status_name, "FAIL")
 
 
+DAY = 86400
+
+
+@unittest.skipUnless(LINUX, "127.0.0.0/8 local addresses")
+class PasswordExpiry(DaemonTestCase):
+    """The PASSWORD_EXPIRY of the backend selects the PASSWORD_EXPIRED or PASSWORD_EXPIRES message."""
+
+    CONFIG = Stub.module(childs=(1, 1)) + BACKEND + PERMIT + """
+	device msgdev {
+		address = 127.0.0.36
+		key = tactest
+		password expiry warning = 7d
+		message PASSWORD_EXPIRED = "Your password is too old."
+		message PASSWORD_EXPIRES = "Your password expires on %Y-%m-%d."
+	}
+"""
+
+    def setUp(self):
+        super().setUp()
+        self.soon = int(time.time()) + 3 * DAY
+        Stub(self.daemon).set(users={"old": {"password": "pw", "expiry": int(time.time()) - DAY},
+                                     "soon": {"password": "pw", "expiry": self.soon}})
+
+    def login(self, user, source=None):
+        r = self.connect(source=source).ascii_login(user, "pw")
+        return r.status_name, r.server_msg
+
+    def test_password_expired(self):
+        self.assertEqual(self.login("old", source="127.0.0.36"), ("PASS", "Your password is too old.\n"))
+
+    def test_password_expires(self):
+        expected = time.strftime("Your password expires on %Y-%m-%d.\n", time.localtime(self.soon))
+        self.assertEqual(self.login("soon", source="127.0.0.36"), ("PASS", expected))
+
+    def test_default_password_expired(self):
+        self.assertEqual(self.login("old"), ("PASS", "Password has expired.\n"))
+
+
 class PasswordChange(DaemonTestCase):
     """#30: a user who must change the password and cancels is asked again next time.
 
