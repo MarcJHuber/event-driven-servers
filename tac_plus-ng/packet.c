@@ -596,9 +596,8 @@ void tac_read(struct context *ctx, int cur)
 	    return;
 	}
     }
-#define CHECK_PROTOCOL(A,B) \
-	if (ctx->realm->allowed_protocol_ ## A != TRISTATE_YES && ctx->aaa_protocol != S_unknown \
-	 && ctx->aaa_protocol != S_ ## A && ctx->aaa_protocol != S_ ## B) { \
+#define CHECK_PROTOCOL(A) \
+	if (ctx->realm->allowed_protocol_ ## A != TRISTATE_YES) { \
 		ctx->reset_tcp = BISTATE_YES; \
 		cleanup(ctx,cur); \
 		return; \
@@ -630,21 +629,21 @@ void tac_read(struct context *ctx, int cur)
 		}
 	    }
 	    if (ctx->udp) {
-		CHECK_PROTOCOL(radius_dtls, radius);
+		CHECK_PROTOCOL(radius_dtls);
 		ctx->aaa_protocol = S_radius_dtls;
 	    } else {
-		CHECK_PROTOCOL(radius_tls, radius);
+		CHECK_PROTOCOL(radius_tls);
 		ctx->aaa_protocol = S_radius_tls;
 	    }
 	} else
 #endif
 	{
 	    if (ctx->udp) {
-		CHECK_PROTOCOL(radius_udp, radius);
+		CHECK_PROTOCOL(radius_udp);
 		ctx->aaa_protocol = S_radius_udp;
 	    } else {
 		if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
-		    CHECK_PROTOCOL(radius_tcp, radius);
+		    CHECK_PROTOCOL(radius_tcp);
 		ctx->aaa_protocol = S_radius_tcp;
 	    }
 	    if (!ctx->radius_1_1 && !ctx->host->radius_key) {
@@ -683,7 +682,7 @@ void tac_read(struct context *ctx, int cur)
 
 #ifdef WITH_SSL
     if (ctx->tls) {
-	CHECK_PROTOCOL(tacacs_tls, tacacs);
+	CHECK_PROTOCOL(tacacs_tls);
 	ctx->aaa_protocol = S_tacacs_tls;
 	int ssl_version = SSL_version(ctx->tls);
 	if (!(ctx->host->bug_compatibility & CLIENT_BUG_BAD_TLS_VERSION)
@@ -703,7 +702,7 @@ void tac_read(struct context *ctx, int cur)
     } else
 #endif
     {
-	CHECK_PROTOCOL(tacacs_tcp, tacacs);
+	CHECK_PROTOCOL(tacacs_tcp);
 	ctx->aaa_protocol = S_tacacs_tcp;
     }
 
