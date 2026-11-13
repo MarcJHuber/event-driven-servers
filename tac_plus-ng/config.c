@@ -3920,10 +3920,10 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	case S_tls_peer_cert_sha256:
 	case S_tls_peer_cert_validation:
 	case S_tls_peer_cert_rpk:
+	case S_type6key:
 #if OPENSSL_VERSION_NUMBER >= 0x30200000
 	case S_tls_client_cert_type:
 	case S_tls_server_cert_type:
-	case S_type6key:
 #endif
 #endif
 	    break;
