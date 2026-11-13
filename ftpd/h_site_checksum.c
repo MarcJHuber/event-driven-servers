@@ -248,9 +248,9 @@ void md_method_add(struct md_method **m, char *ftp_name,
 	return;
     while (*m && strcmp((*m)->ftp_name, ftp_name))
 	m = &(*m)->next;
-    if (m && *m)
+    if (*m)
 	return;
-    *m = calloc(1, sizeof(struct md_method));
+    *m = Xcalloc(1, sizeof(struct md_method));
     (*m)->ftp_name = ftp_name;
     (*m)->openssl_name = openssl_name;
     (*m)->init = init;
