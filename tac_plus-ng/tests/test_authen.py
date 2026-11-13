@@ -323,6 +323,30 @@ class Type6(DaemonTestCase):
 
 
 @unittest.skipUnless("openssl" in features(), "type 6 needs a build with OpenSSL")
+class Type6SiblingParentRealm(DaemonTestCase):
+    """A realm with a sibling as its parent gets the type6-key that the sibling inherits.
+
+    Realms complete in name order, so sibling-a completes before its parent sibling-z.
+    """
+
+    LISTEN = {"a": "realm = sibling-a"}
+    CONFIG = PERMIT + """
+	realm sibling-z {
+	}
+	realm sibling-a {
+		parent = sibling-z
+		user bob {
+			password login = 6 '%s'
+		}
+	}
+	type6-key = demo
+""" % ALICEPW_6
+
+    def test_type6_key_of_the_parent_of_the_parent_realm(self):
+        self.assertEqual(self.connect(listener="a").ascii_login("bob", "alicepw").status_name, "PASS")
+
+
+@unittest.skipUnless("openssl" in features(), "type 6 needs a build with OpenSSL")
 class Type6Undecryptable(DaemonTestCase):
     """A type 6 value that the type6-key does not decrypt, or that has no type6-key, is a configuration error.
 

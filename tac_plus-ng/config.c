@@ -396,6 +396,8 @@ void complete_realm(tac_realm *r)
 
     r->complete = 1;
     tac_realm *rp = r->parent;
+    if (rp)			// "parent = <realm>" can name a realm that completes later
+	complete_realm(rp);
 #ifdef WITH_SSL
     if (r->tls_cert || r->tls_key) {
 	if (!r->tls)
