@@ -12,6 +12,7 @@
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/rand.h>
+#include "type6.h"
 #if OPENSSL_VERSION_NUMBER < 0x30000000
 #include <openssl/md5.h>
 #include <openssl/aes.h>
@@ -188,7 +189,7 @@ static void aes_xor(const char *master_key, const uint8_t salt[TYPE6_SALT_LEN], 
 #endif
 }
 
-uint8_t *decrypt_type6(const char *encoded, const char *master_key)
+char *decrypt_type6(const char *encoded, const char *master_key)
 {
     uint8_t decoded[strlen(encoded)];
     size_t decoded_len = 0;
@@ -197,11 +198,11 @@ uint8_t *decrypt_type6(const char *encoded, const char *master_key)
 	return NULL;
 
     size_t len = decoded_len - TYPE6_SALT_LEN - TYPE6_MAC_LEN;
-    uint8_t *output = malloc(len + 1);
+    char *output = malloc(len + 1);
     if (!output)
 	return NULL;
 
-    aes_xor(master_key, decoded, len, output, decoded + TYPE6_SALT_LEN);
+    aes_xor(master_key, decoded, len, (uint8_t *) output, decoded + TYPE6_SALT_LEN);
 
     output[len] = 0;
 
