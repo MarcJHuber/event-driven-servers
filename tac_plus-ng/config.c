@@ -311,7 +311,7 @@ struct type6_value {
     void *target;
 };
 
-// values from the configuration file wait for complete_realm(): their type6-key can come later
+// values wait until the parse that read them ends, or for complete_realm(): their type6-key can come later
 static struct type6_value *type6_values = NULL;
 static struct type6_value **type6_values_tail = &type6_values;
 
@@ -358,34 +358,45 @@ static char *type6_decrypt(struct type6_value *t)
 // sym holds the type 6 value
 static void type6_add(struct sym *sym, tac_host *host, enum type6_target kind, void *target)
 {
-    struct type6_value t = {.filename = sym->filename,.line = sym->line,.host = host,.kind = kind,.target = target };
-    if (host->realm->complete) {	// a MAVIS profile: every type6-key is known
-	char *error = type6_decrypt(&t);
-	if (error)
-	    parse_error(sym, "%s", error);
-	return;
-    }
     struct type6_value *n = calloc(1, sizeof(struct type6_value));
-    *n = t;
-    n->filename = strdup(sym->filename);
+    *n = (struct type6_value) {.filename = strdup(sym->filename),.line = sym->line,.host = host,.kind = kind,.target = target };
     *type6_values_tail = n;
     type6_values_tail = &n->next;
 }
 
-static void type6_decrypt_config(void)
+static void type6_free_values(void)
 {
     while (type6_values) {
 	struct type6_value *t = type6_values;
-	char *error = type6_decrypt(t);
-	if (error) {
-	    report_cfg_error(LOG_ERR, ~0, "%s:%u: %s", t->filename, t->line, error);
-	    scm_fatal();	// spawnd exits too
-	}
 	type6_values = t->next;
 	free(t->filename);
 	free(t);
     }
     type6_values_tail = &type6_values;
+}
+
+// returns -1 after it reports the first value that cannot be decrypted
+static int type6_decrypt_values(void)
+{
+    int res = 0;
+    for (struct type6_value * t = type6_values; t && !res; t = t->next) {
+	char *error = type6_decrypt(t);
+	if (error) {
+	    report_cfg_error(LOG_ERR, ~0, "%s:%u: %s", t->filename, t->line, error);
+	    res = -1;
+	}
+    }
+    type6_free_values();
+    return res;
+}
+#else
+static void type6_free_values(void)
+{
+}
+
+static int type6_decrypt_values(void)
+{
+    return 0;
 }
 #endif
 
@@ -527,10 +538,8 @@ void complete_realm(tac_realm *r)
 	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    complete_realm(RB_payload(rbn, tac_realm *));
     }
-#ifdef WITH_SSL
-    if (!rp)			// all realms are complete now
-	type6_decrypt_config();
-#endif
+    if (!rp && type6_decrypt_values())	// all realms are complete now
+	scm_fatal();		// spawnd exits too
 }
 
 tac_realm *lookup_realm(char *name, tac_realm *r)
@@ -1151,7 +1160,7 @@ static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm *parent, ta
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 static void parse_tls_psk_key(struct sym *sym, tac_host *host)
 {
-    // a new struct: a type 6 value of an earlier definition can still wait for type6_decrypt_config()
+    // a new struct: a type 6 value of an earlier definition can still wait for type6_decrypt_values()
     host->tls_psk_key = mem_alloc(host->mem, sizeof(struct tls_psk_key));
     switch (sym->code) {
     case S_clear:
@@ -2889,25 +2898,29 @@ static void parse_user(struct sym *sym, tac_realm *r)
 int parse_host_profile(struct sym *sym, tac_realm *r, tac_host *host)
 {
     sym->env_valid = 1;
-    if (setjmp(sym->env))
+    if (setjmp(sym->env)) {
+	type6_free_values();
 	return -1;
+    }
     sym_init(sym);
     parse(sym, S_openbra);
     while (sym->code != S_closebra)
 	parse_host_attr(sym, r, host);
     sym_get(sym);
-    return 0;
+    return type6_decrypt_values();
 }
 
 int parse_user_profile(struct sym *sym, tac_user *user)
 {
     sym->env_valid = 1;
-    if (setjmp(sym->env))
+    if (setjmp(sym->env)) {
+	type6_free_values();
 	return -1;
+    }
     sym_init(sym);
     while (sym->code == S_openbra)
 	parse_user_attr(sym, user);
-    return 0;
+    return type6_decrypt_values();
 }
 
 int parse_user_profile_fmt(struct sym *sym, tac_user *user, char *fmt, ...)

@@ -47,7 +47,9 @@ State, all keys optional:
                         "member": [groups] or a string as it is,
                         "memberof": [LDAP group DNs] or a string as it is,
                         "sshkey": str, "mustchange": bool,
-                        "new_password": str}}
+                        "new_password": str,
+                        "profile": the user profile (AV_A_TACPROFILE) as it is}}
+  hosts         {address: the host profile (AV_A_TACPROFILE) as it is}
   result        {key: "ACK" | "NAK" | "NOTFOUND" | "ERROR"}; the first of
                 "<user>:<TYPE>", "<user>", "<TYPE>", "*" decides, TYPE
                 being the MAVIS request type (AUTH, INFO, CHPW, ...)
@@ -67,10 +69,11 @@ State, all keys optional:
 
 Without a forced result: an unknown user is NOTFOUND; INFO is ACK with
 the user's attributes; AUTH and CHPW are ACK if the password matches,
-else NAK; DACL is ACK for a name in "dacls"; other request types are
-NOTFOUND. A CHPW for a user with
-"new_password" is ACK only if the new password is that one too, and its
-journal entry has "new_password": true or false (never the password).
+else NAK; HOST is ACK with the profile of a known address; DACL is ACK
+for a name in "dacls"; other request types are NOTFOUND. A CHPW for a
+user with "new_password" is ACK only if the new password is that one
+too, and its journal entry has "new_password": true or false (never the
+password).
 
 Every request becomes one JSON line in the journal, written before the
 answer with a single write() to a file opened with O_APPEND (all
@@ -192,10 +195,11 @@ def serve(libdir):
         av = d.av_pairs
         user, tactype = av.get(M.AV_A_USER, ""), av.get(M.AV_A_TACTYPE, "")
         known = state.get("users", {}).get(user)
+        host = state.get("hosts", {}).get(user) if tactype == "HOST" else None
         result = _forced(state, user, tactype)
         dacl = state.get("dacls", {}).get(user) if tactype == "DACL" else None
         if result is None:
-            if dacl is not None:
+            if host is not None or dacl is not None:
                 result = "ACK"
             elif known is None or tactype not in ("INFO", "AUTH", "CHPW"):
                 result = "NOTFOUND"
@@ -215,6 +219,8 @@ def serve(libdir):
         os.write(journal, (json.dumps(entry) + "\n").encode())
         if dying:
             os._exit(0)
+        if result == "ACK" and host is not None:
+            d.set_tacprofile(host)
         if result == "ACK" and dacl is not None:
             d.set_tacprofile(dacl)
         if result == "ACK" and known:
@@ -226,6 +232,8 @@ def serve(libdir):
                 d.set_memberof(memberof if isinstance(memberof, str) else ",".join('"%s"' % m for m in memberof))
             if known.get("sshkey"):
                 d.set_sshpubkey(known["sshkey"])
+            if known.get("profile"):
+                d.set_tacprofile(known["profile"])
             d.password_mustchange(bool(known.get("mustchange")))
         verdict, code = answers[result]
         d.write(verdict, code, state.get("message"))
