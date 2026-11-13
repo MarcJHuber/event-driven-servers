@@ -51,6 +51,8 @@ State, all keys optional:
   result        {key: "ACK" | "NAK" | "NOTFOUND" | "ERROR"}; the first of
                 "<user>:<TYPE>", "<user>", "<TYPE>", "*" decides, TYPE
                 being the MAVIS request type (AUTH, INFO, CHPW, ...)
+  dacls         {name: profile (AV_A_TACPROFILE)}: a DACL request for name
+                is ACK with that profile
   message       the user response (AV_A_USER_RESPONSE) of every answer
   exit          exit without an answer on the n-th request of a child
   quit          exit after answering the n-th request of a child, once the
@@ -65,7 +67,8 @@ State, all keys optional:
 
 Without a forced result: an unknown user is NOTFOUND; INFO is ACK with
 the user's attributes; AUTH and CHPW are ACK if the password matches,
-else NAK; other request types are NOTFOUND. A CHPW for a user with
+else NAK; DACL is ACK for a name in "dacls"; other request types are
+NOTFOUND. A CHPW for a user with
 "new_password" is ACK only if the new password is that one too, and its
 journal entry has "new_password": true or false (never the password).
 
@@ -190,8 +193,11 @@ def serve(libdir):
         user, tactype = av.get(M.AV_A_USER, ""), av.get(M.AV_A_TACTYPE, "")
         known = state.get("users", {}).get(user)
         result = _forced(state, user, tactype)
+        dacl = state.get("dacls", {}).get(user) if tactype == "DACL" else None
         if result is None:
-            if known is None or tactype not in ("INFO", "AUTH", "CHPW"):
+            if dacl is not None:
+                result = "ACK"
+            elif known is None or tactype not in ("INFO", "AUTH", "CHPW"):
                 result = "NOTFOUND"
             elif tactype == "INFO" or av.get(M.AV_A_PASSWORD) == known.get("password"):
                 result = "ACK"
@@ -209,6 +215,8 @@ def serve(libdir):
         os.write(journal, (json.dumps(entry) + "\n").encode())
         if dying:
             os._exit(0)
+        if result == "ACK" and dacl is not None:
+            d.set_tacprofile(dacl)
         if result == "ACK" and known:
             member = known.get("member")
             if member:
