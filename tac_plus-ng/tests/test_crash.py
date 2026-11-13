@@ -36,7 +36,7 @@ tests rely on the crash detectors that run after every test
 import struct
 import unittest
 
-from tactest import DaemonTestCase, tacacs
+from tactest import DaemonTestCase, features, tacacs
 
 POLICY = """
 	user alice {
@@ -151,6 +151,24 @@ class Users(DaemonTestCase):
         so on Linux this can't fail the way #173 did; it pins the FAIL.
         """
         self.assertEqual(self.connect().ascii_login("badhash", "secret").status_name, "FAIL")
+
+
+@unittest.skipUnless("openssl" in features(), "type 4 is SHA-256 from OpenSSL")
+class Type4Password(DaemonTestCase):
+    CONFIG = POLICY + """
+	user type4 {
+		# IOS type 4 (SHA-256, Cisco base64) of "cisco"
+		password login = 4 tnhtc92DXBhelxjYk8LWJrPV36S2i4ntXrpb4RFmfqY
+	}
+"""
+
+    def test_type4_password(self):
+        """A type 4 hash matches its password, not the hash or the type 4 hash of the hash."""
+        for password, status in (("cisco", "PASS"), ("wrong", "FAIL"),
+                                 ("tnhtc92DXBhelxjYk8LWJrPV36S2i4ntXrpb4RFmfqY", "FAIL"),
+                                 ("wOHEySENn3SgsDjkG/5MlWAPfWfpEzCQ1x8ePNCCm/2", "FAIL")):
+            with self.subTest(password=password):
+                self.assertEqual(self.connect().ascii_login("type4", password).status_name, status)
 
 
 class Realm(DaemonTestCase):
