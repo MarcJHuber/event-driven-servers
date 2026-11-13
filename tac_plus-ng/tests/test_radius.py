@@ -745,7 +745,31 @@ class RealmOnUdpListener(DaemonTestCase):
         self.assertEqual(r.code_name, "Access-Accept", r)
 
 
-class AaaProtocolAllowed(DaemonTestCase):
+class ProtocolProbes:
+    """One TACACS+ PAP, RADIUS over UDP or RADIUS/TCP request to a listener; DaemonTestCase mixin."""
+
+    def tacacs_answers(self, listener=None):
+        return self.connect(listener=listener).pap("alice", "alicepw").ok
+
+    def tacacs_refused(self, listener):
+        c = self.connect(listener=listener, timeout=CLOSE_TIMEOUT)
+        c.send(tacacs.Packet.authen_start(user="alice"))
+        return c.closed()
+
+    def radius_udp(self, listener=None):
+        c = self.radius(SECRET, listener=listener, source=NAS, timeout=2.0)
+        return c.access_request("alice", "alicepw", message_authenticator=True).code_name
+
+    def radius_tcp(self, listener=None):
+        c = self.radius(SECRET, tcp=True, listener=listener, source=NAS, timeout=CLOSE_TIMEOUT)
+        return c.access_request("alice", "alicepw", message_authenticator=True).code_name
+
+    def assert_radius_refused(self, request, listener):
+        with self.assertRaises((TimeoutError, ConnectionError)):
+            request(listener)
+
+
+class AaaProtocolAllowed(ProtocolProbes, DaemonTestCase):
     """aaa.protocol.allowed in a realm: a protocol not in the list gets no answer.
 
     CHECK_PROTOCOL in packet.c rejected only if the protocol of the
@@ -787,26 +811,6 @@ class AaaProtocolAllowed(DaemonTestCase):
 	realm radius-udp-only { aaa.protocol.allowed = radius.udp }
 	realm radius-tcp-only { aaa.protocol.allowed = radius.tcp }
 """
-
-    def tacacs_answers(self, listener=None):
-        return self.connect(listener=listener).pap("alice", "alicepw").ok
-
-    def tacacs_refused(self, listener):
-        c = self.connect(listener=listener, timeout=CLOSE_TIMEOUT)
-        c.send(tacacs.Packet.authen_start(user="alice"))
-        return c.closed()
-
-    def radius_udp(self, listener=None):
-        c = self.radius(SECRET, listener=listener, source=NAS, timeout=2.0)
-        return c.access_request("alice", "alicepw", message_authenticator=True).code_name
-
-    def radius_tcp(self, listener=None):
-        c = self.radius(SECRET, tcp=True, listener=listener, source=NAS, timeout=CLOSE_TIMEOUT)
-        return c.access_request("alice", "alicepw", message_authenticator=True).code_name
-
-    def assert_radius_refused(self, request, listener):
-        with self.assertRaises((TimeoutError, ConnectionError)):
-            request(listener)
 
     def test_tacacs_only(self):
         self.assertTrue(self.tacacs_answers("tacacs-only"))
@@ -914,6 +918,45 @@ class AaaProtocolAllowedTactrace(DaemonTestCase):
         for realm in ("tcp-only", "tls-only", "radius-only"):
             with self.subTest(realm=realm):
                 self.assertEqual(self.trace(realm), "PASS_ADD")
+
+
+class ListenerAaaProtocol(ProtocolProbes, DaemonTestCase):
+    """aaa.protocol in a spawnd listen block: that listener answers only that protocol.
+
+    spawnd sent the value to the worker, but the worker did not read it, so
+    every listener answered every protocol. The realm allows all protocols.
+    """
+
+    UDP = True
+    LISTEN = {
+        "tacacs-tcp": "aaa.protocol = tacacs.tcp",
+        "radius-tcp": "aaa.protocol = radius.tcp",
+        "radius-udp-on-tcp": "aaa.protocol = radius.udp",
+        "radius-udp": "protocol = UDP aaa.protocol = radius.udp",
+        "radius-tcp-on-udp": "protocol = UDP aaa.protocol = radius.tcp",
+    }
+    CONFIG = POLICY
+
+    def test_tacacs_tcp(self):
+        self.assertTrue(self.tacacs_answers("tacacs-tcp"))
+        self.assert_radius_refused(self.radius_tcp, "tacacs-tcp")
+
+    def test_radius_tcp(self):
+        self.assertEqual(self.radius_tcp("radius-tcp"), "Access-Accept")
+        self.assertTrue(self.tacacs_refused("radius-tcp"))
+
+    def test_radius_udp(self):
+        self.assertEqual(self.radius_udp("radius-udp"), "Access-Accept")
+
+    def test_other_protocol_on_the_transport(self):
+        self.assertTrue(self.tacacs_refused("radius-udp-on-tcp"))
+        self.assert_radius_refused(self.radius_tcp, "radius-udp-on-tcp")
+        self.assert_radius_refused(self.radius_udp, "radius-tcp-on-udp")
+
+    def test_listener_without_the_keyword_answers_all(self):
+        self.assertTrue(self.tacacs_answers())
+        self.assertEqual(self.radius_udp(), "Access-Accept")
+        self.assertEqual(self.radius_tcp(), "Access-Accept")
 
 
 # no device for 127.0.0.2: the base configuration covers all of 127/8, NAS is 127.0.0.6

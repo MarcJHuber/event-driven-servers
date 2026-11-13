@@ -602,6 +602,25 @@ class RadiusOverTls(TlsTestCase):
         self.assertNotEqual(r.code_name, "Access-Accept", r)
 
 
+class ListenerAaaProtocol(TlsTestCase):
+    """aaa.protocol on a TLS listener: TACACS+ over TLS and RADIUS over TLS each get their own listener."""
+
+    LISTEN = {"tacacs-tls": "tls = yes aaa.protocol = tacacs.tls", "radius-tls": "tls = yes aaa.protocol = radius.tls"}
+    BODY = TLS_REALM + DEVICES + RADSEC
+
+    def radsec(self, listener):
+        return self.radius("radsec", listener=listener, tls=self.context("certnas"), timeout=2.0)
+
+    def test_tacacs_tls(self):
+        self.assertTrue(self.connect_tls(listener="tacacs-tls").pap("alice", "alicepw").ok)
+        with self.assertRaises((TimeoutError, ConnectionError, ssl.SSLError)):
+            self.radsec("tacacs-tls").access_request("alice", "alicepw")
+
+    def test_radius_tls(self):
+        self.assertEqual(self.radsec("radius-tls").access_request("alice", "alicepw").code_name, "Access-Accept")
+        self.assertRefused(lambda: self.connect_tls(listener="radius-tls"))
+
+
 @unittest.skipUnless(LINUX, "CPU time from /proc")
 class PeerCloses(TlsTestCase):
     """PR 201, 203, 204: a connection the peer closed in the middle of a packet kept the worker busy.

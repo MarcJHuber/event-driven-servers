@@ -607,9 +607,14 @@ void tac_read(struct context *ctx, int cur)
     }
 // B is the protocol as "aaa.protocol.allowed" spells it. tactrace.pl tests
 // the rules of a realm over a socket pair, not its transport: no check then.
+// aaa_protocol is S_unknown, the listener "aaa.protocol", or the protocol of an earlier packet
 #define CHECK_PROTOCOL(A,B) \
 	if (ctx->realm->allowed_protocol_ ## A != TRISTATE_YES && !(common_data.debug & DEBUG_TACTRACE_FLAG)) { \
 		reject_conn(ctx, B " not in aaa.protocol.allowed", __func__, __LINE__); \
+		return; \
+	} \
+	if (ctx->aaa_protocol != S_unknown && ctx->aaa_protocol != S_ ## A) { \
+		reject_conn(ctx, B " is not the aaa.protocol of the listener", __func__, __LINE__); \
 		return; \
 	}
 
