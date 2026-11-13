@@ -711,9 +711,13 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
 
 void init_mcx(tac_realm *r)
 {
-    if (r->mcx)
+    if (r->mcx) {
+#ifdef WITH_SSL
+	/* the setenv values of the modules use the final type6-key of this realm */
+	mavis_set_type6(decrypt_type6, r->default_host->type6key);
+#endif
 	mavis_init(r->mcx, MAVIS_API_VERSION, MAVIS_TOKEN_VERSION);
-    else
+    } else
 	mavis_check_version(MAVIS_API_VERSION, MAVIS_TOKEN_VERSION);
     if (r->realms)
 	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
@@ -1943,7 +1947,13 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    switch (sym->code) {
 	    case S_module:
 #ifdef WITH_SSL
-		mavis_set_type6(decrypt_type6, r->default_host->type6key);
+		{
+		    /* the key known now only selects how to read a value, mavis_init() decides the value */
+		    char *key = NULL;
+		    for (tac_realm * p = r; p && !key; p = p->parent)
+			key = p->default_host->type6key;
+		    mavis_set_type6(decrypt_type6, key);
+		}
 #endif
 		if (parse_mavismodule(&r->mcx, common_data.io, sym))
 		    scm_fatal();

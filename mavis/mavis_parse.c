@@ -3000,13 +3000,41 @@ static char *type6_masterkey = NULL;
 
 void mavis_set_type6(char *(*fun)(const char *, const char *), char *master_key)
 {
-    if (fun && master_key) {
-	type6_decryptfun = fun;
-	type6_masterkey = master_key;
-    }
+    type6_decryptfun = fun;
+    type6_masterkey = master_key;
 }
 
-char *mavis_decrypt_type6(char *in)
+static char *mavis_decrypt_type6(char *in)
 {
     return (type6_decryptfun && type6_masterkey) ? type6_decryptfun(in, type6_masterkey) : NULL;
+}
+
+int mavis_type6_decrypts(char *in)
+{
+    char *d = mavis_decrypt_type6(in);
+    if (!d)
+	return 0;
+    free(d);
+    return 1;
+}
+
+/* parsed[i] is "NAME=value" as the parser read it, raw[i] is the value as written. */
+void mavis_setenv_init(char ***env, char **parsed, char **raw, int count)
+{
+    if (!count)
+	return;
+    if (!*env)
+	*env = Xcalloc(count + 1, sizeof(char *));
+    for (int i = 0; i < count; i++) {
+	free((*env)[i]);
+	char *d = mavis_decrypt_type6(raw[i]);
+	if (d) {
+	    int name_len = (int) (strchr(parsed[i], '=') - parsed[i]);
+	    size_t len = name_len + strlen(d) + 2;
+	    (*env)[i] = Xcalloc(1, len);
+	    snprintf((*env)[i], len, "%.*s=%s", name_len, parsed[i], d);
+	    free(d);
+	} else
+	    (*env)[i] = Xstrdup(parsed[i]);
+    }
 }

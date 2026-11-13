@@ -30,6 +30,7 @@
 
 import base64
 import glob
+import json
 import os
 import pwd
 import re
@@ -978,6 +979,128 @@ class ConfigurePthread(unittest.TestCase):
         for name in ("with space", "with'quote"):
             with self.subTest(name):
                 self.assertEqual(self.finds_pthread(name), expected)
+
+
+
+# Cisco type 6 values under the key "demo": "alicepw" and "naskey" (with a "\" that escape processing would drop)
+TYPE6_ALICEPW = r"g^^PIBaDAZOHeG^fIU^eY_RUPZ`^]X"
+TYPE6_NASKEY = r"KIXTPG^HRJ]FIdaO\IN]fRbFKaTAAB"
+# "alicepw" again; in quotes with escape processing, its last "\" would escape the closing quote
+TYPE6_ALICEPW_BACKSLASH = "MSdDeYGRL]eJ^CdYFR^IdeeiSRiIV\\"
+
+
+@unittest.skipUnless("openssl" in features(), "type 6 needs a build with OpenSSL")
+class SetenvType6(DaemonTestCase):
+    """"setenv" of the external module: the realm's final type6-key decrypts the value when the module starts.
+
+    A value that does not decrypt goes to the child as written, with the normal escape processing.
+    """
+
+    CONFIG = None
+
+    def module(self, value, plain=None):
+        setenv = {"TACTEST_SECRET": "'%s'" % value}
+        if plain is not None:
+            setenv["TACTEST_PLAIN"] = "'%s'" % plain
+        return Stub.module(childs=(1, 1), setenv=setenv) + BACKEND + PERMIT
+
+    def child_env(self, d, listener=None):
+        stub = Stub(d)
+        stub.set(users={"alice": {"password": "pw"}}, env=["TACTEST_SECRET", "TACTEST_PLAIN"])
+        with d.connect(listener=listener) as c:
+            self.assertEqual(c.pap("alice", "pw").status_name, "PASS")
+        return stub.requests(type="AUTH")[-1]["env"]
+
+    def child_value(self, d, listener=None):
+        return self.child_env(d, listener)["TACTEST_SECRET"]
+
+    def test_key_after_the_module(self):
+        d = self.start_daemon(self.module(TYPE6_ALICEPW) + "\ttype6-key = demo\n")
+        self.assertEqual(self.child_value(d), "alicepw")
+
+    def test_value_with_a_backslash(self):
+        d = self.start_daemon("\ttype6-key = demo\n" + self.module(TYPE6_NASKEY))
+        self.assertEqual(self.child_value(d), "naskey")
+
+    def test_key_inherited_from_the_parent_realm(self):
+        d = self.start_daemon("\ttype6-key = demo\n\trealm lab {\n" + self.module(TYPE6_ALICEPW) + "\t}\n",
+                              listen={"lab": "realm = lab"})
+        self.assertEqual(self.child_value(d, "lab"), "alicepw")
+
+    def test_each_realm_uses_its_own_key(self):
+        realms = (("a", "\t\ttype6-key = demo\n", "alicepw"),
+                  ("b", "", TYPE6_ALICEPW),
+                  ("c", "\t\ttype6-key = other\n", TYPE6_ALICEPW))
+        body = "".join("\trealm %s {\n%s%s\t}\n" % (name, key, self.module(TYPE6_ALICEPW)) for name, key, _ in realms)
+        d = self.start_daemon(body, listen={name: "realm = %s" % name for name, _, _ in realms})
+        for name, _, expected in realms:
+            with self.subTest(realm=name):
+                self.assertEqual(self.child_value(d, name), expected)
+
+    def test_value_that_is_not_type6(self):
+        d = self.start_daemon("\ttype6-key = demo\n" + self.module(r"plain\tvalue"))
+        self.assertEqual(self.child_value(d), "plain\tvalue")
+
+    def test_value_that_ends_with_a_backslash(self):
+        d = self.start_daemon("\ttype6-key = demo\n" + self.module(TYPE6_ALICEPW_BACKSLASH, "next"))
+        self.assertEqual(self.child_env(d), {"TACTEST_SECRET": "alicepw", "TACTEST_PLAIN": "next"})
+
+    def test_value_with_an_escaped_quote(self):
+        d = self.start_daemon("\ttype6-key = demo\n" + self.module(r"it\'s", "next"))
+        self.assertEqual(self.child_env(d), {"TACTEST_SECRET": "it's", "TACTEST_PLAIN": "next"})
+
+    def test_short_value_of_type6_letters_with_an_escaped_quote(self):
+        """Read without escape processing, "AB\\" would be a token of type 6 letters and the quote would end the string."""
+        d = self.start_daemon("\ttype6-key = demo\n" + self.module(r"AB\'C", "next"))
+        self.assertEqual(self.child_env(d), {"TACTEST_SECRET": "AB'C", "TACTEST_PLAIN": "next"})
+
+    def test_long_value_of_type6_letters_with_an_escaped_quote(self):
+        """Without escape processing, the 20 "A" and the "\\" would pass a check of the base41 format."""
+        d = self.start_daemon("\ttype6-key = demo\n" + self.module("A" * 20 + r"\'C", "next"))
+        self.assertEqual(self.child_env(d), {"TACTEST_SECRET": "A" * 20 + "'C", "TACTEST_PLAIN": "next"})
+
+    def test_short_value_of_type6_letters_with_an_escape(self):
+        d = self.start_daemon("\ttype6-key = demo\n" + self.module(r"AA\bAA"))
+        self.assertEqual(self.child_value(d), "AA\bAA")
+
+
+@unittest.skipUnless("openssl" in features(), "type 6 needs a build with OpenSSL")
+@unittest.skipUnless(os.path.exists(os.path.join(prefix(), "lib", "mavis", "libmavis_external-mt.so")),
+                     "configure builds external-mt only if it finds pthread")
+class SetenvType6Mt(DaemonTestCase):
+    """"setenv" of the external-mt module."""
+
+    CONFIG = None
+
+    def child_env(self, value, key_first=False):
+        key = "\ttype6-key = demo\n"
+        profile = self.scratch_file("profile", "{ }")
+        dump = profile + ".env"
+        backend = self.scratch_file("backend.py", "import json, os, sys\nwith open(sys.argv[2], 'w') as f:\n"
+                                    "    json.dump({k: v for k, v in os.environ.items() if k.startswith('TACTEST_')}, f)\n"
+                                    + MT_BACKEND)
+        d = self.start_daemon((key if key_first else "") + """
+	mavis module = external-mt {
+		exec = "%s" "%s" "-u" "%s" "%s" "%s"
+		setenv TACTEST_SECRET = '%s'
+		setenv TACTEST_PLAIN = 'next'
+	}
+""" % (sys.executable, sys.executable, backend, profile, dump, value) + ("" if key_first else key) + BACKEND + PERMIT)
+        with d.connect() as c:
+            self.assertEqual(c.pap("alice", "pw").status_name, "PASS")
+        with open(dump) as f:
+            return json.load(f)
+
+    def test_key_after_the_module(self):
+        self.assertEqual(self.child_env(TYPE6_ALICEPW), {"TACTEST_SECRET": "alicepw", "TACTEST_PLAIN": "next"})
+
+    def test_value_that_ends_with_a_backslash(self):
+        """The parser reads the value as written only if it decrypts with the key known at that time."""
+        self.assertEqual(self.child_env(TYPE6_ALICEPW_BACKSLASH, key_first=True),
+                         {"TACTEST_SECRET": "alicepw", "TACTEST_PLAIN": "next"})
+
+    def test_short_value_of_type6_letters_with_an_escaped_quote(self):
+        self.assertEqual(self.child_env(r"AB\'C"), {"TACTEST_SECRET": "AB'C", "TACTEST_PLAIN": "next"})
 
 
 if __name__ == "__main__":
