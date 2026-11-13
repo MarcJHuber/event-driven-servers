@@ -45,7 +45,9 @@ State, all keys optional:
 
   users         {name: {"password": str,
                         "member": [groups] or a string as it is,
-                        "sshkey": str, "mustchange": bool}}
+                        "memberof": [LDAP group DNs] or a string as it is,
+                        "sshkey": str, "mustchange": bool,
+                        "new_password": str}}
   result        {key: "ACK" | "NAK" | "NOTFOUND" | "ERROR"}; the first of
                 "<user>:<TYPE>", "<user>", "<TYPE>", "*" decides, TYPE
                 being the MAVIS request type (AUTH, INFO, CHPW, ...)
@@ -63,7 +65,9 @@ State, all keys optional:
 
 Without a forced result: an unknown user is NOTFOUND; INFO is ACK with
 the user's attributes; AUTH and CHPW are ACK if the password matches,
-else NAK; other request types are NOTFOUND.
+else NAK; other request types are NOTFOUND. A CHPW for a user with
+"new_password" is ACK only if the new password is that one too, and its
+journal entry has "new_password": true or false (never the password).
 
 Every request becomes one JSON line in the journal, written before the
 answer with a single write() to a file opened with O_APPEND (all
@@ -193,8 +197,15 @@ def serve(libdir):
                 result = "ACK"
             else:
                 result = "NAK"
+        new_ok = None
+        if tactype == "CHPW" and known and "new_password" in known:
+            new_ok = av.get(M.AV_A_PASSWORD_NEW) == known["new_password"]
+            if result == "ACK" and not new_ok:
+                result = "NAK"
         dying = state.get("exit") == n
         entry = {"pid": os.getpid(), "n": n, "type": tactype, "user": user, "result": "exit" if dying else result}
+        if new_ok is not None:
+            entry["new_password"] = new_ok
         os.write(journal, (json.dumps(entry) + "\n").encode())
         if dying:
             os._exit(0)
@@ -202,6 +213,9 @@ def serve(libdir):
             member = known.get("member")
             if member:
                 d.set_tacmember(member if isinstance(member, str) else ",".join('"%s"' % m for m in member))
+            memberof = known.get("memberof")
+            if memberof:
+                d.set_memberof(memberof if isinstance(memberof, str) else ",".join('"%s"' % m for m in memberof))
             if known.get("sshkey"):
                 d.set_sshpubkey(known["sshkey"])
             d.password_mustchange(bool(known.get("mustchange")))

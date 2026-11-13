@@ -157,6 +157,16 @@ class CA:
             shutil.rmtree(self.dir, ignore_errors=True)
 
 
+def self_signed(directory, name, subject):
+    """(certificate, key) of a self-signed certificate in directory, as tls-fingerprint-demo/mkcert.sh makes them."""
+    key, crt, cnf = (os.path.join(directory, name + ext) for ext in (".key", ".crt", ".cnf"))
+    with open(cnf, "w") as f:
+        f.write("[req]\ndistinguished_name = dn\n[dn]\n")
+    _openssl("req", "-batch", "-x509", "-newkey", "ec", "-pkeyopt", "ec_paramgen_curve:P-256", "-nodes", "-sha256",
+             "-days", "2", "-subj", subject, "-config", cnf, "-keyout", key, "-out", crt)
+    return crt, key
+
+
 class PskSocket:
     """TLS 1.3 with a pre-shared key through "openssl s_client", for tacacs.Connection(sock=...).
 

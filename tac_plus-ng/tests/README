@@ -75,6 +75,8 @@ Layout
       mavis_stub.py    a MAVIS backend for the "external" module, on top of
                        the installed mavis.py; tests change its answers
                        through a JSON file while the daemon runs
+      sample.py        a shipped sample as the configuration template of
+                       a test daemon, with checked edits (test_samples.py)
     configs/         complete configurations for "tac_plus-ng -P":
                      good-*.cfg must parse, bad-*.cfg must be rejected
     test_*.py        the tests, one file per topic
