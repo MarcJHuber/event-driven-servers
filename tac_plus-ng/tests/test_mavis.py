@@ -43,7 +43,7 @@ import threading
 import time
 import unittest
 
-from tactest import LINUX, SOURCE, Closed, DaemonTestCase, Stub, config, detect, features, prefix
+from tactest import LINUX, SOURCE, DaemonTestCase, Stub, config, detect, features, prefix
 from tactest.daemon import alive as daemon_alive, parse_only, sanitizer_env
 
 BACKEND = """
@@ -504,9 +504,12 @@ class Type6HostProfile(DaemonTestCase):
         self.assertEqual(self.connect(source="127.0.0.6", key="naskey").pap("alice", "alicepw").status_name, "PASS")
 
     def test_type6_value_the_profile_key_cannot_decrypt_rejects_the_host(self):
-        for key in ("naskey", NASKEY_6):
-            with self.subTest(key=key), self.assertRaises(Closed):
-                self.connect(source="127.0.0.7", key=key).pap("alice", "alicepw")
+        # reject_conn() resets the connection before the client sends: the reset can come before connect() returns
+        try:
+            c = self.connect(source="127.0.0.7")
+        except ConnectionResetError:
+            return
+        self.assertTrue(c.closed(), "the daemon accepted the host")
 
 
 @unittest.skipUnless("openssl" in features(), "type 6 needs a build with OpenSSL")

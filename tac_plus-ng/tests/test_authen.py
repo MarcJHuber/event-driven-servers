@@ -29,10 +29,12 @@
 """Authentication: ASCII login, PAP, CHAP, enable; transport corner cases (MS-CHAP: test_issue263.py)."""
 
 import re
+import subprocess
 import unittest
 
 from tactest import DaemonError, DaemonTestCase, config, features, tacacs
-from tactest.daemon import parse_only
+from tactest.daemon import READY_TIMEOUT, parse_only
+from tactest.detect import sanitizer_reports
 
 USERS = """
 	device single {
@@ -376,12 +378,17 @@ class Type6Undecryptable(DaemonTestCase):
 
     def assert_rejected(self, body, error, attempt):
         try:
-            d = self.start_daemon(body)
+            d = self.start_daemon(body, check=False)
         except DaemonError as e:
             self.assertIn("exited with code 78 ", str(e))
         else:
-            self.fail("the daemon started; the encrypted text as the secret: %s"
-                      % (attempt(d).status_name if attempt else "not tried"))
+            # the worker reads the configuration after spawnd listens, so the exit can come later
+            try:
+                self.assertEqual(d.proc.wait(READY_TIMEOUT), 78, d.stderr_tail())
+            except subprocess.TimeoutExpired:
+                self.fail("the daemon runs; the encrypted text as the secret: %s"
+                          % (attempt(d).status_name if attempt else "not tried"))
+            self.assertEqual([p for p, size in sanitizer_reports(d.tmp).items() if size], [])
         code, out = parse_only(self.scratch_file("type6.cfg", config.render(body=body)))
         self.assertEqual(code, 78, out)
         # the line of the type 6 value, as the parser counts lines: it reports an unknown keyword there
