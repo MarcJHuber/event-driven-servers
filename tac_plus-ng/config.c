@@ -3315,6 +3315,7 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
     do {
 	size_t slen = strlen(sym->buf);
 	unsigned char t[slen];
+	char n[slen];		// the BASE64 text of a RFC 4716 key; p points here after the block below
 	char *hash, *key;
 	size_t hash_len;
 	int len = -1;
@@ -3331,15 +3332,16 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 	int is_rfc4716 = 0;
 
 	if (!strncmp(p, begin_marker, begin_marker_len)) {
-	    char n[slen];
 	    char *t = n;
 	    char *h;
 	    is_rfc4716 = 1;
 
 	    p = strchr(p, '\n');	// skip header
 
+	    // a key may end anywhere (it may come from a backend): p is NULL then
+
 	    // skip contuinations
-	    h = strrchr(p, '\\');
+	    h = p ? strrchr(p, '\\') : NULL;
 	    if (h) {
 		p = strchr(h, '\n');
 		if (p) {
@@ -3351,7 +3353,7 @@ static void parse_sshkey(struct sym *sym, tac_user *user)
 	    }
 
 	    // skip remaining header lines
-	    h = strrchr(p, ':');
+	    h = p ? strrchr(p, ':') : NULL;
 	    if (h) {
 		p = strchr(h, '\n');
 		if (p)
