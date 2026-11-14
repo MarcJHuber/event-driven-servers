@@ -148,6 +148,47 @@ class Transport(DaemonTestCase):
         self.assertTrue(c.closed(), "the connection stays open")
 
 
+class MaxAttempts(DaemonTestCase):
+    """"password max-attempts" at global and at realm level, with declarations after it.
+
+    The realm value applies to the devices of that realm, so the realm has its own device.
+    """
+
+    CONFIG = None
+
+    def assert_two_attempts(self, connect, user, password):
+        r = connect().ascii_login(user, ["bad1", "bad2"])
+        self.assertEqual(r.statuses, ["GETPASS", "GETPASS", "FAIL"], r)
+        self.assertEqual(r.prompts, [BANNER + "Password: ", "Password incorrect.\nPassword: "], r)
+        self.assertEqual(r.server_msg, "Password incorrect.\n", r)
+        r = connect().ascii_login(user, ["bad1", password])
+        self.assertEqual(r.statuses, ["GETPASS", "GETPASS", "PASS"], r)
+
+    def test_global_max_attempts(self):
+        d = self.start_daemon("""
+	password max-attempts = 2
+	user alice { password login = clear alicepw }
+	ruleset { rule { script { permit } } }
+""")
+        self.assert_two_attempts(lambda: self.connect(daemon=d), "alice", "alicepw")
+
+    def test_realm_max_attempts(self):
+        d = self.start_daemon("""
+	realm lab {
+		password max-attempts = 2
+		device labdev { address = 127.0.0.5 key = tactest }
+		user carol { password login = clear carolpw }
+		ruleset { rule { script { permit } } }
+	}
+	device realmdev {
+		address = 127.0.0.5
+		key = tactest
+		target-realm = lab
+	}
+""")
+        self.assert_two_attempts(lambda: self.connect(daemon=d, source="127.0.0.5"), "carol", "carolpw")
+
+
 class SingleConnection(DaemonTestCase):
     """Several sessions on one connection (RFC 8907 4.3), here from the single-connection device."""
 

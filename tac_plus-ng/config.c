@@ -1467,7 +1467,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		sym_get(sym);
 		parse(sym, S_equal);
 		r->default_host->authen_max_attempts = parse_int(sym);
-		return;
+		continue;
 	    case S_expiry:
 		sym_get(sym);
 		parse(sym, S_warning);
