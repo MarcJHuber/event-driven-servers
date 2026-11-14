@@ -483,16 +483,17 @@ class UserAttributes(DaemonTestCase):
         self.wait_log("authentication", "shell login failed (retry with identical password)")
 
     def test_max_rounds(self):
-        """"max-rounds = 2": a START and one CONTINUE; the daemon ends the session at the next packet."""
+        """"max-rounds = 2": a START and one CONTINUE; the next packet gets ERROR "Too many rounds."."""
         self.assertTrue(self.connect(source="127.0.0.65").ascii_login("alice", "pw").ok)
         s = self.connect(source="127.0.0.65").session()
         self.assertEqual(s.start(user="alice").status_name, "GETPASS")
         self.assertEqual(s.cont("bad").status_name, "GETPASS")
         try:
-            status = s.cont("pw").status_name
+            r = s.cont("pw")
+            got = (r.status_name, r.server_msg)
         except tacacs.Closed:
-            status = "closed"
-        self.assertIn(status, ("ERROR", "closed"))
+            got = "closed without a reply"
+        self.assertEqual(got, ("ERROR", "Too many rounds."))
 
 
 REWRITE = """
