@@ -238,5 +238,21 @@ class SingleConnection(DaemonTestCase):
         self.assertEqual(b.cont("alicepw").status_name, "PASS")
 
 
+class MaxRounds(DaemonTestCase):
+    """"max-rounds = 2": an ASCII login with GETUSER needs three rounds."""
+
+    CONFIG = "\tmax-rounds = 2\n" + USERS
+
+    def test_reply_at_the_limit(self):
+        """The third packet gets ERROR "Too many rounds.", then the daemon closes the connection."""
+        c = self.connect()
+        s = c.session()
+        self.assertEqual(s.start(user="").status_name, "GETUSER")
+        self.assertEqual(s.cont("alice").status_name, "GETPASS")
+        r = s.cont("alicepw")
+        self.assertEqual((r.status_name, r.server_msg), ("ERROR", "Too many rounds."), r)
+        self.assertTrue(c.closed(), "the connection stays open")
+
+
 if __name__ == "__main__":
     unittest.main()
