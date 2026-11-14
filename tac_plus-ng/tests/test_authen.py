@@ -148,6 +148,47 @@ class Transport(DaemonTestCase):
         self.assertTrue(c.closed(), "the connection stays open")
 
 
+class MaxAttempts(DaemonTestCase):
+    """"password max-attempts" at global and at realm level, with declarations after it.
+
+    The realm value applies to the devices of that realm, so the realm has its own device.
+    """
+
+    CONFIG = None
+
+    def assert_two_attempts(self, connect, user, password):
+        r = connect().ascii_login(user, ["bad1", "bad2"])
+        self.assertEqual(r.statuses, ["GETPASS", "GETPASS", "FAIL"], r)
+        self.assertEqual(r.prompts, [BANNER + "Password: ", "Password incorrect.\nPassword: "], r)
+        self.assertEqual(r.server_msg, "Password incorrect.\n", r)
+        r = connect().ascii_login(user, ["bad1", password])
+        self.assertEqual(r.statuses, ["GETPASS", "GETPASS", "PASS"], r)
+
+    def test_global_max_attempts(self):
+        d = self.start_daemon("""
+	password max-attempts = 2
+	user alice { password login = clear alicepw }
+	ruleset { rule { script { permit } } }
+""")
+        self.assert_two_attempts(lambda: self.connect(daemon=d), "alice", "alicepw")
+
+    def test_realm_max_attempts(self):
+        d = self.start_daemon("""
+	realm lab {
+		password max-attempts = 2
+		device labdev { address = 127.0.0.5 key = tactest }
+		user carol { password login = clear carolpw }
+		ruleset { rule { script { permit } } }
+	}
+	device realmdev {
+		address = 127.0.0.5
+		key = tactest
+		target-realm = lab
+	}
+""")
+        self.assert_two_attempts(lambda: self.connect(daemon=d, source="127.0.0.5"), "carol", "carolpw")
+
+
 class SingleConnection(DaemonTestCase):
     """Several sessions on one connection (RFC 8907 4.3), here from the single-connection device."""
 
@@ -195,6 +236,22 @@ class SingleConnection(DaemonTestCase):
         self.assertEqual(a.cont("alice").status_name, "GETPASS")
         self.assertEqual(a.cont("wrong").status_name, "FAIL")
         self.assertEqual(b.cont("alicepw").status_name, "PASS")
+
+
+class MaxRounds(DaemonTestCase):
+    """"max-rounds = 2": an ASCII login with GETUSER needs three rounds."""
+
+    CONFIG = "\tmax-rounds = 2\n" + USERS
+
+    def test_reply_at_the_limit(self):
+        """The third packet gets ERROR "Too many rounds.", then the daemon closes the connection."""
+        c = self.connect()
+        s = c.session()
+        self.assertEqual(s.start(user="").status_name, "GETUSER")
+        self.assertEqual(s.cont("alice").status_name, "GETPASS")
+        r = s.cont("alicepw")
+        self.assertEqual((r.status_name, r.server_msg), ("ERROR", "Too many rounds."), r)
+        self.assertTrue(c.closed(), "the connection stays open")
 
 
 if __name__ == "__main__":

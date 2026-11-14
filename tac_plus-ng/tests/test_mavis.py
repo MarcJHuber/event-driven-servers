@@ -100,6 +100,15 @@ class Scenario(DaemonTestCase):
             with self.subTest(login=login.__name__):
                 self.assertEqual(login("alice", "wrong").status_name, "FAIL")
 
+    def test_long_user_response_is_cut(self):
+        """eval_log_format() has an 8000-byte buffer; a longer user response must be cut, not written past it."""
+        self.stub.set(users={"alice": {"password": "first"}}, message="x" * 10000)
+        r = self.connect().ascii_login("alice", "first")
+        self.assertEqual(r.status_name, "PASS", r)
+        self.assertLess(len(r.server_msg), 8000)
+        self.assertEqual(set(r.server_msg), {"x"})
+        self.assertGreater(len(r.server_msg), 7900)
+
 
 class Fallback(DaemonTestCase):
     """#98: after an ERROR from the backend a fallback-only user logs in with the local password.
@@ -303,6 +312,14 @@ class PasswordChange(DaemonTestCase):
             r = c.ascii_login("alice", "old", data=["new", "new"])
         self.assertEqual(r.statuses, ["GETPASS", "GETDATA", "GETDATA", "PASS"], r)
         self.assertEqual([e["type"] for e in stub.requests()], ["AUTH", "AUTH", "CHPW"])
+
+    def test_new_passwords_do_not_match(self):
+        """Two different new passwords end the dialog with FAIL; the message ends with a newline."""
+        d = self.start_daemon(Stub.module(childs=(1, 1)) + BACKEND + PERMIT)
+        Stub(d).set(users={"alice": {"password": "old", "mustchange": True}})
+        r = self.connect(daemon=d).ascii_login("alice", "old", data=["new", "other"])
+        self.assertEqual(r.statuses, ["GETPASS", "GETDATA", "GETDATA", "FAIL"], r)
+        self.assertEqual(r.server_msg, "Passwords do not match.\n", r)
 
 
 def cpu_seconds(pid):

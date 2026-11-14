@@ -2129,8 +2129,9 @@ char *eval_log_format(tac_session *session, struct context *ctx, struct logfile 
 	    if (!len)
 		len = strlen(s->txt);
 	    if (li->token == S_umessage || li->token == S_AUTHFAIL_BANNER || li->token == S_FS || (session && session->eval_log_raw)) {
-		if (sizeof(buf) - total_len > len + 20)
-		    memcpy(b, s->txt, s->len);
+		if (sizeof(buf) - total_len < len + 20)
+		    len = (sizeof(buf) - total_len > 20) ? sizeof(buf) - total_len - 20 : 0;
+		memcpy(b, s->txt, len);
 	    } else
 		len = ememcpy(b, s->txt, s->len, sizeof(buf) - total_len);
 	    total_len += len;
