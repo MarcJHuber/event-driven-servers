@@ -44,7 +44,7 @@ import time
 import unittest
 
 from tactest import LINUX, DaemonTestCase, Stub, config, detect, features, prefix
-from tactest.daemon import alive as daemon_alive, sanitizer_env
+from tactest.daemon import alive as daemon_alive, parse_only, sanitizer_env
 
 BACKEND = """
 	user backend = mavis
@@ -282,6 +282,76 @@ class SshKeyLength(DaemonTestCase):
 	}
 """ % key + PERMIT)
                 self.assertEqual(self.connect(d).pap("carol", "carolpw").status_name, "PASS")
+
+
+@unittest.skipUnless("openssl" in features(), "SSH keys need a build with OpenSSL")
+class SshKeyRfc4716(DaemonTestCase):
+    """#340: SSH keys in the RFC 4716 format ("---- BEGIN SSH2 PUBLIC KEY ----").
+
+    The parser looked for the end of the header line and searched from
+    there without a check, so a key that was only the begin marker (or
+    whose header had no end) crashed the worker. A backend reaches that
+    with any RFC 4716 key: its SSHKEY value is one key per line, so the
+    daemon sees the marker line alone. Such a key is a parse error now,
+    like any other key that does not decode.
+
+    The buffer with the BASE64 text of the key was used after the end
+    of its block; depending on the compiler a complete key in the
+    configuration then failed to decode.
+    """
+
+    CONFIG = Stub.module(childs=(1, 1)) + BACKEND + PERMIT
+    BEGIN = "---- BEGIN SSH2 PUBLIC KEY ----"
+    END = "---- END SSH2 PUBLIC KEY ----"
+    BLOB = ssh_ed25519_key().split()[1]
+    COMPLETE = (
+        "%s\n%s\n%s\n" % (BEGIN, BLOB, END),
+        "%s\nComment: alice\n%s\n%s\n" % (BEGIN, BLOB, END),
+        "%s\n%s\n%s\n%s" % (BEGIN, BLOB[:40], BLOB[40:], END),
+    )
+    BROKEN = (
+        BEGIN,                              # no end of the header line
+        BEGIN + "\n",                       # nothing after it
+        BEGIN + "\nComment: a\\b",          # a continuation without a next line
+        BEGIN + "\nComment: alice",         # a header line without an end
+        BEGIN + "\n" + BLOB,                # no end of the key line
+    )
+
+    def parse(self, key):
+        path = self.scratch_file("tac_plus-ng.cfg", '''\
+id = spawnd { listen { port = 4949 } }
+id = tac_plus-ng {
+	user carol {
+		password pap = clear carolpw
+		ssh-key = "%s"
+	}
+}
+''' % key)
+        return parse_only(path)
+
+    def test_complete_key_in_the_configuration(self):
+        for key in self.COMPLETE:
+            with self.subTest(key=key):
+                code, out = self.parse(key)
+                self.assertEqual(code, 0, out)
+
+    def test_broken_key_in_the_configuration(self):
+        """The parser refuses the configuration; it is not killed by a signal."""
+        for key in self.BROKEN:
+            with self.subTest(key=key):
+                code, out = self.parse(key)
+                self.assertGreater(code, 0, out)
+                self.assertIn("BASE64 decode of SSH key failed", out)
+
+    def test_key_from_the_backend(self):
+        """The login fails, the worker stays (the crash detectors run after the test)."""
+        stub = Stub(self.daemon)
+        for key in self.BROKEN + self.COMPLETE[:1]:
+            with self.subTest(key=key):
+                stub.set(users={"bob": {"password": "pw", "sshkey": '"%s"' % key}})
+                self.assertEqual(self.connect().pap("bob", "pw").status_name, "FAIL")
+        stub.set(users={"bob": {"password": "pw"}})
+        self.assertEqual(self.connect().pap("bob", "pw").status_name, "PASS")
 
 
 class PasswordChange(DaemonTestCase):
