@@ -103,6 +103,16 @@ class AclAndTimeNegation(TacPlusTestCase):
         self.assertEqual(self.holds("std-time", "127.0.0.1"), ["std-time-ne", "std-time-not"])
 
 
+class PerTestDaemon(TacPlusTestCase):
+    """start_daemon() starts the PROGRAM of the class with its TEMPLATE."""
+
+    CONFIG = None
+
+    def test_start_daemon_runs_tac_plus(self):
+        d = self.start_daemon("\tuser = alice { pap = clear alicepw }\n")
+        self.assertTrue(self.connect(d).pap("alice", "alicepw").ok)
+
+
 class BareExclmark(TacPlusTestCase):
     """A script "acl ! NAME" or "time ! NAME" is a syntax error, as in an ACL; "!=" negates.
 

@@ -176,6 +176,8 @@ class DaemonTestCase(unittest.TestCase):
         Keyword arguments go to Daemon.
         """
         kw.setdefault("name", self.id().split(".")[-1])
+        kw.setdefault("program", self.PROGRAM)
+        kw.setdefault("template", self.TEMPLATE)
         d = Daemon(body, **kw)
         d.baseline = None
         self._scratch.append(d)
