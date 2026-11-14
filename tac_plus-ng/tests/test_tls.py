@@ -333,6 +333,51 @@ REJECT_LOG = """
 """
 
 
+PROTOCOL_LOG = """
+	log connection {
+		destination = "$tmp/connection.log"
+		connection format = "$${msgid}$${FS}$${realm}$${FS}$${hint}"
+	}
+	connection log = connection
+"""
+
+
+class AaaProtocolAllowedTls(TlsTestCase):
+    """aaa.protocol.allowed and TLS: tacacs.tls and tacacs.tcp are two protocols (#339, #342).
+
+    A realm for TACACS+ over TLS only (RFC 9887) refuses plain TACACS+,
+    also on a listener without TLS; a realm for plain TACACS+ refuses a
+    TLS client. The connection log gives the refused protocol as the hint
+    of the CONN-REJECT record.
+    """
+
+    LISTEN = {
+        "tls-only": "tls = yes realm = tls-only",
+        "tls-only-plain": "realm = tls-only",
+        "tcp-only": "realm = tcp-only",
+        "tcp-only-tls": "tls = yes realm = tcp-only",
+    }
+    BODY = TLS_REALM + PROTOCOL_LOG + POLICY + """
+	realm tls-only { aaa.protocol.allowed = tacacs.tls }
+	realm tcp-only { aaa.protocol.allowed = tacacs.tcp }
+"""
+
+    def assert_reject_logged(self, realm, protocol):
+        self.wait_log("connection", "CONN-REJECT\t%s\t%s not in aaa.protocol.allowed\n" % (realm, protocol))
+
+    def test_tls_only_realm(self):
+        self.assertTrue(self.connect_tls(listener="tls-only").pap("alice", "alicepw").ok)
+        c = self.connect(listener="tls-only-plain", timeout=10.0)
+        c.send(tacacs.Packet.authen_start(user="alice"))
+        self.assertTrue(c.closed())
+        self.assert_reject_logged("tls-only", "tacacs.tcp")
+
+    def test_tcp_only_realm(self):
+        self.assertTrue(self.connect(listener="tcp-only").pap("alice", "alicepw").ok)
+        self.assertRefused(lambda: self.connect_tls(listener="tcp-only-tls"))
+        self.assert_reject_logged("tcp-only", "tacacs.tls")
+
+
 def tls11_client_hello():
     """A ClientHello of a client that speaks TLS 1.1 at most (no supported_versions extension)."""
     body = b"\x03\x02" + os.urandom(32) + b"\x00" + b"\x00\x04\xc0\x13\x00\x2f" + b"\x01\x00"
