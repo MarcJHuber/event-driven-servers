@@ -2,7 +2,7 @@
 
 Each class starts a daemon on a configuration that uses the settings, so
 the parser must accept them; the tests then send real requests and check
-the replies and log lines. The hashes of types 5, 7, 8 and 9 and the ASA
+the replies and log lines. The hashes of types 4, 5, 7, 8 and 9 and the ASA
 enable hash are those that IOS and ASA write for "cisco", so a hash copied
 from a device must work (doc: "Password Hashes"). The daemon delays every
 FAIL by a second or more, so tests send their failing requests in parallel.
@@ -28,6 +28,7 @@ def parallel(fn, cases):
 
 HASHES = """
 	user md5crypt { password login = crypt $$1$$mERr$$hx5rVt7rPNoS4wqbXKX7m0 password pap = login }
+	user type4 { password login = 4 tnhtc92DXBhelxjYk8LWJrPV36S2i4ntXrpb4RFmfqY }
 	user type5 { password login = 5 $$1$$mERr$$hx5rVt7rPNoS4wqbXKX7m0 }
 	user sha256crypt {
 		# openssl passwd -5 -salt saltsalt secret
@@ -77,15 +78,16 @@ HASHES = """
 """
 
 
-@unittest.skipUnless("openssl" in features(), "types 6, 8 and 9 and the ASA hashes need a build with OpenSSL")
+@unittest.skipUnless("openssl" in features(), "types 4, 6, 8 and 9 and the ASA hashes need a build with OpenSSL")
 class PasswordTypes(DaemonTestCase):
     """The password types of "password login", "pap" and "enable" (doc: "password login", "Password Hashes")."""
 
     CONFIG = HASHES
 
-    # user, password; no type 4: the daemon does not accept the IOS hash of "cisco"
-    LOGINS = (("md5crypt", "cisco"), ("type5", "cisco"), ("sha256crypt", "secret"), ("type7", "cisco"),
-              ("type8", "cisco"), ("type9", "cisco"), ("asauser", "cisco"), ("asapbkdf2", "cisco"), ("type6", "demo"))
+    # user, password
+    LOGINS = (("md5crypt", "cisco"), ("type4", "cisco"), ("type5", "cisco"), ("sha256crypt", "secret"),
+              ("type7", "cisco"), ("type8", "cisco"), ("type9", "cisco"), ("asauser", "cisco"), ("asapbkdf2", "cisco"),
+              ("type6", "demo"))
 
     def login(self, user, password):
         return self.connect().ascii_login(user, password).status_name
