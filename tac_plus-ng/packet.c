@@ -596,10 +596,11 @@ void tac_read(struct context *ctx, int cur)
 	    return;
 	}
     }
-#define CHECK_PROTOCOL(A) \
-	if (ctx->realm->allowed_protocol_ ## A != TRISTATE_YES) { \
-		ctx->reset_tcp = BISTATE_YES; \
-		cleanup(ctx,cur); \
+// B is the protocol as "aaa.protocol.allowed" spells it. tactrace.pl tests
+// the rules of a realm over a socket pair, not its transport: no check then.
+#define CHECK_PROTOCOL(A,B) \
+	if (ctx->realm->allowed_protocol_ ## A != TRISTATE_YES && !(common_data.debug & DEBUG_TACTRACE_FLAG)) { \
+		reject_conn(ctx, B " not in aaa.protocol.allowed", __func__, __LINE__); \
 		return; \
 	}
 
@@ -629,21 +630,20 @@ void tac_read(struct context *ctx, int cur)
 		}
 	    }
 	    if (ctx->udp) {
-		CHECK_PROTOCOL(radius_dtls);
+		CHECK_PROTOCOL(radius_dtls, "radius.dtls");
 		ctx->aaa_protocol = S_radius_dtls;
 	    } else {
-		CHECK_PROTOCOL(radius_tls);
+		CHECK_PROTOCOL(radius_tls, "radius.tls");
 		ctx->aaa_protocol = S_radius_tls;
 	    }
 	} else
 #endif
 	{
 	    if (ctx->udp) {
-		CHECK_PROTOCOL(radius_udp);
+		CHECK_PROTOCOL(radius_udp, "radius.udp");
 		ctx->aaa_protocol = S_radius_udp;
 	    } else {
-		if (!(common_data.debug & DEBUG_TACTRACE_FLAG))
-		    CHECK_PROTOCOL(radius_tcp);
+		CHECK_PROTOCOL(radius_tcp, "radius.tcp");
 		ctx->aaa_protocol = S_radius_tcp;
 	    }
 	    if (!ctx->radius_1_1 && !ctx->host->radius_key) {
@@ -682,7 +682,7 @@ void tac_read(struct context *ctx, int cur)
 
 #ifdef WITH_SSL
     if (ctx->tls) {
-	CHECK_PROTOCOL(tacacs_tls);
+	CHECK_PROTOCOL(tacacs_tls, "tacacs.tls");
 	ctx->aaa_protocol = S_tacacs_tls;
 	int ssl_version = SSL_version(ctx->tls);
 	if (!(ctx->host->bug_compatibility & CLIENT_BUG_BAD_TLS_VERSION)
@@ -702,7 +702,7 @@ void tac_read(struct context *ctx, int cur)
     } else
 #endif
     {
-	CHECK_PROTOCOL(tacacs_tcp);
+	CHECK_PROTOCOL(tacacs_tcp, "tacacs.tcp");
 	ctx->aaa_protocol = S_tacacs_tcp;
     }
 

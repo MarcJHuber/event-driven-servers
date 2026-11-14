@@ -30,12 +30,14 @@
 
 import hashlib
 import os
+import socket
 import struct
+import subprocess
 import tempfile
 import unittest
 
-from tactest import SOURCE, DaemonTestCase, config, features, radius, tacacs
-from tactest.daemon import parse_only
+from tactest import LINUX, SOURCE, DaemonTestCase, config, features, radius, tacacs
+from tactest.daemon import binary, parse_only, sanitizer_env
 
 DICTIONARY = os.path.join(SOURCE, "tac_plus-ng", "sample", "radius-dict.cfg")
 SECRET = "radsecret"
@@ -749,8 +751,13 @@ class AaaProtocolAllowed(DaemonTestCase):
     CHECK_PROTOCOL in packet.c rejected only if the protocol of the
     connection was already known, which it never is at the first packet,
     so every protocol was answered. Realm "inherited" has no keyword of its
-    own and gets the list of its parent. The default realm has no keyword
-    and answers all protocols (the default listeners).
+    own and gets the list of its parent, realm "override" replaces that
+    list with its own. The default realm has no keyword and answers all
+    protocols (the default listeners).
+
+    #342: a refusal is a CONN-REJECT record of the connection log, with
+    the protocol as its hint; it was a plain CONN-STOP (TCP) or nothing
+    (UDP), so nothing on the server told why a device got no answer.
     """
 
     UDP = True
@@ -763,11 +770,19 @@ class AaaProtocolAllowed(DaemonTestCase):
         "radius-tcp-only-udp": "protocol = UDP realm = radius-tcp-only",
         "inherited": "realm = inherited",
         "inherited-udp": "protocol = UDP realm = inherited",
+        "override": "realm = override",
+        "override-udp": "protocol = UDP realm = override",
     }
     CONFIG = POLICY + """
+	log connection {
+		destination = "$tmp/connection.log"
+		connection format = "$${msgid}$${FS}$${realm}$${FS}$${hint}"
+	}
+	connection log = connection
 	realm tacacs-only {
 		aaa.protocol.allowed = tacacs.tcp
 		realm inherited { }
+		realm override { aaa.protocol.allowed = radius.udp }
 	}
 	realm radius-udp-only { aaa.protocol.allowed = radius.udp }
 	realm radius-tcp-only { aaa.protocol.allowed = radius.tcp }
@@ -816,6 +831,89 @@ class AaaProtocolAllowed(DaemonTestCase):
         self.assertTrue(self.tacacs_answers())
         self.assertEqual(self.radius_udp(), "Access-Accept")
         self.assertEqual(self.radius_tcp(), "Access-Accept")
+
+    def test_child_realm_replaces_the_list_of_its_parent(self):
+        self.assertEqual(self.radius_udp("override-udp"), "Access-Accept")
+        self.assertTrue(self.tacacs_refused("override"))
+
+    def assert_reject_logged(self, realm, protocol):
+        self.wait_log("connection", "CONN-REJECT\t%s\t%s not in aaa.protocol.allowed\n" % (realm, protocol))
+
+    def test_refused_tacacs_is_in_the_connection_log(self):
+        self.assertTrue(self.tacacs_refused("radius-udp-only"))
+        self.assert_reject_logged("radius-udp-only", "tacacs.tcp")
+
+    def test_refused_radius_tcp_is_in_the_connection_log(self):
+        self.assert_radius_refused(self.radius_tcp, "tacacs-only")
+        self.assert_reject_logged("tacacs-only", "radius.tcp")
+
+    def test_refused_radius_udp_is_in_the_connection_log(self):
+        self.assert_radius_refused(self.radius_udp, "inherited-udp")
+        self.assert_reject_logged("inherited", "radius.udp")
+
+
+TRACE_CONFIG = """\
+id = spawnd { listen { port = 4949 } }
+id = tac_plus-ng {
+	device all {
+		address = 0.0.0.0/0
+		key = tactest
+	}
+	user alice { password login = clear alicepw }
+	profile admin { script { if (service == shell) permit } }
+	ruleset { rule { script { profile = admin permit } } }
+	realm tcp-only { aaa.protocol.allowed = tacacs.tcp }
+	realm tls-only { aaa.protocol.allowed = tacacs.tls }
+	realm radius-only { aaa.protocol.allowed = radius }
+}
+"""
+
+
+@unittest.skipUnless(LINUX, "descriptor passing as tactrace.pl does it on Linux")
+class AaaProtocolAllowedTactrace(DaemonTestCase):
+    """#342: tactrace.pl tests the rules of a realm whatever aaa.protocol.allowed says.
+
+    tactrace.pl starts tac_plus-ng without spawnd ("-d 4194304", the
+    tactrace debug flag), takes the place of spawnd on its standard
+    input and hands it one end of a stream socket pair (SCM_ACCEPT, with
+    the realm), then sends a PROXY v2 header and the request. That
+    connection is plain TACACS+ always, so since the realm list is
+    enforced a realm without tacacs.tcp could not be traced any more.
+    This test does the same without Perl.
+    """
+
+    CONFIG = None
+    SCM_ACCEPT, SCM_FLAG_HAPROXY = 6, 1     # mavis/scm.h
+
+    def trace(self, realm):
+        cfg = self.scratch_file("tactrace.cfg", TRACE_CONFIG)
+        ctl, ctl_daemon = socket.socketpair(socket.AF_UNIX, socket.SOCK_DGRAM)
+        conn, conn_daemon = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
+        proc = subprocess.Popen([binary(), "-Dd", "802", "-d", "4194304", cfg, "tac_plus-ng"], stdin=ctl_daemon,
+                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=sanitizer_env())
+        ctl_daemon.close()
+        try:
+            # struct scm_data_accept: type, tls_versions, aaa_protocol, flags, realm[16], socktype, protocol
+            accept = struct.pack("iIiI16sii", self.SCM_ACCEPT, 0, 0, self.SCM_FLAG_HAPROXY, realm.encode(), 0, 0)
+            ctl.sendmsg([accept], [(socket.SOL_SOCKET, socket.SCM_RIGHTS, struct.pack("i", conn_daemon.fileno()))])
+            conn_daemon.close()
+            conn.sendall(tacacs.proxy_v2("127.0.0.1", "127.0.0.1"))
+            c = tacacs.Connection(("127.0.0.1", 0), "tactest", sock=conn, timeout=10.0)
+            c.tls, c.key = False, b"tactest"    # sock= is for TLS sockets; this one is plain
+            try:
+                return c.author("alice", ["service=shell", "cmd*"]).status_name
+            except tacacs.Closed:
+                return "closed"
+        finally:
+            conn.close()
+            ctl.close()
+            proc.kill()
+            proc.wait()
+
+    def test_trace_of_a_realm(self):
+        for realm in ("tcp-only", "tls-only", "radius-only"):
+            with self.subTest(realm=realm):
+                self.assertEqual(self.trace(realm), "PASS_ADD")
 
 
 # no device for 127.0.0.2: the base configuration covers all of 127/8, NAS is 127.0.0.6
