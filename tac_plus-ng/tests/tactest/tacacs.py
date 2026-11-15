@@ -385,8 +385,10 @@ class Connection:
     """One TCP connection to the daemon. Usable as a context manager.
 
     source binds the local end, e.g. to 127.0.0.2, so the daemon sees
-    another device address. With single_connect, every packet carries the
-    flag, and replies for several sessions may be read in any order.
+    another device address. device binds the socket to a network device
+    (SO_BINDTODEVICE, Linux), e.g. a VRF; that needs CAP_NET_RAW. With
+    single_connect, every packet carries the flag, and replies for several
+    sessions may be read in any order.
 
     proxy: bytes sent right after the TCP handshake (a PROXY header).
     tls: an ssl.SSLContext; the handshake follows the PROXY header, if any.
@@ -396,7 +398,7 @@ class Connection:
     """
 
     def __init__(self, addr, key, timeout=5.0, source=None, single_connect=False, proxy=None, tls=None,
-                 server_hostname=None, sock=None):
+                 server_hostname=None, sock=None, device=None):
         host, port = addr[0], addr[1]
         family = socket.AF_INET6 if ":" in host else socket.AF_INET
         self.tls = tls is not None or sock is not None
@@ -412,6 +414,8 @@ class Connection:
         self.sock = socket.socket(family, socket.SOCK_STREAM)
         self.sock.settimeout(timeout)
         try:
+            if device is not None:
+                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_BINDTODEVICE, device.encode())
             if source is not None:
                 self.sock.bind((source, 0))
             self.sock.connect((host, port))
