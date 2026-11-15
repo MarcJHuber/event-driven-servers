@@ -2651,6 +2651,7 @@ int parse_cron(struct mavis_tm *tm, char *t)
     int start = -1, val = 0, field = 0, valid = 0, i;
     long long a[5] = { 0 };
     int amax[5] = { 60, 24, 31, 12, 7 };
+    int nmax[5] = { 59, 23, 31, 12, 7 };	// the largest number crontab(5) takes in each field
 
     while (*t && field < 5) {
 	switch (*t) {
@@ -2701,14 +2702,16 @@ int parse_cron(struct mavis_tm *tm, char *t)
 		    t++;
 		}
 		valid = 1;
-		if (field == 4)
-		    val %= 7;
-		if (val > amax[field])
-		    val = amax[field];
-	    } else if ((field == 4 && amax[field] >= (val = dow2n(t)))
-		       || (field == 3 && amax[field] >= (val = mon2n(t)))) {
+		if (val > nmax[field])
+		    return 1;
+		if (field == 3) {	// crontab months are 1-12, tm_mon is 0-11
+		    if (val < 1)
+			return 1;
+		    val--;
+		}
+	    } else if ((field == 4 && amax[field] > (val = dow2n(t)))
+		       || (field == 3 && amax[field] > (val = mon2n(t)))) {
 		valid = 1, t += 3;
-		val = val % amax[field];
 		if (start > -1 && val < start) {
 		    for (i = start; i < amax[field]; i++)
 			a[field] |= 1LL << i;
@@ -2728,7 +2731,7 @@ int parse_cron(struct mavis_tm *tm, char *t)
     tm->hour = (long) (a[1] & 0xFFFFFFFF);
     tm->mday = (long) (a[2] & 0xFFFFFFFF);
     tm->mon = (long) (a[3] & 0xFFFFFFFF);
-    tm->wday = (long) (a[4] & 0xFFFFFFFF);
+    tm->wday = (long) ((a[4] | a[4] >> 7) & 0x7F);	// 7 is Sunday, too
 
     return 0;
 }
