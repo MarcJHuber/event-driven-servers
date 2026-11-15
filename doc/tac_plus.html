@@ -1025,7 +1025,7 @@ enable user acl = custom_enable_acl</pre></li>
 <p>For non-local users, if the <tt class="literal">chpass</tt> attribute is set and the user provides an empty password at login, the user is given the option to change his password. This requires appropriate support in the MAVIS backend modules.</p>
 </li>
 <li>
-<p><tt class="literal">mavis module =</tt> <span class="emphasis"><i class="emphasis">module</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
+<p><tt class="literal">mavis module =</tt><span class="emphasis"><i class="emphasis">module</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
 <p>Load MAVIS module <span class="emphasis"><i class="emphasis">module</i></span>. See the MAVIS documentation for configuration guidance.</p>
 </li>
 <li>
@@ -1555,7 +1555,7 @@ host = test123 {
 <hr>
 <h4 class="section"><a name="AEN1335" id="AEN1335">4.3.4. Time Ranges</a></h4>
 <p><tt class="literal">timespec</tt> objects may be used for time based profile assignments. Both <tt class="literal">cron</tt> and <tt class="literal">Taylor-UUCP</tt> syntax are supported; see you local <tt class="literal">crontab</tt><span class="emphasis"><i class="emphasis">(5)</i></span> and/or UUCP man pages for details. Syntax:</p>
-<p><tt class="literal">timespec =</tt> <span class="emphasis"><i class="emphasis">timespec_name</i></span> <tt class="literal">{ "</tt><span class="emphasis"><i class="emphasis">entry</i></span><tt class="literal">"</tt> [ ... ] <tt class="literal">}</tt></p>
+<p><tt class="literal">timespec =</tt><span class="emphasis"><i class="emphasis">timespec_name</i></span> <tt class="literal">{ "</tt><span class="emphasis"><i class="emphasis">entry</i></span><tt class="literal">"</tt> [ ... ] <tt class="literal">}</tt></p>
 <p>Example:</p>
 <pre class="screen"># Working hours are from Mo-Fr from 9 to 16:59, and
 # on Saturdays from 9 to 12:59:
@@ -1587,9 +1587,9 @@ timespec = example {
 <h4 class="section"><a name="AEN1361" id="AEN1361">4.3.5. Access Control Lists</a></h4>
 <p>Access Control Lists (ACLs) consist of a series of Access Control Expressions (ACEs). An ACL does match whenever one of its ACEs does. The ACEs that form an ACL are processed in sequence. An ACE matches if at least one of each defined subtype expression type matches. ACEs named identially become part of an ACL with the same name.</p>
 <p>Standard ACL syntax is:</p>
-<p><tt class="literal">acl</tt> <tt class="literal">=</tt> <span class="emphasis"><i class="emphasis">name</i></span> <tt class="literal">{</tt> ( (<tt class="literal">nac</tt> ( <tt class="literal">=</tt> [ <tt class="literal">not</tt> ] (<span class="emphasis"><i class="emphasis">HostName</i></span>|<span class="emphasis"><i class="emphasis">cidr</i></span>) ) | ( [ <tt class="literal">dns</tt> ] <tt class="literal">regex =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">NacRegex</i></span> )) | (<tt class="literal">nas</tt> ( <tt class="literal">=</tt> [ <tt class="literal">not</tt> ] (<span class="emphasis"><i class="emphasis">HostName</i></span>|<span class="emphasis"><i class="emphasis">cidr</i></span>) ) | (<tt class="literal">regex =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">NasRegex</i></span> )) | (<tt class="literal">port regex =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">PortRegex</i></span> ) | (<tt class="literal">acl =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">ACLName</i></span> )* <tt class="literal">}</tt> (<tt class="literal">time =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">TimeSpecName</i></span> )* <tt class="literal">}</tt></p>
+<p><tt class="literal">acl</tt><tt class="literal">=</tt><span class="emphasis"><i class="emphasis">name</i></span><tt class="literal">{</tt> ( (<tt class="literal">nac</tt> ( <tt class="literal">=</tt> [ <tt class="literal">not</tt> ] (<span class="emphasis"><i class="emphasis">HostName</i></span>|<span class="emphasis"><i class="emphasis">cidr</i></span>) ) | ( [ <tt class="literal">dns</tt> ] <tt class="literal">regex =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">NacRegex</i></span> )) | (<tt class="literal">nas</tt> ( <tt class="literal">=</tt> [ <tt class="literal">not</tt> ] (<span class="emphasis"><i class="emphasis">HostName</i></span>|<span class="emphasis"><i class="emphasis">cidr</i></span>) ) | (<tt class="literal">regex =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">NasRegex</i></span> )) | (<tt class="literal">port regex =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">PortRegex</i></span> ) | (<tt class="literal">acl =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">ACLName</i></span> )* <tt class="literal">}</tt> (<tt class="literal">time =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">TimeSpecName</i></span> )* <tt class="literal">}</tt></p>
 <p>Alternatively, scripting can be used:</p>
-<p><tt class="literal">acl script =</tt> <span class="emphasis"><i class="emphasis">name</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
+<p><tt class="literal">acl script =</tt> <span class="emphasis"><i class="emphasis">name</i></span><tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
 <p>The latter is detailled in the next chapter.</p>
 <p>For standard ACL syntax, please have a look at the Railroad Diagrams below, and things will hopefully become much clearer.</p>
 <p>ACEs will be evaluated in the order you've defined them. E.g.,</p>
@@ -2090,7 +2090,7 @@ message deny "Denied '%c %a'"</pre>
 <p>This directive may appear in <tt class="literal">cmd</tt> sections, too, where it overrides the <tt class="literal">service</tt> section definitions.</p>
 </li>
 <li>
-<p><tt class="literal">cmd =</tt> <span class="emphasis"><i class="emphasis">command</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
+<p><tt class="literal">cmd =</tt> <span class="emphasis"><i class="emphasis">command</i></span><tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
 <p><span class="emphasis"><i class="emphasis">cmd</i></span> sections permit or deny commands and command arguments. Example:</p>
 <pre class="screen">cmd = show {
     deny /^(running|startup)-config/

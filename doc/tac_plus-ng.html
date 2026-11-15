@@ -662,7 +662,7 @@ device router.example.com {
 <p>This option specifies the minimum DNS response caching time (default: 1800 seconds).</p>
 </li>
 <li>
-<p><tt class="literal">dns servers = "</tt><span class="emphasis"><i class="emphasis">string</i></span><tt class="literal">"</tt></p>
+<p><tt class="literal">dns servers = "</tt> <span class="emphasis"><i class="emphasis">string</i></span> <tt class="literal">"</tt></p>
 <p>This option specifies the servers to use. This string will be evaluated by <span class="emphasis"><i class="emphasis">ares_set_servers_ports_csv(3)</i></span>, please see the corresponding man page for details. The option isn't available if compiled without DNS support.</p>
 </li>
 </ul>
@@ -1645,7 +1645,7 @@ enable user acl = custom_enable_acl</pre></li>
 <p>This directive implies <tt class="literal">user backend = mavis</tt>.</p>
 </li>
 <li>
-<p><tt class="literal">mavis module</tt> <span class="emphasis"><i class="emphasis">module</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
+<p><tt class="literal">mavis module</tt><span class="emphasis"><i class="emphasis">module</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
 <p>Load MAVIS module <span class="emphasis"><i class="emphasis">module</i></span>. See the MAVIS documentation for configuration guidance.</p>
 </li>
 <li>
@@ -2020,7 +2020,7 @@ backend backendtacplus
 tacacs-server host 192.168.0.1 single-connection key your key here</pre>
 <p>The optional <tt class="literal">single-connection</tt> parameter specifies that multiple sessions may use the same TCP/IP connection to the server.</p>
 <p>Generally, the syntax for device declarations conforms to</p>
-<p><tt class="literal">device</tt> <span class="emphasis"><i class="emphasis">name</i></span> { <span class="emphasis"><i class="emphasis">key-value pairs</i></span> }</p>
+<p><tt class="literal">device</tt><span class="emphasis"><i class="emphasis">name</i></span> { <span class="emphasis"><i class="emphasis">key-value pairs</i></span> }</p>
 <p>The key-value pairs permitted in device sections of the configuration file are explained below.</p>
 <ul>
 <li>
@@ -2403,7 +2403,7 @@ device test123 {
 <hr>
 <h3 class="section"><a name="AEN2162" id="AEN2162">4.13. Time Ranges</a></h3>
 <p><tt class="literal">time</tt> objects may be used for time based profile assignments. Both <tt class="literal">cron</tt> and <tt class="literal">Taylor-UUCP</tt> syntax are supported; see you local <tt class="literal">crontab</tt><span class="emphasis"><i class="emphasis">(5)</i></span> and/or UUCP man pages for details. Syntax:</p>
-<p><tt class="literal">time =</tt> <span class="emphasis"><i class="emphasis">time_name</i></span> <tt class="literal">{ "</tt><span class="emphasis"><i class="emphasis">entry</i></span><tt class="literal">"</tt> [ ... ] <tt class="literal">}</tt></p>
+<p><tt class="literal">time =</tt><span class="emphasis"><i class="emphasis">time_name</i></span> <tt class="literal">{ "</tt><span class="emphasis"><i class="emphasis">entry</i></span><tt class="literal">"</tt> [ ... ] <tt class="literal">}</tt></p>
 <p>Example:</p>
 <pre class="screen"># Working hours are from Mo-Fr from 9 to 16:59, and
 # on Saturdays from 9 to 12:59:
@@ -2459,7 +2459,7 @@ profile A {
 <p>Scripting examples:</p>
 <ul>
 <li>
-<p><tt class="literal">acl</tt> <span class="emphasis"><i class="emphasis">aclName</i></span> <tt class="literal">{</tt> tac_action ... <tt class="literal">}</tt></p>
+<p><tt class="literal">acl</tt> <span class="emphasis"><i class="emphasis">aclName</i></span><tt class="literal">{</tt> tac_action ... <tt class="literal">}</tt></p>
 <p>Example:</p>
 <pre class="screen">    acl myacl123 {
         if (nas == 1.2.3.4 || nac = SomeHostName || nac-dns =~ /\\.example\\.com$/) deny
@@ -2615,7 +2615,7 @@ set radius[Cisco:Cisco-AVPair] = "ip:inacl#2=permit ip any any"</pre></td>
 </thead>
 <tbody>
 <tr>
-<td><tt class="literal">"</tt><span class="emphasis"><i class="emphasis">string</i></span><tt class="literal">"</tt></td>
+<td><tt class="literal">"</tt> <span class="emphasis"><i class="emphasis">string</i></span> <tt class="literal">"</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
 <td>String or REGEX</td>
 <td>Log variable substitutions will apply</td>
@@ -2633,7 +2633,7 @@ set radius[Cisco:Cisco-AVPair] = "ip:inacl#2=permit ip any any"</pre></td>
 <td>&nbsp;</td>
 </tr>
 <tr>
-<td><tt class="literal">arg[</tt><span class="emphasis"><i class="emphasis">attr</i></span><tt class="literal">]</tt></td>
+<td><tt class="literal">arg[</tt> <span class="emphasis"><i class="emphasis">attr</i></span> <tt class="literal">]</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
 <td>String or REGEX</td>
 <td>arg[protocol], arg[service], ...</td>
@@ -2821,7 +2821,7 @@ set radius[Cisco:Cisco-AVPair] = "ip:inacl#2=permit ip any any"</pre></td>
 <td>session protocol (ppp, ...)</td>
 </tr>
 <tr>
-<td><tt class="literal">radius[</tt><span class="emphasis"><i class="emphasis">RADIUS attribute</i></span><tt class="literal">]</tt></td>
+<td><tt class="literal">radius[</tt> <span class="emphasis"><i class="emphasis">RADIUS attribute</i></span> <tt class="literal">]</tt></td>
 <td><tt class="literal">== != =~ !~</tt></td>
 <td>RADIUS attribute value</td>
 <td>&nbsp;</td>
@@ -3015,7 +3015,7 @@ password login = clear Ci5c0</pre>
 <p>For MS-CHAP authentication, a cleartext password is required. Alternatively, a suitable MAVIS backend can be used.</p>
 </li>
 <li>
-<p><tt class="literal">password</tt> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
+<p><tt class="literal">password</tt><tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
 <p>This directive allows for nested specification of passwords. Example:</p>
 <pre class="screen">
 user marc {
@@ -3052,8 +3052,8 @@ user marc {
 <li>
 <p><tt class="literal">profile =</tt> <span class="emphasis"><i class="emphasis">profileName</i></span></p>
 <p><tt class="literal">profile {</tt> <span class="emphasis"><i class="emphasis">profileAttr</i></span> <tt class="literal">}</tt></p>
-<p><tt class="literal">net</tt> <span class="emphasis"><i class="emphasis">netName</i></span> <tt class="literal">{</tt><span class="emphasis"><i class="emphasis">netAttr</i></span> <tt class="literal">}</tt></p>
-<p><tt class="literal">time</tt> <span class="emphasis"><i class="emphasis">timeName</i></span> <tt class="literal">{</tt><span class="emphasis"><i class="emphasis">timeAttr</i></span> <tt class="literal">}</tt></p>
+<p><tt class="literal">net</tt> <span class="emphasis"><i class="emphasis">netName</i></span> <tt class="literal">{</tt> <span class="emphasis"><i class="emphasis">netAttr</i></span> <tt class="literal">}</tt></p>
+<p><tt class="literal">time</tt> <span class="emphasis"><i class="emphasis">timeName</i></span> <tt class="literal">{</tt> <span class="emphasis"><i class="emphasis">timeAttr</i></span> <tt class="literal">}</tt></p>
 <p>A profile may be assigned to a user directly, the main ruleset will be then skipped.</p>
 <p>Also, a profile definition can be part of the user context, and the profile may refer to <tt class="literal">net</tt> and <tt class="literal">time</tt> definitions defined there:</p>
 <pre class="screen">

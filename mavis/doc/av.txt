@@ -1,0 +1,87 @@
+m: Mandatory in query
+m<n>: One of the marked attributes is mandatory in query
+M: Mandatory in response with positive result
+o: Optional in query
+O: Optional in response
+i: used internally by modules or applications
+
+WWW: WWW
+FTP: FTP
+PO3: POP3
+P3P: POP3 path
+LGN: Login
+IPR: IP address registration
+TPT: Transport
+CFY: Canonify
+
+Attribute \ service | WWW | FTP | PO3 | P3P | LGN | IPR | TPT | P3S | CFY
+--------------------------------------------------------------------------
+AV_A_TYPE           |  m  |  m  |  m  |  m  |  m  |  m  |  m  |  m  |  m
+AV_A_SOCK           |     |  i  |  i  |     |     |     |     |     |
+AV_A_TIMESTAMP      |     |  m  |  m  |     |  m  |     |     |     |
+AV_A_IPADDR         |     |  m  |     |     |  m  |  m  |     |     |
+AV_A_USER           |  m  |  m  |  m  |  m  |  m  |  m  |  m  |  m  |  m
+AV_A_DIGEST         |     |     |     |     |  m1 |     |     |     |
+AV_A_PASSWORD       |  m  |  m  |     |     |  m1 |     |     |     |
+AV_A_UID            |     |  M  |     |     |  M  |     |     |     |
+AV_A_GID            |     |  M  |     |     |  M  |     |     |     |
+AV_A_GIDS           |     |  O  |     |     |     |     |     |     |
+AV_A_RESULT         |  M  |  M  |  M  |  M  |  M  |  M  |  M  |  M  |  M
+AV_A_PATH           |     |     |  M  |  M  |     |     |  O  |  M  |  M
+AV_A_LIMIT          |     |     |  o  |     |     |     |     |     |
+AV_A_TRANSPORT      |     |     |     |     |     |     |  M  |     |
+AV_A_QUOTA_LIMIT    |     |  O  |     |     |     |     |  O  |     |
+AV_A_QUOTA_PATH     |     |  O  |     |     |     |     |     |     |
+AV_A_COMMENT        |  O  |  O  |  O  |  O  |  O  |  O  |  O  |  O  |  O
+AV_A_SERVERIP       |  o  |  o  |  o  |  o  |  o  |  o  |     |  o  |
+AV_A_HOME           |     |  M  |     |     |     |     |     |     |
+AV_A_ROOT           |     |  M  |     |     |  M  |     |     |     |
+AV_A_SERIAL         |  i  |  i  |  i  |  i  |  i  |  i  |  i  |  i  |  i
+AV_A_FTP_ANONYMOUS  |     |  O  |     |     |     |     |     |     |
+AV_A_TRAFFICSHAPING |     |  O  |     |     |     |     |     |     |
+AV_A_EMAIL          |     |  O  |     |     |     |     |     |     |
+AV_A_ANON_INCOMING  |     |  O  |     |     |     |     |     |     |
+AV_A_VHOST          |     |  o  |     |     |     |     |     |     |
+AV_A_UMASK          |     |  O  |     |     |     |     |     |     |
+AV_A_USER_RESPONSE  |     |  O  |  O  |     |     |     |     |     |
+AV_A_AUTH_METHOD    |     |  o  |     |     |  o  |     |     |     |
+AV_A_TARIFF         |     |     |     |     |     |     |     |     |
+AV_A_DBPASSWORD     |  i  |  i  |  i  |     |  i  |     |     |     |
+
+For POP3 DIGEST-MD5 authentication, the following attributes are used:
+AV_A_DIGEST_MD5_USER
+AV_A_DIGEST_MD5_CNONCE
+AV_A_DIGEST_MD5_URI
+AV_A_DIGEST_MD5_REALM
+AV_A_DIGEST_MD5_RSPAUTH
+
+Under normal circumstances, attribute-value pairs set in a query will be
+set in the response, too. As such, everything marked as mandatory in queries
+should be considered mandatory in the accompanying responses.
+
+Several modules don't perform any authentication checking and leave
+the AV_A_RESULT value alone, unless an error occured. AV_A_RESULT is
+then set by the auth module, which evaluates the AV_A_DBPASSWORD (which
+has to be set by one of the lower modules). To be more specific:
+
+module     service    AV_A_RESULT set by
+-----------------------------------------------------------------------------
+anonftp    FTP        module
+asciiftp   FTP        auth module
+auth       any        module unless already set
+cache      -          -
+ldap       TRANSPORT  configuration
+           CANONICAL  configuration
+           VIRTUAL    configuration
+           others     auth module
+limit      any        module
+log        -          -
+mailquota  -          -
+pgsql      TRANSPORT  module
+           CANONICAL  module
+           VIRTUAL    module
+           POP3       auth module
+           RADIUS     auth module
+remote     -          -
+system     FTP        module/auth module
+

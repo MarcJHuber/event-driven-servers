@@ -128,7 +128,7 @@ permit 192.168.0.5/32
             Specifies a file to read the a key from (optional).
        The listen directive may be used multiple times and is
        mandatory.
-     * mavis module = module { ... }
+     * mavis module =module { ... }
        Load MAVIS module module. See the MAVIS documentation for
        configuration guidance.
      * mavis path = path

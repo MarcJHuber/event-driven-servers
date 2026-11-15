@@ -444,7 +444,7 @@ STAT, STOR, STOU, SYST, TYPE, USER, XCUP, XCWD, XMKD, XPWD, XRMD
 <hr>
 <h4 class="section"><a name="AEN464" id="AEN464">4.1.1. Access Control Lists</a></h4>
 <p>Various configuration directives may depend on ACLs. ACL syntax is</p>
-<p><tt class="literal">acl</tt> <span class="emphasis"><i class="emphasis">ACLName</i></span> <tt class="literal">= {</tt> ... <tt class="literal">}</tt></p>
+<p><tt class="literal">acl</tt><span class="emphasis"><i class="emphasis">ACLName</i></span><tt class="literal">= {</tt> ... <tt class="literal">}</tt></p>
 <p>To be more precisely, the above doesn't specify a complete ACL, but adds a ACL rule to <span class="emphasis"><i class="emphasis">ACLName</i></span>. As such, an <tt class="literal">acl</tt> declaration may be used multiple times, and the ACL rule will just be added to the end of the current rule list. Likewise, ACL rules are evaluated sequentially, in the order of definition.</p>
 <p>Inside the curly brackets, recognized matching criteria are:</p>
 <ul>
@@ -468,7 +468,7 @@ STAT, STOR, STOU, SYST, TYPE, USER, XCUP, XCWD, XMKD, XPWD, XRMD
 <p><tt class="literal">time =</tt> [ <tt class="literal">not</tt> ] <span class="emphasis"><i class="emphasis">TimeSpecName</i></span></p>
 <p>Matches depending on current time.</p>
 <p><tt class="literal">timespec</tt> objects may be used for time based profile assignments. Both <tt class="literal">cron</tt> and <tt class="literal">Taylor-UUCP</tt> syntax are supported, see you local <tt class="literal">crontab</tt><span class="emphasis"><i class="emphasis">(5)</i></span> and/or UUCP man pages for details. Syntax:</p>
-<p><tt class="literal">timespec =</tt> <span class="emphasis"><i class="emphasis">timespec_name</i></span><tt class="literal">{ "</tt><span class="emphasis"><i class="emphasis">entry</i></span><tt class="literal">"</tt> [ ... ] <tt class="literal">}</tt></p>
+<p><tt class="literal">timespec =</tt><span class="emphasis"><i class="emphasis">timespec_name</i></span><tt class="literal">{ "</tt><span class="emphasis"><i class="emphasis">entry</i></span><tt class="literal">"</tt> [ ... ] <tt class="literal">}</tt></p>
 <p>Example:</p>
 <pre class="screen"># Working hours are from Mo-Fr from 9 to 16:59, and
 # on Saturdays from 9 to 12:59:
@@ -1168,7 +1168,7 @@ rewrite ^/tmp/test123         $0                     R</pre></div>
 <p>Directives to configure the MAVIS backends are:</p>
 <ul>
 <li>
-<p><tt class="literal">mavis module =</tt> <span class="emphasis"><i class="emphasis">module</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
+<p><tt class="literal">mavis module =</tt><span class="emphasis"><i class="emphasis">module</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
 <p>Load MAVIS module <span class="emphasis"><i class="emphasis">module</i></span>. See the MAVIS documentation for confi guration guidance.</p>
 </li>
 <li>

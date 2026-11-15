@@ -1037,7 +1037,7 @@ login backend = mavis chalresp noecho
        user provides an empty password at login, the user is given
        the option to change his password. This requires
        appropriate support in the MAVIS backend modules.
-     * mavis module = module { ... }
+     * mavis module =module { ... }
        Load MAVIS module module. See the MAVIS documentation for
        configuration guidance.
      * mavis path = path
@@ -1536,7 +1536,7 @@ host = test123 {
    see you local crontab(5) and/or UUCP man pages for details.
    Syntax:
 
-   timespec = timespec_name { "entry" [ ... ] }
+   timespec =timespec_name { "entry" [ ... ] }
 
    Example:
 # Working hours are from Mo-Fr from 9 to 16:59, and
@@ -1573,7 +1573,7 @@ timespec = example {
 
    Standard ACL syntax is:
 
-   acl = name { ( (nac ( = [ not ] (HostName|cidr) ) | ( [ dns ]
+   acl=name{ ( (nac ( = [ not ] (HostName|cidr) ) | ( [ dns ]
    regex = [ not ] NacRegex )) | (nas ( = [ not ] (HostName|cidr)
    ) | (regex = [ not ] NasRegex )) | (port regex = [ not ]
    PortRegex ) | (acl = [ not ] ACLName )* } (time = [ not ]
@@ -1581,7 +1581,7 @@ timespec = example {
 
    Alternatively, scripting can be used:
 
-   acl script = name { ... }
+   acl script = name{ ... }
 
    The latter is detailled in the next chapter.
 
@@ -2124,7 +2124,7 @@ message permit "Permitted '%c %a'"
 message deny "Denied '%c %a'"
        This directive may appear in cmd sections, too, where it
        overrides the service section definitions.
-     * cmd = command { ... }
+     * cmd = command{ ... }
        cmd sections permit or deny commands and command arguments.
        Example:
 cmd = show {
@@ -3004,7 +3004,7 @@ user = admin {
    Its behaviour is controlled by a list of environmental
    variables:
 
-          Variable         Description
+           Variable        Description
    LDAP_SERVER_TYPE
 
    One of: generic, tacacs_schema, microsoft.

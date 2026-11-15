@@ -174,18 +174,18 @@
 <p>Evaluates configuration file <span class="emphasis"><i class="emphasis">config</i></span>. If <span class="emphasis"><i class="emphasis">config</i></span> starts with <tt class="literal">$CONFDIR/</tt> the latter will be replaced by the directory where the main configuration file is located, so a main configuration file <tt class="literal">/where/ever/main.cfg</tt> with <tt class="literal">include = "$CONFDIR/part.cfg"</tt> will look for <tt class="literal">/where/ever/part.cfg</tt></p>
 </li>
 <li>
-<p><tt class="literal">id =</tt> <span class="emphasis"><i class="emphasis">ID</i></span><tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
+<p><tt class="literal">id =</tt><span class="emphasis"><i class="emphasis">ID</i></span><tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
 <p>Defines a configuration section <span class="emphasis"><i class="emphasis">ID</i></span>, which will be evaluated by a matching server process.</p>
 </li>
 </ul>
 <p>Standard configuration directives which may be used both at top-level and inside the <span class="emphasis"><i class="emphasis">ID</i></span> sections are:</p>
 <ul>
 <li>
-<p><tt class="literal">alias =</tt> <span class="emphasis"><i class="emphasis">name</i></span> <tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
+<p><tt class="literal">alias =</tt><span class="emphasis"><i class="emphasis">name</i></span><tt class="literal">{</tt> ... <tt class="literal">}</tt></p>
 <p>Defines an alias for the configuration directives inside the curly brackets.</p>
 </li>
 <li>
-<p><tt class="literal">debug =</tt> <span class="emphasis"><i class="emphasis">Level</i></span> ...</p>
+<p><tt class="literal">debug =</tt><span class="emphasis"><i class="emphasis">Level</i></span> ...</p>
 <p><span class="emphasis"><i class="emphasis">Level</i></span> can be either a integer value or a sequence of debugging keywords, each of which may, optionally, start with <tt class="literal">+</tt> or <tt class="literal">-</tt>, where <tt class="literal">+</tt> will enable debugging, and <tt class="literal">-</tt> will disable it. Supported keywords and their corresponding integer values are:</p>
 <div class="informaltable"><a name="AEN106" id="AEN106"></a>
 <table border="1" class="CALSTABLE">
@@ -1067,7 +1067,7 @@ id = ftpd {
 <p>Valid <span class="emphasis"><i class="emphasis">action</i></span>s are:</p>
 <ul>
 <li>
-<p><tt class="literal">{</tt> <span class="emphasis"><i class="emphasis">action</i></span>+ <tt class="literal">}</tt></p>
+<p><tt class="literal">{</tt><span class="emphasis"><i class="emphasis">action</i></span>+ <tt class="literal">}</tt></p>
 <p>Defines an action block consisting of multiple actions.</p>
 </li>
 <li>
@@ -1103,7 +1103,7 @@ id = ftpd {
 <p>Evaluates <span class="emphasis"><i class="emphasis">condition</i></span>, and populates the PCRE substring information vector ($1 ... $9).</p>
 </li>
 <li>
-<p><tt class="literal">if (</tt> <span class="emphasis"><i class="emphasis">condition</i></span> <tt class="literal">)</tt> <span class="emphasis"><i class="emphasis">action</i></span> [ <tt class="literal">else</tt> <span class="emphasis"><i class="emphasis">action</i></span> ]</p>
+<p><tt class="literal">if (</tt><span class="emphasis"><i class="emphasis">condition</i></span><tt class="literal">)</tt><span class="emphasis"><i class="emphasis">action</i></span> [ <tt class="literal">else</tt> <span class="emphasis"><i class="emphasis">action</i></span> ]</p>
 <p>Evaluates <span class="emphasis"><i class="emphasis">condition</i></span> and executes one of the <span class="emphasis"><i class="emphasis">action</i></span>s, if any.</p>
 </li>
 </ul>
@@ -1122,11 +1122,11 @@ id = ftpd {
 <p>Boolean OR.</p>
 </li>
 <li>
-<p><span class="emphasis"><i class="emphasis">attribute</i></span> <tt class="literal">==</tt> ( <span class="emphasis"><i class="emphasis">attribute</i></span> | <span class="emphasis"><i class="emphasis">value</i></span> )</p>
+<p><span class="emphasis"><i class="emphasis">attribute</i></span><tt class="literal">==</tt> ( <span class="emphasis"><i class="emphasis">attribute</i></span> | <span class="emphasis"><i class="emphasis">value</i></span> )</p>
 <p>Exact match.</p>
 </li>
 <li>
-<p><span class="emphasis"><i class="emphasis">attribute</i></span> <tt class="literal">!=</tt> ( <span class="emphasis"><i class="emphasis">attribute</i></span> | <span class="emphasis"><i class="emphasis">value</i></span> )</p>
+<p><span class="emphasis"><i class="emphasis">attribute</i></span><tt class="literal">!=</tt> ( <span class="emphasis"><i class="emphasis">attribute</i></span> | <span class="emphasis"><i class="emphasis">value</i></span> )</p>
 <p>No exact match.</p>
 </li>
 <li>

@@ -292,7 +292,7 @@ mimetypes = /etc/mime.types
    Various configuration directives may depend on ACLs. ACL syntax
    is
 
-   acl ACLName = { ... }
+   aclACLName= { ... }
 
    To be more precisely, the above doesn't specify a complete ACL,
    but adds a ACL rule to ACLName. As such, an acl declaration may
@@ -317,7 +317,7 @@ mimetypes = /etc/mime.types
        assignments. Both cron and Taylor-UUCP syntax are
        supported, see you local crontab(5) and/or UUCP man pages
        for details. Syntax:
-       timespec = timespec_name{ "entry" [ ... ] }
+       timespec =timespec_name{ "entry" [ ... ] }
        Example:
 # Working hours are from Mo-Fr from 9 to 16:59, and
 # on Saturdays from 9 to 12:59:
@@ -667,7 +667,7 @@ rewrite ^/tmp/test123         $0                     R
 
    Directives to configure the MAVIS backends are:
 
-     * mavis module = module { ... }
+     * mavis module =module { ... }
        Load MAVIS module module. See the MAVIS documentation for
        confi guration guidance.
      * mavis path = path

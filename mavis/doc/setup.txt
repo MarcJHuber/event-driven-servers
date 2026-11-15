@@ -1,0 +1,71 @@
+Authentication setup schemes
+----------------------------
+
+Some MAVIS modules have both a synchronous and asynchronous operating mode.
+For low and medium performance applications it's sufficient to have one
+authentication daemon processing all incoming requests, with all the MAVIS
+modules utilized by mavisd operating synchronously. However, this introduces
+a serialization of all queries, causing requests that could immediately be
+answered by e.g. the limit or cache module to be deferred until database
+queries got processed. One possible solution to remedy this is to add one
+or more secondary authentication daemon for asynchronous processing of
+queries for synchronous-only modules. The remote module automatically
+distributes queries between the configured remote authentication daemons.
+
+Sample setups
+-------------
+
+1. Stand alone setup: Authentication requests are processed synchronously.
+   Only recommended for low-latency modules where no common database is
+   required, e.g. the anonftp module.
+
+       .-----------.
+     .-----------. |
+   .-----------. |-|
+   |  Client   |-| |
+   |-----------| | |
+   | [ log   ] | |-'
+   | [ ...   ] |-'
+   `-----------'
+
+2. Remote authentication setup: Authentication request processing is done
+   asynchronous by mavisd. Recommended for medium-latency modules or modules
+   that require access to shared data, e.g. the limit or cache module.
+
+       .------------.     .-----------.
+     .------------. |<===>|  mavisd   |
+   .------------. |<=====>|-----------|
+   |  Client    |<=======>| [ log   ] |
+   |------------| |-'     | [ limit ] |
+   | [ remote ] |-'       | [ cache ] |
+   `------------'         | [ ...   ] |
+                          `-----------'
+
+3. Remote authentication setup with redundancy: Recommended for high-latency
+   modules that are only capable of synchronous request processing, high-
+   performance setups or where redundancy is desired, e.g. suitable for
+   database access modules.
+
+       .------------.     .------------.         .-----------.
+     .-----------.  |<===>|  mavisd    |<=======>|  mavisd   |
+   .------------. |<=====>|------------|       .-----------.-|
+   |  Client    |<=======>| [ log    ] |<=====>|  mavisd   | |
+   |------------| |-'     | [ limit  ] |       |-----------| |
+   | [ remote ] |-'       | [ cache  ] |       | [ log   ] |-'
+   `------------'         | [ remote ] |       | [ ...   ] |
+                          `------------'       `-----------'
+
+4. Trivial PGSQL/POP3/Postfix-Setup:
+
+       .------------.     .-----------.
+     .------------. |<===>|  mavisd   |
+   .------------. |<=====>|-----------|
+   |   POP3D    |<=======>| [ log   ] |
+   |------------| |-'     | [ limit ] |
+   | [ remote ] |-'       | [ auth  ] |  <-- The auth module is required for
+   `------------'         | [ cache ] |      authentication to work.
+                          | [ pgsql ] |
+                          `-----------'
+
+-- 
+Marc Huber <Marc.Huber@web.de>

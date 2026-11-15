@@ -1,0 +1,1969 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<article>
+  <articleinfo>
+    <title>MAVIS - Modular Attribute-Value Interchange System</title>
+    <author>
+      <firstname>Marc</firstname>
+      <surname>Huber</surname>
+      <email>Marc.Huber@web.de</email>
+    </author>
+    <releaseinfo>$Id$</releaseinfo>
+  </articleinfo>
+  <section>
+    <title>Introduction</title>
+    <para>The MAVIS libraries provide a modular and extensible protocol for
+    authorization and authentication tasks. Authorization/authentication
+    modules are stackable and configurable. Both synchronous and asynchronous
+    operation modes are available.</para>
+    <para>The modules are reentrant, but not thread-save.</para>
+    <section>
+      <title>Download</title>
+      <para>You can download the source code from the GitHub repository at <ulink url="https://github.com/MarcJHuber/event-driven-servers/">https://github.com/MarcJHuber/event-driven-servers/</ulink>.
+            On-line documentation is available via <ulink url="https://projects.pro-bono-publico.de/event-driven-servers/doc/">https://projects.pro-bono-publico.de/event-driven-servers/doc/</ulink>, too.
+      </para>
+    </section>
+  </section>
+  <section>
+    <title>Design overview</title>
+    <para>The MAVIS system consists of the MAVIS library
+    (<literal>libmavis.so</literal>) and various MAVIS modules
+    (<literal>libmavis_*.so</literal>). The library glues the modules
+    together, sends requests to and receives answers from the modules. A
+    module may answer (or modify) a request or pass it on to the module loaded
+    later. It may intercept and modify the response from that module.</para>
+    <para>Example: Consider the following set-up:</para>
+    <para>An incoming request, e.g. for FTP authentication, first reaches the
+    <literal>log</literal> module, which simply passes it on to the limit
+    module. The <literal>limit</literal> module checks the IP address of the
+    client and rejects the request if that address is blacklisted. Otherwise,
+    the request is passed on to the <literal>auth</literal> module, which
+    leaves it alone and passes it on to the <literal>cache</literal> module.
+    If the request is not cached within the <literal>cache</literal> module it
+    is passed on to the <literal>pam</literal> module, which sets some
+    attribute-value pairs and sends the request back to the
+    <literal>cache</literal> module. The <literal>cache</literal> module in
+    turn adds the request data to its cache database and passes it back the
+    <literal>auth</literal> module for authentication checking. [Remaining
+    steps omitted.]</para>
+    <screen xml:space="preserve">
+     --.                                                      .--&gt;
+       |                                                      |
+   .===|===&lt;log&gt;==============================================|===.
+   |   |                                           log   -----'   |
+   |   |                                         request &lt;----.   |
+   &gt;===|===&lt;limit&gt;============================================|===&lt;
+   |   '--&gt;  client IP  ------(YES)------&gt; reject -----------&gt;|   |
+   |   .--- blacklisted?             .---&gt; request            |   |
+   |   |                             |                        |   |
+   |  (NO)                         (YES)-- add IP to  --(NO)--'   |
+   |   |                                   blacklist? &lt;-------.   |
+   &gt;===|===&lt;auth&gt;=============================================|===&lt;
+   |   |                                      verify     -----'   |
+   |   |                                  authentication &lt;----.   |
+   &gt;===|===&lt;cache&gt;============================================|===&lt;
+   |   '--&gt; answer for request ---(YES)---&gt; answer request --&gt;|   |
+   |   .---  already cached?                                  |   |
+   |   |                                                      |   |
+   |  (NO)                                        cache  -----'   |
+   |   |                                         request &lt;----.   |
+   &gt;===|===&lt;pam&gt;==============================================|===&lt;
+   |   '--&gt; retrieve authentication information from ---------'   |
+   |            PAM sub-system and system files                   |
+   '--------------------------------------------------------------'
+ </screen>
+  </section>
+  <section>
+    <title>Authentication setups</title>
+    <para>Some MAVIS modules have both synchronous and asynchronous operation
+    modes. For low and medium performance applications it's sufficient to have
+    one authentication daemon processing all incoming requests, with all the
+    MAVIS modules utilized by <emphasis>mavisd</emphasis> operating
+    synchronously. However, this introduces a serialization of all queries,
+    causing requests that could immediately be answered by e.g. the limit or
+    cache module to be deferred until database queries got processed. One
+    possible solution to remedy this is to add one or more secondary
+    authentication daemon for asynchronous processing of queries for
+    synchronous-only modules. The remote module automatically distributes
+    queries between the configured MAVIS daemons.</para>
+  </section>
+  <section>
+    <title>Sample setups</title>
+    <para/>
+    <orderedlist>
+      <listitem>
+        <para>Stand alone setup: Authentication requests are processed
+        synchronously. Only recommended for low-latency modules where no
+        common database is required, e.g. the anonftp module.</para>
+        <screen xml:space="preserve">
+       .-----------.
+     .-----------. |
+   .-----------. |-|
+   |  Client   |-| |
+   |-----------| | |
+   | [ log   ] | |-'
+   | [ ...   ] |-'
+   `-----------'
+ </screen>
+      </listitem>
+      <listitem>
+        <para>Remote authentication setup: Authentication request processing
+        is done asynchronous by <emphasis>mavisd</emphasis>. Recommended for
+        medium-latency modules or modules that require access to shared data,
+        e.g. the limit or cache module.</para>
+        <screen xml:space="preserve">
+       .------------.     .-----------.
+     .------------. |&lt;===&gt;|  mavisd   |
+   .------------. |&lt;=====&gt;|-----------|
+   |  Client    |&lt;=======&gt;| [ log   ] |
+   |------------| |-'     | [ limit ] |
+   | [ remote ] |-'       | [ auth  ] |
+   `------------'         | [ cache ] |
+                          | [ ...   ] |
+                          `-----------'
+ </screen>
+      </listitem>
+      <listitem>
+        <para>Remote authentication setup with redundancy: Recommended for
+        high-latency modules that are only capable of synchronous request
+        processing, high- performance setups or where redundancy is desired,
+        e.g. suitable for database access modules.</para>
+        <screen xml:space="preserve">
+       .------------.     .------------.         .-----------.
+     .------------. |&lt;===&gt;|  mavisd    |&lt;=======&gt;|  mavisd   |
+   .------------. |&lt;=====&gt;|------------|       .-----------.-|
+   |  Client    |&lt;=======&gt;| [ log    ] |&lt;=====&gt;|  mavisd   | |
+   |------------| |-'     | [ limit  ] |       |-----------| |
+   | [ remote ] |-'       | [ auth   ] |       | [ log   ] |-'
+   `------------'         | [ cache  ] |       | [ ...   ] |
+                          | [ remote ] |       | [ ...   ] |
+                          `------------'       `-----------'
+ </screen>
+      </listitem>
+    </orderedlist>
+  </section>
+  <section>
+    <title>Configuration Syntax</title>
+    <para>MAVIS modules are configured within the context of the application
+    utilizing them. There's no special configuration file required or even
+    supported.</para>
+    <mediaobject>
+      <imageobject>
+        <imagedata fileref="railroad/mavis/MavisDecl.eps" format="EPS" scale="80"/>
+      </imageobject>
+      <imageobject>
+        <imagedata fileref="railroad/mavis/MavisDecl.gif" format="GIF"/>
+      </imageobject>
+      <caption>
+        <para>Railroad diagram: MavisDecl</para>
+      </caption>
+    </mediaobject>
+    <section>
+      <title>Standard Configuration Directives</title>
+      <para>Top-level configuration directives common to all of the
+      applications using the MAVIS interface are:</para>
+      <itemizedlist>
+        <listitem>
+          <para>
+            <literal>include =</literal>
+            <emphasis>config</emphasis>
+          </para>
+          <para>Evaluates configuration file
+          <emphasis>config</emphasis>. If <emphasis>config</emphasis> starts with <literal>$CONFDIR/</literal> the latter will be replaced by the directory where the main configuration file is located, so a main configuration file <literal>/where/ever/main.cfg</literal> with <literal>include = "$CONFDIR/part.cfg"</literal> will look for <literal>/where/ever/part.cfg</literal></para>
+        </listitem>
+        <listitem>
+          <para><literal>id =</literal><emphasis>ID</emphasis><literal>{</literal> ...
+          <literal>}</literal></para>
+          <para>Defines a configuration section <emphasis>ID</emphasis>, which
+          will be evaluated by a matching server process.</para>
+        </listitem>
+      </itemizedlist>
+      <para>Standard configuration directives which may be used both at
+      top-level and inside the <emphasis>ID</emphasis> sections are:</para>
+      <itemizedlist>
+        <listitem>
+          <para><literal>alias =</literal><emphasis>name</emphasis><literal>{</literal> ... <literal>}</literal></para>
+          <para>Defines an alias for the configuration directives inside the curly brackets.</para>
+        </listitem>
+        <listitem>
+          <para><literal>debug =</literal><emphasis>Level</emphasis>
+          ...</para>
+          <para><emphasis>Level</emphasis> can be either a integer value or a
+          sequence of debugging keywords, each of which may, optionally, start
+          with <literal>+</literal> or <literal>-</literal>, where
+          <literal>+</literal> will enable debugging, and <literal>-</literal>
+          will disable it. Supported keywords and their corresponding integer
+          values are:</para>
+          <informaltable>
+            <tgroup cols="2">
+              <tbody>
+                <row>
+                  <entry>PARSE</entry>
+                  <entry>1</entry>
+                </row>
+                <row>
+                  <entry>AUTHOR</entry>
+                  <entry>2</entry>
+                </row>
+                <row>
+                  <entry>AUTHEN</entry>
+                  <entry>4</entry>
+                </row>
+                <row>
+                  <entry>ACCT</entry>
+                  <entry>8</entry>
+                </row>
+                <row>
+                  <entry>CONFIG</entry>
+                  <entry>16</entry>
+                </row>
+                <row>
+                  <entry>PACKET</entry>
+                  <entry>32</entry>
+                </row>
+                <row>
+                  <entry>HEX</entry>
+                  <entry>64</entry>
+                </row>
+                <row>
+                  <entry>LOCK</entry>
+                  <entry>128</entry>
+                </row>
+                <row>
+                  <entry>REGEX</entry>
+                  <entry>256</entry>
+                </row>
+                <row>
+                  <entry>ACL</entry>
+                  <entry>512</entry>
+                </row>
+                <row>
+                  <entry>RADIUS</entry>
+                  <entry>1024</entry>
+                </row>
+                <row>
+                  <entry>CMD</entry>
+                  <entry>2049</entry>
+                </row>
+                <row>
+                  <entry>BUFFER</entry>
+                  <entry>4096</entry>
+                </row>
+                <row>
+                  <entry>PROC</entry>
+                  <entry>8192</entry>
+                </row>
+                <row>
+                  <entry>NET</entry>
+                  <entry>16384</entry>
+                </row>
+                <row>
+                  <entry>PATH</entry>
+                  <entry>32768</entry>
+                </row>
+                <row>
+                  <entry>CONTROL</entry>
+                  <entry>65536</entry>
+                </row>
+                <row>
+                  <entry>INDEX</entry>
+                  <entry>131072</entry>
+                </row>
+                <row>
+                  <entry>AV</entry>
+                  <entry>262144</entry>
+                </row>
+                <row>
+                  <entry>MAVIS</entry>
+                  <entry>524288</entry>
+                </row>
+              </tbody>
+            </tgroup>
+          </informaltable>
+          <para>Not all of these debugging flags may have an actual effect.
+          The flags are additive; use the special flag <literal>NONE</literal>
+          to clear all flags, use <literal>ALL</literal> to set all
+          flags.</para>
+          <para>Debugging options may only be available when the package was
+          configured with the <literal>--debug</literal> command line
+          switch.</para>
+          <para>Example:</para>
+          <screen xml:space="preserve">debug = ALL -PARSE -NET</screen>
+        </listitem>
+        <listitem>
+          <para><literal>regex-match-case =</literal> ( <literal>yes</literal>
+          | <literal>no</literal> )</para>
+          <para>Enables/disables case-sensitive regex pattern matching for the
+          current context. Default: <literal>no</literal>.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>syslog ident =</literal>
+            <emphasis>Ident</emphasis>
+          </para>
+          <para>Set the <literal>syslog</literal>(3) identity. Defaults to the
+          programs basename.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>syslog severity =</literal>
+            <emphasis>Level</emphasis>
+          </para>
+          <para>Set the <literal>syslog</literal>(3) severity. Default:
+          <literal>INFO</literal>.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>syslog facility =</literal>
+            <emphasis>Facility</emphasis>
+          </para>
+          <para>Set the <literal>syslog</literal>(3) facility. Default:
+          <literal>UUCP</literal>.</para>
+        </listitem>
+        <listitem>
+          <para><literal>syslog default =</literal> (
+          <literal>permit</literal> | <literal>deny</literal> )</para>
+          <para>Enables or disables implicit logging to
+          <literal>syslog</literal>(3) (if supported). Default is
+          <literal>permit</literal>.</para>
+        </listitem>
+      </itemizedlist>
+      <para>Standard configuration directives which may be used inside the
+      <emphasis>ID</emphasis> section of <emphasis>MAVIS</emphasis> enabled
+      applications are:</para>
+      <itemizedlist>
+        <listitem>
+          <para>
+            <literal>mavis path =</literal>
+            <emphasis>Path</emphasis>
+          </para>
+          <para>Add <emphasis>Path</emphasis> to the module search
+          path.</para>
+        </listitem>
+        <listitem>
+          <para><literal>mavis module</literal> ( <emphasis>identitySourceName</emphasis> ) <literal>=</literal>
+          <emphasis>ModuleName</emphasis> <literal>{</literal> ...
+          <literal>}</literal></para>
+          <para>This directive searchs for module
+          <emphasis>ModuleName</emphasis> in the compiled-in and configured
+          search paths. Alternatively to auto-search,
+          <emphasis>ModuleName</emphasis> may be an absolute path to a MAVIS
+          module. The module will be loaded and will parse the configuration
+          data inside the curly brackets.</para>
+          <para><emphasis>identitySourceName</emphasis> is an optional parameter to provide better visibility of the source (the originating <emphasis>MAVIS</emphasis> module) of an identity. It will be assigned to the <emphasis>MAVIS</emphasis> <literal>IDENTITY_SOURCE</literal> attribute.</para>
+        </listitem>
+      </itemizedlist>
+      <para>An actual configuration could look similar to:</para>
+      <screen xml:space="preserve">syslog severity = INFO
+syslog facility = DAEMON
+
+id = spawnd {
+    listen = { port = 21 }
+    debug = NET
+    background = no
+    spawn = { exec = /usr/local/libexec/ftpd }
+}
+
+id = ftpd {
+    debug = ACL AUTHEN
+    mavis path = /some/none/default/location
+
+    mavis module = tee {
+        path in = /tmp/av.in
+        path out = /tmp/av.out
+    }
+
+    mavis module = log {
+    }
+
+    mavis module = anonftp {
+        userid = 100
+        groupid = mail
+        home = /
+        root = /tmp/
+        incoming = /tmp/incoming/
+    }
+
+    acl testacl {
+        src = 127.0.0.1
+    }
+
+    # lots of stuff missing here ...
+
+}</screen>
+    </section>
+    <section>
+      <title>Backend Module Configuration</title>
+      <para>Generic configuration options for modules:</para>
+      <itemizedlist>
+        <listitem>
+          <para><literal>action</literal> ( <literal>error</literal> | <literal>not-found</literal> ) <literal>=</literal> ( <literal>continue</literal> | <literal>reject</literal> )</para>
+          <para>A module typically either acknowledges an request (user found/authenticated), rejects it (bad passsword) or handles the request on to the next module (the "user not found" case). This directives allows for overriding that verdict. Defaults are:</para>
+          <screen xml:space="preserve">action error = reject       # reject request
+action not-found = continue # continue with next MAVIS module, if any</screen>
+        </listitem>
+      </itemizedlist>
+      <para>The following modules are included in the distribution.</para>
+      <section>
+        <title>The <emphasis>anonftp</emphasis> module</title>
+        <para>This module implements anonymous FTP authentication. If the
+        <literal>cache</literal> module is to be used, it has to be loaded
+        <emphasis>after</emphasis> the <literal>anonftp</literal> module,
+        because the <literal>cache</literal> module will only cache FTP type
+        queries compatible with the <literal>auth</literal> module, and
+        queries answered by the <literal>anonftp</literal> module
+        aren't.</para>
+        <section>
+          <title>Configuration directives</title>
+          <para>The following configuration directives are mandatory, unless a
+          <literal>ftp</literal> user exists in the local password database,
+          in which case that information may be gathered from there:</para>
+          <itemizedlist>
+            <listitem>
+              <para>
+                <literal>userid =</literal>
+                <emphasis>UserID</emphasis>
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>groupid =</literal>
+                <emphasis>GroupID</emphasis>
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>root =</literal>
+                <emphasis>RootDirectory</emphasis>
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>home =</literal>
+                <emphasis>HomeDirectory</emphasis>
+              </para>
+            </listitem>
+          </itemizedlist>
+          <para>Optional directives are:</para>
+          <itemizedlist>
+            <listitem>
+              <para>
+                <literal>upload =</literal>
+                <emphasis>UploadPathRegex</emphasis>
+              </para>
+              <para>By default, anonymous FTP uploads are denied. The
+              <literal>upload</literal> directive specifies a POSIX regular
+              expression where uploads are permitted.</para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section>
+          <title>Railroad Diagram</title>
+          <para/>
+          <mediaobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/AnonftpConf.eps" format="EPS" scale="80"/>
+            </imageobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/AnonftpConf.gif" format="GIF"/>
+            </imageobject>
+            <caption>
+              <para>Railroad diagram: AnonftpConf</para>
+            </caption>
+          </mediaobject>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>asciiftp</emphasis> module</title>
+        <para>This module implements FTP authentication via an ASCII
+        file.</para>
+        <section>
+          <title>Configuration directives</title>
+          <para/>
+          <itemizedlist>
+            <listitem>
+              <para>
+                <literal>file =</literal>
+                <emphasis>path</emphasis>
+              </para>
+              <para>Authentication data is read from
+              <emphasis>path</emphasis>. The generic syntax for individual
+              configuration file lines is:</para>
+              <screen xml:space="preserve">user:password:uid:gids:type:root:home<emphasis>[</emphasis>:certsubj<emphasis>]</emphasis></screen>
+              <para>Example file:</para>
+              <screen xml:space="preserve">customer1:whatever:10000:10001:anon:/home/customers/customer1:/
+customer2:whatever:10000:10002:anon:/home/customers/customer2:/:/C=DE/ST=...
+admin:whatever:10000:10001,10002:real:/home/customers:/admin</screen>
+              <para>This configuration directive is mandatory.</para>
+            </listitem>
+            <listitem>
+              <para><literal>userid</literal> ( <literal>min</literal> |
+              <literal>max</literal> ) <emphasis>UserID</emphasis></para>
+              <para>This directive specifies upper and lower UID
+              limits.</para>
+            </listitem>
+            <listitem>
+              <para><literal>groupid</literal> ( <literal>min</literal> |
+              <literal>max</literal> ) <emphasis>GroupID</emphasis></para>
+              <para>This directive specifies upper and lower GID
+              limits.</para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section>
+          <title>Railroad Diagram</title>
+          <para/>
+          <mediaobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/ASCIIftpConf.eps" format="EPS" scale="80"/>
+            </imageobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/ASCIIftpConf.gif" format="GIF"/>
+            </imageobject>
+            <caption>
+              <para>Railroad diagram: ASCIIftpConf</para>
+            </caption>
+          </mediaobject>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>auth</emphasis> module</title>
+        <para>This module implements the server side of plain text and
+        certificate based authentication schemes.</para>
+        <para>The <emphasis>auth</emphasis> module is mandatory for most
+        authentication to work. It needs to be loaded before any caching or
+        database access module, and it won't work over remote links unless
+        mavisd is configured with "transmit-password yes". The
+        <emphasis>anonftp</emphasis> and, depending on the backend, the
+        <emphasis>external</emphasis> module are the only ones that doesn't
+        require this module to be loaded.</para>
+        <section>
+          <title>Configuration Syntax</title>
+          <para>The only configuration option available is</para>
+          <itemizedlist>
+            <listitem>
+              <para><literal>authentication-mode = cert</literal> [
+              <literal>sufficient</literal> | <literal>required</literal>
+              ]</para>
+              <para>This option may be used when authentication via digital
+              certificates (currently supported by the
+              <emphasis>system</emphasis> module) is used. If the
+              <literal>sufficient</literal> keyword is used, no additional
+              password authentication is necessary. The
+              <literal>required</literal> keyword makes certificate
+              authentication mandatory</para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section>
+          <title>Railroad Diagram</title>
+          <para/>
+          <mediaobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/AuthConf.eps" format="EPS" scale="80"/>
+            </imageobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/AuthConf.gif" format="GIF"/>
+            </imageobject>
+            <caption>
+              <para>Railroad diagram: AuthConf</para>
+            </caption>
+          </mediaobject>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>cache</emphasis> module</title>
+        <para>Please note that this module doesn't support <emphasis role="bold">tac_plus</emphasis>/<emphasis role="bold">tac_plus-ng</emphasis>. These do their own caching.</para>
+        <para>This module stores the most recently answered queries in RAM for
+        faster processing of subsequent queries for the same data. For most
+        applications, it has to be loaded <emphasis>after</emphasis> the auth
+        module.</para>
+        <section>
+          <title>Configuration directives</title>
+          <para>Available configuration directives are:</para>
+          <itemizedlist>
+            <listitem>
+              <para><literal>expire</literal> [ <emphasis>Type</emphasis> ]
+              <literal>=</literal> <emphasis>Seconds</emphasis></para>
+              <para>Specifies the caching period for requests of type
+              <emphasis>Type</emphasis> (or of all requests, if no type is
+              given). No caching will be performed unless this directive is
+              given. Valid values for <emphasis>Type</emphasis> are:
+              <literal>FTP</literal>, <literal>TACPLUS</literal>.</para>
+              <para>Example:</para>
+              <screen xml:space="preserve"># cache everything 100 seconds by default:
+expire = 100
+# Don't cache FTP requests:
+cache expire FTP = 0</screen>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>purge-outdated =</literal>
+                <emphasis>Seconds</emphasis>
+              </para>
+              <para>Periodically, outdated entries have to be removed from the
+              cache. By default, this happens every 300 seconds, but you may
+              specify a different garbage collection interval.</para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section>
+          <title>Railroad Diagram</title>
+          <para/>
+          <mediaobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/CacheConf.eps" format="EPS" scale="80"/>
+            </imageobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/CacheConf.gif" format="GIF"/>
+            </imageobject>
+            <caption>
+              <para>Railroad diagram: CacheConf</para>
+            </caption>
+          </mediaobject>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>external</emphasis> module</title>
+        <para>This module implements an interface to external authentication
+        programs. An authentication program is expected to read a list of
+        attribute-value pairs on <literal>stdin</literal>, and write the
+        processed list (plus a result code) to <literal>stdout</literal>. The
+        programs <literal>stderr</literal> output will be logged to
+        <literal>syslogd</literal>.</para>
+        <para>Sample authentication backends for the
+        <literal>external</literal> module include various Perl scripts, e.g.
+        for RADIUS and LDAP authentication (see the
+        <literal>mavis/perl/</literal> directory), plus C backends. The latter
+        are <literal>radmavis</literal> (for RADIUS authentication) and
+        <literal>pammavis</literal> (for PAM authentication, as an alternative
+        to the <emphasis>PAM</emphasis> module). While those may not be as
+        flexible and easily to modify as the Perl scripts, they carry far
+        fewer dependencies, and quite a lot of the usual attribute
+        modifications can be performed using scripts; see the Scripting
+        section below.</para>
+        <para>Using the <emphasis>external</emphasis> module to interface to
+        external authenticators is probably in most cases favourable to
+        writing custom modules, as external authentication programs may be
+        implemented as easy-to-deploy Perl programs. Plus, you're likely to
+        get get parallelism for free.</para>
+        <section>
+          <title>Configuration directives</title>
+          <para>The following configuration directives are available:</para>
+          <itemizedlist>
+            <listitem>
+              <para>
+                <literal>userid =</literal>
+                <emphasis>UserID</emphasis>
+              </para>
+              <para>Set user id of child process to
+              <emphasis>UserID</emphasis>.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>groupid =</literal>
+                <emphasis>GroupID</emphasis>
+              </para>
+              <para>Set group id of child process to
+              <emphasis>GroupID</emphasis>.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>home =</literal>
+                <emphasis>Directory</emphasis>
+              </para>
+              <para>Change to <emphasis>Directory</emphasis> before executing
+              child process.</para>
+            </listitem>
+            <listitem>
+              <para><literal>childs</literal> ( <literal>min</literal> |
+              <literal>max</literal> ) <literal>=</literal>
+              <emphasis>Number</emphasis></para>
+              <para>Set the minimum or maximum number of child processes
+              (defaults: 4, 20).</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>setenv</literal>
+                <emphasis>Variable</emphasis>
+                <literal> =</literal>
+                <emphasis>Value</emphasis>
+              </para>
+              <para>Set environment variables.</para>
+              <para>In <emphasis>tac_plus-ng</emphasis> context the value can be type6 encoded.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>exec =</literal>
+                <emphasis>Path</emphasis>
+                <emphasis>Arguments ...</emphasis>
+              </para>
+              <para>Set path and arguments (including
+              <literal>argv[0]</literal>) of the authentication program. It's
+              recommended to enclose the individual arguments in double quotes to
+              avoid potential conflicts with pre-defined keywords.</para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section>
+          <title>Railroad Diagram</title>
+          <para/>
+          <mediaobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/ExternalConf.eps" format="EPS" scale="80"/>
+            </imageobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/ExternalConf.gif" format="GIF"/>
+            </imageobject>
+            <caption>
+              <para>Railroad diagram: ExternalConf</para>
+            </caption>
+          </mediaobject>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>external-mt</emphasis> module</title>
+        <para>Just like the <emphasis>external</emphasis> module the
+	<emphasis>external-mt</emphasis> module implements an interface
+	to external authentication backends. However, <emphasis>external-mt</emphasis>
+	expects a multi-threaded backend which is capable of processing
+	concurrent authentications. Backends for <literal>radmavis-mt</literal> are
+	<literal>pammavis-mt</literal> (PAM), <literal>radmavis-mt</literal> (RADIUS) and
+	<literal>ldapmavis-mt</literal> (LDAP).</para>
+        <para>Using <literal>external-mt</literal> primarily makes sense for blocking
+	backends, in particular if the latter would wait for interaction on a secondary channel, e.g. for a push notification validation.</para>
+        <screen xml:space="preserve">    mavis module = external-mt {
+        # -s specifies the service, which defaults to "mavis"
+        exec = /usr/local/sbin/pammavis-mt "pammavis-mt" "-s" "pamservicename"
+    }</screen>
+        <section>
+          <title>Configuration directives</title>
+          <para>The following configuration directives are available:</para>
+          <itemizedlist>
+            <listitem>
+              <para>
+                <literal>setenv</literal>
+                <emphasis>Variable</emphasis>
+                <literal> =</literal>
+                <emphasis>Value</emphasis>
+              </para>
+              <para>Set environment variables.</para>
+              <para>In <emphasis>tac_plus-ng</emphasis> context the value can be type6 encoded.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>exec =</literal>
+                <emphasis>Path</emphasis>
+                <emphasis>Arguments ...</emphasis>
+              </para>
+              <para>Set path and arguments (including
+              <literal>argv[0]</literal>) of the authentication program. It's
+              recommended to enclose the individual arguments in double quotes to
+              avoid potential conflicts with pre-defined keywords.</para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section>
+          <title>Railroad Diagram</title>
+          <para/>
+          <mediaobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/ExternalMTConf.eps" format="EPS" scale="80"/>
+            </imageobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/ExternalMTConf.gif" format="GIF"/>
+            </imageobject>
+            <caption>
+              <para>Railroad diagram: ExternalMTConf</para>
+            </caption>
+          </mediaobject>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>groups</emphasis> module</title>
+        <para>This module resolves numerical group IDs returned by a
+        downstream backend to their corresponding ASCII names.</para>
+        <para>In addition, it allows for filtering group and <emphasis>memberOf</emphasis> attributes.</para>
+        <section>
+          <title>Configuration directives</title>
+          <para>The following configuration directives are available:</para>
+          <itemizedlist>
+            <listitem>
+              <para><literal>resolve gid =</literal> ( <literal>yes</literal>
+              | <literal>no</literal> )</para>
+              <para>This tells the module to resolve the primary group
+              id.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>resolve gid attribute =</literal>
+                <emphasis>attribute</emphasis>
+              </para>
+              <para>Put the resolved group id to <emphasis>attribute</emphasis> instead of <literal>GID</literal>. Example:</para>
+              <screen xml:space="preserve">resolve gids attribute = TACMEMBER</screen>
+            </listitem>
+            <listitem>
+              <para><literal>resolve gids =</literal> ( <literal>yes</literal>
+              | <literal>no</literal> )</para>
+              <para>This tells the module to resolve the group access
+              list.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>resolve gids attribute =</literal>
+                <emphasis>attribute</emphasis>
+              </para>
+              <para>Put the resolved group ids to <emphasis>attribute</emphasis> instead of <literal>GIDS</literal>. Example:</para>
+              <screen xml:space="preserve">resolve gids attribute = TACMEMBER</screen>
+            </listitem>
+            <listitem>
+              <para><literal>gid filter = </literal> [ <literal>not</literal>
+              ]
+              <emphasis>gid_start</emphasis>[<literal>-</literal><emphasis>gid_end</emphasis>][<literal>,</literal><emphasis>gid_start</emphasis>[<literal>-</literal><emphasis>gid_end</emphasis>]]*</para>
+              <para>Establishes a filter on the <literal>GID</literal> MAVIS
+              attribute. Example:</para>
+              <screen xml:space="preserve">gid filter = 100,1000-1050</screen>
+            </listitem>
+            <listitem>
+              <para><literal>gids filter = </literal> [ <literal>not</literal>
+              ]
+              <emphasis>gid_start</emphasis>[<literal>-</literal><emphasis>gid_end</emphasis>][<literal>,</literal><emphasis>gid_start</emphasis>[<literal>-</literal><emphasis>gid_end</emphasis>]]*</para>
+              <para>Establishes a filter on the <literal>GIDS</literal> MAVIS
+              attribute. Example:</para>
+              <screen xml:space="preserve">gid filter = 100,1000-1050</screen>
+            </listitem>
+            <listitem>
+              <para><literal>group filter = </literal> [
+              <literal>not</literal> ]
+              <emphasis>regex</emphasis>[<literal>,</literal><emphasis>regex</emphasis>]*</para>
+              <para>Establishes a filter on the <literal>GID</literal> MAVIS
+              attribute <emphasis>after</emphasis> name resolving.
+              Example:</para>
+              <screen xml:space="preserve">group filter = /^com/</screen>
+            </listitem>
+            <listitem>
+              <para><literal>groups filter = </literal> [
+              <literal>not</literal> ]
+              <emphasis>regex</emphasis>[<literal>,</literal><emphasis>regex</emphasis>]*</para>
+              <para>Establishes a filter on the <literal>GIDS</literal> and <literal>TACMEMBER</literal>MAVIS
+              attributes (for GIDS: <emphasis>after</emphasis> name resolving).
+              Example:</para>
+              <screen xml:space="preserve">groups filter = /^com/</screen>
+            </listitem>
+            <listitem>
+              <para><literal>memberof filter = </literal> [
+              <literal>not</literal> ]
+              <emphasis>regex</emphasis>[<literal>,</literal><emphasis>regex</emphasis>]*</para>
+              <para>Establishes a filter on the <literal>MEMBEROF</literal> MAVIS
+              attribute <emphasis>after</emphasis> name resolving.
+              Example:</para>
+              <screen xml:space="preserve">memberof filter = /(?i)^cn=ops,dc=/</screen>
+              <para>Please keep in mind that filtering memberOf in the backend module is much more efficient.</para>
+            </listitem>
+          </itemizedlist>
+          <para>(<emphasis>regex</emphasis> syntax in these examples is PCRE,
+          but standard POSIX will work, too.)</para>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>limit</emphasis> module</title>
+        <para>This module implements limitations on the number of failed
+        authentications per IP address.</para>
+        <section>
+          <title>Configuration directives</title>
+          <para>Available configuration directives are:</para>
+          <itemizedlist>
+            <listitem>
+              <para>
+                <literal>blacklist time =</literal>
+                <emphasis>Seconds</emphasis>
+              </para>
+              <para>
+                <literal>blacklist count =</literal>
+                <emphasis>Count</emphasis>
+              </para>
+              <para>This limits the number of failed authentication requests
+              per client IP address to <emphasis>Count</emphasis> per
+              <emphasis>Seconds</emphasis> interval. Subsequent requests from
+              the same client IP address will be rejected. This is disabled by
+              default.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>purge-outdated =</literal>
+                <emphasis>Seconds</emphasis>
+              </para>
+              <para>Periodically, the module will start a garbage collection
+              run in order to remove outdated data from its internal data
+              structures. This directive sets the garbage-collection period to
+              <emphasis>Seconds</emphasis> (default: 300).</para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section>
+          <title>Railroad Diagram</title>
+          <para/>
+          <mediaobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/LimitConf.eps" format="EPS" scale="80"/>
+            </imageobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/LimitConf.gif" format="GIF"/>
+            </imageobject>
+            <caption>
+              <para>Railroad diagram: LimitConf</para>
+            </caption>
+          </mediaobject>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>log</emphasis> module</title>
+        <para>This module performs query logging to <emphasis role="bold">syslogd</emphasis>. There are no configuration
+        options.</para>
+      </section>
+      <section>
+        <title>The <emphasis>PAM</emphasis> module</title>
+        <para>This module implements an interface for FTP authentication via
+        pluggable authentication modules (PAM). The <emphasis>PAM</emphasis>
+        module doesn't support asynchronous operation; you might be better off
+        using the <emphasis>external</emphasis> module in conjunction with the
+        <literal>pammavis</literal> program, giving you parallelism and a lot
+        more flexibility for free.</para>
+        <para>PAMs that perform queries other than the standard
+        username/password aren't supported.</para>
+        <para>Please take care not to use PAM modules with login delays
+        enabled. E.g., for the <literal>pam_unix</literal> module, configure
+        your PAM subsystem to use the <literal>nodelay</literal> (or whatever
+        it's called in your setup) option, e.g. in /etc/pam.conf:</para>
+        <screen xml:space="preserve">mavis required pam_unix.so nodelay</screen>
+        <para>or in /etc/pam.d/mavis (or whatever service you've specified,
+        see below):</para>
+        <screen xml:space="preserve">auth     required       pam_unix.so nodelay
+account  required       pam_unix.so
+password required       pam_unix.so
+session  required       pam_unix.so</screen>
+        <para>On MacOS, the following should work:</para>
+        <screen xml:space="preserve">auth     required       pam_opendirectory.so
+account  required       pam_opendirectory.so
+password required       pam_opendirectory.so
+session  required       pam_opendirectory.so</screen>
+        <note>
+          <title>Pluggable Authentiation Modules</title>
+          <para>Configuring PAM correctly is pretty system specific. Do not
+          assume that one of the examples above will work on your box. Have a
+          look at your existing PAM configurations instead, and read the
+          documentation that comes with your system.</para>
+        </note>
+        <para>Programs utilizing this module may have to run under the user id
+        of root if access to the shadow password file is required.</para>
+        <section>
+          <title>Configuration directives</title>
+          <para>Available configuration options are:</para>
+          <itemizedlist>
+            <listitem>
+              <para><literal>chroot =</literal> ( <literal>yes<literal> |
+              </literal>no</literal> )</para>
+              <para>This activates a chroot environment for PAM users
+              (default: <literal>yes</literal>). The chroot root directory is
+              either the users' home directory or, if the home directory path
+              contains a <literal>/./</literal> sequence, the directory
+              denoted by the path up to that sequence.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>service =</literal>
+                <emphasis>Service</emphasis>
+              </para>
+              <para>This specifies the service name to use for PAM
+              initialization. It defaults to <literal>mavis</literal>.</para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section>
+          <title>Railroad Diagram</title>
+          <para/>
+          <mediaobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/PAMConf.eps" format="EPS" scale="80"/>
+            </imageobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/PAMConf.gif" format="GIF"/>
+            </imageobject>
+            <caption>
+              <para>Railroad diagram: PAMConf</para>
+            </caption>
+          </mediaobject>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>remote</emphasis> module</title>
+        <para>This module implements communication with mavisd.</para>
+        <section>
+          <title>Configuration directives</title>
+          <para>Available configuration options are:</para>
+          <itemizedlist>
+            <listitem>
+              <para>
+                <literal>local address =</literal>
+                <emphasis>IPAddress</emphasis>
+              </para>
+              <para>Set address for outgoing IP connections.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>rebalance =</literal>
+                <emphasis>Count</emphasis>
+              </para>
+              <para>Re-balances peers after <emphasis>Count</emphasis>
+              requests. May be used to reactivate dead peers. Use with
+              care.</para>
+              <para>Default: unset.</para>
+            </listitem>
+            <listitem>
+              <para><literal>server = {</literal> ...
+              <literal>}</literal></para>
+              <para>Specifies a server <emphasis role="bold">mavisd</emphasis> runs on. Inside the curly brackets, the
+              following directives are permitted:</para>
+              <itemizedlist>
+                <listitem>
+                  <para>
+                    <literal>path =</literal>
+                    <emphasis>UnixPath</emphasis>
+                  </para>
+                </listitem>
+                <listitem>
+                  <para>
+                    <literal>address =</literal>
+                    <emphasis>IPAddress</emphasis>
+                  </para>
+                </listitem>
+                <listitem>
+                  <para>
+                    <literal>port =</literal>
+                    <emphasis>UDPPort</emphasis>
+                  </para>
+                </listitem>
+                <listitem>
+                  <para>
+                    <literal>blowfish key =</literal>
+                    <emphasis>Key</emphasis>
+                  </para>
+                </listitem>
+                <listitem>
+                  <para>
+                    <literal>blowfish keyfile =</literal>
+                    <emphasis>KeyFile</emphasis>
+                  </para>
+                </listitem>
+              </itemizedlist>
+              <para>These set remote connection endpoint and blowfish key.
+              This directive may be used multiple times. Communication will be
+              Blowfish encrypted if a key is specified.</para>
+              <para>Communication via PF_UNIX sockets may only work if the
+              host system supports anonymous binds for that protocol family.
+              This works on Linux, which supports an abstract namespace which
+              is independent of the file system, but may or may not be an option on other
+              operating systems.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>timeout =</literal>
+                <emphasis>Seconds</emphasis>
+              </para>
+              <para>Sets the maximum number of seconds to wait for a response
+              from one of the remote peers. Defaults to: 5.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>tries =</literal>
+                <emphasis>Count</emphasis>
+              </para>
+              <para>Sets the maximum number of attempts to get a response from
+              one of the remote peers. Default is 6 tries.</para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section>
+          <title>Railroad Diagram</title>
+          <para/>
+          <mediaobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/RemoteConf.eps" format="EPS" scale="80"/>
+            </imageobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/RemoteConf.gif" format="GIF"/>
+            </imageobject>
+            <caption>
+              <para>Railroad diagram: RemoteConf</para>
+            </caption>
+          </mediaobject>
+        </section>
+        <section>
+          <title>Possible legal restrictions</title>
+          <para>This module utilizes Bruce Schneier's Blowfish algorithm. Your
+          government may have choosen to implement ridiculous legal
+          restrictions regarding use or export of cryptographic software. Take
+          care.</para>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>tacauth_limit</emphasis> module</title>
+        <para>This module implements limitations on the number of failed
+        authentications per IP address. That information is kept on disk and is shared between worker instances.</para>
+        <section>
+          <title>Configuration directives</title>
+          <para>Available configuration directives are:</para>
+          <itemizedlist>
+            <listitem>
+              <para>
+                <literal>blacklist period =</literal>
+                <emphasis>Seconds</emphasis>
+              </para>
+              <para>
+                <literal>blacklist count =</literal>
+                <emphasis>Count</emphasis>
+              </para>
+              <para>This limits the number of failed authentication requests
+              per client IP address to <emphasis>Count</emphasis> per
+              <emphasis>Seconds</emphasis> interval. Subsequent requests from
+              the same combination of client IP and user will be rejected. Defaults: <literal>blacklist period = 900</literal>,
+	      <literal>blacklist count = 5</literal>.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>hash =</literal>
+                <emphasis>MAVIS_Attributes</emphasis>
+              </para>
+              <para>Specifies the MAVIS attributes used for calculating the backlist file names. Default: <literal>hash = USER,IPADDR,REALM</literal></para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>directory =</literal>
+                <emphasis>Directory</emphasis>
+              </para>
+              <para>Specifies the directory to use for caching blacklist data. Please consider that the daemon will not clean up the files/directories in there.</para>
+            </listitem>
+          </itemizedlist>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>tacinfo_cache</emphasis> module</title>
+        <para>This module implements on-disk caching of authorization attributes for later authorization, both for users and device (hosts). It may be useful to reduce load from the backend, or just to share RADIUS authorization data between tac_plus worker processes.</para>
+        <section>
+          <title>Configuration directives</title>
+          <para/>
+          <itemizedlist>
+            <listitem>
+              <para>
+                <literal>userid =</literal>
+                <emphasis>UserID</emphasis>
+              </para>
+              <para>Specifies the <emphasis>uid</emphasis> to use for disk access.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>groupid =</literal>
+                <emphasis>GroupID</emphasis>
+              </para>
+              <para>Specifies the <emphasis>gid</emphasis> to use for disk access.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>directory</literal>
+                <emphasis>CacheDir</emphasis>
+              </para>
+              <para>Specifies the directory to use for caching. Please consider that the daemon will not clean up the files/directories in there. This configuration is mandatory, there is no default. Example: <literal>directory = /tmp/tacauth</literal></para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>dacl cache timeout =</literal>
+                <emphasis>seconds</emphasis>
+              </para>
+              <para>Sets the number of seconds dacl info should be cached. Default: 60s.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>device cache timeout =</literal>
+                <emphasis>seconds</emphasis>
+              </para>
+              <para>Sets the number of seconds device info should be cached. Default: 60s.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>hash =</literal>
+                <emphasis>MAVIS_Attributes</emphasis>
+              </para>
+              <para>Specifies the MAVIS attributes used for calculating the cache file names. Default: <literal>hash = USER,IPADDR,REALM,SERVERIP,CERTSUBJ,CERTDATA</literal></para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section>
+          <title>Example</title>
+          <para>
+            <screen xml:space="preserve">mavis module = tacinfo_cache {
+  directory = /tmp/tacinfo
+}
+mavis module = external {
+  ...
+}</screen>
+          </para>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>system</emphasis> module</title>
+        <para>This module implements FTP authentication via UNIX system
+        accounts or accounts defined in UNIX password-style files. Optionally,
+        certificate based authentication is available. Please note that the
+        <literal>pam</literal> module may be a better choice for most
+        installations.</para>
+        <para>Programs utilizing this module will most likely have to run
+        under the user id of root if access to the shadow password file is
+        required.</para>
+        <section>
+          <title>Configuration directives</title>
+          <para/>
+          <itemizedlist>
+            <listitem>
+              <para><literal>chroot =</literal> ( <literal>yes</literal> |
+              <literal>no</literal> )</para>
+              <para>This activates a chroot environment for system users
+              (default: <literal>yes</literal>). The chroot root directory is
+              either the users home directory or, if the home directory path
+              contains a <literal>/./</literal> sequence, the directory
+              denoted by the path up to that sequence.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>ftpusers file =</literal>
+                <emphasis>Path</emphasis>
+              </para>
+              <para>Select ftpusers file (default:
+              <literal>/etc/ftpusers</literal>).</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>passwd file =</literal>
+                <emphasis>Path</emphasis>
+              </para>
+              <para>Select UNIX password file. If this is omitted, the systems
+              UNIX accounts are used. On *BSD systems you may wish to set
+              <emphasis>path</emphasis> to
+              <literal>/etc/master.passwd</literal>.</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>shells file =</literal>
+                <emphasis>Path</emphasis>
+              </para>
+              <para>Select shells file (default:
+              <literal>/etc/shells</literal>).</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>sslusers file =</literal>
+                <emphasis>Path</emphasis>
+              </para>
+              <para>Select sslusers file (default:
+              <literal>/etc/ssl.users</literal>).</para>
+              <para>The <emphasis>sslusers</emphasis> file is compatible to
+              the one proposed by Tim Hudson (<ulink url="mailto:tjh@cryptsoft.com">tjh@cryptsoft.com</ulink>) in his
+              SSLeay patches to the BSD ftp daemon. It contains lines of the
+              form</para>
+              <screen xml:space="preserve">user1,user2:/C=US/....</screen>
+              <para>where <literal>user1</literal> and
+              <literal>user2</literal> are user names, and the
+              <literal>/C=US/....</literal> part is a certificate
+              subject.</para>
+              <para>In case you're unfamiliar with OpenSSL: you may retrieve
+              the certificate subject of a certificate
+              <literal>cert.pem</literal> using</para>
+              <screen xml:space="preserve">openssl x509 -subject -noout -in cert.pem</screen>
+            </listitem>
+            <listitem>
+              <para><literal>check</literal> ( <literal>ftpusers</literal> |
+              <literal>shells</literal> | <literal>sslusers</literal> )
+              <literal>=</literal> ( <literal>yes</literal> |
+              <literal>no</literal> )</para>
+              <para>Enables checking of the specified file type.</para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section>
+          <title>Railroad Diagram</title>
+          <para/>
+          <mediaobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/SystemConf.eps" format="EPS" scale="80"/>
+            </imageobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/SystemConf.gif" format="GIF"/>
+            </imageobject>
+            <caption>
+              <para>Railroad diagram: SystemConf</para>
+            </caption>
+          </mediaobject>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>userdb</emphasis> module</title>
+        <para>This module can be used to define static users, e.g. for FTP. It
+        requires the <literal>auth</literal> module for user
+        authentication.</para>
+        <section>
+          <title>Configuration directives</title>
+          <para>Syntax for defining users is <literal>user =</literal>
+          <emphasis>UserName</emphasis> <literal>{</literal> ...
+          <literal>}</literal>. The following configuration directives inside
+          the curly brackets are mandatory for FTP, but not enforced:</para>
+          <itemizedlist>
+            <listitem>
+              <para>
+                <literal>userid =</literal>
+                <emphasis>UserID</emphasis>
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>groupid =</literal>
+                <emphasis>GroupID</emphasis>
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>home =</literal>
+                <emphasis>HomeDirectory</emphasis>
+              </para>
+            </listitem>
+            <listitem>
+              <para><literal>password =</literal> ( ( <literal>clear</literal>
+              | <literal>crypt</literal>) <emphasis>PasswordString</emphasis>)
+              | <literal>mavis</literal></para>
+              <para><literal>clear</literal> indicates a clear-text password,
+              while <literal>crypt</literal> tells the parser that
+              <emphasis>PasswordString</emphasis> is DES (or MD5) encrypted.
+              The <literal>mavis</literal> keyword expects the password to be
+              set by a downstream module.</para>
+            </listitem>
+          </itemizedlist>
+          <para>Optional directives are:</para>
+          <itemizedlist>
+            <listitem>
+              <para>
+                <literal>root =</literal>
+                <emphasis>RootDirectory</emphasis>
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>cert subject =</literal>
+                <emphasis>CertSubject</emphasis>
+              </para>
+            </listitem>
+          </itemizedlist>
+          <para>Arbitrary other MAVIS attributes may be set with</para>
+          <itemizedlist>
+            <listitem>
+              <para>
+                <literal>set</literal>
+                <emphasis>AttributeName</emphasis>
+                <literal>=</literal>
+                <emphasis>Value</emphasis>
+              </para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section>
+          <title>Railroad Diagram</title>
+          <para/>
+          <mediaobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/UserDBConf.eps" format="EPS" scale="80"/>
+            </imageobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/UserDBConf.gif" format="GIF"/>
+            </imageobject>
+            <caption>
+              <para>Railroad diagram: UserDBConf</para>
+            </caption>
+          </mediaobject>
+        </section>
+        <section>
+          <title>Example</title>
+          <para>The following is a valid configuration for <emphasis role="bold">ftpd</emphasis> which utilizes various MAVIS
+          backends:</para>
+          <screen xml:space="preserve">id = spawnd {
+    listen = { port = 21 }
+    spawn = { instances min = 1 }
+    background = no
+}
+
+id = ftpd {
+    mavis path = ../../mavis/obj.%O
+
+    mavis module = anonftp {
+        userid = 100
+        groupid = 100
+        root = /tmp/
+        home = /
+        upload = /tmp/incoming/
+    }
+    mavis module = auth {
+    }
+    mavis module = userdb {
+        user = test {
+            #password = clear test
+            password = crypt $1$j/K5hgl2$vyCmLeqUzQmr9DdyPTn01.
+            root = /tmp/
+            home = /
+            userid = 100
+            groupid = 100
+        }
+    }
+    symlinks = all
+    check-uid = no
+    check-gid = no
+    check-perm = no
+}</screen>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>tee</emphasis> module</title>
+        <para>This module is used for development only. It writes sent and
+        received attribute-value pairs to disk in a format which may, for
+        example, be used to test external authenticators (see the description
+        of the <emphasis>external</emphasis> module).</para>
+        <section>
+          <title>Configuration directives</title>
+          <para>Available configuration options are:</para>
+          <itemizedlist>
+            <listitem>
+              <para>
+                <literal>userid =</literal>
+                <emphasis>UserID</emphasis>
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>groupid =</literal>
+                <emphasis>GroupID</emphasis>
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>mode =</literal>
+                <emphasis>Mode</emphasis>
+              </para>
+            </listitem>
+            <listitem>
+              <para><literal>path</literal> ( <literal>in</literal> |
+              <literal>out</literal> ) <emphasis>Path</emphasis></para>
+            </listitem>
+          </itemizedlist>
+        </section>
+        <section>
+          <title>Railroad Diagram</title>
+          <para/>
+          <mediaobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/TeeConf.eps" format="EPS" scale="80"/>
+            </imageobject>
+            <imageobject>
+              <imagedata fileref="railroad/mavis/TeeConf.gif" format="GIF"/>
+            </imageobject>
+            <caption>
+              <para>Railroad diagram: TeeConf</para>
+            </caption>
+          </mediaobject>
+        </section>
+      </section>
+      <section>
+        <title>The <emphasis>error</emphasis> module</title>
+        <para>This one can be used to convert a limited number of <literal>ERROR</literal> backend responses to <literal>FAIL</literal> status. The error status is kept in an on on-disk file, and both the file name and the threshold are configurable. Example:</para>
+        <screen xml:space="preserve">
+    mavis module = error {
+        threshold = 5
+        file = /var/tmp/mavis_failure_count
+    }
+	</screen>
+      </section>
+      <section>
+        <title>The <emphasis>null</emphasis> module</title>
+        <para>This module comes without any functionality on its own. It may
+        however be used in conjunction with the scripting feature described
+        below.</para>
+      </section>
+    </section>
+    <section>
+      <title>MAVIS Scripting Language</title>
+      <para>All MAVIS modules in the distribution come with some basic
+      scripting language support for modifying AV pair and/or module behavior.
+      Scripts can be called when entering or leaving a module and are defined
+      using the <literal>script</literal> keyword.</para>
+      <para>Generic syntax for the scripting feature is:</para>
+      <para><literal>script</literal> ( <literal>in</literal> |
+	      <literal>out</literal> | <literal>interim</literal>) <literal>= {</literal>
+      <emphasis>action</emphasis>+ <literal>}</literal></para>
+      <para>Valid <emphasis>action</emphasis>s are:</para>
+      <itemizedlist>
+        <listitem>
+          <para><literal>{</literal><emphasis>action</emphasis>+
+          <literal>}</literal></para>
+          <para>Defines an action block consisting of multiple actions.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>continue</literal>
+          </para>
+          <para>Stops processing the remainder of the script and continues
+          with regular module operation.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>return</literal>
+          </para>
+          <para>Stops processing the remainder of the script and returns the
+          currently set attributes to the caller.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>skip</literal>
+          </para>
+          <para>Skips this module and continue with the next one.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>set</literal>
+            <emphasis>attribute</emphasis>
+            <literal>=</literal>
+            <emphasis>value</emphasis>
+          </para>
+          <para>Sets the specified MAVIS attribute. If the software was
+          compiled with PCRE support (strongly recommended!), the strings $1
+          ... $9 will be replaced with the substrings from the latest
+          <emphasis>condition</emphasis> matching operation.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>unset</literal>
+            <emphasis>attribute</emphasis>
+          </para>
+          <para>Clears the specified MAVIS attribute.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>toupper</literal>
+            <emphasis>attribute</emphasis>
+          </para>
+          <para>Converts the specified MAVIS attribute to upper case.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>tolower</literal>
+            <emphasis>attribute</emphasis>
+          </para>
+          <para>Converts the specified MAVIS attribute to lower case.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>eval</literal>
+            <emphasis>condition</emphasis>
+          </para>
+          <para>Evaluates <emphasis>condition</emphasis>, and populates the
+          PCRE substring information vector ($1 ... $9).</para>
+        </listitem>
+        <listitem>
+          <para><literal>if (</literal><emphasis>condition</emphasis><literal>)</literal><emphasis>action</emphasis> [
+          <literal>else</literal> <emphasis>action</emphasis> ]</para>
+          <para>Evaluates <emphasis>condition</emphasis> and executes one of
+          the <emphasis>action</emphasis>s, if any.</para>
+        </listitem>
+      </itemizedlist>
+      <para>Syntax for <emphasis>condition</emphasis>:</para>
+      <itemizedlist>
+        <listitem>
+          <para>
+            <literal>!</literal>
+            <emphasis>condition</emphasis>
+          </para>
+          <para>Boolean negation.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <emphasis>condition</emphasis>
+            <literal>&amp;&amp;</literal>
+            <emphasis>condition</emphasis>
+          </para>
+          <para>Boolean AND.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <emphasis>condition</emphasis>
+            <literal>||</literal>
+            <emphasis>condition</emphasis>
+          </para>
+          <para>Boolean OR.</para>
+        </listitem>
+        <listitem>
+          <para><emphasis>attribute</emphasis><literal>==</literal> (
+          <emphasis>attribute</emphasis> | <emphasis>value</emphasis> )</para>
+          <para>Exact match.</para>
+        </listitem>
+        <listitem>
+          <para><emphasis>attribute</emphasis><literal>!=</literal> (
+          <emphasis>attribute</emphasis> | <emphasis>value</emphasis> )</para>
+          <para>No exact match.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <emphasis>attribute</emphasis>
+            <literal>=~</literal>
+            <emphasis>regex</emphasis>
+          </para>
+          <para>Exact match. Enclose <emphasis>regex</emphasis> in
+          <literal>/</literal> for PCRE.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <emphasis>attribute</emphasis>
+            <literal>!~</literal>
+            <emphasis>regex</emphasis>
+          </para>
+          <para>No exact match.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>defined ( </literal>
+            <emphasis>attribute</emphasis>
+            <literal>)</literal>
+          </para>
+          <para>TRUE if attribute is set, false else.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>undef ( </literal>
+            <emphasis>attribute</emphasis>
+            <literal>)</literal>
+          </para>
+          <para>TRUE if attribute is not set, false else.</para>
+        </listitem>
+      </itemizedlist>
+      <para>At least the top-level <emphasis>condition</emphasis> needs to be
+      enclosed in round brackets.</para>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="railroad/mavis/MavisScript.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="railroad/mavis/MavisScript.gif" format="GIF"/>
+        </imageobject>
+        <caption>
+          <para>Railroad diagram: MavisScript</para>
+        </caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="railroad/mavis/MavisCond.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="railroad/mavis/MavisCond.gif" format="GIF"/>
+        </imageobject>
+        <caption>
+          <para>Railroad diagram: MavisCond</para>
+        </caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="railroad/mavis/MavisAction.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="railroad/mavis/MavisAction.gif" format="GIF"/>
+        </imageobject>
+        <caption>
+          <para>Railroad diagram: MavisAction</para>
+        </caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="moduleflowchart.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="moduleflowchart.svg" format="SVG"/>
+        </imageobject>
+        <caption>
+          <para>MAVIS module flow</para>
+        </caption>
+      </mediaobject>
+      <para/>
+      <para>Here's a sample configuration for FTP authentication via RADIUS,
+      using the <literal>radmavis</literal> binary, called via the
+      <literal>external</literal> module:</para>
+      <screen xml:space="preserve">    mavis module = external {
+        script in = {
+            if ($TYPE == FTP) {
+                # Copy $USER to one of the CUSTOM variables. We'll need to restore
+                # it later to the original value:
+		eval ($USER =~ /^(.*)$/)
+                set $CUSTOM_0 = $1
+                # Make sure $USER is a) lowercase and b) in user@realm format.
+                # This isn't mandatory; I just want to demonstrate how to do it:
+                tolower $USER
+                if ( $USER =~ /^([^\\\\]+)\\\\(.*)$/ )
+                    set $USER = $2@$1
+                else if ( $USER !~ /^([^@]+)@(.*)$/ ) {
+                    eval ($USER =~ /^.*$/)
+                    set $USER = $1@myrealm
+                }
+            }
+        }
+        script out = {
+            if ( $TYPE == FTP &amp;&amp; $PASSWORD == $DBPASSWORD ) {
+                set $ROOT = /export/home
+                eval ( $USER =~ /^.*$/ )
+                set $HOME = /$1
+                set $UID = 100
+                set $GID = 100
+                set $GIDS = "100,102,129"
+                set $RESULT = ACK
+                # Restore the oritinal username or the upstream will module complain:
+		eval ($CUSTOM_0 =~ /^(.*)$/)
+                set $USER = $1 
+            }
+        }
+        exec = /usr/local/sbin/radmavis radmavis "authserver=localhost:1812:mYrAdIuSsEcReT"
+    }</screen>
+      <para>Note that backslashes in regular expressions need to be
+      doubled.</para>
+      <para>Likewise, the <literal>pammavis</literal> program may be used for
+      authentication using PAM. Example for TACACS+:</para>
+      <screen xml:space="preserve">    mavis module = external {
+        exec = /usr/local/sbin/pammavis "pammavis" "-s" "pamservicename"
+    }</screen>
+      <tip>
+        <para><literal>pammavis</literal> might require root privileges on your system. In case you're not running the daemon as root anyway you can either set the <literal>setuid</literal> bit (and perhaps limit access to a particular user group) or use an adequate <literal>sudo</literal> configuration.</para>
+      </tip>
+      <para>As detailed in the <emphasis>PAM</emphasis> module section above,
+      take care not to use a PAM service which implements login delays. The
+      PAM service can be selected using the <literal>-s
+      pamservicename</literal> option and defaults to
+      <literal>mavis</literal>. PAMs that perform queries other than the
+      standard username/password aren't supported.</para>
+      <tip>
+        <para>Cisco Duo will work just fine with <literal>pammavis</literal> if you're using <literal>autopush = yes</literal>. Example configuration (for Ubuntu):</para>
+        <screen xml:space="preserve"># cat /etc/security/pam_duo.conf
+[duo]**
+host = api-&lt;snip&gt;.duosecurity.com
+ikey = &lt;snip&gt;
+skey = &lt;snip&gt;
+autopush = yes
+failmode = safe
+# cat /etc/pam.d/mavis-duo
+auth requisite pam_unix.so nullok
+auth [success=1 default=ignore] pam_duo.so
+auth requisite pam_deny.so
+auth required pam_permit.so
+auth optional pam_cap.so
+account required pam_nologin.so
+include common-account
+include common-password*
+#</screen>
+      </tip>
+      <para>A more sophisticated example for TACACS+ (no, that's not compatible to <emphasis>tac_plus-ng</emphasis>):</para>
+      <screen xml:space="preserve">id = spawnd { listen = { port = 49 } }
+
+id = tac_plus {
+  mavis module = groups {
+    resolve gids = yes
+    groups filter = /^(guest|staff)$/
+    script out = {
+      # copy the already filtered UNIX group access list to TACMEMBER
+      eval $GIDS =~ /^(.*)$/
+      set $TACMEMBER = $1
+    }
+  }
+  mavis module = external {
+    exec = /usr/local/sbin/pammavis pammavis -s mavis
+  }
+  user backend = mavis
+  login backend = mavis
+  host = global { address = 0.0.0.0/0 key = mykey }
+
+  group = staff {
+    service = shell {
+      default command = permit
+      default command = permit
+      set priv-lvl = 15
+    }
+  }
+  group = guest {
+    service = shell {
+      default command = deny
+      set priv-lvl = 15
+      cmd = show { permit .* }
+    }
+  }
+}</screen>
+      <para>Another example script emulates the <literal>anonftp</literal>
+      module functionality:</para>
+      <screen xml:space="preserve">    mavis module = null {
+        script in = {
+            if ($TYPE == FTP &amp;&amp; ($USER == ftp || $USER == anonymous)) {
+                set $RESULT = ACK
+                set $FTP_ANONYMOUS = TRUE
+                set $EMAIL = $PASSWORD
+                set $ROOT = /public/ftp
+                set $HOME = /
+                set $UID = 123
+                set $GID = 123
+                return
+            }
+        }
+    }</screen>
+      <para>See <literal>mavis/mavis.h</literal> for a list of supported
+      attributes.</para>
+    </section>
+  </section>
+  <section>
+    <title>Testing your MAVIS configuration</title>
+    <para>You'll almost certainly want to validate that your backend
+    configuration behaves as expected. You can do so using the
+    <literal>mavistest</literal> binary. Syntax is:</para>
+    <screen xml:space="preserve">mavistest [options] &lt;config&gt; &lt;id&gt; &lt;type&gt; &lt;user&gt; [&lt;password&gt;]
+
+Options:
+  -P                  (parse only)
+  -d &lt;debuglevel&gt;     (set debug level)
+
+Valid &lt;type&gt; values: FTP, TACPLUS
+
+Sample usage: mavistest -d -1  /usr/local/etc/tac_plus.cfg tac_plus TACPLUS joe p4ssw0rd
+</screen>
+    <tip>
+      <para>Use <literal>tactrace.pl</literal> for <literal>tac_plus-ng</literal> related testing.</para>
+    </tip>
+  </section>
+  <section>
+    <title>Environmental Variables</title>
+    <para>Text enclosed in double quotes may make use of environment variables, e.g.:</para>
+    <screen xml:space="preserve">filename = "${HOME}/log.txt"</screen>
+    <para>The braces are required.</para>
+  </section>
+  <section>
+    <title>Copyrights and Acknowledgements</title>
+    <para>Please see the source for copyright and licensing information of
+    individual files.</para>
+    <itemizedlist>
+      <listitem>
+        <para>
+          <emphasis role="bold">The following applies if the software was
+        compiled with TLS support:</emphasis>
+        </para>
+        <para>This product includes software developed by the OpenSSL Project
+        for use in the OpenSSL Toolkit.</para>
+        <para>(<ulink url="http://www.openssl.org/">http://www.openssl.org/</ulink>)</para>
+        <para>This product includes cryptographic software written by Eric
+        Young (<email>eay@cryptsoft.com</email>).</para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">If the software was compiled with PCRE
+        (Perl Compatible Regular Expressions) support, the following
+        applies:</emphasis>
+        </para>
+        <para>Regular expression support is provided by the PCRE library
+        package, which is open source software, written by Philip Hazel, and
+        copyright by the University of Cambridge, England.</para>
+        <para>(<ulink url="ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/">ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/</ulink>).</para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">MD5 algorithm</emphasis>
+        </para>
+        <para>The software uses the RSA Data Security, Inc. MD5 Message-Digest
+        Algorithm.</para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">The Blowfish algorithm:</emphasis>
+        </para>
+        <para>This software uses Bruce Schneier's Blowfish algorithm.</para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">md5crypt:</emphasis>
+        </para>
+        <screen xml:space="preserve">"THE BEER-WARE LICENSE" (Revision 42):
+&lt;phk@login.dknet.dk&gt; wrote this file.  As long as you retain this notice you
+can do whatever you want with this stuff. If we meet some day, and you think
+this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+</screen>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">Portions of the parsing code are taken
+        from Cisco's tac_plus developers kit which is distributed under the
+        following license:</emphasis>
+        </para>
+        <para>Copyright (c) 1995-1998 by Cisco systems, Inc.</para>
+        <para>Permission to use, copy, modify, and distribute this software
+        for any purpose and without fee is hereby granted, provided that this
+        copyright and permission notice appear on all copies of the software
+        and supporting documentation, the name of Cisco Systems, Inc. not be
+        used in advertising or publicity pertaining to distribution of the
+        program without specific prior permission, and notice be given in
+        supporting documentation that modification, copying and distribution
+        is by permission of Cisco Systems, Inc.</para>
+        <para>Cisco Systems, Inc. makes no representations about the
+        suitability of this software for any purpose. THIS SOFTWARE IS
+        PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
+        INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+        MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.</para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">The code written by Marc Huber is
+        distributed under the following license:</emphasis>
+        </para>
+        <para>Copyright (C) 1999-2022 Marc Huber
+        (<email>Marc.Huber@web.de</email>). All rights reserved.</para>
+        <para>Redistribution and use in source and binary forms, with or
+        without modification, are permitted provided that the following
+        conditions are met:</para>
+        <orderedlist>
+          <listitem>
+            <para>Redistributions of source code must retain the above
+            copyright notice, this list of conditions and the following
+            disclaimer.</para>
+          </listitem>
+          <listitem>
+            <para>Redistributions in binary form must reproduce the above
+            copyright notice, this list of conditions and the following
+            disclaimer in the documentation and/or other materials provided
+            with the distribution.</para>
+          </listitem>
+          <listitem>
+            <para>The end-user documentation included with the redistribution,
+            if any, must include the following acknowledgment:</para>
+            <blockquote>
+              <para>This product includes software developed by Marc Huber
+              (<email>Marc.Huber@web.de</email>).</para>
+            </blockquote>
+            <para>Alternately, this acknowledgment may appear in the software
+            itself, if and wherever such third-party acknowledgments normally
+            appear.</para>
+          </listitem>
+        </orderedlist>
+        <para>THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+        WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+        MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+        IN NO EVENT SHALL ITS AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+        INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+        BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+        OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+        ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+        TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+        USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+        DAMAGE.</para>
+      </listitem>
+    </itemizedlist>
+  </section>
+</article>

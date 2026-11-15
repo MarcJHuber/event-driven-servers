@@ -1,0 +1,79 @@
+4.1.0b18 20001126
+	Fixed memory leak in cleanup.c: HC->incoming wasn't free(2)ed.
+5.0.0b20001216
+	The daemon will no longer bind to any socket for accepting
+	new sessions, but will expect to be started by spawnd and
+	accept messages on stdin. No more forking. Plain and easy :-))
+5.0.0b20001222
+	Removed all IPC dependencies. Removed classes and share-based
+	load balancing. Merged RFC1413 querying code to make identifier
+	obsolete. Worked like a charm, and the loss of functionality
+	by dropping the user class concept seems minor in comparision
+	to the semaphore troubles on Solaris. I like the new concept.
+2001010500
+	Fixed identd query bug.
+2001032300
+	Switched to MAVIS scheme.
+2001032700
+	Now compiles with -D_FILE_OFFSET_BITS=64, which seems sufficient
+	to enable 64bit file i/o support for Linux. Chances are that the
+	source changes cover Solaris, too.
+2001040100
+	Finally using mmap() for reading data from disk. Improves transfer
+	performance by about 10%. Your milleage may vary. This is sort of
+	experimental and may need more testing.
+2001040200
+	Use sendfile(), if available.
+2001040700
+	mmap() and I/O buffering revised. Attempt to keep I/O buffers filled.
+2001041600
+	Once again, mmap() et al. revised. Now mapping larger mmap()
+	regions. ASCII mode conversion re-done. chunk.c introduced.
+	Dynamic fallback sendfile->mmap->read
+2001061600
+	Found & fixed a bug in offset assignment in chunk.c which caused
+	corrupted ASCII transfers.
+2001102000
+	Found & fixed another offset related bug in chunk.c
+2001102800
+	Found & fixed one more offset related bug in chunk.c
+2001122400
+	Various internal changes. Conversion to io_* routines completed.
+	STOU no longer uses mktemp(3).
+2002010500
+	Conversion to new mavis API completed.
+2002011100
+	Don't process whole mmap(2)ed file area, but at most bufsize bytes.
+	Fixed iomode initialization for conversions if sendfile supported.
+2002011300
+	cleanup_data: minor changes
+2002011700
+	RFC2460 compatibility fix in parsecmd
+2002011900
+	reworked telnet option processing, fixed <CR> over command channel
+2002012800
+	CWD expands "~" to home dir
+2002031100
+	set default acl for "timeout idle" to connect
+	fixed "timeout idle" handling
+2002033000
+	OpenSSL re-negotiation fixes
+2002040600
+	OpenSSL certificate authentication working
+2002040900
+	gzip on-the-fly compression
+2002052200
+	is_connected() now uses getpeername() instead of poll()
+2002052300
+	added ESTA/ESTP (not exactly conforming to draft, but good enough)
+2002052400
+	higher draft compliance for ESTA/ESTP
+2002052500
+	fixed STAT output during data transfers if auto-conversions are
+	involved
+2002052700
+	minor fix for FEAT response
+2002072700
+	minor fixes for MLST/MLSD
+	MFF/MFMT support
+

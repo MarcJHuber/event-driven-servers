@@ -28,19 +28,22 @@ install_fakeroot_doc:
 	@$(MAKE) -r BASE=$(BASE) INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install_doc
 
 dirs:
-	@for D in $(DIRS) ; do $(MAKE) -r -C $$D BASE=$(BASE) || exit 1; done
+	@for D in $(DIRS) ; do $(MAKE) -r -C $$D BASE=$(BASE) || [ ! -d $$D ] || exit 1; done
 
 install: install_doc
-	@for D in $(DIRS) ; do $(MAKE) -r -C $$D BASE=$(BASE) install || exit 1; done
+	@for D in $(DIRS) ; do [ ! -d $$D/doc ] || $(MAKE) -r -C $$D BASE=$(BASE) install || exit 1; done
 
 $(INSTALLROOT)$(DOCDIR_DEST)/railroad: $(BASE)/doc/railroad
 	@mkdir -p -m 0755 $@; for D in $(DIRS) ; do mkdir -p -m 0755 $@/$$D ; $(INSTALL) -m 0644 $</$$D/* $@/$$D ; done
+
+build_doc: $(BASE)/doc/images
+	for D in $(DIRS) ; do [ ! -d $$D/doc ] || xvfb-run $(MAKE) -r -C $$D/doc -f $(BASE)/Makefile.doc PROG=$$D BASE=$(BASE) || exit 1; done
 
 $(INSTALLROOT)$(DOCDIR_DEST): $(BASE)/doc $(INSTALLROOT)$(DOCDIR_DEST)/railroad
 	@test -f $</mavis.html && mkdir -p -m 0755 $@ && $(INSTALL) -m 0644 $</*.* $@ ; exit 0
 
 ifeq ($(WITH_DOC),1)
-install_doc: $(INSTALLROOT)$(DOCDIR_DEST) $(INSTALLROOT)$(DOCDIR_DEST)/railroad
+install_doc: build_doc $(INSTALLROOT)$(DOCDIR_DEST) $(INSTALLROOT)$(DOCDIR_DEST)/railroad
 else
 install_doc:
 endif

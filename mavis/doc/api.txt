@@ -1,0 +1,200 @@
+[This documentation really sucks, and might well be outdated. Apologies ...]
+
+MAVIS (Modular Attribute-Value Interchange System)
+==================================================
+
+Overview
+--------
+The MAVIS libraries provide a modular and extensible protocol
+for authorization and authentication tasks. Authorization/
+authentication modules are stackable and configurable. Both
+synchronous and asynchronous operation modes are available.
+
+Queries to and answers from MAVIS modules consist of attribute-
+value pair vectors, where attributes are integer numbers, and
+values are character strings. See mavis.h for attributes and
+predefined values.
+
+Usage
+-----
+In order to use the MAVIS routines, an application needs to be
+linked to the libmavis.so shared library. A MAVIS context is
+identified by a mavis_ctx object, initially set to NULL:
+
+  mavis_ctx *mcx = NULL;
+
+Configuration is then done with
+
+  void mavis_readconf(
+  	mavis_ctx **mcx,
+	struct io_context *io,
+  	char *configuration_file,
+	int (*conf_local)(int argc, char **argv));
+
+which will call the modules Mavis_conf() functions. If the
+application provides a function
+
+  int conf_local(mavis_ctx *mcx, int argc, char *argv);
+
+the configuration_file may contain application specific
+configuration commands, and mavis_readconf() will call conf_local
+for unknown or unrecognized configuration lines. If you want
+to use a custom configuration file format (without using
+mavis_readconf()), you can set configuration parameters using
+the
+
+  int mavis_config(mavis_ctx *mcx, int argc, char **argv);
+
+function.
+
+Initialization of the MAVIS subsystem is then done using
+
+  int mavis_init(mavis_ctx *mcx);
+
+This will call the Mavis_init () function of each configured module.
+On success,  MAVIS_INIT_OK is returned, on failure MAVIS_INIT_ERR.
+Please see existing modules for further details.
+
+  av_ctx *av_new (void *callback, void *context);
+
+returns a new attribute-value context.
+
+For re-use of av_ctx objects, call
+
+  void av_clear(av_ctx *avc);
+
+which will clear the specified context. This is only recommended
+in synchronous used.
+
+The following functions can be used to set attribute-value pairs:
+
+  int av_set(av_ctx *avc, int attribute, char *value);
+  int av_setf(av_ctx *avc, int attribute, char *format, ...);
+  void av_unset(av_ctx *avc, int attribute);
+
+Calling
+
+  int mavis_send(mavis_ctx *mcx, av_ctx **avc);
+
+then passes the currently set attribute-value pairs to the MAVIS modules.
+
+Complementary to mavis_send(), there exists
+
+  int mavis_recv(mavis_ctx *mcx, av_ctx *avc);
+
+which should be called to retrieve deferred results. This function
+will typically be called by the callback function associated with avc.
+
+mavis_send()/mavis_recv() return an integer, namely:
+- MAVIS_FINAL
+  The request has already completed, results can be found in *avc
+- MAVIS_DEFERRED
+  The request will be processed asynchronously. The authentication sub-system
+  will call callback(context) if there's a result available.
+- MAVIS_TIMEOUT
+  The request did time out
+- MAVIS_IGNORE
+  No results are yet available. In case of mavis_send(), this is fatal,
+  but for mavis_recv() retrieving should be retried at a later time.
+
+  char *av_get (av_ctx *avc, int attribute);
+
+can be used to query the updated attribute-value pair vector.
+
+Sample code
+-----------
+
+/* I don't think this will compile out of the box ... */
+
+#include <dlfcn.h>
+#include "mavis.h"
+
+int
+mavis_conf_local(int argc, char **argv)
+{
+ if (argc == 2 && !strcmp(argv[0]), "foo")
+   {
+      foo = atoi(argv[1]);
+      return MAVIS_CONF_OK;
+   }
+  return MAVIS_CONF_ERR; 
+}
+
+int
+main(int argc, char **argv)
+{
+  int fn, i;
+  char *cmp = "Some random but unique string";
+  av_ctx *avc;
+  mavis_ctx *mcx = NULL;
+
+  mavis_readconf(&mcx, NULL, "./mavis.cfg", mavis_conf_local);
+  mavis_init(mcx);
+  avc = av_new (NULL, NULL);
+  av_set(avc, AV_A_TYPE, AV_V_TYPE_FTP);
+  av_set(avc, AV_A_USER, argv[1]);
+  av_setf(avc, AV_A_PASSWORD, "%s", argv[2]);
+  av_set(avc, AV_A_TIMESTAMP, cmp);
+
+  if (MAVIS_FINAL == mavis_send (mcx, &avc))
+    av_dump (avc); /* dump AV pairs to stderr */
+  else
+    fprintf (stderr, "error\n");
+}
+
+
+Public interface
+~~~~~~~~~~~~~~~~
+
+Prototype: int mavis_init (mavis_ctx *)
+Task: Module hierarchy initialization
+Return value:	MAVIS_INIT_OK
+		MAVIS_INIT_ERROR
+
+Prototype: int mavis_drop (mavis_ctx *);
+Task: Unload all modules
+Return value:	MAVIS_DROP_OK
+		MAVIS_DROP_ERR
+
+Prototype: int mavis_conf (char *attribute, char *value);
+Task: Send attribute-value pairs to module hierarchy
+Return value:	MAVIS_CONF_OK if attribute recognized and value parseable
+		MAVIS_CONF_ERR else
+
+Prototype: int mavis_send (mavis_ctx*, av_ctx **, char *);
+Task: Send query with currently set active-value pairs
+Return value:	MAVIS_FINAL    if  synchronous (answer already in buffer)
+		MAVIS_DEFERRED if asynchronous (answer deferred)
+		MAVIS_IGNORE   error, should not happen
+		MAVIS_TIMEOUT  error, should not happen
+
+Prototype: int mavis_recv (mavis_ctx*, av_ctx **);
+Task: Receive asynchronous response
+Return value:	MAVIS_FINAL
+		MAVIS_DEFERRED
+		MAVIS_IGNORE   error, should not happen
+		MAVIS_TIMEOUT  error, should not happen
+
+Prototype: void mavis_readconf (char *file, struct io_context *io,
+				int (*conf)(int argc, char **argv));
+Task: Read and parse file, pass unrecognized attributes to conf
+
+Prototype: char *av_get (av_ctx *, int);
+Task: Query AV pair
+Return value: Value associated with given attribute type
+
+Prototype: void av_set (av_ctx *, int attribute, char *value);
+Prototype: void av_setf (av_ctx *, int attribute, char *format, ...);
+Task: Assign value to attribute
+Comment: av_unset(attribute) is a shortcut for av_set(attribute, NULL)
+	 and clears the corresponding attribute
+
+Prototype: void av_clear (av_ctx *);
+Task: Clear all values
+
+Prototype: void av_free (ac_ctx *);
+Task: Free memory
+
+Prototype: void av_move (ac_ctx *to, av_ctx *from);
+Task: Move attributes (from will be empty then)
+

@@ -195,17 +195,17 @@ Marc Huber
        where the main configuration file is located, so a main
        configuration file /where/ever/main.cfg with include =
        "$CONFDIR/part.cfg" will look for /where/ever/part.cfg
-     * id = ID{ ... }
+     * id =ID{ ... }
        Defines a configuration section ID, which will be evaluated
        by a matching server process.
 
    Standard configuration directives which may be used both at
    top-level and inside the ID sections are:
 
-     * alias = name { ... }
+     * alias =name{ ... }
        Defines an alias for the configuration directives inside
        the curly brackets.
-     * debug = Level ...
+     * debug =Level ...
        Level can be either a integer value or a sequence of
        debugging keywords, each of which may, optionally, start
        with + or -, where + will enable debugging, and - will
@@ -1015,7 +1015,7 @@ id = ftpd {
 
    Valid actions are:
 
-     * { action+ }
+     * {action+ }
        Defines an action block consisting of multiple actions.
      * continue
        Stops processing the remainder of the script and continues
@@ -1039,7 +1039,7 @@ id = ftpd {
      * eval condition
        Evaluates condition, and populates the PCRE substring
        information vector ($1 ... $9).
-     * if ( condition ) action [ else action ]
+     * if (condition)action [ else action ]
        Evaluates condition and executes one of the actions, if
        any.
 
@@ -1051,9 +1051,9 @@ id = ftpd {
        Boolean AND.
      * condition || condition
        Boolean OR.
-     * attribute == ( attribute | value )
+     * attribute== ( attribute | value )
        Exact match.
-     * attribute != ( attribute | value )
+     * attribute!= ( attribute | value )
        No exact match.
      * attribute =~ regex
        Exact match. Enclose regex in / for PCRE.

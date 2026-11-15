@@ -1,0 +1,44 @@
+TODOs and ideas
+
+- Does a failed data transfer invalidate an existing data connection? Is
+
+  C: EPSV
+  S: ...|||12345|
+  C: RETR foo
+  S: 550 file not found
+  C: RETR foo2
+
+  actually legal? The code currently assumes that the client issues
+  another EPSV, and most indeed do. However, lynx doesn't. The actual
+  behavior is
+
+  C: EPSV
+  S: ...|||12345|
+  Client opens connection to port 12345
+  C: RETR foo
+  S: 550 file not found
+  Client expects already open connection to be used for new RETR
+  C: RETR foo2
+
+  I've changed the daemon to suite that scheme, but I don't like it.
+  
+- "421 Too many users." should be returned if no new control connection
+  can be accepted. However, that's spawnd's task, and quite impossible
+  to implement.
+
+- File retrieval is inefficient per se. The file contents should be
+  read(2) *before* a socket is writeable. Alas, this is a non-issue
+  for sendfile(2) and mmap(2).
+  Until AIO is available on more systems and Linux implements something
+  similar to the BSD kqueue/kevent mechanism I'll leave this as-is.
+
+- The read(2) based implementation is inefficient.
+
+- UTF8 support sucks. For MLSD, a file name "a\r\nb" will
+  result in a listing
+
+  Type=file;Modify=20020424215143; a\r\n
+  b\r\n
+
+  Broken by design.
+

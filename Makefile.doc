@@ -1,0 +1,125 @@
+#include $(BASE)/Makefile.inc
+
+BASE=.
+
+D	= $(BASE)/$(PROG)/doc
+WORK	= $(BASE)/build/doc
+R	= $(WORK)/railroad/$(PROG)
+M	= $(D)/manual.xml
+I	= $(INSTALLROOT)$(DOCDIR_DEST)
+C	= $(BASE)/doc
+IR	= $(C)/railroad/$(PROG)
+
+TXT_BUILD=$(WORK)/$(PROG).txt
+TXT_INSTALL=$(I)/$(PROG).txt
+TXT_KEEP=$(C)/$(PROG).txt
+TEX_BUILD=$(WORK)/$(PROG).tex
+TEX_INSTALL=$(I)/$(PROG).tex
+PDF_BUILD=$(WORK)/$(PROG).pdf
+PDF_INSTALL=$(I)/$(PROG).pdf
+PDF_KEEP=$(C)/$(PROG).pdf
+HTML_BUILD=$(WORK)/$(PROG).html
+HTML_INSTALL=$(I)/$(PROG).html
+HTML_KEEP=$(C)/$(PROG).html
+XML_BUILD=$(WORK)/$(PROG).xml
+MD_BUILD=$(WORK)/$(PROG).md
+MD_INSTALL=$(I)/$(PROG).md
+MD_KEEP=$(C)/$(PROG).md
+
+all: doc
+
+$(WORK):
+	@mkdir -p -m 0755 $@
+
+BUBBLES_TCL=$(wildcard $(D)/railroad/*.tcl)
+BUBBLES_TMP=$(patsubst $(D)/railroad%,$(R)%,$(BUBBLES_TCL))
+BUBBLES_EPS=$(BUBBLES_TMP:.tcl=.eps)
+BUBBLES_SVG=$(BUBBLES_TMP:.tcl=.svg) $(BUBBLES_TMP:.tcl=-dark.svg)
+BUBBLES_SVG_KEEP=$(patsubst $(WORK)%,$(C)%,$(BUBBLES_SVG))
+
+EXTRA_GRAPHICS=$(BASE)/mavis/doc/moduleflowchart.svg
+
+doc: $(R) $(IR) $(BUBBLES_EPS) $(BUBBLES_SVG_KEEP) $(EXTRA_GRAPHICS) $(WORK) $(TXT_KEEP) $(PDF_KEEP) $(HTML_KEEP) $(MD_KEEP)
+
+$(R)/%-dark.svg: $(R)/%.svg
+	@sed -e 's/stroke: #000000;/stroke: #ffffff;/g' -e 's/fill: #000000;/fill: #ffffff;/g'< $^ > $@
+
+# reminder: run this with with xvfb ...
+$(R)/%.eps: $(D)/railroad/%.tcl
+	@wish $(BASE)/scripts/bubble-generator.tcl $^ $(@:.eps=.eps) $(@:.eps=.svg)
+
+$(C)/moduleflowchart.svg: $(EXTRA_GRAPHICS)
+	@cp $^ $@
+
+$(C)/%.svg: $(WORK)/%.svg
+	@cp $^ $@
+
+%.gif: %.png
+	@convert -trim +repage -transparent white -transparent-color white $^ $@
+
+%.png: %.eps
+	@gs -q -sDEVICE=png16m -sOutputFile=$@ -r96 -dBATCH -dNOPAUSE -dTextAlphaBits=4 -dGraphicsAlphaBits=4 -dDOINTERPOLATE $^ 2>/dev/null
+
+%.svg: $(D)/railroad/%.tcl
+	@wish $(BASE)/scripts/bubble-generator.tcl $^ $(@:.eps=.eps) $(@:.eps=.svg)
+
+$(TXT_KEEP): $(TXT_BUILD)
+	@cp $^ $@
+
+$(PDF_KEEP): $(PDF_BUILD)
+	@cp $^ $@
+
+$(MD_KEEP): $(MD_BUILD)
+	@cp $^ $@
+
+$(HTML_KEEP): $(HTML_BUILD) $(BUBBLES_SVG) $(C)/moduleflowchart.svg
+	tidy -wrap 0 -q -l1tin1 --doctype loose 2>/dev/null $< | perl -n -p -e 's/\.eps"/.svg"/g;s/(")\.\.\/(images\/[^\.]+\.)gif(")/$$1$$2svg$$3/g;s/(width="\d+)\*/$$1%/ig;s/<TITLE/<link rel=stylesheet type="text\/css" href="style.css"><META http-equiv=Content-Type content="text\/html; charset=iso-8859-1"><META NAME=viewport CONTENT="width=device-width, initial-scale=1"><TITLE/i;s/<img src="rail/<img alt="" src="rail/g;s/<a href=/<a class="lk" href=/g;' | tidy -wrap 0 -q -latin1 --doctype loose 2>/dev/null | cat > $@
+
+$(TXT_BUILD): $(HTML_BUILD)
+	@lynx -force_html -dump -nolist -width=72 $^ > $@
+
+$(XML_BUILD): $(M)
+	@sed 's!"http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd"!!' < $^ > $@
+
+$(TEX_BUILD): $(BUBBLES_EPS) $(XML_BUILD)
+	-cd $(WORK) && jw -f docbook -b tex -e no-significant $<
+
+$(HTML_BUILD): $(XML_BUILD) $(BUBBLES_SVG)
+	-cd $(WORK) && jw -f docbook -b html -e no-significant -u $<
+
+$(MD_BUILD): $(M)
+	-cd $(WORK) && $(BASE)/scripts/convert-to-md.pl $^ $@
+
+$(PDF_BUILD): $(M) $(BUBBLES_EPS)
+	-cd $(WORK) && dblatex -I $(WORK) -o $@ $<
+
+clean:
+	-rm -rf $(WORK) *~ *.pdf $(R)/*.bmp $(R)/*.gif $(R)/*.eps $(R)/*.svg
+
+$(I):
+	@mkdir -p -m 0755 $@
+
+install: doc $(INSTALLROOT)$(DOCDIR_DEST) $(HTML_INSTALL) $(TXT_INSTALL) $(PDF_INSTALL) $(MD_INSTALL)
+
+$(HTML_INSTALL): $(HTML_KEEP)
+	$(INSTALL) -m 0644 $< $@
+
+$(TXT_INSTALL): $(TXT_KEEP)
+	$(INSTALL) -m 0644 $< $@
+
+$(PDF_INSTALL): $(PDF_KEEP)
+	$(INSTALL) -m 0644 $< $@
+
+$(MD_INSTALL): $(MD_KEEP)
+	$(INSTALL) -m 0644 $< $@
+
+$(D):
+	@mkdir -p -m 0755 $@
+
+$(R):
+	@mkdir -p -m 0755 $@
+
+$(IR):
+	@mkdir -p -m 0755 $@
+
+

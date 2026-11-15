@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<article>
+  <articleinfo>
+    <title>TCP-Relay (legacy, no longer maintained)</title>
+    <author>
+      <firstname>Marc</firstname>
+      <surname>Huber</surname>
+      <email>Marc.Huber@web.de</email>
+    </author>
+    <releaseinfo>$Id$</releaseinfo>
+  </articleinfo>
+  <section>
+    <title>Introduction</title>
+    <para><emphasis role="bold">tcprelay</emphasis> is a TCP connection
+    forwarder with load balancing capabilities. If compiled with TLS support,
+    it may be used as SSL encryption wrapper.</para>
+    <section>
+      <title>Download</title>
+      <para>You can download the source code from the GitHub repository at <ulink url="https://github.com/MarcJHuber/event-driven-servers/">https://github.com/MarcJHuber/event-driven-servers/</ulink>.
+            On-line documentation is available via <ulink url="https://projects.pro-bono-publico.de/event-driven-servers/doc/">https://projects.pro-bono-publico.de/event-driven-servers/doc/</ulink>, too.
+      </para>
+    </section>
+  </section>
+  <section>
+    <title>Operation</title>
+    <para>This section gives a brief and basic overview on how to run <emphasis role="bold">tcprelay</emphasis>.</para>
+    <para>In earlier versions, <emphasis role="bold">tcprelay</emphasis>
+    wasn't a standalone program but had to be invoked by <emphasis role="bold">spawnd</emphasis>. This has changed, as <emphasis role="bold">spawnd</emphasis> is now part of the <emphasis role="bold">tcprelay</emphasis> binary. However, using a dedicated
+    <emphasis role="bold">spawnd</emphasis> process is still possible and,
+    more importantly, the <emphasis role="bold">spawnd</emphasis>
+    configuration options and documentation remain valid.</para>
+    <para><emphasis role="bold">tcprelay</emphasis> may use auxilliary
+    <emphasis role="bold">MAVIS</emphasis> backend modules for authentication
+    and authorization.</para>
+    <section>
+      <title>Command line syntax</title>
+      <para>The only mandatory argument is the path to the configuration
+      file:</para>
+      <screen xml:space="preserve">tcprelay [ <emphasis>-P</emphasis> ] [ <emphasis>-d level</emphasis> ]  [ <emphasis>-i child_id</emphasis> ] <emphasis>configuration-file</emphasis> [ <emphasis>id</emphasis> ]</screen>
+      <para>If the program was compiled with CURL support,
+      <emphasis>configuration-file</emphasis> may be an URL.</para>
+      <para>Keep the <literal>-P</literal> option in mind - it is
+      imperative that the configuration file supplied is syntactically
+      correct, as the daemon won't start if there are any parsing errors at
+      start-up.</para>
+      <para>The <literal>-d</literal> switch enables debugging. You most
+      likely don't want to use this. Read the source if you need to.</para>
+      <para>The <literal>-i</literal> option is only honoured if the build-in
+      <emphasis role="bold">spawnd</emphasis> functionality is used. In that
+      case, it selects the configuration ID for <emphasis role="bold">tcprelay</emphasis>, while the optional last argument
+      <emphasis>id</emphasis> sets the ID of the <emphasis role="bold">spawnd</emphasis> configuration section.</para>
+    </section>
+    <section>
+      <title>Signals</title>
+      <para>Both the master (that's the process running the <emphasis role="bold">spawnd</emphasis> code) and the child processes (running the
+      <emphasis role="bold">tcprelay</emphasis> code) intercept the
+      <literal>SIGHUP</literal> signal:</para>
+      <itemizedlist>
+        <listitem>
+          <para>The master process will restart upon reception of
+          <literal>SIGHUP</literal>, re-reading the configuration file. The
+          child processes will recognize that the master process is no longer
+          available. It will continue to serve the existing connections and
+          terminate when idle.</para>
+        </listitem>
+        <listitem>
+          <para>If <literal>SIGHUP</literal> is sent to a child process it
+          will stop accepting new connections from its master process. It will
+          continue to serve the existing connections and terminate when
+          idle.</para>
+        </listitem>
+      </itemizedlist>
+    </section>
+    <section>
+      <title>Event mechanism selection</title>
+      <para>Several level-triggered event mechanisms are supported. By
+      default, the one best suited for your operating system will be used.
+      However, you may use the environment variable
+      <literal>IO_POLL_MECHANISM</literal> to select a specific one.</para>
+      <para>The following event mechanisms are supported (in order of
+      preference):</para>
+      <itemizedlist>
+        <listitem>
+          <para>port (Sun Solaris 10 and higher only,
+          <literal>IO_POLL_MECHANISM=32</literal>)</para>
+        </listitem>
+        <listitem>
+          <para>kqueue (*BSD and Darwin only,
+          <literal>IO_POLL_MECHANISM=1</literal>)</para>
+        </listitem>
+        <listitem>
+          <para>/dev/poll (Sun Solaris only,
+          <literal>IO_POLL_MECHANISM=2</literal>)</para>
+        </listitem>
+        <listitem>
+          <para>epoll (Linux only,
+          <literal>IO_POLL_MECHANISM=4</literal>)</para>
+        </listitem>
+        <listitem>
+          <para>poll (<literal>IO_POLL_MECHANISM=8</literal>)</para>
+        </listitem>
+        <listitem>
+          <para>select (<literal>IO_POLL_MECHANISM=16</literal>)</para>
+        </listitem>
+      </itemizedlist>
+      <para>Environment variables can be set in the configuration file at top-level:</para>
+      <screen xml:space="preserve">setenv IO_POLL_MECHANISM = 4</screen>
+    </section>
+    <section>
+      <title>Configuration Syntax</title>
+      <para>A single configuration file is sufficient for configuring both
+      <emphasis role="bold">spawnd</emphasis> and <emphasis role="bold">tcprelay</emphasis>. The basic format for this file
+      is:</para>
+      <screen xml:space="preserve">id = spawnd {
+    # spawnd configuration directives
+}
+
+id = tcprelay {
+    # tcprelay configuration directives
+}</screen>
+      <para>For example, the <literal>spawnd</literal> section could look
+      similar to:</para>
+      <screen xml:space="preserve">    listen = { port = 80}
+    spawn = { exec /usr/local/libexec/tcprelay }</screen>
+      <para>This tells spawnd to accept connections on the port given, and
+      feed them to a <emphasis role="bold">tcprelay</emphasis> process. Please
+      see the <emphasis role="bold">spawnd</emphasis> documentation for more
+      configuration details.</para>
+      <para><emphasis role="bold">tcprelay</emphasis> has its own set of
+      configuration directives:</para>
+      <itemizedlist>
+        <listitem>
+          <para>
+            <literal>local address =</literal>
+            <emphasis>addr</emphasis>
+          </para>
+          <para>Specifies the local address used for outgoing
+          connections.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>rebalance =</literal>
+            <emphasis>n</emphasis>
+          </para>
+          <para>Re-balances peers after <emphasis>n</emphasis> requests. May
+          be used to reactivate dead peers. Use with care. Default:
+          unset.</para>
+        </listitem>
+        <listitem>
+          <para><literal>remote = {</literal> ... <literal>}</literal></para>
+          <para>The <literal>remote</literal> sections tell <emphasis role="bold">tcprelay</emphasis> where to relay connections to. Valid
+          configuration directives inside the curly brackets are:</para>
+          <itemizedlist>
+            <listitem>
+              <para>
+                <literal>address =</literal>
+                <emphasis>IPAddress</emphasis>
+              </para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>port =</literal>
+                <emphasis>TCPPort</emphasis>
+              </para>
+            </listitem>
+            <listitem>
+              <para><literal>protocol =</literal> ( <literal>TCP</literal> |
+              <literal>SCTP</literal>)</para>
+            </listitem>
+            <listitem>
+              <para>
+                <literal>weight =</literal>
+                <emphasis>Weight</emphasis>
+              </para>
+            </listitem>
+          </itemizedlist>
+          <para>Both the <literal>address</literal> and
+          <literal>port</literal> directives are mandatory. The load balancing
+          factor <emphasis>weight</emphasis> is optional and defaults to 1.
+          Its value should somehow correspond to the load a destination can
+          handle.</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>retire =</literal>
+            <emphasis>count</emphasis>
+          </para>
+          <para>If set, the daemon will terminate after processing
+          <emphasis>count</emphasis> sessions, what may be useful to remedy
+          the effects of memory leaks. By default, this is not set.</para>
+        </listitem>
+        <listitem>
+          <para><literal>syslog</literal> ( ( <literal>ident =</literal>
+          Ident) | ( <literal>severity =</literal> Level ) | ( <literal>facility
+          =</literal> Facility))</para>
+          <para>Selects syslog <emphasis>ident</emphasis>,
+          <emphasis>severity</emphasis> and <emphasis>facility</emphasis>.
+          Defaults to:</para>
+          <screen xml:space="preserve">syslog ident = <emphasis>program-name</emphasis>
+syslog facility = UUCP
+syslog severity = INFO</screen>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>idle timeout
+          =</literal>
+            <emphasis>Seconds</emphasis>
+          </para>
+          <para>Set session timeout (default: <literal>0</literal>).</para>
+        </listitem>
+        <listitem>
+          <para>
+            <literal>tls cert-file =</literal>
+            <emphasis>CertFile</emphasis>
+          </para>
+          <para>
+            <literal>tls key-file =</literal>
+            <emphasis>KeyFile</emphasis>
+          </para>
+          <para>
+            <literal>tls passphrase =</literal>
+            <emphasis>PassPhrase</emphasis>
+          </para>
+          <para>If compiled with TLS/SSL, <emphasis>PassPhrase</emphasis>,
+          <emphasis>CertFile</emphasis> and <emphasis>KeyFile</emphasis> may
+          be specified using this option.</para>
+          <para><emphasis>KeyFile</emphasis> may be omitted, it defaults to
+          <emphasis>CertFile</emphasis>.</para>
+        </listitem>
+      </itemizedlist>
+      <section>
+        <title>Railroad Diagram</title>
+        <para/>
+        <mediaobject>
+          <imageobject>
+            <imagedata fileref="railroad/tcprelay/Config.eps" format="EPS" scale="80"/>
+          </imageobject>
+          <imageobject>
+            <imagedata fileref="railroad/tcprelay/Config.gif" format="GIF"/>
+          </imageobject>
+          <caption>
+            <para>Railroad diagram: TcprelayConfig</para>
+          </caption>
+        </mediaobject>
+      </section>
+    </section>
+    <section>
+      <title>Sample configuration</title>
+      <para/>
+      <screen xml:space="preserve">#!/usr/local/sbin/spawnd
+id = spawnd {
+    listen = { port = 2222 }
+    listen = { address = ::0 port = 2222 }
+    listen = { ::0 port = 2224 }
+    listen = { port = 2225 tls = yes }
+    spawn {
+        users max = 4000
+        users min = 10
+        servers min = 1
+        servers max = 20
+    }
+}
+
+id = tcprelay {
+	remote = { address = 169.254.1.2 port = 22 }
+	ssl cert = /some/where/sample.pem
+	ssl passphrase =  12345
+}</screen>
+    </section>
+  </section>
+  <section>
+    <title>Bugs</title>
+    <para/>
+    <itemizedlist>
+      <listitem>
+        <para>TLS re-negotiation is currently untested and may or may not
+        work.</para>
+      </listitem>
+    </itemizedlist>
+  </section>
+  <section>
+    <title>Copyrights and Acknowledgements</title>
+    <para>Please see the source for copyright and licensing information of
+    individual files.</para>
+    <itemizedlist>
+      <listitem>
+        <para>
+          <emphasis role="bold">The following applies if the software was
+        compiled with TLS support:</emphasis>
+        </para>
+        <para>This product includes software developed by the OpenSSL Project
+        for use in the OpenSSL Toolkit (<ulink url="http://www.openssl.org/">http://www.openssl.org/</ulink>).</para>
+        <para>This product includes cryptographic software written by Eric
+        Young (<email>eay@cryptsoft.com"</email>).</para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">Portions of the parsing code are taken
+        from Cisco's tac_plus developers kit which is distributed under the
+        following license:</emphasis>
+        </para>
+        <para>Copyright (c) 1995-1998 by Cisco systems, Inc.</para>
+        <para>Permission to use, copy, modify, and distribute this software
+        for any purpose and without fee is hereby granted, provided that this
+        copyright and permission notice appear on all copies of the software
+        and supporting documentation, the name of Cisco Systems, Inc. not be
+        used in advertising or publicity pertaining to distribution of the
+        program without specific prior permission, and notice be given in
+        supporting documentation that modification, copying and distribution
+        is by permission of Cisco Systems, Inc.</para>
+        <para>Cisco Systems, Inc. makes no representations about the
+        suitability of this software for any purpose. THIS SOFTWARE IS
+        PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
+        INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+        MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.</para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">The code written by Marc Huber is
+        distributed under the following license:</emphasis>
+        </para>
+        <para>Copyright (C) 1999-2022 Marc Huber
+        (<email>Marc.Huber@web.de</email>). All rights reserved.</para>
+        <para>Redistribution and use in source and binary forms, with or
+        without modification, are permitted provided that the following
+        conditions are met:</para>
+        <orderedlist>
+          <listitem>
+            <para>Redistributions of source code must retain the above
+            copyright notice, this list of conditions and the following
+            disclaimer.</para>
+          </listitem>
+          <listitem>
+            <para>Redistributions in binary form must reproduce the above
+            copyright notice, this list of conditions and the following
+            disclaimer in the documentation and/or other materials provided
+            with the distribution.</para>
+          </listitem>
+          <listitem>
+            <para>The end-user documentation included with the redistribution,
+            if any, must include the following acknowledgment:</para>
+            <blockquote>
+              <para>This product includes software developed by Marc Huber
+              (<email>Marc.Huber@web.de</email>).</para>
+            </blockquote>
+            <para>Alternately, this acknowledgment may appear in the software
+            itself, if and wherever such third-party acknowledgments normally
+            appear.</para>
+          </listitem>
+        </orderedlist>
+        <para>THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+        WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+        MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+        IN NO EVENT SHALL ITS AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+        INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+        BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+        OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+        ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+        TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+        USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+        DAMAGE.</para>
+      </listitem>
+    </itemizedlist>
+  </section>
+</article>

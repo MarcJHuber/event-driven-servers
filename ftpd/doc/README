@@ -1,0 +1,30 @@
+INTRODUCTION
+============
+The major differences to most BSD derived FTP daemons are:
+- stand-alone, not called by inetd
+- small memory footprint
+- multi-threaded, pre-forking
+- supports traffic shaping
+- highly configurable using access control lists for commands and
+  configuration variables
+
+Some wu-ftpd-like features (banners, checksum calculation) are available.
+No DNS resolving is currently done.
+
+Most of the commands from RFC959 are supported. Additionally, the
+following extensions and/or commands are implemented:
+- FOOBAR (RFC1639), RFC2428
+- SSL (both via AUTH SSL and port 990)
+- MDTM, SIZE, LANG, HOST, MLST, MLSD, FEAT, OPTS
+- various SITE commands
+
+IPv6 support isn't well tested yet, but may work.
+
+Under certain conditions (e.g. locally copying data from a RAM disk to
+/dev/null), this daemon is somewhat slower than the BSD-derived ones.
+That's because the BSD daemons just call read(2) and write(2) until a
+file is transfered, but because of its multi-threaded nature, this daemon
+needs to call poll(2) before doing I/O operations.
+
+-- 
+Marc.Huber@web.de

@@ -164,7 +164,7 @@ id = tcprelay {
 syslog ident = program-name
 syslog facility = UUCP
 syslog severity = INFO
-     * idle timeout =Seconds
+     * idle timeout = Seconds
        Set session timeout (default: 0).
      * tls cert-file = CertFile
        tls key-file = KeyFile

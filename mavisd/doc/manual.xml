@@ -1,0 +1,441 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<article>
+  <articleinfo>
+    <title>MAVIS Daemon</title>
+    <author>
+      <firstname>Marc</firstname>
+      <surname>Huber</surname>
+      <email>Marc.Huber@web.de</email>
+    </author>
+    <releaseinfo>$Id$</releaseinfo>
+  </articleinfo>
+  <section>
+    <title>Introduction</title>
+    <para>In conjunction with the <emphasis role="bold">remote</emphasis>
+    module, this daemon allows extending MAVIS (modular attribute-value
+    interchange system) functionality over the network, using UDP packets for
+    communication with clients and/or other MAVIS daemons.</para>
+    <section>
+      <title>Download</title>
+      <para>You can download the source code from the GitHub repository at <ulink url="https://github.com/MarcJHuber/event-driven-servers/">https://github.com/MarcJHuber/event-driven-servers/</ulink>.
+            On-line documentation is available via <ulink url="https://projects.pro-bono-publico.de/event-driven-servers/doc/">https://projects.pro-bono-publico.de/event-driven-servers/doc/</ulink>, too.
+      </para>
+    </section>
+  </section>
+  <section>
+    <title>Command line syntax</title>
+    <para>Command line syntax is:</para>
+    <screen xml:space="preserve">mavisd [ <emphasis>-P</emphasis> ] [ <emphasis>-d level</emphasis> ] <emphasis>configuration-file</emphasis> [ <emphasis>id</emphasis> ]</screen>
+    <para>The path to the configuration file is the only command line argument
+    mandatory. <emphasis>id</emphasis> defaults to <literal>tac_plus</literal>
+    and may be used to select a non-default section of the configuration
+    file.</para>
+    <para>The <emphasis>-P</emphasis> option enables <emphasis>config parse
+    mode</emphasis>. Keep this one in mind; it is imperative that the
+    configuration file supplied is syntactically correct, as the daemon won't
+    start if there are any parsing errors at start-up.</para>
+    <para>The <literal>-d</literal> switch enables debugging. You most likely
+    don't want to use this. Read the source if you need to.</para>
+  </section>
+  <section>
+    <title>Event mechanism selection</title>
+    <para>Several level-triggered event mechanisms are supported. By default,
+    the one best suited for your operating system will be used. However, you
+    may set the environment variable <literal>IO_POLL_MECHANISM</literal> to
+    select a specific one.</para>
+    <para>The following event mechanisms are supported (in order of
+    preference):</para>
+    <itemizedlist>
+      <listitem>
+        <para>port (Sun Solaris 10 and higher only,
+        <literal>IO_POLL_MECHANISM=32</literal>)</para>
+      </listitem>
+      <listitem>
+        <para>kqueue (*BSD and Darwin only,
+        <literal>IO_POLL_MECHANISM=1</literal>)</para>
+      </listitem>
+      <listitem>
+        <para>/dev/poll (Sun Solaris only,
+        <literal>IO_POLL_MECHANISM=2</literal>)</para>
+      </listitem>
+      <listitem>
+        <para>epoll (Linux only,
+        <literal>IO_POLL_MECHANISM=4</literal>)</para>
+      </listitem>
+      <listitem>
+        <para>poll (<literal>IO_POLL_MECHANISM=8</literal>)</para>
+      </listitem>
+      <listitem>
+        <para>select (<literal>IO_POLL_MECHANISM=16</literal>)</para>
+      </listitem>
+    </itemizedlist>
+  </section>
+  <section>
+    <title>Configuration file syntax</title>
+    <para>A typical <emphasis role="bold">mavisd</emphasis> configuration file
+    consists of a single <literal>id</literal> section:</para>
+    <screen xml:space="preserve">section = mavisd { ... }</screen>
+    <para>Default section ID is <literal>mavisd</literal>, but that a
+    different ID may be selected via the command line.</para>
+    <para>Configuration directives are:</para>
+    <itemizedlist>
+      <listitem>
+        <para>( <literal>permit</literal> | <literal>deny</literal> ) [
+        <literal>not</literal>] CIDR</para>
+        <para>Accept or reject requests from specific IP address ranges. This
+        directive may appear multiple times. Matches are tried in order. IPv6
+        ACLs are supported. Default is to accept everything.</para>
+        <para>Example:</para>
+        <screen xml:space="preserve">permit 127.0.0.1/8
+permit accept ::1
+deny not 192.168.0.0/16
+permit 192.168.0.5/32</screen>
+      </listitem>
+      <listitem>
+        <para><literal>background =</literal> ( <literal>yes</literal> |
+        <literal>no</literal> )</para>
+        <para>If set, the daemon will release its controlling terminal on
+        startup and fork itself to the background (default:
+        <literal>no</literal>).</para>
+      </listitem>
+      <listitem>
+        <para><literal>listen = {</literal> ... <literal>}</literal></para>
+        <para>The listen directive specifies where to listen for incoming
+        queries. Acceptable connection endpoints are both IPv4/IPv6 based UDP
+        and UNIX datagram sockets.</para>
+        <para>For IP sockets, the following options are available:</para>
+        <itemizedlist>
+          <listitem>
+            <para><literal>port =</literal> UDPPort</para>
+            <para>Specifies an UDP port to listen for incoming queries.</para>
+          </listitem>
+          <listitem>
+            <para><literal>address =</literal> IPAddress</para>
+            <para>Specifiy an IP address to bind to (optional, default: all
+            local IP addresses).</para>
+          </listitem>
+        </itemizedlist>
+        <para>UNIX sockets support these directives:</para>
+        <itemizedlist>
+          <listitem>
+            <para><literal>path =</literal> UnixPath</para>
+            <para>Path to an UNIX domain socket.</para>
+          </listitem>
+          <listitem>
+            <para><literal>userid =</literal> UserID</para>
+            <para>User ID for socket creation.</para>
+          </listitem>
+          <listitem>
+            <para><literal>groupid =</literal> GroupID</para>
+            <para>Group ID for socket creation</para>
+          </listitem>
+          <listitem>
+            <para><literal>mode =</literal> Mode</para>
+            <para>Permissions for socket creation.</para>
+          </listitem>
+        </itemizedlist>
+        <para>Communication via PF_UNIX sockets may only work if the host
+        system supports anonymous binds for that protocol family. This works
+        for Linux, which supports an abstract namespace which is independent
+        of the file system, but, e.g., not for Sun Solaris.</para>
+        <para>Options common to both variants are:</para>
+        <itemizedlist>
+          <listitem>
+            <para><literal>blowfish key =</literal> Key</para>
+            <para>Specifies a key for over-the-wire encryption
+            (optional).</para>
+          </listitem>
+          <listitem>
+            <para><literal>blowfish keyfile =</literal> KeyFile</para>
+            <para>Specifies a file to read the a key from (optional).</para>
+          </listitem>
+        </itemizedlist>
+        <para>The <literal>listen</literal> directive may be used multiple
+        times and is mandatory.</para>
+      </listitem>
+      <listitem>
+        <para><literal>mavis module =</literal><emphasis>module</emphasis><literal> { </literal> ... <literal>}</literal></para>
+        <para>Load MAVIS module <emphasis>module</emphasis>. See the MAVIS
+        documentation for configuration guidance.</para>
+      </listitem>
+      <listitem>
+        <para>
+          <literal>mavis path = </literal>
+          <emphasis>path</emphasis>
+        </para>
+        <para>Add <emphasis>path</emphasis> to the search-path for MAVIS
+        modules.</para>
+        <para>Magic cookie substitution applies. The available conversions
+        are:</para>
+        <itemizedlist>
+          <listitem>
+            <para><literal>%o</literal> - run-time OS type</para>
+          </listitem>
+          <listitem>
+            <para><literal>%O</literal> - compile-time OS type</para>
+          </listitem>
+        </itemizedlist>
+      </listitem>
+      <listitem>
+        <para>
+          <literal>pidfile =</literal>
+          <emphasis>file</emphasis>
+        </para>
+        <para>The daemons process id will be written to
+        <emphasis>file</emphasis> (default: unset).</para>
+      </listitem>
+      <listitem>
+        <para>
+          <literal>stat period =</literal>
+          <emphasis>seconds</emphasis>
+        </para>
+        <para>This enables periodic statistics logging to
+        <emphasis>syslogd</emphasis> (default: disabled). The logged line
+        starts with <literal>STAT:</literal> and is followed by a series of
+        <emphasis>key</emphasis><literal>=</literal><emphasis>value</emphasis>
+        pairs:</para>
+        <itemizedlist>
+          <listitem>
+            <para><literal>Q=</literal><emphasis>count</emphasis> -
+            number of queries since start-up</para>
+          </listitem>
+          <listitem>
+            <para><literal>A=</literal><emphasis>count</emphasis> -
+            number of queries answered since start-up</para>
+          </listitem>
+          <listitem>
+            <para><literal>R=</literal><emphasis>count</emphasis> -
+            number of queries rejected since start-up</para>
+          </listitem>
+          <listitem>
+            <para><literal>X=</literal><emphasis>count</emphasis> -
+            number of queries expired since start-up</para>
+          </listitem>
+          <listitem>
+            <para><literal>E=</literal><emphasis>count</emphasis> -
+            number of queries failed since start-up</para>
+          </listitem>
+          <listitem>
+            <para><literal>T=</literal><emphasis>seconds</emphasis> -
+            number of seconds since start-up</para>
+          </listitem>
+          <listitem>
+            <para><literal>q=</literal><emphasis>count</emphasis> -
+            number of queries in last period</para>
+          </listitem>
+          <listitem>
+            <para><literal>a=</literal><emphasis>count</emphasis> -
+            number of queries answered in last period</para>
+          </listitem>
+          <listitem>
+            <para><literal>r=</literal><emphasis>count</emphasis> -
+            number of queries rejected in last period</para>
+          </listitem>
+          <listitem>
+            <para><literal>x=</literal><emphasis>count</emphasis> -
+            number of queries expired in last period</para>
+          </listitem>
+          <listitem>
+            <para><literal>e=</literal><emphasis>count</emphasis> -
+            number of queries failed in last period</para>
+          </listitem>
+          <listitem>
+            <para><literal>t=</literal><emphasis>seconds</emphasis> -
+            length of last period</para>
+          </listitem>
+          <listitem>
+            <para><literal>B=</literal><emphasis>count</emphasis> -
+            maximum number of queries in backlog since start-up</para>
+          </listitem>
+          <listitem>
+            <para><literal>b=</literal><emphasis>count</emphasis> -
+            maximum number of queries in backlog in last period</para>
+          </listitem>
+        </itemizedlist>
+        <para>Modules may log additional information, e.g.:</para>
+        <itemizedlist>
+          <listitem>
+            <para><literal>F=</literal><emphasis>count</emphasis> -
+            number of childs forked since start-up</para>
+          </listitem>
+          <listitem>
+            <para><literal>I=</literal><emphasis>count</emphasis> -
+            number of answers received since start-up</para>
+          </listitem>
+          <listitem>
+            <para><literal>O=</literal><emphasis>count</emphasis> -
+            number of queries sent since start-up</para>
+          </listitem>
+          <listitem>
+            <para><literal>f=</literal><emphasis>count</emphasis> -
+            number of childs forked in last period</para>
+          </listitem>
+          <listitem>
+            <para><literal>i=</literal><emphasis>count</emphasis> -
+            number of answers received in last period</para>
+          </listitem>
+          <listitem>
+            <para><literal>o=</literal><emphasis>count</emphasis> -
+            number of queries sent in last period</para>
+          </listitem>
+        </itemizedlist>
+      </listitem>
+      <listitem>
+        <para><literal>syslog</literal> ( ( <literal>ident =</literal> Ident)
+        | ( <literal>level =</literal> Level ) | ( <literal>facility
+        =</literal> Facility))</para>
+        <para>Selects syslog <emphasis>ident</emphasis>,
+        <emphasis>level</emphasis> and <emphasis>facility</emphasis>. Defaults
+        to:</para>
+        <screen xml:space="preserve">syslog ident = <emphasis>program-name</emphasis>
+syslog facility = UUCP
+syslog level = INFO</screen>
+      </listitem>
+      <listitem>
+        <para><literal>transmit password =</literal> ( <literal>yes</literal>
+        | <literal>no</literal> )</para>
+        <para>Allow transmission of cleartext password in responses (default:
+        <literal>no</literal>).</para>
+      </listitem>
+    </itemizedlist>
+    <section>
+      <title>Railroad Diagrams</title>
+      <para/>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="railroad/mavisd/Config.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="railroad/mavisd/Config.gif" format="GIF"/>
+        </imageobject>
+        <caption>
+          <para>Railroad diagram: TcprelayConfig</para>
+        </caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="railroad/mavisd/CIDR.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="railroad/mavisd/CIDR.gif" format="GIF"/>
+        </imageobject>
+        <caption>
+          <para>Railroad diagram: CIDR</para>
+        </caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="railroad/mavisd/SyslogDecl.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="railroad/mavisd/SyslogDecl.gif" format="GIF"/>
+        </imageobject>
+        <caption>
+          <para>Railroad diagram: SyslogDecl</para>
+        </caption>
+      </mediaobject>
+    </section>
+  </section>
+  <section>
+    <title>Sample configuration</title>
+    <para/>
+    <screen xml:space="preserve">module-path /some/where/lib/mavis
+
+module-add log
+
+module-add limit
+module-conf limit blacklist count 5 time 60
+module-conf limit ipreg time 60
+
+module-add auth
+
+module-add cache
+module-conf cache expire * 60
+
+module-add external id whatever
+module-conf ext1 program /where/ever/script.pl
+
+bind address 127.0.0.1 port 9001</screen>
+  </section>
+  <section>
+    <title>Copyrights and Acknowledgements</title>
+    <para>Please see the source for copyright and licensing information of
+    individual files.</para>
+    <itemizedlist>
+      <listitem>
+        <para>
+          <emphasis role="bold">The Blowfish algorithm:</emphasis>
+        </para>
+        <para>This software uses Bruce Schneier's Blowfish algorithm.</para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">Portions of the parsing code are taken
+        from Cisco's tac_plus developers kit which is distributed under the
+        following license:</emphasis>
+        </para>
+        <para>Copyright (c) 1995-1998 by Cisco systems, Inc.</para>
+        <para>Permission to use, copy, modify, and distribute this software
+        for any purpose and without fee is hereby granted, provided that this
+        copyright and permission notice appear on all copies of the software
+        and supporting documentation, the name of Cisco Systems, Inc. not be
+        used in advertising or publicity pertaining to distribution of the
+        program without specific prior permission, and notice be given in
+        supporting documentation that modification, copying and distribution
+        is by permission of Cisco Systems, Inc.</para>
+        <para>Cisco Systems, Inc. makes no representations about the
+        suitability of this software for any purpose. THIS SOFTWARE IS
+        PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
+        INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+        MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.</para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">The code written by Marc Huber is
+        distributed under the following license:</emphasis>
+        </para>
+        <para>Copyright (C) 1999-2022 Marc Huber
+        (<email>Marc.Huber@web.de</email>). All rights reserved.</para>
+        <para>Redistribution and use in source and binary forms, with or
+        without modification, are permitted provided that the following
+        conditions are met:</para>
+        <orderedlist>
+          <listitem>
+            <para>Redistributions of source code must retain the above
+            copyright notice, this list of conditions and the following
+            disclaimer.</para>
+          </listitem>
+          <listitem>
+            <para>Redistributions in binary form must reproduce the above
+            copyright notice, this list of conditions and the following
+            disclaimer in the documentation and/or other materials provided
+            with the distribution.</para>
+          </listitem>
+          <listitem>
+            <para>The end-user documentation included with the redistribution,
+            if any, must include the following acknowledgment:</para>
+            <blockquote>
+              <para>This product includes software developed by Marc Huber
+              (<email>Marc.Huber@web.de</email>).</para>
+            </blockquote>
+            <para>Alternately, this acknowledgment may appear in the software
+            itself, if and wherever such third-party acknowledgments normally
+            appear.</para>
+          </listitem>
+        </orderedlist>
+        <para>THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+        WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+        MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+        IN NO EVENT SHALL ITS AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+        INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+        BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+        OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+        ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+        TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+        USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+        DAMAGE.</para>
+      </listitem>
+    </itemizedlist>
+  </section>
+</article>

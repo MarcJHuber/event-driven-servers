@@ -1,0 +1,920 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.5//EN" "http://www.oasis-open.org/docbook/xml/4.5/docbookx.dtd">
+<article>
+  <articleinfo>
+    <title>spawnd</title>
+    <author>
+      <firstname>Marc</firstname>
+      <surname>Huber</surname>
+      <email>Marc.Huber@web.de</email>
+    </author>
+    <releaseinfo>$Id$</releaseinfo>
+  </articleinfo>
+  <section>
+    <title>Introduction</title>
+    <para><emphasis role="bold">spawnd</emphasis> is a broker with
+    load-balancing functionality that listens for incoming TCP (or SCTP)
+    connections on IP, UNIX or possibly IPv6 sockets, accepts them and finally
+    forwards them (using ancillary messages over UNIX domain sockets) to the
+    spawned worker processes.</para>
+    <para>Support for receiving and forwarding UDP packets to the worker processes is available, too (<emphasis role="bold">tac_plus-ng</emphasis> uses that for processing RADIUS/UDP) </para>
+    <section>
+      <title>Download</title>
+      <para>You can download the source code from the GitHub repository at <ulink url="https://github.com/MarcJHuber/event-driven-servers/">https://github.com/MarcJHuber/event-driven-servers/</ulink>.
+            On-line documentation is available via <ulink url="https://projects.pro-bono-publico.de/event-driven-servers/doc/">https://projects.pro-bono-publico.de/event-driven-servers/doc/</ulink>, too.
+      </para>
+    </section>
+  </section>
+  <section>
+    <title>Operation</title>
+    <para><emphasis role="bold">spawnd</emphasis> is now actually implemented
+    as a shared library, and the programs that had to be invoked by it are now
+    utilizing that library and are, as such, standalone. This in no way
+    implies that <emphasis role="bold">spawnd</emphasis> configuration would
+    be obsolete; only the binary is.</para>
+    <section>
+      <title>Command line syntax</title>
+      <para>Command line syntax is:</para>
+      <screen xml:space="preserve">spawnd [ <literal>-b</literal> | <literal>-f</literal> ] [ <literal>-p</literal> <emphasis>pidfile-name</emphasis> ] [ <literal>-P</literal> ] [ <literal>-d</literal> <emphasis>level</emphasis> ] <emphasis>configuration-file</emphasis> [ <emphasis>id</emphasis> ]</screen>
+      <para>The path to the configuration file is the only command line
+      argument mandatory. If compiled with CURL support,
+      <emphasis>configuration-file</emphasis> may be an URL.</para>
+      <para><emphasis>id</emphasis> defaults to <literal>spawnd</literal>. It
+      may be used to select a non-default section of the configuration
+      file.</para>
+      <para>The <literal>-b</literal> switch will tell the daemon to release
+      its controlling terminal on startup and fork itself to the background
+      (just like <literal>background = yes</literal> in the configuration
+      does, but with higher precedence). Likewise, <literal>-f</literal> keeps
+      the daemon from forking to the background.</para>
+      <para>The <literal>-p</literal> <emphasis>pidfile-name</emphasis> option
+      is equivalent to the <literal>pidfile =</literal>
+      <emphasis>pidfile-name</emphasis> configuration directive.</para>
+      <para>The <literal>-P</literal> option enables <emphasis>config parse
+      mode</emphasis>. Keep this one in mind; it is imperative that the
+      configuration file supplied is syntactically correct, as the daemon
+      won't start if there are any parsing errors at start-up.</para>
+      <para>The <literal>-d</literal> switch enables debugging. You most
+      likely don't want to use this. Read the source if you need to.</para>
+    </section>
+  </section>
+  <section>
+    <title>Configuration file syntax</title>
+    <para>A typical <emphasis role="bold">spawnd</emphasis> configuration file
+    consists of multiple <literal>id</literal> sections: one for <emphasis role="bold">spawnd</emphasis> itself, and one for the spawned server
+    process (e.g. <emphasis role="bold">tac_plus</emphasis> or <emphasis role="bold">ftpd</emphasis>. The actual configuration section used is, by
+    default, the one named after the program evaluating the configuration
+    file. However, a different section may be selected by specifying an
+    <literal>id</literal> parameter via command line or <emphasis role="bold">spawnd</emphasis> directive.</para>
+    <mediaobject>
+      <imageobject>
+        <imagedata fileref="railroad/spawnd/Config.eps" format="EPS" scale="80"/>
+      </imageobject>
+      <imageobject>
+        <imagedata fileref="railroad/spawnd/Config.gif" format="GIF"/>
+      </imageobject>
+      <caption>
+        <para>Railroad diagram: Config</para>
+      </caption>
+    </mediaobject>
+    <para>For example, have a look at the following configuration
+    snippet:</para>
+    <screen xml:space="preserve">id = spawnd { exec = /path/to/ftpd }
+id = spawnd2 { exec = /path/to/ftpd id = myftpd }
+id = myftpd { }
+id = ftpd { }</screen>
+    <para>A <emphasis role="bold">spawnd</emphasis> started with this will
+    default to evaluating the <literal>id = spawnd</literal> section, and any
+    <emphasis role="bold">ftpd</emphasis> instance started will default to the
+    corresponding <literal>ftpd</literal> stanza. However, starting <emphasis role="bold">spawnd</emphasis> with an additional argument, e.g.</para>
+    <screen xml:space="preserve">/path/to/spawnd /path/to/configuration_file spawnd2</screen>
+    <para>will choose the <literal>spawnd2</literal> section instead, which in
+    turn tells the <emphasis role="bold">ftpd</emphasis> to evaluate the
+    <literal>myftpd</literal> part of the configuration.</para>
+    <para>Comments within configuration files start with <literal>#</literal>.
+    At top-level, other configuration files may be included using
+    <literal>include = </literal><emphasis>file</emphasis> syntax. Glob
+    pattern matching applies (typical <literal>sh</literal>(1) wildcards are
+    evaluated).</para>
+    <para>All the configuration directives given below need to be enclosed in
+    an appropriate <literal>id { ... }</literal> section.</para>
+    <itemizedlist>
+      <listitem>
+        <para>(<literal>permit</literal> | <literal>deny</literal>) [
+        <literal>not</literal> ] <emphasis>cidr</emphasis></para>
+        <para>Accept or reject request from specific IP address ranges. This
+        directive may appear multiple times. Matches are tried in order. IPv6
+        ACLs are supported. Default is to accept everything.</para>
+        <para>Example:</para>
+        <screen xml:space="preserve">permit 127.0.0.1/8
+deny 192.168.5.0/8
+permit 192.168.0.0/16
+acl accept ::1</screen>
+      </listitem>
+      <listitem>
+        <para><literal>background =</literal> ( <literal>yes</literal> |
+        <literal>no</literal> )</para>
+        <para>If set, the daemon will release its controlling terminal on
+        startup and fork itself to the background (default:
+        <literal>no</literal>).</para>
+      </listitem>
+      <listitem>
+        <para><literal>listen {</literal> ... <literal>}</literal></para>
+        <para>This directives determines the connection end points the daemon
+        is listening on. For IP, valid configuration directives inside the
+        curly brackets are:</para>
+        <itemizedlist>
+          <listitem>
+            <para>
+              <literal>port =</literal>
+              <emphasis>Port</emphasis>
+            </para>
+            <para><emphasis>Port</emphasis> can be either numerical or a service name.</para>
+          </listitem>
+          <listitem>
+            <para><literal>flag =</literal> ( <literal>access</literal> | <literal>accounting</literal> )</para>
+            <para>RADIUS supports Status Server queries. If you want to use those reliably you should use dedicated ports for both RADIUS access and accounting packets and set <literal>flag = access</literal> of <literal>flag = accounting</literal>.
+            The flag will be forwarded to and evaluated by <emphasis role="bold">tac_plus-ng</emphasis> to choose the correct Server Status response.</para>
+          </listitem>
+          <listitem>
+            <para>
+              <literal>address =</literal>
+              <emphasis>IPAddress</emphasis>
+            </para>
+            <para>This is optional; by default the daemon listens on all
+            available IP addresses, both v4 and v6.</para>
+          </listitem>
+          <listitem>
+            <para><literal>protocol =</literal> ( <literal>TCP</literal> | <literal>UDP</literal> |
+            <literal>SCTP</literal> )</para>
+            <para>Default protocol is TCP.</para>
+          </listitem>
+          <listitem>
+            <para>
+              <literal>bind retry delay =</literal>
+              <emphasis>Seconds</emphasis>
+            </para>
+            <para>On <emphasis>bind(2)</emphasis> failure, wait the specified
+            number of <emphasis>Seconds</emphasis>, then try again. Default:
+            0 seconds (no retries).</para>
+          </listitem>
+          <listitem>
+            <para><literal>reuse-port =</literal> ( <literal>yes</literal> | <literal>no</literal> )</para>
+            <para>On Linux, FreeBSD and DragonFly: use <literal>SO_REUSEPORT</literal> to allow multiple <literal>spawnd</literal> instances to bind to the same TCP or UDP ports. Disabled by default.</para>
+          </listitem>
+        </itemizedlist>
+        <para>For listening on UNIX domain sockets, a different syntax
+        applies:</para>
+        <itemizedlist>
+          <listitem>
+            <para>
+              <literal>path =</literal>
+              <emphasis>Path</emphasis>
+            </para>
+            <para>This directive specifies the path to the UNIX domain
+            socket.</para>
+          </listitem>
+          <listitem>
+            <para>
+              <literal>mode =</literal>
+              <emphasis>Mode</emphasis>
+            </para>
+            <para>This sets the file creation mode.</para>
+          </listitem>
+          <listitem>
+            <para>
+              <literal>userid =</literal>
+              <emphasis>UserID</emphasis>
+            </para>
+            <para>This specifies the user ID for socket creation.</para>
+          </listitem>
+          <listitem>
+            <para>
+              <literal>groupid =</literal>
+              <emphasis>GroupID</emphasis>
+            </para>
+            <para>This specifies the group ID for socket creation.</para>
+          </listitem>
+          <listitem>
+            <para><literal>sticky cache period =</literal> Seconds</para>
+            <para>This option tells the daemon to try to forward all
+            connections from a particular source address to the same worker
+            process. Defaults to 0 (disabled).</para>
+          </listitem>
+          <listitem>
+            <para><literal>sticky cache size =</literal> Number</para>
+            <para>This option sets the maximum number of entries in the
+            "sticky" cache. Defaults to 1024.</para>
+          </listitem>
+        </itemizedlist>
+        <para>Directives which may be used in both cases are:</para>
+        <itemizedlist>
+          <listitem>
+            <para><literal>tls =</literal> ( <literal>yes</literal> |
+            <literal>no</literal> | <literal>auto</literal>)</para>
+            <para>This directive indicates to a child process whether the connection is supposed to be encrypted using TLS or DTLS.</para>
+            <para>Also, this directive can be used for setting the supported TLS/DTLS versions:</para>
+            <screen xml:space="preserve">    tls = yes             # TLSv1.2 and TLSv1.3 for TCP, DTLSv1.2, DTLSv1.3 for UDP
+    tls = TLSv1.3          # TLSv1.3 only
+    tls = DTLSv1.2,DTLSv1.3 # DTLSv1.2 and 1.3 only
+</screen>
+            <para>Regardless of this setting <emphasis role="bold">tac_plus-ng</emphasis> will accept TLS/DTLS connections if <literal>tls auto-detect = yes</literal> is enabled and TLS/DTLS support is activated.</para>
+            <para>DTLSv1.3 support will only be available if your <emphasis>OpenSSL</emphasis> library supports it.</para>
+          </listitem>
+          <listitem>
+            <para><literal>tls psk =</literal> ( <literal>yes</literal> |
+            <literal>no</literal> )</para>
+            <para>This directive tells a child process whether to uses pre-shared keys instead of certificates for TLS authentication (currently <emphasis role="bold">tac_plus-ng</emphasis> only).</para>
+          </listitem>
+          <listitem>
+            <para>
+              <literal>aaa.protocol = </literal>
+              <emphasis>Protocol</emphasis>
+            </para>
+            <para>To keep <emphasis role="bold">tac_plus-ng</emphasis> from auto-detecting the AAA protocol, <emphasis>Protocol</emphasis> can be set to exactly one of <literal>tacacs.tcp</literal>, <literal>tacacs.tls</literal>, <literal>radius.udp</literal>, <literal>radius.tcp</literal>, <literal>radius.dtls</literal> or <literal>radius.tls</literal>.</para>
+          </listitem>
+          <listitem>
+            <para><literal>haproxy =</literal> ( <literal>yes</literal> |
+            <literal>no</literal> )</para>
+            <para>This directive tells a child process whether the connection is permitted to use the <emphasis>haproxy</emphasis> protocol (currently <emphasis role="bold">tac_plus-ng</emphasis> only).</para>
+          </listitem>
+          <listitem>
+            <para>
+              <literal>backlog =</literal>
+              <emphasis>Number</emphasis>
+            </para>
+            <para>This sets the maximum number of pending connections
+            (default: 128); see <literal>listen</literal>(2) for
+            details.</para>
+          </listitem>
+          <listitem>
+            <para>
+              <literal>overload backlog =</literal>
+              <emphasis>Number</emphasis>
+            </para>
+            <para>This sets the maximum number of pending connections in
+            overload situations (default: 128); see
+            <literal>listen</literal>(2) for details.</para>
+          </listitem>
+          <listitem>
+            <para>
+              <literal>realm =</literal>
+              <emphasis>String</emphasis>
+            </para>
+            <para>Sends <emphasis>String</emphasis> to the client process when
+            forwarding a connection. The client process may be able to use
+            this value to differentiate between connection endpoints. Use this
+            option only with clients that actually support it (currently:
+            <literal>tac_plus</literal>).</para>
+          </listitem>
+          <listitem>
+            <para>
+              <literal>vrf =</literal>
+              <emphasis>id</emphasis>
+            </para>
+            <para>Sets the VRF to <emphasis>id</emphasis> on systems that support it.
+            <emphasis>id</emphasis> is the VRF name on Linux, or the numeric VRF id on OpenBSD.
+            </para>
+          </listitem>
+          <listitem>
+            <para>
+              <literal>bind retry delay =</literal>
+              <emphasis>Seconds</emphasis>
+            </para>
+            <para>On <literal>bind</literal>(2) failure, wait the specified
+            number of <emphasis>Seconds</emphasis>, then try again. Defaults
+            to the global <literal>bind retry delay</literal> value.</para>
+          </listitem>
+          <listitem>
+            <para><literal>tcp keepalive</literal> ( <literal>count</literal>
+            | <literal>idle</literal> | <literal>interval</literal> )
+            <literal>=</literal> <emphasis>Number</emphasis></para>
+            <para>Sets various options for TCP keepalive probes, if supported
+            by the operating system.</para>
+          </listitem>
+          <listitem>
+            <para>
+              <literal>tcp bufsize</literal>
+              <emphasis>Number</emphasis>
+            </para>
+            <para>Overrides the system default input/output buffer sizes (SO_SNDBUF, SO_RCVBUF) for communication with child processes.</para>
+          </listitem>
+          <listitem>
+            <para><literal>sticky cache period =</literal> Seconds</para>
+            <para>This option tells the daemon to try to forward all
+            connections from a particular source address to the same worker
+            process. Defaults to 0 (disabled).</para>
+          </listitem>
+          <listitem>
+            <para><literal>sticky cache size =</literal> Number</para>
+            <para>This option sets the maximum number of entries in the
+            "sticky" cache. Defaults to 1024.</para>
+          </listitem>
+          <listitem>
+            <para>
+              <literal>dscp =</literal>
+              <emphasis>dscpValue</emphasis>
+            </para>
+            <para>Sets the IPv4/IPv6 DSCP value to <emphasis>dscpValue</emphasis>. Example: <literal>dscp = 0x38</literal>.
+            </para>
+          </listitem>
+        </itemizedlist>
+        <para>The <emphasis>listen</emphasis> directive is mandatory unless
+        the daemon is started via an <literal>inetd</literal>(8) (or
+        compatible) process, in which case</para>
+        <itemizedlist>
+          <listitem>
+            <para>the <emphasis>inetd</emphasis> <literal>wait</literal> option needs to be used</para>
+          </listitem>
+          <listitem>
+            <para><literal>argv[0]</literal> needs to be the absolute path to
+            the binary</para>
+          </listitem>
+        </itemizedlist>
+        <para>For standard <literal>inetd</literal>(8), configuration syntax
+        for <literal>ftpd</literal> or any other <literal>spawnd</literal>
+        compliant application would look like:</para>
+        <screen xml:space="preserve">ftp  stream  tcp  wait root /usr/local/sbin/ftpd /usr/local/sbin/ftpd /usr/local/etc/ftpd.cfg</screen>
+        <para>or, with explicit specification of the spawned program's name in
+        the configuration,</para>
+        <screen xml:space="preserve">ftp  stream  tcp  wait root /usr/local/sbin/spawnd ftpd -f /usr/local/etc/ftpd.cfg</screen>
+        <para>The equivalent <literal>xinetd</literal>(8) would (or could)
+        be:</para>
+        <screen xml:space="preserve">service ftp
+{
+    flags       = NAMEINARGS NOLIBWRAP
+    socket_type = stream
+    protocol    = tcp
+    wait        = yes
+    user        = root
+    server      = /usr/local/sbin/ftpd
+    server_args = /usr/local/sbin/ftpd -f /usr/local/etc/ftpd.cfg
+    instances   = 1
+}</screen>
+      </listitem>
+      <listitem>
+        <para>
+          <literal>pidfile =</literal>
+          <emphasis>file</emphasis>
+        </para>
+        <para>The process id will be written to
+        <emphasis>file</emphasis>.</para>
+      </listitem>
+      <listitem>
+        <para><literal>spawn {</literal> ... <literal>}</literal></para>
+        <para>The <literal>spawn</literal> section defines various aspects
+        related to the actual server processes:</para>
+        <itemizedlist>
+          <listitem>
+            <para><literal>exec =</literal> Path</para>
+            <para>Defines the path the server process. This is mandatory when
+            running the standalone <emphasis role="bold">spawnd</emphasis>
+            process, but may be omitted else.</para>
+            <para>Magic cookie substitution applies. The available conversions
+            are</para>
+            <itemizedlist>
+              <listitem>
+                <para><literal>%o</literal> - run-time OS type</para>
+              </listitem>
+              <listitem>
+                <para><literal>%O</literal> - compile-time OS type</para>
+              </listitem>
+            </itemizedlist>
+            <para>The "OS type" string inserted is identical to the output
+            of:</para>
+            <screen xml:space="preserve">uname -srm | tr ' [:upper:]' '\-[:lower:]'</screen>
+            <para>Example: For "Linux 2.3.35 i686",</para>
+            <screen xml:space="preserve">exec = /some/where/%O/ftpd</screen>
+            <para>resolves to</para>
+            <screen xml:space="preserve">exec = /some/where/linux-2.3.35-i686/ftpd</screen>
+          </listitem>
+          <listitem>
+            <para><literal>id =</literal> ID</para>
+            <para>Optionally defines a different ID for configuration file
+            parsing. Defaults to the executables basename.</para>
+          </listitem>
+          <listitem>
+            <para><literal>config =</literal> ConfigurationFile</para>
+            <para>Optionally assigns a configuration file. Defaults to the
+            configuration file <emphasis role="bold">spawnd</emphasis> is
+            started with.</para>
+          </listitem>
+          <listitem>
+            <para><literal>instances</literal> ( <literal>min</literal> |
+            <literal>max</literal> ) <literal>=</literal> Number</para>
+            <para>Sets the minimum or maximum number of server processes to
+            start. Defaults to 2 and 8.</para>
+          </listitem>
+          <listitem>
+            <para><literal>sticky cache period =</literal> Seconds</para>
+            <para>This option tells the daemon to try to forward all
+            connections from a particular source address to the same worker
+            process. Defaults to 0 (disabled).</para>
+          </listitem>
+          <listitem>
+            <para><literal>sticky cache size =</literal> Number</para>
+            <para>This option sets the maximum number of entries in the
+            "sticky" cache. Defaults to 1024.</para>
+          </listitem>
+          <listitem>
+            <para><literal>users</literal> ( <literal>min</literal> |
+            <literal>max</literal> ) <literal>=</literal> Number</para>
+            <para>This directive limits the number of users per process. The
+            distribution algorithm attempts to assign at least
+            <emphasis>min</emphasis> (default: 5) and at most
+            <emphasis>max</emphasis> (default: 40) users to each process,
+            while attempting to keep the total number of processes at a
+            reasonable limit.</para>
+            <para>The spawned processes may have their own idea about the
+            maximum number of users permitted and may lower the specified
+            maximum number of users to a more suitable value.</para>
+          </listitem>
+          <listitem>
+            <para><literal>userid =</literal> UserID</para>
+            <para>Change UID to <emphasis>UserID</emphasis> for spawned
+            processes.</para>
+          </listitem>
+          <listitem>
+            <para><literal>groupid =</literal> GroupID</para>
+            <para>Change GID to <emphasis>GroupID</emphasis> for spawned
+            processes.</para>
+          </listitem>
+          <listitem>
+            <para><literal>working directory =</literal> Directory</para>
+            <para>Change directory to <emphasis>Directory</emphasis> for
+            spawned processes.</para>
+          </listitem>
+          <listitem>
+            <para><literal>ipc key =</literal> Number</para>
+            <para>If this is set and the program was compiled with IPC
+            support, then the configuration file will be cached in a shared
+            memory segment and will only be loaded once. This may be of
+            advantage if the configuration file given as an URL that will be
+            retrieved using CURL.</para>
+          </listitem>
+        </itemizedlist>
+      </listitem>
+      <listitem>
+        <para><literal>overload =</literal> ( <literal>close</literal> |
+        <literal>queue</literal> | <literal>reset</literal>)</para>
+        <para>If the maximum number of users is reached, either close, reset
+        or queue new connections. The latter is the default.</para>
+      </listitem>
+      <listitem>
+        <para><literal>tcp keepalive</literal> ( <literal>count</literal> |
+        <literal>idle</literal> | <literal>interval</literal> )
+        <literal>=</literal> Number</para>
+        <para>Sets various options for TCP keepalive probes, if supported by
+        the operating system.</para>
+      </listitem>
+      <listitem>
+        <para><literal>syslog</literal> ( ( <literal>ident =</literal> Ident)
+        | ( <literal>severity =</literal> Level ) | ( <literal>facility
+        =</literal> Facility))</para>
+        <para>Selects syslog <emphasis>ident</emphasis>,
+        <emphasis>severity</emphasis> and <emphasis>facility</emphasis>. Defaults
+        to:</para>
+        <screen xml:space="preserve">syslog ident = <emphasis>program-name</emphasis>
+syslog facility = UUCP
+syslog severity = INFO</screen>
+      </listitem>
+      <listitem>
+        <para><literal>single process =</literal> ( <literal>yes</literal> |
+        <literal>no</literal> )</para>
+        <para>Changes the execution model to <emphasis>single
+        process</emphasis> mode. Connections will be accepted and processed by
+        one single instance of the process, and not, as it's the default, be
+        forwarded to child processes. Useful for systems that lack file
+        descriptor passing capabilities.</para>
+        <para>Default: <literal>yes</literal> (and not changeable) on Cygwin,
+        <literal>no</literal> everywhere else.</para>
+      </listitem>
+    </itemizedlist>
+    <section>
+      <title>Railroad Diagrams</title>
+      <para/>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/SpawndConfig.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/SpawndConfig.gif" format="GIF"/>
+        </imageobject>
+        <caption>
+          <para>Railroad diagram: SpawndConfig</para>
+        </caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/ListenDecl.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/ListenDecl.gif" format="GIF"/>
+        </imageobject>
+        <caption>
+          <para>Railroad diagram: ListenDecl</para>
+        </caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/ChildDecl.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/ChildDecl.gif" format="GIF"/>
+        </imageobject>
+        <caption>
+          <para>Railroad diagram: Child</para>
+        </caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/AclDecl.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/AclDecl.gif" format="GIF"/>
+        </imageobject>
+        <caption>
+          <para>Railroad diagram: AclDecl</para>
+        </caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/CIDR.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/CIDR.gif" format="GIF"/>
+        </imageobject>
+        <caption>
+          <para>Railroad diagram: CIDR</para>
+        </caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/MiscDecl.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/MiscDecl.gif" format="GIF"/>
+        </imageobject>
+        <caption>
+          <para>Railroad diagram: MiscDecl</para>
+        </caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/SyslogDecl.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/SyslogDecl.gif" format="GIF"/>
+        </imageobject>
+        <caption>
+          <para>Railroad diagram: SyslogDecl</para>
+        </caption>
+      </mediaobject>
+      <mediaobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/Debug.eps" format="EPS" scale="80"/>
+        </imageobject>
+        <imageobject>
+          <imagedata fileref="railroad/spawnd/Debug.gif" format="GIF"/>
+        </imageobject>
+        <caption>
+          <para>Railroad diagram: Debug</para>
+        </caption>
+      </mediaobject>
+    </section>
+  </section>
+  <section>
+    <title>Signals</title>
+    <para><emphasis role="bold">spawnd</emphasis> will terminate upon
+    receiving a SIGTERM or SIGINT signal. SIGHUP will cause <emphasis role="bold">spawnd</emphasis> to restart itself from
+    scratch. Listening sockets that the new configuration still
+    has are kept open across the restart, so clients are neither
+    refused nor reset during a reload.</para>
+    <para>The daemon is only checking for signals every couple of seconds, so
+    actions aren't necessarily immediate.</para>
+  </section>
+  <section>
+    <title>Load balancing algorithm</title>
+    <para><emphasis role="bold">spawnd</emphasis> allows configuration of
+    upper and lower limits for users and processes. The distribution algorithm
+    will try to assign new connections to one of the running servers with less
+    than <emphasis>users_min</emphasis> connections. If all servers already
+    have at least <emphasis>users_min</emphasis> active connections and the
+    total number of servers doesn't exceed <emphasis>servers_max</emphasis>,
+    an additional server process is started, and the connection is assigned to
+    that process. If no more processes may be started, the connection is
+    assigned to the server process with less than
+    <emphasis>users_max</emphasis> users, which serves the lowest number of
+    connections. Otherwise, the connection will stall until an existing
+    connection terminates.</para>
+    <para>If the <emphasis>sticky</emphasis> feature is enabled, <emphasis role="bold">spawnd</emphasis> will try to assign connections to server
+    processes based on the remote IP address of the peer. Please not that this will not work in combination with HAProxy.</para>
+  </section>
+  <section>
+    <title>Event mechanism selection</title>
+    <para>Several level-triggered event mechanisms are supported. By default,
+    the one best suited for your operating system will be used. However, you
+    may use the environment variable <literal>IO_POLL_MECHANISM</literal> to
+    select a specific one.</para>
+    <para>The following event mechanisms are supported (in order of
+    preference):</para>
+    <itemizedlist>
+      <listitem>
+        <para>port (Sun Solaris 10 and higher only,
+        <literal>IO_POLL_MECHANISM=32</literal>)</para>
+      </listitem>
+      <listitem>
+        <para>kqueue (*BSD and Darwin only,
+        <literal>IO_POLL_MECHANISM=1</literal>)</para>
+      </listitem>
+      <listitem>
+        <para>/dev/poll (Sun Solaris only,
+        <literal>IO_POLL_MECHANISM=2</literal>)</para>
+      </listitem>
+      <listitem>
+        <para>epoll (Linux only,
+        <literal>IO_POLL_MECHANISM=4</literal>)</para>
+      </listitem>
+      <listitem>
+        <para>poll (<literal>IO_POLL_MECHANISM=8</literal>)</para>
+      </listitem>
+      <listitem>
+        <para>select (<literal>IO_POLL_MECHANISM=16</literal>)</para>
+      </listitem>
+    </itemizedlist>
+    <para>Environment variables can be set in the configuration file at top-level:</para>
+    <screen xml:space="preserve">setenv IO_POLL_MECHANISM = 4</screen>
+  </section>
+  <section>
+    <title>Sample configuration</title>
+    <para/>
+    <screen xml:space="preserve">id = spawnd {
+    listen { port 21 }
+    listen { address = ::0 port = 2121 tls }
+    spawn {
+        users minimum = 10
+        users maximum = 100
+        instances minimum = 10
+        instances maximum = 100
+        exec = /usr/local/libexec/ftpd
+        id = ftpd
+        config = /usr/local/etc/ftpd.conf
+    }
+    background = true
+}</screen>
+  </section>
+  <section>
+    <title>Startup examples</title>
+    <para><emphasis role="bold">spawnd</emphasis> (either standalone, or
+    utilized via the <literal>MAVIS</literal> library, which is what <emphasis role="bold">ftpd</emphasis>, <emphasis role="bold">tac_plus</emphasis> and
+    <emphasis role="bold">tcprelay</emphasis> do) is a long-running process.
+    It may be started either manually, on demand, or at system boot
+    time.</para>
+    <para>The examples in this section focus on <emphasis role="bold">tac_plus</emphasis>, but are easily adaptable to the <emphasis role="bold">ftpd</emphasis> and <emphasis role="bold">tcprelay</emphasis>
+    daemons.</para>
+    <section>
+      <title>Manual startup</title>
+      <para>Starting a daemon manually is fine for testing, but, generally,
+      undesireable for production. A configuration file that specifies at
+      least a port the daemon should listen to is required:</para>
+      <screen xml:space="preserve">id = spawnd {
+    listen {
+        port = 49
+    }
+}
+id = tac_plus {
+  ...
+}</screen>
+      <para>Copy this to, e.g., <literal>./tac_plus.cfg</literal>, then start
+      the daemon:</para>
+      <screen xml:space="preserve"># /usr/local/sbin/tac/plus ./tac_plus.cfg</screen>
+      <para>The daemon will now run in the foreground, blocking your shell
+      until interrupted or being send to the background. If you want to run
+      the daemon in the background, you can either add</para>
+      <screen xml:space="preserve">    background = yes</screen>
+      <para>to the <literal>spawnd</literal> section, or use the
+      <literal>-b</literal> command line option:</para>
+      <screen xml:space="preserve"># /usr/local/sbin/tac/plus -b /usr/local/etc/tac_plus.cfg</screen>
+    </section>
+    <section>
+      <title>Startup on demand</title>
+      <para>The daemon may be started on demand by <literal>inetd</literal>(8)
+      or compatible applications. The configuration file should <emphasis role="bold">not</emphasis> specify a port to bind to, as
+      <literal>inetd</literal> will pass an already bound socket to the
+      daemon:</para>
+      <screen xml:space="preserve">id = spawnd {
+    listen {
+    }
+}
+id = tac_plus {
+  ...
+}</screen>
+      <section>
+        <title>inetd</title>
+        <para>For stock <literal>inetd</literal>, adding the following line to
+        <literal>/etc/inetd.conf</literal> and sending a
+        <literal>HUP</literal> to <literal>inetd</literal> will activate the
+        daemon:</para>
+        <screen xml:space="preserve">tacacs  stream  tcp  wait root /usr/local/sbin/tac_plus /usr/local/sbin/tac_plus /usr/local/etc/tac_plus.cfg</screen>
+      </section>
+      <section>
+        <title>xinetd</title>
+        <para>The equivalent <literal>xinetd</literal>(8)
+        configuration:</para>
+        <screen xml:space="preserve">service tacacs
+{
+    flags       = NAMEINARGS NOLIBWRAP
+    socket_type = stream
+    protocol    = tcp
+    wait        = yes
+    user        = root
+    server      = /usr/local/sbin/tac_plus
+    server_args = /usr/local/sbin/tac_plus /usr/local/etc/tac_plus.cfg
+    instances   = 1
+}</screen>
+        <para>Depending on your setup this could either be added to
+        <literal>/etc/xinetd.conf</literal> or be written to
+        <literal>/etc/xinetd.d/tacacs</literal>.</para>
+      </section>
+      <section>
+        <title>launchd</title>
+        <para>Mac OS X comes with <literal>launchd</literal>(8), and here's a
+        suitable
+        <literal>/Library/LaunchDaemons/de.pro-bono-publico.tac_plus.plist</literal>:</para>
+        <screen xml:space="preserve">&lt;xml version="1.0" encoding="UTF-8"?&gt;
+&lt;DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
+&lt;plist version="1.0"&gt;
+&lt;dict&gt;
+    &lt;key&gt;Label&lt;key&gt;
+    &lt;string&gt;de.pro-bono-publico.tac_plus&lt;string&gt;
+    &lt;key&gt;ProgramArguments&lt;key&gt;
+    &lt;array&gt;
+        &lt;string&gt;/usr/local/sbin/tac_plus&lt;string&gt;
+        &lt;string&gt;-p&lt;string&gt;
+        &lt;string&gt;/var/run/tac_plus.pid&lt;string&gt;
+        &lt;string&gt;/usr/local/etc/tac_plus.cfg&lt;string&gt;
+    &lt;array&gt;
+    &lt;key&gt;KeepAlive&lt;key&gt; &lt;true/&gt;
+    &lt;key&gt;Sockets&lt;key&gt;
+        &lt;dict&gt;
+            &lt;key&gt;Listeners&lt;key&gt;
+            &lt;dict&gt; &lt;key&gt;SockServiceName&lt;key&gt; &lt;string&gt;tacacs&lt;string&gt; &lt;dict&gt;
+        &lt;dict&gt;
+    &lt;key&gt;inetdCompatibility&lt;key&gt;
+        &lt;dict&gt; &lt;key&gt;Wait&lt;key&gt; &lt;true/&gt; &lt;dict&gt;
+    &lt;key&gt;KeepAlive&lt;key&gt;
+        &lt;dict&gt; &lt;key&gt;NetworkState&lt;key&gt; &lt;true/&gt; &lt;dict&gt;
+&lt;dict&gt;
+&lt;plist&gt;</screen>
+        <para>This needs to be activated using</para>
+        <screen xml:space="preserve"># sudo launchctl load -w /Library/LaunchDaemons/de.pro-bono-publico.tac_plus.plist</screen>
+        <para>The daemon will write its process id to
+        <literal>/var/run/tac_plus.pid</literal>, and</para>
+        <screen xml:space="preserve"># sudo kill `cat /var/run/tac_plus.pid`</screen>
+        <para>will cause it to restart (and, implicitly, to re-read the
+        configuration file).</para>
+      </section>
+    </section>
+    <section>
+      <title>Startup at system boot</title>
+      <para>The daemons may be started at system boot time. Alas, that's very
+      specific to your system. You should definitely know what you're doing,
+      or you may render your system unbootable.</para>
+      <section>
+        <title>Init scripts</title>
+        <para>The distribution comes with a couple of System V style init
+        scripts, e.g. <literal>tac_plus/doc/etc_init.d_tac_plus</literal>.
+        Copy this script to a location appropriate to your system (e.g.
+        <literal>/etc/init.d/tac_plus</literal> and create the relevant
+        symbolic or hardlinks. See your systems documentation for
+        details.</para>
+      </section>
+      <section>
+        <title>launchd</title>
+        <para>On MacOS, create a file
+        <literal>/Library/LaunchDaemons/de.pro-bono-publico.tac_plus.plist</literal>
+        that consists of:</para>
+        <screen xml:space="preserve">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
+&lt;plist version="1.0"&gt;
+&lt;dict&gt;
+    &lt;key&gt;Label&lt;/key&gt;
+    &lt;string&gt;de.pro-bono-publico.tac_plus&lt;/string&gt;
+    &lt;key&gt;ProgramArguments&lt;/key&gt;
+    &lt;array&gt;
+        &lt;string&gt;/usr/local/sbin/tac_plus&lt;/string&gt;
+        &lt;string&gt;-f&lt;/string&gt;
+        &lt;string&gt;-p&lt;/string&gt;
+        &lt;string&gt;/var/run/tac_plus.pid&lt;/string&gt;
+        &lt;string&gt;/usr/local/etc/tac_plus.cfg&lt;/string&gt;
+    &lt;/array&gt;
+    &lt;key&gt;KeepAlive&lt;/key&gt;
+        &lt;dict&gt; &lt;key&gt;NetworkState&lt;/key&gt; &lt;true/&gt; &lt;/dict&gt;
+&lt;/dict&gt;
+&lt;/plist&gt;</screen>
+        <para>Then tell <literal>launchd</literal> about this
+        configuration:</para>
+        <screen xml:space="preserve"># sudo launchctl load -w /Library/LaunchDaemons/de.pro-bono-publico.tac_plus.plist</screen>
+        <para>The daemon will write its process id to
+        <literal>/var/run/tac_plus.pid</literal>, and you may make it re-read
+        its configuration file by issuing</para>
+        <screen xml:space="preserve"># sudo kill -HUP `cat /var/run/tac_plus.pid`</screen>
+      </section>
+      <section>
+        <title>systemd</title>
+        <para>For <literal>systemd</literal> you'll have to create an
+        appropriate <emphasis>configuration unit</emphasis>. Copy</para>
+        <screen xml:space="preserve">[Unit]
+Description=TACACS+ Service
+After=syslog.target
+
+[Service]
+ExecStart=/usr/local/sbin/tac_plus -f /usr/local/etc/tac_plus.cfg
+KillMode=process
+Restart=always
+ExecReload=/bin/kill -HUP $MAINPID
+
+[Install]
+WantedBy=multi-user.target</screen>
+        <para>to <literal>/etc/systemd/system/tac_plus.service</literal>, then
+        enable and start the service:</para>
+        <screen xml:space="preserve"># sudo systemctl enable tac_plus.service
+# sudo systemctl start tac_plus.service</screen>
+      </section>
+    </section>
+  </section>
+  <section>
+    <title>Copyrights and Acknowledgements</title>
+    <para>Please see the source for copyright and licensing information of
+    individual files.</para>
+    <itemizedlist>
+      <listitem>
+        <para>
+          <emphasis role="bold">Portions of the parsing code are taken
+        from Cisco's tac_plus developers kit which is distributed under the
+        following license:</emphasis>
+        </para>
+        <para>Copyright (c) 1995-1998 by Cisco systems, Inc.</para>
+        <para>Permission to use, copy, modify, and distribute this software
+        for any purpose and without fee is hereby granted, provided that this
+        copyright and permission notice appear on all copies of the software
+        and supporting documentation, the name of Cisco Systems, Inc. not be
+        used in advertising or publicity pertaining to distribution of the
+        program without specific prior permission, and notice be given in
+        supporting documentation that modification, copying and distribution
+        is by permission of Cisco Systems, Inc.</para>
+        <para>Cisco Systems, Inc. makes no representations about the
+        suitability of this software for any purpose. THIS SOFTWARE IS
+        PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED WARRANTIES,
+        INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
+        MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.</para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">The code written by Marc Huber is
+        distributed under the following license:</emphasis>
+        </para>
+        <para>Copyright (C) 1999-2022 Marc Huber
+        (<email>Marc.Huber@web.de</email>). All rights reserved.</para>
+        <para>Redistribution and use in source and binary forms, with or
+        without modification, are permitted provided that the following
+        conditions are met:</para>
+        <orderedlist>
+          <listitem>
+            <para>Redistributions of source code must retain the above
+            copyright notice, this list of conditions and the following
+            disclaimer.</para>
+          </listitem>
+          <listitem>
+            <para>Redistributions in binary form must reproduce the above
+            copyright notice, this list of conditions and the following
+            disclaimer in the documentation and/or other materials provided
+            with the distribution.</para>
+          </listitem>
+          <listitem>
+            <para>The end-user documentation included with the redistribution,
+            if any, must include the following acknowledgment:</para>
+            <blockquote>
+              <para>This product includes software developed by Marc Huber
+              (<email>Marc.Huber@web.de</email>).</para>
+            </blockquote>
+            <para>Alternately, this acknowledgment may appear in the software
+            itself, if and wherever such third-party acknowledgments normally
+            appear.</para>
+          </listitem>
+        </orderedlist>
+        <para>THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESSED OR IMPLIED
+        WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+        MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+        IN NO EVENT SHALL ITS AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+        INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+        BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+        OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+        ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
+        TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+        USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+        DAMAGE.</para>
+      </listitem>
+    </itemizedlist>
+  </section>
+</article>

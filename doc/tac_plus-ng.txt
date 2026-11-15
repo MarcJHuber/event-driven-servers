@@ -638,7 +638,7 @@ device router.example.com {
      * dns cache period = seconds
        This option specifies the minimum DNS response caching time
        (default: 1800 seconds).
-     * dns servers = "string"
+     * dns servers = " string "
        This option specifies the servers to use. This string will
        be evaluated by ares_set_servers_ports_csv(3), please see
        the corresponding man page for details. The option isn't
@@ -1334,7 +1334,7 @@ login backend = mavis chalresp noecho
        then authenticate the user based on information eventually
        found there.
        This directive implies user backend = mavis.
-     * mavis module module { ... }
+     * mavis modulemodule { ... }
        Load MAVIS module module. See the MAVIS documentation for
        configuration guidance.
      * mavis path = path
@@ -1660,7 +1660,7 @@ tacacs-server host 192.168.0.1 single-connection key your key here
 
    Generally, the syntax for device declarations conforms to
 
-   device name { key-value pairs }
+   devicename { key-value pairs }
 
    The key-value pairs permitted in device sections of the
    configuration file are explained below.
@@ -1981,7 +1981,7 @@ device test123 {
    Both cron and Taylor-UUCP syntax are supported; see you local
    crontab(5) and/or UUCP man pages for details. Syntax:
 
-   time = time_name { "entry" [ ... ] }
+   time =time_name { "entry" [ ... ] }
 
    Example:
 # Working hours are from Mo-Fr from 9 to 16:59, and
@@ -2051,7 +2051,7 @@ profile A {
 
    Scripting examples:
 
-     * acl aclName { tac_action ... }
+     * acl aclName{ tac_action ... }
        Example:
     acl myacl123 {
         if (nas == 1.2.3.4 || nac = SomeHostName || nac-dns =~ /\\.examp
@@ -2205,14 +2205,14 @@ set radius[Cisco:Cisco-AVPair] = "ip:inacl#2=permit ip any any"
    Conditions:
 
    Left-hand side Operators Right-hand side Comment
-   "string" == != =~ !~ String or REGEX Log variable substitutions
-   will apply
+   " string " == != =~ !~ String or REGEX Log variable
+   substitutions will apply
    aaa.protocol.allowed == != one (or more, comma-separated) of
    radius (covers all RADIUS transports), radius.udp, radius.tcp,
    radius.dtls, radius.tls, tacacs (covers all TACACS+
    transports), tacacs.tcp, tacacs.tls
    acl == != ACL object name
-   arg[attr] == != =~ !~ String or REGEX arg[protocol],
+   arg[ attr ] == != =~ !~ String or REGEX arg[protocol],
    arg[service], ...
    authen-action == != =~ !~ String or REGEX login, chpass
    authen-method == != =~ !~ String or REGEX login, enable, ppp
@@ -2259,7 +2259,7 @@ set radius[Cisco:Cisco-AVPair] = "ip:inacl#2=permit ip any any"
    (0 ... 15) reported by the device
    protocol == != =~ !~ String or REGEX session protocol (ppp,
    ...)
-   radius[RADIUS attribute] == != =~ !~ RADIUS attribute value
+   radius[ RADIUS attribute ] == != =~ !~ RADIUS attribute value
    realm == != Realm object name
    server.address == != =~ !~ Server address
    server.name == != =~ !~ Server host name
@@ -2375,7 +2375,7 @@ password login = clear Ci5c0
        For MS-CHAP authentication, a cleartext password is
        required. Alternatively, a suitable MAVIS backend can be
        used.
-     * password { ... }
+     * password{ ... }
        This directive allows for nested specification of
        passwords. Example:
 user marc {
@@ -2413,8 +2413,8 @@ user marc {
        group.
      * profile = profileName
        profile { profileAttr }
-       net netName {netAttr }
-       time timeName {timeAttr }
+       net netName { netAttr }
+       time timeName { timeAttr }
        A profile may be assigned to a user directly, the main
        ruleset will be then skipped.
        Also, a profile definition can be part of the user context,
@@ -2980,7 +2980,7 @@ int async 1
    Directory. The server type is detected automatically. Its
    behaviour is controlled by a list of environmental variables:
 
-          Variable         Description
+           Variable        Description
    LDAP_HOSTS
 
    Space-separated list of LDAP URLs or IP addresses or device
