@@ -122,9 +122,12 @@ void send_acct_reply(tac_session * session, u_char status, char *msg, char *data
     reply->data_len = htons((u_short) data_len);
 
     u_char *p = (u_char *) reply + TAC_ACCT_REPLY_FIXED_FIELDS_SIZE;
-    memcpy(p, msg, msg_len);
+    // msg and data may be NULL with length 0, memcpy() wants valid pointers even then
+    if (msg_len)
+	memcpy(p, msg, msg_len);
     p += msg_len;
-    memcpy(p, data, data_len);
+    if (data_len)
+	memcpy(p, data, data_len);
 
     write_packet(session->ctx, pak);
     cleanup_session(session);
@@ -172,10 +175,12 @@ void send_author_reply(tac_session * session, u_char status, char *msg, char *da
 	memcpy(p, session->user_msg, user_msg_len);
 	p += user_msg_len;
     }
-    memcpy(p, msg, msg_len - user_msg_len);
+    if (msg_len - user_msg_len)
+	memcpy(p, msg, msg_len - user_msg_len);
 
     p += msg_len - user_msg_len;
-    memcpy(p, data, data_len);
+    if (data_len)
+	memcpy(p, data, data_len);
     p += data_len;
 
     /* copy arg bodies into packet */
@@ -248,10 +253,12 @@ void send_authen_reply(tac_session * session, int status, char *msg, int msg_len
 	memcpy(p, session->user_msg, user_msg_len);
 	p += user_msg_len;
     }
-    memcpy(p, msg, msg_len - user_msg_len);
+    if (msg_len - user_msg_len)
+	memcpy(p, msg, msg_len - user_msg_len);
     p += msg_len - user_msg_len;
     mem_free(session->mem, &session->user_msg);
-    memcpy(p, data, data_len);
+    if (data_len)
+	memcpy(p, data, data_len);
 
     if (session->password_bad && !session->password_bad_again) {
 	delay = session->ctx->authfail_delay;

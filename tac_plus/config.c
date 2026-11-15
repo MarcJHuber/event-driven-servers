@@ -3643,12 +3643,15 @@ static void parse_tac_acl_expr(struct sym *sym, struct tac_acl_expr **e, int neg
 	    switch (sym->code) {
 	    case S_equal:
 		tac_sym_get(sym);
-		if (sym->code == S_not) {
+		if (sym->code == S_equal)
+		    tac_sym_get(sym);
+		else if (sym->code == S_not) {
 		    (*r)->negate = 1;
 		    tac_sym_get(sym);
 		}
 		break;
 	    case S_exclmark:
+		(*r)->negate = 1;
 		tac_sym_get(sym);
 		parse(sym, S_equal);
 		break;
@@ -3672,12 +3675,15 @@ static void parse_tac_acl_expr(struct sym *sym, struct tac_acl_expr **e, int neg
 	    switch (sym->code) {
 	    case S_equal:
 		tac_sym_get(sym);
-		if (sym->code == S_not) {
+		if (sym->code == S_equal)
+		    tac_sym_get(sym);
+		else if (sym->code == S_not) {
 		    (*r)->negate = 1;
 		    tac_sym_get(sym);
 		}
 		break;
 	    case S_exclmark:
+		(*r)->negate = 1;
 		tac_sym_get(sym);
 		parse(sym, S_equal);
 		break;
@@ -4970,21 +4976,26 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 	switch (sym->code) {
 	case S_exclmark:
 	    p = tac_script_cond_add(u, tac_script_cond_new(u, S_exclmark), m);
+	    tac_sym_get(sym);
+	    parse(sym, S_equal);
+	    break;
 	case S_equal:
+	    tac_sym_get(sym);
+	    if (sym->code == S_equal)
+		tac_sym_get(sym);
 	    break;
 	case S_eof:
 	    parse_error(sym, "EOF unexpected");
 	default:
 	    parse_error_expect(sym, S_exclmark, S_equal, S_unknown);
 	}
-	tac_sym_get(sym);
 
 	m->s.rhs = tac_acl_lookup(sym->buf);
 
 	if (!m->s.rhs)
 	    parse_error(sym, "ACL '%s' not found", sym->buf);
 	tac_sym_get(sym);
-	return m;
+	return p ? p : m;
     case S_time:
 	m = tac_script_cond_new(u, S_time);
 
@@ -4992,20 +5003,25 @@ static struct mavis_cond *tac_script_cond_parse_r(tac_user * u, struct sym *sym)
 	switch (sym->code) {
 	case S_exclmark:
 	    p = tac_script_cond_add(u, tac_script_cond_new(u, S_exclmark), m);
+	    tac_sym_get(sym);
+	    parse(sym, S_equal);
+	    break;
 	case S_equal:
+	    tac_sym_get(sym);
+	    if (sym->code == S_equal)
+		tac_sym_get(sym);
 	    break;
 	case S_eof:
 	    parse_error(sym, "EOF unexpected");
 	default:
 	    parse_error_expect(sym, S_exclmark, S_equal, S_unknown);
 	}
-	tac_sym_get(sym);
 
 	m->s.rhs = find_timespec(timespectable, sym->buf);
 	if (!m->s.rhs)
 	    parse_error(sym, "timespec '%s' not found", sym->buf);
 	tac_sym_get(sym);
-	return m;
+	return p ? p : m;
     case S_cmd:
     case S_command:
     case S_context:

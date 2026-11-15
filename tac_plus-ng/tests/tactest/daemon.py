@@ -25,7 +25,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-"""Run tac_plus-ng under spawnd, the way users run it.
+"""Run tac_plus-ng (or the older tac_plus) under spawnd, the way users run it.
 
 One Daemon = one master process with its own scratch directory, config and
 port. Workers are found through /proc (Linux) because they leave the
@@ -82,8 +82,8 @@ def prefix():
     return os.path.abspath(p)
 
 
-def binary():
-    path = os.path.join(prefix(), "sbin", "tac_plus-ng")
+def binary(program="tac_plus-ng"):
+    path = os.path.join(prefix(), "sbin", program)
     if not os.access(path, os.X_OK):
         raise DaemonError("%s not found; run tac_plus-ng/tests/run-tests or set TACTEST_PREFIX" % path)
     return path
@@ -208,14 +208,14 @@ def features():
     return _features[path]
 
 
-def parse_only(path, cwd=None, timeout=30):
-    """tac_plus-ng -P path: (exit code, output); a negative code is the signal that killed the parser.
+def parse_only(path, cwd=None, timeout=30, program="tac_plus-ng"):
+    """program -P path: (exit code, output); a negative code is the signal that killed the parser.
 
     Since #264 "-P" turns a parser killed by signal n into exit code 128 + n
     (mavis/spawnd_main.c), so a crashing configuration no longer hides behind
     exit code 0; map it back to the -n this returns for a signal.
     """
-    p = subprocess.run([binary(), "-P", path], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    p = subprocess.run([binary(program), "-P", path], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                        stdin=subprocess.DEVNULL, timeout=timeout, cwd=cwd, env=sanitizer_env())
     code = p.returncode
     out = p.stdout.decode("utf-8", "replace")
@@ -311,8 +311,11 @@ def alive(pid, starttime=None):
 
 class Daemon:
     def __init__(self, body="", name="daemon", key=config.KEY, address="127.0.0.1",
-                 spawnd="", top="", template=config.BASE, suppressions=SUPPRESSIONS, udp=False, listen=None):
-        """udp: also listen for RADIUS on a UDP port (udp_port) of the same address.
+                 spawnd="", top="", template=config.BASE, suppressions=SUPPRESSIONS, udp=False, listen=None,
+                 program="tac_plus-ng"):
+        """program: the daemon in sbin, tac_plus-ng or tac_plus (with template=config.TAC_PLUS).
+
+        udp: also listen for RADIUS on a UDP port (udp_port) of the same address.
 
         listen: more listeners on the same address, {name: options}, e.g.
         {"tls": "tls = yes", "radius": "protocol = UDP realm = r"}; each
@@ -326,9 +329,10 @@ class Daemon:
         self.ports = {}
         self.suppressions = suppressions
         self.spawnd, self.top, self.template = spawnd, top, template
+        self.program = program
         self.generation = 0
         self.tmp = scratch_dir(name)
-        self.cfg = os.path.join(self.tmp, "tac_plus-ng.cfg")
+        self.cfg = os.path.join(self.tmp, program + ".cfg")
         self.stderr_path = os.path.join(self.tmp, "stderr.log")
         self.proc = None
         self.port = None
@@ -383,7 +387,7 @@ class Daemon:
                 self.ports[name] = (free_udp_port if udp else free_port)(self.address)
             self.write_config()
             stderr = open(self.stderr_path, "ab")
-            argv = [binary()]
+            argv = [binary(self.program)]
             if os.environ.get("TACTEST_DEBUG"):
                 argv += ["-d", os.environ["TACTEST_DEBUG"], "-D"]
             self.proc = subprocess.Popen(argv + ["-f", self.cfg], stderr=stderr, stdout=stderr,
@@ -396,8 +400,8 @@ class Daemon:
             self.exit_codes.append(code)
             if code != EX_TEMPFAIL:
                 break
-        raise DaemonError("tac_plus-ng exited with code %s during startup (attempts: %s)\n%s"
-                          % (self.exit_codes[-1], self.exit_codes, self.stderr_tail()))
+        raise DaemonError("%s exited with code %s during startup (attempts: %s)\n%s"
+                          % (self.program, self.exit_codes[-1], self.exit_codes, self.stderr_tail()))
 
     def _wait_ready(self):
         deadline = time.monotonic() + READY_TIMEOUT
@@ -413,8 +417,8 @@ class Daemon:
             select.select([], [], [], 0.02)
         self.proc.kill()
         self.proc.wait()
-        raise DaemonError("tac_plus-ng did not accept connections within %.0f s\n%s"
-                          % (READY_TIMEOUT, self.stderr_tail()))
+        raise DaemonError("%s did not accept connections within %.0f s\n%s"
+                          % (self.program, READY_TIMEOUT, self.stderr_tail()))
 
     def _listening(self, family):
         if LINUX:
@@ -506,8 +510,8 @@ class Daemon:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if self.proc.poll() is not None:
-                raise DaemonError("tac_plus-ng exited with code %s after SIGHUP\n%s"
-                                  % (self.proc.returncode, self.stderr_tail()))
+                raise DaemonError("%s exited with code %s after SIGHUP\n%s"
+                                  % (self.program, self.proc.returncode, self.stderr_tail()))
             try:
                 if probe():
                     self.snapshot()
@@ -536,14 +540,14 @@ class Daemon:
         return out
 
     def workers(self):
-        """{pid: starttime} of the master's live children running tac_plus-ng.
+        """{pid: starttime} of the master's live children running the daemon program.
 
         Not every child is a worker: a sanitizer build forks llvm-symbolizer
         to match suppressions by function name.
         """
         if not LINUX or self.proc is None:
             return {}
-        exe = os.path.realpath(binary())
+        exe = os.path.realpath(binary(self.program))
         out = {}
         for pid, st in all_processes().items():
             if st[1] == self.pid and st[0] not in ("Z", "X"):

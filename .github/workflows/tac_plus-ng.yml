@@ -25,7 +25,7 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# Build tac_plus-ng and run tac_plus-ng/tests (see tac_plus-ng/tests/README).
+# Build tac_plus-ng and tac_plus and run tac_plus-ng/tests (see tac_plus-ng/tests/README).
 # The YAML only installs packages and calls tac_plus-ng/tests/run-tests, so a
 # local run and a CI run are the same thing.
 
@@ -36,6 +36,7 @@ on:
     branches: [master]
     paths:
       - "tac_plus-ng/**"
+      - "tac_plus/**"
       - "mavis/**"
       - "misc/**"
       - configure
@@ -46,6 +47,7 @@ on:
   pull_request:
     paths:
       - "tac_plus-ng/**"
+      - "tac_plus/**"
       - "mavis/**"
       - "misc/**"
       - configure
@@ -79,8 +81,8 @@ jobs:
       - run: apk add --no-cache gcc musl-dev make perl openssl-dev pcre2-dev linux-headers python3 openssl linux-pam-dev openldap-dev radcli-dev c-ares-dev
       - uses: actions/checkout@v5
       - run: tac_plus-ng/tests/run-tests
-      # the tests of these backends and of the DNS code skip if the build left them out
-      - run: ls build/*/tests-prefix/sbin/ldapmavis-mt build/*/tests-prefix/sbin/radmavis-mt
+      # the tests of these backends, of tac_plus and of the DNS code skip if the build left them out
+      - run: ls build/*/tests-prefix/sbin/ldapmavis-mt build/*/tests-prefix/sbin/radmavis-mt build/*/tests-prefix/sbin/tac_plus
       - run: build/*/tests-prefix/sbin/tac_plus-ng -v 2>&1 | grep /ARES
       - if: failure()
         uses: actions/upload-artifact@v4
@@ -98,8 +100,8 @@ jobs:
       - run: tac_plus-ng/tests/run-tests
         env:
           CC: gcc
-      # the tests of these backends and of the DNS code skip if the build left them out
-      - run: ls build/*/tests-prefix/sbin/ldapmavis-mt build/*/tests-prefix/sbin/radmavis-mt
+      # the tests of these backends, of tac_plus and of the DNS code skip if the build left them out
+      - run: ls build/*/tests-prefix/sbin/ldapmavis-mt build/*/tests-prefix/sbin/radmavis-mt build/*/tests-prefix/sbin/tac_plus
       - run: build/*/tests-prefix/sbin/tac_plus-ng -v 2>&1 | grep /ARES
       - if: failure()
         run: mkdir -p build/tests-work && sudo journalctl --no-pager -t tac_plus-ng > build/tests-work/journal.txt || true
