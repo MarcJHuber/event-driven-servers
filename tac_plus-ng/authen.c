@@ -114,6 +114,7 @@ static struct log_item *li_response_incorrect = NULL;
 static struct log_item *li_account_expires = NULL;
 static struct log_item *li_password_expires = NULL;
 static struct log_item *li_password_expired = NULL;
+static struct log_item *li_backend_failed = NULL;
 struct log_item *li_denied_by_acl = NULL;
 
 struct hint_struct {
@@ -1349,7 +1350,7 @@ static void do_ascii_login(tac_session *session)
     switch (res) {
     case S_error:
 	report_auth(session, info, hint, res);
-	send_authen_error(session, "Authentication backend failure.");
+	send_authen_error(session, "%s", eval_log_format(session, session->ctx, NULL, li_backend_failed, io_now.tv_sec, NULL));
 	return;
     case S_permit:
 	if (session->passwd_mustchange) {
@@ -2145,6 +2146,7 @@ void authen_init(void)
     li_password_expired = parse_log_format_inline("\"${PASSWORD_EXPIRED}\n\"", __FILE__, __LINE__);
     li_password_expires = parse_log_format_inline("\"${PASSWORD_EXPIRES}\n\"", __FILE__, __LINE__);
     li_denied_by_acl = parse_log_format_inline("\"${DENIED_BY_ACL}\"", __FILE__, __LINE__);
+    li_backend_failed = parse_log_format_inline("\"${BACKEND_FAILED}\"", __FILE__, __LINE__);
 #if OPENSSL_VERSION_NUMBER >= 0x30000000
     ossl_legacy = OSSL_PROVIDER_load(NULL, "legacy");
     ossl_default = OSSL_PROVIDER_load(NULL, "default");

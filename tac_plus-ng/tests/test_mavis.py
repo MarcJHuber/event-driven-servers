@@ -110,6 +110,24 @@ class Scenario(DaemonTestCase):
         self.assertGreater(len(r.server_msg), 7900)
 
 
+class BackendFailed(DaemonTestCase):
+    """An ASCII login with an ERROR from the backend gets ERROR and the BACKEND_FAILED message (doc: "User Messages")."""
+
+    CONFIG = None
+
+    def login(self, policy=""):
+        d = self.start_daemon(Stub.module(childs=(1, 1)) + BACKEND + PERMIT + policy)
+        Stub(d).set(users={"alice": {"password": "pw"}}, result={"alice:AUTH": "ERROR"})
+        r = self.connect(daemon=d).ascii_login("alice", "pw")
+        return r.status_name, r.server_msg
+
+    def test_default_message(self):
+        self.assertEqual(self.login(), ("ERROR", "Authentication backend failure."))
+
+    def test_configured_message(self):
+        self.assertEqual(self.login('\tmessage BACKEND_FAILED = "Directory down."\n'), ("ERROR", "Directory down."))
+
+
 class Fallback(DaemonTestCase):
     """#98: after an ERROR from the backend a fallback-only user logs in with the local password.
 
