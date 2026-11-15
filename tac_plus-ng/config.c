@@ -4922,7 +4922,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 	if (!m->s.rhs)
 	    parse_error(sym, "ACL '%s' not found", sym->buf);
 	sym_get(sym);
-	return m;
+	return p ? p : m;
     case S_time:
 	m = mavis_cond_new(sym, mem, S_time);
 
@@ -4942,7 +4942,7 @@ static struct mavis_cond *tac_script_cond_parse_r(struct sym *sym, mem_t *mem, t
 	if (!m->s.rhs)
 	    parse_error(sym, "Timespec '%s' not found", sym->buf);
 	sym_get(sym);
-	return m;
+	return p ? p : m;
     case S_aaa_protocol:
     case S_arg:
     case S_cmd:

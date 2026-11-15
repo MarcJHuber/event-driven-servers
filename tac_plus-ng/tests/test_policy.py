@@ -288,5 +288,40 @@ class DeviceDnsNameFromHostsFile(PolicyTestCase):
         self.assertEqual(self.holds("127.0.6.2"), [])
 
 
+class AclAndTimeNegation(PolicyTestCase):
+    """"acl != NAME" and "time != NAME" are the negation of "==", as for every other condition.
+
+    The parser built the "!" node for both but returned the condition without it.
+    """
+
+    CONFIG = USER + """
+	acl trusted {
+		if (client.address == 127.0.7.1)
+			permit
+		deny
+	}
+	time always { "* * * * *" }
+	time never { "* * 30 2 *" }
+""" + shell_profile([
+        ("acl-eq", "acl == trusted"),
+        ("acl-ne", "acl != trusted"),
+        ("acl-not-eq", "!(acl == trusted)"),
+        ("time-always-eq", "time == always"),
+        ("time-always-ne", "time != always"),
+        ("time-never-eq", "time == never"),
+        ("time-never-ne", "time != never"),
+    ])
+
+    def holds_of(self, kind, rem_addr="127.0.0.1"):
+        return [h for h in self.holds(rem_addr=rem_addr) if h.startswith(kind + "-")]
+
+    def test_acl_ne_is_the_negation_of_acl_eq(self):
+        self.assertEqual(self.holds_of("acl", rem_addr="127.0.7.1"), ["acl-eq"])
+        self.assertEqual(self.holds_of("acl", rem_addr="127.0.7.2"), ["acl-ne", "acl-not-eq"])
+
+    def test_time_ne_is_the_negation_of_time_eq(self):
+        self.assertEqual(self.holds_of("time"), ["time-always-eq", "time-never-ne"])
+
+
 if __name__ == "__main__":
     unittest.main()
