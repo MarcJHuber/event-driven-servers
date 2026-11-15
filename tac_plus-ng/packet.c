@@ -568,6 +568,18 @@ static int check_status(struct context *ctx, enum io_status status)
     }
 }
 
+// Stop reading and drop the input packet. tac_write() closes the connection after the queued reply.
+static void close_after_reply(struct context *ctx, int cur, int detached)
+{
+    io_clr_i(ctx->io, cur);
+    if (detached)
+	ctx->in = NULL;
+    else
+	mem_free(ctx->mem, &ctx->in);
+    ctx->hdroff = 0;
+    ctx->dying = 1;
+}
+
 void tac_read(struct context *ctx, int cur)
 {
     ssize_t len;
@@ -754,11 +766,7 @@ void tac_read(struct context *ctx, int cur)
 		   ntohl(ctx->hdr.tac.session_id));
 	    session->seq_no++;
 	    send_authen_reply(session, TAC_PLUS_AUTHEN_STATUS_ERROR, "Too many rounds.", 0, NULL, 0, 0);
-	    // tac_write() closes the connection after the reply
-	    io_clr_i(ctx->io, cur);
-	    mem_free(ctx->mem, &ctx->in);
-	    ctx->hdroff = 0;
-	    ctx->dying = 1;
+	    close_after_reply(ctx, cur, detached);
 	    return;
 	}
 	session->seq_no++;
@@ -825,14 +833,7 @@ void tac_read(struct context *ctx, int cur)
 	    cleanup(ctx, cur);
 	    return;
 	}
-	// tac_write() closes the connection after the reply
-	io_clr_i(ctx->io, cur);
-	if (detached)
-	    ctx->in = NULL;
-	else
-	    mem_free(ctx->mem, &ctx->in);
-	ctx->hdroff = 0;
-	ctx->dying = 1;
+	close_after_reply(ctx, cur, detached);
 	return;
     }
 
