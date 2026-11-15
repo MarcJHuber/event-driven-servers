@@ -311,15 +311,23 @@ class DroppedDatagram(DaemonTestCase):
         before = self.fds()
         for _ in range(10):
             self.bad(self.radius(SECRET, source=NAS))
-        self.assertFdsBack(before)
+        # spawnd passes the datagrams of its UDP socket in order, so this answer comes after the drops
+        r = self.radius(SECRET, source=NAS).access_request("alice", "alicepw", message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Accept", r)
+        self.assertFdsBack(before + 1)  # the context of the answered request keeps its socket
 
     @unittest.skipUnless(LINUX, "file descriptors through /proc")
     def test_datagrams_without_a_dictionary_leave_no_socket_open(self):
         d = self.start_daemon("", udp=True)
+        with d.connect() as c:
+            self.assertFalse(c.pap("nobody", "x").ok)  # opens authentication.log before the count
         before = self.fds(d)
         for _ in range(10):
             req = radius.Packet(radius.ACCESS_REQUEST, attributes=[(radius.USER_NAME, b"alice")])
             self.radius(SECRET, daemon=d, source=NAS).send_raw(req.encode())
+        # no RADIUS answer without a dictionary: a TACACS+ answer shows that the worker read its control socket
+        with d.connect() as c:
+            self.assertFalse(c.pap("nobody", "x").ok)
         self.assertFdsBack(before, d)
 
     @unittest.skipUnless(LINUX, "file descriptors through /proc")
