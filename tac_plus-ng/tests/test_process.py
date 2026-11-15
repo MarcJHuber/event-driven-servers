@@ -36,8 +36,9 @@ import threading
 import time
 import unittest
 
-from tactest import LINUX, Closed, DaemonTestCase, ProtocolError, detect
+from tactest import LINUX, SOURCE, Closed, DaemonTestCase, Packet, ProtocolError, detect
 from tactest.daemon import alive, free_port, proc_stat
+from tactest.tacacs import HEADER_LEN
 
 POLICY = """
 	user alice { password pap = clear alicepw }
@@ -85,6 +86,115 @@ class KeepOpen(DaemonTestCase):
         c = self.connect()
         for _ in range(2):
             self.assertEqual(c.pap("alice", "alicepw").status_name, "PASS")
+
+
+class ConnectionTimeouts(DaemonTestCase):
+    """connection timeout, fragment timeout and stateless timeout close the right connections.
+
+    The worker checks the timeouts once a minute per connection. The
+    check applied the connection timeout to UDP and not to TCP, the
+    fragment timeout to every connection without a partial packet, and a
+    header without its body did not count as a partial packet. Devices
+    did not inherit fragment timeout and stateless timeout (-1, so
+    expired at the first check). All connections start together, the
+    test waits past the first check and looks at each of them.
+    """
+
+    UDP = True
+    PERIODIC = 60           # periodics_ctx() interval in main.c
+    maxDiff = None
+    CONFIG = """
+	include = "%s"
+	log connection {
+		destination = "$tmp/connection.log"
+		connection format = "$${msgid} $${peer.address} $${peer.port}"
+	}
+	connection log = connection
+	fragment timeout = 300
+	stateless timeout = 300
+	device inherit {
+		address = 127.0.0.4
+		key = tactest
+		radius.key = radsecret
+	}
+	device conn-short {
+		address = 127.0.0.2
+		key = tactest
+		radius.key = radsecret
+		connection timeout = 5
+		fragment timeout = 0
+	}
+	device frag-short {
+		address = 127.0.0.3
+		key = tactest
+		radius.key = radsecret
+		fragment timeout = 2
+		stateless timeout = 5
+	}
+	user alice {
+		password login = clear alicepw
+		password pap = login
+	}
+	ruleset {
+		rule { script { permit } }
+	}
+""" % os.path.join(SOURCE, "tac_plus-ng", "sample", "radius-dict.cfg")
+
+    def complete(self, source):
+        c = self.connect(source=source)
+        self.assertEqual(c.pap("alice", "alicepw").status_name, "PASS")
+        return c
+
+    def partial(self, source, length):
+        c = self.connect(source=source)
+        c.send_raw(c._wire(Packet.authen_start(user="alice"))[:length])
+        return c
+
+    def udp(self, source):
+        r = self.radius("radsecret", source=source)
+        r.access_request("alice", "alicepw", message_authenticator=True)
+        return r
+
+    def test_timeouts_close_the_right_connections(self):
+        log_offset = self.daemon.log_size("connection")
+        start = time.monotonic()
+        tcp = {
+            "idle, connection timeout 600": (self.complete("127.0.0.4"), False),
+            "partial, inherited fragment timeout 300": (self.partial("127.0.0.4", HEADER_LEN + 4), False),
+            "idle, connection timeout 5": (self.complete("127.0.0.2"), True),
+            "header only, fragment timeout 2": (self.partial("127.0.0.3", HEADER_LEN), True),
+            "partial body, fragment timeout 2": (self.partial("127.0.0.3", HEADER_LEN + 4), True),
+            "idle, fragment timeout 2": (self.complete("127.0.0.3"), False),
+        }
+        udp = {
+            "udp, inherited stateless timeout 300": (self.udp("127.0.0.4"), False),
+            "udp, connection timeout 5": (self.udp("127.0.0.2"), False),
+            "udp, stateless timeout 5": (self.udp("127.0.0.3"), True),
+        }
+        # the busy connection comes last, so its first check cannot fall within the setup
+        busy = self.complete("127.0.0.2")
+        tcp["busy, connection timeout 5"] = (busy, False)
+        setup_done = time.monotonic()
+
+        want = {name: closed for name, (_, closed) in list(tcp.items()) + list(udp.items())}
+
+        def observe():
+            got = {name: c.closed(timeout=0.05) for name, (c, _) in tcp.items()}
+            log = self.daemon.read_log("connection", log_offset)
+            for name, (r, _) in udp.items():
+                got[name] = "CONN-STOP %s %d" % r.sock.getsockname()[:2] in log
+            return got, log
+
+        # wait for the expected closures and for the first check of the busy connection; the margin lets late checks run
+        deadline, settled = setup_done + self.PERIODIC + 60, None
+        while time.monotonic() < deadline and (settled is None or time.monotonic() < max(settled, setup_done + self.PERIODIC) + 5):
+            self.assertEqual(busy.pap("alice", "alicepw").status_name, "PASS")
+            got, log = observe()
+            if settled is None and all(got[name] for name, closed in want.items() if closed):
+                settled = time.monotonic()
+            time.sleep(1)
+        got, log = observe()
+        self.assertEqual(got, want, "closed after %.0f s; connection log:\n%s" % (time.monotonic() - start, log))
 
 
 def stop(test, pid):

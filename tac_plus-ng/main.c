@@ -303,7 +303,7 @@ static void periodics(struct context *ctx, int cur __attribute__((unused)))
 static void periodics_ctx(struct context *ctx, int cur __attribute__((unused)))
 {
     if (!ctx->out && !ctx->delayed) {
-	if ((ctx->udp != BISTATE_NO) && (ctx->host->tcp_timeout || ctx->dying) && (ctx->last_io + ctx->host->tcp_timeout < io_now.tv_sec)) {
+	if ((ctx->udp == BISTATE_NO) && (ctx->host->tcp_timeout || ctx->dying) && (ctx->last_io + ctx->host->tcp_timeout < io_now.tv_sec)) {
 	    cleanup(ctx, ctx->sock);
 	    return;
 	}
@@ -313,7 +313,8 @@ static void periodics_ctx(struct context *ctx, int cur __attribute__((unused)))
 	    return;
 	}
 
-	if (!ctx->fragmented && (ctx->host->fragment_timeout || ctx->dying) && (ctx->last_io + ctx->host->fragment_timeout < io_now.tv_sec)) {
+	// hdroff is reset after each complete packet, so a value > 0 means a partial packet
+	if (ctx->hdroff && (ctx->host->fragment_timeout || ctx->dying) && (ctx->last_io + ctx->host->fragment_timeout < io_now.tv_sec)) {
 	    cleanup(ctx, ctx->sock);
 	    return;
 	}
@@ -1430,6 +1431,8 @@ void complete_host(tac_host *h)
 #undef HS
 #define HS(A) if(h->A < 0) h->A = hp->A
 	HS(tcp_timeout);
+	HS(udp_timeout);
+	HS(fragment_timeout);
 	HS(session_timeout);
 	HS(context_timeout);
 	HS(dns_timeout);
