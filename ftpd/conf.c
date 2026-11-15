@@ -756,6 +756,7 @@ void cfg_init(void)
 
     sym.in = sym.tin = t;
     sym.tlen = sym.len = strlen(t);
+    sym.line = 1;
     sym_init(&sym);
     parse_decls(&sym);
     acl_conf_set_defaults();

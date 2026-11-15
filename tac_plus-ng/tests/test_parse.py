@@ -172,6 +172,62 @@ class DuplicateNames(unittest.TestCase):
         self.assertIn("Address of 'second' already assigned to host 'first'", out)
 
 
+class ErrorLine(unittest.TestCase):
+    """A parse error names the line of the bad token, in the main file and in an included file."""
+
+    HEAD = "id = spawnd { listen = { port = 4949 } }\nid = tac_plus-ng {\n"
+
+    def assert_error_line(self, files, name, line, text):
+        with tempfile.TemporaryDirectory() as tmp:
+            for fname, body in files.items():
+                with open(os.path.join(tmp, fname), "w") as f:
+                    f.write(body.replace("$TMP", tmp))
+            code, out = check(os.path.join(tmp, "main.cfg"))
+            self.assertGreater(code, 0, out)
+            m = re.search(r"/%s:(\d+): .*%s" % (re.escape(name), re.escape(text)), out)
+            self.assertIsNotNone(m, out)
+            self.assertEqual(int(m.group(1)), line, out)
+
+    def test_unknown_keyword_on_the_first_line(self):
+        self.assert_error_line({"main.cfg": "bogus\n"}, "main.cfg", 1, "but got 'bogus'")
+
+    def test_unknown_keyword_at_the_start_of_a_line(self):
+        self.assert_error_line({"main.cfg": self.HEAD + "\tbogus = 1\n}\n"}, "main.cfg", 3, "but got 'bogus'")
+
+    def test_unknown_keyword_after_other_tokens_on_the_line(self):
+        self.assert_error_line({"main.cfg": self.HEAD + "\n\tdevice d { key = k } user u { bogus }\n}\n"},
+                               "main.cfg", 4, "but got 'bogus'")
+
+    def test_bad_value_after_a_multi_line_string(self):
+        self.assert_error_line({"main.cfg": self.HEAD + "\twelcome banner = \"a\nb\"\n\tnet n { address = nonsense }\n}\n"},
+                               "main.cfg", 5, "but got 'nonsense'")
+
+    def test_duplicate_names_both_lines(self):
+        self.assert_error_line({"main.cfg": self.HEAD + "\tprofile p { }\n\tprofile p { }\n}\n"},
+                               "main.cfg", 4, "already defined at line 3")
+
+    def test_error_on_the_first_line_of_an_included_file(self):
+        self.assert_error_line({"main.cfg": self.HEAD + "\tinclude = $TMP/inc.cfg\n}\n", "inc.cfg": "bogus\n"},
+                               "inc.cfg", 1, "but got 'bogus'")
+
+    def test_error_on_a_later_line_of_an_included_file(self):
+        self.assert_error_line({"main.cfg": self.HEAD + "\tinclude = $TMP/inc.cfg\n}\n",
+                                "inc.cfg": "# comment\n\tuser u { }\n\n\tbogus\n"},
+                               "inc.cfg", 4, "but got 'bogus'")
+
+    def test_error_in_the_main_file_after_an_include(self):
+        self.assert_error_line({"main.cfg": self.HEAD + "\tinclude = $TMP/inc.cfg\n\tbogus\n}\n", "inc.cfg": "# 1\n# 2\n"},
+                               "main.cfg", 4, "but got 'bogus'")
+
+    def test_unknown_keyword_after_blank_lines_and_comments(self):
+        self.assert_error_line({"main.cfg": "\n# one\n" + self.HEAD + "\n\t# two\n\tbogus\n}\n"},
+                               "main.cfg", 7, "but got 'bogus'")
+
+    def test_unknown_keyword_with_crlf_line_ends(self):
+        self.assert_error_line({"main.cfg": (self.HEAD + "\n\tbogus = 1\n}\n").replace("\n", "\r\n")},
+                               "main.cfg", 4, "but got 'bogus'")
+
+
 class DeviceNameInHostsFile(unittest.TestCase):
     def parse(self, body, hosts):
         with tempfile.TemporaryDirectory() as tmp:
