@@ -211,11 +211,11 @@ static void users_inc(void)
     set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
 }
 
-void users_dec(void)
+// Tell spawnd that a passed connection or datagram is done.
+static void users_done(void)
 {
     static int pending = 0;
     pending++;
-    common_data.users_cur--;
     struct scm_data d = {.type = SCM_DONE,.count = pending };
     if (ctx_spawnd && (common_data.scm_send_msg(ctx_spawnd->sock, &d, -1) < 0)) {
 	if (errno != EAGAIN && errno != EWOULDBLOCK)
@@ -223,6 +223,12 @@ void users_dec(void)
     } else
 	pending = 0;
     set_proctitle(die_when_idle ? ACCEPT_NEVER : ACCEPT_YES);
+}
+
+void users_dec(void)
+{
+    common_data.users_cur--;
+    users_done();
 }
 
 struct context *new_context(struct io_context *io, tac_realm *r)
@@ -2278,8 +2284,8 @@ static void accept_control(struct context *ctx, int cur)
 	// Dropped: later datagrams of this source must not go to a socket nobody reads.
 	if (s > -1)
 	    close(s);
-	users_inc();
-	users_dec();
+	// not users_inc(): at "last-recently-used limit" it evicts a context
+	users_done();
 	return;
     case SCM_ACCEPT:
 	sd_ext.sd = u.sd;

@@ -280,6 +280,22 @@ class DroppedDatagram(DaemonTestCase):
             select.select([], [], [], 0.05)
         self.assertLessEqual(self.fds(daemon), before, "the worker keeps the sockets of dropped datagrams")
 
+    def wait_fds_above(self, before, daemon=None):
+        deadline = time.monotonic() + 5.0
+        while self.fds(daemon) <= before and time.monotonic() < deadline:
+            select.select([], [], [], 0.05)
+        self.assertGreater(self.fds(daemon), before, "the worker did not get the TACACS+ connection")
+
+    def assertLruConnectionKept(self, body, datagram):
+        """users_inc() at "last-recently-used limit" evicts the oldest context; a dropped datagram must not."""
+        d = self.start_daemon(body + "\tlast-recently-used limit = 1\n", udp=True)
+        before = self.fds(d)
+        c = self.connect(daemon=d)
+        self.wait_fds_above(before, d)
+        self.radius(SECRET, daemon=d, source=NAS).send_raw(datagram)
+        self.assertFalse(c.closed(timeout=2.0), "a dropped datagram evicted the TACACS+ connection")
+        return c
+
     def test_same_source_port_is_answered_after_a_bad_datagram(self):
         c = self.radius(SECRET, source=NAS, timeout=1.0)
         self.bad(c)
@@ -305,6 +321,15 @@ class DroppedDatagram(DaemonTestCase):
             req = radius.Packet(radius.ACCESS_REQUEST, attributes=[(radius.USER_NAME, b"alice")])
             self.radius(SECRET, daemon=d, source=NAS).send_raw(req.encode())
         self.assertFdsBack(before, d)
+
+    @unittest.skipUnless(LINUX, "file descriptors through /proc")
+    def test_bad_datagram_keeps_the_least_recently_used_connection(self):
+        c = self.assertLruConnectionKept(POLICY, radius.Packet(radius.ACCESS_REQUEST).encode(length=200))
+        self.assertTrue(c.pap("alice", "alicepw").ok)
+
+    @unittest.skipUnless(LINUX, "file descriptors through /proc")
+    def test_datagram_without_a_dictionary_keeps_the_least_recently_used_connection(self):
+        self.assertLruConnectionKept("", radius.Packet(radius.ACCESS_REQUEST).encode())
 
     def test_bad_datagrams_do_not_use_up_the_user_limit(self):
         """spawnd counts each passed datagram as a user until the worker reports it done."""
