@@ -215,6 +215,18 @@ class ErrorLine(unittest.TestCase):
                                 "inc.cfg": "# comment\n\tuser u { }\n\n\tbogus\n"},
                                "inc.cfg", 4, "but got 'bogus'")
 
+    def test_error_in_the_main_file_after_an_include(self):
+        self.assert_error_line({"main.cfg": self.HEAD + "\tinclude = $TMP/inc.cfg\n\tbogus\n}\n", "inc.cfg": "# 1\n# 2\n"},
+                               "main.cfg", 4, "but got 'bogus'")
+
+    def test_unknown_keyword_after_blank_lines_and_comments(self):
+        self.assert_error_line({"main.cfg": "\n# one\n" + self.HEAD + "\n\t# two\n\tbogus\n}\n"},
+                               "main.cfg", 7, "but got 'bogus'")
+
+    def test_unknown_keyword_with_crlf_line_ends(self):
+        self.assert_error_line({"main.cfg": (self.HEAD + "\n\tbogus = 1\n}\n").replace("\n", "\r\n")},
+                               "main.cfg", 4, "but got 'bogus'")
+
 
 class DeviceNameInHostsFile(unittest.TestCase):
     def parse(self, body, hosts):
