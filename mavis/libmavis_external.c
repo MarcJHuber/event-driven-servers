@@ -63,8 +63,7 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
   u_long backlog_max_p;				\
   int envcount;					\
   char **env;					\
-  char **env_parsed;				\
-  char **env_raw;				\
+  struct mavis_setenv *setenv;			\
   uid_t uid;					\
   gid_t gid;					\
   char *home;					\
@@ -198,7 +197,7 @@ static int mavis_init_in(mavis_ctx *mcx)
 	mcx->argv[1] = NULL;
     }
 
-    mavis_setenv_init(&mcx->env, mcx->env_parsed, mcx->env_raw, mcx->envcount);
+    mavis_setenv_init(&mcx->env, mcx->setenv, mcx->envcount);
 
     if (mcx->child_min > mcx->child_max)
 	mcx->child_min = mcx->child_max;
@@ -232,7 +231,6 @@ group-id = gid
 #define HAVE_mavis_parse_in
 static int mavis_parse_in(mavis_ctx *mcx, struct sym *sym)
 {
-    size_t len;
     struct stat st;
 
     while (1) {
@@ -285,13 +283,7 @@ static int mavis_parse_in(mavis_ctx *mcx, struct sym *sym)
 		sym_get(sym);
 		if (sym->code == S_equal)
 		    sym_get(sym);
-		len = strlen(env_name) + strlen(sym->buf) + 2;
-		mcx->env_parsed = Xrealloc(mcx->env_parsed, (mcx->envcount + 1) * sizeof(char *));
-		mcx->env_raw = Xrealloc(mcx->env_raw, (mcx->envcount + 1) * sizeof(char *));
-		mcx->env_parsed[mcx->envcount] = Xcalloc(1, len);
-		snprintf(mcx->env_parsed[mcx->envcount], len, "%s=%s", env_name, sym->buf);
-		/* mavis_init_in() decrypts it, when the type 6 key is final */
-		mcx->env_raw[mcx->envcount++] = Xstrdup(mysym.buf);
+		mavis_setenv_add(&mcx->setenv, &mcx->envcount, sym, env_name, mysym.buf);
 		sym->noescape = 0;
 		sym_get(sym);
 		continue;
@@ -386,12 +378,7 @@ static void mavis_drop_in(mavis_ctx *mcx)
 	    free(mcx->env[i]);
 	free(mcx->env);
     }
-    for (int i = 0; i < mcx->envcount; i++) {
-	free(mcx->env_parsed[i]);
-	free(mcx->env_raw[i]);
-    }
-    free(mcx->env_parsed);
-    free(mcx->env_raw);
+    mavis_setenv_free(mcx->setenv, mcx->envcount);
 
     free(mcx->cx);
     free(mcx->cx_stat);

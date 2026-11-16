@@ -189,6 +189,13 @@ static void aes_xor(const char *master_key, const uint8_t salt[TYPE6_SALT_LEN], 
 #endif
 }
 
+int type6_form(const char *encoded)
+{
+    uint8_t decoded[strlen(encoded) + 1];
+    size_t decoded_len = 0;
+    return !base41_decode(encoded, decoded, &decoded_len) && decoded_len >= TYPE6_SALT_LEN + TYPE6_MAC_LEN;
+}
+
 char *decrypt_type6(const char *encoded, const char *master_key)
 {
     uint8_t decoded[strlen(encoded)];
