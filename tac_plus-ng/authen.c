@@ -1069,7 +1069,8 @@ static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*
 	    size_t resp_len = 0;
 	    size_t chal_len = strlen(session->challenge);
 	    char *resp = eval_log_format(session, session->ctx, NULL, li_response, io_now.tv_sec, &resp_len);
-	    char chal[40 + chal_len + resp_len];
+	    str_t user_msg = session->user_msg;
+	    char chal[40 + chal_len + resp_len + user_msg.len];
 	    char *t = chal;
 	    if (!session->welcome_banner || !session->welcome_banner[0])
 		*t++ = '\n';
@@ -1078,14 +1079,21 @@ static void send_password_prompt(tac_session *session, enum pw_ix pw_ix, void (*
 	    *t++ = '\n';
 	    memcpy(t, resp, resp_len);
 	    t += resp_len;
-	    *t++ = ' ';
 	    *t = 0;
-	    str_set(&session->msg, chal, 0);
-	    session->welcome_banner = set_welcome_banner(session, NULL);
+	    char *prompt = chal;
+	    if (!session->welcome_banner) {
+		// ${umessage} is not escaped, so the challenge goes there, before the user message
+		if (user_msg.len)
+		    memcpy(t, user_msg.txt, user_msg.len);
+		t += user_msg.len;
+		*t = 0;
+		str_set(&session->user_msg, chal, t - chal);
+		prompt = set_welcome_banner(session, li_motd_dflt);
+		session->user_msg = user_msg;
+	    }
 	    send_authen_reply(session,
-			      TAC_PLUS_AUTHEN_STATUS_GETPASS, session->welcome_banner, 0, NULL, 0,
+			      TAC_PLUS_AUTHEN_STATUS_GETPASS, prompt, 0, NULL, 0,
 			      (session->ctx->realm->chalresp_noecho == TRISTATE_YES) ? TAC_PLUS_REPLY_FLAG_NOECHO : 0);
-	    str_set(&session->msg, NULL, 0);
 	    return;
 	}
     }
