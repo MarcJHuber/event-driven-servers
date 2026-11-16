@@ -37,7 +37,7 @@ static __inline__ ssize_t Write(int fd, const void *buf, size_t count)
     return i;
 }
 
-static __inline__ ssize_t Sendto(int s, const void *msg, size_t len, int flags, struct sockaddr *to, socklen_t tolen)
+static __inline__ ssize_t Sendto(int s, const void *msg, size_t len, int flags, const struct sockaddr *to, socklen_t tolen)
 {
     ssize_t i;
 
