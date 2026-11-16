@@ -286,6 +286,24 @@ class DroppedDatagram(DaemonTestCase):
             select.select([], [], [], 0.05)
         self.assertGreater(self.fds(daemon), before, "the worker did not get the TACACS+ connection")
 
+    def wait_udp_listener_read(self, daemon):
+        """Wait until spawnd has read every datagram that waits on its UDP listener."""
+        port = ":%04X" % daemon.udp_port
+        deadline = time.monotonic() + 5.0
+        while True:
+            queued = []
+            for name in ("/proc/net/udp", "/proc/net/udp6"):
+                if os.path.exists(name):
+                    with open(name) as f:
+                        rows = [line.split() for line in f.readlines()[1:]]
+                    # the listener is the socket of the port that is not connected (remote port 0)
+                    queued += [int(r[4].split(":")[1], 16) for r in rows if r[1].endswith(port) and r[2].endswith(":0000")]
+            self.assertTrue(queued, "no UDP listener on port %d" % daemon.udp_port)
+            if not any(queued) or time.monotonic() > deadline:
+                break
+            select.select([], [], [], 0.05)
+        self.assertFalse(any(queued), "spawnd did not read the datagrams")
+
     def assertLruConnectionKept(self, body, datagram):
         """users_inc() at "last-recently-used limit" evicts the oldest context; a dropped datagram must not."""
         d = self.start_daemon(body + "\tlast-recently-used limit = 1\n", udp=True)
@@ -325,6 +343,8 @@ class DroppedDatagram(DaemonTestCase):
         for _ in range(10):
             req = radius.Packet(radius.ACCESS_REQUEST, attributes=[(radius.USER_NAME, b"alice")])
             self.radius(SECRET, daemon=d, source=NAS).send_raw(req.encode())
+        # spawnd passes a datagram in the handler that reads it, so after this the datagrams are before the connection
+        self.wait_udp_listener_read(d)
         # no RADIUS answer without a dictionary: a TACACS+ answer shows that the worker read its control socket
         with d.connect() as c:
             self.assertFalse(c.pap("nobody", "x").ok)
