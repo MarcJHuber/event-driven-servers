@@ -12,6 +12,11 @@
 #include "misc/net.h"
 #include "misc/io.h"
 #include "misc/memops.h"
+#include "mavis/log.h"
+#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
 
 #ifdef WITH_ARES
 #include <ares.h>
@@ -29,7 +34,7 @@
 #endif
 
 struct io_dns_item {
-    void *app_cb;
+    io_dns_cb app_cb;
     void *app_ctx;
 #ifdef WITH_ARES
     struct io_dns_ctx *idc;
@@ -145,6 +150,14 @@ static ares_socket_t asocket(int domain, int type, int protocol, void *opaque)
 {
     struct io_dns_ctx *idc = (struct io_dns_ctx *) opaque;
     int fd = socket(domain, type, protocol);
+#if ARES_VERSION >= 0x012200
+    // io_dns_init() sets ARES_SOCKFUNC_FLAG_NONBLOCKING
+    if (fd > -1 && fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)) {
+	logerr("fcntl(O_NONBLOCK) failed for a DNS socket (%s:%d)", __FILE__, __LINE__);
+	close(fd);
+	return ARES_SOCKET_BAD;
+    }
+#endif
 #ifdef VRF_BINDTODEVICE
     if (idc->vrf)
 	setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, idc->vrf, idc->vrflen);
@@ -203,6 +216,21 @@ static ares_ssize_t asendto(ares_socket_t sock, const void *buffer, size_t lengt
 {
     return Sendto(sock, buffer, length, flags, address, address_len);
 }
+
+static int asetsockopt(ares_socket_t sock, ares_socket_opt_t opt, const void *val, ares_socklen_t val_size, void *user_data
+		       __attribute__((unused)))
+{
+    switch (opt) {
+    case ARES_SOCKET_OPT_SENDBUF_SIZE:
+	return setsockopt(sock, SOL_SOCKET, SO_SNDBUF, val, val_size);
+    case ARES_SOCKET_OPT_RECVBUF_SIZE:
+	return setsockopt(sock, SOL_SOCKET, SO_RCVBUF, val, val_size);
+    default:
+	// c-ares takes ENOSYS as "not supported" and goes on
+	errno = ENOSYS;
+	return -1;
+    }
+}
 #endif
 #endif
 
@@ -232,13 +260,21 @@ struct io_dns_ctx *io_dns_init(struct io_context *io)
 	a_socket_functions.asendv = asendv;
 	ares_set_socket_functions(idc->channel, &a_socket_functions, idc);
 #else
-	struct ares_socket_functions_ex a_socket_functions;
-	a_socket_functions.asocket = asocket;
-	a_socket_functions.aclose = aclose;
-	a_socket_functions.aconnect = aconnect;
-	a_socket_functions.arecvfrom = arecvfrom;
-	a_socket_functions.asendto = asendto;
-	ares_set_socket_functions_ex(idc->channel, &a_socket_functions, idc);
+	struct ares_socket_functions_ex a_socket_functions = {
+	    .version = 1,
+	    .flags = ARES_SOCKFUNC_FLAG_NONBLOCKING,
+	    .asocket = asocket,
+	    .aclose = aclose,
+	    .asetsockopt = asetsockopt,
+	    .aconnect = aconnect,
+	    .arecvfrom = arecvfrom,
+	    .asendto = asendto,
+	};
+	res = ares_set_socket_functions_ex(idc->channel, &a_socket_functions, idc);
+	if (res != ARES_SUCCESS) {
+	    logmsg("ares_set_socket_functions_ex() failed: %s (%s:%d)", ares_strerror(res), __FILE__, __LINE__);
+	    abort();
+	}
 #endif
 	idc->io = io;
 	idc->by_addr = RB_tree_new(idi_cmp_addr, NULL);
@@ -284,7 +320,7 @@ void io_dns_destroy(struct io_dns_ctx *idc)
     free(idc);
 }
 
-void io_dns_add_addr(struct io_dns_ctx *idc, struct in6_addr *a, void *app_cb, void *app_ctx)
+void io_dns_add_addr(struct io_dns_ctx *idc, struct in6_addr *a, io_dns_cb app_cb, void *app_ctx)
 {
     if (idc) {
 	sockaddr_union su = { 0 };
@@ -315,7 +351,7 @@ static void a_callback(void *arg, int status, int timeouts, unsigned char *abuf,
 static void a_callback(void *arg, ares_status_t status, size_t timeouts, const ares_dns_record_t * dnsrec);
 #endif
 
-void io_dns_add(struct io_dns_ctx *idc, sockaddr_union *su, void *app_cb, void *app_ctx)
+void io_dns_add(struct io_dns_ctx *idc, sockaddr_union *su, io_dns_cb app_cb, void *app_ctx)
 {
     char hex[] = "0123456789abcdef";
     char query[100];
@@ -385,7 +421,7 @@ static void a_callback(void *arg, int status, int timeouts __attribute__((unused
 		    ttl = (abuf[7] << 24) | (abuf[8] << 16) | (abuf[9] << 8) | abuf[10];
 	    }
 	}
-	((void (*)(void *, char *, int)) idi->app_cb) (idi->app_ctx, res, ttl);
+	idi->app_cb(idi->app_ctx, res, ttl);
 	if (host)
 	    ares_free_hostent(host);
     }
@@ -406,7 +442,7 @@ static void a_callback(void *arg, ares_status_t status, size_t timeouts __attrib
 	    res = ares_dns_rr_get_str(rr, ARES_RR_PTR_DNAME);
 	    ttl = ares_dns_rr_get_ttl(rr);
 	}
-	((void (*)(void *, char *, int)) idi->app_cb) (idi->app_ctx, (char *) res, ttl);
+	idi->app_cb(idi->app_ctx, (char *) res, ttl);
     }
     RB_search_and_delete(idi->idc->by_app_ctx, idi);
     RB_search_and_delete(idi->idc->by_addr, idi);
@@ -434,25 +470,3 @@ void io_dns_set_vrf(struct io_dns_ctx *idc __attribute__((unused)), char *vrf __
     idc->intvrf = (unsigned) atoi(vrf);
 #endif
 }
-
-#if 0
-static void testcb(void *ctx __attribute__((unused)), char *hostname)
-{
-    fprintf(stderr, "%s\n", hostname);
-    exit(0);
-}
-
-int main(int argc, char **argv)
-{
-    struct io_context *io = io_init();
-    struct io_dns_ctx *idc;
-    sockaddr_union su;
-
-    su_pton(&su, argv[1]);
-
-    idc = io_dns_init(io);
-
-    io_dns_add(idc, &su, testcb, &su);
-    io_main(io);
-}
-#endif

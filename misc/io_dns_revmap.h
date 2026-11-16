@@ -12,11 +12,13 @@
 #include "misc/net.h"
 
 struct io_dns_ctx;
+// called with app_ctx, the PTR name (NULL if not found) and its TTL (-1 if unknown)
+typedef void (*io_dns_cb)(void *app_ctx, char *hostname, int ttl);
 struct io_dns_ctx *io_dns_init(struct io_context *);
 void io_dns_cancel(struct io_dns_ctx *, void *);
 void io_dns_destroy(struct io_dns_ctx *);
-void io_dns_add(struct io_dns_ctx *, sockaddr_union *, void *, void *);
-void io_dns_add_addr(struct io_dns_ctx *, struct in6_addr *, void *, void *);
+void io_dns_add(struct io_dns_ctx *, sockaddr_union *, io_dns_cb, void *);
+void io_dns_add_addr(struct io_dns_ctx *, struct in6_addr *, io_dns_cb, void *);
 int io_dns_set_servers(struct io_dns_ctx *, char *);
 void io_dns_set_vrf(struct io_dns_ctx *, char *);
 #endif				/* _IO_DNS_REVMAP_H_ */

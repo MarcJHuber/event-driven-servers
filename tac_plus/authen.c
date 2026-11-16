@@ -1595,8 +1595,9 @@ void add_revmap(struct in6_addr *address, char *hostname)
     radix_add(dns_tree_ptr_dynamic[0], address, 128, strdup(hostname));
 }
 
-static void set_revmap_nac(tac_session *session, char *hostname, int ttl __attribute__((unused)))
+static void set_revmap_nac(void *app_ctx, char *hostname, int ttl __attribute__((unused)))
 {
+    tac_session *session = app_ctx;
     report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "NAC revmap(%s) = %s", session->nac_address_ascii, hostname ? hostname : "(not found)");
 
     if (hostname)
@@ -1651,7 +1652,7 @@ void get_revmap_nac(tac_session *session, tac_host **arr, int arr_min, int arr_m
 	    else {
 		session->revmap_pending = 1;
 		report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "Querying NAC revmap (%s)", session->nac_address_ascii);
-		io_dns_add_addr(idc, &session->nac_address, (void *) set_revmap_nac, session);
+		io_dns_add_addr(idc, &session->nac_address, set_revmap_nac, session);
 	    }
 #endif
 	}
@@ -1659,8 +1660,9 @@ void get_revmap_nac(tac_session *session, tac_host **arr, int arr_min, int arr_m
 }
 
 #ifdef WITH_DNS
-static void set_revmap_nas(struct context *ctx, char *hostname, int ttl __attribute__((unused)))
+static void set_revmap_nas(void *app_ctx, char *hostname, int ttl __attribute__((unused)))
 {
+    struct context *ctx = app_ctx;
     rb_node_t *rbn, *rbnext;
 
     report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "NAS revmap(%s) = %s", ctx->nas_address_ascii, hostname ? hostname : "(not found)");
@@ -1706,7 +1708,7 @@ void get_revmap_nas(struct context *ctx)
 	else {
 	    ctx->revmap_pending = 1;
 	    report(NULL, LOG_DEBUG, DEBUG_DNS_FLAG, "Querying NAS revmap (%s)", ctx->nas_address_ascii);
-	    io_dns_add_addr(idc, &ctx->nas_address, (void *) set_revmap_nas, ctx);
+	    io_dns_add_addr(idc, &ctx->nas_address, set_revmap_nas, ctx);
 	}
 #endif
     }

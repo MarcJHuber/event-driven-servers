@@ -1996,8 +1996,9 @@ void add_revmap(tac_realm *r, struct in6_addr *address, char *hostname, int ttl,
 }
 
 #ifdef WITH_DNS
-static void set_revmap_nac(tac_session *session, char *hostname, int ttl)
+static void set_revmap_nac(void *app_ctx, char *hostname, int ttl)
 {
+    tac_session *session = app_ctx;
     report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "NAC revmap(%s) = %s", session->nac_addr_ascii.txt, hostname ? hostname : "(not found)");
     if (hostname)
 	str_set(&session->nac_dns_name, mem_strdup(session->mem, hostname), 0);
@@ -2039,15 +2040,16 @@ void get_revmap_nac(tac_session *session)
 	if (r) {
 	    session->revmap_pending = 1;
 	    report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "Querying NAC revmap (%s)", session->nac_addr_ascii.txt);
-	    io_dns_add_addr(r->idc, &session->nac_address, (void *) set_revmap_nac, session);
+	    io_dns_add_addr(r->idc, &session->nac_address, set_revmap_nac, session);
 	}
     }
 #endif
 }
 
 #ifdef WITH_DNS
-static void set_revmap_nas(struct context *ctx, char *hostname, int ttl)
+static void set_revmap_nas(void *app_ctx, char *hostname, int ttl)
 {
+    struct context *ctx = app_ctx;
     if (!hostname)
 	ttl = 60;
 
@@ -2098,7 +2100,7 @@ void get_revmap_nas(tac_session *session)
 	    if (r) {
 		ctx->revmap_pending = 1;
 		report(session, LOG_DEBUG, DEBUG_DNS_FLAG, "Querying NAS revmap (%s)", ctx->device_addr_ascii.txt);
-		io_dns_add_addr(r->idc, &ctx->device_addr, (void *) set_revmap_nas, ctx);
+		io_dns_add_addr(r->idc, &ctx->device_addr, set_revmap_nas, ctx);
 	    }
 	}
 #endif

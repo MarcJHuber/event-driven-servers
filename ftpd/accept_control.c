@@ -35,8 +35,9 @@ void print_banner(struct context *ctx)
 }
 
 #ifdef WITH_DNS
-static void set_reverse(struct context *ctx, char *hostname, int ttl __attribute__((unused)))
+static void set_reverse(void *app_ctx, char *hostname, int ttl __attribute__((unused)))
 {
+    struct context *ctx = app_ctx;
     if (hostname)
 	strset(&ctx->reverse, hostname);
 }
@@ -108,7 +109,7 @@ void accept_control_raw(int s, struct scm_data_accept *sd)
     }
 #ifdef WITH_DNS
     if (idc)
-	io_dns_add(idc, &ctx->sa_c_remote, (void *) set_reverse, ctx);
+	io_dns_add(idc, &ctx->sa_c_remote, set_reverse, ctx);
 #endif				/* WITH_DNS */
 
     su_ptoh(&ctx->sa_c_remote, &ctx->in6_remote);
