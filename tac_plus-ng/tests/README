@@ -20,6 +20,23 @@ The openssl command makes the certificates of the TLS tests (in their
 scratch directories; none are kept in the tree) and is the TLS-PSK client;
 without it those tests are skipped.
 
+test_ldapmavis.py starts an OpenLDAP slapd of its own on a free port.
+It needs the server (Debian, Ubuntu: slapd; Alpine: openldap and
+openldap-back-mdb) and, for the Perl back-end, Net::LDAP and
+IO::Socket::SSL (libnet-ldap-perl libio-socket-ssl-perl; Alpine:
+perl-ldap perl-io-socket-ssl); without them those tests are skipped.
+On Ubuntu, the AppArmor profile of slapd does not let it read the
+build tree. This unloads the profile for the whole host, not only for
+the tests, until you load it again or reboot:
+
+    sudo apparmor_parser -R /etc/apparmor.d/usr.sbin.slapd
+    tac_plus-ng/tests/run-tests -k test_ldapmavis
+    sudo apparmor_parser -r /etc/apparmor.d/usr.sbin.slapd
+
+A slapd of the system that ran while the profile was unloaded stays
+unconfined: restart it after the profile is loaded again
+("sudo systemctl restart slapd").
+
 The VRF tests (test_vrf.py) make a VRF device in a user and network
 namespace of their own, with "unshare" (util-linux) and "ip" (iproute2);
 no root is needed. Where the kernel does not allow that, they are skipped.
