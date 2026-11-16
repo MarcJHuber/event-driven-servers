@@ -286,23 +286,36 @@ class DroppedDatagram(DaemonTestCase):
             select.select([], [], [], 0.05)
         self.assertGreater(self.fds(daemon), before, "the worker did not get the TACACS+ connection")
 
+    def udp_sockets(self, daemon):
+        """(remote address, receive queue) of each socket on the UDP port; the remote address of the listener is None."""
+        port = ":%04X" % daemon.udp_port
+        found = []
+        for name in ("/proc/net/udp", "/proc/net/udp6"):
+            if os.path.exists(name):
+                with open(name) as f:
+                    rows = [line.split() for line in f.readlines()[1:]]
+                # a reply socket of spawnd is connected to its client, the listener is not (remote port 0)
+                found += [(None if r[2].endswith(":0000") else r[2], int(r[4].split(":")[1], 16)) for r in rows if r[1].endswith(port)]
+        self.assertIn(None, [remote for remote, _ in found], "no UDP listener on port %d" % daemon.udp_port)
+        return found
+
+    def reply_sockets(self, daemon):
+        return {remote for remote, _ in self.udp_sockets(daemon) if remote}
+
     def wait_udp_listener_read(self, daemon):
         """Wait until spawnd has read every datagram that waits on its UDP listener."""
-        port = ":%04X" % daemon.udp_port
         deadline = time.monotonic() + 5.0
-        while True:
-            queued = []
-            for name in ("/proc/net/udp", "/proc/net/udp6"):
-                if os.path.exists(name):
-                    with open(name) as f:
-                        rows = [line.split() for line in f.readlines()[1:]]
-                    # the listener is the socket of the port that is not connected (remote port 0)
-                    queued += [int(r[4].split(":")[1], 16) for r in rows if r[1].endswith(port) and r[2].endswith(":0000")]
-            self.assertTrue(queued, "no UDP listener on port %d" % daemon.udp_port)
-            if not any(queued) or time.monotonic() > deadline:
-                break
+        while any(q for remote, q in self.udp_sockets(daemon) if remote is None) and time.monotonic() < deadline:
             select.select([], [], [], 0.05)
-        self.assertFalse(any(queued), "spawnd did not read the datagrams")
+        self.assertFalse(any(q for remote, q in self.udp_sockets(daemon) if remote is None), "spawnd did not read the datagrams")
+
+    def assertReplySocketsClosed(self, before, daemon):
+        """spawnd read every datagram, and of the reply sockets only those in before are left."""
+        self.wait_udp_listener_read(daemon)
+        deadline = time.monotonic() + 5.0
+        while self.reply_sockets(daemon) - before and time.monotonic() < deadline:
+            select.select([], [], [], 0.05)
+        self.assertEqual(self.reply_sockets(daemon) - before, set(), "the worker keeps the sockets of dropped datagrams")
 
     def assertLruConnectionKept(self, body, datagram):
         """users_inc() at "last-recently-used limit" evicts the oldest context; a dropped datagram must not."""
@@ -324,15 +337,12 @@ class DroppedDatagram(DaemonTestCase):
         r = c.access_request("alice", "alicepw", message_authenticator=True)
         self.assertEqual(r.code_name, "Access-Accept", r)
 
-    @unittest.skipUnless(LINUX, "file descriptors through /proc")
+    @unittest.skipUnless(LINUX, "sockets through /proc")
     def test_bad_datagrams_leave_no_socket_open(self):
-        before = self.fds()
+        before = self.reply_sockets(self.daemon)
         for _ in range(10):
             self.bad(self.radius(SECRET, source=NAS))
-        # spawnd passes the datagrams of its UDP socket in order, so this answer comes after the drops
-        r = self.radius(SECRET, source=NAS).access_request("alice", "alicepw", message_authenticator=True)
-        self.assertEqual(r.code_name, "Access-Accept", r)
-        self.assertFdsBack(before + 1)  # the context of the answered request keeps its socket
+        self.assertReplySocketsClosed(before, self.daemon)
 
     @unittest.skipUnless(LINUX, "file descriptors through /proc")
     def test_datagrams_without_a_dictionary_leave_no_socket_open(self):
@@ -359,11 +369,15 @@ class DroppedDatagram(DaemonTestCase):
     def test_datagram_without_a_dictionary_keeps_the_least_recently_used_connection(self):
         self.assertLruConnectionKept("", radius.Packet(radius.ACCESS_REQUEST).encode())
 
+    @unittest.skipUnless(LINUX, "sockets through /proc")
     def test_bad_datagrams_do_not_use_up_the_user_limit(self):
         """spawnd counts each passed datagram as a user until the worker reports it done."""
         d = self.start_daemon(POLICY, udp=True, spawnd="\tspawn { users max = 4 }\n")
+        before = self.reply_sockets(d)
         for _ in range(6):
             self.bad(self.radius(SECRET, daemon=d, source=NAS))
+        # a datagram that comes while spawnd binds a reply socket goes to that socket: wait until they are gone
+        self.assertReplySocketsClosed(before, d)
         r = self.radius(SECRET, daemon=d, source=NAS).access_request("alice", "alicepw", message_authenticator=True)
         self.assertEqual(r.code_name, "Access-Accept", r)
 
