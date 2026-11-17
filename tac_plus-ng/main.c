@@ -1765,6 +1765,7 @@ static void accept_control_common(int s, struct scm_data_accept_ext *sd_ext, soc
 	}
     }
     ctx->rad_acct = (sd_ext->sd.flags & SCM_FLAG_RADACCT) ? BISTATE_YES : BISTATE_NO;
+    ctx->aaa_protocol = sd_ext->sd.aaa_protocol;
     ctx->sock = s;
     io_register(ctx->io, ctx->sock, ctx);
 
