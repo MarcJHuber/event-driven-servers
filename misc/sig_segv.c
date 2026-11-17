@@ -51,12 +51,12 @@ void catchsegv(int sig __attribute__((unused)))
     logmsg("Caught SIGSEGV");
     logmsg("Apologies ... this shouldn't have happened. Please verify that");
     logmsg("you are running the most current version from");
-    logmsg("    https://github.com/MarcJHuber/event-driven-servers/");
+    logmsg("    https://github.com/tacplus-ng/event-driven-servers/");
     logmsg("The version you're currently running is " VERSION);
     logmsg("If this issue persists even with the most recent version:");
     logmsg("Reconfigure with --ggdb, recompile and reinstall. Then send");
     logmsg("a bug report via GitHub issues at");
-    logmsg("    https://github.com/MarcJHuber/event-driven-servers/issues");
+    logmsg("    https://github.com/tacplus-ng/event-driven-servers/issues");
     logmsg("and include the backtraces.");
     logmsg("Please do NOT mail bug reports to the private mail address of");
     logmsg("the author, unless you have a prior permit for that.");

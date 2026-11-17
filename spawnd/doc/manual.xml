@@ -20,7 +20,7 @@
     <para>Support for receiving and forwarding UDP packets to the worker processes is available, too (<emphasis role="bold">tac_plus-ng</emphasis> uses that for processing RADIUS/UDP) </para>
     <section>
       <title>Download</title>
-      <para>You can download the source code from the GitHub repository at <ulink url="https://github.com/MarcJHuber/event-driven-servers/">https://github.com/MarcJHuber/event-driven-servers/</ulink>.
+      <para>You can download the source code from the GitHub repository at <ulink url="https://github.com/tacplus-ng/event-driven-servers/">https://github.com/tacplus-ng/event-driven-servers/</ulink>.
             On-line documentation is available via <ulink url="https://projects.pro-bono-publico.de/event-driven-servers/doc/">https://projects.pro-bono-publico.de/event-driven-servers/doc/</ulink>, too.
       </para>
     </section>

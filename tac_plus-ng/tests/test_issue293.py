@@ -28,7 +28,7 @@
 
 """#293: enable request for a user the daemon doesn't know.
 
-https://github.com/MarcJHuber/event-driven-servers/issues/293
+https://github.com/tacplus-ng/event-driven-servers/issues/293
 
 do_enable() evaluates the ruleset through cfg_get_enable() before it
 compares the enable password. For a user that is neither configured nor

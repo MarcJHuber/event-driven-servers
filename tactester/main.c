@@ -375,7 +375,7 @@ static void usage()
     fprintf(stderr, "  -s <server>         [first found]\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "Author:  Marc.Huber@web.de\n");
-    fprintf(stderr, "GIT:     https://github.com/MarcJHuber/event-driven-servers/\n");
+    fprintf(stderr, "GIT:     https://github.com/tacplus-ng/event-driven-servers/\n");
     fprintf(stderr, "Version: " VERSION
 #ifdef OPENSSL_VERSION_TEXT
 	    "/" OPENSSL_VERSION_TEXT

@@ -60,7 +60,7 @@
         <para>Supports Linux VRFs</para>
       </listitem>
       <listitem>
-        <para>Supports (non-standard) SSH Public Key Authentication (see <ulink url="https://github.com/MarcJHuber/event-driven-servers/wiki/TACACS_PLUS---SSH-Public-Key-Authentication">the Wiki</ulink> for reference)</para>
+        <para>Supports (non-standard) SSH Public Key Authentication (see <ulink url="https://github.com/tacplus-ng/event-driven-servers/wiki/TACACS_PLUS---SSH-Public-Key-Authentication">the Wiki</ulink> for reference)</para>
       </listitem>
       <listitem>
         <para>Implements and auto-detects legacy RADIUS (UDP and TCP), RADSEC (TLS) and RADIUS/DTLS (with PAP, CHAP, MSCHAPv1 and MSCHAPv2 authentication).</para>
@@ -71,7 +71,7 @@
     </itemizedlist>
     <section>
       <title>Download</title>
-      <para>You can download the source code from the GitHub repository at <ulink url="https://github.com/MarcJHuber/event-driven-servers/">https://github.com/MarcJHuber/event-driven-servers/</ulink>.
+      <para>You can download the source code from the GitHub repository at <ulink url="https://github.com/tacplus-ng/event-driven-servers/">https://github.com/tacplus-ng/event-driven-servers/</ulink>.
             On-line documentation is available via <ulink url="https://projects.pro-bono-publico.de/event-driven-servers/doc/">https://projects.pro-bono-publico.de/event-driven-servers/doc/</ulink>, too.
       </para>
     </section>
@@ -2598,7 +2598,7 @@ tacacs-server host 192.168.0.1 single-connection key your key here</screen>
             <note>
               <title>Password Encryption</title>
               <para>If compiled with OpenSSL support Cisco Type-6 AES128 password encryption is available. Encrypted password strings can be copied from a IOS system or generated manually (for example with
-		  <ulink url="https://github.com:MarcJHuber/cisco6">type6</ulink>). Type-6 passwords used in host context require a <emphasis>type6-key</emphasis> definition for the master key in host or realm context,
+		  <ulink url="https://github.com/MarcJHuber/cisco6">type6</ulink>). Type-6 passwords used in host context require a <emphasis>type6-key</emphasis> definition for the master key in host or realm context,
 		  while <emphasis>type-6</emphasis> passwords in user or profile context use the master key from the realm context.</para>
               <screen xml:space="preserve">
 master key = demo

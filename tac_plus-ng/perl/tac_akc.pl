@@ -63,7 +63,7 @@ Group at
 
 or open an issue at the GitHub page at
 
-    https://github.com/MarcJHuber/event-driven-servers/issues
+    https://github.com/tacplus-ng/event-driven-servers/issues
 
 Support requests sent to the author's private email address may be silently ignored.
 EOT

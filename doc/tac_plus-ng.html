@@ -228,7 +228,7 @@
 <p>Supports Linux VRFs</p>
 </li>
 <li>
-<p>Supports (non-standard) SSH Public Key Authentication (see <a class="lk" href="https://github.com/MarcJHuber/event-driven-servers/wiki/TACACS_PLUS---SSH-Public-Key-Authentication" target="_top">the Wiki</a> for reference)</p>
+<p>Supports (non-standard) SSH Public Key Authentication (see <a class="lk" href="https://github.com/tacplus-ng/event-driven-servers/wiki/TACACS_PLUS---SSH-Public-Key-Authentication" target="_top">the Wiki</a> for reference)</p>
 </li>
 <li>
 <p>Implements and auto-detects legacy RADIUS (UDP and TCP), RADSEC (TLS) and RADIUS/DTLS (with PAP, CHAP, MSCHAPv1 and MSCHAPv2 authentication).</p>
@@ -240,7 +240,7 @@
 <div class="section">
 <hr>
 <h3 class="section"><a name="AEN49" id="AEN49">1.1. Download</a></h3>
-<p>You can download the source code from the GitHub repository at <a class="lk" href="https://github.com/MarcJHuber/event-driven-servers/" target="_top">https://github.com/MarcJHuber/event-driven-servers/</a>. On-line documentation is available via <a class="lk" href="https://projects.pro-bono-publico.de/event-driven-servers/doc/" target="_top">https://projects.pro-bono-publico.de/event-driven-servers/doc/</a>, too.</p>
+<p>You can download the source code from the GitHub repository at <a class="lk" href="https://github.com/tacplus-ng/event-driven-servers/" target="_top">https://github.com/tacplus-ng/event-driven-servers/</a>. On-line documentation is available via <a class="lk" href="https://projects.pro-bono-publico.de/event-driven-servers/doc/" target="_top">https://projects.pro-bono-publico.de/event-driven-servers/doc/</a>, too.</p>
 </div>
 </div>
 <div class="section">
@@ -2129,7 +2129,7 @@ tacacs-server host 192.168.0.1 single-connection key your key here</pre>
 <tr>
 <td>&nbsp;</td>
 <td align="left" valign="top">
-<p>If compiled with OpenSSL support Cisco Type-6 AES128 password encryption is available. Encrypted password strings can be copied from a IOS system or generated manually (for example with <a class="lk" href="https://github.com:MarcJHuber/cisco6" target="_top">type6</a>). Type-6 passwords used in host context require a <span class="emphasis"><i class="emphasis">type6-key</i></span> definition for the master key in host or realm context, while <span class="emphasis"><i class="emphasis">type-6</i></span> passwords in user or profile context use the master key from the realm context.</p>
+<p>If compiled with OpenSSL support Cisco Type-6 AES128 password encryption is available. Encrypted password strings can be copied from a IOS system or generated manually (for example with <a class="lk" href="https://github.com/MarcJHuber/cisco6" target="_top">type6</a>). Type-6 passwords used in host context require a <span class="emphasis"><i class="emphasis">type6-key</i></span> definition for the master key in host or realm context, while <span class="emphasis"><i class="emphasis">type-6</i></span> passwords in user or profile context use the master key from the realm context.</p>
 <pre class="screen">
 master key = demo
 # master key = "${SOME_ENVIRONMENT_VARIABLE}"
