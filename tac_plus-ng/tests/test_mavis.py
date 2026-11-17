@@ -43,7 +43,7 @@ import threading
 import time
 import unittest
 
-from tactest import LINUX, DaemonTestCase, Stub, config, detect, features, prefix
+from tactest import LINUX, SOURCE, DaemonTestCase, Stub, config, detect, features, prefix
 from tactest.daemon import alive as daemon_alive, parse_only, sanitizer_env
 
 BACKEND = """
@@ -167,6 +167,52 @@ class Fallback(DaemonTestCase):
         with d.connect() as c:
             self.assertEqual(c.pap("alice", "pw").status_name, "PASS")
             self.assertEqual(c.pap("rescue", "rescuepw").status_name, "FAIL")
+
+
+DACL_NAS = "127.0.0.6"
+DACL_SECRET = "radsecret"
+DACL_ACE = "permit ip host 1.2.3.4 any"
+CISCO_VENDOR = 9
+VENDOR_SPECIFIC = 26
+
+
+@unittest.skipUnless(LINUX, "127.0.0.0/8 local addresses")
+class DaclAnsweredAtOnce(DaemonTestCase):
+    """A DACL from a MAVIS module that answers at once, without a back-end round trip (tacinfo_cache).
+
+    mavis_dacl_lookup() gave such an answer to the user handler instead of
+    the DACL handler, so the daemon did not apply the DACL and rejected
+    the download.
+    """
+
+    CONFIG = None
+    POLICY = """
+	include = "%s"
+	mavis module = tacinfo_cache { directory = "@CACHE@" }
+""" % os.path.join(SOURCE, "tac_plus-ng", "sample", "radius-dict.cfg") + Stub.module(childs=(1, 1)) + BACKEND + """
+	device radius-nas {
+		address = %s
+		radius.key = %s
+	}
+""" % (DACL_NAS, DACL_SECRET) + PERMIT
+
+    def test_dacl_from_the_cache_is_applied(self):
+        # a short path: tacinfo_cache keeps only 36 characters of the cache file path (libmavis_tacinfo_cache.c)
+        cache = tempfile.mkdtemp(prefix="tacinfo-", dir="/tmp")
+        self.addCleanup(shutil.rmtree, cache)
+        d = self.start_daemon(self.POLICY.replace("@CACHE@", cache), udp=True)
+        stub = Stub(d)
+        stub.set(dacls={"demoacl": '{ data = "%s" }' % DACL_ACE})
+        event = b"aaa:event=acl-download"
+        for source in ("backend", "cache"):
+            with self.subTest(source=source):
+                r = self.radius(DACL_SECRET, daemon=d, source=DACL_NAS).access_request(
+                    "#ACSACL#demoacl-00000000", "", message_authenticator=True,
+                    attributes=[(VENDOR_SPECIFIC, struct.pack("!IBB", CISCO_VENDOR, 1, len(event) + 2) + event)])
+                self.assertEqual(r.code_name, "Access-Accept", r)
+                self.assertIn(b"ip:inacl#1=" + DACL_ACE.encode(), b"".join(r.get(VENDOR_SPECIFIC)), r)
+        # the second answer came from tacinfo_cache
+        self.assertEqual([e["type"] for e in stub.requests()], ["DACL"])
 
 
 class Cache(DaemonTestCase):

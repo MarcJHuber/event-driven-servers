@@ -830,7 +830,7 @@ void mavis_dacl_lookup(tac_session *session, void (*f)(tac_session *), const cha
     case MAVIS_IGNORE:
 	break;
     default:
-	mavis_switch(session, avc, result);
+	mavis_dacl_switch(session, avc, result);
     }
 }
 
