@@ -15,7 +15,7 @@
     <para><emphasis role="bold">tac_plus</emphasis> is a TACACS+ daemon. It
     provides Cisco Systems routers and access servers with authentication,
     authorisation and accounting services.</para>
-    <para>This version is a major rewrite of the original Cisco source code. However, it's outdated and unsupported. Feel encouraged to use <ulink url="https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus-ng.html">tac_plus-ng</ulink>.</para>
+    <para>This version is a major rewrite of the original Cisco source code. However, it's outdated and unsupported. Feel encouraged to use <ulink url="https://tacplus-ng.github.io/event-driven-servers/tac_plus-ng.html">tac_plus-ng</ulink>.</para>
     <para>Key features include:</para>
     <itemizedlist>
       <listitem>
@@ -57,7 +57,7 @@
     <section>
       <title>Download</title>
       <para>You can download the source code from the GitHub repository at <ulink url="https://github.com/tacplus-ng/event-driven-servers/">https://github.com/tacplus-ng/event-driven-servers/</ulink>.
-            On-line documentation is available via <ulink url="https://projects.pro-bono-publico.de/event-driven-servers/doc/">https://projects.pro-bono-publico.de/event-driven-servers/doc/</ulink>, too.
+            On-line documentation is available via <ulink url="https://tacplus-ng.github.io/event-driven-servers/doc/index.html">https://tacplus-ng.github.io/event-driven-servers/doc/index.html</ulink>, too.
       </para>
     </section>
   </section>

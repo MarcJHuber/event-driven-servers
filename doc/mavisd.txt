@@ -32,8 +32,8 @@ Marc Huber
    You can download the source code from the GitHub repository at
    https://github.com/tacplus-ng/event-driven-servers/. On-line
    documentation is available via
-   https://projects.pro-bono-publico.de/event-driven-servers/doc/,
-   too.
+   https://tacplus-ng.github.io/event-driven-servers/doc/index.htm
+   l, too.
      __________________________________________________________
 
 2. Command line syntax

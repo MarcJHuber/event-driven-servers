@@ -10,7 +10,7 @@ TLS), with RADIUS support for PAP/CHAP/MSCHAPv1/MSCHAPv2 authentication and Down
 
 Documentation:
 
-  https://projects.pro-bono-publico.de/event-driven-servers/doc/tac_plus-ng.html
+  https://tacplus-ng.github.io/event-driven-servers/doc/tac_plus-ng.html
 
 Sample configurations:
 
@@ -74,7 +74,7 @@ Documentation
 
 The distribution comes with documentation located in the
 top-level "doc" directory, and you can view it online at
-https://www.pro-bono-publico.de/projects, too.
+https://tacplus-ng.github.io/event-driven-servers/doc/index.html, too.
 
 Support
 =======
@@ -109,7 +109,7 @@ Original GIT:
 
 Project page:
 
-  https://www.pro-bono-publico.de/projects
+  https://tacplus-ng.github.io/event-driven-servers/doc/index.html
 
 Contributors and acknowledgements
 ====
