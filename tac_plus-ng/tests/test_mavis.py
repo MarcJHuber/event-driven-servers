@@ -204,6 +204,57 @@ class Cache(DaemonTestCase):
         self.assertEqual([e["type"] for e in self.login_then_authorize(config.BASE)], ["INFO"])
 
 
+class CachedPasswordChange(DaemonTestCase):
+    """With a MAVIS cache period, a password change goes to the backend, and the old password is not cached.
+
+    After a login the daemon caches a hash of the password as the login
+    password of the user. do_chpass() then compared the new password with
+    that hash and did not send CHPW to the backend.
+    """
+
+    CONFIG = None
+
+    def setUp(self):
+        super().setUp()
+        template = config.BASE.replace("mavis cache timeout = 0", "mavis cache timeout = 60")
+        self.assertNotEqual(template, config.BASE)
+        policy = Stub.module(childs=(1, 1)) + BACKEND.replace("login backend = mavis", "login backend = mavis chpass")
+        self.d = self.start_daemon(policy + PERMIT, template=template)
+        self.stub = Stub(self.d)
+
+    def login(self, password):
+        with self.d.connect() as c:
+            return c.ascii_login("alice", password).status_name
+
+    def change(self, old, new):
+        """The password change dialog: an empty password, then the old one and the new one twice."""
+        with self.d.connect() as c:
+            r = c.ascii_login("alice", "", data=[old, new, new])
+        return r.status_name, r.server_msg
+
+    def requests(self):
+        return [(e["type"], e["result"]) for e in self.stub.requests()]
+
+    def test_change_after_a_cached_login(self):
+        self.stub.set(users={"alice": {"password": "old", "new_password": "new"}})
+        self.assertEqual(self.login("old"), "PASS")
+        self.assertEqual(self.change("old", "new"), ("PASS", "Password change succeeded."))
+        self.assertEqual(self.requests(), [("AUTH", "ACK"), ("CHPW", "ACK")])
+        self.stub.set(users={"alice": {"password": "new"}})
+        self.assertEqual(self.login("old"), "FAIL")
+        self.assertEqual(self.login("new"), "PASS")
+
+    def test_second_change(self):
+        self.stub.set(users={"alice": {"password": "old", "new_password": "new"}})
+        self.assertEqual(self.change("old", "new"), ("PASS", "Password change succeeded."))
+        self.stub.set(users={"alice": {"password": "new", "new_password": "newer"}})
+        self.assertEqual(self.change("new", "newer"), ("PASS", "Password change succeeded."))
+        self.assertEqual(self.requests(), [("CHPW", "ACK"), ("CHPW", "ACK")])
+        self.stub.set(users={"alice": {"password": "newer"}})
+        self.assertEqual(self.login("new"), "FAIL")
+        self.assertEqual(self.login("newer"), "PASS")
+
+
 def ssh_ed25519_key(size=32):
     """An OpenSSH public key line ("ssh-ed25519 <base64> comment"), the key itself made up."""
     def string(b):

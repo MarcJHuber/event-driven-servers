@@ -1035,8 +1035,10 @@ static void do_chpass(tac_session *session)
     if (refuse_tac_session(session, info, pw_ix))
 	return;
 
+    // a password hash from the MAVIS cache (mavis_lookup_final()) cannot answer a password change
+    int mavis_cached = session->user && pwdat != &passwd_deny_dflt && pwdat == session->user->passwd[PW_MAVIS];
     if (!session->flag_mavis_auth
-	&& (((session->ctx->realm->mavis_login_prefetch != TRISTATE_YES) && !session->user) || (session->user && pw_ix == PW_MAVIS))) {
+	&& (((session->ctx->realm->mavis_login_prefetch != TRISTATE_YES) && !session->user) || (session->user && pw_ix == PW_MAVIS) || mavis_cached)) {
 	session->flag_mavis_auth = 1;
 	mavis_lookup(session, do_chpass, AV_V_TACTYPE_CHPW, PW_LOGIN);
 	return;
