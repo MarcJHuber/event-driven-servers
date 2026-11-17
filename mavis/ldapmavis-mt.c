@@ -77,9 +77,9 @@ Important environment variables and ther defaults:\n\
 Leaving the ones below as-is is likely safe:\n\
  LDAP_BASE_GROUP               same as LDAP_BASE\n\
  LDAP_BASE_POSIXGROUP          same as LDAP_BASE\n\
- LDAP_SCOPE                    subtree (base, level, onelevel, subtree)\n\
- LDAP_SCOPE_GROUP              subtree (base, level, onelevel, subtree)\n\
- LDAP_SCOPE_POSIXGROUP         subtree (base, level, onelevel, subtree)\n\
+ LDAP_SCOPE                    sub (base, one, sub)\n\
+ LDAP_SCOPE_GROUP              sub (base, one, sub)\n\
+ LDAP_SCOPE_POSIXGROUP         sub (base, one, sub)\n\
  LDAP_TIMEOUT                  5 [seconds]\n\
  LDAP_NETWORK_TIMEOUT          5 [seconds]\n\
  LDAP_TACMEMBER                tacMember\n\
@@ -1061,13 +1061,11 @@ static void *run_thread(void *arg)
 
 static void set_scope(char *scope_str, int *scope)
 {
-    if (strcasecmp(scope_str, "base"))
+    if (!strcasecmp(scope_str, "base"))
 	*scope = LDAP_SCOPE_BASE;
-    else if (strcasecmp(scope_str, "level"))
+    else if (!strcasecmp(scope_str, "one") || !strcasecmp(scope_str, "level") || !strcasecmp(scope_str, "onelevel"))
 	*scope = LDAP_SCOPE_ONELEVEL;
-    else if (strcasecmp(scope_str, "onelevel"))
-	*scope = LDAP_SCOPE_ONELEVEL;
-    else if (strcasecmp(scope_str, "subtree"))
+    else if (!strcasecmp(scope_str, "sub") || !strcasecmp(scope_str, "subtree"))
 	*scope = LDAP_SCOPE_SUBTREE;
     else
 	fprintf(stderr, "LDAP scope '%s' not recognized, will be ignored.\n", scope_str);
