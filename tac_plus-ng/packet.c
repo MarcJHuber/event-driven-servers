@@ -867,7 +867,6 @@ void tac_read(struct context *ctx, int cur)
 	    break;
 	case TAC_PLUS_AUTHOR:
 	    bogus = author_pak_looks_bogus(ctx);
-fprintf(stderr, "author_pak_looks_bogus=%d\n", bogus);
 	    break;
 	case TAC_PLUS_ACCT:
 	    bogus = accounting_pak_looks_bogus(ctx);
