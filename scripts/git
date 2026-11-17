@@ -1,0 +1,25 @@
+#!/usr/bin/perl -w
+# git wrapper for automatically creating and commiting the LAST_COMMIT file on push
+#
+# Author: Marc.Huber@web.de
+
+use strict;
+my $out = "LAST_COMMIT";
+
+if ($#ARGV > -1 && $ARGV[0] eq "push") {
+	my $i = 10;
+	while (! -d ".git" && $i > 0) {
+		chdir "..";
+		$i--;
+	}
+	die "Not in a repository" unless -d ".git";
+	my $gl = `git log -n 1`;
+	$gl =~ s/^commit (\w+).*/$1/s;
+	open OUT, ">$out";
+	print OUT $gl, "\n";
+	close OUT;
+	system ("(date -u +\"%Y.%m.%d.\" | tr -d '\n' ;  env -i git log --after=yesterday --oneline|wc -l) >> $out");
+	system("git add $out && git commit -m \"$out: auto-bump version\"");
+}
+
+system("/usr/bin/git", @ARGV);
