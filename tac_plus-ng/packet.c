@@ -517,7 +517,7 @@ static int author_pak_looks_bogus(struct context *ctx)
     u_int len = TAC_AUTHOR_REQ_FIXED_FIELDS_SIZE + pak->user_len + pak->port_len + pak->rem_addr_len + pak->arg_cnt;
 
     int i;
-    for (i = 0; i < (int) pak->arg_cnt && len < datalength; i++)
+    for (i = 0; i < (int) pak->arg_cnt && len <= datalength; i++)
 	len += p[i];
 
     return (i != pak->arg_cnt) || ((ctx->host->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength));
@@ -532,7 +532,7 @@ static int accounting_pak_looks_bogus(struct context *ctx)
     u_int len = TAC_ACCT_REQ_FIXED_FIELDS_SIZE + pak->user_len + pak->port_len + pak->rem_addr_len + pak->arg_cnt;
 
     int i;
-    for (i = 0; i < (int) pak->arg_cnt && len < datalength; i++)
+    for (i = 0; i < (int) pak->arg_cnt && len <= datalength; i++)
 	len += p[i];
 
     return (i != pak->arg_cnt) || ((ctx->host->bug_compatibility & CLIENT_BUG_HEADER_LENGTH) ? (len > datalength) : (len != datalength));
@@ -867,6 +867,7 @@ void tac_read(struct context *ctx, int cur)
 	    break;
 	case TAC_PLUS_AUTHOR:
 	    bogus = author_pak_looks_bogus(ctx);
+fprintf(stderr, "author_pak_looks_bogus=%d\n", bogus);
 	    break;
 	case TAC_PLUS_ACCT:
 	    bogus = accounting_pak_looks_bogus(ctx);
