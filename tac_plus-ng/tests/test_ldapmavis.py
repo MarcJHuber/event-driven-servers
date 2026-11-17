@@ -515,6 +515,21 @@ class LdapMt(LdapTests, DaemonTestCase):
             r = c.ascii_login("wide", "widepw")
         self.assertEqual((r.status_name, r.server_msg), ("PASS", "wide\n"), r)
 
+    def test_wide_memberof_tree(self):
+        """memberOf: the direct group of the user has WIDE parents, and only the last parent is in cn=wide-<last>."""
+        last = f"cn=wide-{WIDE - 1},ou=groups,{BASE}"
+        ldif = person("mowide", f"objectClass: extensibleObject\nmemberOf: cn=mo-direct,ou=groups,{BASE}\n")
+        ldif += f"\ndn: cn=mo-direct,ou=groups,{BASE}\nobjectClass: groupOfNames\nobjectClass: extensibleObject\n"
+        ldif += f"cn: mo-direct\nmember: cn=nobody,{BASE}\n"
+        ldif += "".join(f"memberOf: cn=mo-{i},ou=groups,{BASE}\n" for i in range(WIDE))
+        for i in range(WIDE):
+            ldif += f"\ndn: cn=mo-{i},ou=groups,{BASE}\nobjectClass: groupOfNames\nobjectClass: extensibleObject\n"
+            ldif += f"cn: mo-{i}\nmember: cn=nobody,{BASE}\n" + (f"memberOf: {last}\n" if i == WIDE - 1 else "")
+        _, d = self.start(ldif=ldif)
+        with d.connect(timeout=30.0) as c:
+            r = c.ascii_login("mowide", "mowidepw")
+        self.assertEqual((r.status_name, r.server_msg), ("PASS", "wide\n"), r)
+
 
 @unittest.skipUnless(os.access(SLAPD, os.X_OK), "no OpenLDAP slapd")
 @unittest.skipUnless(perl_ldap(), "no Net::LDAP or IO::Socket::SSL for Perl")
