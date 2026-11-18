@@ -119,6 +119,12 @@ class Accounting(DaemonTestCase):
         log = self.wait_log("accounting", "\tstop\t")
         self.assertIn("\tstart\tshell\tshow version <cr>", log)
 
+    def test_issue21_empty_argument(self):
+        """#21: a zero-length AV pair must not make the daemon reject the accounting request."""
+        from tactest.tacacs import ACCT_FLAG_START
+        r = self.connect().acct("alice", ["task_id=42", "service=shell", "cmd=show version <cr>", ""], flags=ACCT_FLAG_START)
+        self.assertEqual(r.status_name, "SUCCESS", r)
+
 
 if __name__ == "__main__":
     unittest.main()

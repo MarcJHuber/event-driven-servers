@@ -129,6 +129,37 @@ class MalformedPackets(DaemonTestCase):
         except (tacacs.Closed, TimeoutError):
             pass
 
+    def _ghsa_v384_packet(self, type):
+        """GHSA-v384-f7x8-f7c7: arg_cnt 255 and a size table that overruns the payload.
+
+        One real argument "cmd=" (4 bytes); the next 254 size bytes each
+        claim 255 bytes that are not in the packet. The length check stopped
+        at the first argument and accepted it, so eval_args() followed the
+        fake sizes and read past the packet buffer (upstream d8493e0d).
+        """
+        # method 6, priv 1, authen_type 1, service 1, user/port/rem_addr lens 0, arg_cnt 255
+        fixed = bytes([6, 1, 1, 1, 0, 0, 0, 255])
+        if type == tacacs.TYPE_ACCT:
+            fixed = bytes([tacacs.ACCT_FLAG_START]) + fixed
+        body = fixed + bytes([4]) + bytes([0xFF]) * 254 + b"cmd="
+        return tacacs.Packet(type, body)
+
+    def test_ghsa_v384_author_overflow_rejected(self):
+        """The crafted authorization packet is rejected, the worker does not crash."""
+        c = self.connect()
+        c.send_raw(self._ghsa_v384_packet(tacacs.TYPE_AUTHOR).encode(c.key))
+        r = tacacs.AuthorReply(c.recv())
+        self.assertEqual(r.status_name, "ERROR", r)
+        self.assertIn("Illegal packet", r.server_msg)
+
+    def test_ghsa_v384_accounting_overflow_rejected(self):
+        """The crafted accounting packet is rejected, the worker does not crash."""
+        c = self.connect()
+        c.send_raw(self._ghsa_v384_packet(tacacs.TYPE_ACCT).encode(c.key))
+        r = tacacs.AcctReply(c.recv())
+        self.assertEqual(r.status_name, "ERROR", r)
+        self.assertIn("Illegal packet", r.server_msg)
+
 
 class Users(DaemonTestCase):
     CONFIG = POLICY
