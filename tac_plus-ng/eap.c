@@ -62,6 +62,8 @@
 
 #include <openssl/rand.h>
 #include <openssl/crypto.h>
+#include <openssl/err.h>
+#include <openssl/x509v3.h>
 
 /*
  * Attribute walkers. The RADIUS packet has already passed rad_check_failed()
@@ -390,6 +392,202 @@ static void eap_send_request(tac_session *session, struct eap_session *es,
     rad_send_eap_reply(session, RADIUS_CODE_ACCESS_CHALLENGE, pkt, len, es->state, es->state_len);
 }
 
+/*
+ * Lazily create the server SSL object for an EAP session. SSL_set_bio()
+ * hands the memory BIOs to the SSL object; eap_session_free() frees them
+ * with SSL_free().
+ */
+static int eap_tls_start(struct eap_session *es, tac_realm *r)
+{
+    if (es->ssl)
+	return 1;
+    if (!r->eap_tls)
+	return 0;
+
+    es->ssl = SSL_new(r->eap_tls);
+    if (!es->ssl)
+	return 0;
+
+    SSL_set_accept_state(es->ssl);
+    es->rbio = BIO_new(BIO_s_mem());
+    es->wbio = BIO_new(BIO_s_mem());
+    if (!es->rbio || !es->wbio) {
+	if (es->rbio)
+	    BIO_free(es->rbio);
+	if (es->wbio)
+	    BIO_free(es->wbio);
+	SSL_free(es->ssl);
+	es->ssl = NULL;
+	es->rbio = es->wbio = NULL;
+	return 0;
+    }
+
+    SSL_set_bio(es->ssl, es->rbio, es->wbio);
+    SSL_set_app_data(es->ssl, es);
+    es->tls_state = EAP_TLS_HANDSHAKE;
+    return 1;
+}
+
+/*
+ * Drain all pending TLS output into a malloc()ed buffer. A certificate
+ * flight is several KB, so the buffer is sized from BIO_ctrl_pending(),
+ * not a fixed EAP/RADIUS packet size. *buf is NULL and *len is 0 when
+ * there is nothing to send.
+ */
+static int eap_tls_drain(struct eap_session *es, u_char **buf, size_t *len)
+{
+    size_t total, got = 0;
+
+    *buf = NULL;
+    *len = 0;
+
+    total = (size_t) BIO_ctrl_pending(es->wbio);
+    if (!total)
+	return 1;
+
+    *buf = malloc(total);
+    if (!*buf)
+	return 0;
+
+    while (got < total) {
+	int n = BIO_read(es->wbio, *buf + got, (int) (total - got));
+	if (n <= 0)
+	    break;
+	got += (size_t) n;
+    }
+
+    if (got != total) {
+	free(*buf);
+	*buf = NULL;
+	return 0;
+    }
+
+    *len = got;
+    return 1;
+}
+
+/*
+ * RFC 5216 2.1.3: a TLS alert produced by the server must be sent in an
+ * EAP-Request/EAP-TLS before EAP-Failure. Walk the TLS records in the
+ * drained output; anything else means OpenSSL did not produce an alert.
+ */
+static int eap_tls_has_alert(const u_char *buf, size_t len)
+{
+    size_t off = 0;
+
+    while (off + 5 <= len) {
+	size_t reclen = ((size_t) buf[off + 3] << 8) | buf[off + 4];
+
+	if (buf[off] == SSL3_RT_ALERT)
+	    return 1;
+	off += 5 + reclen;
+    }
+    return 0;
+}
+
+/*
+ * Handshake failure. Send the TLS alert, if OpenSSL produced one, in an
+ * EAP-Request/EAP-TLS (Access-Challenge) and wait for the peer's response;
+ * otherwise send EAP-Failure directly. The EAP session stays in the realm
+ * tree: the reply helper frees the tac_session, not the eap_session.
+ */
+static void eap_tls_fail(tac_session *session, struct eap_session *es, const char *reason)
+{
+    u_char *buf = NULL;
+    size_t len = 0;
+    unsigned long err = ERR_get_error();
+
+    es->flags |= EAP_F_FAILED;
+    if (err) {
+	char ebuf[256];
+	report(session, LOG_ERR, ~0, "EAP-TLS handshake failed: %s: %s",
+	       reason, ERR_error_string(err, ebuf));
+    } else
+	report(session, LOG_ERR, ~0, "EAP-TLS handshake failed: %s", reason);
+
+    if (eap_tls_drain(es, &buf, &len) && len && eap_tls_has_alert(buf, len)) {
+	es->tls_state = EAP_TLS_ALERT_SENT;
+	es->flags |= EAP_F_ALERT_SENT;
+	eap_send_request(session, es, EAP_TYPE_TLS, 0, buf, len);
+	free(buf);
+	return;
+    }
+
+    free(buf);
+    eap_send_failure(session, es->success_identifier);
+}
+
+/*
+ * EAP-Response/EAP-TLS with State: feed the TLS data to the server SSL
+ * object and send its output as EAP-Request/EAP-TLS. Task 10 sends one EAP
+ * packet per flight; rad_send_eap_reply() splits it into 253-byte
+ * EAP-Message attributes. Fragmentation is Task 12.
+ */
+static void eap_tls_request(tac_session *session, struct eap_session *es,
+			    const struct eap_parsed *parsed)
+{
+    tac_realm *r = session->ctx->realm;
+    u_char *buf = NULL;
+    size_t len = 0;
+    int ret, err;
+
+    /* After an alert, RFC 5216 2.1.3 answers the peer's response with
+       EAP-Failure. Restart-on-ClientHello is not implemented. */
+    if (es->tls_state == EAP_TLS_ALERT_SENT || (es->flags & EAP_F_FAILED)) {
+	eap_send_failure(session, parsed->identifier);
+	return;
+    }
+
+    /* An empty EAP-Response/EAP-TLS is a fragment or completion ACK.
+       Fragment ACK handling and the final ACK/EAP-Success path are Task 11. */
+    if (!parsed->data_len) {
+	eap_send_failure(session, parsed->identifier);
+	return;
+    }
+
+    if (!eap_tls_start(es, r)) {
+	eap_send_failure(session, parsed->identifier);
+	return;
+    }
+
+    if (BIO_write(es->rbio, parsed->data, (int) parsed->data_len) != (int) parsed->data_len) {
+	eap_tls_fail(session, es, "BIO_write");
+	return;
+    }
+
+    ret = SSL_do_handshake(es->ssl);
+    if (ret == 1) {
+	es->flags |= EAP_F_HANDSHAKE_DONE;
+    } else {
+	err = SSL_get_error(es->ssl, ret);
+	if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) {
+	    eap_tls_fail(session, es, "SSL_do_handshake");
+	    return;
+	}
+    }
+
+    if (!eap_tls_drain(es, &buf, &len)) {
+	eap_tls_fail(session, es, "BIO_read");
+	return;
+    }
+
+    if (!len) {
+	free(buf);
+	/* Waiting for more client data: never send an empty EAP-Request. */
+	return;
+    }
+
+    if (ret == 1) {
+	/* Final TLS flight (CCS/Finished). Task 11 waits for the peer's ACK
+	   before EAP-Success; keep the flight for the next step. */
+	es->tls_state = EAP_TLS_FINAL_FLIGHT_SENDING;
+    } else
+	es->tls_state = EAP_TLS_HANDSHAKE;
+
+    eap_send_request(session, es, EAP_TYPE_TLS, 0, buf, len);
+    free(buf);
+}
+
 void eap_radius_request(tac_session *session)
 {
     tac_realm *r = session->ctx->realm;
@@ -493,8 +691,7 @@ void eap_radius_request(tac_session *session)
 	eap_send_failure(session, identifier);
 	return;
     case EAP_TYPE_TLS:
-	/* The TLS handshake is added in Task 10; keep the dispatch here. */
-	eap_send_failure(session, identifier);
+	eap_tls_request(session, es, &parsed);
 	return;
     case EAP_TYPE_NAK:
 	if (eap_nak_proposes_tls(&parsed))
@@ -640,7 +837,58 @@ static struct eap_session *eap_new_session(tac_realm *r)
 
 SSL_CTX *eap_ssl_init(tac_realm *r)
 {
-    (void) r;
+    SSL_CTX *ctx = SSL_CTX_new(TLS_server_method());
+
+    if (!ctx)
+	goto fail;
+
+    /* TLS 1.2 only: TLS 1.0/1.1 are deprecated by RFC 8996 and disabled by
+       modern OpenSSL security levels. This is a deliberate deviation from
+       RFC 5216's TLS 1.0/3DES requirements. */
+    SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
+    SSL_CTX_set_max_proto_version(ctx, TLS1_2_VERSION);
+
+    /* Deterministic server flight: no session tickets (the session cache
+       switch does not disable TLS 1.2 tickets), no renegotiation, and no
+       compression (RFC 5216 2.4). */
+    SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_OFF);
+    SSL_CTX_set_options(ctx, SSL_OP_NO_TICKET | SSL_OP_NO_RENEGOTIATION |
+			     SSL_OP_NO_COMPRESSION);
+
+    /* Require the clientAuth EKU on peer certificates. */
+    SSL_CTX_set_purpose(ctx, X509_PURPOSE_SSL_CLIENT);
+
+    if (r->eap_pass) {
+	SSL_CTX_set_default_passwd_cb(ctx, ssl_pem_phrase_cb);
+	SSL_CTX_set_default_passwd_cb_userdata(ctx, r->eap_pass);
+    }
+
+    if (!r->eap_cert || !SSL_CTX_use_certificate_chain_file(ctx, r->eap_cert))
+	goto fail;
+    if (!r->eap_key || !SSL_CTX_use_PrivateKey_file(ctx, r->eap_key, SSL_FILETYPE_PEM))
+	goto fail;
+    if (!SSL_CTX_check_private_key(ctx))
+	goto fail;
+    if (r->eap_cafile && !SSL_CTX_load_verify_locations(ctx, r->eap_cafile, NULL))
+	goto fail;
+
+    if (r->eap_verify_client)
+	SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+    else
+	SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+
+    return ctx;
+
+fail:
+    {
+	char ebuf[256];
+	const char *terr = ERR_error_string(ERR_get_error(), ebuf);
+
+	report(NULL, LOG_ERR, ~0,
+	       "%s %d: realm %s: EAP TLS configuration failed%s%s",
+	       __func__, __LINE__, r->name.txt, terr ? ": " : "", terr ? terr : "");
+    }
+    SSL_CTX_free(ctx);
     return NULL;
 }
 

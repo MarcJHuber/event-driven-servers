@@ -307,9 +307,9 @@ EAP_POLICY = """
 \tinclude = "%s"
 \teap {
 \t\teap-method = tls
-\t\tcert-file = $tmp/ca/server-chain.pem
-\t\tkey-file = $tmp/ca/server.key
-\t\tca-file = $tmp/ca/root.crt
+\t\tcert-file = %s
+\t\tkey-file = %s
+\t\tca-file = %s
 \t\tverify-client = yes
 \t\teap-identity-source = cert-cn
 \t}
@@ -324,19 +324,154 @@ EAP_POLICY = """
 \tuser cert-user {
 \t\tprofile = eap-profile
 \t}
-""" % DICTIONARY
+"""
+
+
+class EapTlsPeer:
+    """An EAP-TLS peer over ssl.SSLObject and memory BIOs (TLS 1.2 only).
+
+    Sends EAP-Response packets in RADIUS Access-Requests and feeds the EAP
+    data of the server's EAP-Requests to the SSLObject. Server fragments are
+    reassembled; each fragment with M set is ACKed with an empty
+    EAP-Response/EAP-TLS (six bytes, flags 0).
+    """
+
+    def __init__(self, client, ca, identity, cert=None):
+        self.client = client
+        self.identity = identity
+        self.state = None
+        self.identifier = 1
+        self.incoming = ssl.MemoryBIO()
+        self.outgoing = ssl.MemoryBIO()
+        self.ctx = ca.context(cert=cert,
+                              minimum=ssl.TLSVersion.TLSv1_2,
+                              maximum=ssl.TLSVersion.TLSv1_2)
+        self.sslobj = self.ctx.wrap_bio(self.incoming, self.outgoing,
+                                        server_hostname="localhost")
+        self.tls_requests = 0
+
+    def send_eap(self, eap):
+        attrs = [(radius.USER_NAME, self.identity.encode())]
+        attrs += radius.eap_attributes(eap)
+        if self.state:
+            attrs.append((radius.STATE, self.state))
+        req = radius.Packet(radius.ACCESS_REQUEST, attributes=attrs)
+        r = self.client.exchange(req, message_authenticator=True)
+        self.state = (r.get(radius.STATE) or [None])[0]
+        return r
+
+    @staticmethod
+    def parse_request(eap):
+        """(identifier, flags, data, announced total) of an EAP-Request/EAP-TLS."""
+        if len(eap) < 4:
+            raise AssertionError("EAP-Request shorter than 4 bytes: %r" % eap)
+        code, identifier, length = struct.unpack("!BBH", eap[:4])
+        if code != radius.EAP_REQUEST:
+            raise AssertionError("expected EAP-Request, got EAP code %d: %r" % (code, eap))
+        if length < 6 or length > len(eap):
+            raise AssertionError("bad EAP length %d in %r" % (length, eap))
+        if eap[4] != radius.EAP_TYPE_TLS:
+            raise AssertionError("expected EAP-TLS, got EAP type %d" % eap[4])
+        flags = eap[5]
+        off = 6
+        total = None
+        if flags & radius.EAP_TLS_L:
+            if length < 10:
+                raise AssertionError("EAP-TLS L flag without a 4-byte length")
+            total = struct.unpack("!I", eap[6:10])[0]
+            off = 10
+        return identifier, flags, eap[off:length], total
+
+    def receive_request(self, reply):
+        """One EAP-Request/EAP-TLS, reassembling fragments; returns (identifier, data)."""
+        chunks = []
+        total = None
+        while True:
+            if reply.code_name != "Access-Challenge":
+                raise AssertionError("expected Access-Challenge, got %s: %r"
+                                     % (reply.code_name, radius.eap_from_reply(reply)))
+            identifier, flags, data, announced = self.parse_request(radius.eap_from_reply(reply))
+            if announced is not None:
+                total = announced
+            if data:
+                self.tls_requests += 1
+            chunks.append(data)
+            if not flags & radius.EAP_TLS_M:
+                break
+            reply = self.send_eap(radius.eap_tls_ack(identifier))
+        data = b"".join(chunks)
+        if total is not None and len(data) != total:
+            raise AssertionError("reassembled %d bytes, server announced %d" % (len(data), total))
+        self.identifier = identifier
+        return identifier, data
+
+    def handshake(self, max_rounds=10):
+        """Identity -> TLS Start, then run the client handshake to completion."""
+        identity = radius.eap_packet(radius.EAP_RESPONSE, 1, radius.EAP_TYPE_IDENTITY,
+                                     self.identity.encode())
+        reply = self.send_eap(identity)
+        _, data = self.receive_request(reply)
+        if data:
+            raise AssertionError("EAP-TLS Start carried data: %r" % data)
+
+        for _ in range(max_rounds):
+            try:
+                self.sslobj.do_handshake()
+            except ssl.SSLWantReadError:
+                out = self.outgoing.read()
+                if not out:
+                    raise AssertionError("SSLObject wants to read but has no output for the server")
+                reply = self.send_eap(radius.eap_tls_packet(radius.EAP_RESPONSE,
+                                                            self.identifier, 0, out))
+                _, data = self.receive_request(reply)
+                self.incoming.write(data)
+                continue
+            except ssl.SSLWantWriteError:
+                # A memory BIO has no fixed size; retry after draining it.
+                self.outgoing.read()
+                continue
+            # do_handshake() returned None: the client handshake is complete.
+            return self.tls_requests
+        raise AssertionError("TLS handshake did not complete in %d rounds" % max_rounds)
 
 
 @unittest.skipUnless("openssl" in features(), "EAP needs a build with OpenSSL")
-class EapIdentity(DaemonTestCase):
-    """EAP-Response/Identity without State: a new session, EAP-Request/EAP-TLS Start."""
+@unittest.skipUnless(tls.openssl_available(), "no openssl command to make certificates")
+class EapTlsTestCase(DaemonTestCase):
+    """An EAP realm with TLS credentials from a throw-away CA.
 
-    CONFIG = EAP_POLICY
+    CONFIG is the EAP policy with the CA's server certificate/key and root
+    certificate; client certificates are issued by the same CA.
+    """
+
     UDP = True
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ca = tls.CA(cls.__name__ + "-ca")
+        try:
+            cls.client_cert = cls.ca.issue("cert-user", "/CN=cert-user")
+            cls.CONFIG = EAP_POLICY % (DICTIONARY, cls.ca.server[0], cls.ca.server[1], cls.ca.cert)
+            super().setUpClass()
+        except Exception:
+            cls.ca.remove()
+            raise
+
+    @classmethod
+    def tearDownClass(cls):
+        try:
+            super().tearDownClass()
+        finally:
+            if not cls._failed:
+                cls.ca.remove()
 
     def radius(self, secret, **kw):
         kw.setdefault("source", "127.0.0.6")
         return super().radius(secret, **kw)
+
+
+class EapIdentity(EapTlsTestCase):
+    """EAP-Response/Identity without State: a new session, EAP-Request/EAP-TLS Start."""
 
     def test_identity_gets_tls_start(self):
         c = self.radius("radsecret")
@@ -351,3 +486,22 @@ class EapIdentity(DaemonTestCase):
         self.assertEqual(reply_eap[4], radius.EAP_TYPE_TLS, reply_eap)
         self.assertTrue(reply_eap[5] & radius.EAP_TLS_S, reply_eap)
         self.assertTrue(r.get(radius.STATE), "Access-Challenge without State")
+
+
+class EapTlsHandshake(EapTlsTestCase):
+    """The TLS handshake itself: the server's flights go through EAP-TLS."""
+
+    def test_client_handshake_completes(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        server_flights = peer.handshake()
+
+        # The server sent at least one EAP-Request/EAP-TLS with TLS records.
+        self.assertGreater(server_flights, 0, "no EAP-Request/EAP-TLS carried TLS data")
+        # The client finished its side of the TLS 1.2 handshake.
+        self.assertEqual(peer.sslobj.version(), "TLSv1.2")
+        self.assertIsNotNone(peer.sslobj.getpeercert())
+
+        # The final empty ACK completes the exchange. Task 11 will answer it
+        # with EAP-Success; Task 10 answers EAP-Failure, which is fine here.
+        peer.send_eap(radius.eap_tls_ack(peer.identifier))

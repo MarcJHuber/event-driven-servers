@@ -893,6 +893,9 @@ enum token author_eval_profile(tac_session * session, tac_profile * p, int paren
 
 
 /* config.c */
+#ifdef WITH_SSL
+int ssl_pem_phrase_cb(char *, int, int, void *);
+#endif
 int cfg_get_enable(tac_session *, struct pwdat **);
 
 void parse_decls(struct sym *);

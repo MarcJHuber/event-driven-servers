@@ -595,6 +595,19 @@ void complete_realm(tac_realm *r)
 	   in-flight EAP state. */
 	if (!r->eap_sessions)
 	    r->eap_sessions = RB_tree_new(eap_session_cmp, eap_session_free);
+
+	/* Parse-only validates syntax, not certificate files: the EAP sample
+	   and good-eap.cfg must pass -P without generated certificates.
+	   Production startup fails fatally when the SSL_CTX cannot be made. */
+	if (!common_data.parse_only) {
+	    r->eap_tls = eap_ssl_init(r);
+	    if (!r->eap_tls) {
+		report_cfg_error(LOG_ERR, ~0,
+			   "%s: realm %s: EAP TLS initialization failed",
+			   common_data.conffile, r->name.txt);
+		exit(EX_SOFTWARE);
+	    }
+	}
     }
 #endif
     if (r->realms) {
@@ -6697,7 +6710,7 @@ static unsigned int psk_server_cb(SSL *ssl, const char *identity, unsigned char 
 }
 #endif
 
-static int ssl_pem_phrase_cb(char *buf, int size, int rwflag __attribute__((unused)), void *userdata)
+int ssl_pem_phrase_cb(char *buf, int size, int rwflag __attribute__((unused)), void *userdata)
 {
     int i = (int) strlen((char *) userdata);
 
