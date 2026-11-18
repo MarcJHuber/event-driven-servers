@@ -252,13 +252,14 @@ class AdTests:
             cls.addClassCleanup(cls.domain.remove_pso, dn)
         cls.domain.create()
 
-    def start(self, **env):
+    def start(self, config="", **env):
+        """Start the daemon; config goes in front of the MAVIS module, env into its setenv lines."""
         d = self.domain
         # the daemon reads a quoted string as slapd.conf does
         lines = "\n".join(f"\t\tsetenv {k} = {slapd_arg(v)}" for k, v in {**self.env(), **env}.items())
         module = MODULE.substitute(module=self.MODULE, url=URL, base=d.ou, reader=d.dn("reader"),
                                    readerpw=d.password("reader"), env=lines, exec=self.EXEC)
-        return self.start_daemon(POLICY.substitute(module=module, staff=d.dn("staff")))
+        return self.start_daemon(POLICY.substitute(module=config + module, staff=d.dn("staff")))
 
     def login(self, cn):
         return self.domain.login(cn)
@@ -308,6 +309,16 @@ class AdTests:
         d = self.start()
         with d.connect() as c:
             self.assertEqual(c.pap(self.login("nobody"), "alice-pw").status_name, "FAIL")
+
+    def test_filter_characters(self):
+        """No user name filter in the daemon: alice passes, a name with LDAP filter characters finds no user."""
+        alice = self.login("alice")
+        for name in (alice + "(", alice[:-1] + "*"):
+            # a daemon for each name: a backend error can start the authentication fallback
+            d = self.start(config="\tacl any_user { permit }\n\tmavis user filter = any_user\n")
+            for user, status in ((alice, "PASS"), (name, "FAIL")):
+                with self.subTest(name=name, user=user), d.connect() as c:
+                    self.assertEqual(c.pap(user, "alice-pw").status_name, status)
 
     def test_groups(self):
         """memberOf of AD, nested: the group names become TACMEMBER, the group DNs MEMBEROF."""
@@ -365,6 +376,11 @@ class AdMt(AdTests, DaemonTestCase):
     def env(self):
         return {"LDAP_OPT_X_TLS_CACERTFILE": settings()["TACTEST_SAMBA_CA"],
                 "LDAP_OPT_X_TLS_REQUIRE_CERT": "LDAP_OPT_X_TLS_DEMAND"}
+
+    @unittest.expectedFailure
+    def test_filter_characters(self):
+        """ldapmavis-mt puts the user name into the filter without escapes: the name with "*" finds alice."""
+        super().test_filter_characters()
 
 
 @unittest.skipUnless(URL, SKIP_REASON)

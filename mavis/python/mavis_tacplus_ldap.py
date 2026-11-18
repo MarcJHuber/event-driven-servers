@@ -123,6 +123,7 @@ LDAP_SKIP_GROUPOFNAMES
 """
 
 import os, sys, re, ldap3, time, calendar, socket
+from ldap3.utils.conv import escape_filter_chars
 from mavis import (Mavis,
 	MAVIS_DOWN, MAVIS_FINAL,
 	AV_V_RESULT_OK, AV_V_RESULT_ERROR, AV_V_RESULT_FAIL,
@@ -309,7 +310,7 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 		continue
 
 	conn.search(search_base=LDAP_BASE, search_scope=LDAP_SCOPE,
-		search_filter=LDAP_FILTER.format(D.user),
+		search_filter=LDAP_FILTER.format(escape_filter_chars(D.user)),
 		attributes=["memberOf", "shadowExpire", "uidNumber", "gidNumber",
 			"loginShell", "homeDirectory", "sshPublicKey", "krbPasswordExpiration",
 			LDAP_TACMEMBER])
@@ -419,7 +420,7 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 		if len(conn.entries) == 1:
 			TACMEMBER.extend(conn.entries[0].cn)
 		conn.search(search_base=LDAP_BASE, search_scope=LDAP_SCOPE_POSIXGROUP,
-			search_filter='(&(objectclass=posixGroup)(memberUid={}))'.format(D.user),
+			search_filter='(&(objectclass=posixGroup)(memberUid={}))'.format(escape_filter_chars(D.user)),
 			attributes=["cn"])
 		for e in conn.entries:
 			TACMEMBER.extend(e.cn)
