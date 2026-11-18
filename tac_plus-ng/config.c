@@ -477,6 +477,16 @@ void complete_realm(tac_realm *r)
 	RS(tls_psk_dhe_groups, NULL);
 	RS(default_host->type6key, NULL);
 	RS(tls_psk_key_exchange, S_unknown);
+	RS(eap, TRISTATE_DUNNO);
+	RS(eap_cert, NULL);
+	RS(eap_key, NULL);
+	RS(eap_cafile, NULL);
+	RS(eap_pass, NULL);
+	RS(eap_identity_source, S_unknown);
+	RS(eap_verify_client, -1);
+	RS(eap_timeout, -1);
+	RS(eap_max_message, -1);
+	RS(eap_max_sessions, -1);
 
 	if (!r->crl_basedir.txt) {
 	    r->crl_basedir.txt = rp->crl_basedir.txt;
@@ -534,6 +544,59 @@ void complete_realm(tac_realm *r)
 		if (!r->default_host->user_messages[um])
 		    r->default_host->user_messages[um] = rp->default_host->user_messages[um];
     }
+#ifdef WITH_SSL
+    if (r->eap == TRISTATE_YES) {
+	if (r->eap_verify_client < 0)
+	    r->eap_verify_client = 1;
+	if (r->eap_identity_source == S_unknown)
+	    r->eap_identity_source = S_cert_cn;
+	if (r->eap_timeout < 0)
+	    r->eap_timeout = EAP_DEFAULT_TIMEOUT;
+	if (r->eap_max_message < 0)
+	    r->eap_max_message = EAP_DEFAULT_MAX_MESSAGE;
+	if (r->eap_max_sessions < 0)
+	    r->eap_max_sessions = EAP_DEFAULT_MAX_SESSIONS;
+
+	if (r->eap_timeout <= 0 || r->eap_max_message <= 0 ||
+	    r->eap_max_message > 65535 || r->eap_max_sessions <= 0) {
+	    report(NULL, LOG_ERR, ~0,
+		   "%s: realm %s: invalid EAP timeout/max-message/max-sessions",
+		   common_data.conffile, r->name.txt);
+	    exit(EX_SOFTWARE);
+	}
+	if (r->eap_verify_client &&
+	    (!r->eap_cafile || !r->eap_cert || !r->eap_key)) {
+	    report(NULL, LOG_ERR, ~0,
+		   "%s: realm %s: EAP verify-client requires cert-file, key-file, and ca-file",
+		   common_data.conffile, r->name.txt);
+	    exit(EX_SOFTWARE);
+	}
+	if (r->eap_verify_client && r->eap_identity_source == S_eap_identity) {
+	    report(NULL, LOG_ERR, ~0,
+		   "%s: realm %s: eap-identity-source = eap-identity requires verify-client = no (RFC 5216 2.2)",
+		   common_data.conffile, r->name.txt);
+	    exit(EX_SOFTWARE);
+	}
+	if (!r->eap_verify_client &&
+	    r->eap_identity_source != S_eap_identity) {
+	    report(NULL, LOG_ERR, ~0,
+		   "%s: realm %s: EAP verify-client = no requires eap-identity-source = eap-identity",
+		   common_data.conffile, r->name.txt);
+	    exit(EX_SOFTWARE);
+	}
+	if (!r->eap_verify_client)
+	    report(NULL, LOG_WARNING, ~0,
+		   "%s: realm %s: EAP identity is unauthenticated (lab use only)",
+		   common_data.conffile, r->name.txt);
+
+	/* Realms are never freed in this daemon: the configuration is read
+	   once at startup. A reload would have to free eap_sessions with
+	   RB_tree_delete() and eap_tls with SSL_CTX_free(); reloads lose
+	   in-flight EAP state. */
+	if (!r->eap_sessions)
+	    r->eap_sessions = RB_tree_new(eap_session_cmp, eap_session_free);
+    }
+#endif
     if (r->realms) {
 	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    complete_realm(RB_payload(rbn, tac_realm *));

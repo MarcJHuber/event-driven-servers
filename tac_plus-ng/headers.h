@@ -461,6 +461,7 @@ struct realm {
 	TRISTATE(tls_accept_expired);
 	TRISTATE(tls_autodetect);
 	TRISTATE(tls_sni_required);
+	TRISTATE(eap);
 #endif
     } __attribute__((__packed__));
     int dns_caching_period;	/* dns caching period */
@@ -497,6 +498,17 @@ struct realm {
     char *tls_psk_hint;
     enum token tls_psk_key_exchange;
     str_t crl_basedir;
+    SSL_CTX *eap_tls;
+    char *eap_cert;
+    char *eap_key;
+    char *eap_cafile;
+    char *eap_pass;
+    enum token eap_identity_source;	/* S_cert_cn, S_cert_san, S_eap_identity */
+    int eap_verify_client;
+    int eap_timeout;
+    int eap_max_message;
+    int eap_max_sessions;
+    rb_tree_t *eap_sessions;
 #endif
     u_int debug;
     int rulecount;
