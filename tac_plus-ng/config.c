@@ -559,33 +559,33 @@ void complete_realm(tac_realm *r)
 
 	if (r->eap_timeout <= 0 || r->eap_max_message <= 0 ||
 	    r->eap_max_message > 65535 || r->eap_max_sessions <= 0) {
-	    report(NULL, LOG_ERR, ~0,
+	    report_cfg_error(LOG_ERR, ~0,
 		   "%s: realm %s: invalid EAP timeout/max-message/max-sessions",
 		   common_data.conffile, r->name.txt);
 	    exit(EX_SOFTWARE);
 	}
 	if (r->eap_verify_client &&
 	    (!r->eap_cafile || !r->eap_cert || !r->eap_key)) {
-	    report(NULL, LOG_ERR, ~0,
+	    report_cfg_error(LOG_ERR, ~0,
 		   "%s: realm %s: EAP verify-client requires cert-file, key-file, and ca-file",
 		   common_data.conffile, r->name.txt);
 	    exit(EX_SOFTWARE);
 	}
 	if (r->eap_verify_client && r->eap_identity_source == S_eap_identity) {
-	    report(NULL, LOG_ERR, ~0,
+	    report_cfg_error(LOG_ERR, ~0,
 		   "%s: realm %s: eap-identity-source = eap-identity requires verify-client = no (RFC 5216 2.2)",
 		   common_data.conffile, r->name.txt);
 	    exit(EX_SOFTWARE);
 	}
 	if (!r->eap_verify_client &&
 	    r->eap_identity_source != S_eap_identity) {
-	    report(NULL, LOG_ERR, ~0,
+	    report_cfg_error(LOG_ERR, ~0,
 		   "%s: realm %s: EAP verify-client = no requires eap-identity-source = eap-identity",
 		   common_data.conffile, r->name.txt);
 	    exit(EX_SOFTWARE);
 	}
 	if (!r->eap_verify_client)
-	    report(NULL, LOG_WARNING, ~0,
+	    report_cfg_error(LOG_WARNING, ~0,
 		   "%s: realm %s: EAP identity is unauthenticated (lab use only)",
 		   common_data.conffile, r->name.txt);
 
@@ -738,6 +738,10 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
 #if defined(WITH_SSL)
     r->tls_verify_depth = -1;
     r->tls_psk_key_exchange = S_unknown;
+    r->eap_verify_client = -1;
+    r->eap_timeout = -1;
+    r->eap_max_message = -1;
+    r->eap_max_sessions = -1;
     //r->tls_ciphers = "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256";
 #endif
 
@@ -2245,6 +2249,98 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    parse(sym, S_equal);
 	    r->haproxy_autodetect = parse_tristate(sym);
 	    continue;
+#if defined(WITH_SSL)
+	case S_eap:
+	    sym_get(sym);
+	    if (sym->code == S_equal) {
+		sym_get(sym);
+		r->eap = parse_bool(sym) ? TRISTATE_YES : TRISTATE_NO;
+		continue;
+	    }
+	    parse(sym, S_openbra);
+	    r->eap = TRISTATE_YES;
+	    while (sym->code != S_closebra) {
+		switch (sym->code) {
+		case S_eap_method:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    parse(sym, S_tls);
+		    break;
+		case S_cert_file:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->eap_cert = confdir_strdup(sym->buf);
+		    if (!r->eap_key)
+			r->eap_key = r->eap_cert;
+		    sym_get(sym);
+		    break;
+		case S_key_file:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->eap_key = confdir_strdup(sym->buf);
+		    sym_get(sym);
+		    break;
+		case S_cafile:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->eap_cafile = confdir_strdup(sym->buf);
+		    sym_get(sym);
+		    break;
+		case S_passphrase:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->eap_pass = strdup(sym->buf);
+		    sym_get(sym);
+		    break;
+		case S_verify_client:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->eap_verify_client = parse_bool(sym);
+		    continue;
+		case S_eap_identity_source:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    switch (sym->code) {
+		    case S_cert_cn:
+			r->eap_identity_source = S_cert_cn;
+			break;
+		    case S_cert_san:
+			r->eap_identity_source = S_cert_san;
+			break;
+		    case S_eap_identity:
+			r->eap_identity_source = S_eap_identity;
+			break;
+		    default:
+			parse_error(sym, "Expected cert-cn, cert-san, or eap-identity");
+		    }
+		    sym_get(sym);
+		    continue;
+		case S_timeout:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->eap_timeout = parse_int(sym);
+		    continue;
+		case S_max_message:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->eap_max_message = parse_int(sym);
+		    continue;
+		case S_max_sessions:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->eap_max_sessions = parse_int(sym);
+		    continue;
+		default:
+		    parse_error_expect(sym, S_eap_method, S_cert_file, S_key_file,
+				       S_cafile, S_passphrase, S_verify_client,
+				       S_eap_identity_source, S_timeout,
+				       S_max_message, S_max_sessions,
+				       S_unknown);
+		}
+	    }
+	    sym_get(sym);	/* skip closebra */
+	    continue;
+#endif
 #if defined(WITH_SSL)
 	case S_tls:
 	    sym_get(sym);

@@ -90,6 +90,15 @@ NEEDS_OPENSSL = ("sample/tac_plus-ng-tls.cfg", "sample/tac_plus-ng-radsec.cfg",
                  "sample/tls-fingerprint-demo/tac_plus-ng-fingerprint.cfg")
 WITHOUT_OPENSSL = "but got 'tls'"
 
+# These exercise the realm eap block, which only exists in OpenSSL builds.
+# Without OpenSSL the eap token has no case in parse_decls_real and parsing
+# stops at "but got 'eap'"; skip them instead of failing on that message.
+NEEDS_OPENSSL_CONFIGS = (
+    "good-eap.cfg", "good-eap-disabled.cfg",
+    "bad-eap-method.cfg", "bad-eap-verify-client.cfg",
+    "bad-eap-identity-source.cfg", "bad-eap-identity-verify.cfg",
+)
+
 SANITIZER_TEXT = ("Sanitizer", "runtime error")
 
 
@@ -303,7 +312,10 @@ class OwnConfigs(unittest.TestCase):
         good = sorted(glob.glob(os.path.join(CONFIGS, "good-*.cfg")))
         self.assertTrue(good)
         for path in good:
-            with self.subTest(config=os.path.basename(path)):
+            name = os.path.basename(path)
+            if name in NEEDS_OPENSSL_CONFIGS and "openssl" not in features():
+                continue
+            with self.subTest(config=name):
                 code, out = check(path)
                 self.assertEqual(code, 0, out)
 
@@ -311,11 +323,14 @@ class OwnConfigs(unittest.TestCase):
         bad = sorted(glob.glob(os.path.join(CONFIGS, "bad-*.cfg")))
         self.assertTrue(bad)
         for path in bad:
-            with self.subTest(config=os.path.basename(path)):
+            name = os.path.basename(path)
+            if name in NEEDS_OPENSSL_CONFIGS and "openssl" not in features():
+                continue
+            with self.subTest(config=name):
                 code, out = check(path)
                 self.assertGreater(code, 0, out)
                 self.assertEqual(sanitizer_findings(out), [], out)
-                self.assertIn(os.path.basename(path), out, "the error doesn't name the file")
+                self.assertIn(name, out, "the error doesn't name the file")
 
     def test_harness_base_config_parses(self):
         with tempfile.TemporaryDirectory() as tmp:
