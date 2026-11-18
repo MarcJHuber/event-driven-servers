@@ -69,6 +69,8 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 #define RADIUS_MAX_ATTRIBUTES (RADIUS_MAX_PACKET - RADIUS_HDR_SIZE)
 #define RADIUS_MA_RESERVE 18	/* Message-Authenticator attribute */
 
+#define RAD_PAK_SESSIONID(A) (((uint32_t) (A)->code << 8) | (uint32_t) (A)->identifier)
+
 static void write_packet(struct context *, tac_pak *);
 static tac_session *new_session(struct context *, tac_pak_hdr *, rad_pak_hdr *);
 
@@ -1189,6 +1191,37 @@ static void rad_set_fields(tac_session *session)
     }
 }
 
+#ifdef WITH_SSL
+/*
+ * Hand an Access-Request carrying EAP-Message to eap.c. EAP is a multi-packet
+ * exchange, so the (code, identifier) retransmission shortcut in rad_read()
+ * must not apply. A stale session with the same session id is removed before
+ * the new one is created. Returns 1 once ctx->in has been detached into the
+ * session's memory pool; on 0 the caller still owns ctx->in.
+ */
+static int rad_eap_read(struct context *ctx, rad_pak_hdr *pak)
+{
+    tac_session *old = RB_lookup_session(ctx->sessions,
+					 ctx->radius_1_1 ? pak->token : RAD_PAK_SESSIONID(pak));
+    if (old)
+	cleanup_session(old);
+
+    tac_session *session = new_session(ctx, NULL, pak);
+    if (!session)
+	return 0;
+
+    mem_attach(session->mem, mem_detach(ctx->mem, ctx->in));
+    ctx->in = NULL;
+
+    session->radius_data = mem_alloc(session->mem, sizeof(struct radius_data));
+    session->radius_data->pak_in = pak;
+    rad_set_fields(session);
+
+    eap_radius_request(session);
+    return 1;
+}
+#endif				/* WITH_SSL */
+
 void rad_read(struct context *ctx, int cur)
 {
     ssize_t len;
@@ -1264,7 +1297,16 @@ void rad_read(struct context *ctx, int cur)
     if (rad_check_failed(ctx, &ctx->in->pak.rad))
 	return;
 
-#define RAD_PAK_SESSIONID(A) (((uint32_t) (A)->code << 8) | (uint32_t) (A)->identifier)
+#ifdef WITH_SSL
+    if (pak->code == RADIUS_CODE_ACCESS_REQUEST &&
+	ctx->realm->eap == TRISTATE_YES && eap_has_message(pak)) {
+	if (!rad_eap_read(ctx, pak))
+	    mem_free(ctx->mem, &ctx->in);
+	ctx->hdroff = 0;
+	return;
+    }
+#endif
+
     tac_session *session = RB_lookup_session(ctx->sessions, ctx->radius_1_1 ? ctx->hdr.rad.token : RAD_PAK_SESSIONID(&ctx->hdr.rad));
 
     if (session) {

@@ -33,12 +33,14 @@ format (RFC 3748, RFC 5216 3.1/3.2): EAP header lengths, EAP-Message
 splitting at 253 bytes, State extraction, and the EAP-TLS flags.
 """
 
+import os
 import ssl
 import struct
 import unittest
 
-from tactest import radius, tls
-from tactest.daemon import features
+from tactest import SOURCE, DaemonTestCase, features, radius, tls
+
+DICTIONARY = os.path.join(SOURCE, "tac_plus-ng", "sample", "radius-dict.cfg")
 
 
 class EapPacket(unittest.TestCase):
@@ -299,3 +301,53 @@ class TlsProfile(unittest.TestCase):
         ctx = ca.context(minimum=ssl.TLSVersion.TLSv1_2, maximum=ssl.TLSVersion.TLSv1_2)
         self.assertEqual(ctx.minimum_version, ssl.TLSVersion.TLSv1_2)
         self.assertEqual(ctx.maximum_version, ssl.TLSVersion.TLSv1_2)
+
+
+EAP_POLICY = """
+\tinclude = "%s"
+\teap {
+\t\teap-method = tls
+\t\tcert-file = $tmp/ca/server-chain.pem
+\t\tkey-file = $tmp/ca/server.key
+\t\tca-file = $tmp/ca/root.crt
+\t\tverify-client = yes
+\t\teap-identity-source = cert-cn
+\t}
+\tdevice radius-nas {
+\t\taddress = 127.0.0.6
+\t\tkey = tactest
+\t\tradius.key = radsecret
+\t}
+\tprofile eap-profile {
+\t\tscript { permit }
+\t}
+\tuser cert-user {
+\t\tprofile = eap-profile
+\t}
+""" % DICTIONARY
+
+
+@unittest.skipUnless("openssl" in features(), "EAP needs a build with OpenSSL")
+class EapIdentity(DaemonTestCase):
+    """EAP-Response/Identity without State: a new session, EAP-Request/EAP-TLS Start."""
+
+    CONFIG = EAP_POLICY
+    UDP = True
+
+    def radius(self, secret, **kw):
+        kw.setdefault("source", "127.0.0.6")
+        return super().radius(secret, **kw)
+
+    def test_identity_gets_tls_start(self):
+        c = self.radius("radsecret")
+        eap = radius.eap_packet(radius.EAP_RESPONSE, 1, radius.EAP_TYPE_IDENTITY, b"cert-user")
+        req = radius.Packet(radius.ACCESS_REQUEST, attributes=[
+            (radius.USER_NAME, b"cert-user")] + radius.eap_attributes(eap))
+        r = c.exchange(req, message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Challenge", r)
+        reply_eap = radius.eap_from_reply(r)
+        self.assertGreaterEqual(len(reply_eap), 6, reply_eap)
+        self.assertEqual(reply_eap[0], radius.EAP_REQUEST, reply_eap)
+        self.assertEqual(reply_eap[4], radius.EAP_TYPE_TLS, reply_eap)
+        self.assertTrue(reply_eap[5] & radius.EAP_TLS_S, reply_eap)
+        self.assertTrue(r.get(radius.STATE), "Access-Challenge without State")
