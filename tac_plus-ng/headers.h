@@ -509,6 +509,10 @@ struct realm {
 struct tac_session;
 typedef struct tac_session tac_session;
 
+#ifdef WITH_SSL
+#include "eap.h"
+#endif
+
 struct radius_data {
     enum token type;
     str_t device_dns_name;
