@@ -1,0 +1,25 @@
+#!/bin/sh
+# Provision the domain at the first start, then run samba in the foreground.
+set -eu
+: "${ADMIN_PASSWORD:?}"
+tls=/etc/samba/tls
+if [ ! -f /var/lib/samba/private/sam.ldb ]; then
+	mkdir -p $tls
+	openssl req -x509 -newkey rsa:2048 -nodes -days 30 -subj /CN=tactest-ca \
+		-keyout $tls/ca.key -out $tls/ca.pem 2>/dev/null
+	openssl req -newkey rsa:2048 -nodes -subj /CN=localhost -keyout $tls/key.pem -out $tls/cert.csr 2>/dev/null
+	printf 'subjectAltName=IP:127.0.0.1,DNS:localhost\nextendedKeyUsage=serverAuth\n' > $tls/ext
+	openssl x509 -req -days 30 -in $tls/cert.csr -CA $tls/ca.pem -CAkey $tls/ca.key -CAcreateserial \
+		-extfile $tls/ext -out $tls/cert.pem 2>/dev/null
+	chmod 600 $tls/key.pem
+	rm -f /etc/samba/smb.conf
+	# user.NTACL: the default security.NTACL xattr needs CAP_SYS_ADMIN, which a container lacks
+	samba-tool domain provision --realm=TACTEST.EXAMPLE --domain=TACTEST --server-role=dc \
+		--dns-backend=SAMBA_INTERNAL --adminpass="$ADMIN_PASSWORD" \
+		--option="tls keyfile = $tls/key.pem" --option="tls certfile = $tls/cert.pem" \
+		--option="tls cafile = $tls/ca.pem" --option="acl_xattr:security_acl_name = user.NTACL"
+fi
+# the tests change passwords right after they set them, and repeat them; at each start, so a restart after a partial first start applies it
+samba-tool domain passwordsettings set --complexity=off --min-pwd-length=1 --min-pwd-age=0 \
+	--max-pwd-age=0 --history-length=0
+exec samba --foreground --no-process-group --debug-stdout
