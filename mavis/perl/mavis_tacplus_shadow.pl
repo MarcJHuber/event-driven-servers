@@ -105,7 +105,7 @@ if (crypt('test', '$1$q5/vUEsR$') eq '$1$q5/vUEsR$jVwHmEw8zAmgkjMShLBg/.') {
 	import Crypt::Passwd::XS;
 	$hashid = '$1$';	# MD5
 	$have_crypt_passwd_xs = 1;
-} elsif (undef $mkpasswd) {
+} elsif (!defined $mkpasswd) {
 	print STDERR "Your system doesn't support modern hashes. Please install the mkpasswd utility.\n";
 }
 

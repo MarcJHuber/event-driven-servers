@@ -572,11 +572,11 @@ while ($in = <>) {
 
 		if ($LDAP_SERVER_TYPE eq 'tacacs_schema') {
 			my $val;
-			if (undef($flag_authorize_only)) {
-					$val = $entry->get_value('shadowExpire');
-					if ($val && $val > -1 && $val * 86400 < time){
-						$V[AV_A_USER_RESPONSE] = "Password has expired.";
-						goto fail;
+			if (!defined($flag_authorize_only)) {
+				$val = $entry->get_value('shadowExpire');
+				if ($val && $val > -1 && $val * 86400 < time){
+					$V[AV_A_USER_RESPONSE] = "Password has expired.";
+					goto fail;
 				}
 			}
 
