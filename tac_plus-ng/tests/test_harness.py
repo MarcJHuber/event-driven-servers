@@ -295,6 +295,77 @@ class Harness(DaemonTestCase):
                     self.assertIn(" in %s " % function, reports)
 
 
+def py38_annotation_errors(source):
+    """The lines of annotations that Python 3.8 cannot evaluate (README: Python 3.8).
+
+    It evaluates class, module and def annotations at import time, or when
+    the def runs: a builtin generic (list[int]) or a union (int | None)
+    raises TypeError there. A Literal[...] holds values, not types.
+    """
+    tree = ast.parse(source)
+    if any(isinstance(n, ast.ImportFrom) and n.module == "__future__" and any(a.name == "annotations" for a in n.names)
+           for n in tree.body):
+        return []
+
+    def evaluated(body, in_def=False):
+        for node in body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                a = node.args
+                yield from (x.annotation for x in a.posonlyargs + a.args + a.kwonlyargs + [a.vararg, a.kwarg]
+                            if x is not None and x.annotation is not None)
+                if node.returns is not None:
+                    yield node.returns
+                yield from evaluated(node.body, True)
+            elif isinstance(node, ast.ClassDef):
+                # a class body runs at once, also in a def
+                yield from evaluated(node.body)
+            elif isinstance(node, ast.AnnAssign) and not in_def:
+                yield node.annotation
+            else:
+                for field in ("body", "orelse", "finalbody", "handlers"):
+                    yield from evaluated(getattr(node, field, []), in_def)
+
+    def types(node):
+        if isinstance(node, ast.Subscript) and getattr(node.value, "id", getattr(node.value, "attr", None)) == "Literal":
+            return
+        yield node
+        for child in ast.iter_child_nodes(node):
+            yield from types(child)
+
+    found = set()
+    for annotation in evaluated(tree.body):
+        for n in types(annotation):
+            if (isinstance(n, ast.Subscript) and isinstance(n.value, ast.Name)
+                    and n.value.id in ("dict", "list", "tuple", "set", "frozenset", "type")) or (
+                    isinstance(n, ast.BinOp) and isinstance(n.op, ast.BitOr)):
+                found.add(n.lineno)
+    return sorted(found)
+
+
+def quoted_source_values(source, name="TLS_OPTIONS"):
+    """The lines of f-strings for name (a dict key or a keyword) that put a value in quotes.
+
+    The LDAP back-ends evaluate TLS_OPTIONS as Perl or Python source: a
+    quote in the value ends such a string. Make the literal of the value
+    with repr() or perl_string().
+    """
+    found = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Dict):
+            values = [v for k, v in zip(node.keys, node.values) if isinstance(k, ast.Constant) and k.value == name]
+        elif isinstance(node, ast.keyword) and node.arg == name:
+            values = [node.value]
+        else:
+            continue
+        for value in values:
+            parts = value.values if isinstance(value, ast.JoinedStr) else []
+            for before, part in zip(parts, parts[1:]):
+                if (isinstance(part, ast.FormattedValue) and isinstance(before, ast.Constant)
+                        and before.value.endswith(("'", '"'))):
+                    found.add(value.lineno)
+    return sorted(found)
+
+
 class TestFiles(unittest.TestCase):
     """A worker reads its configuration when it starts, which can be after the test removed a file in it."""
 
@@ -311,6 +382,38 @@ class TestFiles(unittest.TestCase):
                               if isinstance(call, ast.Call) and getattr(call.func, "attr", "") == "start_daemon"]
         self.assertEqual(found, [], "write the files of the daemon with self.scratch_file()")
 
+    def test_annotations_import_on_python_3_8(self):
+        found = []
+        here = os.path.dirname(os.path.abspath(__file__))
+        for path in sorted(glob.glob(os.path.join(here, "test_*.py")) + glob.glob(os.path.join(here, "tactest", "*.py"))):
+            with open(path) as f:
+                found += ["%s:%d" % (os.path.relpath(path, here), n) for n in py38_annotation_errors(f.read())]
+        self.assertEqual(found, [], "add 'from __future__ import annotations', or use typing.Dict and typing.Optional")
+
+    def test_tls_options_quote_with_a_function(self):
+        found = []
+        for path in sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_*.py"))):
+            with open(path) as f:
+                found += ["%s:%d" % (os.path.basename(path), n) for n in quoted_source_values(f.read())]
+        self.assertEqual(found, [], "TLS_OPTIONS is source code: use repr() or perl_string() for a value in it")
+
+    def test_quoted_source_values(self):
+        for source, lines in (("{'TLS_OPTIONS': f\"cafile => '{ca}'\"}", [1]),
+                              ("f(TLS_OPTIONS=f'ca_certs_file=\"{ca}\"')", [1]),
+                              ("{'TLS_OPTIONS': f'cafile => {perl_string(ca)}, {names}'}", []),
+                              ("{'OTHER': f\"x='{ca}'\"}", [])):
+            with self.subTest(source=source):
+                self.assertEqual(quoted_source_values(source), lines)
+
+    def test_py38_annotation_errors(self):
+        for source, lines in (("x: Literal[1 | 2] = 3", []),         # an integer OR is a value, also in Literal
+                              ("x: int | None = None", [1]),
+                              ("def f(a: dict[str, int]): pass", [1]),
+                              ("def f():\n    x: list[int] = []", []),
+                              ("def f():\n    class C:\n        x: list[int] = []", [3]),
+                              ("from __future__ import annotations\nx: int | None = None", [])):
+            with self.subTest(source=source):
+                self.assertEqual(py38_annotation_errors(source), lines)
 
 class ScratchFiles(unittest.TestCase):
     """A failed test keeps its scratch files, also when run() makes its own result."""
