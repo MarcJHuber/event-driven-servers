@@ -120,6 +120,175 @@ class EapPacket(unittest.TestCase):
         self.assertEqual(ack[5] & 0x3f, 0)
 
 
+EAP_STATE_LEN = 16
+
+
+def eap_parse_hdr(eap):
+    """Reference model of eap_parse_hdr() in eap.c (RFC 3748, RFC 5216 3.1/3.2).
+
+    Returns code/identifier/length/type/flags/data. Raises ValueError for a
+    header shorter than 4 bytes, a declared length below 4 or beyond the
+    buffer, a missing type/flags byte, or the S bit in an EAP-Response.
+    Trailing bytes beyond the declared length are padding and ignored.
+    """
+    if len(eap) < 4:
+        raise ValueError("EAP packet shorter than the 4-byte header")
+    code, identifier, length = struct.unpack("!BBH", eap[:4])
+    if length < 4 or length > len(eap):
+        raise ValueError("EAP length %d, buffer %d" % (length, len(eap)))
+    parsed = {"code": code, "identifier": identifier, "length": length,
+              "type": None, "flags": 0, "data": b""}
+    if code not in (radius.EAP_REQUEST, radius.EAP_RESPONSE):
+        parsed["data"] = eap[4:length]
+        return parsed
+    if length < 5:
+        raise ValueError("EAP Request/Response without a type byte")
+    eap_type = eap[4]
+    parsed["type"] = eap_type
+    off = 5
+    if eap_type == radius.EAP_TYPE_TLS:
+        if length < 6:
+            raise ValueError("EAP-TLS without a flags byte")
+        flags = eap[5]
+        if code == radius.EAP_RESPONSE and flags & radius.EAP_TLS_S:
+            raise ValueError("S bit set in EAP-Response/EAP-TLS")
+        parsed["flags"] = flags & (radius.EAP_TLS_L | radius.EAP_TLS_M | radius.EAP_TLS_S)
+        off = 6
+    parsed["data"] = eap[off:length]
+    return parsed
+
+
+def collect_eap_message(attributes, max_message=65535):
+    """Reference model of eap_collect() in eap.c.
+
+    EAP-Message values must be consecutive (RFC 3579 3.1) and are
+    concatenated in order; an empty value is EAP-Start. Raises ValueError
+    when EAP-Message is absent, non-consecutive, or over max_message.
+    """
+    seen = False
+    block_done = False
+    chunks = []
+    for attr_type, value in attributes:
+        if attr_type == radius.EAP_MESSAGE:
+            if block_done:
+                raise ValueError("EAP-Message attributes are not consecutive")
+            seen = True
+            chunks.append(value)
+        elif seen:
+            block_done = True
+    if not seen:
+        raise ValueError("no EAP-Message attribute")
+    eap = b"".join(chunks)
+    if len(eap) > max_message:
+        raise ValueError("EAP-Message longer than max-message")
+    return eap
+
+
+def eap_get_state(attributes):
+    """Reference model of eap_get_state() in eap.c.
+
+    Returns the first State value, or None. Raises ValueError for a
+    zero-length State or a State longer than EAP_STATE_LEN.
+    """
+    for attr_type, value in attributes:
+        if attr_type == radius.STATE:
+            if not value:
+                raise ValueError("zero-length State")
+            if len(value) > EAP_STATE_LEN:
+                raise ValueError("State longer than %d bytes" % EAP_STATE_LEN)
+            return value
+    return None
+
+
+class EapParsing(unittest.TestCase):
+    """RFC 3748 / RFC 5216 3.1/3.2 parsing rules.
+
+    These tests pin the wire-format expectations with a reference model of
+    the C helpers in eap.c; the C implementation itself is exercised
+    end-to-end by the daemon tests added in Task 15.
+    """
+
+    def test_eap_header_accepts_declared_length(self):
+        eap = radius.eap_packet(radius.EAP_RESPONSE, 4, radius.EAP_TYPE_IDENTITY, b"alice")
+        parsed = eap_parse_hdr(eap)
+        self.assertEqual(parsed["length"], len(eap))
+        self.assertEqual(parsed["type"], radius.EAP_TYPE_IDENTITY)
+        self.assertEqual(parsed["data"], b"alice")
+
+    def test_eap_header_ignores_trailing_padding(self):
+        """Octets beyond the EAP Length field are padding (RFC 5216 3.1/3.2)."""
+        eap = radius.eap_tls_ack(7) + b"\x00\xff\x00"
+        parsed = eap_parse_hdr(eap)
+        self.assertEqual(parsed["length"], 6)
+        self.assertEqual(parsed["flags"], 0)
+        self.assertEqual(parsed["data"], b"")
+
+    def test_eap_header_rejects_length_below_four(self):
+        for length in (0, 1, 3):
+            eap = struct.pack("!BBH", radius.EAP_RESPONSE, 1, length) + b"\x01"
+            with self.assertRaises(ValueError):
+                eap_parse_hdr(eap)
+
+    def test_eap_header_rejects_length_beyond_buffer(self):
+        eap = struct.pack("!BBH", radius.EAP_RESPONSE, 1, 100) + b"\x01\x00"
+        with self.assertRaises(ValueError):
+            eap_parse_hdr(eap)
+
+    def test_eap_message_reassembles_253_byte_chunks_in_order(self):
+        eap = bytes(range(256)) * 2
+        attrs = [(radius.USER_NAME, b"alice")] + radius.eap_attributes(eap)
+        self.assertEqual(collect_eap_message(attrs), eap)
+
+    def test_eap_message_rejects_non_consecutive_attributes(self):
+        """EAP-Message attributes must be consecutive (RFC 3579 3.1)."""
+        eap = radius.eap_tls_ack(1)
+        attrs = [(radius.EAP_MESSAGE, eap[:3]), (radius.STATE, b"\x01"),
+                 (radius.EAP_MESSAGE, eap[3:])]
+        with self.assertRaises(ValueError):
+            collect_eap_message(attrs)
+
+    def test_eap_message_zero_length_is_eap_start(self):
+        """An EAP-Message attribute with a zero-length value starts EAP."""
+        self.assertEqual(collect_eap_message([(radius.EAP_MESSAGE, b"")]), b"")
+
+    def test_eap_message_rejects_oversized_concatenation(self):
+        attrs = radius.eap_attributes(bytes(300))
+        with self.assertRaises(ValueError):
+            collect_eap_message(attrs, max_message=256)
+
+    def test_eap_state_returns_first_attribute(self):
+        attrs = [(radius.STATE, b"\x01\x02"), (radius.STATE, b"\x03\x04")]
+        self.assertEqual(eap_get_state(attrs), b"\x01\x02")
+
+    def test_eap_state_absent_returns_none(self):
+        self.assertIsNone(eap_get_state([(radius.USER_NAME, b"alice")]))
+
+    def test_eap_state_rejects_zero_length(self):
+        with self.assertRaises(ValueError):
+            eap_get_state([(radius.STATE, b"")])
+
+    def test_eap_state_rejects_overlong_state(self):
+        with self.assertRaises(ValueError):
+            eap_get_state([(radius.STATE, bytes(EAP_STATE_LEN + 1))])
+
+    def test_eap_tls_response_rejects_s_bit(self):
+        """RFC 5216 3.2: the S bit MUST NOT be set in an EAP-Response."""
+        eap = radius.eap_tls_packet(radius.EAP_RESPONSE, 2, radius.EAP_TLS_S)
+        with self.assertRaises(ValueError):
+            eap_parse_hdr(eap)
+
+    def test_eap_tls_reserved_bits_ignored_on_receive(self):
+        """Reserved bits are ignored, not rejected (RFC 5216 3.2)."""
+        eap = radius.eap_tls_packet(radius.EAP_RESPONSE, 2, radius.EAP_TLS_M | 0x01)
+        parsed = eap_parse_hdr(eap)
+        self.assertEqual(parsed["flags"], radius.EAP_TLS_M)
+
+    def test_eap_tls_request_s_bit_accepted(self):
+        """The S bit is valid in EAP-Request/EAP-TLS Start (RFC 5216 3.1)."""
+        eap = radius.eap_tls_packet(radius.EAP_REQUEST, 1, radius.EAP_TLS_S)
+        self.assertEqual(eap_parse_hdr(eap)["flags"], radius.EAP_TLS_S)
+
+
 class TlsProfile(unittest.TestCase):
     @unittest.skipUnless("openssl" in features(), "tac_plus-ng built without OpenSSL")
     @unittest.skipUnless(tls.openssl_available(), "no openssl command to make certificates")
