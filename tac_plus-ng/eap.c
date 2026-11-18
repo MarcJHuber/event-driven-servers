@@ -280,19 +280,132 @@ void eap_radius_request(tac_session *session)
 
 void eap_expire_sessions(tac_realm *r)
 {
-    (void) r;
+    if (r->eap_sessions) {
+	rb_node_t *rbn, *next;
+	for (rbn = RB_first(r->eap_sessions); rbn; rbn = next) {
+	    struct eap_session *e = RB_payload(rbn, struct eap_session *);
+	    next = RB_next(rbn);
+	    if (e->expires < io_now.tv_sec)
+		RB_delete(r->eap_sessions, rbn);
+	}
+    }
+    if (r->realms) {
+	rb_node_t *rbn;
+	for (rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
+	    eap_expire_sessions(RB_payload(rbn, tac_realm *));
+    }
 }
 
 void eap_session_free(void *payload)
 {
-    (void) payload;
+    struct eap_session *e = payload;
+    int i;
+
+    if (!e)
+	return;
+
+    if (e->ssl)
+	SSL_free(e->ssl);	/* frees rbio/wbio */
+    free(e->in);
+    free(e->tls_in);
+    while (e->out) {
+	struct eap_fragment *f = e->out;
+	e->out = f->next;
+	free(f);
+    }
+    for (i = 0; i < EAP_REPLY_CACHE_SIZE; i++) {
+	free(e->reply_cache[i].eap);
+	free(e->reply_cache[i].state);
+    }
+    free(e->identity.txt);
+    OPENSSL_cleanse(e->msk, sizeof(e->msk));
+    OPENSSL_cleanse(e->emsk, sizeof(e->emsk));
+    free(e);
 }
 
 int eap_session_cmp(const void *a, const void *b)
 {
-    (void) a;
-    (void) b;
-    return 0;
+    const struct eap_session *x = a, *y = b;
+
+    if (x->state_len != y->state_len)
+	return (int) x->state_len - (int) y->state_len;
+    return memcmp(x->state, y->state, x->state_len);
+}
+
+static struct eap_session *eap_lookup(tac_realm *r, const u_char *state, size_t state_len)
+{
+    struct eap_session key;
+    rb_node_t *rbn;
+
+    if (!r->eap_sessions || state_len < 1 || state_len > EAP_STATE_LEN)
+	return NULL;
+
+    memset(&key, 0, sizeof(key));
+    key.state_len = state_len;
+    memcpy(key.state, state, state_len);
+
+    rbn = RB_search(r->eap_sessions, &key);
+    return rbn ? RB_payload(rbn, struct eap_session *) : NULL;
+}
+
+static struct eap_session *eap_new_session(tac_realm *r) __attribute__((unused));
+
+static struct eap_session *eap_new_session(tac_realm *r)
+{
+    struct eap_session *e = calloc(1, sizeof(*e));
+    u_char state[EAP_STATE_LEN];
+    size_t state_len;
+
+    if (!e)
+	return NULL;
+
+    if (RAND_bytes(e->state, EAP_STATE_LEN) != 1) {
+	free(e);
+	return NULL;
+    }
+    e->state_len = EAP_STATE_LEN;
+    e->identifier = 1;
+    e->expires = io_now.tv_sec + r->eap_timeout;
+    e->last_activity = io_now.tv_sec;
+
+    if (!r->eap_sessions)
+	r->eap_sessions = RB_tree_new(eap_session_cmp, eap_session_free);
+    if (!r->eap_sessions) {
+	free(e);
+	return NULL;
+    }
+
+    if (RB_count(r->eap_sessions) >= r->eap_max_sessions) {
+	/* Evict the session with the oldest last_activity; RB_first() would
+	   return the lexicographically smallest State, not the oldest. */
+	struct eap_session *oldest = NULL;
+	rb_node_t *rbn;
+
+	for (rbn = RB_first(r->eap_sessions); rbn; rbn = RB_next(rbn)) {
+	    struct eap_session *candidate = RB_payload(rbn, struct eap_session *);
+	    if (!oldest || candidate->last_activity < oldest->last_activity)
+		oldest = candidate;
+	}
+	if (oldest) {
+	    struct eap_session key;
+
+	    memset(&key, 0, sizeof(key));
+	    key.state_len = oldest->state_len;
+	    memcpy(key.state, oldest->state, oldest->state_len);
+	    RB_search_and_delete(r->eap_sessions, &key);
+	}
+    }
+
+    state_len = e->state_len;
+    memcpy(state, e->state, state_len);
+
+    if (!RB_insert(r->eap_sessions, e)) {
+	/* Duplicate key: RB_insert() freed the rbnode wrapper, not the
+	   payload. Free the duplicate and return the existing session. */
+	eap_session_free(e);
+	return eap_lookup(r, state, state_len);
+    }
+    return e;
 }
 
 SSL_CTX *eap_ssl_init(tac_realm *r)
