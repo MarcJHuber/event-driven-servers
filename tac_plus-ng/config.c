@@ -5955,7 +5955,10 @@ static void rad_attr_add(tac_session *session, struct rad_action *a, union rad_a
     size_t data_len_orig = data_len;
     u_char *data = session->radius_data->data + data_len;
     u_char *data_orig = data;
-    u_char *data_end = session->radius_data->data + sizeof(session->radius_data->data);
+    /* Reserve the 20-byte RADIUS header and the 18-byte Message-Authenticator
+       that new_rad_pak() appends, so the final packet stays within the
+       4096-byte RADIUS limit. */
+    u_char *data_end = session->radius_data->data + sizeof(session->radius_data->data) - RADIUS_HDR_SIZE - 18;
 
     void *val = NULL;
     size_t val_len = 0;

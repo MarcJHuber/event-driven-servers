@@ -65,6 +65,10 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
+#define RADIUS_MAX_PACKET 4096
+#define RADIUS_MAX_ATTRIBUTES (RADIUS_MAX_PACKET - RADIUS_HDR_SIZE)
+#define RADIUS_MA_RESERVE 18	/* Message-Authenticator attribute */
+
 static void write_packet(struct context *, tac_pak *);
 static tac_session *new_session(struct context *, tac_pak_hdr *, rad_pak_hdr *);
 
@@ -419,6 +423,126 @@ void rad_send_acct_reply(tac_session *session)
 {
     rad_send_reply(session, RADIUS_CODE_ACCOUNTING_RESPONSE);
 }
+
+#ifdef WITH_SSL
+/*
+ * Remove every attribute of the given type from a RADIUS attribute buffer,
+ * preserving the order of the remaining attributes. Returns the new length.
+ * A malformed tail (which rad_check_failed() would have rejected on input)
+ * is preserved as-is.
+ */
+static size_t rad_strip_attribute(u_char *data, size_t len, u_char type)
+{
+    size_t in = 0, out = 0;
+
+    while (in + 2 <= len) {
+	size_t alen = data[in + 1];
+	if (alen < 2 || alen > len - in)
+	    break;
+	if (data[in] != type) {
+	    if (out != in)
+		memmove(data + out, data + in, alen);
+	    out += alen;
+	}
+	in += alen;
+    }
+    if (in < len) {
+	if (out != in)
+	    memmove(data + out, data + in, len - in);
+	out += len - in;
+    }
+    return out;
+}
+
+/*
+ * Send an Access-Challenge/Accept/Reject carrying EAP-Message, optional
+ * State (Access-Challenge only), and the Message-Authenticator that
+ * new_rad_pak() appends. Reply-Message and State already in the attribute
+ * buffer are stripped from Access-Accept/Reject (RFC 3579 2.6.5).
+ *
+ * rad_send_reply() calls cleanup_session(); do not touch session afterwards.
+ */
+void rad_send_eap_reply(tac_session *session, u_char code, const u_char *eap, size_t eap_len, const u_char *state, size_t state_len)
+{
+    struct radius_data *rd = session->radius_data;
+    size_t need = 0, room, i;
+
+    if (!rd) {
+	report(session, LOG_ERR, ~0, "EAP reply without RADIUS data");
+	cleanup_session(session);
+	return;
+    }
+
+    if (state_len > EAP_MAX_RADIUS_ATTR)
+	state_len = 0;		/* cannot encode a longer RADIUS State */
+
+    if (code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT) {
+	/* RFC 3579 2.6.5: no Reply-Message with EAP-Message; State belongs
+	   in Access-Challenge. */
+	rd->data_len = rad_strip_attribute(rd->data, rd->data_len, RADIUS_A_REPLY_MESSAGE);
+	rd->data_len = rad_strip_attribute(rd->data, rd->data_len, RADIUS_A_STATE);
+    }
+
+    /* rad_attr_add() may have filled the buffer close to the limit; guard
+       before subtracting the Message-Authenticator reservation, or the
+       unsigned subtraction would underflow. */
+    if (rd->data_len > RADIUS_MAX_ATTRIBUTES - RADIUS_MA_RESERVE) {
+	report(session, LOG_ERR, ~0, "EAP reply buffer already too large");
+	goto best_effort;
+    }
+
+    room = RADIUS_MAX_ATTRIBUTES - rd->data_len - RADIUS_MA_RESERVE;
+
+    if (eap_len && !eap)
+	goto best_effort;
+
+    for (i = 0; i < eap_len; i += EAP_MAX_RADIUS_ATTR)
+	need += 2 + (size_t) minimum(EAP_MAX_RADIUS_ATTR, (int) (eap_len - i));
+    if (state_len && code == RADIUS_CODE_ACCESS_CHALLENGE)
+	need += 2 + state_len;
+
+    if (need > room) {
+	report(session, LOG_ERR, ~0, "EAP reply too large");
+	goto best_effort;
+    }
+
+    u_char *p = rd->data + rd->data_len;
+    for (i = 0; i < eap_len; i += EAP_MAX_RADIUS_ATTR) {
+	size_t n = (size_t) minimum(EAP_MAX_RADIUS_ATTR, (int) (eap_len - i));
+	*p++ = RADIUS_A_EAP_MESSAGE;
+	*p++ = (u_char) (2 + n);
+	memcpy(p, eap + i, n);
+	p += n;
+	rd->data_len += 2 + n;
+    }
+    if (state_len && code == RADIUS_CODE_ACCESS_CHALLENGE) {
+	*p++ = RADIUS_A_STATE;
+	*p++ = (u_char) (2 + state_len);
+	memcpy(p, state, state_len);
+	p += state_len;
+	rd->data_len += 2 + state_len;
+    }
+
+    rad_send_reply(session, code);
+    return;
+
+best_effort:
+    /* Best effort: an EAP-Failure-only Access-Reject if it fits. */
+    {
+	u_char failure[4] = { EAP_CODE_FAILURE, 0, 0, 4 };
+
+	if (sizeof(failure) + 2 + RADIUS_MA_RESERVE <= RADIUS_MAX_ATTRIBUTES) {
+	    rd->data_len = 0;
+	    rd->data[0] = RADIUS_A_EAP_MESSAGE;
+	    rd->data[1] = 2 + sizeof(failure);
+	    memcpy(rd->data + 2, failure, sizeof(failure));
+	    rd->data_len = 2 + sizeof(failure);
+	    rad_send_reply(session, RADIUS_CODE_ACCESS_REJECT);
+	} else
+	    cleanup_session(session);
+    }
+}
+#endif				/* WITH_SSL */
 
 void rad_send_error(tac_session *session, uint32_t cause)
 {
