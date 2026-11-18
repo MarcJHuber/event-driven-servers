@@ -349,6 +349,7 @@ class EapTlsPeer:
         self.sslobj = self.ctx.wrap_bio(self.incoming, self.outgoing,
                                         server_hostname="localhost")
         self.tls_requests = 0
+        self.fragment_acks = 0
 
     def send_eap(self, eap):
         attrs = [(radius.USER_NAME, self.identity.encode())]
@@ -398,6 +399,7 @@ class EapTlsPeer:
             chunks.append(data)
             if not flags & radius.EAP_TLS_M:
                 break
+            self.fragment_acks += 1
             reply = self.send_eap(radius.eap_tls_ack(identifier))
         data = b"".join(chunks)
         if total is not None and len(data) != total:
@@ -406,7 +408,12 @@ class EapTlsPeer:
         return identifier, data
 
     def handshake(self, max_rounds=10):
-        """Identity -> TLS Start, then run the client handshake to completion."""
+        """Identity -> TLS Start, then run the client handshake to completion.
+
+        RFC 5216 2.1.3: after the server's final TLS flight the peer sends an
+        empty EAP-Response/EAP-TLS ACK, and only then may the server answer
+        with EAP-Success. Returns the number of server TLS flights.
+        """
         identity = radius.eap_packet(radius.EAP_RESPONSE, 1, radius.EAP_TYPE_IDENTITY,
                                      self.identity.encode())
         reply = self.send_eap(identity)
@@ -431,8 +438,62 @@ class EapTlsPeer:
                 self.outgoing.read()
                 continue
             # do_handshake() returned None: the client handshake is complete.
+            # The server's final flight was received in the previous round;
+            # ACK it with an empty EAP-Response/EAP-TLS (RFC 5216 2.1.3).
+            ack_identifier = self.identifier
+            reply = self.send_eap(radius.eap_tls_ack(ack_identifier))
+            if reply.code_name != "Access-Accept":
+                raise AssertionError("expected Access-Accept after the final ACK, got %s: %r"
+                                     % (reply.code_name, radius.eap_from_reply(reply)))
+            eap = radius.eap_from_reply(reply)
+            if len(eap) != 4:
+                raise AssertionError("EAP-Success must be a 4-byte packet, got %r" % eap)
+            code, identifier, length = struct.unpack("!BBH", eap)
+            if code != radius.EAP_SUCCESS:
+                raise AssertionError("expected EAP-Success (3), got EAP code %d: %r" % (code, eap))
+            if identifier != ack_identifier:
+                raise AssertionError("EAP-Success identifier %d, ACK identifier %d"
+                                     % (identifier, ack_identifier))
+            if reply.get(radius.STATE):
+                raise AssertionError("Access-Accept carries State: %r" % reply.get(radius.STATE))
             return self.tls_requests
         raise AssertionError("TLS handshake did not complete in %d rounds" % max_rounds)
+
+    def handshake_until_alert(self, max_rounds=10):
+        """Run the client handshake until the server sends a TLS alert.
+
+        Returns (identifier, alert) of the EAP-Request/EAP-TLS carrying the
+        alert. The caller answers it with an empty EAP-Response/EAP-TLS and
+        expects EAP-Failure (RFC 5216 2.1.3). The server must not send
+        EAP-Failure before that response; receive_request() would reject an
+        Access-Reject here.
+        """
+        identity = radius.eap_packet(radius.EAP_RESPONSE, 1, radius.EAP_TYPE_IDENTITY,
+                                     self.identity.encode())
+        reply = self.send_eap(identity)
+        _, data = self.receive_request(reply)
+        if data:
+            raise AssertionError("EAP-TLS Start carried data: %r" % data)
+
+        for _ in range(max_rounds):
+            try:
+                self.sslobj.do_handshake()
+            except ssl.SSLWantReadError:
+                out = self.outgoing.read()
+                if not out:
+                    raise AssertionError("SSLObject wants to read but has no output for the server")
+                reply = self.send_eap(radius.eap_tls_packet(radius.EAP_RESPONSE,
+                                                            self.identifier, 0, out))
+                identifier, data = self.receive_request(reply)
+                if len(data) >= 5 and data[0] == 21:      # TLS alert record
+                    return identifier, data
+                self.incoming.write(data)
+                continue
+            except ssl.SSLWantWriteError:
+                self.outgoing.read()
+                continue
+            raise AssertionError("TLS handshake completed without a server alert")
+        raise AssertionError("no TLS alert in %d rounds" % max_rounds)
 
 
 @unittest.skipUnless("openssl" in features(), "EAP needs a build with OpenSSL")
@@ -447,11 +508,17 @@ class EapTlsTestCase(DaemonTestCase):
     UDP = True
 
     @classmethod
+    def server_certificate(cls):
+        """(certificate, key) for the EAP TLS server; subclasses may override."""
+        return cls.ca.server
+
+    @classmethod
     def setUpClass(cls):
         cls.ca = tls.CA(cls.__name__ + "-ca")
         try:
             cls.client_cert = cls.ca.issue("cert-user", "/CN=cert-user")
-            cls.CONFIG = EAP_POLICY % (DICTIONARY, cls.ca.server[0], cls.ca.server[1], cls.ca.cert)
+            server = cls.server_certificate()
+            cls.CONFIG = EAP_POLICY % (DICTIONARY, server[0], server[1], cls.ca.cert)
             super().setUpClass()
         except Exception:
             cls.ca.remove()
@@ -502,6 +569,61 @@ class EapTlsHandshake(EapTlsTestCase):
         self.assertEqual(peer.sslobj.version(), "TLSv1.2")
         self.assertIsNotNone(peer.sslobj.getpeercert())
 
-        # The final empty ACK completes the exchange. Task 11 will answer it
-        # with EAP-Success; Task 10 answers EAP-Failure, which is fine here.
-        peer.send_eap(radius.eap_tls_ack(peer.identifier))
+
+class EapTlsFragmentedServerFlight(EapTlsTestCase):
+    """A server flight over EAP_MAX_FRAGMENT: L/M flags and one fragment per ACK."""
+
+    @classmethod
+    def server_certificate(cls):
+        # A certificate with ~4 KB of SANs makes the Certificate message
+        # exceed EAP_MAX_FRAGMENT (3000 bytes) and forces fragmentation.
+        long_san = ", ".join("DNS:host%03d.%s.example" % (i, "x" * 180) for i in range(20))
+        return cls.ca.issue("server-big", "/O=tactest/CN=localhost", server=True,
+                            san="IP:127.0.0.1, IP:::1, DNS:localhost, " + long_san)
+
+    def test_fragmented_server_flight_is_acked_per_fragment(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.handshake()
+        self.assertGreater(peer.fragment_acks, 0, "server flight was not fragmented")
+        self.assertEqual(peer.sslobj.version(), "TLSv1.2")
+
+
+class EapTlsPeerAuthFailure(EapTlsTestCase):
+    """Peer authentication failure: TLS alert first, EAP-Failure only after the peer answers."""
+
+    def test_client_certificate_from_other_ca_gets_alert_then_failure(self):
+        other_ca = tls.CA(self.__class__.__name__ + "-other-ca")
+        self.addCleanup(other_ca.remove)
+        cert = other_ca.issue("intruder", "/CN=cert-user")
+
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=cert)
+        identifier, alert = peer.handshake_until_alert()
+        self.assertEqual(alert[0], 21, "expected a TLS alert record, got %r" % alert)
+
+        # RFC 5216 2.1.3: the peer answers the alert with an empty
+        # EAP-Response/EAP-TLS; only then does the server send EAP-Failure.
+        reply = peer.send_eap(radius.eap_tls_ack(identifier))
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        eap = radius.eap_from_reply(reply)
+        self.assertEqual(len(eap), 4, eap)
+        self.assertEqual(struct.unpack("!BBH", eap),
+                         (radius.EAP_FAILURE, identifier, 4))
+
+
+class EapTlsMissingClientCert(EapTlsTestCase):
+    """verify-client = yes rejects a peer without a certificate, alert first."""
+
+    def test_missing_client_certificate_gets_alert_then_failure(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=None)
+        identifier, alert = peer.handshake_until_alert()
+        self.assertEqual(alert[0], 21, "expected a TLS alert record, got %r" % alert)
+
+        reply = peer.send_eap(radius.eap_tls_ack(identifier))
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        eap = radius.eap_from_reply(reply)
+        self.assertEqual(len(eap), 4, eap)
+        self.assertEqual(struct.unpack("!BBH", eap),
+                         (radius.EAP_FAILURE, identifier, 4))

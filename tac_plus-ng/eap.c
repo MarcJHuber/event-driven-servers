@@ -343,6 +343,16 @@ static void eap_send_failure(tac_session *session, u_char identifier)
     rad_send_eap_reply(session, RADIUS_CODE_ACCESS_REJECT, pkt, sizeof(pkt), NULL, 0);
 }
 
+/* EAP-Success (4-byte packet) in an Access-Accept. */
+static void eap_send_success(tac_session *session, u_char identifier)
+{
+    u_char pkt[sizeof(struct eap_hdr)];
+    struct eap_hdr hdr = { EAP_CODE_SUCCESS, identifier, htons(sizeof(pkt)) };
+
+    memcpy(pkt, &hdr, sizeof(hdr));
+    rad_send_eap_reply(session, RADIUS_CODE_ACCESS_ACCEPT, pkt, sizeof(pkt), NULL, 0);
+}
+
 /* EAP-Response/Nak proposing EAP-TLS, for RADIUS role reversal (RFC 3579 2.6.2). */
 static void eap_send_nak(tac_session *session, u_char identifier)
 {
@@ -467,6 +477,95 @@ static int eap_tls_drain(struct eap_session *es, u_char **buf, size_t *len)
 }
 
 /*
+ * Queue drained TLS output for EAP-TLS fragmentation. es->out holds the
+ * whole flight; out_offset is the number of bytes already sent and
+ * out_total the full length. The first fragment carries L and the total
+ * length; M is set on all but the last fragment (RFC 5216 2.1.5).
+ */
+static int eap_tls_queue(struct eap_session *es, const u_char *buf, size_t len)
+{
+    struct eap_fragment *f;
+
+    while (es->out) {
+	struct eap_fragment *next = es->out->next;
+	free(es->out);
+	es->out = next;
+    }
+    es->out_offset = 0;
+    es->out_total = 0;
+
+    if (!len)
+	return 1;
+
+    f = malloc(sizeof(*f) + len);
+    if (!f)
+	return 0;
+
+    f->next = NULL;
+    f->len = len;
+    memcpy(f->data, buf, len);
+    es->out = f;
+    es->out_total = len;
+    return 1;
+}
+
+/*
+ * Send the next EAP-Request/EAP-TLS fragment of the queued flight in an
+ * Access-Challenge with State. The EAP identifier is incremented per
+ * fragment; reserved bits are zero. Returns 1 on success, 0 when there is
+ * nothing to send, -1 after sending EAP-Failure (the tac_session is gone).
+ */
+static int eap_tls_send_fragment(tac_session *session, struct eap_session *es)
+{
+    size_t remain, chunk, len, off;
+    u_char flags = 0;
+    u_char identifier;
+    u_char *pkt;
+
+    if (!es->out || es->out_offset >= es->out_total)
+	return 0;
+
+    remain = es->out_total - es->out_offset;
+    chunk = remain > EAP_MAX_FRAGMENT ? EAP_MAX_FRAGMENT : remain;
+    identifier = (u_char) (es->identifier + 1);
+
+    len = sizeof(struct eap_hdr) + 2 + chunk;	/* type and flags */
+    if (!es->out_offset)
+	len += 4;				/* TLS Message Length */
+
+    pkt = mem_alloc(session->mem, len);
+    if (!pkt) {
+	eap_send_failure(session, identifier);
+	return -1;
+    }
+
+    struct eap_hdr hdr = { EAP_CODE_REQUEST, identifier, htons((u_short) len) };
+    memcpy(pkt, &hdr, sizeof(hdr));
+    off = sizeof(hdr);
+    pkt[off++] = EAP_TYPE_TLS;
+
+    if (!es->out_offset)
+	flags |= EAP_TLS_FLAG_L;
+    if (es->out_offset + chunk < es->out_total)
+	flags |= EAP_TLS_FLAG_M;
+    pkt[off++] = flags;
+
+    if (!es->out_offset) {
+	uint32_t total = htonl((uint32_t) es->out_total);
+
+	memcpy(pkt + off, &total, sizeof(total));
+	off += sizeof(total);
+    }
+
+    memcpy(pkt + off, es->out->data + es->out_offset, chunk);
+    es->out_offset += chunk;
+    es->identifier = identifier;
+
+    rad_send_eap_reply(session, RADIUS_CODE_ACCESS_CHALLENGE, pkt, len, es->state, es->state_len);
+    return 1;
+}
+
+/*
  * RFC 5216 2.1.3: a TLS alert produced by the server must be sent in an
  * EAP-Request/EAP-TLS before EAP-Failure. Walk the TLS records in the
  * drained output; anything else means OpenSSL did not produce an alert.
@@ -518,10 +617,59 @@ static void eap_tls_fail(tac_session *session, struct eap_session *es, const cha
 }
 
 /*
+ * Empty EAP-Response/EAP-TLS with State: a fragment ACK or the final
+ * handshake ACK (RFC 5216 2.1.5 / 2.1.3). Fragment ACKs move the queued
+ * server flight forward one fragment at a time; only the ACK for the last
+ * server fragment completes the handshake and allows EAP-Success.
+ */
+static void eap_tls_ack(tac_session *session, struct eap_session *es,
+			const struct eap_parsed *parsed)
+{
+    int sent;
+
+    switch (es->tls_state) {
+    case EAP_TLS_FINAL_FLIGHT_SENDING:
+	/* More final-flight fragments are queued: one fragment per ACK. */
+	sent = eap_tls_send_fragment(session, es);
+	if (sent < 0)
+	    return;
+	if (es->out_offset >= es->out_total)
+	    es->tls_state = EAP_TLS_WAIT_FINAL_ACK;
+	return;
+    case EAP_TLS_HANDSHAKE:
+	/* Fragment ACK for a non-final server flight. */
+	sent = eap_tls_send_fragment(session, es);
+	if (sent < 0)
+	    return;
+	if (!sent)
+	    eap_send_failure(session, parsed->identifier);
+	return;
+    case EAP_TLS_WAIT_FINAL_ACK:
+	if (parsed->identifier != es->identifier) {
+	    eap_send_failure(session, parsed->identifier);
+	    return;
+	}
+	es->tls_state = EAP_TLS_DONE;
+	es->flags |= EAP_F_COMPLETED;
+	es->success_identifier = parsed->identifier;
+	/* Task 13 authorization hook: eap_authorize(session, ...) goes here;
+	   on denial send EAP-Failure in an Access-Reject. Until then a
+	   verified handshake is accepted unconditionally. */
+	eap_send_success(session, parsed->identifier);
+	return;
+    default:
+	/* ALERT_SENT and FAILED are handled by the caller; an ACK in DONE or
+	   before the handshake started is a protocol error. */
+	eap_send_failure(session, parsed->identifier);
+	return;
+    }
+}
+
+/*
  * EAP-Response/EAP-TLS with State: feed the TLS data to the server SSL
- * object and send its output as EAP-Request/EAP-TLS. Task 10 sends one EAP
- * packet per flight; rad_send_eap_reply() splits it into 253-byte
- * EAP-Message attributes. Fragmentation is Task 12.
+ * object and send its output as EAP-Request/EAP-TLS fragments. The final
+ * TLS flight is followed by a peer ACK before EAP-Success (Task 11);
+ * client-to-server fragment reassembly is Task 12.
  */
 static void eap_tls_request(tac_session *session, struct eap_session *es,
 			    const struct eap_parsed *parsed)
@@ -538,9 +686,18 @@ static void eap_tls_request(tac_session *session, struct eap_session *es,
 	return;
     }
 
-    /* An empty EAP-Response/EAP-TLS is a fragment or completion ACK.
-       Fragment ACK handling and the final ACK/EAP-Success path are Task 11. */
+    /* An empty EAP-Response/EAP-TLS is a fragment or completion ACK. */
     if (!parsed->data_len) {
+	eap_tls_ack(session, es, parsed);
+	return;
+    }
+
+    /* Non-empty TLS data is only valid while the handshake is running and
+       all server fragments have been acknowledged. */
+    if (es->tls_state == EAP_TLS_FINAL_FLIGHT_SENDING ||
+	es->tls_state == EAP_TLS_WAIT_FINAL_ACK ||
+	es->tls_state == EAP_TLS_DONE ||
+	(es->out && es->out_offset < es->out_total)) {
 	eap_send_failure(session, parsed->identifier);
 	return;
     }
@@ -573,19 +730,38 @@ static void eap_tls_request(tac_session *session, struct eap_session *es,
 
     if (!len) {
 	free(buf);
-	/* Waiting for more client data: never send an empty EAP-Request. */
+	if (ret == 1) {
+	    /* Defensive: the handshake completed with no server output left
+	       to send, so there is no final flight to ACK. */
+	    es->tls_state = EAP_TLS_DONE;
+	    es->flags |= EAP_F_COMPLETED;
+	    es->success_identifier = parsed->identifier;
+	    /* Task 13 authorization hook (see eap_tls_ack()). */
+	    eap_send_success(session, parsed->identifier);
+	}
+	/* Otherwise: waiting for more client data. Never send an empty
+	   EAP-Request. */
 	return;
     }
 
+    if (!eap_tls_queue(es, buf, len)) {
+	free(buf);
+	eap_tls_fail(session, es, "BIO_read");
+	return;
+    }
+    free(buf);
+
     if (ret == 1) {
-	/* Final TLS flight (CCS/Finished). Task 11 waits for the peer's ACK
-	   before EAP-Success; keep the flight for the next step. */
+	/* Final TLS flight (CCS/Finished): fragment it and wait for the
+	   peer's fragment ACKs and final empty ACK before EAP-Success. */
 	es->tls_state = EAP_TLS_FINAL_FLIGHT_SENDING;
     } else
 	es->tls_state = EAP_TLS_HANDSHAKE;
 
-    eap_send_request(session, es, EAP_TYPE_TLS, 0, buf, len);
-    free(buf);
+    if (eap_tls_send_fragment(session, es) < 0)
+	return;
+    if (ret == 1 && es->out_offset >= es->out_total)
+	es->tls_state = EAP_TLS_WAIT_FINAL_ACK;
 }
 
 void eap_radius_request(tac_session *session)
