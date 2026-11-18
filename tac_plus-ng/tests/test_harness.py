@@ -38,6 +38,7 @@ import glob
 import io
 import os
 import select
+import shlex
 import shutil
 import signal
 import socket
@@ -436,7 +437,7 @@ class ScratchFiles(unittest.TestCase):
 
 
 class SambaDcStart(unittest.TestCase):
-    """samba-dc/start and its README commands, with stand-ins for docker and openssl."""
+    """samba-dc/start, its README commands and its CI steps, with stand-ins for docker and openssl."""
 
     here = os.path.dirname(os.path.abspath(__file__))
     # the DC is up at once on port 1636; each call of docker is logged
@@ -539,6 +540,53 @@ class SambaDcStart(unittest.TestCase):
             name = next(words[words.index("--name") + 1] for words in log if words[0] == "run")
             self.assertEqual([words for words in log if words[0] in ("run", "rm")][-1], ["rm", "-f", name],
                              "a failed start leaves its container")
+
+    def workflow_steps(self):
+        """The command of the start step and of the "wait for the DC" step of each job of the CI workflow."""
+        with open(os.path.join(self.here, "..", "..", ".github", "workflows", "tac_plus-ng.yml")) as f:
+            lines = f.read().splitlines()
+        start = [line.split("- run: ", 1)[1] for line in lines if "samba-dc/start > build/samba-dc.env" in line]
+        wait = [lines[i + 1].split("run: ", 1)[1] for i, line in enumerate(lines) if line.strip() == "- name: wait for the DC"]
+        self.assertEqual(len(start), len(wait))
+        self.assertTrue(start)
+        return start, wait
+
+    def test_ci_has_one_deadline_for_the_dc(self):
+        """timeout around start is the only deadline: the wait step then always gets the status and prints the log."""
+        start, wait = self.workflow_steps()
+        for line in start:
+            self.assertRegex(line, r"\(set \+e; timeout( -k \d+)? \d+ tac_plus-ng/tests/samba-dc/start ")
+        for line in wait:
+            with self.subTest(line=line):
+                self.assertNotIn("timeout", line, "the wait step can stop before start, and then without the log")
+                for rc, env in (("124", ""), ("0", "TACTEST_SAMBA_DC=x\n")):
+                    with tempfile.TemporaryDirectory() as tmp:
+                        _, run = self.checkout(tmp, "ci")
+                        build = os.path.join(tmp, "ci", "build")
+                        os.mkdir(build)
+                        for name, text in (("samba-dc.rc", rc + "\n"), ("samba-dc.log", "the log\n"),
+                                           ("samba-dc.env", "TACTEST_SAMBA_DC=x\n"), ("github.env", "")):
+                            with open(os.path.join(build, name), "w") as f:
+                                f.write(text)
+                        # -e: a run step of GitHub Actions stops at the first failed command
+                        p = run(f"GITHUB_ENV=build/github.env sh -e -c {shlex.quote(line)}")
+                        self.assertEqual((p.returncode == 0, p.stdout.startswith("the log\n")), (rc == "0", True), p)
+                        with open(os.path.join(build, "github.env")) as f:
+                            self.assertEqual(f.read(), env)
+
+    def test_ci_publishes_the_dc_status_in_one_step(self):
+        """The wait step must never read an empty samba-dc.rc: the status goes to another file, then mv."""
+        start, _ = self.workflow_steps()
+        for line in start:
+            with self.subTest(line=line):
+                self.assertRegex(line, r"echo \$\? > (build/samba-dc\.rc\.\w+); mv \1 build/samba-dc\.rc\)")
+                with tempfile.TemporaryDirectory() as tmp:
+                    _, run = self.checkout(tmp, "ci", docker="exit 3")
+                    run(line.rstrip("&").rstrip())
+                    self.assertEqual(sorted(os.listdir(os.path.join(tmp, "ci", "build"))),
+                                     ["samba-dc", "samba-dc.env", "samba-dc.log", "samba-dc.rc"])
+                    with open(os.path.join(tmp, "ci", "build", "samba-dc.rc")) as f:
+                        self.assertEqual(f.read(), "3\n")
 
 if __name__ == "__main__":
     unittest.main()
