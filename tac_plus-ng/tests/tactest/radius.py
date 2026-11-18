@@ -34,6 +34,11 @@
               timeout, exchange() checks the Response Authenticator,
               access_request() with a PAP User-Password of arbitrary bytes
 
+EAP helpers (RFC 3748, RFC 5216, RFC 3579): eap_packet() and eap_tls_packet()
+build EAP packets, eap_tls_ack() the empty fragment ACK, eap_attributes()
+splits an EAP packet into 253-byte EAP-Message attributes, and
+eap_from_reply() concatenates them again.
+
 Message-Authenticator (RFC 3579 3.2) is added on request;
 reply_message_authenticator() checks the one in a reply. Over TLS the
 shared secret is "radsec" (RFC 6614 2.3).
@@ -54,7 +59,20 @@ CODES = {1: "Access-Request", 2: "Access-Accept", 3: "Access-Reject", 4: "Accoun
 USER_NAME = 1
 USER_PASSWORD = 2
 REPLY_MESSAGE = 18
+STATE = 24
+EAP_MESSAGE = 79
 MESSAGE_AUTHENTICATOR = 80
+
+# EAP (RFC 3748); EAP-TLS types and flags (RFC 5216 3.1/3.2)
+EAP_REQUEST = 1
+EAP_RESPONSE = 2
+EAP_SUCCESS = 3
+EAP_FAILURE = 4
+EAP_TYPE_IDENTITY = 1
+EAP_TYPE_TLS = 13
+EAP_TLS_L = 0x80
+EAP_TLS_M = 0x40
+EAP_TLS_S = 0x20
 
 HEADER_LEN = 20
 
@@ -144,6 +162,38 @@ class Packet:
 
     def __repr__(self):
         return "Packet(%s, id=%d, attributes=%r)" % (self.code_name, self.identifier, self.attributes)
+
+
+def eap_packet(code, identifier, eap_type=None, data=b""):
+    """An EAP packet (RFC 3748 4): Success/Failure have no type byte."""
+    if eap_type is None:
+        return struct.pack("!BBH", code, identifier, 4)
+    body = bytes([eap_type]) + data
+    return struct.pack("!BBH", code, identifier, 4 + len(body)) + body
+
+
+def eap_tls_packet(code, identifier, flags, data=b"", total=None):
+    """EAP-TLS packet: type 13, flags byte, optional 4-byte total length."""
+    body = bytes([EAP_TYPE_TLS, flags])
+    if flags & EAP_TLS_L:
+        body += struct.pack("!I", total if total is not None else len(data))
+    body += data
+    return struct.pack("!BBH", code, identifier, 4 + len(body)) + body
+
+
+def eap_tls_ack(identifier):
+    """Empty EAP-Response/EAP-TLS ACK: 6 bytes, flags=0."""
+    return eap_tls_packet(EAP_RESPONSE, identifier, 0)
+
+
+def eap_attributes(eap):
+    """EAP-Message attributes, 253 bytes of value each, in order (RFC 3579 3.1)."""
+    return [(EAP_MESSAGE, eap[i:i + 253]) for i in range(0, len(eap), 253)]
+
+
+def eap_from_reply(reply):
+    """The EAP packet in a reply: its EAP-Message values concatenated."""
+    return b"".join(reply.get(EAP_MESSAGE))
 
 
 def reply_message_authenticator(raw, request_authenticator, secret):
