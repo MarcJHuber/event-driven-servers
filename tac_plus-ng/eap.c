@@ -1264,7 +1264,11 @@ void eap_radius_request(tac_session *session)
     }
 
     es = eap_lookup(r, state, state_len);
-    if (!es) {
+    if (!es || es->expires < io_now.tv_sec) {
+	/* Unknown or expired State: reject instead of refreshing an expired
+	   session. The periodic handler may not have purged it yet. */
+	if (es)
+	    eap_drop_session(r, es);
 	eap_send_failure(session, NULL, identifier);
 	return;
     }
