@@ -1808,6 +1808,24 @@ class EapUdpSingleProcess(EapTlsTestCase):
         self.assertEqual(peer.sslobj.version(), "TLSv1.2")
 
 
+class EapUdpMultiWorker(EapTlsTestCase):
+    """UDP EAP with multiple spawnd workers: the connected DGRAM socket keeps
+    each source flow on one worker, so no broker is needed."""
+
+    SPAWND = "\tspawn { instances min = 4 instances max = 4 }\n"
+
+    def test_udp_handshake_with_four_workers(self):
+        daemon = self.daemon
+        assert daemon is not None
+        self.assertGreaterEqual(len(daemon.workers()), 4)
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.handshake()
+        reply = peer.last_reply
+        assert reply is not None
+        self.assertEqual(reply.code_name, "Access-Accept", reply)
+
+
 class EapTcpTransport(EapTlsTestCase):
     """RADIUS/TCP (RFC 6613) EAP uses local state and completes the handshake."""
 
