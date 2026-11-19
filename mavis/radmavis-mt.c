@@ -180,7 +180,12 @@ static void *run_thread(void *arg)
 	break;
     }
     case REJECT_RC:
+    case CHALLENGE_RC:		/* radmavis-mt can't relay a challenge: a failed login, not a backend failure */
 	av_set(ac, AV_A_RESULT, AV_V_RESULT_FAIL);
+	break;
+    case TIMEOUT_RC:
+	/* an unanswered second factor (push not approved) is a failed login */
+	av_set(ac, AV_A_RESULT, mfa ? AV_V_RESULT_FAIL : AV_V_RESULT_ERROR);
 	break;
     default:
 	av_set(ac, AV_A_RESULT, AV_V_RESULT_ERROR);
