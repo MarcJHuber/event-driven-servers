@@ -411,12 +411,14 @@ void rad_send_authen_reply(tac_session *session, u_char status, char *msg)
 {
     if (msg && *msg) {
 	size_t msg_len = strlen(msg);
-	if ((session->radius_data->data_len + 2 + msg_len < sizeof(session->radius_data->data)) && (msg_len + 2 < 256)) {
-	    u_char *data = session->radius_data->data;
+	size_t data_len = session->radius_data->data_len;
+
+	if ((data_len + 2 + msg_len + RADIUS_HDR_SIZE + RADIUS_MA_RESERVE <= sizeof(session->radius_data->data)) && (msg_len + 2 < 256)) {
+	    u_char *data = session->radius_data->data + data_len;
 	    *data++ = RADIUS_A_REPLY_MESSAGE;
 	    *data++ = (u_char) msg_len + 2;
 	    memcpy(data, msg, msg_len);
-	    session->radius_data->data_len += 2 + msg_len;
+	    session->radius_data->data_len = data_len + 2 + msg_len;
 	}
     }
     rad_send_reply(session, status);
@@ -552,21 +554,25 @@ best_effort:
 
 void rad_send_error(tac_session *session, uint32_t cause)
 {
-    if (session->message.len && (session->radius_data->data_len + 2 + session->message.len < sizeof(session->radius_data->data))
-	&& (session->message.len + 2 < 256)) {
-	u_char *data = session->radius_data->data;
+    size_t data_len = session->radius_data->data_len;
+
+    if (session->message.len &&
+	(data_len + 2 + session->message.len + RADIUS_HDR_SIZE + RADIUS_MA_RESERVE <= sizeof(session->radius_data->data)) &&
+	(session->message.len + 2 < 256)) {
+	u_char *data = session->radius_data->data + data_len;
 	*data++ = RADIUS_A_REPLY_MESSAGE;
 	*data++ = (u_char) session->message.len + 2;
 	memcpy(data, session->message.txt, session->message.len);
-	session->radius_data->data_len += 2 + session->message.len;
+	data_len += 2 + session->message.len;
+	session->radius_data->data_len = data_len;
     }
-    if ((session->radius_data->data_len + 6 < sizeof(session->radius_data->data))) {
-	u_char *data = session->radius_data->data;
+    if (data_len + 6 + RADIUS_HDR_SIZE + RADIUS_MA_RESERVE <= sizeof(session->radius_data->data)) {
+	u_char *data = session->radius_data->data + data_len;
 	*data++ = RADIUS_A_ERROR_CAUSE;
 	*data++ = 6;
 	cause = htonl(cause);
 	memcpy(data, &cause, 4);
-	session->radius_data->data_len += 6;
+	session->radius_data->data_len = data_len + 6;
     }
     rad_send_reply(session, RADIUS_CODE_PROTOCOL_ERROR);
 }
