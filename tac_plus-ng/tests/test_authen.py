@@ -28,9 +28,13 @@
 
 """Authentication: ASCII login, PAP, CHAP, enable; transport corner cases (MS-CHAP: test_issue263.py)."""
 
+import re
+import subprocess
 import unittest
 
-from tactest import DaemonTestCase, tacacs
+from tactest import DaemonError, DaemonTestCase, config, features, tacacs
+from tactest.daemon import READY_TIMEOUT, parse_only
+from tactest.detect import sanitizer_reports
 
 USERS = """
 	device single {
@@ -252,6 +256,182 @@ class MaxRounds(DaemonTestCase):
         r = s.cont("alicepw")
         self.assertEqual((r.status_name, r.server_msg), ("ERROR", "Too many rounds."), r)
         self.assertTrue(c.closed(), "the connection stays open")
+
+
+# "alicepw", "enablepw" and "naskey", encrypted with the type6-key "demo"
+ALICEPW_6 = r"g^^PIBaDAZOHeG^fIU^eY_RUPZ`^]X"
+ENABLEPW_6 = r"JGRZhS_TGAab^`ZXC]XKadGG]ihdiNAAB"
+NASKEY_6 = r"KIXTPG^HRJ]FIdaO\IN]fRbFKaTAAB"
+
+
+def type6_alice(login="6 '%s'" % ALICEPW_6, enable="6 '%s'" % ENABLEPW_6):
+    return """
+	user alice {
+		password login = %s
+		password pap = clear alicepw
+		enable 15 = %s
+	}
+""" % (login, enable)
+
+
+TYPE6_NAS = """
+	device nas6 {
+		address = 127.0.0.6
+		key = 6 '%s'
+	}
+""" % NASKEY_6
+
+PERMIT = """
+	ruleset {
+		rule { script { permit } }
+	}
+"""
+
+
+@unittest.skipUnless("openssl" in features(), "type 6 needs a build with OpenSSL")
+class Type6(DaemonTestCase):
+    """Type 6 passwords and keys, decrypted with the type6-key of the realm or of a parent realm.
+
+    The type6-key comes last: the daemon decrypts after it has read the whole configuration.
+    """
+
+    LISTEN = {"lab": "realm = lab"}
+    CONFIG = type6_alice() + TYPE6_NAS + PERMIT + """
+	realm lab {
+		user bob {
+			password login = 6 '%s'
+		}
+	}
+	type6-key = demo
+""" % ALICEPW_6
+
+    def test_type6_login(self):
+        self.assertEqual(self.connect().ascii_login("alice", "alicepw").status_name, "PASS")
+
+    def test_type6_login_with_the_encrypted_text_fails(self):
+        self.assertEqual(self.connect().ascii_login("alice", ALICEPW_6).status_name, "FAIL")
+
+    def test_type6_enable(self):
+        self.assertEqual(self.connect().enable("enablepw", user="alice").status_name, "PASS")
+
+    def test_type6_enable_with_the_encrypted_text_fails(self):
+        self.assertEqual(self.connect().enable(ENABLEPW_6, user="alice").status_name, "FAIL")
+
+    def test_type6_device_key(self):
+        self.assertTrue(self.connect(source="127.0.0.6", key="naskey").pap("alice", "alicepw").ok)
+
+    def test_type6_key_of_the_parent_realm(self):
+        self.assertEqual(self.connect(listener="lab").ascii_login("bob", "alicepw").status_name, "PASS")
+
+
+@unittest.skipUnless("openssl" in features(), "type 6 needs a build with OpenSSL")
+class Type6SiblingParentRealm(DaemonTestCase):
+    """A realm with a sibling as its parent gets the type6-key that the sibling inherits.
+
+    Realms complete in name order, so sibling-a completes before its parent sibling-z.
+    nest-c, a child of nest-z with parent nest-a, completes while nest-a waits for nest-z.
+    """
+
+    LISTEN = {"a": "realm = sibling-a", "c": "realm = nest-c"}
+    CONFIG = PERMIT + """
+	realm sibling-z {
+	}
+	realm sibling-a {
+		parent = sibling-z
+		user bob {
+			password login = 6 '%s'
+		}
+	}
+	realm nest-z {
+	}
+	realm nest-a {
+		parent = nest-z
+	}
+	realm nest-z {
+		realm nest-c {
+			parent = nest-a
+			user carol {
+				password login = 6 '%s'
+			}
+		}
+	}
+	type6-key = demo
+""" % (ALICEPW_6, ALICEPW_6)
+
+    def test_type6_key_of_the_parent_of_the_parent_realm(self):
+        self.assertEqual(self.connect(listener="a").ascii_login("bob", "alicepw").status_name, "PASS")
+
+    def test_type6_key_of_a_parent_realm_that_completes_from_a_child_of_its_parent(self):
+        self.assertEqual(self.connect(listener="c").ascii_login("carol", "alicepw").status_name, "PASS")
+
+
+@unittest.skipUnless("openssl" in features(), "type 6 needs a build with OpenSSL")
+class Type6Undecryptable(DaemonTestCase):
+    """A type 6 value that the type6-key does not decrypt, or that has no type6-key, is a configuration error.
+
+    The daemon used the encrypted text as the clear text password or key before.
+    """
+
+    CONFIG = None
+    WRONG_KEY = "type 6 value cannot be decrypted with the type6-key"
+    NO_KEY = "type 6 value without a type6-key"
+
+    def assert_rejected(self, body, error, attempt):
+        try:
+            d = self.start_daemon(body, check=False)
+        except DaemonError as e:
+            self.assertIn("exited with code 78 ", str(e))
+        else:
+            # the worker reads the configuration after spawnd listens, so the exit can come later
+            try:
+                self.assertEqual(d.proc.wait(READY_TIMEOUT), 78, d.stderr_tail())
+            except subprocess.TimeoutExpired:
+                self.fail("the daemon runs; the encrypted text as the secret: %s"
+                          % (attempt(d).status_name if attempt else "not tried"))
+            self.assertEqual([p for p, size in sanitizer_reports(d.tmp).items() if size], [])
+        code, out = parse_only(self.scratch_file("type6.cfg", config.render(body=body)))
+        self.assertEqual(code, 78, out)
+        # the line of the type 6 value, as the parser counts lines: it reports an unknown keyword there
+        bogus = re.sub(r"(= 6 '[^']*')", r"\1 bogus", body, count=1)
+        line = re.search(r"type6\.cfg:(\d+): .* but got 'bogus'",
+                         parse_only(self.scratch_file("type6.cfg", config.render(body=bogus)))[1])
+        self.assertIsNotNone(line)
+        self.assertIn("type6.cfg:%s: %s" % (line.group(1), error), out)
+
+    def login_as_clear_text(self, d):
+        return self.connect(daemon=d).ascii_login("alice", ALICEPW_6)
+
+    def enable_as_clear_text(self, d):
+        return self.connect(daemon=d).enable(ENABLEPW_6, user="alice")
+
+    def nas_key_as_clear_text(self, d):
+        return self.connect(daemon=d, source="127.0.0.6", key=NASKEY_6).pap("alice", "alicepw")
+
+    def test_type6_password_with_a_wrong_type6_key(self):
+        self.assert_rejected(type6_alice(enable="clear enablepw") + PERMIT + "type6-key = wrong\n",
+                             self.WRONG_KEY, self.login_as_clear_text)
+
+    def test_type6_password_without_a_type6_key(self):
+        self.assert_rejected(type6_alice(enable="clear enablepw") + PERMIT, self.NO_KEY, self.login_as_clear_text)
+
+    def test_type6_enable_with_a_wrong_type6_key(self):
+        self.assert_rejected(type6_alice(login="clear alicepw") + PERMIT + "type6-key = wrong\n",
+                             self.WRONG_KEY, self.enable_as_clear_text)
+
+    def test_type6_device_key_with_a_wrong_type6_key(self):
+        self.assert_rejected(TYPE6_NAS + USERS + "type6-key = wrong\n", self.WRONG_KEY, self.nas_key_as_clear_text)
+
+    def test_type6_device_key_without_a_type6_key(self):
+        self.assert_rejected(TYPE6_NAS + USERS, self.NO_KEY, self.nas_key_as_clear_text)
+
+    def test_type6_key_of_the_device_wins_over_the_realm(self):
+        nas = TYPE6_NAS.replace("key = 6", "type6-key = wrong\n\t\tkey = 6")
+        self.assert_rejected(nas + USERS + "type6-key = demo\n", self.WRONG_KEY, self.nas_key_as_clear_text)
+
+    def test_type6_tls_psk_key_with_a_wrong_type6_key(self):
+        # test_tls.Psk has a TLS-PSK client and the working type 6 PSK
+        nas = TYPE6_NAS.replace("key = 6", "tls psk id = nas6\n\t\ttls psk key = 6")
+        self.assert_rejected(nas + USERS + "type6-key = wrong\n", self.WRONG_KEY, None)
 
 
 if __name__ == "__main__":

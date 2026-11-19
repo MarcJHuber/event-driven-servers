@@ -299,13 +299,116 @@ static char *confdir_strdup(char *in)
 #undef S
 }
 
+#ifdef WITH_SSL
+enum type6_target { TYPE6_KEY, TYPE6_PASSWORD, TYPE6_PSK };
+
+struct type6_value {
+    struct type6_value *next;
+    char *filename;
+    u_int line;
+    tac_host *host;		// the type6-key of this host, or of one of its parents, applies
+    enum type6_target kind;
+    void *target;
+};
+
+// values wait until the parse that read them ends, or for complete_realm(): their type6-key can come later
+static struct type6_value *type6_values = NULL;
+static struct type6_value **type6_values_tail = &type6_values;
+
+static char *type6_decrypt(struct type6_value *t)
+{
+    char *master_key = NULL;
+    for (tac_host *h = t->host; h && !master_key; h = h->parent)
+	master_key = h->type6key;
+    if (!master_key)
+	return "type 6 value without a type6-key";
+
+    char *value;
+    switch (t->kind) {
+    case TYPE6_KEY:
+	value = ((struct tac_key *) t->target)->key;
+	break;
+    case TYPE6_PASSWORD:
+	value = ((struct pwdat *) t->target)->value;
+	break;
+    default:
+	value = ((struct tls_psk_key *) t->target)->key.txt;
+    }
+
+    char *dec = (char *) decrypt_type6(value, master_key);
+    if (!dec)
+	return "type 6 value cannot be decrypted with the type6-key";
+    size_t len = strlen(dec);
+    memcpy(value, dec, len + 1);	// the clear text is shorter than its type 6 form
+    free(dec);
+
+    switch (t->kind) {
+    case TYPE6_KEY:
+	((struct tac_key *) t->target)->len = len;
+	break;
+    case TYPE6_PASSWORD:
+	((struct pwdat *) t->target)->type = S_clear;
+	break;
+    default:
+	((struct tls_psk_key *) t->target)->key.len = len;
+    }
+    return NULL;
+}
+
+// sym holds the type 6 value
+static void type6_add(struct sym *sym, tac_host *host, enum type6_target kind, void *target)
+{
+    struct type6_value *n = calloc(1, sizeof(struct type6_value));
+    *n = (struct type6_value) {.filename = strdup(sym->filename),.line = sym->line,.host = host,.kind = kind,.target = target };
+    *type6_values_tail = n;
+    type6_values_tail = &n->next;
+}
+
+static void type6_free_values(void)
+{
+    while (type6_values) {
+	struct type6_value *t = type6_values;
+	type6_values = t->next;
+	free(t->filename);
+	free(t);
+    }
+    type6_values_tail = &type6_values;
+}
+
+// returns -1 after it reports the first value that cannot be decrypted
+static int type6_decrypt_values(void)
+{
+    int res = 0;
+    for (struct type6_value * t = type6_values; t && !res; t = t->next) {
+	char *error = type6_decrypt(t);
+	if (error) {
+	    report_cfg_error(LOG_ERR, ~0, "%s:%u: %s", t->filename, t->line, error);
+	    res = -1;
+	}
+    }
+    type6_free_values();
+    return res;
+}
+#else
+static void type6_free_values(void)
+{
+}
+
+static int type6_decrypt_values(void)
+{
+    return 0;
+}
+#endif
+
 void complete_realm(tac_realm *r)
 {
-    if (r->complete)
+    tac_realm *rp = r->parent;
+    if (rp)			// "parent = <realm>" can name a realm that completes later
+	complete_realm(rp);
+    if (r->complete)		// a child of rp can have completed r
 	return;
 
     r->complete = 1;
-    tac_realm *rp = r->parent;
 #ifdef WITH_SSL
     if (r->tls_cert || r->tls_key) {
 	if (!r->tls)
@@ -435,6 +538,8 @@ void complete_realm(tac_realm *r)
 	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    complete_realm(RB_payload(rbn, tac_realm *));
     }
+    if (!rp && type6_decrypt_values())	// all realms are complete now
+	scm_fatal();		// spawnd exits too
 }
 
 tac_realm *lookup_realm(char *name, tac_realm *r)
@@ -811,7 +916,9 @@ static void parse_key(struct sym *sym, tac_host *host)
 
     parse(sym, S_equal);
 
-    enum token keytype = S_clear;
+#ifdef WITH_SSL
+    int type6 = 0;
+#endif
 
     if (sym->code == S_clear) {
 	sym_get(sym);
@@ -823,7 +930,7 @@ static void parse_key(struct sym *sym, tac_host *host)
     else if (sym->code == S_6) {
 	sym->noescape = 1;
 	sym_get(sym);
-	keytype = S_6;
+	type6 = 1;
     }
 #endif
 
@@ -833,8 +940,11 @@ static void parse_key(struct sym *sym, tac_host *host)
     (*tk)->line = sym->line;
     (*tk)->len = len;
     (*tk)->key = ((char *) (*tk)) + sizeof(struct tac_key);
-    (*tk)->keytype = keytype;
     memcpy((*tk)->key, sym->buf, len);
+#ifdef WITH_SSL
+    if (type6)
+	type6_add(sym, host, TYPE6_KEY, *tk);
+#endif
     sym->noescape = 0;
 
     sym_get(sym);
@@ -1050,12 +1160,8 @@ static tac_realm *parse_realm(struct sym *sym, char *name, tac_realm *parent, ta
 #if defined(WITH_SSL) && !defined(OPENSSL_NO_PSK)
 static void parse_tls_psk_key(struct sym *sym, tac_host *host)
 {
-    if (!host->tls_psk_key)
-	host->tls_psk_key = mem_alloc(host->mem, sizeof(struct tls_psk_key));
-    else {
-	mem_free(host->mem, &host->tls_psk_key->key.txt);
-	host->tls_psk_key->key.len = 0;
-    }
+    // a new struct: a type 6 value of an earlier definition can still wait for type6_decrypt_values()
+    host->tls_psk_key = mem_alloc(host->mem, sizeof(struct tls_psk_key));
     switch (sym->code) {
     case S_clear:
 	sym_get(sym);
@@ -1070,11 +1176,11 @@ static void parse_tls_psk_key(struct sym *sym, tac_host *host)
 	sym_get(sym);
 	return;
     case S_6:
-	host->tls_psk_key->type = S_6;
 	sym->noescape = 1;
 	sym_get(sym);
 	str_set(&host->tls_psk_key->key, mem_strdup(host->mem, sym->buf), 0);
-	sym->noescape = 1;
+	type6_add(sym, host, TYPE6_PSK, host->tls_psk_key);
+	sym->noescape = 0;
 	sym_get(sym);
 	return;
     case S_base64:{
@@ -1235,7 +1341,7 @@ static int parse_script_order(struct sym *sym)
     return 0;
 }
 
-static void parse_enable(struct sym *, mem_t *, struct pwdat **);
+static void parse_enable(struct sym *, mem_t *, struct pwdat **, tac_host *);
 
 #ifdef WITH_SSL
 static u_char *str2protocollist(char *in, size_t *outlen)
@@ -1921,7 +2027,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 			r->default_host->enable = calloc(TAC_PLUS_PRIV_LVL_MAX + 1, sizeof(struct pwdat *));
 		    if (sym->code != S_equal || 1 != sscanf(sym->buf, "%d", &dummy))
 			parse_error(sym, "Expected '=', 'user' or a privilege level, but got '%s'", sym->buf);
-		    parse_enable(sym, NULL, r->default_host->enable);
+		    parse_enable(sym, NULL, r->default_host->enable, r->default_host);
 		}
 	    }
 	    continue;
@@ -2792,25 +2898,29 @@ static void parse_user(struct sym *sym, tac_realm *r)
 int parse_host_profile(struct sym *sym, tac_realm *r, tac_host *host)
 {
     sym->env_valid = 1;
-    if (setjmp(sym->env))
+    if (setjmp(sym->env)) {
+	type6_free_values();
 	return -1;
+    }
     sym_init(sym);
     parse(sym, S_openbra);
     while (sym->code != S_closebra)
 	parse_host_attr(sym, r, host);
     sym_get(sym);
-    return 0;
+    return type6_decrypt_values();
 }
 
 int parse_user_profile(struct sym *sym, tac_user *user)
 {
     sym->env_valid = 1;
-    if (setjmp(sym->env))
+    if (setjmp(sym->env)) {
+	type6_free_values();
 	return -1;
+    }
     sym_init(sym);
     while (sym->code == S_openbra)
 	parse_user_attr(sym, user);
-    return 0;
+    return type6_decrypt_values();
 }
 
 int parse_user_profile_fmt(struct sym *sym, tac_user *user, char *fmt, ...)
@@ -2869,7 +2979,8 @@ static int c7decode(char *in)
     return 0;
 }
 
-static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
+// the type6-key of type6_host, or of one of its parents, decrypts a type 6 password
+static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry, tac_host *type6_host __attribute__((unused)))
 {
     int c7 = 0;
     parse(sym, S_equal);
@@ -2933,6 +3044,10 @@ static struct pwdat *parse_pw(struct sym *sym, mem_t *mem, int cry)
     struct pwdat *pp = mem_alloc(mem, sizeof(struct pwdat) + sb_len);
     pp->type = sc;
     memcpy(pp->value, sym->buf, sb_len);
+#ifdef WITH_SSL
+    if (sc == S_6)
+	type6_add(sym, type6_host, TYPE6_PASSWORD, pp);
+#endif
     sym_get(sym);
     return pp;
 }
@@ -2992,7 +3107,7 @@ static void parse_password(struct sym *sym, tac_user *user)
 		default:;
 		}
 	    }
-	    pp[pw_ix] = parse_pw(sym, user->mem, cry);
+	    pp[pw_ix] = parse_pw(sym, user->mem, cry, user->realm->default_host);
 	    if (one)
 		break;
 	}
@@ -3048,7 +3163,7 @@ static void parse_member(struct sym *sym, tac_groups **groups, mem_t *mem, tac_r
     memcpy(sym->env, env, sizeof(jmp_buf));
 }
 
-static void parse_enable(struct sym *sym, mem_t *mem, struct pwdat **enable)
+static void parse_enable(struct sym *sym, mem_t *mem, struct pwdat **enable, tac_host *type6_host)
 {
     int level = TAC_PLUS_PRIV_LVL_MAX;
 
@@ -3060,7 +3175,7 @@ static void parse_enable(struct sym *sym, mem_t *mem, struct pwdat **enable)
 	sym_get(sym);
     }
 
-    enable[level] = parse_pw(sym, mem, 1);
+    enable[level] = parse_pw(sym, mem, 1, type6_host);
 }
 
 static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm *r, tac_user *user)
@@ -3091,7 +3206,7 @@ static void parse_profile_attr(struct sym *sym, tac_profile *profile, tac_realm 
 	    sym_get(sym);
 	    if (!profile->enable)
 		profile->enable = mem_alloc(mem, sizeof(struct pwdat *) * (TAC_PLUS_PRIV_LVL_MAX + 1));
-	    parse_enable(sym, mem, profile->enable);
+	    parse_enable(sym, mem, profile->enable, profile->realm->default_host);
 	    continue;
 	case S_profile:
 	    if (profile->mem)
@@ -3515,7 +3630,7 @@ static void parse_user_attr(struct sym *sym, tac_user *user)
 	    sym_get(sym);
 	    if (!user->enable)
 		user->enable = mem_alloc(user->mem, sizeof(struct pwdat *) * (TAC_PLUS_PRIV_LVL_MAX + 1));
-	    parse_enable(sym, user->mem, user->enable);
+	    parse_enable(sym, user->mem, user->enable, user->realm->default_host);
 	    continue;
 	case S_fallback_only:
 	    sym_get(sym);
@@ -3805,10 +3920,10 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	case S_tls_peer_cert_sha256:
 	case S_tls_peer_cert_validation:
 	case S_tls_peer_cert_rpk:
+	case S_type6key:
 #if OPENSSL_VERSION_NUMBER >= 0x30200000
 	case S_tls_client_cert_type:
 	case S_tls_server_cert_type:
-	case S_type6key:
 #endif
 #endif
 	    break;
@@ -3969,7 +4084,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	sym_get(sym);
 	if (!host->enable)
 	    host->enable = mem_alloc(host->mem, sizeof(struct pwdat *) * (TAC_PLUS_PRIV_LVL_MAX + 1));
-	parse_enable(sym, host->mem, host->enable);
+	parse_enable(sym, host->mem, host->enable, host);
 	return;
     case S_anonenable:
 	sym_get(sym);
@@ -4833,49 +4948,21 @@ int cfg_get_enable(tac_session *session, struct pwdat **p)
 {
     int m = 0;
     struct pwdat **d[3];
-#ifdef WITH_SSL
-    char *type6key[3];
-#endif
 
     if (!session->profile && (S_permit != eval_ruleset(session, session->ctx->realm)))
 	return -1;
 
-    if (session->user && session->user->enable) {
-#ifdef WITH_SSL
-	type6key[m] = session->user->realm->default_host->type6key;
-#endif
+    if (session->user && session->user->enable)
 	d[m++] = session->user->enable;
-    }
-    if (session->profile && session->profile->enable) {
-#ifdef WITH_SSL
-	type6key[m] = session->profile->realm->default_host->type6key;
-#endif
+    if (session->profile && session->profile->enable)
 	d[m++] = session->profile->enable;
-    }
-    if (session->host->enable) {
-#ifdef WITH_SSL
-	type6key[m] = session->host->type6key;
-#endif
+    if (session->host->enable)
 	d[m++] = session->host->enable;
-    }
 
     for (int level = session->priv_lvl; level < TAC_PLUS_PRIV_LVL_MAX + 1; level++) {
 	for (int i = 0; i < m; i++)
 	    if (d[i][level]) {
 		*p = d[i][level];
-#ifdef WITH_SSL
-		if ((*p)->type == S_6) {
-		    (*p)->type = S_clear;
-		    if (type6key[i]) {
-			char *dec = decrypt_type6((*p)->value, type6key[i]);
-			if (dec) {
-			    size_t len = strlen(dec);
-			    memcpy((*p)->value, dec, len + 1);
-			    free(dec);
-			}
-		    }
-		}
-#endif
 		return 0;
 	    }
     }
@@ -6323,17 +6410,11 @@ static int tac_tag_regex_check(tac_session *session, struct mavis_cond *m, tac_t
 #ifndef OPENSSL_NO_PSK
 static str_t *cfg_get_tls_psk(struct context *ctx, char *identity)
 {
-    str_t *res = NULL;
-    enum token type = S_unknown;
-
     char *t = identity;
     // host may have key set:
     if (ctx->host->tls_psk_id && !strcmp(identity, ctx->host->tls_psk_id)
-	&& ctx->host->tls_psk_key && ctx->host->tls_psk_key->key.len) {
-	type = ctx->host->tls_psk_key->type;
-	res = &ctx->host->tls_psk_key->key;
-	goto final;
-    }
+	&& ctx->host->tls_psk_key && ctx->host->tls_psk_key->key.len)
+	return &ctx->host->tls_psk_key->key;
 
     // no key set for host, possibly because host is a parent and/or the NAC has
     // a dynamic IP. Try to map identity to hostname
@@ -6342,32 +6423,15 @@ static str_t *cfg_get_tls_psk(struct context *ctx, char *identity)
 	if (h) {
 	    complete_host(h);
 	    if (h->tls_psk_key && h->tls_psk_key->key.len) {
-		type = h->tls_psk_key->type;
-		res = &h->tls_psk_key->key;
 		ctx->host = h;
-		goto final;
+		return &h->tls_psk_key->key;
 	    }
 	}
 	t = strchr(t, '.');
 	if (t)
 	    t++;
     }
-
-  final:
-    if (type == S_6) {
-	if (!ctx->host->type6key)
-	    return NULL;
-	ctx->host->tls_psk_key->type = S_clear;
-	char *dec = decrypt_type6(res->txt, ctx->host->type6key);
-	if (!dec)
-	    return NULL;
-	size_t len = strlen(dec);
-	memcpy(res->txt, dec, len);
-	res->len = len;
-	if (!res->len)
-	    return NULL;
-    }
-    return res;
+    return NULL;
 }
 
 #ifndef OPENSSL_IS_BORINGSSL

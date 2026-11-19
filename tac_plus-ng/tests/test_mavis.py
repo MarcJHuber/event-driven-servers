@@ -469,6 +469,66 @@ id = tac_plus-ng {
         self.assertEqual(self.connect().pap("bob", "pw").status_name, "PASS")
 
 
+# "naskey" and "enablepw", encrypted with the type6-key "demo"
+NASKEY_6 = r"KIXTPG^HRJ]FIdaO\IN]fRbFKaTAAB"
+ENABLEPW_6 = r"JGRZhS_TGAab^`ZXC]XKadGG]ihdiNAAB"
+
+
+@unittest.skipUnless("openssl" in features(), "type 6 needs a build with OpenSSL")
+class Type6HostProfile(DaemonTestCase):
+    """The type6-key of a MAVIS host profile decrypts the type 6 values of that profile, also the earlier ones."""
+
+    CONFIG = Stub.module(childs=(1, 1)) + """
+	device mavis6 {
+		address = 127.0.0.6
+		mavis backend = yes
+	}
+	device mavis7 {
+		address = 127.0.0.7
+		mavis backend = yes
+	}
+	user alice {
+		password pap = clear alicepw
+	}
+	type6-key = wrong
+""" + PERMIT
+
+    def setUp(self):
+        super().setUp()
+        Stub(self.daemon).set(hosts={
+            "127.0.0.6": "{ key = 6 '%s' type6-key = demo }" % NASKEY_6,
+            "127.0.0.7": "{ key = 6 '%s' type6-key = other }" % NASKEY_6,
+        })
+
+    def test_type6_key_after_the_value(self):
+        self.assertEqual(self.connect(source="127.0.0.6", key="naskey").pap("alice", "alicepw").status_name, "PASS")
+
+    def test_type6_value_the_profile_key_cannot_decrypt_rejects_the_host(self):
+        # reject_conn() resets the connection before the client sends: the reset can come before connect() returns
+        try:
+            c = self.connect(source="127.0.0.7")
+        except ConnectionResetError:
+            return
+        self.assertTrue(c.closed(), "the daemon accepted the host")
+
+
+@unittest.skipUnless("openssl" in features(), "type 6 needs a build with OpenSSL")
+class Type6UserProfile(DaemonTestCase):
+    """The type6-key of the realm decrypts a type 6 value of a MAVIS user profile."""
+
+    CONFIG = Stub.module(childs=(1, 1)) + BACKEND + PERMIT + "\ttype6-key = demo\n"
+
+    def setUp(self):
+        super().setUp()
+        Stub(self.daemon).set(users={"alice": {"password": "alicepw", "profile": "{ enable 15 = 6 '%s' }" % ENABLEPW_6}})
+
+    def test_type6_enable(self):
+        self.assertEqual(self.connect().enable("enablepw", user="alice").status_name, "PASS")
+
+    def test_type6_enable_with_the_encrypted_text_fails(self):
+        self.assertEqual(self.connect().enable(ENABLEPW_6, user="alice").status_name, "FAIL")
+
+
 class PasswordChange(DaemonTestCase):
     """#30: a user who must change the password and cancels is asked again next time.
 
