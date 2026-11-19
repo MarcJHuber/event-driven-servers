@@ -2439,7 +2439,7 @@ void rad_add_mppe_key(tac_session *session, const u_char *key, size_t key_len, u
     uint16_t salt;
 
     if (!session->ctx->key || !key_len || key_len > 255 || attr_len > 255 ||
-	rd->data_len + attr_len > sizeof(rd->data))
+	rd->data_len + attr_len + RADIUS_HDR_SIZE + 18 > sizeof(rd->data))
 	return;
 
     data = rd->data + rd->data_len;
@@ -2480,11 +2480,14 @@ void rad_add_mppe_policy(tac_session *session)
     struct radius_data *rd = session->radius_data;
     size_t i;
 
+    /* Reserve the 20-byte RADIUS header and the 18-byte Message-Authenticator
+       that new_rad_pak() appends; both attributes must fit together. */
+    if (rd->data_len + 2 * 12 + RADIUS_HDR_SIZE + 18 > sizeof(rd->data))
+	return;
+
     for (i = 0; i < sizeof(attrs) / sizeof(attrs[0]); i++) {
 	u_char *data;
 
-	if (rd->data_len + 12 > sizeof(rd->data))
-	    return;
 	data = rd->data + rd->data_len;
 	*data++ = RADIUS_A_VENDOR_SPECIFIC;
 	*data++ = 12;
@@ -2817,7 +2820,7 @@ static void do_radius_login(tac_session *session)
 
 	// MS-MPPE-Send-/Recv-Key: 1 + 1 + 4 + 2 + 2 + 32 = 42
 	session->radius_data->data_len = data_len;
-	if (data + 84 < data_end) {
+	if (data + 84 + RADIUS_HDR_SIZE + 18 <= data_end) {
 	    // Magic constants (RFC 3079)
 	    const char Magic1[] = "This is the MPPE Master Key";
 	    // MasterKey = SHA1(PasswordHashHash || NT-Response || Magic1)[0..15]

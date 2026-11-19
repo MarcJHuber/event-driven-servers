@@ -557,18 +557,23 @@ void complete_realm(tac_realm *r)
 	if (r->eap_max_sessions < 0)
 	    r->eap_max_sessions = EAP_DEFAULT_MAX_SESSIONS;
 
-	if (r->eap_timeout <= 0 || r->eap_max_message <= 0 ||
+	if (r->eap_timeout <= 0 || r->eap_max_message < 4 ||
 	    r->eap_max_message > 65535 || r->eap_max_sessions <= 0) {
 	    report_cfg_error(LOG_ERR, ~0,
 		   "%s: realm %s: invalid EAP timeout/max-message/max-sessions",
 		   common_data.conffile, r->name.txt);
 	    exit(EX_SOFTWARE);
 	}
-	if (r->eap_verify_client &&
-	    (!r->eap_cafile || !r->eap_cert || !r->eap_key)) {
+	if (!r->eap_cert || !r->eap_key) {
 	    report_cfg_error(LOG_ERR, ~0,
-		   "%s: realm %s: EAP verify-client requires cert-file, key-file, and ca-file",
-		   common_data.conffile, r->name.txt);
+			   "%s: realm %s: EAP requires cert-file and key-file",
+			   common_data.conffile, r->name.txt);
+	    exit(EX_SOFTWARE);
+	}
+	if (r->eap_verify_client && !r->eap_cafile) {
+	    report_cfg_error(LOG_ERR, ~0,
+			   "%s: realm %s: EAP verify-client requires ca-file",
+			   common_data.conffile, r->name.txt);
 	    exit(EX_SOFTWARE);
 	}
 	if (r->eap_verify_client && r->eap_identity_source == S_eap_identity) {

@@ -571,7 +571,14 @@ static char *eap_extract_identity(tac_session *session, struct eap_session *es)
 #ifdef WITH_CRYPTO
 static void eap_add_mppe(tac_session *session, struct eap_session *es)
 {
-    if (!session->ctx->key || !(es->flags & EAP_F_HANDSHAKE_DONE))
+    struct radius_data *rd = session->radius_data;
+
+    if (!session->ctx->key || !(es->flags & EAP_F_HANDSHAKE_DONE) || !rd)
+	return;
+
+    /* Policy/Types (2 * 12) plus two 58-byte key VSAs must fit together with
+       the RADIUS header and the Message-Authenticator reservation. */
+    if (rd->data_len + 2 * 12 + 2 * 58 + RADIUS_HDR_SIZE + 18 > sizeof(rd->data))
 	return;
 
     rad_add_mppe_policy(session);
@@ -579,6 +586,28 @@ static void eap_add_mppe(tac_session *session, struct eap_session *es)
     rad_add_mppe_key(session, es->msk + 32, 32, RADIUS_A_MS_MPPE_SEND_KEY);
 }
 #endif
+
+/*
+ * Cache the profile/authorization AVPs from the reply buffer so an
+ * Access-Accept/Access-Reject retransmission can replay them. The MS-MPPE
+ * keys are deliberately not cached; they are re-encrypted per request.
+ */
+static void eap_cache_profile_attrs(struct eap_session *es, tac_session *session)
+{
+    struct radius_data *rd = session->radius_data;
+
+    free(es->profile_attrs);
+    es->profile_attrs = NULL;
+    es->profile_attrs_len = 0;
+    if (!rd || !rd->data_len)
+	return;
+
+    es->profile_attrs = malloc(rd->data_len);
+    if (!es->profile_attrs)
+	return;
+    memcpy(es->profile_attrs, rd->data, rd->data_len);
+    es->profile_attrs_len = rd->data_len;
+}
 
 /*
  * Map the completed handshake to a user and run the existing authorization
@@ -613,6 +642,7 @@ static enum token eap_identity_authorize(tac_session *session, struct eap_sessio
 
     res = eap_authorize(session, &resp, &hint);
     if (res == S_permit) {
+	eap_cache_profile_attrs(es, session);
 #ifdef WITH_CRYPTO
 	eap_add_mppe(session, es);
 #endif
@@ -620,6 +650,7 @@ static enum token eap_identity_authorize(tac_session *session, struct eap_sessio
 	return res;
     }
 
+    eap_cache_profile_attrs(es, session);
     es->flags |= EAP_F_FAILED;
     eap_send_failure(session, es, identifier);
     return res;
@@ -1217,11 +1248,11 @@ void eap_radius_request(tac_session *session)
     }
     identifier = parsed.identifier;
 
-    /* EAP is client-to-server here; anything else is RADIUS role reversal. */
+    /* EAP is client-to-server here; anything else is RADIUS role reversal.
+       Do not cache the Nak under the offending identifier: a later
+       legitimate request could replay it. */
     if (parsed.code != EAP_CODE_RESPONSE) {
-	/* Best effort: attach the session, if any, so the Nak is cached. */
-	es = state_len ? eap_lookup(r, state, state_len) : NULL;
-	eap_send_nak(session, es, identifier);
+	eap_send_nak(session, NULL, identifier);
 	return;
     }
 
@@ -1286,6 +1317,15 @@ void eap_radius_request(tac_session *session)
 	es->invalid = 0;
 	es->expires = io_now.tv_sec + r->eap_timeout;
 	es->last_activity = io_now.tv_sec;
+	/* Replay the profile/authorization AVPs from the original reply. */
+	if (es->profile_attrs_len && es->profile_attrs) {
+	    struct radius_data *rd = session->radius_data;
+
+	    if (rd->data_len + es->profile_attrs_len + RADIUS_HDR_SIZE + 18 <= sizeof(rd->data)) {
+		memcpy(rd->data + rd->data_len, es->profile_attrs, es->profile_attrs_len);
+		rd->data_len += es->profile_attrs_len;
+	    }
+	}
 #ifdef WITH_CRYPTO
 	/* The reply cache holds EAP/State only; the MSK is retained in the
 	   completed eap_session and must be re-encrypted with the new
@@ -1303,8 +1343,9 @@ void eap_radius_request(tac_session *session)
 	if (es->invalid >= EAP_INVALID_LIMIT)
 	    report(session, LOG_WARNING, ~0,
 		   "EAP: invalid identifier limit reached (%d)", es->invalid);
-	/* Every Access-Request needs a reply. */
-	eap_send_failure(session, es, identifier);
+	/* Every Access-Request needs a reply, but do not cache a failure under
+	   an identifier that is not part of the conversation. */
+	eap_send_failure(session, NULL, identifier);
 	return;
     }
 
@@ -1374,6 +1415,7 @@ void eap_session_free(void *payload)
 	free(e->reply_cache[i].state);
     }
     free(e->identity.txt);
+    free(e->profile_attrs);
     OPENSSL_cleanse(e->msk, sizeof(e->msk));
     OPENSSL_cleanse(e->emsk, sizeof(e->emsk));
     free(e);

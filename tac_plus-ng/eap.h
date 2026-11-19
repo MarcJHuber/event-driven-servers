@@ -157,6 +157,9 @@ struct eap_session {
     struct eap_cached_reply reply_cache[EAP_REPLY_CACHE_SIZE];
     int reply_cache_next;
 
+    u_char *profile_attrs;	/* profile/authorization AVPs for replay */
+    size_t profile_attrs_len;
+
     u_char msk[64];
     u_char emsk[64];
 };

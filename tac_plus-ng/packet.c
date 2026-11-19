@@ -73,6 +73,7 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
 
 static void write_packet(struct context *, tac_pak *);
 static tac_session *new_session(struct context *, tac_pak_hdr *, rad_pak_hdr *);
+static void cleanup_session_internal(tac_session *, int);
 
 static void md5_xor(tac_pak_hdr *hdr, char *key, int keylen)
 {
@@ -478,11 +479,13 @@ void rad_send_eap_reply(tac_session *session, u_char code, const u_char *eap, si
     if (state_len > EAP_MAX_RADIUS_ATTR)
 	state_len = 0;		/* cannot encode a longer RADIUS State */
 
+    /* Profile scripts can add EAP-Message or State directly; remove them so
+       the reply has exactly one EAP packet and State only where we put it. */
+    rd->data_len = rad_strip_attribute(rd->data, rd->data_len, RADIUS_A_EAP_MESSAGE);
+    rd->data_len = rad_strip_attribute(rd->data, rd->data_len, RADIUS_A_STATE);
     if (code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT) {
-	/* RFC 3579 2.6.5: no Reply-Message with EAP-Message; State belongs
-	   in Access-Challenge. */
+	/* RFC 3579 2.6.5: no Reply-Message with EAP-Message. */
 	rd->data_len = rad_strip_attribute(rd->data, rd->data_len, RADIUS_A_REPLY_MESSAGE);
-	rd->data_len = rad_strip_attribute(rd->data, rd->data_len, RADIUS_A_STATE);
     }
 
     /* rad_attr_add() may have filled the buffer close to the limit; guard
@@ -1204,7 +1207,10 @@ static int rad_eap_read(struct context *ctx, rad_pak_hdr *pak)
     tac_session *old = RB_lookup_session(ctx->sessions,
 					 ctx->radius_1_1 ? pak->token : RAD_PAK_SESSIONID(pak));
     if (old)
-	cleanup_session(old);
+	/* Remove the stale session, but do not let cleanup_session() free the
+	   context: we still need ctx->in and ctx below to build the new
+	   session. */
+	cleanup_session_internal(old, 0);
 
     tac_session *session = new_session(ctx, NULL, pak);
     if (!session)
@@ -1465,6 +1471,15 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_p
 
 void cleanup_session(tac_session *session)
 {
+    cleanup_session_internal(session, 1);
+}
+
+/*
+ * cleanup_context == 0 removes the session without letting an idle context be
+ * destroyed. Callers that keep using ctx (rad_eap_read()) must pass 0.
+ */
+static void cleanup_session_internal(tac_session *session, int cleanup_context)
+{
     struct context *ctx = session->ctx;
     mavis_ctx *mcx = lookup_mcx(ctx->realm);
 
@@ -1490,7 +1505,7 @@ void cleanup_session(tac_session *session)
 	mavis_cancel(mcx, session);
     mem_destroy(session->mem);
     mem_free(ctx->mem, &session);
-    if ((ctx->host->cleanup_when_idle == TRISTATE_YES)
+    if (cleanup_context && (ctx->host->cleanup_when_idle == TRISTATE_YES)
 	&& (!ctx->single_connection_flag || (die_when_idle && !RB_first(ctx->sessions) && !RB_first(ctx->shellctxcache)))) {
 	if (ctx->out || ctx->delayed)	// pending output
 	    ctx->dying = 1;

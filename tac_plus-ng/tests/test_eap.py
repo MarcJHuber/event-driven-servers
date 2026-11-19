@@ -856,6 +856,7 @@ class EapTlsMppeKeys(EapTlsTestCase):
         first_request, first_reply = peer.last_request, peer.last_reply
         assert first_request is not None and first_reply is not None
         self.assertEqual(first_reply.code_name, "Access-Accept", first_reply)
+        self.assertEqual(cisco_avpairs(first_reply), [b"shell:priv-lvl=15"])
 
         first_recv = mppe_decrypt(mppe_vsa_values(first_reply, MS_MPPE_RECV_KEY)[0],
                                   b"radsecret", first_request.authenticator)[0]
@@ -875,6 +876,8 @@ class EapTlsMppeKeys(EapTlsTestCase):
         self.assertEqual(struct.unpack("!BBH", eap),
                          (radius.EAP_SUCCESS, ack_eap[1], 4))
         self.assertFalse(resent.get(radius.STATE))
+        self.assertEqual(cisco_avpairs(resent), [b"shell:priv-lvl=15"],
+                         "retransmitted Access-Accept lost the profile AVPs")
 
         recv_values = mppe_vsa_values(resent, MS_MPPE_RECV_KEY)
         send_values = mppe_vsa_values(resent, MS_MPPE_SEND_KEY)
