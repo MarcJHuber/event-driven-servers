@@ -280,8 +280,8 @@ static int eap_parse_hdr(const u_char *eap, size_t eap_len, struct eap_parsed *o
     return 1;
 }
 
-static struct eap_session *eap_lookup(tac_realm *r, const u_char *state, size_t state_len);
-static struct eap_session *eap_new_session(tac_realm *r);
+static struct eap_session *eap_lookup(tac_session *session, const u_char *state, size_t state_len);
+static struct eap_session *eap_new_session(tac_session *session);
 
 /*
  * Remove an EAP session from its realm tree. Used when a session was created
@@ -995,6 +995,7 @@ static void eap_tls_ack(tac_session *session, struct eap_session *es,
 	es->tls_state = EAP_TLS_DONE;
 	es->flags |= EAP_F_COMPLETED;
 	es->success_identifier = parsed->identifier;
+	es->expires = io_now.tv_sec + EAP_COMPLETED_GRACE;
 	eap_identity_authorize(session, es, parsed->identifier);
 	return;
     default:
@@ -1187,6 +1188,7 @@ static void eap_tls_request(tac_session *session, struct eap_session *es,
 	    es->tls_state = EAP_TLS_DONE;
 	    es->flags |= EAP_F_COMPLETED;
 	    es->success_identifier = parsed->identifier;
+	    es->expires = io_now.tv_sec + EAP_COMPLETED_GRACE;
 	    eap_identity_authorize(session, es, parsed->identifier);
 	}
 	/* Otherwise: waiting for more client data. Never send an empty
@@ -1242,7 +1244,7 @@ void eap_radius_request(tac_session *session)
 	    eap_send_failure(session, NULL, 0);
 	    return;
 	}
-	es = eap_new_session(r);
+	es = eap_new_session(session);
 	if (!es) {
 	    eap_send_failure(session, NULL, 0);
 	    return;
@@ -1268,7 +1270,7 @@ void eap_radius_request(tac_session *session)
     if (!state_len) {
 	switch (parsed.type) {
 	case EAP_TYPE_IDENTITY:
-	    es = eap_new_session(r);
+	    es = eap_new_session(session);
 	    if (!es) {
 		eap_send_failure(session, NULL, identifier);
 		return;
@@ -1288,7 +1290,7 @@ void eap_radius_request(tac_session *session)
 		eap_send_failure(session, NULL, identifier);
 		return;
 	    }
-	    es = eap_new_session(r);
+	    es = eap_new_session(session);
 	    if (!es) {
 		eap_send_failure(session, NULL, identifier);
 		return;
@@ -1303,7 +1305,7 @@ void eap_radius_request(tac_session *session)
 	}
     }
 
-    es = eap_lookup(r, state, state_len);
+    es = eap_lookup(session, state, state_len);
     if (!es || es->expires < io_now.tv_sec) {
 	/* Unknown or expired State: reject instead of refreshing an expired
 	   session. The periodic handler may not have purged it yet. */
@@ -1321,10 +1323,10 @@ void eap_radius_request(tac_session *session)
      */
     cached = eap_reply_lookup(es, identifier);
     if (cached) {
-	/* A valid retransmission: refresh activity and clear the invalid
-	   counter without advancing the state machine. */
+	/* A valid retransmission: clear the invalid counter without
+	   advancing the state machine. Do not extend expires: a cached
+	   replay must not keep the session alive indefinitely. */
 	es->invalid = 0;
-	es->expires = io_now.tv_sec + r->eap_timeout;
 	es->last_activity = io_now.tv_sec;
 	/* Replay the profile/authorization AVPs from the original final reply.
 	   Access-Challenge retransmissions must not acquire AVPs from a later
@@ -1453,9 +1455,11 @@ int eap_session_cmp(const void *a, const void *b)
     return memcmp(x->state, y->state, x->state_len);
 }
 
-static struct eap_session *eap_lookup(tac_realm *r, const u_char *state, size_t state_len)
+static struct eap_session *eap_lookup(tac_session *session, const u_char *state, size_t state_len)
 {
+    tac_realm *r = session->ctx->realm;
     struct eap_session key;
+    struct eap_session *es;
     rb_node_t *rbn;
 
     if (!r->eap_sessions || state_len < 1 || state_len > EAP_STATE_LEN)
@@ -1466,13 +1470,26 @@ static struct eap_session *eap_lookup(tac_realm *r, const u_char *state, size_t 
     memcpy(key.state, state, state_len);
 
     rbn = RB_search(r->eap_sessions, &key);
-    return rbn ? RB_payload(rbn, struct eap_session *) : NULL;
+    if (!rbn)
+	return NULL;
+    es = RB_payload(rbn, struct eap_session *);
+
+    /* Bind the cached State to the RADIUS client that created it: another
+       NAS, address or transport in the same realm must not receive the
+       cached reply, profile AVPs and MS-MPPE keys (RFC 4962 3). */
+    if (es->host != session->ctx->host ||
+	es->transport != session->ctx->aaa_protocol ||
+	memcmp(&es->peer_addr, &session->ctx->device_addr, sizeof(es->peer_addr)))
+	return NULL;
+
+    return es;
 }
 
-static struct eap_session *eap_new_session(tac_realm *r) __attribute__((unused));
+static struct eap_session *eap_new_session(tac_session *session) __attribute__((unused));
 
-static struct eap_session *eap_new_session(tac_realm *r)
+static struct eap_session *eap_new_session(tac_session *session)
 {
+    tac_realm *r = session->ctx->realm;
     struct eap_session *e = calloc(1, sizeof(*e));
     u_char state[EAP_STATE_LEN];
     size_t state_len;
@@ -1485,6 +1502,9 @@ static struct eap_session *eap_new_session(tac_realm *r)
 	return NULL;
     }
     e->state_len = EAP_STATE_LEN;
+    e->host = session->ctx->host;
+    e->peer_addr = session->ctx->device_addr;
+    e->transport = session->ctx->aaa_protocol;
     e->identifier = 1;
     e->expires = io_now.tv_sec + r->eap_timeout;
     e->last_activity = io_now.tv_sec;
@@ -1524,7 +1544,7 @@ static struct eap_session *eap_new_session(tac_realm *r)
 	/* Duplicate key: RB_insert() freed the rbnode wrapper, not the
 	   payload. Free the duplicate and return the existing session. */
 	eap_session_free(e);
-	return eap_lookup(r, state, state_len);
+	return eap_lookup(session, state, state_len);
     }
     return e;
 }

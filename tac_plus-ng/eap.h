@@ -120,6 +120,9 @@ struct eap_cached_reply {
 struct eap_session {
     u_char state[EAP_STATE_LEN];
     size_t state_len;
+    tac_host *host;		/* RADIUS client this session belongs to */
+    struct in6_addr peer_addr;	/* client address, host byte order */
+    enum token transport;	/* S_radius_udp, S_radius_tcp, S_radius_tls, S_radius_dtls */
     time_t expires;
     time_t last_activity;
     u_char identifier;		/* last EAP identifier sent */

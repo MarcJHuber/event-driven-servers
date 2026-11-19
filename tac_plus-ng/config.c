@@ -482,8 +482,12 @@ void complete_realm(tac_realm *r)
 	RS(eap_key, NULL);
 	RS(eap_cafile, NULL);
 	RS(eap_pass, NULL);
-	RS(eap_identity_source, S_unknown);
-	RS(eap_verify_client, -1);
+	/* A realm with its own eap {} block must not inherit the lab-only
+	   identity settings of its parent; apply the method defaults instead. */
+	if (!r->eap_config) {
+	    RS(eap_identity_source, S_unknown);
+	    RS(eap_verify_client, -1);
+	}
 	RS(eap_timeout, -1);
 	RS(eap_max_message, -1);
 	RS(eap_max_sessions, -1);
@@ -2277,6 +2281,7 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    }
 	    parse(sym, S_openbra);
 	    r->eap = TRISTATE_YES;
+	    r->eap_config = 1;
 	    while (sym->code != S_closebra) {
 		switch (sym->code) {
 		case S_eap_method:

@@ -503,6 +503,7 @@ struct realm {
     char *eap_key;
     char *eap_cafile;
     char *eap_pass;
+    int eap_config;		/* realm has its own eap {} block */
     enum token eap_identity_source;	/* S_cert_cn, S_cert_san, S_eap_identity */
     int eap_verify_client;
     int eap_timeout;

@@ -142,6 +142,9 @@ static tac_pak *new_rad_pak(tac_session *session, u_char code)
 #ifdef WITH_SSL
 	memcpy(pak->pak.rad.authenticator, session->radius_data->pak_in->authenticator, 16);
 	u_char *ma = data + session->radius_data->data_len - 18;
+	/* RFC 3579 3.2: the value octets are zero when the HMAC is computed.
+	   rad_strip_attribute() may leave older attribute bytes there. */
+	memset(ma + 2, 0, 16);
 	*ma++ = RADIUS_A_MESSAGE_AUTHENTICATOR;
 	*ma++ = 18;
 	u_int ma_len = 16;
@@ -1065,6 +1068,7 @@ static int rad_check_failed(struct context *ctx, rad_pak_hdr *pak)
 // Consistency check: Do the attribute lengths sum up exactly?
 #ifdef WITH_SSL
     u_char *message_authenticator = NULL;
+    int eap_message = 0;
 #endif
     while (p < e) {
 	if (p + 1 == e || p[1] < 2)
@@ -1087,6 +1091,8 @@ static int rad_check_failed(struct context *ctx, rad_pak_hdr *pak)
 #ifdef WITH_SSL
 	} else if (p[0] == RADIUS_A_MESSAGE_AUTHENTICATOR && p[1] == 18) {
 	    message_authenticator = p + 2;
+	} else if (p[0] == RADIUS_A_EAP_MESSAGE) {
+	    eap_message = 1;
 #endif
 	}
 	p += p[1];
@@ -1102,8 +1108,12 @@ static int rad_check_failed(struct context *ctx, rad_pak_hdr *pak)
     int message_authenticator_required = ctx->aaa_protocol != S_radius_dtls && ctx->aaa_protocol != S_radius_tls &&
 	(pak->code == RADIUS_CODE_ACCESS_REQUEST || pak->code == RADIUS_CODE_ACCESS_ACCEPT || pak->code == RADIUS_CODE_ACCESS_REJECT
 	 || pak->code == RADIUS_CODE_ACCESS_CHALLENGE);
-    if ((ctx->radius_1_1 == BISTATE_NO) && !message_authenticator && message_authenticator_required
-	&& !(ctx->host->bug_compatibility & CLIENT_BUG_NO_MESSAGE_AUTHENTICATOR)) {
+    /* RFC 3579 3.2: an Access-Request carrying EAP-Message needs a valid
+       Message-Authenticator on UDP/TCP regardless of bug compatibility. */
+    int eap_message_required = eap_message && ctx->aaa_protocol != S_radius_dtls && ctx->aaa_protocol != S_radius_tls;
+    if ((ctx->radius_1_1 == BISTATE_NO) && !message_authenticator &&
+	(eap_message_required ||
+	 (message_authenticator_required && !(ctx->host->bug_compatibility & CLIENT_BUG_NO_MESSAGE_AUTHENTICATOR)))) {
 	report(NULL, LOG_INFO_CONN, ~0, "%s did not set Message-Authenticator attribute", ctx->device_addr_ascii.txt);
 	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, -1);
@@ -1491,6 +1501,11 @@ static void cleanup_session_internal(tac_session *session, int cleanup_context)
     mavis_ctx *mcx = lookup_mcx(ctx->realm);
 
 #ifdef WITH_DNS
+    /* rad_authen() may have scheduled a resume_session() timer while a
+       reverse lookup was pending. Cancel it before the session is freed,
+       or the timer would read the freed session (rad_eap_read() replaces
+       a stale session with the same RADIUS identifier). */
+    io_sched_del(ctx->io, session, (void *) resume_session);
     if (session->revmap_pending) {
 	tac_realm *r = session->ctx->realm;
 	while (r && !r->idc)

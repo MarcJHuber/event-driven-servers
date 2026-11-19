@@ -891,6 +891,15 @@ enum token eap_authorize(tac_session *session, char **resp, enum hint_enum *hint
     if (res != S_permit)
 	return res;
 
+    /* A host action may permit without a matching user account. Unlike the
+       password paths, EAP has no credential check that would reject it, so
+       deny instead of turning the host permit into an Access-Accept. */
+    if (!session->user) {
+	*hint = hint_denied_by_acl;
+	report_auth(session, "radius eap-tls login", *hint, S_deny);
+	return S_deny;
+    }
+
     set_mfa(session);
     if (session->want_mfa == BISTATE_YES) {
 	*hint = hint_denied_by_acl;

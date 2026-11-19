@@ -35,6 +35,7 @@ splitting at 253 bytes, State extraction, and the EAP-TLS flags.
 
 import hashlib
 import os
+import socket
 import ssl
 import struct
 import time
@@ -481,6 +482,144 @@ EAP_LAB_USERS = """
 """
 
 EAP_LAB_POLICY = eap_policy(identity_source="eap-identity", verify_client="no", users=EAP_LAB_USERS)
+
+# A second NAS in the same realm: EAP State must not be replayable from it.
+OTHER_NAS_DEVICE = """
+\tdevice other-nas {
+\t\taddress = 127.0.0.7
+\t\tkey = tactest
+\t\tradius.key = radsecret2
+\t}
+"""
+
+EAP_CLIENT_BINDING_POLICY = eap_policy(users=EAP_USERS + OTHER_NAS_DEVICE)
+
+# A device host script that permits every user, including one without an
+# account: EAP must not turn that permit into an Access-Accept.
+EAP_HOST_PERMIT_POLICY = """
+\tinclude = "%s"
+\teap {
+\t\teap-method = tls
+\t\tcert-file = %%s
+\t\tkey-file = %%s
+\t\tca-file = %%s
+\t\tverify-client = yes
+\t\teap-identity-source = cert-cn
+\t}
+\tdevice radius-nas {
+\t\taddress = 127.0.0.6
+\t\tkey = tactest
+\t\tradius.key = radsecret
+\t\tscript { permit }
+\t}
+\tprofile eap-profile {
+\t\tscript {
+\t\t\tset radius[Cisco:Cisco-AVPair] = "shell:priv-lvl=15"
+\t\t\tpermit
+\t\t}
+\t}
+\tuser cert-user {
+\t\tprofile = eap-profile
+\t}
+""" % DICTIONARY
+
+# The parent realm is a lab setup (verify-client = no); the child has its
+# own eap {} block and must get the method defaults, not the lab values.
+EAP_CHILD_REALM_POLICY = """
+\tinclude = "%s"
+\teap {
+\t\teap-method = tls
+\t\tcert-file = %%s
+\t\tkey-file = %%s
+\t\tca-file = %%s
+\t\tverify-client = no
+\t\teap-identity-source = eap-identity
+\t}
+\trealm child {
+\t\teap {
+\t\t\teap-method = tls
+\t\t}
+\t\tdevice radius-nas {
+\t\t\taddress = 127.0.0.6
+\t\t\tkey = tactest
+\t\t\tradius.key = radsecret
+\t\t}
+\t\tprofile eap-profile {
+\t\t\tscript {
+\t\t\t\tset radius[Cisco:Cisco-AVPair] = "shell:priv-lvl=15"
+\t\t\t\tpermit
+\t\t\t}
+\t\t}
+\t\tuser cert-user {
+\t\t\tprofile = eap-profile
+\t\t}
+\t\tuser lab-user {
+\t\t\tprofile = eap-profile
+\t\t}
+\t}
+""" % DICTIONARY
+
+# bug compatibility 32 must not waive the Message-Authenticator for EAP.
+EAP_BUG_COMPAT_POLICY = """
+\tinclude = "%s"
+\teap {
+\t\teap-method = tls
+\t\tcert-file = %%s
+\t\tkey-file = %%s
+\t\tca-file = %%s
+\t\tverify-client = yes
+\t\teap-identity-source = cert-cn
+\t}
+\tdevice radius-nas {
+\t\taddress = 127.0.0.6
+\t\tkey = tactest
+\t\tradius.key = radsecret
+\t\tbug compatibility = 32
+\t}
+\tprofile eap-profile {
+\t\tscript {
+\t\t\tset radius[Cisco:Cisco-AVPair] = "shell:priv-lvl=15"
+\t\t\tpermit
+\t\t}
+\t}
+\tuser cert-user {
+\t\tprofile = eap-profile
+\t}
+""" % DICTIONARY
+
+# A DNS server that never answers keeps the reverse lookup pending.
+EAP_DNS_POLICY_TEMPLATE = """
+\tinclude = "%s"
+\tdns servers = "127.0.0.1:%d"
+\tdns reverse-lookup = yes
+\tdns timeout = 1
+\teap {
+\t\teap-method = tls
+\t\tcert-file = %%s
+\t\tkey-file = %%s
+\t\tca-file = %%s
+\t\tverify-client = yes
+\t\teap-identity-source = cert-cn
+\t}
+\tdevice radius-nas {
+\t\taddress = 127.0.0.6
+\t\tkey = tactest
+\t\tradius.key = radsecret
+\t}
+\tprofile eap-profile {
+\t\tscript {
+\t\t\tset radius[Cisco:Cisco-AVPair] = "shell:priv-lvl=15"
+\t\t\tpermit
+\t\t}
+\t}
+\tuser cert-user {
+\t\tprofile = eap-profile
+\t}
+"""
+
+
+def eap_dns_policy(port):
+    return EAP_DNS_POLICY_TEMPLATE % (DICTIONARY, port)
 
 
 class EapTlsPeer:
@@ -1125,6 +1264,10 @@ class EapTlsAuthorization(EapTlsTestCase):
         self.assertEqual(peer.last_reply.code_name, "Access-Accept", peer.last_reply)
         self.assertFalse(peer.last_reply.get(radius.REPLY_MESSAGE),
                          peer.last_reply.get(radius.REPLY_MESSAGE))
+        # Removing the profile's Reply-Message must not leave its bytes in
+        # the Message-Authenticator slot (RFC 3579 3.2).
+        self.assertIs(peer.last_reply.message_authenticator, True,
+                      "Message-Authenticator is wrong after stripping Reply-Message")
 
 
 class EapTlsProfileStateStripped(EapTlsTestCase):
@@ -1594,3 +1737,170 @@ class EapTlsTransport(EapTlsTestCase):
         self.assertEqual(peer.last_reply.code_name, "Access-Accept", peer.last_reply)
         self.assertIs(peer.last_reply.message_authenticator, True,
                       "replies over RADIUS/TLS must carry a Message-Authenticator")
+
+
+class EapClientBinding(EapTlsTestCase):
+    """RFC 4962 3: an EAP State belongs to the RADIUS client that created it."""
+
+    POLICY = EAP_CLIENT_BINDING_POLICY
+
+    def start_session(self, c):
+        eap = radius.eap_packet(radius.EAP_RESPONSE, 1, radius.EAP_TYPE_IDENTITY, b"cert-user")
+        r = c.exchange(access_request(eap), message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Challenge", r)
+        return radius.eap_from_reply(r)[1], (r.get(radius.STATE) or [None])[0]
+
+    def assert_failure(self, reply, identifier):
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(reply)),
+                         (radius.EAP_FAILURE, identifier, 4))
+
+    def test_state_from_another_nas_is_rejected(self):
+        c = self.radius("radsecret")
+        identifier, state = self.start_session(c)
+        self.assertTrue(state)
+        other = self.radius("radsecret2", source="127.0.0.7")
+        reply = other.exchange(access_request(radius.eap_tls_ack(identifier), state),
+                               message_authenticator=True)
+        self.assert_failure(reply, identifier)
+
+    def test_state_from_another_transport_is_rejected(self):
+        c = self.radius("radsecret")
+        identifier, state = self.start_session(c)
+        self.assertTrue(state)
+        tcp = self.radius("radsecret", tcp=True)
+        reply = tcp.exchange(access_request(radius.eap_tls_ack(identifier), state),
+                             message_authenticator=True)
+        self.assert_failure(reply, identifier)
+
+
+class EapCompletedGrace(EapTlsTestCase):
+    """A completed EAP session lives for EAP_COMPLETED_GRACE, not eap_timeout."""
+
+    POLICY = EAP_SHORT_TIMEOUT_POLICY
+
+    def test_completed_session_answers_retransmission_after_timeout(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.handshake()
+        ack = peer.last_request
+        self.assertIsNotNone(ack)
+        time.sleep(3.0)     # eap_timeout = 1
+        resent = c.exchange(ack, message_authenticator=True)
+        self.assertEqual(resent.code_name, "Access-Accept", resent)
+        eap = radius.eap_from_reply(resent)
+        self.assertEqual(len(eap), 4, eap)
+        self.assertEqual(eap[0], radius.EAP_SUCCESS, eap)
+
+
+class EapHostPermitNoUser(EapTlsTestCase):
+    """A host script permit must not authorize an EAP identity without a user."""
+
+    POLICY = EAP_HOST_PERMIT_POLICY
+
+    def test_host_permit_without_user_account_is_rejected(self):
+        cert = self.ca.issue("unknown", "/CN=unknown-user")
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "unknown-user", cert=cert)
+        self.assert_eap_failure(peer)
+
+    def test_host_permit_with_user_account_is_accepted(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.handshake()
+        self.assertEqual(peer.last_reply.code_name, "Access-Accept", peer.last_reply)
+
+
+class EapChildRealmEapBlock(EapTlsTestCase):
+    """A child realm with its own eap {} block does not inherit lab settings."""
+
+    POLICY = EAP_CHILD_REALM_POLICY
+    LISTEN = {"eap": "protocol = UDP realm = child"}
+
+    def radius_child(self):
+        return self.radius("radsecret", listener="eap")
+
+    def test_child_block_defaults_to_cert_cn(self):
+        cert = self.ca.issue("child-cert", "/CN=cert-user")
+        c = self.radius_child()
+        peer = EapTlsPeer(c, self.ca, "other-user", cert=cert)
+        peer.handshake()
+        self.assertEqual(peer.last_reply.code_name, "Access-Accept", peer.last_reply)
+        self.assertEqual(cisco_avpairs(peer.last_reply), [b"shell:priv-lvl=15"])
+
+    def test_child_block_defaults_to_verify_client(self):
+        c = self.radius_child()
+        peer = EapTlsPeer(c, self.ca, "lab-user", cert=None)
+        identifier, alert = peer.handshake_until_alert()
+        self.assertEqual(alert[0], 21, alert[:8])
+        reply = peer.send_eap(radius.eap_tls_ack(identifier))
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(reply)),
+                         (radius.EAP_FAILURE, identifier, 4))
+
+
+class EapMessageAuthenticatorBugCompat(EapTlsTestCase):
+    """Bug compatibility 32 must not accept EAP without Message-Authenticator."""
+
+    POLICY = EAP_BUG_COMPAT_POLICY
+
+    def request(self):
+        eap = radius.eap_packet(radius.EAP_RESPONSE, 1, radius.EAP_TYPE_IDENTITY, b"cert-user")
+        return access_request(eap)
+
+    def test_missing_ma_with_bug_compatibility_is_dropped_over_udp(self):
+        c = self.radius("radsecret", timeout=1.0)
+        c.send_raw(self.request().encode("radsecret"))
+        with self.assertRaises(TimeoutError):
+            c.recv_raw()
+        r = c.exchange(self.request(), message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Challenge", r)
+
+    def test_missing_ma_with_bug_compatibility_is_dropped_over_tcp(self):
+        c = self.radius("radsecret", tcp=True, timeout=1.0)
+        c.send_raw(self.request().encode("radsecret"))
+        with self.assertRaises(ConnectionError):
+            c.recv_raw()
+        r = self.radius("radsecret", tcp=True).exchange(self.request(), message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Challenge", r)
+
+
+class EapDnsResumeUseAfterFree(EapTlsTestCase):
+    """A PAP session waiting on reverse DNS must not resume after EAP replaced it."""
+
+    CONFIG = None
+
+    @unittest.skipUnless("ares" in features(), "the reverse lookup needs a build with c-ares")
+    def test_eap_replacement_cancels_pending_resume_timer(self):
+        dns_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        dns_socket.bind(("127.0.0.1", 0))
+        self.addCleanup(dns_socket.close)
+        body = eap_dns_policy(dns_socket.getsockname()[1]) % (
+            self.ca.server[0], self.ca.server[1], self.ca.cert)
+        d = self.start_daemon(body, name="eap-dns-uaf")
+        c = self.radius("radsecret", daemon=d, tcp=True, timeout=2.0)
+
+        # PAP request with Calling-Station-Id: the NAC reverse lookup stays
+        # pending, so rad_authen() schedules resume_session().
+        pap = radius.Packet(radius.ACCESS_REQUEST, identifier=7)
+        pap.attributes = [
+            (radius.USER_NAME, b"cert-user"),
+            (radius.USER_PASSWORD, radius.encrypt_password(b"pw", b"radsecret", pap.authenticator)),
+            (31, b"127.0.0.9"),     # Calling-Station-Id
+        ]
+        c.send_raw(pap.encode(b"radsecret", message_authenticator=True))
+
+        # The EAP request with the same RADIUS identifier replaces the PAP
+        # session; cleanup_session_internal() must cancel its resume timer.
+        eap = radius.eap_packet(radius.EAP_RESPONSE, 7, radius.EAP_TYPE_IDENTITY, b"cert-user")
+        req = radius.Packet(radius.ACCESS_REQUEST, identifier=7,
+                            attributes=[(radius.USER_NAME, b"cert-user")] + radius.eap_attributes(eap))
+        reply = c.exchange(req, message_authenticator=True)
+        self.assertEqual(reply.code_name, "Access-Challenge", reply)
+
+        # dns timeout = 1: a stale timer would fire (and read the freed
+        # session) well within this wait.
+        time.sleep(2.5)
+        again = self.radius("radsecret", daemon=d, tcp=True).exchange(
+            req, message_authenticator=True)
+        self.assertEqual(again.code_name, "Access-Challenge", again)
