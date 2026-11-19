@@ -123,6 +123,7 @@ LDAP_SKIP_GROUPOFNAMES
 """
 
 import os, sys, re, ldap3, time, calendar, socket
+from ldap3.utils.conv import escape_filter_chars
 from mavis import (Mavis,
 	MAVIS_DOWN, MAVIS_FINAL,
 	AV_V_RESULT_OK, AV_V_RESULT_ERROR, AV_V_RESULT_FAIL,
@@ -160,7 +161,6 @@ if eval_env('TLS_OPTIONS', None) is not None:
 eval_env('LDAP_HOSTS', 'ldaps://localhost')
 server_pool = ldap3.ServerPool(None, ldap3.FIRST, active=True)
 for server in LDAP_HOSTS.split():
-	keepalive_options = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
 	server_object = ldap3.Server(server, get_info=ldap3.DSA, tls=tls, connect_timeout=LDAP_CONNECT_TIMEOUT)
 	server_pool.add(server_object)
 
@@ -251,7 +251,7 @@ while True:
 			conn = ldap3.Connection(server_pool, user=LDAP_USER, password=LDAP_PASSWD,
 				receive_timeout=LDAP_CONNECT_TIMEOUT, auto_bind=True)
 			conn.bind()
-			raw_socket = conn.strategy.connection
+			raw_socket = conn.socket
 			if raw_socket is not None:
 				raw_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 			# Check for MS AD LDAP
@@ -310,7 +310,7 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 		continue
 
 	conn.search(search_base=LDAP_BASE, search_scope=LDAP_SCOPE,
-		search_filter=LDAP_FILTER.format(D.user),
+		search_filter=LDAP_FILTER.format(escape_filter_chars(D.user)),
 		attributes=["memberOf", "shadowExpire", "uidNumber", "gidNumber",
 			"loginShell", "homeDirectory", "sshPublicKey", "krbPasswordExpiration",
 			LDAP_TACMEMBER])
@@ -420,7 +420,7 @@ Please set the LDAP_USER and LDAP_PASSWD environment variables.', file=sys.stder
 		if len(conn.entries) == 1:
 			TACMEMBER.extend(conn.entries[0].cn)
 		conn.search(search_base=LDAP_BASE, search_scope=LDAP_SCOPE_POSIXGROUP,
-			search_filter='(&(objectclass=posixGroup)(memberUid={}))'.format(D.user),
+			search_filter='(&(objectclass=posixGroup)(memberUid={}))'.format(escape_filter_chars(D.user)),
 			attributes=["cn"])
 		for e in conn.entries:
 			TACMEMBER.extend(e.cn)
