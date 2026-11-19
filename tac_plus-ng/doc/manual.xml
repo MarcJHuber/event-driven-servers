@@ -5247,6 +5247,121 @@ radius.dictionary cisco 9 {
 </screen>
     </section>
     <section>
+      <title>RADIUS EAP-TLS</title>
+      <para><emphasis role="bold">tac_plus-ng</emphasis> can terminate EAP-TLS for RADIUS clients: the NAS forwards EAP-Message attributes in Access-Requests, the daemon runs the TLS handshake with the EAP peer, maps the peer certificate to a configured user, and returns EAP-Success or EAP-Failure together with 802.1X keying material. EAP-TLS is the only supported EAP method; EAP-MD5, EAP-PEAP, and EAP-TTLS are not implemented, and EAP is never proxied or passed through to an external EAP server. This feature requires a build with OpenSSL support.</para>
+      <para>EAP is enabled per realm with an <literal>eap</literal> block; the block is accepted at top level (the default realm) and inside <literal>realm</literal> blocks, and follows the normal realm inheritance rules. A child realm disables EAP inherited from its parent with <literal>eap = no</literal>.</para>
+
+      <section>
+        <title>EAP-TLS Conversation and RFC 5216 Alignment</title>
+        <para>The EAP packet layer, fragmentation, identity handling, key derivation, and termination follow RFC 5216. In the base case the conversation is:</para>
+        <screen xml:space="preserve">NAS:    EAP-Request/Identity
+peer:   EAP-Response/Identity
+NAS:    EAP-Request/EAP-TLS Start (S bit set, no data)
+peer:   ClientHello
+server: TLS server flight
+peer:   TLS client flight
+server: ChangeCipherSpec/Finished
+peer:   empty EAP-Response/EAP-TLS
+NAS:    EAP-Success</screen>
+        <para>The server sends EAP-Success only after the peer's empty EAP-Response/EAP-TLS that acknowledges the server's final TLS flight; it does not send EAP-Success as soon as <literal>SSL_do_handshake()</literal> reports completion, because the peer has not yet received the server Finished message. When the final flight is fragmented, fragment ACKs are distinguished from the final completion ACK, and an empty response while more server fragments remain triggers the next fragment rather than EAP-Success.</para>
+        <para>EAP-TLS fragmentation follows RFC 5216 2.1.5. The L bit is set on the first fragment of a fragmented TLS message or set of messages and carries a 4-octet TLS Message Length; the M bit is set on all but the last fragment; the S bit appears only in the EAP-Request/EAP-TLS Start packet. The EAP Identifier is incremented for every fragment request and echoed by the peer in fragment ACKs; retransmitted fragments keep the same Identifier. A peer that receives a request with M set answers with an empty EAP-Response/EAP-TLS, and the server waits for that ACK before sending the next fragment. Reassembly is capped at the configured <literal>max-message</literal> (65535 bytes by default), matching RFC 5216's 64 KB guidance.</para>
+        <para>The peer identity is taken from the client certificate's subject CN or subjectAltName (RFC 5216 2.2 and 5.2), not from the EAP-Response/Identity. EAP-Response/Identity is unauthenticated and MUST NOT be used for access control, which is why <literal>eap-identity-source = eap-identity</literal> requires <literal>verify-client = no</literal> and is documented as lab-only. If the EAP-Response/Identity differs from the certificate identity, the certificate identity wins.</para>
+        <para>After a successful TLS 1.2 handshake the keying material is derived as Key_Material = TLS-PRF-128(master_secret, "client EAP encryption", client.random || server.random) (RFC 5216 2.3). The MSK is bytes 0 through 63 and the EMSK is bytes 64 through 127; MS-MPPE-Recv-Key is MSK[0..31] and MS-MPPE-Send-Key is MSK[32..63] (RFC 2548 2.4.2). OpenSSL's RFC 5705 exporter with an empty context produces the same TLS 1.2 PRF output.</para>
+        <para>Termination follows RFC 5216 2.1.3. On a peer authentication failure the server sends the TLS alert in an EAP-Request/EAP-TLS, waits for the peer's EAP-Response, and then sends EAP-Failure. If the peer reports a server-authentication failure (a TLS alert from the peer), the server sends EAP-Failure immediately. Restart-on-ClientHello is not implemented: any peer response after the alert is answered with EAP-Failure.</para>
+      </section>
+
+      <section>
+        <title>Deliberate Deviations from RFC 5216</title>
+        <para>The TLS profile deliberately deviates from RFC 5216 where the RFC is obsolete or conflicts with current security practice. This implementation therefore does not claim full RFC 5216 conformance:</para>
+        <itemizedlist>
+          <listitem><para>TLS 1.2 is the only protocol version enabled. RFC 5216 requires TLS 1.0 support; TLS 1.0 and TLS 1.1 are deprecated by RFC 8996 and disabled by modern OpenSSL security levels. TLS 1.3 and RFC 9190 key derivation are a follow-up.</para></listitem>
+          <listitem><para>3DES and RC4 ciphersuites are not enabled. RFC 5216 lists them, but they are deprecated by RFC 8996; the implementation uses OpenSSL's modern cipher defaults.</para></listitem>
+          <listitem><para>No TLS compression is negotiated (RFC 5216 2.4 requires no compression).</para></listitem>
+          <listitem><para>TLS session resumption, session tickets, renegotiation, and EAP fast reconnect are disabled, so the server flight is deterministic. EAP privacy (an empty EAP-Response/Identity and identity hiding) is out of scope.</para></listitem>
+          <listitem><para>Certificate revocation checking (CRL or OCSP) is out of scope (RFC 5216 5.4). A certificate is accepted when it chains to <literal>ca-file</literal> and passes the clientAuth purpose check.</para></listitem>
+        </itemizedlist>
+      </section>
+
+      <section>
+        <title>EAP Packet Validation</title>
+        <para>The EAP header's Length field covers Code, Identifier, Length, Type, and Data. Octets outside the declared Length are data-link padding and are ignored on reception (RFC 5216 3.1 and 3.2). A packet with a declared length below 4, or above the number of bytes received in the concatenated EAP-Message attributes, is rejected.</para>
+        <para>Reserved bits are zero on send and ignored on receive. The S bit MUST NOT appear in an EAP-Response; a response that sets it is rejected. An EAP-Request from a NAS is treated as RADIUS role reversal (RFC 3579 2.6.2) and answered with an Access-Reject carrying EAP-Response/Nak proposing EAP-TLS. A Nak that proposes EAP-TLS causes the server to resend EAP-Request/EAP-TLS Start; a Nak proposing any other method fails the conversation.</para>
+        <para>Retransmissions are handled by a small reply cache keyed by the EAP Identifier, so a retransmitted Access-Request or fragment ACK receives the same reply without advancing the state machine. EAP-Success and EAP-Failure carry the Identifier of the client EAP-Response that triggered them.</para>
+      </section>
+
+      <section>
+        <title>Configuration</title>
+        <para>The <literal>eap</literal> block accepts the following directives:</para>
+        <screen xml:space="preserve">    eap {
+        eap-method = tls
+        cert-file = $CONFDIR/democa/server-chain.pem
+        key-file = $CONFDIR/democa/server.key
+        ca-file = $CONFDIR/democa/root.crt
+        verify-client = yes
+        eap-identity-source = cert-cn
+        timeout = 60
+        max-message = 65535
+        max-sessions = 4096
+    }</screen>
+        <itemizedlist>
+          <listitem><para><literal>eap-method</literal>: <literal>tls</literal> is the only accepted value; other method names are a parse error.</para></listitem>
+          <listitem><para><literal>cert-file</literal>: the EAP-TLS server certificate chain (PEM), required. <literal>key-file</literal> defaults to the same path when it is not set.</para></listitem>
+          <listitem><para><literal>ca-file</literal>: the CA bundle used to verify the peer certificate, required when <literal>verify-client = yes</literal>.</para></listitem>
+          <listitem><para><literal>passphrase</literal>: optional passphrase for an encrypted private key.</para></listitem>
+          <listitem><para><literal>verify-client</literal>: <literal>yes</literal> by default. <literal>no</literal> is allowed only together with <literal>eap-identity-source = eap-identity</literal>, and is lab-only.</para></listitem>
+          <listitem><para><literal>eap-identity-source</literal>: <literal>cert-cn</literal> (default), <literal>cert-san</literal>, or <literal>eap-identity</literal>. Certificate identities are lowercased before the user lookup; <literal>cert-san</literal> uses the first DNS subjectAltName and falls back to the CN when no DNS SAN exists.</para></listitem>
+          <listitem><para><literal>timeout</literal>: seconds of inactivity before an EAP session/State entry expires; 60 by default and refreshed on every valid packet. Must be positive.</para></listitem>
+          <listitem><para><literal>max-message</literal>: hard cap for EAP-TLS reassembly in bytes, 65535 by default. The valid range is 1 through 65535, because the EAP Length field is 16-bit.</para></listitem>
+          <listitem><para><literal>max-sessions</literal>: maximum number of concurrent EAP sessions per realm, 4096 by default. When the cap is reached, the session with the oldest activity is evicted. Must be positive.</para></listitem>
+        </itemizedlist>
+        <para><literal>eap = no</literal> is also accepted as a realm-level directive so a child realm can disable EAP inherited from its parent. The <literal>broker-socket</literal> keyword does not exist in this phase; it is added with the UDP EAP broker.</para>
+      </section>
+
+      <section>
+        <title>Certificates and Identity Mapping</title>
+        <para>With <literal>verify-client = yes</literal>, the server requires a peer certificate (<literal>SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT</literal>) and requires <literal>SSL_get_verify_result()</literal> to return <literal>X509_V_OK</literal>. The peer certificate must chain to <literal>ca-file</literal> and carry the clientAuth extended key usage, which OpenSSL enforces through <literal>X509_PURPOSE_SSL_CLIENT</literal>. Use a dedicated EAP-TLS server certificate and key rather than sharing the key with HTTPS or other services (RFC 5216 5.1).</para>
+        <para>Certificate-derived identities are converted to lower case (ASCII bytes) before the user lookup. Define the corresponding user names in lower case; there is no exact-match-then-lowercase fallback, because two lookup paths would create ambiguity. Embedded NUL bytes, empty identities, and identities longer than 255 bytes are rejected. With <literal>eap-identity-source = cert-san</literal>, the first GEN_DNS subjectAltName is used; if the certificate has no DNS SAN, the CN is used.</para>
+        <para><literal>verify-client = no</literal> is only allowed with <literal>eap-identity-source = eap-identity</literal>, and any other combination is a parse error. In that mode the identity comes from the unauthenticated EAP-Response/Identity, so it must never be used for access control in a deployment that verifies certificates. A warning is logged at startup and for every authentication in that mode; it exists for lab testing only.</para>
+      </section>
+
+      <section>
+        <title>EAP-Message, State, and Message-Authenticator</title>
+        <para>EAP-Message is RADIUS attribute 79 and must be present in the RADIUS dictionary (the shipped <literal>radius-dict.cfg</literal> defines it). One RADIUS packet carries exactly one EAP packet, split across one or more consecutive EAP-Message attributes whose values are concatenated in order. Each attribute value is limited to 253 bytes. The NAS echoes the State attribute (24) from an Access-Challenge in its next Access-Request; State is limited to 16 bytes and is generated randomly by the server.</para>
+        <para>Every Access-Request, Access-Challenge, Access-Accept, and Access-Reject that contains EAP-Message carries a Message-Authenticator (80) on UDP and RADIUS/TCP. Over RadSec, an absent Message-Authenticator in an Access-Request is accepted because RFC 6614 relaxes RFC 3579; replies always include a Message-Authenticator. Message-Authenticator validation uses the RADIUS shared secret, including the static RadSec key where applicable.</para>
+        <para>RFC 3579 2.6.5 forbids Reply-Message in a packet that contains EAP-Message. Profile scripts can add attributes to the reply buffer, so the EAP reply path strips any Reply-Message already present from Access-Accept and Access-Reject. State belongs in Access-Challenge only, so Access-Accept and Access-Reject also omit State. If a profile fills the reply buffer so that EAP-Message plus Message-Authenticator no longer fit, the server falls back to a minimal Access-Reject containing EAP-Failure when that fits, and drops the reply otherwise.</para>
+      </section>
+
+      <section>
+        <title>Authorization, MFA, and Accounting Behavior</title>
+        <para>After the handshake completes, the certificate identity is mapped to a user and the request runs through the same host ACL, ruleset, user expiry, and profile evaluation as the password-based RADIUS path. Profile scripts can add RADIUS attributes to the Access-Accept, including Cisco-AVPair values.</para>
+        <para>MFA cannot be challenged inside EAP-TLS in this phase. If the selected host or user requires MFA, EAP authentication is rejected with EAP-Failure rather than silently bypassing the second factor. There is no option to disable this check.</para>
+        <para>The EAP path bypasses the RADIUS DACL check and the DNS reverse-mapping logic used by the password-based path. Downloadable ACLs (DACLs), CoA, and scripts that depend on <literal>nac_dns_name</literal> therefore see different behavior for EAP requests; if any of these becomes required for EAP, it needs a follow-up rather than a silent semantic change.</para>
+      </section>
+
+      <section>
+        <title>Fragmentation and Size Limits</title>
+        <para>RADIUS packets are limited to 4096 bytes, of which 20 bytes are the header, leaving at most 4076 bytes of attributes; the reply builder reserves 18 bytes for the Message-Authenticator. Server TLS output is split into EAP-TLS fragments of at most 3000 bytes (a safe default that leaves room for EAP-Message, State, and Message-Authenticator overhead), and each fragment is sent as an Access-Challenge with State. A RADIUS EAP-Message value is split into chunks of at most 253 bytes.</para>
+        <para>Client-to-server reassembly is bounded by <literal>max-message</literal>. The first fragment may announce the total TLS message length with the L bit; the announced total must be at least 1 and at most <literal>max-message</literal>. L on a non-first fragment, a first fragment with M but no L, and a reassembled length that does not match the announced total are rejected.</para>
+      </section>
+
+      <section>
+        <title>802.1X Keying Attributes</title>
+        <para>After a successful handshake, an Access-Accept includes MS-MPPE-Recv-Key (vendor 311, type 17) and MS-MPPE-Send-Key (vendor 311, type 16), encrypted per RFC 2548 2.4.2 with the RADIUS shared secret and the current Request Authenticator. MS-MPPE-Encryption-Policy (311:7) defaults to 1 (Encryption-Allowed) and MS-MPPE-Encryption-Types (311:8) defaults to 6, matching the existing MSCHAP defaults. Keys are emitted only when a RADIUS secret is available; for RadSec that is the static "radsec" key. MSK and EMSK values are never logged and are zeroed before the EAP session is freed.</para>
+        <para>Access-Accept retransmissions re-encrypt the retained MSK halves with the new Request Authenticator instead of replaying cached ciphertext.</para>
+      </section>
+
+      <section>
+        <title>UDP, TCP, and TLS Transport Caveats</title>
+        <para>RADIUS/TCP and RADIUS/TLS have natural connection affinity, so EAP state stays in the worker handling the connection. RADIUS/UDP uses local per-worker EAP state in this phase and is reliable only when the daemon runs with spawnd <literal>single process = yes</literal> or when <literal>sticky cache period</literal> keeps the NAS flow on one worker. Both are spawnd options, not tac_plus-ng options. Without them, consecutive Access-Requests of one EAP conversation can reach different workers, each with its own session table, and the conversation fails.</para>
+        <para>There is no UDP EAP broker in this phase and no <literal>broker-socket</literal> keyword. Multi-worker UDP EAP therefore requires <literal>single process = yes</literal> or <literal>sticky cache period</literal> until the broker is available. EAP over DTLS is local-only as well; multi-worker DTLS EAP requires the same spawnd settings. Reloads are not supported by this daemon; realms are read once at startup, so a reload loses in-flight EAP state.</para>
+      </section>
+
+      <section>
+        <title>Unsupported Features</title>
+        <para>EAP-MD5, EAP-PEAP, and EAP-TTLS are not implemented, nor is RADIUS proxy or pass-through of EAP to an external server. EAP-TLS 1.3 and RFC 9190 key derivation are a follow-up. EAP privacy and fast reconnect are out of scope, as are CRL and OCSP certificate revocation checks. TACACS+ has no standard EAP extension (RFC 8907 does not define one), so EAP is RADIUS-only.</para>
+      </section>
+    </section>
+    <section>
       <title>RADIUS Logging</title>
       <para><emphasis>TACACS+</emphasis> and <emphasis>RADIUS</emphasis> share the <literal>connection log</literal>. Dedicated <emphasis>RADIUS</emphasis> logs for authentication and acounting can be enabled:</para>
       <screen xml:space="preserve">        log accesslog { destination = /tmp/tac/access.log }     # TACACS+
