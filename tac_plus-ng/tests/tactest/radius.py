@@ -53,6 +53,7 @@ CODES = {1: "Access-Request", 2: "Access-Accept", 3: "Access-Reject", 4: "Accoun
 # attributes
 USER_NAME = 1
 USER_PASSWORD = 2
+FRAMED_IP_ADDRESS = 8
 REPLY_MESSAGE = 18
 MESSAGE_AUTHENTICATOR = 80
 
