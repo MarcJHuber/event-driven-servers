@@ -2730,12 +2730,14 @@ static void do_radius_dacl(tac_session *session)
 	if (!session->username.txt)
 	    goto fail;
 	char *u = session->username.txt;
-	if (!strncmp(u, ACSACL, sizeof(ACSACL) - 1))
+	// strip "#ACSACL#" and "-<version>" once: the MAVIS callback enters again with the stripped name
+	if (!strncmp(u, ACSACL, sizeof(ACSACL) - 1)) {
 	    u += sizeof(ACSACL) - 1;
-	char *h = strrchr(u, '-');
-	if (h)
-	    *h = 0;
-	str_set(&session->username, u, h - u);
+	    char *h = strrchr(u, '-');
+	    if (h)
+		*h = 0;
+	    str_set(&session->username, u, 0);
+	}
 	if (query_mavis_dacl(session, do_radius_dacl))
 	    return;
 	rd->dacl = lookup_dacl(u, session->ctx->realm);
