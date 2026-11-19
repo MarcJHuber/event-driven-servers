@@ -622,25 +622,30 @@ class PermitIfAuthenticated(DaemonTestCase):
 		key = tactest
 		permit if-authenticated = yes
 	}
+	device untrusting {
+		address = 127.0.10.2
+		key = tactest
+	}
 	ruleset {
 		rule { script { permit } }
 	}
 """
 
-    AUTHEN_METH_LOCAL = 5
+    def unknown_user(self, source):
+        r = self.connect(source=source).author("nobody", ["service=shell", "cmd="])
+        return r.status_name
 
-    def unknown_user(self, source, method):
-        r = self.connect(source=source).author("nobody", ["service=shell", "cmd="], authen_method=method)
+    def ppp_user(self, source):
+        r = self.connect(source=source).author("nobody", ["service=ppp"])
         return r.status_name
 
     def test_user_authenticated_on_the_device(self):
-        self.assertEqual(self.unknown_user("127.0.10.1", self.AUTHEN_METH_LOCAL), "PASS_ADD")
-
-    def test_user_authenticated_with_tacacs(self):
-        self.assertEqual(self.unknown_user("127.0.10.1", tacacs.AUTHEN_METH_TACACSPLUS), "FAIL")
+        self.assertEqual(self.unknown_user("127.0.10.1"), "PASS_ADD")
+        self.assertEqual(self.ppp_user("127.0.10.1"), "FAIL")
 
     def test_device_without_it(self):
-        self.assertEqual(self.unknown_user("127.0.0.1", self.AUTHEN_METH_LOCAL), "FAIL")
+        self.assertEqual(self.unknown_user("127.0.10.2"), "FAIL")
+        self.assertEqual(self.ppp_user("127.0.10.1"), "FAIL")
 
 
 @unittest.skipUnless("pcre2" in features(), "the script out uses a PCRE")
