@@ -5353,7 +5353,7 @@ NAS:    EAP-Success</screen>
       <section>
         <title>UDP, TCP, and TLS Transport Caveats</title>
         <para>RADIUS/TCP and RADIUS/TLS have natural connection affinity, so EAP state stays in the worker handling the connection. RADIUS/UDP uses local per-worker EAP state in this phase and is reliable only when the daemon runs with spawnd <literal>single process = yes</literal> or when <literal>sticky cache period</literal> keeps the NAS flow on one worker. Both are spawnd options, not tac_plus-ng options. Without them, consecutive Access-Requests of one EAP conversation can reach different workers, each with its own session table, and the conversation fails.</para>
-        <para>There is no UDP EAP broker in this phase and no <literal>broker-socket</literal> keyword. Multi-worker UDP EAP therefore requires <literal>single process = yes</literal> or <literal>sticky cache period</literal> until the broker is available. EAP over DTLS is local-only as well; multi-worker DTLS EAP requires the same spawnd settings. Reloads are not supported by this daemon; realms are read once at startup, so a reload loses in-flight EAP state.</para>
+        <para>There is no UDP EAP broker in this phase and no <literal>broker-socket</literal> keyword. Multi-worker UDP EAP therefore requires <literal>single process = yes</literal> or <literal>sticky cache period</literal> until the broker is available. EAP over DTLS is local-only as well; multi-worker DTLS EAP requires the same spawnd settings. A SIGHUP causes spawnd to restart the daemon process; realms are re-read at startup, so in-flight EAP state is lost.</para>
       </section>
 
       <section>

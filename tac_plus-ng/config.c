@@ -590,9 +590,9 @@ void complete_realm(tac_realm *r)
 		   common_data.conffile, r->name.txt);
 
 	/* Realms are never freed in this daemon: the configuration is read
-	   once at startup. A reload would have to free eap_sessions with
-	   RB_tree_delete() and eap_tls with SSL_CTX_free(); reloads lose
-	   in-flight EAP state. */
+	   once at startup, and a reload restarts the daemon process, so the
+	   OS reclaims eap_sessions/eap_tls. In-flight EAP state is lost
+	   across a reload. */
 	if (!r->eap_sessions)
 	    r->eap_sessions = RB_tree_new(eap_session_cmp, eap_session_free);
 
