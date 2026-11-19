@@ -215,6 +215,55 @@ class DaclAnsweredAtOnce(DaemonTestCase):
         self.assertEqual([e["type"] for e in stub.requests()], ["DACL"])
 
 
+def open_files_under(daemon, directory):
+    """Paths under directory that the workers of daemon hold open (Linux)."""
+    out = []
+    for pid in daemon.workers():
+        for fd in os.listdir("/proc/%d/fd" % pid):
+            try:
+                target = os.readlink("/proc/%d/fd/%s" % (pid, fd))
+            except OSError:
+                continue
+            if target.startswith(directory + "/"):
+                out.append(target)
+    return out
+
+
+@unittest.skipUnless(LINUX, "127.0.0.0/8 local addresses, open files are found through /proc")
+class DaclCacheExpired(DaemonTestCase):
+    """tacinfo_cache closes a cache file that is older than "dacl cache timeout".
+
+    mavis_send_in() returned MAVIS_DOWN for such a file without closing it,
+    so the worker kept one descriptor for every expired entry it found.
+    """
+
+    CONFIG = None
+    POLICY = DaclAnsweredAtOnce.POLICY.replace('directory = "@CACHE@" }',
+                                               'directory = "@CACHE@" dacl cache timeout = 1 }')
+    ROUNDS = 4
+
+    def test_expired_cache_file_is_closed(self):
+        self.assertIn("dacl cache timeout = 1", self.POLICY)
+        cache = tempfile.mkdtemp(prefix="tacinfo-", dir="/tmp")
+        self.addCleanup(shutil.rmtree, cache)
+        d = self.start_daemon(self.POLICY.replace("@CACHE@", cache), udp=True)
+        stub = Stub(d)
+        stub.set(dacls={"demoacl": '{ data = "%s" }' % DACL_ACE})
+        event = b"aaa:event=acl-download"
+        for i in range(self.ROUNDS):
+            if i:
+                time.sleep(2.1)     # mtime + 1 < now: the entry of the last round has expired
+            r = self.radius(DACL_SECRET, daemon=d, source=DACL_NAS).access_request(
+                "#ACSACL#demoacl-00000000", "", message_authenticator=True,
+                attributes=[(VENDOR_SPECIFIC, struct.pack("!IBB", CISCO_VENDOR, 1, len(event) + 2) + event)])
+            self.assertEqual(r.code_name, "Access-Accept", r)
+            self.assertTrue(d.workers(), "no worker found")
+            with self.subTest(round=i):
+                self.assertEqual(open_files_under(d, cache), [])
+        # every round after the first found an expired entry and asked the backend again
+        self.assertEqual([e["type"] for e in stub.requests()], ["DACL"] * self.ROUNDS)
+
+
 class Cache(DaemonTestCase):
     """#69: authorization after authentication takes the user from the MAVIS cache."""
 
