@@ -2355,10 +2355,16 @@ void authen(tac_session *session, tac_pak_hdr *hdr)
 }
 
 #ifdef WITH_CRYPTO
-static void encrypt_mppe_key(tac_session *session, u_char *plain /* 32 bytes */ , uint16_t salt)
+/*
+ * RFC 2548 2.4.2 key encryption, generalized to a plaintext of any multiple
+ * of MD5_LEN bytes: b(1) = MD5(Secret + Request-Authenticator + Salt),
+ * c(1) = p(1) xor b(1); b(i) = MD5(Secret + c(i-1)), c(i) = p(i) xor b(i).
+ */
+static void encrypt_mppe_key(tac_session *session, u_char *plain, size_t plain_len, uint16_t salt)
 {
     u_char digest[MD5_LEN];
     u_char salt_be[2] = { (u_char) (salt >> 8), (u_char) (salt & 0xff) };
+    size_t off, i;
 
     // b(1) = MD5(Secret + Request-Authenticator + Salt)
     struct iovec iov[3] = {
@@ -2367,18 +2373,130 @@ static void encrypt_mppe_key(tac_session *session, u_char *plain /* 32 bytes */ 
 	{.iov_base = salt_be,.iov_len = 2 }
     };
     md5v(digest, MD5_LEN, iov, 3);
-    for (int i = 0; i < 16; i++)
+    for (i = 0; i < MD5_LEN; i++)
 	plain[i] ^= digest[i];
 
-    // b(2) = MD5(Secret + c(1))
-    iov[1].iov_base = plain;
-    iov[1].iov_len = 16;
-    md5v(digest, MD5_LEN, iov, 2);
-    for (int i = 0; i < 16; i++)
-	plain[16 + i] ^= digest[i];
+    for (off = MD5_LEN; off < plain_len; off += MD5_LEN) {
+	// b(i) = MD5(Secret + c(i-1))
+	iov[1].iov_base = plain + off - MD5_LEN;
+	iov[1].iov_len = MD5_LEN;
+	md5v(digest, MD5_LEN, iov, 2);
+	for (i = 0; i < MD5_LEN; i++)
+	    plain[off + i] ^= digest[i];
+    }
 }
 
-static void mppe_add_key(tac_session *session, u_char *masterkey, u_char attribute, int magic, u_char **data, size_t *data_len)
+/*
+ * RFC 2548 2.4.2 requires the salt to be unique within a packet. Return a
+ * random salt with the high bit set that no MS-MPPE key attribute already
+ * in the reply buffer uses.
+ */
+static uint16_t mppe_salt(tac_session *session)
+{
+    struct radius_data *rd = session->radius_data;
+    uint16_t salt;
+    int clash;
+
+    do {
+	u_char *p = rd->data;
+	size_t len = rd->data_len;
+
+	salt = (uint16_t) (arc4random_uniform(0xffff) | 0x8000);
+	clash = 0;
+	while (len >= 2) {
+	    size_t alen = p[1];
+
+	    if (alen < 2 || alen > len)
+		break;
+	    if (p[0] == RADIUS_A_VENDOR_SPECIFIC && alen >= 10 &&
+		p[2] == 0 && p[3] == 0 && p[4] == 0x01 && p[5] == 0x37 &&
+		(p[6] == RADIUS_A_MS_MPPE_SEND_KEY || p[6] == RADIUS_A_MS_MPPE_RECV_KEY) &&
+		p[7] >= 4 && (uint16_t) ((p[8] << 8) | p[9]) == salt) {
+		clash = 1;
+		break;
+	    }
+	    p += alen;
+	    len -= alen;
+	}
+    } while (clash);
+    return salt;
+}
+
+/*
+ * Append an MS-MPPE Send/Recv-Key vendor-specific attribute (RFC 2548
+ * 2.4.2). key_len is 16 for MSCHAP and 32 for an EAP-TLS MSK half. The
+ * plaintext is the one-byte key length, the key, and zero padding to a
+ * multiple of 16 bytes; the VSA is 10 bytes of header plus that plaintext.
+ * Nothing is appended without a RADIUS secret or when the reply buffer is
+ * too small.
+ */
+void rad_add_mppe_key(tac_session *session, const u_char *key, size_t key_len, u_char attribute)
+{
+    size_t plain_len = (1 + key_len + MD5_LEN - 1) & ~(size_t) (MD5_LEN - 1);
+    size_t attr_len = 10 + plain_len;
+    struct radius_data *rd = session->radius_data;
+    u_char *data, *plain;
+    uint16_t salt;
+
+    if (!session->ctx->key || !key_len || key_len > 255 || attr_len > 255 ||
+	rd->data_len + attr_len > sizeof(rd->data))
+	return;
+
+    data = rd->data + rd->data_len;
+    salt = mppe_salt(session);
+
+    *data++ = RADIUS_A_VENDOR_SPECIFIC;
+    *data++ = (u_char) attr_len;
+    data = set_uint(data, RADIUS_VID_MICROSOFT, 4);
+    *data++ = attribute;
+    *data++ = (u_char) (4 + plain_len);
+    *data++ = (u_char) (salt >> 8);
+    *data++ = (u_char) (salt & 0xff);
+
+    plain = data;
+    plain[0] = (u_char) key_len;
+    memcpy(plain + 1, key, key_len);
+    memset(plain + 1 + key_len, 0, plain_len - 1 - key_len);
+
+    encrypt_mppe_key(session, plain, plain_len, salt);
+
+    rd->data_len += attr_len;
+}
+
+/*
+ * Default MS-MPPE-Encryption-Types (311:8, 6 = 128-bit and 40-bit) and
+ * MS-MPPE-Encryption-Policy (311:7, 1 = allowed), matching the MSCHAP
+ * defaults in do_radius_login().
+ */
+void rad_add_mppe_policy(tac_session *session)
+{
+    static const struct {
+	u_char type;
+	uint32_t value;
+    } attrs[] = {
+	{ RADIUS_A_MS_MPPE_ENCRYPTION_TYPES, 6 },
+	{ RADIUS_A_MS_MPPE_ENCRYPTION_POLICY, 1 },
+    };
+    struct radius_data *rd = session->radius_data;
+    size_t i;
+
+    for (i = 0; i < sizeof(attrs) / sizeof(attrs[0]); i++) {
+	u_char *data;
+
+	if (rd->data_len + 12 > sizeof(rd->data))
+	    return;
+	data = rd->data + rd->data_len;
+	*data++ = RADIUS_A_VENDOR_SPECIFIC;
+	*data++ = 12;
+	data = set_uint(data, RADIUS_VID_MICROSOFT, 4);
+	*data++ = attrs[i].type;
+	*data++ = 6;
+	data = set_uint(data, attrs[i].value, 4);
+	rd->data_len += 12;
+    }
+}
+
+static void mppe_add_key(tac_session *session, u_char *masterkey, u_char attribute, int magic)
 {
     // Magic constants (RFC 3079)
     const char Magic2[] = "On the client side, this is the send key; on the server side, it is the receive key.";
@@ -2400,25 +2518,7 @@ static void mppe_add_key(tac_session *session, u_char *masterkey, u_char attribu
     };
     sha1v(key, sizeof(key), iov, 4);
 
-    *(*data)++ = RADIUS_A_VENDOR_SPECIFIC;
-    *(*data)++ = 42;
-    *data = set_uint(*data, RADIUS_VID_MICROSOFT, 4);
-    *(*data)++ = attribute;
-    *(*data)++ = 36;
-
-    uint16_t salt = arc4random_uniform(0xffff) | 0x8000;
-    *(*data)++ = (salt >> 8) & 0xff;
-    *(*data)++ = salt & 0xff;
-
-    u_char *plain = *data;
-    plain[0] = 16;
-    memcpy(plain + 1, key, 16);
-    memset(plain + 17, 0, 15);
-
-    encrypt_mppe_key(session, plain, salt);
-
-    *data += 32;
-    *data_len += 42;
+    rad_add_mppe_key(session, key, 16, attribute);
 }
 #endif
 
@@ -2716,6 +2816,7 @@ static void do_radius_login(tac_session *session)
 #endif				// WITH_RADIUS_A_MS_CHAP_MPPE_KEYS
 
 	// MS-MPPE-Send-/Recv-Key: 1 + 1 + 4 + 2 + 2 + 32 = 42
+	session->radius_data->data_len = data_len;
 	if (data + 84 < data_end) {
 	    // Magic constants (RFC 3079)
 	    const char Magic1[] = "This is the MPPE Master Key";
@@ -2728,10 +2829,8 @@ static void do_radius_login(tac_session *session)
 	    };
 	    sha1v(masterkey, sizeof(masterkey), iov, 3);
 
-	    mppe_add_key(session, masterkey, RADIUS_A_MS_MPPE_SEND_KEY, 3, &data, &data_len);
-	    mppe_add_key(session, masterkey, RADIUS_A_MS_MPPE_RECV_KEY, 2, &data, &data_len);
-
-	    session->radius_data->data_len = data_len;
+	    mppe_add_key(session, masterkey, RADIUS_A_MS_MPPE_SEND_KEY, 3);
+	    mppe_add_key(session, masterkey, RADIUS_A_MS_MPPE_RECV_KEY, 2);
 	}
     }
 #endif

@@ -33,6 +33,7 @@ format (RFC 3748, RFC 5216 3.1/3.2): EAP header lengths, EAP-Message
 splitting at 253 bytes, State extraction, and the EAP-TLS flags.
 """
 
+import hashlib
 import os
 import ssl
 import struct
@@ -45,6 +46,11 @@ DICTIONARY = os.path.join(SOURCE, "tac_plus-ng", "sample", "radius-dict.cfg")
 VENDOR_SPECIFIC = 26
 VID_CISCO = 9
 CISCO_AVPAIR = 1
+VID_MICROSOFT = 311
+MS_MPPE_ENCRYPTION_POLICY = 7
+MS_MPPE_ENCRYPTION_TYPES = 8
+MS_MPPE_SEND_KEY = 16
+MS_MPPE_RECV_KEY = 17
 
 
 def cisco_avpairs(packet):
@@ -62,6 +68,57 @@ def cisco_avpairs(packet):
                 values.append(value[p + 2:p + sub_len])
             p += sub_len
     return values
+
+
+def mppe_vsa_values(packet, vendor_type):
+    """Values of Microsoft vendor-specific attribute 311:vendor_type.
+
+    The vendor value of MS-MPPE keys is salt (2 bytes) plus ciphertext; the
+    policy/types values are a 4-byte integer.
+    """
+    values = []
+    for value in packet.get(VENDOR_SPECIFIC):
+        if len(value) < 6 or struct.unpack("!I", value[:4])[0] != VID_MICROSOFT:
+            continue
+        p = 4
+        while p + 2 <= len(value):
+            vtype, vlen = value[p], value[p + 1]
+            if vlen < 2 or p + vlen > len(value):
+                break
+            if vtype == vendor_type:
+                values.append(value[p + 2:p + vlen])
+            p += vlen
+    return values
+
+
+def mppe_decrypt(value, secret, request_authenticator):
+    """Decrypt an MS-MPPE key attribute (RFC 2548 2.4.2).
+
+    value is salt (2 bytes, high bit set) plus ciphertext, a multiple of 16
+    bytes. b(1) = MD5(secret + Request-Authenticator + salt),
+    c(1) = p(1) xor b(1); b(i) = MD5(secret + c(i-1)). The first plaintext
+    byte is the key length, followed by the key and zero padding.
+    Returns (key, salt).
+    """
+    if len(value) < 18 or (len(value) - 2) % 16:
+        raise ValueError("bad MS-MPPE value length %d" % len(value))
+    salt = value[:2]
+    if not salt[0] & 0x80:
+        raise ValueError("MS-MPPE salt high bit not set")
+    ciphertext = value[2:]
+    plaintext = b""
+    prev = request_authenticator + salt
+    for i in range(0, len(ciphertext), 16):
+        digest = hashlib.md5(secret + prev).digest()
+        block = bytes(a ^ b for a, b in zip(ciphertext[i:i + 16], digest))
+        plaintext += block
+        prev = ciphertext[i:i + 16]
+    key_len = plaintext[0]
+    if key_len < 1 or key_len > len(plaintext) - 1:
+        raise ValueError("bad MS-MPPE key length %d" % key_len)
+    if any(plaintext[1 + key_len:]):
+        raise ValueError("nonzero MS-MPPE padding")
+    return plaintext[1:1 + key_len], salt
 
 
 class EapPacket(unittest.TestCase):
@@ -748,6 +805,82 @@ class EapTlsHandshake(EapTlsTestCase):
         # The client finished its side of the TLS 1.2 handshake.
         self.assertEqual(peer.sslobj.version(), "TLSv1.2")
         self.assertIsNotNone(peer.sslobj.getpeercert())
+
+
+class EapTlsMppeKeys(EapTlsTestCase):
+    """RFC 5216 2.3 / RFC 2548 2.4.2: MS-MPPE keys in a successful Access-Accept."""
+
+    def test_access_accept_carries_encrypted_ms_mppe_keys(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.handshake()
+        reply, request = peer.last_reply, peer.last_request
+        assert request is not None and reply is not None
+        self.assertEqual(reply.code_name, "Access-Accept", reply)
+
+        recv_values = mppe_vsa_values(reply, MS_MPPE_RECV_KEY)
+        send_values = mppe_vsa_values(reply, MS_MPPE_SEND_KEY)
+        self.assertEqual(len(recv_values), 1, reply)
+        self.assertEqual(len(send_values), 1, reply)
+
+        recv_key, recv_salt = mppe_decrypt(recv_values[0], b"radsecret",
+                                           request.authenticator)
+        send_key, send_salt = mppe_decrypt(send_values[0], b"radsecret",
+                                           request.authenticator)
+        self.assertEqual(len(recv_key), 32)
+        self.assertEqual(len(send_key), 32)
+        self.assertNotEqual(recv_key, bytes(32))
+        self.assertNotEqual(send_key, bytes(32))
+        self.assertNotEqual(recv_key, send_key)
+        self.assertNotEqual(recv_salt, send_salt)
+        self.assertEqual(mppe_vsa_values(reply, MS_MPPE_ENCRYPTION_POLICY),
+                         [struct.pack("!I", 1)])
+        self.assertEqual(mppe_vsa_values(reply, MS_MPPE_ENCRYPTION_TYPES),
+                         [struct.pack("!I", 6)])
+
+    def test_retransmitted_access_request_reencrypts_keys(self):
+        """A retransmission has a new Request Authenticator; the MSK is re-encrypted."""
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.handshake()
+        first_request, first_reply = peer.last_request, peer.last_reply
+        assert first_request is not None and first_reply is not None
+        self.assertEqual(first_reply.code_name, "Access-Accept", first_reply)
+
+        first_recv = mppe_decrypt(mppe_vsa_values(first_reply, MS_MPPE_RECV_KEY)[0],
+                                  b"radsecret", first_request.authenticator)[0]
+
+        # Same EAP packet, attributes and State, but a new Request Authenticator.
+        resent_request = radius.Packet(radius.ACCESS_REQUEST,
+                                       identifier=first_request.identifier,
+                                       attributes=first_request.attributes)
+        self.assertNotEqual(resent_request.authenticator, first_request.authenticator)
+        resent = c.exchange(resent_request, message_authenticator=True)
+        self.assertEqual(resent.code_name, "Access-Accept", resent)
+
+        ack_eap = b"".join(v for t, v in first_request.attributes
+                           if t == radius.EAP_MESSAGE)
+        eap = radius.eap_from_reply(resent)
+        self.assertEqual(len(eap), 4, eap)
+        self.assertEqual(struct.unpack("!BBH", eap),
+                         (radius.EAP_SUCCESS, ack_eap[1], 4))
+        self.assertFalse(resent.get(radius.STATE))
+
+        recv_values = mppe_vsa_values(resent, MS_MPPE_RECV_KEY)
+        send_values = mppe_vsa_values(resent, MS_MPPE_SEND_KEY)
+        self.assertEqual(len(recv_values), 1, resent)
+        self.assertEqual(len(send_values), 1, resent)
+        recv_key, recv_salt = mppe_decrypt(recv_values[0], b"radsecret",
+                                           resent_request.authenticator)
+        send_key, send_salt = mppe_decrypt(send_values[0], b"radsecret",
+                                           resent_request.authenticator)
+        self.assertEqual(recv_key, first_recv)
+        self.assertEqual(len(send_key), 32)
+        self.assertNotEqual(recv_salt, send_salt)
+        self.assertEqual(mppe_vsa_values(resent, MS_MPPE_ENCRYPTION_POLICY),
+                         [struct.pack("!I", 1)])
+        self.assertEqual(mppe_vsa_values(resent, MS_MPPE_ENCRYPTION_TYPES),
+                         [struct.pack("!I", 6)])
 
 
 class EapTlsFragmentedServerFlight(EapTlsTestCase):

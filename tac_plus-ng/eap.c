@@ -562,6 +562,25 @@ static char *eap_extract_identity(tac_session *session, struct eap_session *es)
 }
 
 /*
+ * Add the default MS-MPPE-Encryption-Policy/Types and, once the TLS
+ * handshake has completed, the MSK halves as MS-MPPE-Recv-Key/Send-Key
+ * (RFC 5216 2.3, RFC 2548 2.4.2). rad_add_mppe_key() encrypts with this
+ * request's Request Authenticator, so an Access-Accept retransmission
+ * re-encrypts the retained MSK instead of replaying cached ciphertext.
+ */
+#ifdef WITH_CRYPTO
+static void eap_add_mppe(tac_session *session, struct eap_session *es)
+{
+    if (!session->ctx->key || !(es->flags & EAP_F_HANDSHAKE_DONE))
+	return;
+
+    rad_add_mppe_policy(session);
+    rad_add_mppe_key(session, es->msk, 32, RADIUS_A_MS_MPPE_RECV_KEY);
+    rad_add_mppe_key(session, es->msk + 32, 32, RADIUS_A_MS_MPPE_SEND_KEY);
+}
+#endif
+
+/*
  * Map the completed handshake to a user and run the existing authorization
  * path. On success send EAP-Success in an Access-Accept; the profile
  * attributes are already in session->radius_data->data. On an identity
@@ -594,6 +613,9 @@ static enum token eap_identity_authorize(tac_session *session, struct eap_sessio
 
     res = eap_authorize(session, &resp, &hint);
     if (res == S_permit) {
+#ifdef WITH_CRYPTO
+	eap_add_mppe(session, es);
+#endif
 	eap_send_success(session, es, identifier);
 	return res;
     }
@@ -876,6 +898,28 @@ static void eap_tls_fail(tac_session *session, struct eap_session *es, const cha
 }
 
 /*
+ * RFC 5216 2.3 / RFC 5705: export 128 bytes with the label "client EAP
+ * encryption" and an empty context. MSK = bytes 0..63, EMSK = 64..127.
+ * The temporary key material is cleansed and never logged.
+ */
+static int eap_derive_keys(tac_session *session, struct eap_session *es)
+{
+    u_char keymat[128];
+
+    if (SSL_export_keying_material(es->ssl, keymat, sizeof(keymat),
+				   "client EAP encryption", 21, NULL, 0, 0) != 1) {
+	OPENSSL_cleanse(keymat, sizeof(keymat));
+	eap_tls_fail(session, es, "key export");
+	return 0;
+    }
+
+    memcpy(es->msk, keymat, sizeof(es->msk));
+    memcpy(es->emsk, keymat + sizeof(es->msk), sizeof(es->emsk));
+    OPENSSL_cleanse(keymat, sizeof(keymat));
+    return 1;
+}
+
+/*
  * Empty EAP-Response/EAP-TLS with State: a fragment ACK or the final
  * handshake ACK (RFC 5216 2.1.5 / 2.1.3). Fragment ACKs move the queued
  * server flight forward one fragment at a time; only the ACK for the last
@@ -1069,6 +1113,12 @@ static void eap_tls_request(tac_session *session, struct eap_session *es,
     ret = SSL_do_handshake(es->ssl);
     if (ret == 1) {
 	es->flags |= EAP_F_HANDSHAKE_DONE;
+	if (r->eap_verify_client && SSL_get_verify_result(es->ssl) != X509_V_OK) {
+	    eap_tls_fail(session, es, "client certificate verification");
+	    return;
+	}
+	if (!eap_derive_keys(session, es))
+	    return;
     } else {
 	err = SSL_get_error(es->ssl, ret);
 	if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) {
@@ -1225,6 +1275,13 @@ void eap_radius_request(tac_session *session)
 	es->invalid = 0;
 	es->expires = io_now.tv_sec + r->eap_timeout;
 	es->last_activity = io_now.tv_sec;
+#ifdef WITH_CRYPTO
+	/* The reply cache holds EAP/State only; the MSK is retained in the
+	   completed eap_session and must be re-encrypted with the new
+	   Request Authenticator (RFC 2548 2.4.2). */
+	if (cached->code == RADIUS_CODE_ACCESS_ACCEPT)
+	    eap_add_mppe(session, es);
+#endif
 	rad_send_eap_reply(session, cached->code, cached->eap, cached->eap_len,
 			   cached->state, cached->state_len);
 	return;

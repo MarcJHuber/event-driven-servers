@@ -888,6 +888,10 @@ void authen_init(void);
 #ifdef WITH_SSL
 enum token eap_authorize(tac_session * session, char **resp, enum hint_enum * hint);
 #endif
+#ifdef WITH_CRYPTO
+void rad_add_mppe_key(tac_session * session, const u_char * key, size_t key_len, u_char attribute);
+void rad_add_mppe_policy(tac_session * session);
+#endif
 
 /* author.c */
 void author(tac_session *, tac_pak_hdr *);
