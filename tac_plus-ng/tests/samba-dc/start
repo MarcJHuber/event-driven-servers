@@ -2,6 +2,8 @@
 # Build and start the Samba AD DC of test_ldapmavis_ad.py, wait for LDAPS, print its TACTEST_SAMBA_* settings (NAME=value, no shell quotes).
 # usage: start [docker build arguments]; stop: docker rm -f "$TACTEST_SAMBA_CONTAINER" (each checkout has its own container)
 set -eu
+# without timeout, each LDAPS probe below fails as if the DC did not answer
+command -v timeout >/dev/null || { echo "start: the timeout command is missing (coreutils)" >&2; exit 1; }
 dir=$(cd "$(dirname "$0")" && pwd)
 out=$(cd "$dir/../../.." && pwd)/build/samba-dc
 image=tactest-samba-dc

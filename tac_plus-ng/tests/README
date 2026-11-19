@@ -51,7 +51,7 @@ the tests:
 
 test_ldapmavis_ad.py tests the Active Directory code of the LDAP
 back-ends against a Samba AD DC in a Docker container. It needs Docker,
-openssl and ldap-utils (ldapadd, ldapdelete, ldapsearch); without TACTEST_SAMBA_DC
+openssl, timeout (coreutils) and ldap-utils (ldapadd, ldapdelete, ldapsearch); without TACTEST_SAMBA_DC
 it is skipped. The Python back-end needs the ldap3 module
 (python3-ldap3), else its tests are skipped. samba-dc/start builds the image (another base image:
 --build-arg BASE=<image>; it passes all its arguments to docker build),

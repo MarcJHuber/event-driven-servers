@@ -506,5 +506,31 @@ if [ "$a" = -c ]; then cat; else echo "$a"; fi | {
         self.assertIn("ldapdelete failed (50)", self.errors(result))
         self.assertTrue([dn for dn in deleted if dn.startswith("OU=tactest-")], deleted)
 
+class SambaDcStart(unittest.TestCase):
+    """samba-dc/start with stand-ins for docker and openssl (no DC needed)."""
+
+    START = os.path.join(os.path.dirname(os.path.abspath(__file__)), "samba-dc", "start")
+
+    def test_missing_timeout(self):
+        """Without the timeout command, start stops before the image build, with a message that names it."""
+        with tempfile.TemporaryDirectory() as tmp:
+            for tool in ("dirname", "mkdir", "cksum", "cut", "sed", "sleep"):
+                os.symlink(shutil.which(tool), os.path.join(tmp, tool))
+            log = os.path.join(tmp, "docker.log")
+            # the container stops at once: without timeout, start then says that the DC does not answer
+            for tool, body in (("docker", f'echo "$1" >> "{log}"\ncase $1 in port) echo 127.0.0.1:1;; '
+                                          'inspect) echo false;; esac'),
+                               ("openssl", "echo 00")):
+                with open(os.path.join(tmp, tool), "w") as f:
+                    f.write("#!/bin/sh\n" + body + "\n")
+                os.chmod(os.path.join(tmp, tool), 0o755)
+            p = subprocess.run(["/bin/sh", self.START], env={"PATH": tmp}, capture_output=True, text=True,
+                               check=False)
+            ran = os.path.exists(log)
+        self.assertEqual(p.returncode, 1, p.stderr)
+        self.assertIn("start: the timeout command is missing", p.stderr)
+        self.assertFalse(ran, "start ran docker")
+
+
 if __name__ == "__main__":
     unittest.main()
