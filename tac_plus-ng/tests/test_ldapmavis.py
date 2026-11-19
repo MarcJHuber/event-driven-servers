@@ -1,10 +1,11 @@
-"""LDAP backends against a real OpenLDAP slapd: ldapmavis-mt (external-mt) and mavis_tacplus-ng_ldap.pl (external).
+"""LDAP backends against a real OpenLDAP slapd: ldapmavis-mt, mavis_tacplus-ng_ldap.pl and mavis_tacplus_ldap.pl.
 
 Every test starts a slapd of its own, as a normal process on a free
 loopback port, with a database that slapadd fills before the start. The
 anonymous user can only bind, so the backend must bind as LDAP_USER to
 search. alice is a member of netadmins, and netadmins is a member of
-staff; dave is a direct member of staff; bob is in no group.
+staff; dave is a direct member of staff; bob is in no group. erin and
+frank have the tacacs schema of mavis/perl; the password of frank expired.
 """
 
 import glob
@@ -18,7 +19,7 @@ import tempfile
 import time
 import unittest
 
-from tactest import DaemonTestCase, prefix
+from tactest import DaemonTestCase, Stub, prefix
 from tactest.daemon import free_port
 
 SLAPD = shutil.which("slapd") or "/usr/sbin/slapd"
@@ -27,6 +28,8 @@ SCHEMA_DIRS = ("/etc/ldap/schema", "/etc/openldap/schema")
 MODULE_DIRS = ("/usr/lib/ldap", "/usr/lib/openldap", "/usr/lib64/openldap", "/usr/libexec/openldap")
 LDAPMAVIS = os.path.join(prefix(), "sbin", "ldapmavis-mt")
 LDAP_PERL = os.path.join(prefix(), "lib", "mavis", "mavis_tacplus-ng_ldap.pl")
+LDAP_PERL_OLD = os.path.join(prefix(), "lib", "mavis", "mavis_tacplus_ldap.pl")
+TACACS_SCHEMA = os.path.join(prefix(), "lib", "mavis", "extra", "tacacs.schema")
 PERL = shutil.which("perl") or "/usr/bin/perl"
 START_TIMEOUT = 10.0
 
@@ -38,6 +41,8 @@ SLAPD_CONF = string.Template("""\
 include $core
 include $cosine
 include $inetorgperson
+include $nis
+include $tacacs
 $modules
 pidfile $pidfile
 argsfile $argsfile
@@ -111,6 +116,24 @@ objectClass: groupOfNames
 cn: staff
 member: cn=netadmins,ou=groups,$base
 member: uid=dave,ou=people,$base
+
+dn: uid=erin,ou=people,$base
+objectClass: inetOrgPerson
+objectClass: tacacsAccount
+uid: erin
+cn: Erin
+sn: Erin
+userPassword: erinpw
+
+dn: uid=frank,ou=people,$base
+objectClass: inetOrgPerson
+objectClass: shadowAccount
+objectClass: tacacsAccount
+uid: frank
+cn: Frank
+sn: Frank
+userPassword: frankpw
+shadowExpire: 1
 """).substitute(base=BASE, reader=READER, staff=STAFF)
 
 
@@ -154,7 +177,8 @@ class Slapd:
         schema = first_existing(SCHEMA_DIRS)
         if schema is None:
             raise AssertionError(f"no OpenLDAP schema directory in {SCHEMA_DIRS}")
-        paths = {n: os.path.join(schema, n + ".schema") for n in ("core", "cosine", "inetorgperson")}
+        paths = {n: os.path.join(schema, n + ".schema") for n in ("core", "cosine", "inetorgperson", "nis")}
+        paths.update(tacacs=TACACS_SCHEMA)
         paths.update(pidfile=os.path.join(directory, "slapd.pid"), argsfile=os.path.join(directory, "slapd.args"),
                      db=os.path.join(directory, "db"))
         with open(self.conf, "w") as f:
@@ -335,6 +359,63 @@ class LdapPerl(LdapTests, DaemonTestCase):
     def module(self, url, extra):
         return MODULE.substitute(module="external", url=url, base=BASE, reader=READER, extra=extra,
                                  exec=f'"{PERL}" "perl" "{LDAP_PERL}"')
+
+
+# mavis_tacplus_ldap.pl; one child, so a change of its state shows in its next request
+MODULE_OLD = string.Template("""
+	mavis module ldap = external {
+		setenv LDAP_SERVER_TYPE = "tacacs_schema"
+		setenv LDAP_HOSTS = "$url"
+		setenv LDAP_BASE = "$base"
+		setenv LDAP_USER = "$reader"
+		setenv LDAP_PASSWD = "readerpw"
+$extra		childs min = 1
+		childs max = 1
+		exec = "$perl" "perl" "$script"
+	}
+""")
+
+POLICY_OLD = """
+	user backend = mavis
+	login backend = mavis
+	pap backend = mavis
+	ruleset { rule { script { permit } } }
+"""
+
+
+@unittest.skipUnless(os.access(SLAPD, os.X_OK), "no OpenLDAP slapd")
+@unittest.skipUnless(perl_ldap(), "no Net::LDAP or IO::Socket::SSL for Perl")
+class LdapPerlTacacsSchema(DaemonTestCase):
+    """mavis_tacplus_ldap.pl with LDAP_SERVER_TYPE = tacacs_schema; its default filter needs the tacacsAccount class."""
+
+    CONFIG = None
+
+    def start(self, stub=False, **env):
+        """Start slapd and the daemon; stub: the stub back-end is the next MAVIS module."""
+        slapd = Slapd(tempfile.mkdtemp(prefix="slapd-", dir=os.path.dirname(self.scratch_file("slapd", ""))))
+        self.addCleanup(slapd.stop)
+        slapd.start()
+        extra = "".join(f'\t\tsetenv {name} = "{value}"\n' for name, value in env.items())
+        module = MODULE_OLD.substitute(url=slapd.url, base=BASE, reader=READER, extra=extra, perl=PERL,
+                                       script=LDAP_PERL_OLD)
+        return self.start_daemon(module + (Stub.module(childs=(1, 1)) if stub else "") + POLICY_OLD)
+
+    def test_expired_password(self):
+        """The password of frank expired (shadowExpire); alice has no tacacsAccount class."""
+        d = self.start()
+        for user, password, status in (("erin", "erinpw", "PASS"), ("erin", "wrong", "FAIL"),
+                                       ("frank", "frankpw", "FAIL"), ("alice", "alicepw", "FAIL")):
+            with self.subTest(user=user, password=password), d.connect() as c:
+                self.assertEqual(c.pap(user, password).status_name, status)
+
+    def test_authorize_only(self):
+        """FLAG_AUTHORIZE_ONLY: the back-end does not check the password, the next module does, in every request."""
+        d = self.start(stub=True, FLAG_AUTHORIZE_ONLY="1")
+        Stub(d).set(users={"erin": {"password": "stubpw"}, "frank": {"password": "stubpw"}})
+        for user, password, status in (("erin", "wrong", "FAIL"), ("erin", "erinpw", "FAIL"),
+                                       ("erin", "stubpw", "PASS"), ("frank", "stubpw", "PASS")):
+            with self.subTest(user=user, password=password), d.connect() as c:
+                self.assertEqual(c.pap(user, password).status_name, status)
 
 
 if __name__ == "__main__":
