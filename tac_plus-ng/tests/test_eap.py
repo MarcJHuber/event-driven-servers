@@ -37,6 +37,7 @@ import hashlib
 import os
 import ssl
 import struct
+import time
 import unittest
 
 from tactest import SOURCE, DaemonTestCase, features, radius, tls
@@ -383,13 +384,15 @@ class TlsProfile(unittest.TestCase):
         self.assertEqual(ctx.maximum_version, ssl.TLSVersion.TLSv1_2)
 
 
-def eap_policy(identity_source="cert-cn", verify_client="yes", dictionary="", users=""):
+def eap_policy(identity_source="cert-cn", verify_client="yes", dictionary="", users="", extra=""):
     """An EAP realm policy; leaves %s placeholders for server cert, key and CA.
 
     users adds user (and extra profile) blocks to the shared eap-profile,
     which sets a RADIUS attribute so an Access-Accept proves that the
     profile was evaluated. dictionary is prepended to the included
     dictionary, for tests that need a different type for an attribute.
+    extra adds directives (timeout, max-message, max-sessions) to the
+    eap block.
     """
     return """
 %s\tinclude = "%s"
@@ -400,7 +403,7 @@ def eap_policy(identity_source="cert-cn", verify_client="yes", dictionary="", us
 \t\tca-file = %%s
 \t\tverify-client = %s
 \t\teap-identity-source = %s
-\t}
+%s\t}
 \tdevice radius-nas {
 \t\taddress = 127.0.0.6
 \t\tkey = tactest
@@ -412,7 +415,7 @@ def eap_policy(identity_source="cert-cn", verify_client="yes", dictionary="", us
 \t\t\tpermit
 \t\t}
 \t}
-%s""" % (dictionary, DICTIONARY, verify_client, identity_source, users)
+%s""" % (dictionary, DICTIONARY, verify_client, identity_source, extra, users)
 
 
 EAP_USERS = """
@@ -489,16 +492,17 @@ class EapTlsPeer:
     EAP-Response/EAP-TLS (six bytes, flags 0).
     """
 
-    def __init__(self, client, ca, identity, cert=None):
+    def __init__(self, client, ca, identity, cert=None, versions=None, message_authenticator=True):
         self.client = client
         self.identity = identity
         self.state = None
         self.identifier = 1
         self.incoming = ssl.MemoryBIO()
         self.outgoing = ssl.MemoryBIO()
-        self.ctx = ca.context(cert=cert,
-                              minimum=ssl.TLSVersion.TLSv1_2,
-                              maximum=ssl.TLSVersion.TLSv1_2)
+        if versions is None:
+            versions = (ssl.TLSVersion.TLSv1_2, ssl.TLSVersion.TLSv1_2)
+        self.ctx = ca.context(cert=cert, minimum=versions[0], maximum=versions[1])
+        self.message_authenticator = message_authenticator
         self.sslobj = self.ctx.wrap_bio(self.incoming, self.outgoing,
                                         server_hostname="localhost")
         self.tls_requests = 0
@@ -514,7 +518,7 @@ class EapTlsPeer:
             attrs.append((radius.STATE, self.state))
         req = radius.Packet(radius.ACCESS_REQUEST, attributes=attrs)
         self.last_request = req
-        r = self.client.exchange(req, message_authenticator=True)
+        r = self.client.exchange(req, message_authenticator=self.message_authenticator)
         self.last_reply = r
         self.state = (r.get(radius.STATE) or [None])[0]
         return r
@@ -524,7 +528,7 @@ class EapTlsPeer:
         attrs = [(radius.USER_NAME, self.identity.encode())] + radius.eap_attributes(eap)
         attrs.append((radius.STATE, state))
         req = radius.Packet(radius.ACCESS_REQUEST, attributes=attrs)
-        return self.client.exchange(req, message_authenticator=True)
+        return self.client.exchange(req, message_authenticator=self.message_authenticator)
 
     def start(self):
         """Identity -> EAP-Request/EAP-TLS Start; leaves peer.identifier at the Start id."""
@@ -729,6 +733,7 @@ class EapTlsTestCase(DaemonTestCase):
 
     UDP = True
     POLICY = EAP_POLICY
+    TLS_TRANSPORT = False
 
     @classmethod
     def server_certificate(cls):
@@ -746,7 +751,12 @@ class EapTlsTestCase(DaemonTestCase):
         try:
             cls.client_cert = cls.client_certificate()
             server = cls.server_certificate()
-            cls.CONFIG = cls.POLICY % (server[0], server[1], cls.ca.cert)
+            if cls.TLS_TRANSPORT:
+                # TLS listener and EAP TLS both use the CA's server credentials.
+                cls.CONFIG = cls.POLICY % (server[0], server[1], cls.ca.cert,
+                                           server[0], server[1], cls.ca.cert)
+            else:
+                cls.CONFIG = cls.POLICY % (server[0], server[1], cls.ca.cert)
             super().setUpClass()
         except Exception:
             cls.ca.remove()
@@ -1167,3 +1177,417 @@ class EapTlsEapIdentityLab(EapTlsTestCase):
         peer.handshake()
         self.assertEqual(peer.last_reply.code_name, "Access-Accept", peer.last_reply)
         self.assertEqual(cisco_avpairs(peer.last_reply), [b"shell:priv-lvl=15"])
+
+
+def access_request(eap, state=None, user="cert-user"):
+    """An Access-Request with an EAP-Message (and optional State) from the test NAS."""
+    attrs = [(radius.USER_NAME, user.encode())] + radius.eap_attributes(eap)
+    if state is not None:
+        attrs.append((radius.STATE, state))
+    return radius.Packet(radius.ACCESS_REQUEST, attributes=attrs)
+
+
+def tls11_client_hello():
+    """A ClientHello of a client that speaks TLS 1.1 at most (no supported_versions extension)."""
+    body = b"\x03\x02" + os.urandom(32) + b"\x00" + b"\x00\x04\xc0\x13\x00\x2f" + b"\x01\x00"
+    handshake = b"\x01" + len(body).to_bytes(3, "big") + body
+    return b"\x16\x03\x01" + len(handshake).to_bytes(2, "big") + handshake
+
+
+EAP_SHORT_TIMEOUT_POLICY = eap_policy(users=EAP_USERS, extra="\t\ttimeout = 1\n")
+EAP_SMALL_MAX_MESSAGE_POLICY = eap_policy(users=EAP_USERS, extra="\t\tmax-message = 64\n")
+EAP_SMALL_MAX_SESSIONS_POLICY = eap_policy(users=EAP_USERS, extra="\t\tmax-sessions = 2\n")
+
+
+def eap_tls_transport_policy(users=EAP_USERS):
+    """EAP over RADIUS/TLS: a TLS listener plus the EAP realm credentials.
+
+    The six %s placeholders are the TLS listener certificate/key/CA and the
+    EAP TLS certificate/key/CA; EapTlsTestCase formats them from its CA.
+    """
+    return """
+\tinclude = "%s"
+\ttls cert-file = %%s
+\ttls key-file = %%s
+\ttls ca-file = %%s
+\teap {
+\t\teap-method = tls
+\t\tcert-file = %%s
+\t\tkey-file = %%s
+\t\tca-file = %%s
+\t\tverify-client = yes
+\t\teap-identity-source = cert-cn
+\t}
+\tdevice radius-nas {
+\t\taddress = 127.0.0.6
+\t\tkey = tactest
+\t\tradius.key = radsecret
+\t}
+\tprofile eap-profile {
+\t\tscript {
+\t\t\tset radius[Cisco:Cisco-AVPair] = "shell:priv-lvl=15"
+\t\t\tpermit
+\t\t}
+\t}
+%s""" % (DICTIONARY, users)
+
+
+EAP_TLS_TRANSPORT_POLICY = eap_tls_transport_policy()
+
+
+class EapMessageAuthenticator(EapTlsTestCase):
+    """Message-Authenticator on UDP: missing or wrong is a silent discard (RFC 3579 3.2)."""
+
+    def request(self):
+        eap = radius.eap_packet(radius.EAP_RESPONSE, 1, radius.EAP_TYPE_IDENTITY, b"cert-user")
+        return access_request(eap)
+
+    def test_missing_message_authenticator_gets_no_reply(self):
+        c = self.radius("radsecret", timeout=1.0)
+        c.send_raw(self.request().encode("radsecret"))
+        with self.assertRaises(TimeoutError):
+            c.recv_raw()
+        # The daemon is alive: the same request with the attribute is answered.
+        r = c.exchange(self.request(), message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Challenge", r)
+
+    def test_wrong_message_authenticator_gets_no_reply(self):
+        c = self.radius("radsecret", timeout=1.0)
+        c.send_raw(self.request().encode("radsecret", message_authenticator=b"\x01" * 16))
+        with self.assertRaises(TimeoutError):
+            c.recv_raw()
+        r = c.exchange(self.request(), message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Challenge", r)
+
+
+class EapState(EapTlsTestCase):
+    """State handling: unknown and overlong State are rejected with EAP-Failure."""
+
+    def test_unknown_state_is_rejected(self):
+        c = self.radius("radsecret")
+        eap = radius.eap_tls_ack(1)
+        r = c.exchange(access_request(eap, b"\xaa" * EAP_STATE_LEN),
+                       message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Reject", r)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(r)),
+                         (radius.EAP_FAILURE, 1, 4))
+
+    def test_state_longer_than_eap_state_len_is_rejected(self):
+        c = self.radius("radsecret")
+        eap = radius.eap_tls_ack(1)
+        r = c.exchange(access_request(eap, b"\xbb" * (EAP_STATE_LEN + 1)),
+                       message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Reject", r)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(r)),
+                         (radius.EAP_FAILURE, 1, 4))
+
+
+class EapExpiredState(EapTlsTestCase):
+    """An expired State is rejected; the periodic handler purges it (timeout = 1)."""
+
+    POLICY = EAP_SHORT_TIMEOUT_POLICY
+
+    def test_expired_state_is_rejected(self):
+        c = self.radius("radsecret")
+        eap = radius.eap_packet(radius.EAP_RESPONSE, 1, radius.EAP_TYPE_IDENTITY, b"cert-user")
+        r = c.exchange(access_request(eap), message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Challenge", r)
+        identifier = radius.eap_from_reply(r)[1]
+        state = (r.get(radius.STATE) or [None])[0]
+        self.assertTrue(state, "Access-Challenge without State")
+
+        time.sleep(3.0)     # timeout = 1, the periodic handler runs every 2 s
+
+        nak = radius.eap_packet(radius.EAP_RESPONSE, identifier, radius.EAP_TYPE_NAK,
+                                bytes([radius.EAP_TYPE_TLS]))
+        reply = c.exchange(access_request(nak, state), message_authenticator=True)
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(reply)),
+                         (radius.EAP_FAILURE, identifier, 4))
+
+
+class EapSessionCap(EapTlsTestCase):
+    """max-sessions = 2: the oldest session by last_activity is evicted."""
+
+    POLICY = EAP_SMALL_MAX_SESSIONS_POLICY
+
+    def identity(self, c):
+        eap = radius.eap_packet(radius.EAP_RESPONSE, 1, radius.EAP_TYPE_IDENTITY, b"cert-user")
+        r = c.exchange(access_request(eap), message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Challenge", r)
+        return radius.eap_from_reply(r)[1], (r.get(radius.STATE) or [None])[0]
+
+    def nak(self, c, identifier, state):
+        eap = radius.eap_packet(radius.EAP_RESPONSE, identifier, radius.EAP_TYPE_NAK,
+                                bytes([radius.EAP_TYPE_TLS]))
+        return c.exchange(access_request(eap, state), message_authenticator=True)
+
+    def test_oldest_session_is_evicted(self):
+        c = self.radius("radsecret")
+        ident1, state1 = self.identity(c)
+        time.sleep(1.1)
+        _, state2 = self.identity(c)
+        time.sleep(1.1)
+        ident3, state3 = self.identity(c)
+        self.assertTrue(state1 and state2 and state3)
+
+        # The first session is the oldest by last_activity and was evicted
+        # when the third was created, even if its State sorts first.
+        reply = self.nak(c, ident1, state1)
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(reply)),
+                         (radius.EAP_FAILURE, ident1, 4))
+
+        # The newest session is still there and answers a Nak with TLS Start.
+        reply = self.nak(c, ident3, state3)
+        self.assertEqual(reply.code_name, "Access-Challenge", reply)
+        eap = radius.eap_from_reply(reply)
+        self.assertEqual(eap[4], radius.EAP_TYPE_TLS, eap)
+        self.assertTrue(eap[5] & radius.EAP_TLS_S, eap)
+
+
+class EapOversizedMessage(EapTlsTestCase):
+    """EAP-Message over max-message (64) is rejected before reassembly."""
+
+    POLICY = EAP_SMALL_MAX_MESSAGE_POLICY
+
+    def test_oversized_eap_message_is_rejected(self):
+        c = self.radius("radsecret")
+        eap = radius.eap_packet(radius.EAP_RESPONSE, 1, radius.EAP_TYPE_IDENTITY, b"x" * 100)
+        r = c.exchange(access_request(eap), message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Reject", r)
+        self.assertEqual(radius.eap_from_reply(r)[0], radius.EAP_FAILURE, r)
+
+
+class EapProtocol(EapTlsTestCase):
+    """Role reversal, Nak handling, malformed EAP lengths and retransmission."""
+
+    def test_eap_request_from_nas_gets_nak(self):
+        """RADIUS role reversal (RFC 3579 2.6.2): Nak proposing EAP-TLS."""
+        c = self.radius("radsecret")
+        eap = radius.eap_packet(radius.EAP_REQUEST, 7, radius.EAP_TYPE_IDENTITY, b"cert-user")
+        r = c.exchange(access_request(eap), message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Reject", r)
+        self.assertEqual(radius.eap_from_reply(r),
+                         struct.pack("!BBH", radius.EAP_RESPONSE, 7, 6) + bytes([3, 13]))
+
+    def test_nak_without_tls_gets_failure(self):
+        c = self.radius("radsecret")
+        eap = radius.eap_packet(radius.EAP_RESPONSE, 5, radius.EAP_TYPE_NAK,
+                                bytes([4]))      # EAP-MD5, not TLS
+        r = c.exchange(access_request(eap), message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Reject", r)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(r)),
+                         (radius.EAP_FAILURE, 5, 4))
+
+    def test_malformed_eap_length_is_rejected(self):
+        c = self.radius("radsecret")
+        for length in (0, 1, 3, 100):
+            with self.subTest(length=length):
+                eap = struct.pack("!BBH", radius.EAP_RESPONSE, 1, length) + b"\x0d\x00"
+                r = c.exchange(access_request(eap), message_authenticator=True)
+                self.assertEqual(r.code_name, "Access-Reject", r)
+                self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(r)),
+                                 (radius.EAP_FAILURE, 1, 4))
+
+    def test_trailing_padding_is_accepted(self):
+        """Octets beyond the declared EAP Length are padding (RFC 5216 3.1/3.2)."""
+        c = self.radius("radsecret")
+        eap = radius.eap_packet(radius.EAP_RESPONSE, 1, radius.EAP_TYPE_IDENTITY, b"alice")
+        eap += b"\xff\x00"           # declared length 10, two padding bytes
+        r = c.exchange(access_request(eap), message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Challenge", r)
+        reply = radius.eap_from_reply(r)
+        self.assertEqual(reply[0], radius.EAP_REQUEST, reply)
+        self.assertEqual(reply[4], radius.EAP_TYPE_TLS, reply)
+        self.assertTrue(reply[5] & radius.EAP_TLS_S, reply)
+        self.assertTrue(r.get(radius.STATE), "Access-Challenge without State")
+
+    def test_eap_tls_response_with_s_bit_is_rejected(self):
+        """RFC 5216 3.2: the S bit MUST NOT be set in an EAP-Response."""
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.start()
+        eap = radius.eap_tls_packet(radius.EAP_RESPONSE, peer.identifier, radius.EAP_TLS_S)
+        reply = peer.send_eap_state(eap, peer.state)
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(reply)),
+                         (radius.EAP_FAILURE, peer.identifier, 4))
+
+    def test_reserved_bits_are_ignored(self):
+        """Reserved bits are ignored on receive; the TLS data is processed."""
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.start()
+        try:
+            peer.sslobj.do_handshake()
+        except ssl.SSLWantReadError:
+            clienthello = peer.outgoing.read()
+        else:
+            raise AssertionError("client handshake finished before the server flight")
+        eap = radius.eap_tls_packet(radius.EAP_RESPONSE, peer.identifier, 0x01, clienthello)
+        reply = peer.send_eap(eap)
+        self.assertEqual(reply.code_name, "Access-Challenge", reply)
+        _, _, data, _ = peer.parse_request(radius.eap_from_reply(reply))
+        self.assertTrue(data, "server sent no TLS data")
+        self.assertEqual(data[0], 22, "expected a TLS handshake record, got %r" % data[:8])
+
+    def test_initial_identity_retransmission_gets_fresh_challenge(self):
+        """A repeated no-State Identity creates a new session with a new State."""
+        c = self.radius("radsecret")
+        eap = radius.eap_packet(radius.EAP_RESPONSE, 1, radius.EAP_TYPE_IDENTITY, b"cert-user")
+        request = access_request(eap)
+        first = c.exchange(request, message_authenticator=True)
+        second = c.exchange(request, message_authenticator=True)
+        for reply in (first, second):
+            self.assertEqual(reply.code_name, "Access-Challenge", reply)
+            reply_eap = radius.eap_from_reply(reply)
+            self.assertEqual(reply_eap[0], radius.EAP_REQUEST, reply_eap)
+            self.assertEqual(reply_eap[4], radius.EAP_TYPE_TLS, reply_eap)
+            self.assertTrue(reply_eap[5] & radius.EAP_TLS_S, reply_eap)
+            self.assertEqual(len(reply.get(radius.STATE)[0]), EAP_STATE_LEN)
+        self.assertNotEqual(first.get(radius.STATE), second.get(radius.STATE),
+                            "retransmitted Identity reused the old session")
+
+
+class EapTlsFragmentConformance(EapTlsTestCase):
+    """RFC 5216 2.1.5: the first fragment of a fragmented TLS message needs L."""
+
+    def test_first_fragment_with_m_and_without_l_is_rejected(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.start()
+        fragment = radius.eap_tls_packet(radius.EAP_RESPONSE, peer.identifier,
+                                         radius.EAP_TLS_M, b"\x16\x03\x03" + bytes(97))
+        reply = peer.send_eap_state(fragment, peer.state)
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(reply)),
+                         (radius.EAP_FAILURE, peer.identifier, 4))
+
+
+class EapTlsProfile(EapTlsTestCase):
+    """The server pins TLS 1.2: TLS 1.0/1.1 and TLS 1.3-only clients fail."""
+
+    def answer_alert(self, reply, peer):
+        """If the server sent its TLS alert in a Challenge, answer it with the final ACK."""
+        if reply.code_name != "Access-Challenge":
+            return reply
+        identifier, _, data, _ = peer.parse_request(radius.eap_from_reply(reply))
+        self.assertTrue(data and data[0] == 21, "expected a TLS alert, got %r" % data[:8])
+        return peer.send_eap(radius.eap_tls_ack(identifier))
+
+    def test_tls11_only_client_is_rejected(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.start()
+        reply = peer.send_eap(radius.eap_tls_packet(radius.EAP_RESPONSE, peer.identifier,
+                                                    0, tls11_client_hello()))
+        reply = self.answer_alert(reply, peer)
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        self.assertEqual(radius.eap_from_reply(reply)[0], radius.EAP_FAILURE, reply)
+
+    def test_tls13_only_client_is_rejected(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert,
+                          versions=(ssl.TLSVersion.TLSv1_3, ssl.TLSVersion.TLSv1_3))
+        peer.start()
+        try:
+            peer.sslobj.do_handshake()
+        except ssl.SSLWantReadError:
+            clienthello = peer.outgoing.read()
+        else:
+            raise AssertionError("TLS 1.3-only client handshake completed")
+        self.assertTrue(clienthello, "client sent no ClientHello")
+        reply = peer.send_eap(radius.eap_tls_packet(radius.EAP_RESPONSE, peer.identifier,
+                                                    0, clienthello))
+        reply = self.answer_alert(reply, peer)
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        self.assertEqual(radius.eap_from_reply(reply)[0], radius.EAP_FAILURE, reply)
+
+
+class EapPeerServerAuthFailure(EapTlsTestCase):
+    """A peer-reported server-authentication failure gets EAP-Failure immediately."""
+
+    def test_peer_reported_server_authentication_failure_gets_immediate_failure(self):
+        other_ca = tls.CA(self.__class__.__name__ + "-other-ca")
+        self.addCleanup(other_ca.remove)
+
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, other_ca, "cert-user", cert=self.client_cert)
+        peer.start()
+        try:
+            peer.sslobj.do_handshake()
+        except ssl.SSLWantReadError:
+            clienthello = peer.outgoing.read()
+        else:
+            raise AssertionError("client handshake finished before the server flight")
+
+        reply = peer.send_eap(radius.eap_tls_packet(radius.EAP_RESPONSE, peer.identifier,
+                                                    0, clienthello))
+        _, data = peer.receive_request(reply)
+        peer.incoming.write(data)
+        with self.assertRaises(ssl.SSLCertVerificationError):
+            peer.sslobj.do_handshake()
+        alert = peer.outgoing.read()
+        self.assertTrue(alert, "client sent no TLS alert")
+        self.assertEqual(alert[0], 21, alert[:8])
+
+        # RFC 5216 2.1.3: answer the peer's alert with EAP-Failure, not
+        # another alert in an Access-Challenge.
+        reply = peer.send_eap(radius.eap_tls_packet(radius.EAP_RESPONSE, peer.identifier,
+                                                    0, alert))
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(reply)),
+                         (radius.EAP_FAILURE, peer.identifier, 4))
+
+
+class EapUdpSingleProcess(EapTlsTestCase):
+    """UDP EAP with spawnd's single process mode (local state, no broker)."""
+
+    SPAWND = "\tsingle process = yes\n"
+
+    def test_udp_handshake_with_single_process(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.handshake()
+        self.assertEqual(peer.sslobj.version(), "TLSv1.2")
+
+
+class EapTcpTransport(EapTlsTestCase):
+    """RADIUS/TCP (RFC 6613) EAP uses local state and completes the handshake."""
+
+    def test_radius_over_tcp_completes_handshake(self):
+        c = self.radius("radsecret", tcp=True)
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.handshake()
+        self.assertEqual(peer.last_reply.code_name, "Access-Accept", peer.last_reply)
+        self.assertIs(peer.last_reply.message_authenticator, True)
+
+
+class EapTlsTransport(EapTlsTestCase):
+    """RADIUS/TLS (RFC 6614) EAP uses local state; absent Message-Authenticator is accepted."""
+
+    LISTEN = {"tls": "tls = yes"}
+    UDP = False
+    TLS_TRANSPORT = True
+    POLICY = EAP_TLS_TRANSPORT_POLICY
+
+    def radsec(self):
+        return self.radius("radsec", listener="tls", tls=self.ca.context(self.client_cert))
+
+    def test_radius_over_tls_completes_handshake(self):
+        c = self.radsec()
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.handshake()
+        self.assertEqual(peer.last_reply.code_name, "Access-Accept", peer.last_reply)
+        self.assertIs(peer.last_reply.message_authenticator, True)
+
+    def test_missing_message_authenticator_over_tls_is_accepted(self):
+        """RFC 6614 relaxes RFC 3579: no Message-Authenticator in the request is fine."""
+        c = self.radsec()
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert,
+                          message_authenticator=False)
+        peer.handshake()
+        self.assertEqual(peer.last_reply.code_name, "Access-Accept", peer.last_reply)
+        self.assertIs(peer.last_reply.message_authenticator, True,
+                      "replies over RADIUS/TLS must carry a Message-Authenticator")

@@ -330,6 +330,7 @@ class Daemon:
         self.suppressions = suppressions
         self.spawnd, self.top, self.template = spawnd, top, template
         self.program = program
+        self.single_process = bool(re.search(r"single\s+process\s*=\s*yes", spawnd, re.I))
         self.generation = 0
         self.tmp = scratch_dir(name)
         self.cfg = os.path.join(self.tmp, program + ".cfg")
@@ -410,8 +411,10 @@ class Daemon:
             code = self.proc.poll()
             if code is not None:
                 return code
-            # spawnd binds before it forks the first worker
-            if self._listening(family) and (not LINUX or self.workers()):
+            # spawnd binds before it forks the first worker; with
+            # "single process = yes" it serves the daemon itself, so there
+            # is no worker child to wait for.
+            if self._listening(family) and (not LINUX or self.workers() or self.single_process):
                 self.snapshot()
                 return None
             select.select([], [], [], 0.02)
@@ -575,13 +578,19 @@ class Daemon:
         if self.proc is not None:
             self.snapshot()
             if self.proc.poll() is None:
-                self.proc.terminate()
-                try:
-                    self.proc.wait(STOP_TIMEOUT)
-                except subprocess.TimeoutExpired:
-                    problems.append("master %d ignored SIGTERM for %.0f s" % (self.pid, STOP_TIMEOUT))
+                if self.single_process:
+                    # spawnd in single process mode returns before it sets up
+                    # its signal handlers, so SIGTERM stays blocked.
                     self.proc.kill()
                     self.proc.wait()
+                else:
+                    self.proc.terminate()
+                    try:
+                        self.proc.wait(STOP_TIMEOUT)
+                    except subprocess.TimeoutExpired:
+                        problems.append("master %d ignored SIGTERM for %.0f s" % (self.pid, STOP_TIMEOUT))
+                        self.proc.kill()
+                        self.proc.wait()
             self._sweep_sessions()
             for pid, start in self.seen.items():
                 if alive(pid, start):

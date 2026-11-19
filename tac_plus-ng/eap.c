@@ -1045,6 +1045,13 @@ static void eap_tls_request(tac_session *session, struct eap_session *es,
      * pending reassembly feeds parsed->data directly.
      */
     if (parsed->flags & (EAP_TLS_FLAG_L | EAP_TLS_FLAG_M) || es->tls_len || es->tls_total) {
+	/* RFC 5216 2.1.5: L is set on the first fragment of a fragmented
+	   TLS message. A first fragment with M but no L is malformed. */
+	if (!es->tls_len && !es->tls_total &&
+	    (parsed->flags & EAP_TLS_FLAG_M) && !(parsed->flags & EAP_TLS_FLAG_L)) {
+	    eap_send_failure(session, es, parsed->identifier);
+	    return;
+	}
 	if (parsed->flags & EAP_TLS_FLAG_L) {
 	    uint32_t total;
 
