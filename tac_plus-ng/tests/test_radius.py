@@ -36,7 +36,7 @@ import subprocess
 import tempfile
 import unittest
 
-from tactest import LINUX, SOURCE, DaemonTestCase, config, features, radius, tacacs
+from tactest import LINUX, SOURCE, DaemonTestCase, Stub, config, features, radius, tacacs
 from tactest.daemon import binary, parse_only, sanitizer_env
 
 DICTIONARY = os.path.join(SOURCE, "tac_plus-ng", "sample", "radius-dict.cfg")
@@ -1005,6 +1005,75 @@ class UnknownHost(DaemonTestCase):
         with d.connect(source="127.0.0.2", timeout=2.0) as c:
             c.send(tacacs.Packet.authen_start(user="alice"))
             self.assertTrue(c.closed(), "the daemon answered a device it doesn't know")
+
+
+VENDOR_SPECIFIC = 26
+CISCO_VENDOR = 9
+ACL_DOWNLOAD = b"aaa:event=acl-download"
+
+DACLS = """
+	dacl acl-voice { data = "permit ip any any" }
+	dacl demoacl { data = "permit ip any any" }
+	log rad-access { destination = "$tmp/rad-access.log" }
+	radius.access log = rad-access
+"""
+
+
+class DaclName:
+    """A dACL download "#ACSACL#<name>-<version>" gets the static dACL <name>; DaemonTestCase mixin.
+
+    do_radius_dacl() cut the name at the last hyphen, also when there was
+    none: str_set() then got the length NULL - name, and the access log
+    read past the end of the user name. With "user backend = mavis", a
+    MAVIS answer other than OK runs the handler a second time, on the name
+    already cut: "acl-voice" became "acl", "demoacl" had no hyphen left.
+    """
+
+    UDP = True
+
+    def download(self, user, name):
+        off = self.daemon.log_size("rad-access")
+        r = self.radius(SECRET, source=NAS).access_request(
+            user, "", message_authenticator=True,
+            attributes=[(VENDOR_SPECIFIC, struct.pack("!IBB", CISCO_VENDOR, 1, len(ACL_DOWNLOAD) + 2) + ACL_DOWNLOAD)])
+        self.assertEqual(r.code_name, "Access-Accept", r)
+        self.assertIn(b"ip:inacl#1=permit ip any any", b"".join(r.get(VENDOR_SPECIFIC)), r)
+        log = self.daemon.wait_log("rad-access", "User-Name=%s " % user, offset=off)
+        line = next(line for line in log.splitlines() if "User-Name=%s " % user in line)
+        self.assertEqual(line.split("\t")[1], name, line)
+        self.assertIn("dacl request succeeded", line)
+
+    def test_hyphen_in_the_name(self):
+        self.download("#ACSACL#acl-voice-00000000", "acl-voice")
+
+    def test_no_hyphen_in_the_name(self):
+        self.download("#ACSACL#demoacl-00000000", "demoacl")
+
+    def test_no_version(self):
+        self.download("#ACSACL#demoacl", "demoacl")
+
+
+class DaclNameStatic(DaclName, DaemonTestCase):
+    CONFIG = POLICY + DACLS
+
+
+class DaclNameBackendNotFound(DaclName, DaemonTestCase):
+    """The MAVIS backend doesn't know the dACL (NOTFOUND): the static one is used."""
+
+    CONFIG = Stub.module(childs=(1, 1)) + POLICY + DACLS + "\tuser backend = mavis\n"
+
+    def download(self, user, name):
+        stub = Stub(self.daemon)
+        before = stub.count()
+        super().download(user, name)
+        self.assertEqual([(e["type"], e["user"], e["result"]) for e in stub.requests()[before:]],
+                         [("DACL", name, "NOTFOUND")])
+
+
+class DaclNameNoMavisModule(DaclName, DaemonTestCase):
+    """No MAVIS module, but "user backend = mavis": the static dACL is used."""
+
+    CONFIG = POLICY + DACLS + "\tuser backend = mavis\n"
 
 
 if __name__ == "__main__":
