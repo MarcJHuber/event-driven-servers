@@ -333,28 +333,110 @@ static int eap_nak_proposes_tls(const struct eap_parsed *parsed)
     return 0;
 }
 
+/*
+ * Reply cache. RFC 5216 2.1.5: retransmitted fragments keep the same EAP
+ * Identifier. A ring of the last EAP_REPLY_CACHE_SIZE replies, keyed by the
+ * identifier of the request being answered, lets a retransmitted
+ * Access-Request (or fragment ACK) get the exact same reply without
+ * advancing the state machine. The eap_session outlives the tac_session, so
+ * the cached EAP and State bytes are malloc()ed copies.
+ */
+static void eap_cache_reply(struct eap_session *es, u_char identifier,
+			    u_char code, const u_char *eap, size_t eap_len,
+			    const u_char *state, size_t state_len)
+{
+    struct eap_cached_reply *slot;
+
+    if (!es)
+	return;
+
+    slot = &es->reply_cache[es->reply_cache_next];
+    free(slot->eap);
+    free(slot->state);
+    memset(slot, 0, sizeof(*slot));
+    slot->identifier = identifier;
+    slot->code = code;
+
+    if (eap_len) {
+	slot->eap = malloc(eap_len);
+	if (slot->eap) {
+	    memcpy(slot->eap, eap, eap_len);
+	    slot->eap_len = eap_len;
+	}
+    }
+    if (state_len) {
+	slot->state = malloc(state_len);
+	if (slot->state) {
+	    memcpy(slot->state, state, state_len);
+	    slot->state_len = state_len;
+	}
+    }
+
+    /* Do not leave a partial entry behind: replaying an EAP reply without
+       its State would break the conversation. */
+    if ((eap_len && !slot->eap) || (state_len && !slot->state)) {
+	free(slot->eap);
+	free(slot->state);
+	memset(slot, 0, sizeof(*slot));
+	slot->identifier = identifier;
+	slot->code = code;
+    }
+
+    es->reply_cache_next = (es->reply_cache_next + 1) % EAP_REPLY_CACHE_SIZE;
+}
+
+static struct eap_cached_reply *eap_reply_lookup(struct eap_session *es, u_char identifier)
+{
+    int i;
+
+    if (!es)
+	return NULL;
+
+    for (i = 0; i < EAP_REPLY_CACHE_SIZE; i++) {
+	struct eap_cached_reply *slot = &es->reply_cache[i];
+
+	if (slot->eap_len && slot->identifier == identifier)
+	    return slot;
+    }
+    return NULL;
+}
+
+/*
+ * Send an EAP reply tied to an EAP session and cache it first.
+ * rad_send_eap_reply() frees the tac_session, so the cache must hold its
+ * own copies of the EAP and State bytes.
+ */
+static void eap_send_reply(tac_session *session, struct eap_session *es,
+			   u_char identifier, u_char code,
+			   const u_char *eap, size_t eap_len,
+			   const u_char *state, size_t state_len)
+{
+    eap_cache_reply(es, identifier, code, eap, eap_len, state, state_len);
+    rad_send_eap_reply(session, code, eap, eap_len, state, state_len);
+}
+
 /* EAP-Failure (4-byte packet) in an Access-Reject. */
-static void eap_send_failure(tac_session *session, u_char identifier)
+static void eap_send_failure(tac_session *session, struct eap_session *es, u_char identifier)
 {
     u_char pkt[sizeof(struct eap_hdr)];
     struct eap_hdr hdr = { EAP_CODE_FAILURE, identifier, htons(sizeof(pkt)) };
 
     memcpy(pkt, &hdr, sizeof(hdr));
-    rad_send_eap_reply(session, RADIUS_CODE_ACCESS_REJECT, pkt, sizeof(pkt), NULL, 0);
+    eap_send_reply(session, es, identifier, RADIUS_CODE_ACCESS_REJECT, pkt, sizeof(pkt), NULL, 0);
 }
 
 /* EAP-Success (4-byte packet) in an Access-Accept. */
-static void eap_send_success(tac_session *session, u_char identifier)
+static void eap_send_success(tac_session *session, struct eap_session *es, u_char identifier)
 {
     u_char pkt[sizeof(struct eap_hdr)];
     struct eap_hdr hdr = { EAP_CODE_SUCCESS, identifier, htons(sizeof(pkt)) };
 
     memcpy(pkt, &hdr, sizeof(hdr));
-    rad_send_eap_reply(session, RADIUS_CODE_ACCESS_ACCEPT, pkt, sizeof(pkt), NULL, 0);
+    eap_send_reply(session, es, identifier, RADIUS_CODE_ACCESS_ACCEPT, pkt, sizeof(pkt), NULL, 0);
 }
 
 /* EAP-Response/Nak proposing EAP-TLS, for RADIUS role reversal (RFC 3579 2.6.2). */
-static void eap_send_nak(tac_session *session, u_char identifier)
+static void eap_send_nak(tac_session *session, struct eap_session *es, u_char identifier)
 {
     u_char pkt[sizeof(struct eap_hdr) + 2];
     struct eap_hdr hdr = { EAP_CODE_RESPONSE, identifier, htons(sizeof(pkt)) };
@@ -362,17 +444,21 @@ static void eap_send_nak(tac_session *session, u_char identifier)
     memcpy(pkt, &hdr, sizeof(hdr));
     pkt[4] = EAP_TYPE_NAK;
     pkt[5] = EAP_TYPE_TLS;
-    rad_send_eap_reply(session, RADIUS_CODE_ACCESS_REJECT, pkt, sizeof(pkt), NULL, 0);
+    eap_send_reply(session, es, identifier, RADIUS_CODE_ACCESS_REJECT, pkt, sizeof(pkt), NULL, 0);
 }
 
 /*
  * Send an EAP-Request in an Access-Challenge with the session's State. The
  * server identifier is incremented for every new request and kept in
  * es->identifier (the last identifier sent). Only EAP-TLS carries a flags
- * byte; reserved bits are zero on send (RFC 5216 3.1).
+ * byte; reserved bits are zero on send (RFC 5216 3.1). Replies to requests
+ * carrying State are cached (cache != 0) under the identifier of the request
+ * being answered; replies to no-State requests are not, because those create
+ * a new session and are never looked up by identifier.
  */
 static void eap_send_request(tac_session *session, struct eap_session *es,
-			     u_char type, u_char flags, const u_char *data, size_t data_len)
+			     u_char type, u_char flags, const u_char *data, size_t data_len,
+			     int cache)
 {
     size_t len = sizeof(struct eap_hdr) + 1 + data_len;
     u_char identifier = (u_char) (es->identifier + 1);
@@ -384,7 +470,7 @@ static void eap_send_request(tac_session *session, struct eap_session *es,
 
     pkt = mem_alloc(session->mem, len);
     if (!pkt) {
-	eap_send_failure(session, identifier);
+	eap_send_failure(session, es, identifier);
 	return;
     }
 
@@ -399,7 +485,11 @@ static void eap_send_request(tac_session *session, struct eap_session *es,
 	memcpy(pkt + off, data, data_len);
 
     es->identifier = identifier;
-    rad_send_eap_reply(session, RADIUS_CODE_ACCESS_CHALLENGE, pkt, len, es->state, es->state_len);
+    if (cache)
+	eap_send_reply(session, es, es->client_identifier, RADIUS_CODE_ACCESS_CHALLENGE,
+		       pkt, len, es->state, es->state_len);
+    else
+	rad_send_eap_reply(session, RADIUS_CODE_ACCESS_CHALLENGE, pkt, len, es->state, es->state_len);
 }
 
 /*
@@ -535,7 +625,7 @@ static int eap_tls_send_fragment(tac_session *session, struct eap_session *es)
 
     pkt = mem_alloc(session->mem, len);
     if (!pkt) {
-	eap_send_failure(session, identifier);
+	eap_send_failure(session, es, identifier);
 	return -1;
     }
 
@@ -561,7 +651,8 @@ static int eap_tls_send_fragment(tac_session *session, struct eap_session *es)
     es->out_offset += chunk;
     es->identifier = identifier;
 
-    rad_send_eap_reply(session, RADIUS_CODE_ACCESS_CHALLENGE, pkt, len, es->state, es->state_len);
+    eap_send_reply(session, es, es->client_identifier, RADIUS_CODE_ACCESS_CHALLENGE,
+		   pkt, len, es->state, es->state_len);
     return 1;
 }
 
@@ -607,13 +698,13 @@ static void eap_tls_fail(tac_session *session, struct eap_session *es, const cha
     if (eap_tls_drain(es, &buf, &len) && len && eap_tls_has_alert(buf, len)) {
 	es->tls_state = EAP_TLS_ALERT_SENT;
 	es->flags |= EAP_F_ALERT_SENT;
-	eap_send_request(session, es, EAP_TYPE_TLS, 0, buf, len);
+	eap_send_request(session, es, EAP_TYPE_TLS, 0, buf, len, 1);
 	free(buf);
 	return;
     }
 
     free(buf);
-    eap_send_failure(session, es->success_identifier);
+    eap_send_failure(session, es, es->success_identifier);
 }
 
 /*
@@ -642,11 +733,11 @@ static void eap_tls_ack(tac_session *session, struct eap_session *es,
 	if (sent < 0)
 	    return;
 	if (!sent)
-	    eap_send_failure(session, parsed->identifier);
+	    eap_send_failure(session, es, parsed->identifier);
 	return;
     case EAP_TLS_WAIT_FINAL_ACK:
 	if (parsed->identifier != es->identifier) {
-	    eap_send_failure(session, parsed->identifier);
+	    eap_send_failure(session, es, parsed->identifier);
 	    return;
 	}
 	es->tls_state = EAP_TLS_DONE;
@@ -655,26 +746,62 @@ static void eap_tls_ack(tac_session *session, struct eap_session *es,
 	/* Task 13 authorization hook: eap_authorize(session, ...) goes here;
 	   on denial send EAP-Failure in an Access-Reject. Until then a
 	   verified handshake is accepted unconditionally. */
-	eap_send_success(session, parsed->identifier);
+	eap_send_success(session, es, parsed->identifier);
 	return;
     default:
 	/* ALERT_SENT and FAILED are handled by the caller; an ACK in DONE or
 	   before the handshake started is a protocol error. */
-	eap_send_failure(session, parsed->identifier);
+	eap_send_failure(session, es, parsed->identifier);
 	return;
     }
 }
 
 /*
- * EAP-Response/EAP-TLS with State: feed the TLS data to the server SSL
- * object and send its output as EAP-Request/EAP-TLS fragments. The final
- * TLS flight is followed by a peer ACK before EAP-Success (Task 11);
- * client-to-server fragment reassembly is Task 12.
+ * Append a fragment to the EAP-TLS reassembly buffer, growing it as needed.
+ * Reassembly is capped at eap_max_message (RFC 5216 2.1.5).
+ */
+static int eap_tls_append(struct eap_session *es, const u_char *data, size_t len, size_t max)
+{
+    size_t need = es->tls_len + len;
+
+    if (need > max)
+	return 0;
+
+    if (need > es->tls_max) {
+	size_t grow = es->tls_max ? es->tls_max : 4096;
+	u_char *p;
+
+	while (grow < need)
+	    grow <<= 1;
+	if (grow > max)
+	    grow = max;
+
+	p = realloc(es->tls_in, grow);
+	if (!p)
+	    return 0;
+	es->tls_in = p;
+	es->tls_max = grow;
+    }
+
+    if (len)
+	memcpy(es->tls_in + es->tls_len, data, len);
+    es->tls_len = need;
+    return 1;
+}
+
+/*
+ * EAP-Response/EAP-TLS with State: reassemble client fragments (RFC 5216
+ * 2.1.5), feed the complete TLS message to the server SSL object and send
+ * its output as EAP-Request/EAP-TLS fragments. The final TLS flight is
+ * followed by a peer ACK before EAP-Success (Task 11).
  */
 static void eap_tls_request(tac_session *session, struct eap_session *es,
 			    const struct eap_parsed *parsed)
 {
     tac_realm *r = session->ctx->realm;
+    const u_char *tls_data = parsed->data;
+    size_t tls_data_len = parsed->data_len;
+    int reassembled = 0;
     u_char *buf = NULL;
     size_t len = 0;
     int ret, err;
@@ -682,7 +809,7 @@ static void eap_tls_request(tac_session *session, struct eap_session *es,
     /* After an alert, RFC 5216 2.1.3 answers the peer's response with
        EAP-Failure. Restart-on-ClientHello is not implemented. */
     if (es->tls_state == EAP_TLS_ALERT_SENT || (es->flags & EAP_F_FAILED)) {
-	eap_send_failure(session, parsed->identifier);
+	eap_send_failure(session, es, parsed->identifier);
 	return;
     }
 
@@ -698,18 +825,80 @@ static void eap_tls_request(tac_session *session, struct eap_session *es,
 	es->tls_state == EAP_TLS_WAIT_FINAL_ACK ||
 	es->tls_state == EAP_TLS_DONE ||
 	(es->out && es->out_offset < es->out_total)) {
-	eap_send_failure(session, parsed->identifier);
+	eap_send_failure(session, es, parsed->identifier);
 	return;
+    }
+
+    /*
+     * Client-to-server fragmentation (RFC 5216 2.1.5). L is only valid on
+     * the first fragment and carries the 4-octet TLS Message Length; M is
+     * set on all but the last fragment. A response with neither flag and no
+     * pending reassembly feeds parsed->data directly.
+     */
+    if (parsed->flags & (EAP_TLS_FLAG_L | EAP_TLS_FLAG_M) || es->tls_len || es->tls_total) {
+	if (parsed->flags & EAP_TLS_FLAG_L) {
+	    uint32_t total;
+
+	    if (es->tls_len || es->tls_total) {
+		/* L on a non-first fragment. */
+		eap_send_failure(session, es, parsed->identifier);
+		return;
+	    }
+	    if (parsed->data_len < sizeof(total)) {
+		eap_send_failure(session, es, parsed->identifier);
+		return;
+	    }
+	    memcpy(&total, parsed->data, sizeof(total));
+	    total = ntohl(total);
+	    if (total < 1 || total > (uint32_t) r->eap_max_message) {
+		eap_send_failure(session, es, parsed->identifier);
+		return;
+	    }
+	    es->tls_total = (size_t) total;
+	    tls_data = parsed->data + sizeof(total);
+	    tls_data_len = parsed->data_len - sizeof(total);
+	}
+
+	if (!eap_tls_append(es, tls_data, tls_data_len, (size_t) r->eap_max_message)) {
+	    /* The fragment would exceed eap_max_message. */
+	    eap_send_failure(session, es, parsed->identifier);
+	    return;
+	}
+
+	if (parsed->flags & EAP_TLS_FLAG_M) {
+	    /* Fragment ACK: empty EAP-Request/EAP-TLS, incremented identifier. */
+	    eap_send_request(session, es, EAP_TYPE_TLS, 0, NULL, 0, 1);
+	    return;
+	}
+
+	if (es->tls_total && es->tls_len != es->tls_total) {
+	    /* Reassembled length does not match the announced total. */
+	    eap_send_failure(session, es, parsed->identifier);
+	    return;
+	}
+
+	tls_data = es->tls_in;
+	tls_data_len = es->tls_len;
+	reassembled = 1;
     }
 
     if (!eap_tls_start(es, r)) {
-	eap_send_failure(session, parsed->identifier);
+	eap_send_failure(session, es, parsed->identifier);
 	return;
     }
 
-    if (BIO_write(es->rbio, parsed->data, (int) parsed->data_len) != (int) parsed->data_len) {
+    if (BIO_write(es->rbio, tls_data, (int) tls_data_len) != (int) tls_data_len) {
 	eap_tls_fail(session, es, "BIO_write");
+	if (reassembled) {
+	    es->tls_len = 0;
+	    es->tls_total = 0;
+	}
 	return;
+    }
+
+    if (reassembled) {
+	es->tls_len = 0;
+	es->tls_total = 0;
     }
 
     ret = SSL_do_handshake(es->ssl);
@@ -737,7 +926,7 @@ static void eap_tls_request(tac_session *session, struct eap_session *es,
 	    es->flags |= EAP_F_COMPLETED;
 	    es->success_identifier = parsed->identifier;
 	    /* Task 13 authorization hook (see eap_tls_ack()). */
-	    eap_send_success(session, parsed->identifier);
+	    eap_send_success(session, es, parsed->identifier);
 	}
 	/* Otherwise: waiting for more client data. Never send an empty
 	   EAP-Request. */
@@ -768,6 +957,7 @@ void eap_radius_request(tac_session *session)
 {
     tac_realm *r = session->ctx->realm;
     struct eap_parsed parsed;
+    struct eap_cached_reply *cached;
     struct eap_session *es;
     const u_char *state;
     u_char *eap;
@@ -775,40 +965,42 @@ void eap_radius_request(tac_session *session)
     u_char identifier;
 
     if (session->ctx->radius_1_1 == BISTATE_YES) {
-	eap_send_failure(session, 0);
+	eap_send_failure(session, NULL, 0);
 	return;
     }
 
     if (!eap_collect(session, &eap, &eap_len) ||
 	!eap_get_state(session, &state, &state_len)) {
-	eap_send_failure(session, eap_len >= 2 ? eap[1] : 0);
+	eap_send_failure(session, NULL, eap_len >= 2 ? eap[1] : 0);
 	return;
     }
 
     /* A zero-length EAP-Message value is EAP-Start; it must not carry State. */
     if (!eap_len) {
 	if (state_len) {
-	    eap_send_failure(session, 0);
+	    eap_send_failure(session, NULL, 0);
 	    return;
 	}
 	es = eap_new_session(r);
 	if (!es) {
-	    eap_send_failure(session, 0);
+	    eap_send_failure(session, NULL, 0);
 	    return;
 	}
-	eap_send_request(session, es, EAP_TYPE_IDENTITY, 0, NULL, 0);
+	eap_send_request(session, es, EAP_TYPE_IDENTITY, 0, NULL, 0, 0);
 	return;
     }
 
     if (!eap_parse_hdr(eap, eap_len, &parsed)) {
-	eap_send_failure(session, eap_len >= 2 ? eap[1] : 0);
+	eap_send_failure(session, NULL, eap_len >= 2 ? eap[1] : 0);
 	return;
     }
     identifier = parsed.identifier;
 
     /* EAP is client-to-server here; anything else is RADIUS role reversal. */
     if (parsed.code != EAP_CODE_RESPONSE) {
-	eap_send_nak(session, identifier);
+	/* Best effort: attach the session, if any, so the Nak is cached. */
+	es = state_len ? eap_lookup(r, state, state_len) : NULL;
+	eap_send_nak(session, es, identifier);
 	return;
     }
 
@@ -817,45 +1009,74 @@ void eap_radius_request(tac_session *session)
 	case EAP_TYPE_IDENTITY:
 	    es = eap_new_session(r);
 	    if (!es) {
-		eap_send_failure(session, identifier);
+		eap_send_failure(session, NULL, identifier);
 		return;
 	    }
 	    if (!eap_store_identity(es, &parsed)) {
 		eap_drop_session(r, es);
-		eap_send_failure(session, identifier);
+		eap_send_failure(session, NULL, identifier);
 		return;
 	    }
 	    es->client_identifier = identifier;
 	    es->success_identifier = identifier;
 	    es->flags |= EAP_F_IDENTITY_SEEN;
-	    eap_send_request(session, es, EAP_TYPE_TLS, EAP_TLS_FLAG_S, NULL, 0);
+	    eap_send_request(session, es, EAP_TYPE_TLS, EAP_TLS_FLAG_S, NULL, 0, 0);
 	    return;
 	case EAP_TYPE_NAK:
 	    if (!eap_nak_proposes_tls(&parsed)) {
-		eap_send_failure(session, identifier);
+		eap_send_failure(session, NULL, identifier);
 		return;
 	    }
 	    es = eap_new_session(r);
 	    if (!es) {
-		eap_send_failure(session, identifier);
+		eap_send_failure(session, NULL, identifier);
 		return;
 	    }
 	    es->client_identifier = identifier;
 	    es->success_identifier = identifier;
-	    eap_send_request(session, es, EAP_TYPE_TLS, EAP_TLS_FLAG_S, NULL, 0);
+	    eap_send_request(session, es, EAP_TYPE_TLS, EAP_TLS_FLAG_S, NULL, 0, 0);
 	    return;
 	default:
-	    eap_send_failure(session, identifier);
+	    eap_send_failure(session, NULL, identifier);
 	    return;
 	}
     }
 
     es = eap_lookup(r, state, state_len);
     if (!es) {
-	eap_send_failure(session, identifier);
+	eap_send_failure(session, NULL, identifier);
 	return;
     }
 
+    /*
+     * RFC 5216 2.1.5: retransmitted fragments keep the same Identifier.
+     * Replay the cached reply before dispatching, so neither a retransmitted
+     * Access-Request nor a retransmitted final ACK after EAP-Success moves
+     * the state machine forward.
+     */
+    cached = eap_reply_lookup(es, identifier);
+    if (cached) {
+	/* A valid retransmission: refresh activity and clear the invalid
+	   counter without advancing the state machine. */
+	es->invalid = 0;
+	es->expires = io_now.tv_sec + r->eap_timeout;
+	es->last_activity = io_now.tv_sec;
+	rad_send_eap_reply(session, cached->code, cached->eap, cached->eap_len,
+			   cached->state, cached->state_len);
+	return;
+    }
+
+    if (identifier != es->identifier) {
+	es->invalid++;
+	if (es->invalid >= EAP_INVALID_LIMIT)
+	    report(session, LOG_WARNING, ~0,
+		   "EAP: invalid identifier limit reached (%d)", es->invalid);
+	/* Every Access-Request needs a reply. */
+	eap_send_failure(session, es, identifier);
+	return;
+    }
+
+    es->invalid = 0;
     es->client_identifier = identifier;
     es->success_identifier = identifier;
     es->expires = io_now.tv_sec + r->eap_timeout;
@@ -864,19 +1085,19 @@ void eap_radius_request(tac_session *session)
     switch (parsed.type) {
     case EAP_TYPE_IDENTITY:
 	/* Identity is only valid without State. */
-	eap_send_failure(session, identifier);
+	eap_send_failure(session, es, identifier);
 	return;
     case EAP_TYPE_TLS:
 	eap_tls_request(session, es, &parsed);
 	return;
     case EAP_TYPE_NAK:
 	if (eap_nak_proposes_tls(&parsed))
-	    eap_send_request(session, es, EAP_TYPE_TLS, EAP_TLS_FLAG_S, NULL, 0);
+	    eap_send_request(session, es, EAP_TYPE_TLS, EAP_TLS_FLAG_S, NULL, 0, 1);
 	else
-	    eap_send_failure(session, identifier);
+	    eap_send_failure(session, es, identifier);
 	return;
     default:
-	eap_send_failure(session, identifier);
+	eap_send_failure(session, es, identifier);
 	return;
     }
 }

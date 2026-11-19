@@ -123,6 +123,8 @@ class EapPacket(unittest.TestCase):
 
 
 EAP_STATE_LEN = 16
+EAP_INVALID_LIMIT = 5
+EAP_MAX_FRAGMENT = 3000
 
 
 def eap_parse_hdr(eap):
@@ -350,6 +352,9 @@ class EapTlsPeer:
                                         server_hostname="localhost")
         self.tls_requests = 0
         self.fragment_acks = 0
+        self.client_fragment_acks = 0
+        self.last_request = None
+        self.last_reply = None
 
     def send_eap(self, eap):
         attrs = [(radius.USER_NAME, self.identity.encode())]
@@ -357,9 +362,67 @@ class EapTlsPeer:
         if self.state:
             attrs.append((radius.STATE, self.state))
         req = radius.Packet(radius.ACCESS_REQUEST, attributes=attrs)
+        self.last_request = req
         r = self.client.exchange(req, message_authenticator=True)
+        self.last_reply = r
         self.state = (r.get(radius.STATE) or [None])[0]
         return r
+
+    def send_eap_state(self, eap, state):
+        """Send eap with an explicit State, without touching self.state."""
+        attrs = [(radius.USER_NAME, self.identity.encode())] + radius.eap_attributes(eap)
+        attrs.append((radius.STATE, state))
+        req = radius.Packet(radius.ACCESS_REQUEST, attributes=attrs)
+        return self.client.exchange(req, message_authenticator=True)
+
+    def start(self):
+        """Identity -> EAP-Request/EAP-TLS Start; leaves peer.identifier at the Start id."""
+        identity = radius.eap_packet(radius.EAP_RESPONSE, 1, radius.EAP_TYPE_IDENTITY,
+                                     self.identity.encode())
+        reply = self.send_eap(identity)
+        _, data = self.receive_request(reply)
+        if data:
+            raise AssertionError("EAP-TLS Start carried data: %r" % data)
+
+    def expect_fragment_ack(self, reply):
+        """Expect an empty EAP-Request/EAP-TLS ACK (flags 0) for a client fragment."""
+        if reply.code_name != "Access-Challenge":
+            raise AssertionError("expected Access-Challenge fragment ACK, got %s: %r"
+                                 % (reply.code_name, radius.eap_from_reply(reply)))
+        identifier, flags, data, _ = self.parse_request(radius.eap_from_reply(reply))
+        if flags or data:
+            raise AssertionError("fragment ACK carried flags %#x and %d data bytes"
+                                 % (flags, len(data)))
+        self.client_fragment_acks += 1
+        self.identifier = identifier
+
+    def send_tls_flight(self, out):
+        """Send a client TLS flight, fragmenting it when it exceeds EAP_MAX_FRAGMENT.
+
+        RFC 5216 2.1.5: the first fragment carries L and the 4-byte total, M is
+        set on all but the last fragment, and each fragment with M is answered
+        by an empty EAP-Request/EAP-TLS ACK whose identifier the next fragment
+        echoes. Returns the reply to the last fragment.
+        """
+        if len(out) <= EAP_MAX_FRAGMENT:
+            return self.send_eap(radius.eap_tls_packet(radius.EAP_RESPONSE,
+                                                       self.identifier, 0, out))
+        total = len(out)
+        offset = 0
+        while True:
+            chunk = out[offset:offset + EAP_MAX_FRAGMENT]
+            first = offset == 0
+            offset += len(chunk)
+            more = offset < total
+            flags = radius.EAP_TLS_L if first else 0
+            if more:
+                flags |= radius.EAP_TLS_M
+            packet = radius.eap_tls_packet(radius.EAP_RESPONSE, self.identifier,
+                                           flags, chunk, total=total)
+            reply = self.send_eap(packet)
+            if not more:
+                return reply
+            self.expect_fragment_ack(reply)
 
     @staticmethod
     def parse_request(eap):
@@ -428,8 +491,7 @@ class EapTlsPeer:
                 out = self.outgoing.read()
                 if not out:
                     raise AssertionError("SSLObject wants to read but has no output for the server")
-                reply = self.send_eap(radius.eap_tls_packet(radius.EAP_RESPONSE,
-                                                            self.identifier, 0, out))
+                reply = self.send_tls_flight(out)
                 _, data = self.receive_request(reply)
                 self.incoming.write(data)
                 continue
@@ -482,8 +544,7 @@ class EapTlsPeer:
                 out = self.outgoing.read()
                 if not out:
                     raise AssertionError("SSLObject wants to read but has no output for the server")
-                reply = self.send_eap(radius.eap_tls_packet(radius.EAP_RESPONSE,
-                                                            self.identifier, 0, out))
+                reply = self.send_tls_flight(out)
                 identifier, data = self.receive_request(reply)
                 if len(data) >= 5 and data[0] == 21:      # TLS alert record
                     return identifier, data
@@ -513,10 +574,15 @@ class EapTlsTestCase(DaemonTestCase):
         return cls.ca.server
 
     @classmethod
+    def client_certificate(cls):
+        """Client certificate presented by EapTlsPeer; subclasses may override."""
+        return cls.ca.issue("cert-user", "/CN=cert-user")
+
+    @classmethod
     def setUpClass(cls):
         cls.ca = tls.CA(cls.__name__ + "-ca")
         try:
-            cls.client_cert = cls.ca.issue("cert-user", "/CN=cert-user")
+            cls.client_cert = cls.client_certificate()
             server = cls.server_certificate()
             cls.CONFIG = EAP_POLICY % (DICTIONARY, server[0], server[1], cls.ca.cert)
             super().setUpClass()
@@ -627,3 +693,127 @@ class EapTlsMissingClientCert(EapTlsTestCase):
         self.assertEqual(len(eap), 4, eap)
         self.assertEqual(struct.unpack("!BBH", eap),
                          (radius.EAP_FAILURE, identifier, 4))
+
+
+class EapTlsFragmentedClientFlight(EapTlsTestCase):
+    """A client Certificate flight over EAP_MAX_FRAGMENT: server reassembles it."""
+
+    @classmethod
+    def client_certificate(cls):
+        # ~4 KB of SANs make the client Certificate message exceed
+        # EAP_MAX_FRAGMENT (3000 bytes) and force client-side fragmentation.
+        long_san = ", ".join("DNS:host%03d.%s.example" % (i, "x" * 180) for i in range(20))
+        return cls.ca.issue("client-big", "/CN=cert-user", san=long_san)
+
+    def test_client_fragments_are_acked_and_reassembled(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.handshake()
+        self.assertGreater(peer.client_fragment_acks, 0, "client flight was not fragmented")
+        self.assertEqual(peer.sslobj.version(), "TLSv1.2")
+        self.assertIsNotNone(peer.sslobj.getpeercert())
+
+
+class EapTlsRetransmission(EapTlsTestCase):
+    """A retransmitted Access-Request gets the cached reply, not a state advance."""
+
+    def test_retransmitted_request_gets_cached_reply(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.start()
+
+        try:
+            peer.sslobj.do_handshake()
+        except ssl.SSLWantReadError:
+            clienthello = peer.outgoing.read()
+        else:
+            raise AssertionError("client handshake finished before the server flight")
+        reply = peer.send_eap(radius.eap_tls_packet(radius.EAP_RESPONSE,
+                                                    peer.identifier, 0, clienthello))
+        self.assertEqual(reply.code_name, "Access-Challenge", reply)
+
+        # The exact same Access-Request (same EAP packet, identifier and
+        # State) must return the same EAP bytes and State from the cache.
+        request = peer.last_request
+        assert request is not None
+        resent = c.exchange(request, message_authenticator=True)
+        self.assertEqual(resent.code_name, reply.code_name)
+        self.assertEqual(radius.eap_from_reply(resent), radius.eap_from_reply(reply))
+        self.assertEqual(resent.get(radius.STATE), reply.get(radius.STATE))
+        # A cached replay, not a fresh TLS Start.
+        self.assertFalse(radius.eap_from_reply(resent)[5] & radius.EAP_TLS_S)
+
+
+class EapTlsFinalAckRetransmission(EapTlsTestCase):
+    """After EAP-Success, a retransmitted final ACK gets the cached Access-Accept."""
+
+    def test_retransmitted_final_ack_gets_cached_success(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.handshake()
+
+        ack = peer.last_request
+        assert ack is not None
+        ack_eap = b"".join(v for t, v in ack.attributes if t == radius.EAP_MESSAGE)
+        self.assertEqual(ack_eap[0], radius.EAP_RESPONSE)
+        resent = c.exchange(ack, message_authenticator=True)
+        self.assertEqual(resent.code_name, "Access-Accept", resent)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(resent)),
+                         (radius.EAP_SUCCESS, ack_eap[1], 4))
+        self.assertFalse(resent.get(radius.STATE))
+
+
+class EapTlsInvalidIdentifier(EapTlsTestCase):
+    """An EAP-Response whose identifier does not match gets EAP-Failure."""
+
+    def test_invalid_identifiers_get_eap_failure(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.start()
+        state = peer.state
+        self.assertTrue(state)
+
+        for i in range(EAP_INVALID_LIMIT + 1):
+            identifier = 0x80 + i
+            reply = peer.send_eap_state(radius.eap_tls_ack(identifier), state)
+            self.assertEqual(reply.code_name, "Access-Reject", reply)
+            self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(reply)),
+                             (radius.EAP_FAILURE, identifier, 4))
+
+
+class EapTlsMalformedReassembly(EapTlsTestCase):
+    """Malformed client-to-server fragment sequences are rejected."""
+
+    def test_l_flag_on_non_first_fragment_is_rejected(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.start()
+        state = peer.state
+
+        first = radius.eap_tls_packet(radius.EAP_RESPONSE, peer.identifier,
+                                      radius.EAP_TLS_L | radius.EAP_TLS_M,
+                                      b"\x16\x03\x03" + bytes(97), total=200)
+        peer.expect_fragment_ack(peer.send_eap_state(first, state))
+
+        # L is only allowed on the first fragment (RFC 5216 2.1.5).
+        second = radius.eap_tls_packet(radius.EAP_RESPONSE, peer.identifier,
+                                       radius.EAP_TLS_L | radius.EAP_TLS_M,
+                                       b"\x16\x03\x03" + bytes(97), total=200)
+        reply = peer.send_eap_state(second, state)
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(reply)),
+                         (radius.EAP_FAILURE, peer.identifier, 4))
+
+    def test_announced_total_mismatch_is_rejected(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=self.client_cert)
+        peer.start()
+
+        # 50 bytes of data but L announces 100: the reassembled length does
+        # not match the announced total.
+        frag = radius.eap_tls_packet(radius.EAP_RESPONSE, peer.identifier,
+                                     radius.EAP_TLS_L, b"\x16\x03\x03" + bytes(47), total=100)
+        reply = peer.send_eap_state(frag, peer.state)
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(reply)),
+                         (radius.EAP_FAILURE, peer.identifier, 4))
