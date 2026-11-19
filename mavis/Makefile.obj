@@ -104,7 +104,7 @@ ldapmavis-mt$(EXEC_EXT): ldapmavis-mt.o $(MAVIS_LIB)
 radmavis.o: INC += $(INC_FREERADIUS_CLIENT) $(INC_RADCLI)
 
 radmavis$(EXEC_EXT): radmavis.o $(MAVIS_LIB)
-	$(CC) -o $@ $^ $(LIB) $(LIB_FREERADIUS_CLIENT) $(LIB_RADCLI) $(LIB_NET)
+	$(CC) -o $@ $^ $(LIB_MAVIS) $(LIB) $(LIB_FREERADIUS_CLIENT) $(LIB_RADCLI) $(LIB_NET)
 
 pammavis.o: CFLAGS += $(INC_PAM)
 
