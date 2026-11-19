@@ -483,6 +483,7 @@ void rad_send_eap_reply(tac_session *session, u_char code, const u_char *eap, si
        the reply has exactly one EAP packet and State only where we put it. */
     rd->data_len = rad_strip_attribute(rd->data, rd->data_len, RADIUS_A_EAP_MESSAGE);
     rd->data_len = rad_strip_attribute(rd->data, rd->data_len, RADIUS_A_STATE);
+    rd->data_len = rad_strip_attribute(rd->data, rd->data_len, RADIUS_A_MESSAGE_AUTHENTICATOR);
     if (code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT) {
 	/* RFC 3579 2.6.5: no Reply-Message with EAP-Message. */
 	rd->data_len = rad_strip_attribute(rd->data, rd->data_len, RADIUS_A_REPLY_MESSAGE);

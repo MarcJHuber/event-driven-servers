@@ -2712,7 +2712,7 @@ static void do_radius_login(tac_session *session)
 
 
 	// MS-CHAP2-Success: 1 + 1 + 4 + 45 = 51
-	if (data + 51 < data_end) {
+	if (data + 51 + RADIUS_HDR_SIZE + 18 <= data_end) {
 	    *data++ = RADIUS_A_VENDOR_SPECIFIC;
 	    *data++ = 51;
 	    data = set_uint(data, RADIUS_VID_MICROSOFT, 4);
@@ -2753,7 +2753,7 @@ static void do_radius_login(tac_session *session)
 	    session->radius_data->data_len = data_len;
 	}
 	// MS-MPPE-Encryption-Types: 1 + 1 + 4 + 6 = 12
-	if (data + 12 < data_end) {
+	if (data + 12 + RADIUS_HDR_SIZE + 18 <= data_end) {
 	    *data++ = RADIUS_A_VENDOR_SPECIFIC;
 	    *data++ = 12;
 	    data = set_uint(data, RADIUS_VID_MICROSOFT, 4);
@@ -2765,7 +2765,7 @@ static void do_radius_login(tac_session *session)
 	    data_len += 4;
 	}
 	// MS-MPPE-Encryption-Policy: 1 + 1 + 4 + 6 = 12
-	if (data + 12 < data_end) {
+	if (data + 12 + RADIUS_HDR_SIZE + 18 <= data_end) {
 	    *data++ = RADIUS_A_VENDOR_SPECIFIC;
 	    *data++ = 12;
 	    data = set_uint(data, RADIUS_VID_MICROSOFT, 4);
@@ -2778,7 +2778,7 @@ static void do_radius_login(tac_session *session)
 	}
 #ifdef WITH_RADIUS_A_MS_CHAP_MPPE_KEYS
 	// MS-CHAP-MPPE-Keys: 1 + 1 + 4 + 34 = 40  (legacy, optional)
-	if (data + 40 < data_end) {
+	if (data + 40 + RADIUS_HDR_SIZE + 18 <= data_end) {
 	    *data++ = RADIUS_A_VENDOR_SPECIFIC;
 	    *data++ = 40;
 	    data = set_uint(data, RADIUS_VID_MICROSOFT, 4);

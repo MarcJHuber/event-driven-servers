@@ -569,21 +569,26 @@ static char *eap_extract_identity(tac_session *session, struct eap_session *es)
  * re-encrypts the retained MSK instead of replaying cached ciphertext.
  */
 #ifdef WITH_CRYPTO
-static void eap_add_mppe(tac_session *session, struct eap_session *es)
+static int eap_add_mppe(tac_session *session, struct eap_session *es)
 {
     struct radius_data *rd = session->radius_data;
 
-    if (!session->ctx->key || !(es->flags & EAP_F_HANDSHAKE_DONE) || !rd)
-	return;
+    if (!(es->flags & EAP_F_HANDSHAKE_DONE) || !rd)
+	return 0;
+
+    /* No RADIUS secret means no keying material is requested. */
+    if (!session->ctx->key)
+	return 1;
 
     /* Policy/Types (2 * 12) plus two 58-byte key VSAs must fit together with
        the RADIUS header and the Message-Authenticator reservation. */
     if (rd->data_len + 2 * 12 + 2 * 58 + RADIUS_HDR_SIZE + 18 > sizeof(rd->data))
-	return;
+	return 0;
 
     rad_add_mppe_policy(session);
     rad_add_mppe_key(session, es->msk, 32, RADIUS_A_MS_MPPE_RECV_KEY);
     rad_add_mppe_key(session, es->msk + 32, 32, RADIUS_A_MS_MPPE_SEND_KEY);
+    return 1;
 }
 #endif
 
@@ -644,7 +649,11 @@ static enum token eap_identity_authorize(tac_session *session, struct eap_sessio
     if (res == S_permit) {
 	eap_cache_profile_attrs(es, session);
 #ifdef WITH_CRYPTO
-	eap_add_mppe(session, es);
+	if (!eap_add_mppe(session, es)) {
+	    es->flags |= EAP_F_FAILED;
+	    eap_send_failure(session, es, identifier);
+	    return S_deny;
+	}
 #endif
 	eap_send_success(session, es, identifier);
 	return res;
@@ -1317,8 +1326,12 @@ void eap_radius_request(tac_session *session)
 	es->invalid = 0;
 	es->expires = io_now.tv_sec + r->eap_timeout;
 	es->last_activity = io_now.tv_sec;
-	/* Replay the profile/authorization AVPs from the original reply. */
-	if (es->profile_attrs_len && es->profile_attrs) {
+	/* Replay the profile/authorization AVPs from the original final reply.
+	   Access-Challenge retransmissions must not acquire AVPs from a later
+	   authorization. */
+	if ((cached->code == RADIUS_CODE_ACCESS_ACCEPT ||
+	     cached->code == RADIUS_CODE_ACCESS_REJECT) &&
+	    es->profile_attrs_len && es->profile_attrs) {
 	    struct radius_data *rd = session->radius_data;
 
 	    if (rd->data_len + es->profile_attrs_len + RADIUS_HDR_SIZE + 18 <= sizeof(rd->data)) {
@@ -1330,8 +1343,12 @@ void eap_radius_request(tac_session *session)
 	/* The reply cache holds EAP/State only; the MSK is retained in the
 	   completed eap_session and must be re-encrypted with the new
 	   Request Authenticator (RFC 2548 2.4.2). */
-	if (cached->code == RADIUS_CODE_ACCESS_ACCEPT)
-	    eap_add_mppe(session, es);
+	if (cached->code == RADIUS_CODE_ACCESS_ACCEPT && !eap_add_mppe(session, es)) {
+	    /* Fail closed rather than send an Access-Accept without keys. */
+	    es->flags |= EAP_F_FAILED;
+	    eap_send_failure(session, NULL, identifier);
+	    return;
+	}
 #endif
 	rad_send_eap_reply(session, cached->code, cached->eap, cached->eap_len,
 			   cached->state, cached->state_len);
@@ -1340,9 +1357,15 @@ void eap_radius_request(tac_session *session)
 
     if (identifier != es->identifier) {
 	es->invalid++;
-	if (es->invalid >= EAP_INVALID_LIMIT)
+	if (es->invalid >= EAP_INVALID_LIMIT) {
 	    report(session, LOG_WARNING, ~0,
 		   "EAP: invalid identifier limit reached (%d)", es->invalid);
+	    /* Drop the session so a client cannot keep it alive with bogus
+	       identifiers. */
+	    eap_drop_session(r, es);
+	    eap_send_failure(session, NULL, identifier);
+	    return;
+	}
 	/* Every Access-Request needs a reply, but do not cache a failure under
 	   an identifier that is not part of the conversation. */
 	eap_send_failure(session, NULL, identifier);
