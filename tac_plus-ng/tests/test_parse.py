@@ -33,6 +33,9 @@ system (certificates, MAVIS scripts, PAM helper) at parse time, or they
 run into a parser bug. The list is checked both ways: an excluded sample
 that starts to parse, or fails with another message, fails the test too,
 so the list doesn't rot.
+
+NestedInclude is the exception to "no network": it starts a daemon to
+show that a configuration -P accepts is also the one that runs.
 """
 
 import glob
@@ -41,7 +44,7 @@ import re
 import tempfile
 import unittest
 
-from tactest import config, features
+from tactest import DaemonTestCase, config, features
 from tactest.daemon import parse_only
 
 TESTS = os.path.dirname(os.path.abspath(__file__))
@@ -219,6 +222,39 @@ class ErrorLine(unittest.TestCase):
         self.assert_error_line({"main.cfg": self.HEAD + "\tinclude = $TMP/inc.cfg\n\tbogus\n}\n", "inc.cfg": "# 1\n# 2\n"},
                                "main.cfg", 4, "but got 'bogus'")
 
+    # In the nested cases the inner file must hold a token: one with only comments ends while the outer
+    # file is read, and the rest of the outer file was kept even before.
+    def test_error_after_an_include_on_the_first_line_of_an_included_file(self):
+        self.assert_error_line({"main.cfg": self.HEAD + "\tinclude = $TMP/a.cfg\n}\n",
+                                "a.cfg": "include = $TMP/b.cfg\n\tuser bob { }\n\tbogus\n",
+                                "b.cfg": "\tuser carol { }\n"},
+                               "a.cfg", 3, "but got 'bogus'")
+
+    def test_error_after_includes_on_the_first_lines_of_two_nested_files(self):
+        files = {"main.cfg": self.HEAD + "\tinclude = $TMP/a.cfg\n}\n",
+                 "a.cfg": "include = $TMP/b.cfg\n\tuser bob { }\n",
+                 "b.cfg": "include = $TMP/c.cfg\n\n\tbogus\n",
+                 "c.cfg": "\tuser carol { }\n"}
+        with self.subTest(error="b.cfg"):
+            self.assert_error_line(files, "b.cfg", 3, "but got 'bogus'")
+        files["a.cfg"] += "\tbogus\n"
+        files["b.cfg"] = "include = $TMP/c.cfg\n\tuser dave { }\n"
+        with self.subTest(error="a.cfg"):
+            self.assert_error_line(files, "a.cfg", 3, "but got 'bogus'")
+
+    def test_error_after_an_include_on_the_first_line_of_a_globbed_file(self):
+        self.assert_error_line({"main.cfg": self.HEAD + "\tinclude = $TMP/part-*.cfg\n}\n",
+                                "part-1.cfg": "include = $TMP/b.cfg\n\tbogus\n",
+                                "part-2.cfg": "\tuser dave { }\n",
+                                "b.cfg": "\tuser carol { }\n"},
+                               "part-1.cfg", 2, "but got 'bogus'")
+
+    def test_error_in_the_main_file_after_a_file_that_is_only_an_include(self):
+        self.assert_error_line({"main.cfg": self.HEAD + "\tinclude = $TMP/a.cfg\n\tbogus\n}\n",
+                                "a.cfg": "include = $TMP/b.cfg\n",
+                                "b.cfg": "\tuser carol { }\n"},
+                               "main.cfg", 4, "but got 'bogus'")
+
     def test_unknown_keyword_after_blank_lines_and_comments(self):
         self.assert_error_line({"main.cfg": "\n# one\n" + self.HEAD + "\n\t# two\n\tbogus\n}\n"},
                                "main.cfg", 7, "but got 'bogus'")
@@ -226,6 +262,20 @@ class ErrorLine(unittest.TestCase):
     def test_unknown_keyword_with_crlf_line_ends(self):
         self.assert_error_line({"main.cfg": (self.HEAD + "\n\tbogus = 1\n}\n").replace("\n", "\r\n")},
                                "main.cfg", 4, "but got 'bogus'")
+
+
+class NestedInclude(DaemonTestCase):
+    """What follows an "include" on the first line of an included file is in the running configuration."""
+
+    CONFIG = None
+
+    def test_user_after_a_nested_include_can_log_in(self):
+        b = self.scratch_file("b.cfg", "\tuser carol { password pap = clear carolpw }\n")
+        a = self.scratch_file("a.cfg", 'include = "%s"\n\tuser bob { password pap = clear bobpw }\n' % b)
+        d = self.start_daemon('\tinclude = "%s"\n\truleset { rule { script { permit } } }\n' % a)
+        for user in ("carol", "bob"):
+            with self.subTest(user=user):
+                self.assertTrue(self.connect(d).pap(user, user + "pw").ok, user)
 
 
 class DeviceNameInHostsFile(unittest.TestCase):

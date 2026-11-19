@@ -635,8 +635,13 @@ static void sym_prepend_file(struct sym *sym, char *url)
     struct sym nsym = { 0 };
     if (sym_from_file(url, &nsym))
 	return;
-    nsym.next = calloc(1, sizeof(struct sym));
-    memcpy(nsym.next, sym, sizeof(struct sym));
+    // sym_from_file() already read the first token of the new file. If that was an
+    // "include", nsym.next holds the rest of the new file: append, don't overwrite.
+    struct sym **tail = &nsym.next;
+    while (*tail)
+	tail = &(*tail)->next;
+    *tail = calloc(1, sizeof(struct sym));
+    memcpy(*tail, sym, sizeof(struct sym));
     memcpy(sym, &nsym, sizeof(struct sym));
 }
 
