@@ -885,6 +885,9 @@ void dump_rad_pak(tac_session *, rad_pak_hdr *);
 void authen(tac_session *, tac_pak_hdr *);
 void rad_authen(tac_session *);
 void authen_init(void);
+#ifdef WITH_SSL
+enum token eap_authorize(tac_session * session, char **resp, enum hint_enum * hint);
+#endif
 
 /* author.c */
 void author(tac_session *, tac_pak_hdr *);

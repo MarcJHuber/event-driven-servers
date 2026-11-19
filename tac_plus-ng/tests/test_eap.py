@@ -42,6 +42,27 @@ from tactest import SOURCE, DaemonTestCase, features, radius, tls
 
 DICTIONARY = os.path.join(SOURCE, "tac_plus-ng", "sample", "radius-dict.cfg")
 
+VENDOR_SPECIFIC = 26
+VID_CISCO = 9
+CISCO_AVPAIR = 1
+
+
+def cisco_avpairs(packet):
+    """Cisco-AVPair values (vendor 9, sub-type 1) in a RADIUS reply."""
+    values = []
+    for value in packet.get(VENDOR_SPECIFIC):
+        if len(value) < 8 or struct.unpack("!I", value[:4])[0] != VID_CISCO:
+            continue
+        p = 4
+        while p + 2 <= len(value):
+            sub_type, sub_len = value[p], value[p + 1]
+            if sub_len < 2 or p + sub_len > len(value):
+                break
+            if sub_type == CISCO_AVPAIR:
+                values.append(value[p + 2:p + sub_len])
+            p += sub_len
+    return values
+
 
 class EapPacket(unittest.TestCase):
     def test_packet_round_trip(self):
@@ -305,15 +326,23 @@ class TlsProfile(unittest.TestCase):
         self.assertEqual(ctx.maximum_version, ssl.TLSVersion.TLSv1_2)
 
 
-EAP_POLICY = """
-\tinclude = "%s"
+def eap_policy(identity_source="cert-cn", verify_client="yes", dictionary="", users=""):
+    """An EAP realm policy; leaves %s placeholders for server cert, key and CA.
+
+    users adds user (and extra profile) blocks to the shared eap-profile,
+    which sets a RADIUS attribute so an Access-Accept proves that the
+    profile was evaluated. dictionary is prepended to the included
+    dictionary, for tests that need a different type for an attribute.
+    """
+    return """
+%s\tinclude = "%s"
 \teap {
 \t\teap-method = tls
-\t\tcert-file = %s
-\t\tkey-file = %s
-\t\tca-file = %s
-\t\tverify-client = yes
-\t\teap-identity-source = cert-cn
+\t\tcert-file = %%s
+\t\tkey-file = %%s
+\t\tca-file = %%s
+\t\tverify-client = %s
+\t\teap-identity-source = %s
 \t}
 \tdevice radius-nas {
 \t\taddress = 127.0.0.6
@@ -321,12 +350,77 @@ EAP_POLICY = """
 \t\tradius.key = radsecret
 \t}
 \tprofile eap-profile {
-\t\tscript { permit }
+\t\tscript {
+\t\t\tset radius[Cisco:Cisco-AVPair] = "shell:priv-lvl=15"
+\t\t\tpermit
+\t\t}
+\t}
+%s""" % (dictionary, DICTIONARY, verify_client, identity_source, users)
+
+
+EAP_USERS = """
+\tprofile eap-deny {
+\t\tscript { deny }
+\t}
+\tprofile eap-message {
+\t\tscript {
+\t\t\tset radius[Reply-Message] = "welcome"
+\t\t\tpermit
+\t\t}
+\t}
+\tprofile eap-state {
+\t\tscript {
+\t\t\tset radius[Cisco:Cisco-AVPair] = "shell:priv-lvl=15"
+\t\t\tset radius[State] = "profile-state"
+\t\t\tpermit
+\t\t}
+\t}
+\tuser cert-user {
+\t\tprofile = eap-profile
+\t}
+\tuser deny-user {
+\t\tprofile = eap-deny
+\t}
+\tuser message-user {
+\t\tprofile = eap-message
+\t}
+\tuser state-user {
+\t\tprofile = eap-state
+\t}
+\tuser mfa-user {
+\t\tmfa = yes
+\t}
+"""
+
+EAP_POLICY = eap_policy(users=EAP_USERS)
+
+# The test dictionary makes State (24) a string so a profile can add it;
+# the included dictionary would make rad_attr_add() skip an octets value.
+EAP_STATE_DICTIONARY = """\tradius.dictionary {
+\t\tattribute State 24 string
+\t}
+"""
+
+EAP_STATE_POLICY = eap_policy(dictionary=EAP_STATE_DICTIONARY, users=EAP_USERS)
+
+EAP_SAN_USERS = """
+\tuser san-user {
+\t\tprofile = eap-profile
 \t}
 \tuser cert-user {
 \t\tprofile = eap-profile
 \t}
 """
+
+EAP_SAN_POLICY = eap_policy(identity_source="cert-san", users=EAP_SAN_USERS)
+
+EAP_LAB_USERS = """
+\tuser lab-user {
+\t\tprofile = eap-profile
+\t}
+"""
+
+EAP_LAB_POLICY = eap_policy(identity_source="eap-identity", verify_client="no", users=EAP_LAB_USERS)
 
 
 class EapTlsPeer:
@@ -470,12 +564,12 @@ class EapTlsPeer:
         self.identifier = identifier
         return identifier, data
 
-    def handshake(self, max_rounds=10):
-        """Identity -> TLS Start, then run the client handshake to completion.
+    def handshake_reply(self, max_rounds=10):
+        """Run the client handshake and return (ACK identifier, reply to the final ACK).
 
         RFC 5216 2.1.3: after the server's final TLS flight the peer sends an
-        empty EAP-Response/EAP-TLS ACK, and only then may the server answer
-        with EAP-Success. Returns the number of server TLS flights.
+        empty EAP-Response/EAP-TLS ACK. The reply may be EAP-Success or
+        EAP-Failure; the caller decides which one is expected.
         """
         identity = radius.eap_packet(radius.EAP_RESPONSE, 1, radius.EAP_TYPE_IDENTITY,
                                      self.identity.encode())
@@ -504,22 +598,32 @@ class EapTlsPeer:
             # ACK it with an empty EAP-Response/EAP-TLS (RFC 5216 2.1.3).
             ack_identifier = self.identifier
             reply = self.send_eap(radius.eap_tls_ack(ack_identifier))
-            if reply.code_name != "Access-Accept":
-                raise AssertionError("expected Access-Accept after the final ACK, got %s: %r"
-                                     % (reply.code_name, radius.eap_from_reply(reply)))
-            eap = radius.eap_from_reply(reply)
-            if len(eap) != 4:
-                raise AssertionError("EAP-Success must be a 4-byte packet, got %r" % eap)
-            code, identifier, length = struct.unpack("!BBH", eap)
-            if code != radius.EAP_SUCCESS:
-                raise AssertionError("expected EAP-Success (3), got EAP code %d: %r" % (code, eap))
-            if identifier != ack_identifier:
-                raise AssertionError("EAP-Success identifier %d, ACK identifier %d"
-                                     % (identifier, ack_identifier))
-            if reply.get(radius.STATE):
-                raise AssertionError("Access-Accept carries State: %r" % reply.get(radius.STATE))
-            return self.tls_requests
+            return ack_identifier, reply
         raise AssertionError("TLS handshake did not complete in %d rounds" % max_rounds)
+
+    def handshake(self, max_rounds=10):
+        """Identity -> TLS Start, then run the client handshake to EAP-Success.
+
+        Returns the number of server TLS flights. Raises AssertionError when
+        the server does not answer the final ACK with an Access-Accept
+        carrying a matching 4-byte EAP-Success.
+        """
+        ack_identifier, reply = self.handshake_reply(max_rounds)
+        if reply.code_name != "Access-Accept":
+            raise AssertionError("expected Access-Accept after the final ACK, got %s: %r"
+                                 % (reply.code_name, radius.eap_from_reply(reply)))
+        eap = radius.eap_from_reply(reply)
+        if len(eap) != 4:
+            raise AssertionError("EAP-Success must be a 4-byte packet, got %r" % eap)
+        code, identifier, length = struct.unpack("!BBH", eap)
+        if code != radius.EAP_SUCCESS:
+            raise AssertionError("expected EAP-Success (3), got EAP code %d: %r" % (code, eap))
+        if identifier != ack_identifier:
+            raise AssertionError("EAP-Success identifier %d, ACK identifier %d"
+                                 % (identifier, ack_identifier))
+        if reply.get(radius.STATE):
+            raise AssertionError("Access-Accept carries State: %r" % reply.get(radius.STATE))
+        return self.tls_requests
 
     def handshake_until_alert(self, max_rounds=10):
         """Run the client handshake until the server sends a TLS alert.
@@ -562,11 +666,12 @@ class EapTlsPeer:
 class EapTlsTestCase(DaemonTestCase):
     """An EAP realm with TLS credentials from a throw-away CA.
 
-    CONFIG is the EAP policy with the CA's server certificate/key and root
+    POLICY is the EAP policy with the CA's server certificate/key and root
     certificate; client certificates are issued by the same CA.
     """
 
     UDP = True
+    POLICY = EAP_POLICY
 
     @classmethod
     def server_certificate(cls):
@@ -584,7 +689,7 @@ class EapTlsTestCase(DaemonTestCase):
         try:
             cls.client_cert = cls.client_certificate()
             server = cls.server_certificate()
-            cls.CONFIG = EAP_POLICY % (DICTIONARY, server[0], server[1], cls.ca.cert)
+            cls.CONFIG = cls.POLICY % (server[0], server[1], cls.ca.cert)
             super().setUpClass()
         except Exception:
             cls.ca.remove()
@@ -601,6 +706,15 @@ class EapTlsTestCase(DaemonTestCase):
     def radius(self, secret, **kw):
         kw.setdefault("source", "127.0.0.6")
         return super().radius(secret, **kw)
+
+    def assert_eap_failure(self, peer):
+        """The final ACK gets an Access-Reject carrying EAP-Failure and its identifier."""
+        ack_identifier, reply = peer.handshake_reply()
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        eap = radius.eap_from_reply(reply)
+        self.assertEqual(len(eap), 4, eap)
+        self.assertEqual(struct.unpack("!BBH", eap),
+                         (radius.EAP_FAILURE, ack_identifier, 4))
 
 
 class EapIdentity(EapTlsTestCase):
@@ -817,3 +931,106 @@ class EapTlsMalformedReassembly(EapTlsTestCase):
         self.assertEqual(reply.code_name, "Access-Reject", reply)
         self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(reply)),
                          (radius.EAP_FAILURE, peer.identifier, 4))
+
+
+class EapTlsAuthorization(EapTlsTestCase):
+    """The certificate identity is mapped to the existing authorization path."""
+
+    def test_mixed_case_cert_cn_is_lowercased_and_profile_attributes_added(self):
+        """CN Cert-User maps to user cert-user; the profile's Cisco-AVPair is in the Accept."""
+        cert = self.ca.issue("mixed-case", "/CN=Cert-User")
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "Cert-User", cert=cert)
+        peer.handshake()
+        self.assertEqual(peer.last_reply.code_name, "Access-Accept", peer.last_reply)
+        self.assertEqual(cisco_avpairs(peer.last_reply), [b"shell:priv-lvl=15"])
+
+    def test_unknown_certificate_identity_is_rejected(self):
+        cert = self.ca.issue("unknown", "/CN=unknown-user")
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "unknown-user", cert=cert)
+        self.assert_eap_failure(peer)
+
+    def test_profile_deny_is_rejected(self):
+        cert = self.ca.issue("deny", "/CN=deny-user")
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "deny-user", cert=cert)
+        self.assert_eap_failure(peer)
+
+    def test_mfa_required_is_rejected(self):
+        """MFA cannot be challenged inside EAP-TLS, so it must not be bypassed."""
+        cert = self.ca.issue("mfa", "/CN=mfa-user")
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "mfa-user", cert=cert)
+        self.assert_eap_failure(peer)
+
+    def test_empty_certificate_cn_is_rejected(self):
+        cert = self.ca.issue("no-cn", "/O=tactest")
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "no-cn", cert=cert)
+        self.assert_eap_failure(peer)
+
+    def test_profile_reply_message_is_stripped_from_accept(self):
+        """RFC 3579 2.6.5: no Reply-Message in a packet carrying EAP-Message."""
+        cert = self.ca.issue("message", "/CN=message-user")
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "message-user", cert=cert)
+        peer.handshake()
+        self.assertEqual(peer.last_reply.code_name, "Access-Accept", peer.last_reply)
+        self.assertFalse(peer.last_reply.get(radius.REPLY_MESSAGE),
+                         peer.last_reply.get(radius.REPLY_MESSAGE))
+
+
+class EapTlsProfileStateStripped(EapTlsTestCase):
+    """A profile-added State must not appear in an Access-Accept (only Access-Challenge)."""
+
+    POLICY = EAP_STATE_POLICY
+
+    def test_profile_state_is_stripped_from_accept(self):
+        cert = self.ca.issue("state", "/CN=state-user")
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "state-user", cert=cert)
+        peer.handshake()
+        self.assertEqual(peer.last_reply.code_name, "Access-Accept", peer.last_reply)
+        # The Cisco-AVPair proves the profile ran; the State it also added is gone.
+        self.assertEqual(cisco_avpairs(peer.last_reply), [b"shell:priv-lvl=15"])
+        self.assertFalse(peer.last_reply.get(radius.STATE), peer.last_reply.get(radius.STATE))
+
+
+class EapTlsCertSan(EapTlsTestCase):
+    """eap-identity-source = cert-san uses the first DNS SAN and falls back to CN."""
+
+    POLICY = EAP_SAN_POLICY
+
+    def test_first_dns_san_is_used_and_cn_is_ignored(self):
+        cert = self.ca.issue("san-client", "/CN=cn-user", san="DNS:san-user")
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "san-user", cert=cert)
+        peer.handshake()
+        self.assertEqual(peer.last_reply.code_name, "Access-Accept", peer.last_reply)
+        self.assertEqual(cisco_avpairs(peer.last_reply), [b"shell:priv-lvl=15"])
+
+    def test_no_dns_san_falls_back_to_cn(self):
+        cert = self.ca.issue("san-fallback", "/CN=cert-user")
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "cert-user", cert=cert)
+        peer.handshake()
+        self.assertEqual(peer.last_reply.code_name, "Access-Accept", peer.last_reply)
+        self.assertEqual(cisco_avpairs(peer.last_reply), [b"shell:priv-lvl=15"])
+
+
+class EapTlsEapIdentityLab(EapTlsTestCase):
+    """verify-client = no with eap-identity-source = eap-identity (lab mode, no client cert)."""
+
+    POLICY = EAP_LAB_POLICY
+
+    @classmethod
+    def client_certificate(cls):
+        return None
+
+    def test_eap_identity_without_client_certificate(self):
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "lab-user", cert=None)
+        peer.handshake()
+        self.assertEqual(peer.last_reply.code_name, "Access-Accept", peer.last_reply)
+        self.assertEqual(cisco_avpairs(peer.last_reply), [b"shell:priv-lvl=15"])

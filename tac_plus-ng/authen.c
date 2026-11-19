@@ -874,6 +874,42 @@ static enum token check_access(tac_session *session, struct pwdat *pwdat, char *
     return res;
 }
 
+#ifdef WITH_SSL
+/*
+ * Authorization for a completed EAP-TLS handshake. The identity has already
+ * been taken from the verified client certificate (or, in the lab-only
+ * eap-identity mode, from the unauthenticated EAP-Response/Identity) and set
+ * as session->username. Reuse the same host ACL, ruleset, user expiry and
+ * profile logic as the password-based RADIUS path.
+ *
+ * MFA cannot be challenged inside EAP-TLS in this cut, so a session that
+ * requires it is denied rather than silently bypassing the second factor.
+ */
+enum token eap_authorize(tac_session *session, char **resp, enum hint_enum *hint)
+{
+    enum token res = lookup_and_set_user(session);
+    if (res != S_permit)
+	return res;
+
+    set_mfa(session);
+    if (session->want_mfa == BISTATE_YES) {
+	*hint = hint_denied_by_acl;
+	report_auth(session, "radius eap-tls login", *hint, S_deny);
+	return S_deny;
+    }
+
+    /* EAP-TLS has no password and no MAVIS authentication step. */
+    session->mavisauth_res = S_permit;
+    res = check_access(session, NULL, NULL, hint, resp);
+    if (res == S_permit && session->profile)
+	res = author_eval_profile(session, session->profile,
+				  session->ctx->realm->script_profile_parent_first);
+
+    report_auth(session, "radius eap-tls login", *hint, res);
+    return res;
+}
+#endif				/* WITH_SSL */
+
 static void set_pwdat(tac_session *session, struct pwdat **pwdat, enum pw_ix *pw_ix)
 {
     if (session->user) {

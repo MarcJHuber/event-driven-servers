@@ -65,6 +65,11 @@
 #include <openssl/err.h>
 #include <openssl/x509v3.h>
 
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
+/* OpenSSL 1.1 returns a referenced certificate under this older name. */
+#define SSL_get1_peer_certificate SSL_get_peer_certificate
+#endif
+
 /*
  * Attribute walkers. The RADIUS packet has already passed rad_check_failed()
  * on the receive path, but the EAP code re-validates every attribute so a
@@ -435,6 +440,169 @@ static void eap_send_success(tac_session *session, struct eap_session *es, u_cha
     eap_send_reply(session, es, identifier, RADIUS_CODE_ACCESS_ACCEPT, pkt, sizeof(pkt), NULL, 0);
 }
 
+/*
+ * Copy an identity into a malloc()ed C string. Certificate-derived identities
+ * are lowercased (ASCII only); the lab-only EAP-Response/Identity is used as
+ * supplied. Reject empty values, embedded NULs and values over 255 bytes.
+ */
+static char *eap_copy_identity(const u_char *data, size_t len, int lowercase)
+{
+    char *identity;
+    size_t i;
+
+    if (!data || !len || len > 255 || memchr(data, 0, len))
+	return NULL;
+
+    identity = malloc(len + 1);
+    if (!identity)
+	return NULL;
+
+    for (i = 0; i < len; i++) {
+	u_char c = data[i];
+
+	identity[i] = (char) (lowercase && c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c);
+    }
+    identity[len] = 0;
+    return identity;
+}
+
+static char *eap_cert_cn(X509 *cert)
+{
+    X509_NAME *subject;
+    X509_NAME_ENTRY *entry;
+    ASN1_STRING *data;
+    int idx;
+
+    subject = X509_get_subject_name(cert);
+    if (!subject)
+	return NULL;
+
+    idx = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
+    if (idx < 0)
+	return NULL;
+
+    entry = X509_NAME_get_entry(subject, idx);
+    if (!entry)
+	return NULL;
+
+    data = X509_NAME_ENTRY_get_data(entry);
+    if (!data)
+	return NULL;
+
+    return eap_copy_identity(ASN1_STRING_get0_data(data),
+			     (size_t) ASN1_STRING_length(data), 1);
+}
+
+/*
+ * First GEN_DNS subjectAltName. *found distinguishes "no DNS SAN" (fall
+ * back to CN) from "a DNS SAN exists but is unusable" (reject).
+ */
+static char *eap_cert_san(X509 *cert, int *found)
+{
+    GENERAL_NAMES *names;
+    char *identity = NULL;
+    int i;
+
+    *found = 0;
+    names = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
+    if (!names)
+	return NULL;
+
+    for (i = 0; i < sk_GENERAL_NAME_num(names); i++) {
+	GENERAL_NAME *gn = sk_GENERAL_NAME_value(names, i);
+
+	if (gn->type != GEN_DNS)
+	    continue;
+	*found = 1;
+	identity = eap_copy_identity(ASN1_STRING_get0_data(gn->d.dNSName),
+				     (size_t) ASN1_STRING_length(gn->d.dNSName), 1);
+	break;
+    }
+
+    GENERAL_NAMES_free(names);
+    return identity;
+}
+
+static char *eap_extract_identity(tac_session *session, struct eap_session *es)
+{
+    tac_realm *r = session->ctx->realm;
+    char *identity = NULL;
+
+    switch (r->eap_identity_source) {
+    case S_cert_cn:
+    case S_cert_san:
+	if (es->ssl) {
+	    X509 *cert = SSL_get1_peer_certificate(es->ssl);
+
+	    if (cert) {
+		if (r->eap_identity_source == S_cert_cn)
+		    identity = eap_cert_cn(cert);
+		else {
+		    int found = 0;
+
+		    identity = eap_cert_san(cert, &found);
+		    if (!found)
+			identity = eap_cert_cn(cert);
+		}
+		X509_free(cert);
+	    }
+	}
+	break;
+    case S_eap_identity:
+	identity = eap_copy_identity((const u_char *) es->identity.txt,
+				     es->identity.len, 0);
+	if (identity)
+	    report(session, LOG_WARNING, ~0,
+		   "EAP: using unauthenticated EAP-Response/Identity for authorization");
+	break;
+    default:
+	break;
+    }
+    return identity;
+}
+
+/*
+ * Map the completed handshake to a user and run the existing authorization
+ * path. On success send EAP-Success in an Access-Accept; the profile
+ * attributes are already in session->radius_data->data. On an identity
+ * extraction failure or a denial send EAP-Failure in an Access-Reject.
+ * rad_send_eap_reply() frees the tac_session, so do not touch it afterwards.
+ */
+static enum token eap_identity_authorize(tac_session *session, struct eap_session *es,
+					 u_char identifier)
+{
+    enum hint_enum hint = hint_nosuchuser;
+    enum token res;
+    char *identity, *resp = NULL;
+
+    identity = eap_extract_identity(session, es);
+    if (!identity) {
+	report(session, LOG_WARNING, ~0, "EAP: no usable client identity");
+	es->flags |= EAP_F_FAILED;
+	eap_send_failure(session, es, identifier);
+	return S_deny;
+    }
+
+    str_set(&session->username, mem_strdup(session->mem, identity), 0);
+    free(identity);
+    if (!session->username.txt) {
+	report(session, LOG_ERR, ~0, "EAP: out of memory storing client identity");
+	es->flags |= EAP_F_FAILED;
+	eap_send_failure(session, es, identifier);
+	return S_deny;
+    }
+
+    res = eap_authorize(session, &resp, &hint);
+    if (res == S_permit) {
+	eap_send_success(session, es, identifier);
+	return res;
+    }
+
+    es->flags |= EAP_F_FAILED;
+    eap_send_failure(session, es, identifier);
+    return res;
+}
+
 /* EAP-Response/Nak proposing EAP-TLS, for RADIUS role reversal (RFC 3579 2.6.2). */
 static void eap_send_nak(tac_session *session, struct eap_session *es, u_char identifier)
 {
@@ -743,10 +911,7 @@ static void eap_tls_ack(tac_session *session, struct eap_session *es,
 	es->tls_state = EAP_TLS_DONE;
 	es->flags |= EAP_F_COMPLETED;
 	es->success_identifier = parsed->identifier;
-	/* Task 13 authorization hook: eap_authorize(session, ...) goes here;
-	   on denial send EAP-Failure in an Access-Reject. Until then a
-	   verified handshake is accepted unconditionally. */
-	eap_send_success(session, es, parsed->identifier);
+	eap_identity_authorize(session, es, parsed->identifier);
 	return;
     default:
 	/* ALERT_SENT and FAILED are handled by the caller; an ACK in DONE or
@@ -925,8 +1090,7 @@ static void eap_tls_request(tac_session *session, struct eap_session *es,
 	    es->tls_state = EAP_TLS_DONE;
 	    es->flags |= EAP_F_COMPLETED;
 	    es->success_identifier = parsed->identifier;
-	    /* Task 13 authorization hook (see eap_tls_ack()). */
-	    eap_send_success(session, es, parsed->identifier);
+	    eap_identity_authorize(session, es, parsed->identifier);
 	}
 	/* Otherwise: waiting for more client data. Never send an empty
 	   EAP-Request. */
