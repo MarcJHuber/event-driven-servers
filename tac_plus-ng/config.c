@@ -2341,17 +2341,44 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 		case S_timeout:
 		    sym_get(sym);
 		    parse(sym, S_equal);
-		    r->eap_timeout = parse_int(sym);
+		    {
+			unsigned int line = sym->line;
+			int timeout = parse_seconds(sym);
+
+			if (timeout < 1) {
+			    sym->line = line;
+			    parse_error(sym, "EAP timeout must be at least 1 second");
+			}
+			r->eap_timeout = timeout;
+		    }
 		    continue;
 		case S_max_message:
 		    sym_get(sym);
 		    parse(sym, S_equal);
-		    r->eap_max_message = parse_int(sym);
+		    {
+			unsigned int line = sym->line;
+			int max_message = parse_int(sym);
+
+			if (max_message < 4 || max_message > 65535) {
+			    sym->line = line;
+			    parse_error(sym, "EAP max-message must be between 4 and 65535");
+			}
+			r->eap_max_message = max_message;
+		    }
 		    continue;
 		case S_max_sessions:
 		    sym_get(sym);
 		    parse(sym, S_equal);
-		    r->eap_max_sessions = parse_int(sym);
+		    {
+			unsigned int line = sym->line;
+			int max_sessions = parse_int(sym);
+
+			if (max_sessions < 1) {
+			    sym->line = line;
+			    parse_error(sym, "EAP max-sessions must be positive");
+			}
+			r->eap_max_sessions = max_sessions;
+		    }
 		    continue;
 		default:
 		    parse_error_expect(sym, S_eap_method, S_cert_file, S_key_file,

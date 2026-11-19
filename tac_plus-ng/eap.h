@@ -137,6 +137,7 @@ struct eap_session {
 #define EAP_F_FRAGMENT_ACK  0x10
 #define EAP_F_COMPLETED     0x20
 #define EAP_F_ALERT_SENT    0x40
+#define EAP_F_IDENTITY_REQUESTED 0x80
 
     enum eap_tls_state tls_state;
     str_t identity;		/* EAP-Response/Identity, unauthenticated */

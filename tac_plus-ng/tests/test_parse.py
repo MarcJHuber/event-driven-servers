@@ -103,8 +103,11 @@ NEEDS_OPENSSL = {
 # stops at "but got 'eap'"; skip them instead of failing on that message.
 NEEDS_OPENSSL_CONFIGS = (
     "good-eap.cfg", "good-eap-disabled.cfg",
+    "good-eap-timeout.cfg", "good-eap-timeout-seconds.cfg",
     "bad-eap-method.cfg", "bad-eap-verify-client.cfg",
     "bad-eap-identity-source.cfg", "bad-eap-identity-verify.cfg",
+    "bad-eap-timeout.cfg", "bad-eap-max-message-low.cfg",
+    "bad-eap-max-message-high.cfg", "bad-eap-max-sessions.cfg",
 )
 
 SANITIZER_TEXT = ("Sanitizer", "runtime error")
@@ -313,6 +316,48 @@ class DeviceNameInHostsFile(unittest.TestCase):
     def test_hosts_entry_of_another_name_adds_nothing(self):
         code, out = self.parse("\tdevice a { key = k }\n\tdevice b { key = k }\n", "10.0.0.1 c\n")
         self.assertEqual(code, 0, out)
+
+
+class EapConfigValidation(unittest.TestCase):
+    """Out-of-range EAP numeric values are rejected at the directive's line."""
+
+    HEAD = ("id = spawnd { listen = { port = 4949 } }\n"
+            "id = tac_plus-ng {\n"
+            "\teap {\n"
+            "\t\tcert-file = $tmp/server.pem\n"
+            "\t\tkey-file = $tmp/server.key\n"
+            "\t\tca-file = $tmp/root.crt\n")
+
+    def assert_value_error(self, directive, text):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "eap.cfg")
+            with open(path, "w") as f:
+                f.write(self.HEAD.replace("$tmp", tmp) + directive + "\n\t}\n}\n")
+            code, out = check(path)
+            self.assertGreater(code, 0, out)
+            m = re.search(r"eap\.cfg:(\d+): .*%s" % re.escape(text), out)
+            self.assertIsNotNone(m, out)
+            self.assertEqual(int(m.group(1)), 7, out)
+
+    @unittest.skipUnless("openssl" in features(), "the realm eap block needs an OpenSSL build")
+    def test_negative_timeout_is_rejected(self):
+        self.assert_value_error("\t\ttimeout = -1", "EAP timeout must be at least 1 second")
+
+    @unittest.skipUnless("openssl" in features(), "the realm eap block needs an OpenSSL build")
+    def test_zero_timeout_is_rejected(self):
+        self.assert_value_error("\t\ttimeout = 0", "EAP timeout must be at least 1 second")
+
+    @unittest.skipUnless("openssl" in features(), "the realm eap block needs an OpenSSL build")
+    def test_max_message_below_four_is_rejected(self):
+        self.assert_value_error("\t\tmax-message = 3", "EAP max-message must be between 4 and 65535")
+
+    @unittest.skipUnless("openssl" in features(), "the realm eap block needs an OpenSSL build")
+    def test_max_message_above_65535_is_rejected(self):
+        self.assert_value_error("\t\tmax-message = 65536", "EAP max-message must be between 4 and 65535")
+
+    @unittest.skipUnless("openssl" in features(), "the realm eap block needs an OpenSSL build")
+    def test_max_sessions_below_one_is_rejected(self):
+        self.assert_value_error("\t\tmax-sessions = 0", "EAP max-sessions must be positive")
 
 
 class OwnConfigs(unittest.TestCase):

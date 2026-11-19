@@ -53,6 +53,12 @@ typedef struct {
 #define RADIUS_DATA(A) (((u_char *)(A)) + RADIUS_HDR_SIZE)
 #define RADIUS_DATA_LEN(A) (ntohs(((rad_pak_hdr *)A)->length) - RADIUS_HDR_SIZE)
 
+/* RADIUS packet and attribute limits, shared by the packet builder and the
+   EAP reply capacity checks. */
+#define RADIUS_MAX_PACKET 4096
+#define RADIUS_MAX_ATTRIBUTES (RADIUS_MAX_PACKET - RADIUS_HDR_SIZE)
+#define RADIUS_MA_RESERVE 18	/* Message-Authenticator attribute */
+
 // various #defines, mostly derived from RFC2856/RFC2866. 
 
 #define RADIUS_CODE_ACCESS_REQUEST		1

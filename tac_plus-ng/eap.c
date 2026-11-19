@@ -416,6 +416,27 @@ static void eap_send_reply(tac_session *session, struct eap_session *es,
 			   const u_char *eap, size_t eap_len,
 			   const u_char *state, size_t state_len)
 {
+    /*
+     * rad_send_eap_reply() would downgrade an oversized Access-Accept (or
+     * Access-Challenge) to EAP-Failure in a best-effort Access-Reject, but
+     * the reply cache would still hold the Accept. Preflight the real reply
+     * and cache the Failure that is actually sent instead. The EAP-Failure
+     * carries the client's response identifier (RFC 5216 2.1.3).
+     */
+    if (!rad_eap_reply_fits(session, code, eap_len, state_len)) {
+	u_char pkt[sizeof(struct eap_hdr)];
+	struct eap_hdr hdr = {
+	    EAP_CODE_FAILURE,
+	    es ? es->client_identifier : identifier,
+	    htons(sizeof(pkt))
+	};
+
+	memcpy(pkt, &hdr, sizeof(hdr));
+	eap_cache_reply(es, identifier, RADIUS_CODE_ACCESS_REJECT, pkt, sizeof(pkt), NULL, 0);
+	rad_send_eap_reply(session, RADIUS_CODE_ACCESS_REJECT, pkt, sizeof(pkt), NULL, 0);
+	return;
+    }
+
     eap_cache_reply(es, identifier, code, eap, eap_len, state, state_len);
     rad_send_eap_reply(session, code, eap, eap_len, state, state_len);
 }
@@ -581,8 +602,13 @@ static int eap_add_mppe(tac_session *session, struct eap_session *es)
 	return 1;
 
     /* Policy/Types (2 * 12) plus two 58-byte key VSAs must fit together with
-       the RADIUS header and the Message-Authenticator reservation. */
-    if (rd->data_len + 2 * 12 + 2 * 58 + RADIUS_HDR_SIZE + 18 > sizeof(rd->data))
+       the EAP-Message attribute header and its 4-byte EAP packet, the
+       Message-Authenticator reservation, and whatever profile attributes
+       survive rad_send_eap_reply()'s stripping. Counting data_len here would
+       overcount attributes that are removed later (EAP-Message, State,
+       Message-Authenticator, Reply-Message). */
+    if (rad_eap_effective_payload_len(session, RADIUS_CODE_ACCESS_ACCEPT) +
+	2 * 12 + 2 * 58 + 2 + 4 + RADIUS_MA_RESERVE > RADIUS_MAX_ATTRIBUTES)
 	return 0;
 
     rad_add_mppe_policy(session);
@@ -650,6 +676,14 @@ static enum token eap_identity_authorize(tac_session *session, struct eap_sessio
 	eap_cache_profile_attrs(es, session);
 #ifdef WITH_CRYPTO
 	if (!eap_add_mppe(session, es)) {
+	    /* The profile AVPs must not ride on the Access-Reject: drop them
+	       from both the reply buffer and the replay cache, and start the
+	       failure reply from an empty attribute buffer. */
+	    free(es->profile_attrs);
+	    es->profile_attrs = NULL;
+	    es->profile_attrs_len = 0;
+	    if (session->radius_data)
+		session->radius_data->data_len = 0;
 	    es->flags |= EAP_F_FAILED;
 	    eap_send_failure(session, es, identifier);
 	    return S_deny;
@@ -1250,6 +1284,9 @@ void eap_radius_request(tac_session *session)
 	    return;
 	}
 	eap_send_request(session, es, EAP_TYPE_IDENTITY, 0, NULL, 0, 0);
+	/* The client answers EAP-Request/Identity with the State we just sent;
+	   accept that State-bearing response as the identity for TLS Start. */
+	es->flags |= EAP_F_IDENTITY_REQUESTED;
 	return;
     }
 
@@ -1309,6 +1346,8 @@ void eap_radius_request(tac_session *session)
     if (!es || es->expires < io_now.tv_sec) {
 	/* Unknown or expired State: reject instead of refreshing an expired
 	   session. The periodic handler may not have purged it yet. */
+	report(session, LOG_WARNING, ~0, "EAP: unknown or expired State from %s",
+	       session->ctx->device_addr_ascii.txt);
 	if (es)
 	    eap_drop_session(r, es);
 	eap_send_failure(session, NULL, identifier);
@@ -1382,7 +1421,23 @@ void eap_radius_request(tac_session *session)
 
     switch (parsed.type) {
     case EAP_TYPE_IDENTITY:
-	/* Identity is only valid without State. */
+	/* EAP-Start sent EAP-Request/Identity with State; accept the client's
+	   State-bearing Identity response and continue with TLS Start, like
+	   the no-State Identity path above. Any other Identity with State is
+	   still invalid. */
+	if ((es->flags & EAP_F_IDENTITY_REQUESTED) && !(es->flags & EAP_F_IDENTITY_SEEN)) {
+	    if (!eap_store_identity(es, &parsed)) {
+		eap_drop_session(r, es);
+		eap_send_failure(session, NULL, identifier);
+		return;
+	    }
+	    es->client_identifier = identifier;
+	    es->success_identifier = identifier;
+	    es->flags |= EAP_F_IDENTITY_SEEN;
+	    es->flags &= ~EAP_F_IDENTITY_REQUESTED;
+	    eap_send_request(session, es, EAP_TYPE_TLS, EAP_TLS_FLAG_S, NULL, 0, 0);
+	    return;
+	}
 	eap_send_failure(session, es, identifier);
 	return;
     case EAP_TYPE_TLS:

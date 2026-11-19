@@ -900,6 +900,37 @@ enum token eap_authorize(tac_session *session, char **resp, enum hint_enum *hint
 	return S_deny;
     }
 
+    /*
+     * Password-path parity for the login credential. The password paths run
+     * refuse_rad_session() (which sends a RADIUS Protocol-Error for
+     * login = error) and compare_pwdat() (which denies login = deny). EAP
+     * cannot use refuse_rad_session() here because its caller must send
+     * EAP-Failure in an Access-Reject, so deny directly and let the EAP
+     * caller produce the failure. A MAVIS-only login credential cannot be
+     * challenged inside EAP-TLS and is rejected rather than silently
+     * bypassed. The default S_deny credential (no login password configured)
+     * is not an explicit login = deny and stays usable, since the client
+     * certificate is the credential for EAP-TLS.
+     */
+    switch (session->user->passwd[PW_LOGIN]->type) {
+    case S_deny:
+	if (session->user->passwd[PW_LOGIN] == &passwd_deny_dflt)
+	    break;
+	*hint = hint_denied;
+	report_auth(session, "radius eap-tls login", *hint, S_deny);
+	return S_deny;
+    case S_error:
+	*hint = hint_error;
+	report_auth(session, "radius eap-tls login", *hint, S_deny);
+	return S_deny;
+    case S_mavis:
+	*hint = hint_backend_error;
+	report_auth(session, "radius eap-tls login", *hint, S_deny);
+	return S_deny;
+    default:
+	break;
+    }
+
     set_mfa(session);
     if (session->want_mfa == BISTATE_YES) {
 	*hint = hint_denied_by_acl;

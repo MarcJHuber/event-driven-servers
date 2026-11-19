@@ -65,10 +65,6 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
-#define RADIUS_MAX_PACKET 4096
-#define RADIUS_MAX_ATTRIBUTES (RADIUS_MAX_PACKET - RADIUS_HDR_SIZE)
-#define RADIUS_MA_RESERVE 18	/* Message-Authenticator attribute */
-
 #define RAD_PAK_SESSIONID(A) (((uint32_t) (A)->code << 8) | (uint32_t) (A)->identifier)
 
 static void write_packet(struct context *, tac_pak *);
@@ -463,6 +459,70 @@ static size_t rad_strip_attribute(u_char *data, size_t len, u_char type)
 }
 
 /*
+ * Effective length of the reply attribute buffer once the attributes that
+ * rad_send_eap_reply() removes are stripped: EAP-Message, State and
+ * Message-Authenticator always, Reply-Message for Access-Accept/Reject
+ * (RFC 3579 2.6.5). rad_attr_add() and profile scripts may have filled the
+ * buffer, so the capacity checks must use this value, not data_len.
+ */
+size_t rad_eap_effective_payload_len(tac_session *session, u_char code)
+{
+    struct radius_data *rd = session->radius_data;
+    size_t in = 0, out = 0, len;
+
+    if (!rd)
+	return 0;
+
+    len = rd->data_len;
+    while (in + 2 <= len) {
+	size_t alen = rd->data[in + 1];
+	u_char type = rd->data[in];
+
+	if (alen < 2 || alen > len - in)
+	    break;
+	if (type != RADIUS_A_EAP_MESSAGE && type != RADIUS_A_STATE &&
+	    type != RADIUS_A_MESSAGE_AUTHENTICATOR &&
+	    !((code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT) &&
+	      type == RADIUS_A_REPLY_MESSAGE))
+	    out += alen;
+	in += alen;
+    }
+    if (in < len)
+	out += len - in;	/* malformed tail, preserved by rad_strip_attribute() */
+
+    return out;
+}
+
+/*
+ * Preflight an EAP reply: can the effective profile payload plus the
+ * EAP-Message attributes for eap_len bytes, optional Access-Challenge State
+ * and the Message-Authenticator reservation fit in one RADIUS packet?
+ * Mirrors rad_send_eap_reply() so the caller can avoid caching a reply that
+ * would have to be downgraded to EAP-Failure.
+ */
+int rad_eap_reply_fits(tac_session *session, u_char code, size_t eap_len, size_t state_len)
+{
+    size_t base, need = 0, i;
+
+    if (!session || !session->radius_data)
+	return 0;
+
+    if (state_len > EAP_MAX_RADIUS_ATTR)
+	state_len = 0;		/* cannot encode a longer RADIUS State */
+
+    base = rad_eap_effective_payload_len(session, code);
+    if (base > RADIUS_MAX_ATTRIBUTES - RADIUS_MA_RESERVE)
+	return 0;
+
+    for (i = 0; i < eap_len; i += EAP_MAX_RADIUS_ATTR)
+	need += 2 + (size_t) minimum(EAP_MAX_RADIUS_ATTR, (int) (eap_len - i));
+    if (state_len && code == RADIUS_CODE_ACCESS_CHALLENGE)
+	need += 2 + state_len;
+
+    return need <= RADIUS_MAX_ATTRIBUTES - RADIUS_MA_RESERVE - base;
+}
+
+/*
  * Send an Access-Challenge/Accept/Reject carrying EAP-Message, optional
  * State (Access-Challenge only), and the Message-Authenticator that
  * new_rad_pak() appends. Reply-Message and State already in the attribute
@@ -538,9 +598,10 @@ void rad_send_eap_reply(tac_session *session, u_char code, const u_char *eap, si
     return;
 
 best_effort:
-    /* Best effort: an EAP-Failure-only Access-Reject if it fits. */
+    /* Best effort: an EAP-Failure-only Access-Reject if it fits. Keep the
+       client's EAP identifier (RFC 5216 2.1.3) instead of using 0. */
     {
-	u_char failure[4] = { EAP_CODE_FAILURE, 0, 0, 4 };
+	u_char failure[4] = { EAP_CODE_FAILURE, eap && eap_len >= 2 ? eap[1] : 0, 0, 4 };
 
 	if (sizeof(failure) + 2 + RADIUS_MA_RESERVE <= RADIUS_MAX_ATTRIBUTES) {
 	    rd->data_len = 0;

@@ -868,6 +868,8 @@ void rad_send_acct_reply(tac_session * session);
 void rad_send_error(tac_session * session, uint32_t cause);
 #ifdef WITH_SSL
 void rad_send_eap_reply(tac_session *, u_char, const u_char *, size_t, const u_char *, size_t);
+size_t rad_eap_effective_payload_len(tac_session *, u_char);
+int rad_eap_reply_fits(tac_session *, u_char, size_t, size_t);
 #endif
 
 int tac_exit(int) __attribute__((noreturn));

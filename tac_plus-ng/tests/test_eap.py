@@ -451,6 +451,15 @@ EAP_USERS = """
 \tuser mfa-user {
 \t\tmfa = yes
 \t}
+\tuser deny-login-user {
+\t\tpassword login = deny
+\t}
+\tuser error-login-user {
+\t\tpassword login = error
+\t}
+\tuser mavis-login-user {
+\t\tpassword login = mavis
+\t}
 """
 
 EAP_POLICY = eap_policy(users=EAP_USERS)
@@ -941,6 +950,34 @@ class EapIdentity(EapTlsTestCase):
         self.assertTrue(r.get(radius.STATE), "Access-Challenge without State")
 
 
+class EapStart(EapTlsTestCase):
+    """EAP-Start: empty EAP-Message -> Identity Challenge -> State Identity -> TLS Start."""
+
+    def test_eap_start_identity_with_state_gets_tls_start(self):
+        c = self.radius("radsecret")
+        req = radius.Packet(radius.ACCESS_REQUEST, attributes=[
+            (radius.USER_NAME, b"cert-user"), (radius.EAP_MESSAGE, b"")])
+        r = c.exchange(req, message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Challenge", r)
+        eap = radius.eap_from_reply(r)
+        self.assertGreaterEqual(len(eap), 5, eap)
+        self.assertEqual(eap[0], radius.EAP_REQUEST, eap)
+        self.assertEqual(eap[4], radius.EAP_TYPE_IDENTITY, eap)
+        identifier = eap[1]
+        state = (r.get(radius.STATE) or [None])[0]
+        self.assertTrue(state, "EAP-Start challenge without State")
+
+        identity = radius.eap_packet(radius.EAP_RESPONSE, identifier,
+                                     radius.EAP_TYPE_IDENTITY, b"cert-user")
+        r2 = c.exchange(access_request(identity, state), message_authenticator=True)
+        self.assertEqual(r2.code_name, "Access-Challenge", r2)
+        reply_eap = radius.eap_from_reply(r2)
+        self.assertEqual(reply_eap[0], radius.EAP_REQUEST, reply_eap)
+        self.assertEqual(reply_eap[4], radius.EAP_TYPE_TLS, reply_eap)
+        self.assertTrue(reply_eap[5] & radius.EAP_TLS_S, reply_eap)
+        self.assertEqual(r2.get(radius.STATE), [state], "State must stay the same")
+
+
 class EapTlsHandshake(EapTlsTestCase):
     """The TLS handshake itself: the server's flights go through EAP-TLS."""
 
@@ -1042,7 +1079,9 @@ class EapTlsFragmentedServerFlight(EapTlsTestCase):
     def server_certificate(cls):
         # A certificate with ~4 KB of SANs makes the Certificate message
         # exceed EAP_MAX_FRAGMENT (3000 bytes) and forces fragmentation.
-        long_san = ", ".join("DNS:host%03d.%s.example" % (i, "x" * 180) for i in range(20))
+        # DNS labels are limited to 60 characters so LibreSSL's openssl
+        # accepts them too.
+        long_san = ", ".join("DNS:host%03d.%s.example" % (i, "x" * 60) for i in range(40))
         return cls.ca.issue("server-big", "/O=tactest/CN=localhost", server=True,
                             san="IP:127.0.0.1, IP:::1, DNS:localhost, " + long_san)
 
@@ -1101,7 +1140,9 @@ class EapTlsFragmentedClientFlight(EapTlsTestCase):
     def client_certificate(cls):
         # ~4 KB of SANs make the client Certificate message exceed
         # EAP_MAX_FRAGMENT (3000 bytes) and force client-side fragmentation.
-        long_san = ", ".join("DNS:host%03d.%s.example" % (i, "x" * 180) for i in range(20))
+        # DNS labels are limited to 60 characters so LibreSSL's openssl
+        # accepts them too.
+        long_san = ", ".join("DNS:host%03d.%s.example" % (i, "x" * 60) for i in range(40))
         return cls.ca.issue("client-big", "/CN=cert-user", san=long_san)
 
     def test_client_fragments_are_acked_and_reassembled(self):
@@ -1270,6 +1311,25 @@ class EapTlsAuthorization(EapTlsTestCase):
                       "Message-Authenticator is wrong after stripping Reply-Message")
 
 
+class EapTlsLoginCredentialParity(EapTlsTestCase):
+    """login = deny/error and MAVIS-only login credentials are rejected."""
+
+    def assert_login_denied(self, user):
+        cert = self.ca.issue(user, "/CN=%s" % user)
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, user, cert=cert)
+        self.assert_eap_failure(peer)
+
+    def test_login_deny_is_rejected(self):
+        self.assert_login_denied("deny-login-user")
+
+    def test_login_error_is_rejected(self):
+        self.assert_login_denied("error-login-user")
+
+    def test_mavis_login_is_rejected(self):
+        self.assert_login_denied("mavis-login-user")
+
+
 class EapTlsProfileStateStripped(EapTlsTestCase):
     """A profile-added State must not appear in an Access-Accept (only Access-Challenge)."""
 
@@ -1343,6 +1403,27 @@ def tls11_client_hello():
 EAP_SHORT_TIMEOUT_POLICY = eap_policy(users=EAP_USERS, extra="\t\ttimeout = 1\n")
 EAP_SMALL_MAX_MESSAGE_POLICY = eap_policy(users=EAP_USERS, extra="\t\tmax-message = 64\n")
 EAP_SMALL_MAX_SESSIONS_POLICY = eap_policy(users=EAP_USERS, extra="\t\tmax-sessions = 2\n")
+
+# A profile that fills the reply buffer with Cisco-AVPair values: 15
+# attributes of 237 bytes and one of 232 bytes are 3787 bytes of values and
+# 3915 bytes encoded. That is just below the old eap_add_mppe() check
+# (3915 + 178 <= 4096) but above the corrected one (3915 + 164 > 4076), so
+# EAP-Success plus MS-MPPE keys no longer fit in a 4096-byte RADIUS packet.
+# Reply-Message is not used because the EAP reply path strips it.
+EAP_OVERSIZED_REPLY_USERS = (
+    "\tprofile eap-big {\n"
+    "\t\tscript {\n"
+    + "".join('\t\t\tset radius[Cisco:Cisco-AVPair] = "%s"\n' % ("y" * length)
+              for length in [237] * 15 + [232])
+    + "\t\t\tpermit\n"
+    "\t\t}\n"
+    "\t}\n"
+    "\tuser big-user {\n"
+    "\t\tprofile = eap-big\n"
+    "\t}\n"
+)
+
+EAP_OVERSIZED_REPLY_POLICY = eap_policy(users=EAP_OVERSIZED_REPLY_USERS)
 
 
 def eap_tls_transport_policy(users=EAP_USERS):
@@ -1503,6 +1584,34 @@ class EapOversizedMessage(EapTlsTestCase):
         r = c.exchange(access_request(eap), message_authenticator=True)
         self.assertEqual(r.code_name, "Access-Reject", r)
         self.assertEqual(radius.eap_from_reply(r)[0], radius.EAP_FAILURE, r)
+
+
+class EapTlsOversizedReply(EapTlsTestCase):
+    """A profile that cannot fit with EAP-Success/MS-MPPE gets EAP-Failure, not Accept."""
+
+    POLICY = EAP_OVERSIZED_REPLY_POLICY
+
+    def test_oversized_profile_gets_reject_with_real_identifier(self):
+        cert = self.ca.issue("big", "/CN=big-user")
+        c = self.radius("radsecret")
+        peer = EapTlsPeer(c, self.ca, "big-user", cert=cert)
+        ack_identifier, reply = peer.handshake_reply()
+        self.assertEqual(reply.code_name, "Access-Reject", reply)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(reply)),
+                         (radius.EAP_FAILURE, ack_identifier, 4))
+        self.assertFalse(reply.get(radius.STATE), reply.get(radius.STATE))
+        self.assertFalse(reply.get(radius.REPLY_MESSAGE), reply.get(radius.REPLY_MESSAGE))
+        self.assertEqual(cisco_avpairs(reply), [], "profile AVPs rode on the Access-Reject")
+
+        # A retransmission of the final ACK must get the cached Reject, not
+        # an Access-Accept that was cached before the size check.
+        ack = peer.last_request
+        assert ack is not None
+        resent = c.exchange(ack, message_authenticator=True)
+        self.assertEqual(resent.code_name, "Access-Reject", resent)
+        self.assertEqual(struct.unpack("!BBH", radius.eap_from_reply(resent)),
+                         (radius.EAP_FAILURE, ack_identifier, 4))
+        self.assertEqual(cisco_avpairs(resent), [])
 
 
 class EapProtocol(EapTlsTestCase):
