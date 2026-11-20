@@ -420,6 +420,7 @@ struct dnhash {
     size_t match_start;
     size_t match_len;
     int add;
+    int level;			// levels left to search above this DN
     char name[1];
 };
 
@@ -439,7 +440,7 @@ static void dnhash_drop(struct dnhash **h)
     free(h);
 }
 
-static int dnhash_add(struct dnhash **ha, char *dn, size_t match_start, size_t match_len, int matched)
+static int dnhash_add(struct dnhash **ha, char *dn, size_t match_start, size_t match_len, int matched, int level)
 {
     u_char hash = 0;
     size_t len = 0;
@@ -451,20 +452,26 @@ static int dnhash_add(struct dnhash **ha, char *dn, size_t match_start, size_t m
     struct dnhash *h = ha[hash];
     while (h && (h->len != len || strcmp(h->name, dn)))
 	h = h->next;
-    if (h)
-	return -1;
+    // a DN reached again with more levels left: search it again, so the result does not depend on the order
+    if (h) {
+	if (ldap_group_depth == -2 || h->level >= level)
+	    return -1;
+	h->level = level;
+	return 0;
+    }
     h = calloc(1, sizeof(struct dnhash) + len);
     h->len = len;
     h->match_start = match_start;
     h->match_len = match_len;
     h->add = matched;
+    h->level = level;
     strncpy(h->name, dn, len);
     h->next = ha[hash];
     ha[hash] = h;
     return 0;
 }
 
-static int dnhash_match(struct dnhash **h, char *dn)
+static int dnhash_match(struct dnhash **h, char *dn, int level)
 {
     if (ldap_memberof_filter) {
 	pcre2_match_data *match_data = pcre2_match_data_create_from_pattern(ldap_memberof_filter, NULL);
@@ -502,7 +509,7 @@ static int dnhash_match(struct dnhash **h, char *dn)
 	match_len = ovector[3] - ovector[2];
     }
 
-    int rc = dnhash_add(h, dn, match_start, match_len, matched);
+    int rc = dnhash_add(h, dn, match_start, match_len, matched, level);
     if (match_data)
 	pcre2_match_data_free(match_data);
     return rc;
@@ -561,7 +568,7 @@ static int dnhash_add_entry(LDAP *ldap, struct dnhash **h, char *dn, int level)
 {
     if (level < 1 && ldap_group_depth != -2)
 	return -1;
-    if (dnhash_match(h, dn))
+    if (dnhash_match(h, dn, level - 1))
 	return -1;
     level--;
     if (level < 1 && ldap_group_depth != -2)
@@ -600,7 +607,7 @@ static int dnhash_add_entry(LDAP *ldap, struct dnhash **h, char *dn, int level)
 			struct berval **v = ldap_get_values_len(ldap, entry, attribute);
 			if (v && !strcasecmp(attribute, "memberOf"))
 			    for (int j = 0; v[j]; j++)
-				if (!dnhash_match(h, v[j]->bv_val))
+				if (!dnhash_match(h, v[j]->bv_val, level - 1))
 				    dnlist_add(&list[next], v[j]->bv_val);
 			ldap_value_free_len(v);
 			ldap_memfree(attribute);
@@ -659,7 +666,7 @@ static int dnhash_add_entry_groupOfNames(LDAP *ldap, struct dnhash **h, char *dn
 		if (rc == LDAP_RES_SEARCH_RESULT && ldap_count_entries(ldap, res) > 0) {
 		    for (LDAPMessage * entry = ldap_first_entry(ldap, res); entry; entry = ldap_next_entry(ldap, entry)) {
 			char *gdn = ldap_get_dn(ldap, entry);
-			if (!dnhash_match(h, gdn))
+			if (!dnhash_match(h, gdn, level - 1))
 			    dnlist_add(&list[next], gdn);
 			ldap_memfree(gdn);
 		    }

@@ -531,6 +531,28 @@ class LdapMt(LdapTests, DaemonTestCase):
         self.assertEqual((r.status_name, r.server_msg), ("PASS", "wide\n"), r)
 
 
+    def test_memberof_depth_order(self):
+        """Depth 10, direct groups ord-a and ord-b: ord-a reaches ord-b at level 10, ord-b is in l3.
+
+        l3 is two levels from the direct group ord-b, so both orders of the
+        memberOf values must give l3.
+        """
+        chain = ["ord-a"] + [f"ord-{i}" for i in range(1, 9)] + ["ord-b", "l3"]
+        ldif = ""
+        for name, parent in zip(chain, chain[1:] + [None]):
+            ldif += f"\ndn: cn={name},ou=groups,{BASE}\nobjectClass: groupOfNames\nobjectClass: extensibleObject\n"
+            ldif += f"cn: {name}\nmember: cn=nobody,{BASE}\n"
+            ldif += f"memberOf: cn={parent},ou=groups,{BASE}\n" if parent else ""
+        for user, first, second in (("ordab", "ord-a", "ord-b"), ("ordba", "ord-b", "ord-a")):
+            ldif += person(user, f"objectClass: extensibleObject\nmemberOf: cn={first},ou=groups,{BASE}\n"
+                                 f"memberOf: cn={second},ou=groups,{BASE}\n")
+        _, d = self.start(ldif=ldif, LDAP_NESTED_GROUP_DEPTH="10")
+        for user in ("ordab", "ordba"):
+            with self.subTest(user=user), d.connect() as c:
+                r = c.ascii_login(user, user + "pw")
+                self.assertEqual((r.status_name, r.server_msg), ("PASS", "l3\n"), r)
+
+
 @unittest.skipUnless(os.access(SLAPD, os.X_OK), "no OpenLDAP slapd")
 @unittest.skipUnless(perl_ldap(), "no Net::LDAP or IO::Socket::SSL for Perl")
 class LdapPerl(LdapTests, DaemonTestCase):
