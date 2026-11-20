@@ -477,6 +477,20 @@ void complete_realm(tac_realm *r)
 	RS(tls_psk_dhe_groups, NULL);
 	RS(default_host->type6key, NULL);
 	RS(tls_psk_key_exchange, S_unknown);
+	RS(eap, TRISTATE_DUNNO);
+	RS(eap_cert, NULL);
+	RS(eap_key, NULL);
+	RS(eap_cafile, NULL);
+	RS(eap_pass, NULL);
+	/* A realm with its own eap {} block must not inherit the lab-only
+	   identity settings of its parent; apply the method defaults instead. */
+	if (!r->eap_config) {
+	    RS(eap_identity_source, S_unknown);
+	    RS(eap_verify_client, -1);
+	}
+	RS(eap_timeout, -1);
+	RS(eap_max_message, -1);
+	RS(eap_max_sessions, -1);
 
 	if (!r->crl_basedir.txt) {
 	    r->crl_basedir.txt = rp->crl_basedir.txt;
@@ -534,6 +548,77 @@ void complete_realm(tac_realm *r)
 		if (!r->default_host->user_messages[um])
 		    r->default_host->user_messages[um] = rp->default_host->user_messages[um];
     }
+#ifdef WITH_SSL
+    if (r->eap == TRISTATE_YES) {
+	if (r->eap_verify_client < 0)
+	    r->eap_verify_client = 1;
+	if (r->eap_identity_source == S_unknown)
+	    r->eap_identity_source = S_cert_cn;
+	if (r->eap_timeout < 0)
+	    r->eap_timeout = EAP_DEFAULT_TIMEOUT;
+	if (r->eap_max_message < 0)
+	    r->eap_max_message = EAP_DEFAULT_MAX_MESSAGE;
+	if (r->eap_max_sessions < 0)
+	    r->eap_max_sessions = EAP_DEFAULT_MAX_SESSIONS;
+
+	if (r->eap_timeout <= 0 || r->eap_max_message < 4 ||
+	    r->eap_max_message > 65535 || r->eap_max_sessions <= 0) {
+	    report_cfg_error(LOG_ERR, ~0,
+		   "%s: realm %s: invalid EAP timeout/max-message/max-sessions",
+		   common_data.conffile, r->name.txt);
+	    exit(EX_SOFTWARE);
+	}
+	if (!r->eap_cert || !r->eap_key) {
+	    report_cfg_error(LOG_ERR, ~0,
+			   "%s: realm %s: EAP requires cert-file and key-file",
+			   common_data.conffile, r->name.txt);
+	    exit(EX_SOFTWARE);
+	}
+	if (r->eap_verify_client && !r->eap_cafile) {
+	    report_cfg_error(LOG_ERR, ~0,
+			   "%s: realm %s: EAP verify-client requires ca-file",
+			   common_data.conffile, r->name.txt);
+	    exit(EX_SOFTWARE);
+	}
+	if (r->eap_verify_client && r->eap_identity_source == S_eap_identity) {
+	    report_cfg_error(LOG_ERR, ~0,
+		   "%s: realm %s: eap-identity-source = eap-identity requires verify-client = no (RFC 5216 2.2)",
+		   common_data.conffile, r->name.txt);
+	    exit(EX_SOFTWARE);
+	}
+	if (!r->eap_verify_client &&
+	    r->eap_identity_source != S_eap_identity) {
+	    report_cfg_error(LOG_ERR, ~0,
+		   "%s: realm %s: EAP verify-client = no requires eap-identity-source = eap-identity",
+		   common_data.conffile, r->name.txt);
+	    exit(EX_SOFTWARE);
+	}
+	if (!r->eap_verify_client)
+	    report_cfg_error(LOG_WARNING, ~0,
+		   "%s: realm %s: EAP identity is unauthenticated (lab use only)",
+		   common_data.conffile, r->name.txt);
+
+	/* Realms are never freed in this daemon: the configuration is read
+	   once at startup, and a reload restarts the daemon process, so the
+	   OS reclaims eap_sessions/eap_tls. In-flight EAP state is lost
+	   across a reload. */
+	if (!r->eap_sessions)
+	    r->eap_sessions = RB_tree_new(eap_session_cmp, eap_session_free);
+
+	/* Parse-only validates syntax, not certificate files: the EAP sample
+	   and good-eap.cfg must pass -P without generated certificates.
+	   Production startup fails fatally when the SSL_CTX cannot be made. */
+	if (!common_data.parse_only) {
+	    r->eap_tls = eap_ssl_init(r);
+	    if (!r->eap_tls) {
+		report_cfg_error(LOG_ERR, ~0,
+			   "%s: realm %s: EAP TLS initialization failed",
+			   common_data.conffile, r->name.txt);
+		exit(EX_SOFTWARE);
+	    }
+	}
+    }
+#endif
     if (r->realms) {
 	for (rb_node_t * rbn = RB_first(r->realms); rbn; rbn = RB_next(rbn))
 	    complete_realm(RB_payload(rbn, tac_realm *));
@@ -675,6 +760,10 @@ static tac_realm *new_realm(char *name, tac_realm *parent)
 #if defined(WITH_SSL)
     r->tls_verify_depth = -1;
     r->tls_psk_key_exchange = S_unknown;
+    r->eap_verify_client = -1;
+    r->eap_timeout = -1;
+    r->eap_max_message = -1;
+    r->eap_max_sessions = -1;
     //r->tls_ciphers = "TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256";
 #endif
 
@@ -2182,6 +2271,126 @@ void parse_decls_real(struct sym *sym, tac_realm *r)
 	    parse(sym, S_equal);
 	    r->haproxy_autodetect = parse_tristate(sym);
 	    continue;
+#if defined(WITH_SSL)
+	case S_eap:
+	    sym_get(sym);
+	    if (sym->code == S_equal) {
+		sym_get(sym);
+		r->eap = parse_bool(sym) ? TRISTATE_YES : TRISTATE_NO;
+		continue;
+	    }
+	    parse(sym, S_openbra);
+	    r->eap = TRISTATE_YES;
+	    r->eap_config = 1;
+	    while (sym->code != S_closebra) {
+		switch (sym->code) {
+		case S_eap_method:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    parse(sym, S_tls);
+		    break;
+		case S_cert_file:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->eap_cert = confdir_strdup(sym->buf);
+		    if (!r->eap_key)
+			r->eap_key = r->eap_cert;
+		    sym_get(sym);
+		    break;
+		case S_key_file:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->eap_key = confdir_strdup(sym->buf);
+		    sym_get(sym);
+		    break;
+		case S_cafile:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->eap_cafile = confdir_strdup(sym->buf);
+		    sym_get(sym);
+		    break;
+		case S_passphrase:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->eap_pass = strdup(sym->buf);
+		    sym_get(sym);
+		    break;
+		case S_verify_client:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    r->eap_verify_client = parse_bool(sym);
+		    continue;
+		case S_eap_identity_source:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    switch (sym->code) {
+		    case S_cert_cn:
+			r->eap_identity_source = S_cert_cn;
+			break;
+		    case S_cert_san:
+			r->eap_identity_source = S_cert_san;
+			break;
+		    case S_eap_identity:
+			r->eap_identity_source = S_eap_identity;
+			break;
+		    default:
+			parse_error(sym, "Expected cert-cn, cert-san, or eap-identity");
+		    }
+		    sym_get(sym);
+		    continue;
+		case S_timeout:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    {
+			unsigned int line = sym->line;
+			int timeout = parse_seconds(sym);
+
+			if (timeout < 1) {
+			    sym->line = line;
+			    parse_error(sym, "EAP timeout must be at least 1 second");
+			}
+			r->eap_timeout = timeout;
+		    }
+		    continue;
+		case S_max_message:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    {
+			unsigned int line = sym->line;
+			int max_message = parse_int(sym);
+
+			if (max_message < 4 || max_message > 65535) {
+			    sym->line = line;
+			    parse_error(sym, "EAP max-message must be between 4 and 65535");
+			}
+			r->eap_max_message = max_message;
+		    }
+		    continue;
+		case S_max_sessions:
+		    sym_get(sym);
+		    parse(sym, S_equal);
+		    {
+			unsigned int line = sym->line;
+			int max_sessions = parse_int(sym);
+
+			if (max_sessions < 1) {
+			    sym->line = line;
+			    parse_error(sym, "EAP max-sessions must be positive");
+			}
+			r->eap_max_sessions = max_sessions;
+		    }
+		    continue;
+		default:
+		    parse_error_expect(sym, S_eap_method, S_cert_file, S_key_file,
+				       S_cafile, S_passphrase, S_verify_client,
+				       S_eap_identity_source, S_timeout,
+				       S_max_message, S_max_sessions,
+				       S_unknown);
+		}
+	    }
+	    sym_get(sym);	/* skip closebra */
+	    continue;
+#endif
 #if defined(WITH_SSL)
 	case S_tls:
 	    sym_get(sym);
@@ -5796,7 +6005,10 @@ static void rad_attr_add(tac_session *session, struct rad_action *a, union rad_a
     size_t data_len_orig = data_len;
     u_char *data = session->radius_data->data + data_len;
     u_char *data_orig = data;
-    u_char *data_end = session->radius_data->data + sizeof(session->radius_data->data);
+    /* Reserve the 20-byte RADIUS header and the 18-byte Message-Authenticator
+       that new_rad_pak() appends, so the final packet stays within the
+       4096-byte RADIUS limit. */
+    u_char *data_end = session->radius_data->data + sizeof(session->radius_data->data) - RADIUS_HDR_SIZE - 18;
 
     void *val = NULL;
     size_t val_len = 0;
@@ -6535,7 +6747,7 @@ static unsigned int psk_server_cb(SSL *ssl, const char *identity, unsigned char 
 }
 #endif
 
-static int ssl_pem_phrase_cb(char *buf, int size, int rwflag __attribute__((unused)), void *userdata)
+int ssl_pem_phrase_cb(char *buf, int size, int rwflag __attribute__((unused)), void *userdata)
 {
     int i = (int) strlen((char *) userdata);
 

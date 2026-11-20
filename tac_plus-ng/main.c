@@ -300,6 +300,10 @@ static void periodics(struct context *ctx, int cur __attribute__((unused)))
     expire_dynamic_users(config.default_realm);
     expire_dynamic_acls(config.default_realm);
 
+#ifdef WITH_SSL
+    eap_expire_sessions(config.default_realm);
+#endif
+
 #ifdef WITH_DNS
     expire_dns(config.default_realm);
 #endif

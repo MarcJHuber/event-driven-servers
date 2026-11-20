@@ -23,6 +23,7 @@ OBJ += packet.o report.o utils.o context.o udp-spoof.o
 
 ifeq ($(WITH_SSL), 1)
 	OBJ += type6.o
+	OBJ += eap.o
 	OBJ += mysha1.o
 endif
 

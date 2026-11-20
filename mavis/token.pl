@@ -630,3 +630,14 @@ base64				S_base64
 more				S_more
 reuse-port			S_reuse_port
 #
+# EAP (RFC 5216 EAP-TLS) configuration
+eap			S_eap
+eap-method		S_eap_method
+eap-identity-source	S_eap_identity_source
+verify-client		S_verify_client
+cert-cn			S_cert_cn
+cert-san		S_cert_san
+eap-identity		S_eap_identity
+max-message		S_max_message
+max-sessions		S_max_sessions
+#

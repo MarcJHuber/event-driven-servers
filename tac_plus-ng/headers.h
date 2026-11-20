@@ -461,6 +461,7 @@ struct realm {
 	TRISTATE(tls_accept_expired);
 	TRISTATE(tls_autodetect);
 	TRISTATE(tls_sni_required);
+	TRISTATE(eap);
 #endif
     } __attribute__((__packed__));
     int dns_caching_period;	/* dns caching period */
@@ -497,6 +498,18 @@ struct realm {
     char *tls_psk_hint;
     enum token tls_psk_key_exchange;
     str_t crl_basedir;
+    SSL_CTX *eap_tls;
+    char *eap_cert;
+    char *eap_key;
+    char *eap_cafile;
+    char *eap_pass;
+    int eap_config;		/* realm has its own eap {} block */
+    enum token eap_identity_source;	/* S_cert_cn, S_cert_san, S_eap_identity */
+    int eap_verify_client;
+    int eap_timeout;
+    int eap_max_message;
+    int eap_max_sessions;
+    rb_tree_t *eap_sessions;
 #endif
     u_int debug;
     int rulecount;
@@ -508,6 +521,10 @@ struct realm {
 
 struct tac_session;
 typedef struct tac_session tac_session;
+
+#ifdef WITH_SSL
+#include "eap.h"
+#endif
 
 struct radius_data {
     enum token type;
@@ -849,6 +866,11 @@ void send_author_reply(tac_session *, u_char, char *, char *, int, char **);
 void rad_send_authen_reply(tac_session *, u_char, char *);
 void rad_send_acct_reply(tac_session * session);
 void rad_send_error(tac_session * session, uint32_t cause);
+#ifdef WITH_SSL
+void rad_send_eap_reply(tac_session *, u_char, const u_char *, size_t, const u_char *, size_t);
+size_t rad_eap_effective_payload_len(tac_session *, u_char);
+int rad_eap_reply_fits(tac_session *, u_char, size_t, size_t);
+#endif
 
 int tac_exit(int) __attribute__((noreturn));
 
@@ -866,6 +888,13 @@ void dump_rad_pak(tac_session *, rad_pak_hdr *);
 void authen(tac_session *, tac_pak_hdr *);
 void rad_authen(tac_session *);
 void authen_init(void);
+#ifdef WITH_SSL
+enum token eap_authorize(tac_session * session, char **resp, enum hint_enum * hint);
+#endif
+#ifdef WITH_CRYPTO
+void rad_add_mppe_key(tac_session * session, const u_char * key, size_t key_len, u_char attribute);
+void rad_add_mppe_policy(tac_session * session);
+#endif
 
 /* author.c */
 void author(tac_session *, tac_pak_hdr *);
@@ -874,6 +903,9 @@ enum token author_eval_profile(tac_session * session, tac_profile * p, int paren
 
 
 /* config.c */
+#ifdef WITH_SSL
+int ssl_pem_phrase_cb(char *, int, int, void *);
+#endif
 int cfg_get_enable(tac_session *, struct pwdat **);
 
 void parse_decls(struct sym *);

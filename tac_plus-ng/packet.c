@@ -65,8 +65,11 @@
 
 static const char rcsid[] __attribute__((used)) = "$Id$";
 
+#define RAD_PAK_SESSIONID(A) (((uint32_t) (A)->code << 8) | (uint32_t) (A)->identifier)
+
 static void write_packet(struct context *, tac_pak *);
 static tac_session *new_session(struct context *, tac_pak_hdr *, rad_pak_hdr *);
+static void cleanup_session_internal(tac_session *, int);
 
 static void md5_xor(tac_pak_hdr *hdr, char *key, int keylen)
 {
@@ -135,6 +138,9 @@ static tac_pak *new_rad_pak(tac_session *session, u_char code)
 #ifdef WITH_SSL
 	memcpy(pak->pak.rad.authenticator, session->radius_data->pak_in->authenticator, 16);
 	u_char *ma = data + session->radius_data->data_len - 18;
+	/* RFC 3579 3.2: the value octets are zero when the HMAC is computed.
+	   rad_strip_attribute() may leave older attribute bytes there. */
+	memset(ma + 2, 0, 16);
 	*ma++ = RADIUS_A_MESSAGE_AUTHENTICATOR;
 	*ma++ = 18;
 	u_int ma_len = 16;
@@ -404,12 +410,14 @@ void rad_send_authen_reply(tac_session *session, u_char status, char *msg)
 {
     if (msg && *msg) {
 	size_t msg_len = strlen(msg);
-	if ((session->radius_data->data_len + 2 + msg_len < sizeof(session->radius_data->data)) && (msg_len + 2 < 256)) {
-	    u_char *data = session->radius_data->data;
+	size_t data_len = session->radius_data->data_len;
+
+	if ((data_len + 2 + msg_len + RADIUS_HDR_SIZE + RADIUS_MA_RESERVE <= sizeof(session->radius_data->data)) && (msg_len + 2 < 256)) {
+	    u_char *data = session->radius_data->data + data_len;
 	    *data++ = RADIUS_A_REPLY_MESSAGE;
 	    *data++ = (u_char) msg_len + 2;
 	    memcpy(data, msg, msg_len);
-	    session->radius_data->data_len += 2 + msg_len;
+	    session->radius_data->data_len = data_len + 2 + msg_len;
 	}
     }
     rad_send_reply(session, status);
@@ -420,23 +428,215 @@ void rad_send_acct_reply(tac_session *session)
     rad_send_reply(session, RADIUS_CODE_ACCOUNTING_RESPONSE);
 }
 
+#ifdef WITH_SSL
+/*
+ * Remove every attribute of the given type from a RADIUS attribute buffer,
+ * preserving the order of the remaining attributes. Returns the new length.
+ * A malformed tail (which rad_check_failed() would have rejected on input)
+ * is preserved as-is.
+ */
+static size_t rad_strip_attribute(u_char *data, size_t len, u_char type)
+{
+    size_t in = 0, out = 0;
+
+    while (in + 2 <= len) {
+	size_t alen = data[in + 1];
+	if (alen < 2 || alen > len - in)
+	    break;
+	if (data[in] != type) {
+	    if (out != in)
+		memmove(data + out, data + in, alen);
+	    out += alen;
+	}
+	in += alen;
+    }
+    if (in < len) {
+	if (out != in)
+	    memmove(data + out, data + in, len - in);
+	out += len - in;
+    }
+    return out;
+}
+
+/*
+ * Effective length of the reply attribute buffer once the attributes that
+ * rad_send_eap_reply() removes are stripped: EAP-Message, State and
+ * Message-Authenticator always, Reply-Message for Access-Accept/Reject
+ * (RFC 3579 2.6.5). rad_attr_add() and profile scripts may have filled the
+ * buffer, so the capacity checks must use this value, not data_len.
+ */
+size_t rad_eap_effective_payload_len(tac_session *session, u_char code)
+{
+    struct radius_data *rd = session->radius_data;
+    size_t in = 0, out = 0, len;
+
+    if (!rd)
+	return 0;
+
+    len = rd->data_len;
+    while (in + 2 <= len) {
+	size_t alen = rd->data[in + 1];
+	u_char type = rd->data[in];
+
+	if (alen < 2 || alen > len - in)
+	    break;
+	if (type != RADIUS_A_EAP_MESSAGE && type != RADIUS_A_STATE &&
+	    type != RADIUS_A_MESSAGE_AUTHENTICATOR &&
+	    !((code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT) &&
+	      type == RADIUS_A_REPLY_MESSAGE))
+	    out += alen;
+	in += alen;
+    }
+    if (in < len)
+	out += len - in;	/* malformed tail, preserved by rad_strip_attribute() */
+
+    return out;
+}
+
+/*
+ * Preflight an EAP reply: can the effective profile payload plus the
+ * EAP-Message attributes for eap_len bytes, optional Access-Challenge State
+ * and the Message-Authenticator reservation fit in one RADIUS packet?
+ * Mirrors rad_send_eap_reply() so the caller can avoid caching a reply that
+ * would have to be downgraded to EAP-Failure.
+ */
+int rad_eap_reply_fits(tac_session *session, u_char code, size_t eap_len, size_t state_len)
+{
+    size_t base, need = 0, i;
+
+    if (!session || !session->radius_data)
+	return 0;
+
+    if (state_len > EAP_MAX_RADIUS_ATTR)
+	state_len = 0;		/* cannot encode a longer RADIUS State */
+
+    base = rad_eap_effective_payload_len(session, code);
+    if (base > RADIUS_MAX_ATTRIBUTES - RADIUS_MA_RESERVE)
+	return 0;
+
+    for (i = 0; i < eap_len; i += EAP_MAX_RADIUS_ATTR)
+	need += 2 + (size_t) minimum(EAP_MAX_RADIUS_ATTR, (int) (eap_len - i));
+    if (state_len && code == RADIUS_CODE_ACCESS_CHALLENGE)
+	need += 2 + state_len;
+
+    return need <= RADIUS_MAX_ATTRIBUTES - RADIUS_MA_RESERVE - base;
+}
+
+/*
+ * Send an Access-Challenge/Accept/Reject carrying EAP-Message, optional
+ * State (Access-Challenge only), and the Message-Authenticator that
+ * new_rad_pak() appends. Reply-Message and State already in the attribute
+ * buffer are stripped from Access-Accept/Reject (RFC 3579 2.6.5).
+ *
+ * rad_send_reply() calls cleanup_session(); do not touch session afterwards.
+ */
+void rad_send_eap_reply(tac_session *session, u_char code, const u_char *eap, size_t eap_len, const u_char *state, size_t state_len)
+{
+    struct radius_data *rd = session->radius_data;
+    size_t need = 0, room, i;
+
+    if (!rd) {
+	report(session, LOG_ERR, ~0, "EAP reply without RADIUS data");
+	cleanup_session(session);
+	return;
+    }
+
+    if (state_len > EAP_MAX_RADIUS_ATTR)
+	state_len = 0;		/* cannot encode a longer RADIUS State */
+
+    /* Profile scripts can add EAP-Message or State directly; remove them so
+       the reply has exactly one EAP packet and State only where we put it. */
+    rd->data_len = rad_strip_attribute(rd->data, rd->data_len, RADIUS_A_EAP_MESSAGE);
+    rd->data_len = rad_strip_attribute(rd->data, rd->data_len, RADIUS_A_STATE);
+    rd->data_len = rad_strip_attribute(rd->data, rd->data_len, RADIUS_A_MESSAGE_AUTHENTICATOR);
+    if (code == RADIUS_CODE_ACCESS_ACCEPT || code == RADIUS_CODE_ACCESS_REJECT) {
+	/* RFC 3579 2.6.5: no Reply-Message with EAP-Message. */
+	rd->data_len = rad_strip_attribute(rd->data, rd->data_len, RADIUS_A_REPLY_MESSAGE);
+    }
+
+    /* rad_attr_add() may have filled the buffer close to the limit; guard
+       before subtracting the Message-Authenticator reservation, or the
+       unsigned subtraction would underflow. */
+    if (rd->data_len > RADIUS_MAX_ATTRIBUTES - RADIUS_MA_RESERVE) {
+	report(session, LOG_ERR, ~0, "EAP reply buffer already too large");
+	goto best_effort;
+    }
+
+    room = RADIUS_MAX_ATTRIBUTES - rd->data_len - RADIUS_MA_RESERVE;
+
+    if (eap_len && !eap)
+	goto best_effort;
+
+    for (i = 0; i < eap_len; i += EAP_MAX_RADIUS_ATTR)
+	need += 2 + (size_t) minimum(EAP_MAX_RADIUS_ATTR, (int) (eap_len - i));
+    if (state_len && code == RADIUS_CODE_ACCESS_CHALLENGE)
+	need += 2 + state_len;
+
+    if (need > room) {
+	report(session, LOG_ERR, ~0, "EAP reply too large");
+	goto best_effort;
+    }
+
+    u_char *p = rd->data + rd->data_len;
+    for (i = 0; i < eap_len; i += EAP_MAX_RADIUS_ATTR) {
+	size_t n = (size_t) minimum(EAP_MAX_RADIUS_ATTR, (int) (eap_len - i));
+	*p++ = RADIUS_A_EAP_MESSAGE;
+	*p++ = (u_char) (2 + n);
+	memcpy(p, eap + i, n);
+	p += n;
+	rd->data_len += 2 + n;
+    }
+    if (state_len && code == RADIUS_CODE_ACCESS_CHALLENGE) {
+	*p++ = RADIUS_A_STATE;
+	*p++ = (u_char) (2 + state_len);
+	memcpy(p, state, state_len);
+	p += state_len;
+	rd->data_len += 2 + state_len;
+    }
+
+    rad_send_reply(session, code);
+    return;
+
+best_effort:
+    /* Best effort: an EAP-Failure-only Access-Reject if it fits. Keep the
+       client's EAP identifier (RFC 5216 2.1.3) instead of using 0. */
+    {
+	u_char failure[4] = { EAP_CODE_FAILURE, eap && eap_len >= 2 ? eap[1] : 0, 0, 4 };
+
+	if (sizeof(failure) + 2 + RADIUS_MA_RESERVE <= RADIUS_MAX_ATTRIBUTES) {
+	    rd->data_len = 0;
+	    rd->data[0] = RADIUS_A_EAP_MESSAGE;
+	    rd->data[1] = 2 + sizeof(failure);
+	    memcpy(rd->data + 2, failure, sizeof(failure));
+	    rd->data_len = 2 + sizeof(failure);
+	    rad_send_reply(session, RADIUS_CODE_ACCESS_REJECT);
+	} else
+	    cleanup_session(session);
+    }
+}
+#endif				/* WITH_SSL */
+
 void rad_send_error(tac_session *session, uint32_t cause)
 {
-    if (session->message.len && (session->radius_data->data_len + 2 + session->message.len < sizeof(session->radius_data->data))
-	&& (session->message.len + 2 < 256)) {
-	u_char *data = session->radius_data->data;
+    size_t data_len = session->radius_data->data_len;
+
+    if (session->message.len &&
+	(data_len + 2 + session->message.len + RADIUS_HDR_SIZE + RADIUS_MA_RESERVE <= sizeof(session->radius_data->data)) &&
+	(session->message.len + 2 < 256)) {
+	u_char *data = session->radius_data->data + data_len;
 	*data++ = RADIUS_A_REPLY_MESSAGE;
 	*data++ = (u_char) session->message.len + 2;
 	memcpy(data, session->message.txt, session->message.len);
-	session->radius_data->data_len += 2 + session->message.len;
+	data_len += 2 + session->message.len;
+	session->radius_data->data_len = data_len;
     }
-    if ((session->radius_data->data_len + 6 < sizeof(session->radius_data->data))) {
-	u_char *data = session->radius_data->data;
+    if (data_len + 6 + RADIUS_HDR_SIZE + RADIUS_MA_RESERVE <= sizeof(session->radius_data->data)) {
+	u_char *data = session->radius_data->data + data_len;
 	*data++ = RADIUS_A_ERROR_CAUSE;
 	*data++ = 6;
 	cause = htonl(cause);
 	memcpy(data, &cause, 4);
-	session->radius_data->data_len += 6;
+	session->radius_data->data_len = data_len + 6;
     }
     rad_send_reply(session, RADIUS_CODE_PROTOCOL_ERROR);
 }
@@ -929,6 +1129,7 @@ static int rad_check_failed(struct context *ctx, rad_pak_hdr *pak)
 // Consistency check: Do the attribute lengths sum up exactly?
 #ifdef WITH_SSL
     u_char *message_authenticator = NULL;
+    int eap_message = 0;
 #endif
     while (p < e) {
 	if (p + 1 == e || p[1] < 2)
@@ -951,6 +1152,8 @@ static int rad_check_failed(struct context *ctx, rad_pak_hdr *pak)
 #ifdef WITH_SSL
 	} else if (p[0] == RADIUS_A_MESSAGE_AUTHENTICATOR && p[1] == 18) {
 	    message_authenticator = p + 2;
+	} else if (p[0] == RADIUS_A_EAP_MESSAGE) {
+	    eap_message = 1;
 #endif
 	}
 	p += p[1];
@@ -966,8 +1169,12 @@ static int rad_check_failed(struct context *ctx, rad_pak_hdr *pak)
     int message_authenticator_required = ctx->aaa_protocol != S_radius_dtls && ctx->aaa_protocol != S_radius_tls &&
 	(pak->code == RADIUS_CODE_ACCESS_REQUEST || pak->code == RADIUS_CODE_ACCESS_ACCEPT || pak->code == RADIUS_CODE_ACCESS_REJECT
 	 || pak->code == RADIUS_CODE_ACCESS_CHALLENGE);
-    if ((ctx->radius_1_1 == BISTATE_NO) && !message_authenticator && message_authenticator_required
-	&& !(ctx->host->bug_compatibility & CLIENT_BUG_NO_MESSAGE_AUTHENTICATOR)) {
+    /* RFC 3579 3.2: an Access-Request carrying EAP-Message needs a valid
+       Message-Authenticator on UDP/TCP regardless of bug compatibility. */
+    int eap_message_required = eap_message && ctx->aaa_protocol != S_radius_dtls && ctx->aaa_protocol != S_radius_tls;
+    if ((ctx->radius_1_1 == BISTATE_NO) && !message_authenticator &&
+	(eap_message_required ||
+	 (message_authenticator_required && !(ctx->host->bug_compatibility & CLIENT_BUG_NO_MESSAGE_AUTHENTICATOR)))) {
 	report(NULL, LOG_INFO_CONN, ~0, "%s did not set Message-Authenticator attribute", ctx->device_addr_ascii.txt);
 	ctx->reset_tcp = BISTATE_YES;
 	cleanup(ctx, -1);
@@ -1065,6 +1272,40 @@ static void rad_set_fields(tac_session *session)
     }
 }
 
+#ifdef WITH_SSL
+/*
+ * Hand an Access-Request carrying EAP-Message to eap.c. EAP is a multi-packet
+ * exchange, so the (code, identifier) retransmission shortcut in rad_read()
+ * must not apply. A stale session with the same session id is removed before
+ * the new one is created. Returns 1 once ctx->in has been detached into the
+ * session's memory pool; on 0 the caller still owns ctx->in.
+ */
+static int rad_eap_read(struct context *ctx, rad_pak_hdr *pak)
+{
+    tac_session *old = RB_lookup_session(ctx->sessions,
+					 ctx->radius_1_1 ? pak->token : RAD_PAK_SESSIONID(pak));
+    if (old)
+	/* Remove the stale session, but do not let cleanup_session() free the
+	   context: we still need ctx->in and ctx below to build the new
+	   session. */
+	cleanup_session_internal(old, 0);
+
+    tac_session *session = new_session(ctx, NULL, pak);
+    if (!session)
+	return 0;
+
+    mem_attach(session->mem, mem_detach(ctx->mem, ctx->in));
+    ctx->in = NULL;
+
+    session->radius_data = mem_alloc(session->mem, sizeof(struct radius_data));
+    session->radius_data->pak_in = pak;
+    rad_set_fields(session);
+
+    eap_radius_request(session);
+    return 1;
+}
+#endif				/* WITH_SSL */
+
 void rad_read(struct context *ctx, int cur)
 {
     ssize_t len;
@@ -1140,7 +1381,16 @@ void rad_read(struct context *ctx, int cur)
     if (rad_check_failed(ctx, &ctx->in->pak.rad))
 	return;
 
-#define RAD_PAK_SESSIONID(A) (((uint32_t) (A)->code << 8) | (uint32_t) (A)->identifier)
+#ifdef WITH_SSL
+    if (pak->code == RADIUS_CODE_ACCESS_REQUEST &&
+	ctx->realm->eap == TRISTATE_YES && eap_has_message(pak)) {
+	if (!rad_eap_read(ctx, pak))
+	    mem_free(ctx->mem, &ctx->in);
+	ctx->hdroff = 0;
+	return;
+    }
+#endif
+
     tac_session *session = RB_lookup_session(ctx->sessions, ctx->radius_1_1 ? ctx->hdr.rad.token : RAD_PAK_SESSIONID(&ctx->hdr.rad));
 
     if (session) {
@@ -1299,10 +1549,24 @@ static tac_session *new_session(struct context *ctx, tac_pak_hdr *tac_hdr, rad_p
 
 void cleanup_session(tac_session *session)
 {
+    cleanup_session_internal(session, 1);
+}
+
+/*
+ * cleanup_context == 0 removes the session without letting an idle context be
+ * destroyed. Callers that keep using ctx (rad_eap_read()) must pass 0.
+ */
+static void cleanup_session_internal(tac_session *session, int cleanup_context)
+{
     struct context *ctx = session->ctx;
     mavis_ctx *mcx = lookup_mcx(ctx->realm);
 
 #ifdef WITH_DNS
+    /* rad_authen() may have scheduled a resume_session() timer while a
+       reverse lookup was pending. Cancel it before the session is freed,
+       or the timer would read the freed session (rad_eap_read() replaces
+       a stale session with the same RADIUS identifier). */
+    io_sched_del(ctx->io, session, (void *) resume_session);
     if (session->revmap_pending) {
 	tac_realm *r = session->ctx->realm;
 	while (r && !r->idc)
@@ -1324,7 +1588,7 @@ void cleanup_session(tac_session *session)
 	mavis_cancel(mcx, session);
     mem_destroy(session->mem);
     mem_free(ctx->mem, &session);
-    if ((ctx->host->cleanup_when_idle == TRISTATE_YES)
+    if (cleanup_context && (ctx->host->cleanup_when_idle == TRISTATE_YES)
 	&& (!ctx->single_connection_flag || (die_when_idle && !RB_first(ctx->sessions) && !RB_first(ctx->shellctxcache)))) {
 	if (ctx->out || ctx->delayed)	// pending output
 	    ctx->dying = 1;
