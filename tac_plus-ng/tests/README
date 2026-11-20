@@ -49,6 +49,28 @@ the tests:
     tac_plus-ng/tests/run-tests
     sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns="$prev"
 
+test_ldapmavis_ad.py tests the Active Directory code of the LDAP
+back-ends against a Samba AD DC in a Docker container. It needs Docker,
+openssl, timeout (coreutils) and ldap-utils (ldapadd, ldapdelete, ldapsearch); without TACTEST_SAMBA_DC
+it is skipped. The Python back-end needs the ldap3 module
+(python3-ldap3), else its tests are skipped. samba-dc/start builds the image (another base image:
+--build-arg BASE=<image>; it passes all its arguments to docker build),
+starts the container with LDAPS on a free port of 127.0.0.1, waits for
+the DC and prints the TACTEST_SAMBA_* settings as NAME=value lines
+without shell quotes (the format of GITHUB_ENV in CI). Each checkout
+has a container of its own (TACTEST_SAMBA_CONTAINER), so a start in one
+checkout does not stop the DC of another. Every run of the tests adds
+its users to an OU of its own and removes it, so one DC serves many
+runs. The subshell keeps the settings out of your shell, removes the
+container also after a failed test and exits with the status of the
+tests:
+
+    mkdir -p build && tac_plus-ng/tests/samba-dc/start > build/samba-dc.env && (
+        while IFS= read -r kv; do export "$kv"; done < build/samba-dc.env
+        tac_plus-ng/tests/run-tests -k test_ldapmavis_ad; rc=$?
+        docker rm -f "$TACTEST_SAMBA_CONTAINER" > /dev/null; exit $rc
+    )
+
 run-tests configures and builds tac_plus-ng, the tactester client
 (only with OpenSSL; without it the tactester tests are skipped) and the
 older tac_plus daemon, installs them into build/<OS>/tests-prefix (no root needed, nothing outside the
@@ -111,6 +133,7 @@ Layout
                        a test daemon, with checked edits (test_samples.py)
     configs/         complete configurations for "tac_plus-ng -P":
                      good-*.cfg must parse, bad-*.cfg must be rejected
+    samba-dc/        the Samba AD DC container of test_ldapmavis_ad.py
     test_*.py        the tests, one file per topic
     test_tac_plus.py the tests of the older tac_plus daemon (tac_plus/)
 

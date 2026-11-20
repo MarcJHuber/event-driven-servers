@@ -72,18 +72,23 @@ env:
   # iproute2: the VRF devices of test_vrf.py
   # slapd, libnet-ldap-perl, libio-socket-ssl-perl: the LDAP server and the Perl LDAP back-end of test_ldapmavis.py
   #   the AppArmor profile of slapd confines it to /etc/ldap and /var/lib/ldap, the tests run it in the build tree
-  UBUNTU_PACKAGES: build-essential clang llvm perl libpcre2-dev libssl-dev libcrypt-dev python3 openssl libpam0g-dev libldap-dev libradcli-dev libc-ares-dev slapd libnet-ldap-perl libio-socket-ssl-perl iproute2
-    
+  # ldap-utils: test_ldapmavis_ad.py adds its users to the Samba AD DC with ldapadd
+  # python3-ldap3: the Python LDAP back-end (mavis_tacplus_ldap.py) of test_ldapmavis_ad.py
+  # limit of tac_plus-ng/tests/run-tests: the Samba AD tests make the run longer than the default 600 s
+  TACTEST_TIMEOUT: 900
+  UBUNTU_PACKAGES: build-essential clang llvm perl libpcre2-dev libssl-dev libcrypt-dev python3 openssl libpam0g-dev libldap-dev libradcli-dev libc-ares-dev slapd libnet-ldap-perl libio-socket-ssl-perl iproute2 ldap-utils python3-ldap3
+
 jobs:
   alpine-gcc:
     # musl, the package list of a typical container build, plus the libraries of the -mt backends and c-ares
     runs-on: ubuntu-24.04
     container: alpine:3.20
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - run: apk add --no-cache gcc musl-dev make perl openssl-dev pcre2-dev linux-headers python3 openssl linux-pam-dev openldap-dev radcli-dev c-ares-dev openldap openldap-back-mdb perl-ldap perl-io-socket-ssl
       - uses: actions/checkout@v5
       # test_vrf.py skips: the container cannot make namespaces; the Ubuntu jobs run it
+      # no Docker in this container: test_ldapmavis_ad.py skips (no TACTEST_SAMBA_DC)
       - run: tac_plus-ng/tests/run-tests
       # the tests of these backends, of tac_plus and of the DNS code skip if the build left them out
       - run: ls build/*/tests-prefix/sbin/ldapmavis-mt build/*/tests-prefix/sbin/radmavis-mt build/*/tests-prefix/sbin/tac_plus
@@ -98,21 +103,28 @@ jobs:
 
   ubuntu-gcc:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       # test_vrf.py fails instead of skipping without a VRF device
       TACTEST_REQUIRE_VRF: 1
     steps:
-      - run: sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $UBUNTU_PACKAGES && sudo apparmor_parser -R /etc/apparmor.d/usr.sbin.slapd
       # test_vrf.py: a VRF device in an unprivileged user namespace
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 && sudo modprobe vrf
       - uses: actions/checkout@v5
-      - run: tac_plus-ng/tests/run-tests
+      # the Samba AD DC of test_ldapmavis_ad.py builds and provisions in the background; "wait for the DC" reads the result
+      # timeout: the one deadline for the image build and the LDAPS probe, so the wait step has no deadline of its own
+      - run: mkdir -p build && (set +e; timeout -k 10 480 tac_plus-ng/tests/samba-dc/start > build/samba-dc.env; echo $? > build/samba-dc.rc.tmp; mv build/samba-dc.rc.tmp build/samba-dc.rc) > build/samba-dc.log 2>&1 < /dev/null &
+      - run: sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $UBUNTU_PACKAGES && sudo apparmor_parser -R /etc/apparmor.d/usr.sbin.slapd
+      - run: tac_plus-ng/tests/run-tests --build-only
         env:
           CC: gcc
+      # with TACTEST_SAMBA_* in the environment, the AD tests cannot skip
+      - name: wait for the DC
+        run: until [ -f build/samba-dc.rc ]; do sleep 1; done; cat build/samba-dc.log; [ "$(cat build/samba-dc.rc)" = 0 ] && cat build/samba-dc.env >> "$GITHUB_ENV"
+      - run: TACTEST_PREFIX=$(echo "$PWD"/build/*/tests-prefix) tac_plus-ng/tests/run-tests
       # the tests of these backends, of tac_plus and of the DNS code skip if the build left them out
       - run: ls build/*/tests-prefix/sbin/ldapmavis-mt build/*/tests-prefix/sbin/radmavis-mt build/*/tests-prefix/sbin/tac_plus
-      - run: test -x /usr/sbin/slapd && perl -MNet::LDAP -MIO::Socket::SSL -e 1
+      - run: test -x /usr/sbin/slapd && perl -MNet::LDAP -MIO::Socket::SSL -e 1 && /usr/bin/python3 -c 'import ldap3'
       - run: build/*/tests-prefix/sbin/tac_plus-ng -v 2>&1 | grep /ARES
       - if: failure()
         run: mkdir -p build/tests-work && sudo journalctl --no-pager -t tac_plus-ng > build/tests-work/journal.txt || true
@@ -125,7 +137,7 @@ jobs:
 
   ubuntu-clang-asan:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       # test_vrf.py fails instead of skipping without a VRF device
       TACTEST_REQUIRE_VRF: 1
@@ -139,17 +151,23 @@ jobs:
         clang -g -fno-omit-frame-pointer -fsanitize=address,undefined
         -fsanitize-ignorelist=${{ github.workspace }}/tac_plus-ng/tests/sanitizer-ignorelist.txt
     steps:
+      - uses: actions/checkout@v5
+      # the Samba AD DC of test_ldapmavis_ad.py builds and provisions in the background; "wait for the DC" reads the result
+      # timeout: the one deadline for the image build and the LDAPS probe, so the wait step has no deadline of its own
+      - run: mkdir -p build && (set +e; timeout -k 10 480 tac_plus-ng/tests/samba-dc/start > build/samba-dc.env; echo $? > build/samba-dc.rc.tmp; mv build/samba-dc.rc.tmp build/samba-dc.rc) > build/samba-dc.log 2>&1 < /dev/null &
       - run: sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $UBUNTU_PACKAGES && sudo apparmor_parser -R /etc/apparmor.d/usr.sbin.slapd
       # high mmap randomization on recent kernels breaks the ASan runtime
       - run: sudo sysctl -w vm.mmap_rnd_bits=28
       # test_vrf.py: a VRF device in an unprivileged user namespace
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 && sudo modprobe vrf
-      - uses: actions/checkout@v5
       - run: tac_plus-ng/tests/run-tests --build-only
       # a "green" ASan job must not be a plain build
       - run: nm build/*/tests-prefix/sbin/tac_plus-ng | grep -q __asan_init
       - run: nm build/*/tests-prefix/sbin/tac_plus-ng | grep -q __ubsan_handle_
-      - run: TACTEST_PREFIX=$(echo $PWD/build/*/tests-prefix) tac_plus-ng/tests/run-tests
+      # with TACTEST_SAMBA_* in the environment, the AD tests cannot skip
+      - name: wait for the DC
+        run: until [ -f build/samba-dc.rc ]; do sleep 1; done; cat build/samba-dc.log; [ "$(cat build/samba-dc.rc)" = 0 ] && cat build/samba-dc.env >> "$GITHUB_ENV"
+      - run: TACTEST_PREFIX=$(echo "$PWD"/build/*/tests-prefix) tac_plus-ng/tests/run-tests
       - if: failure()
         run: mkdir -p build/tests-work && sudo journalctl --no-pager -t tac_plus-ng > build/tests-work/journal.txt || true
       - if: failure()
@@ -164,7 +182,7 @@ jobs:
     # build (no OpenSSL) is the one tested: it takes other code paths (no TLS
     # detection before the first read)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -173,14 +191,20 @@ jobs:
       # test_vrf.py fails instead of skipping without a VRF device
       TACTEST_REQUIRE_VRF: 1
     steps:
-      - run: sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $UBUNTU_PACKAGES && sudo apparmor_parser -R /etc/apparmor.d/usr.sbin.slapd
       # test_vrf.py: a VRF device in an unprivileged user namespace
       - run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 && sudo modprobe vrf
       - uses: actions/checkout@v5
+      # the Samba AD DC of test_ldapmavis_ad.py builds and provisions in the background; "wait for the DC" reads the result
+      # timeout: the one deadline for the image build and the LDAPS probe, so the wait step has no deadline of its own
+      - run: mkdir -p build && (set +e; timeout -k 10 480 tac_plus-ng/tests/samba-dc/start > build/samba-dc.env; echo $? > build/samba-dc.rc.tmp; mv build/samba-dc.rc.tmp build/samba-dc.rc) > build/samba-dc.log 2>&1 < /dev/null &
+      - run: sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $UBUNTU_PACKAGES && sudo apparmor_parser -R /etc/apparmor.d/usr.sbin.slapd
       - run: tac_plus-ng/tests/run-tests --build-only
         env:
           CC: ${{ matrix.cc }}
           TACTEST_CONFIGURE: --debug
+      # with TACTEST_SAMBA_* in the environment, the AD tests cannot skip
+      - name: wait for the DC
+        run: until [ -f build/samba-dc.rc ]; do sleep 1; done; cat build/samba-dc.log; [ "$(cat build/samba-dc.rc)" = 0 ] && cat build/samba-dc.env >> "$GITHUB_ENV"
       - run: tac_plus-ng/tests/run-tests
         env:
           CC: ${{ matrix.cc }}

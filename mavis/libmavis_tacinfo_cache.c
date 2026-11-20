@@ -236,16 +236,14 @@ static int mavis_send_in(mavis_ctx *mcx, av_ctx **ac)
     UNUSED_RESULT(setegid(mcx->egid));
     if (fn > -1) {
 	struct stat st = { 0 };
-	av_ctx *a = av_new(NULL, NULL);
 	fstat(fn, &st);
-	if (!strcmp(t, AV_V_TACTYPE_HOST) && (st.st_mtime + mcx->device_cache_timeout < io_now.tv_sec)) {
+	if ((!strcmp(t, AV_V_TACTYPE_HOST) && (st.st_mtime + mcx->device_cache_timeout < io_now.tv_sec))
+	    || (!strcmp(t, AV_V_TACTYPE_DACL) && (st.st_mtime + mcx->dacl_cache_timeout < io_now.tv_sec))) {
+	    close(fn);
 	    DebugOut(DEBUG_MAVIS);
 	    return MAVIS_DOWN;
 	}
-	if (!strcmp(t, AV_V_TACTYPE_DACL) && (st.st_mtime + mcx->dacl_cache_timeout < io_now.tv_sec)) {
-	    DebugOut(DEBUG_MAVIS);
-	    return MAVIS_DOWN;
-	}
+	av_ctx *a = av_new(NULL, NULL);
 	char c[st.st_size + 1];
 	c[st.st_size] = 0;
 	UNUSED_RESULT(Read(fn, c, st.st_size));

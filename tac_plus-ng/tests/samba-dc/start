@@ -1,0 +1,39 @@
+#!/bin/sh
+# Build and start the Samba AD DC of test_ldapmavis_ad.py, wait for LDAPS, print its TACTEST_SAMBA_* settings (NAME=value, no shell quotes).
+# usage: start [docker build arguments]; stop: docker rm -f "$TACTEST_SAMBA_CONTAINER" (each checkout has its own container)
+set -eu
+# without timeout, each LDAPS probe below fails as if the DC did not answer
+command -v timeout >/dev/null || { echo "start: the timeout command is missing (coreutils)" >&2; exit 1; }
+dir=$(cd "$(dirname "$0")" && pwd)
+out=$(cd "$dir/../../.." && pwd)/build/samba-dc
+image=tactest-samba-dc
+name=$image-$(printf '%s' "$out" | cksum | cut -d ' ' -f 1)
+base=DC=tactest,DC=example
+mkdir -p "$out"
+docker build -q -t "$image" "$@" "$dir" >&2
+docker rm -f "$name" >/dev/null 2>&1 || true
+password=Tt1-$(openssl rand -hex 12)
+# a failed start removes its container; a signal must also run the EXIT trap
+trap 'docker rm -f "$name" >/dev/null 2>&1 || :' EXIT
+trap 'exit 1' HUP INT TERM
+docker run -d --name "$name" --hostname dc1 -e ADMIN_PASSWORD="$password" -p 127.0.0.1::636 "$image" >/dev/null
+port=$(docker port "$name" 636/tcp | sed -n 's/^127\.0\.0\.1://p')
+i=0
+# s_client -timeout is for DTLS only: a listener that accepts but does not answer the handshake would block it
+until docker cp "$name:/etc/samba/tls/ca.pem" "$out/ca.pem" >/dev/null 2>&1 &&
+	timeout 5 openssl s_client -connect "127.0.0.1:$port" -CAfile "$out/ca.pem" -verify_return_error </dev/null >/dev/null 2>&1; do
+	i=$((i + 1))
+	if [ $i -ge 120 ] || [ "$(docker inspect -f '{{.State.Running}}' "$name")" != true ]; then
+		docker logs "$name" >&2
+		echo "start: the DC does not answer on 127.0.0.1:$port" >&2
+		exit 1
+	fi
+	sleep 1
+done
+trap - EXIT
+echo "TACTEST_SAMBA_DC=ldaps://127.0.0.1:$port"
+echo "TACTEST_SAMBA_BASE=$base"
+echo "TACTEST_SAMBA_ADMIN=CN=Administrator,CN=Users,$base"
+echo "TACTEST_SAMBA_PASSWORD=$password"
+printf 'TACTEST_SAMBA_CA=%s\n' "$out/ca.pem"
+echo "TACTEST_SAMBA_CONTAINER=$name"

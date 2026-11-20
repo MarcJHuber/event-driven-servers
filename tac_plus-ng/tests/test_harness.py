@@ -38,9 +38,12 @@ import glob
 import io
 import os
 import select
+import shlex
 import shutil
 import signal
 import socket
+import subprocess
+import tempfile
 import time
 import unittest
 
@@ -293,6 +296,77 @@ class Harness(DaemonTestCase):
                     self.assertIn(" in %s " % function, reports)
 
 
+def py38_annotation_errors(source):
+    """The lines of annotations that Python 3.8 cannot evaluate (README: Python 3.8).
+
+    It evaluates class, module and def annotations at import time, or when
+    the def runs: a builtin generic (list[int]) or a union (int | None)
+    raises TypeError there. A Literal[...] holds values, not types.
+    """
+    tree = ast.parse(source)
+    if any(isinstance(n, ast.ImportFrom) and n.module == "__future__" and any(a.name == "annotations" for a in n.names)
+           for n in tree.body):
+        return []
+
+    def evaluated(body, in_def=False):
+        for node in body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                a = node.args
+                yield from (x.annotation for x in a.posonlyargs + a.args + a.kwonlyargs + [a.vararg, a.kwarg]
+                            if x is not None and x.annotation is not None)
+                if node.returns is not None:
+                    yield node.returns
+                yield from evaluated(node.body, True)
+            elif isinstance(node, ast.ClassDef):
+                # a class body runs at once, also in a def
+                yield from evaluated(node.body)
+            elif isinstance(node, ast.AnnAssign) and not in_def:
+                yield node.annotation
+            else:
+                for field in ("body", "orelse", "finalbody", "handlers"):
+                    yield from evaluated(getattr(node, field, []), in_def)
+
+    def types(node):
+        if isinstance(node, ast.Subscript) and getattr(node.value, "id", getattr(node.value, "attr", None)) == "Literal":
+            return
+        yield node
+        for child in ast.iter_child_nodes(node):
+            yield from types(child)
+
+    found = set()
+    for annotation in evaluated(tree.body):
+        for n in types(annotation):
+            if (isinstance(n, ast.Subscript) and isinstance(n.value, ast.Name)
+                    and n.value.id in ("dict", "list", "tuple", "set", "frozenset", "type")) or (
+                    isinstance(n, ast.BinOp) and isinstance(n.op, ast.BitOr)):
+                found.add(n.lineno)
+    return sorted(found)
+
+
+def quoted_source_values(source, name="TLS_OPTIONS"):
+    """The lines of f-strings for name (a dict key or a keyword) that put a value in quotes.
+
+    The LDAP back-ends evaluate TLS_OPTIONS as Perl or Python source: a
+    quote in the value ends such a string. Make the literal of the value
+    with repr() or perl_string().
+    """
+    found = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Dict):
+            values = [v for k, v in zip(node.keys, node.values) if isinstance(k, ast.Constant) and k.value == name]
+        elif isinstance(node, ast.keyword) and node.arg == name:
+            values = [node.value]
+        else:
+            continue
+        for value in values:
+            parts = value.values if isinstance(value, ast.JoinedStr) else []
+            for before, part in zip(parts, parts[1:]):
+                if (isinstance(part, ast.FormattedValue) and isinstance(before, ast.Constant)
+                        and before.value.endswith(("'", '"'))):
+                    found.add(value.lineno)
+    return sorted(found)
+
+
 class TestFiles(unittest.TestCase):
     """A worker reads its configuration when it starts, which can be after the test removed a file in it."""
 
@@ -309,6 +383,38 @@ class TestFiles(unittest.TestCase):
                               if isinstance(call, ast.Call) and getattr(call.func, "attr", "") == "start_daemon"]
         self.assertEqual(found, [], "write the files of the daemon with self.scratch_file()")
 
+    def test_annotations_import_on_python_3_8(self):
+        found = []
+        here = os.path.dirname(os.path.abspath(__file__))
+        for path in sorted(glob.glob(os.path.join(here, "test_*.py")) + glob.glob(os.path.join(here, "tactest", "*.py"))):
+            with open(path) as f:
+                found += ["%s:%d" % (os.path.relpath(path, here), n) for n in py38_annotation_errors(f.read())]
+        self.assertEqual(found, [], "add 'from __future__ import annotations', or use typing.Dict and typing.Optional")
+
+    def test_tls_options_quote_with_a_function(self):
+        found = []
+        for path in sorted(glob.glob(os.path.join(os.path.dirname(os.path.abspath(__file__)), "test_*.py"))):
+            with open(path) as f:
+                found += ["%s:%d" % (os.path.basename(path), n) for n in quoted_source_values(f.read())]
+        self.assertEqual(found, [], "TLS_OPTIONS is source code: use repr() or perl_string() for a value in it")
+
+    def test_quoted_source_values(self):
+        for source, lines in (("{'TLS_OPTIONS': f\"cafile => '{ca}'\"}", [1]),
+                              ("f(TLS_OPTIONS=f'ca_certs_file=\"{ca}\"')", [1]),
+                              ("{'TLS_OPTIONS': f'cafile => {perl_string(ca)}, {names}'}", []),
+                              ("{'OTHER': f\"x='{ca}'\"}", [])):
+            with self.subTest(source=source):
+                self.assertEqual(quoted_source_values(source), lines)
+
+    def test_py38_annotation_errors(self):
+        for source, lines in (("x: Literal[1 | 2] = 3", []),         # an integer OR is a value, also in Literal
+                              ("x: int | None = None", [1]),
+                              ("def f(a: dict[str, int]): pass", [1]),
+                              ("def f():\n    x: list[int] = []", []),
+                              ("def f():\n    class C:\n        x: list[int] = []", [3]),
+                              ("from __future__ import annotations\nx: int | None = None", [])):
+            with self.subTest(source=source):
+                self.assertEqual(py38_annotation_errors(source), lines)
 
 class ScratchFiles(unittest.TestCase):
     """A failed test keeps its scratch files, also when run() makes its own result."""
@@ -329,6 +435,158 @@ class ScratchFiles(unittest.TestCase):
         self.assertEqual(len(out.failures), 1)
         self.assertTrue(os.path.exists(paths[0]), "run() removed the files of a failed test")
 
+
+class SambaDcStart(unittest.TestCase):
+    """samba-dc/start, its README commands and its CI steps, with stand-ins for docker and openssl."""
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    # the DC is up at once on port 1636; each call of docker is logged
+    DOCKER = 'echo "$*" >> "$TACTEST_DOCKER_LOG"; case $1 in port) echo 127.0.0.1:1636;; cp) : > "$3";; inspect) echo true;; esac'
+    OPENSSL = "case $1 in rand) echo 0123456789abcdef01234567;; esac"
+    # without the deadline: the tests do not need timeout(1) on the host
+    TIMEOUT = 'while [ "${1#-}" != "$1" ]; do case $1 in -k|-s) shift;; esac; shift; done; shift; exec "$@"'
+    RUN_TESTS = 'printf "%s\\n" "$TACTEST_SAMBA_DC" "$TACTEST_SAMBA_CA"'
+
+    def checkout(self, tmp, name, docker=DOCKER, openssl=OPENSSL, timeout=TIMEOUT, run_tests=RUN_TESTS):
+        """A checkout <tmp>/<name> with samba-dc/start and a run-tests that prints two settings; returns its run().
+
+        timeout=None: the timeout(1) of the host.
+        """
+        top = os.path.join(tmp, name)
+        tests = os.path.join(top, "tac_plus-ng", "tests")
+        os.makedirs(os.path.join(tests, "samba-dc"))
+        shutil.copy(os.path.join(self.here, "samba-dc", "start"), os.path.join(tests, "samba-dc"))
+        bin_dir = os.path.join(top, "bin")
+        os.mkdir(bin_dir)
+        stubs = [(os.path.join(bin_dir, "docker"), docker), (os.path.join(bin_dir, "openssl"), openssl),
+                 (os.path.join(tests, "run-tests"), run_tests)]
+        if timeout is not None:
+            stubs.append((os.path.join(bin_dir, "timeout"), timeout))
+        for path, body in stubs:
+            with open(path, "w") as f:
+                f.write("#!/bin/sh\n" + body + "\n")
+            os.chmod(path, 0o755)
+        # the settings of a DC of the caller must not reach the commands
+        env = dict({k: v for k, v in os.environ.items() if not k.startswith("TACTEST_SAMBA_")},
+                   PATH=bin_dir + os.pathsep + os.environ["PATH"],
+                   TACTEST_DOCKER_LOG=os.path.join(top, "docker.log"))
+
+        def run(script, timeout=60):
+            return subprocess.run(["sh", "-c", script], cwd=top, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                  text=True, timeout=timeout, check=False)
+        return top, run
+
+    def readme_commands(self):
+        with open(os.path.join(self.here, "README")) as f:
+            blocks = [b for b in f.read().split("\n\n") if "tac_plus-ng/tests/samba-dc/start" in b]
+        self.assertEqual(len(blocks), 1, "the README has no single command block for samba-dc/start")
+        return "\n".join(line.strip() for line in blocks[0].splitlines())
+
+    def test_readme_import_keeps_the_path(self):
+        """A blank and a backslash in the checkout path: the echo of dash would make a tab of "\\t"."""
+        for name in ("ad tests", "ad\\tests"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as tmp:
+                top, run = self.checkout(tmp, name)
+                p = run(self.readme_commands())
+                self.assertEqual(p.stdout.splitlines(),
+                                 ["ldaps://127.0.0.1:1636", os.path.join(top, "build", "samba-dc", "ca.pem")], p.stderr)
+
+    def test_readme_commands_keep_the_settings_out_of_the_shell(self):
+        """The README commands remove the container also when the tests fail, and exit with the status of the tests."""
+        with tempfile.TemporaryDirectory() as tmp:
+            top, run = self.checkout(tmp, "ad", run_tests="exit 7")
+            p = run(self.readme_commands() + '\nrc=$?; echo "DC=${TACTEST_SAMBA_DC-unset}"; exit $rc')
+            self.assertEqual((p.returncode, p.stdout), (7, "DC=unset\n"), p.stderr)
+            with open(os.path.join(top, "docker.log")) as f:
+                log = f.read().splitlines()
+            self.assertEqual([line.split()[0] for line in log if line.split()[0] in ("run", "rm")], ["rm", "run", "rm"])
+
+    def test_readme_commands_stop_when_start_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _, run = self.checkout(tmp, "ad", docker="exit 1")
+            p = run(self.readme_commands())
+            self.assertEqual(p.stdout, "", "run-tests ran without a DC, so the AD tests skip and the run can pass")
+
+    def test_each_checkout_has_its_own_container(self):
+        names = []
+        with tempfile.TemporaryDirectory() as tmp:
+            for checkout in ("a", "b"):
+                top, run = self.checkout(tmp, checkout)
+                p = run("tac_plus-ng/tests/samba-dc/start")
+                self.assertEqual(p.returncode, 0, p.stderr)
+                name = dict(line.split("=", 1) for line in p.stdout.splitlines())["TACTEST_SAMBA_CONTAINER"]
+                with open(os.path.join(top, "docker.log")) as f:
+                    log = f.read().splitlines()
+                self.assertIn("rm -f " + name, log)
+                self.assertEqual([line for line in log if line.startswith("rm ")], ["rm -f " + name])
+                names.append(name)
+        self.assertNotEqual(names[0], names[1], "a start in one checkout removes the DC of the other")
+
+    @unittest.skipUnless(shutil.which("timeout"), "no timeout(1)")
+    def test_tls_probe_has_a_deadline(self):
+        """A DC that accepts but does not answer the TLS handshake: start gives up, prints the logs, removes the DC."""
+        docker = self.DOCKER.replace("inspect) echo true", "inspect) echo false")
+        openssl = "case $1 in rand) echo 0123456789abcdef01234567;; s_client) exec sleep 120;; esac"
+        with tempfile.TemporaryDirectory() as tmp:
+            top, run = self.checkout(tmp, "ad", docker=docker, openssl=openssl, timeout=None)
+            try:
+                p = run("tac_plus-ng/tests/samba-dc/start", timeout=30)
+            except subprocess.TimeoutExpired:
+                self.fail("start waits for the TLS handshake without a deadline")
+            self.assertEqual(p.returncode, 1)
+            self.assertIn("the DC does not answer", p.stderr)
+            with open(os.path.join(top, "docker.log")) as f:
+                log = [line.split() for line in f.read().splitlines()]
+            name = next(words[words.index("--name") + 1] for words in log if words[0] == "run")
+            self.assertEqual([words for words in log if words[0] in ("run", "rm")][-1], ["rm", "-f", name],
+                             "a failed start leaves its container")
+
+    def workflow_steps(self):
+        """The command of the start step and of the "wait for the DC" step of each job of the CI workflow."""
+        with open(os.path.join(self.here, "..", "..", ".github", "workflows", "tac_plus-ng.yml")) as f:
+            lines = f.read().splitlines()
+        start = [line.split("- run: ", 1)[1] for line in lines if "samba-dc/start > build/samba-dc.env" in line]
+        wait = [lines[i + 1].split("run: ", 1)[1] for i, line in enumerate(lines) if line.strip() == "- name: wait for the DC"]
+        self.assertEqual(len(start), len(wait))
+        self.assertTrue(start)
+        return start, wait
+
+    def test_ci_has_one_deadline_for_the_dc(self):
+        """timeout around start is the only deadline: the wait step then always gets the status and prints the log."""
+        start, wait = self.workflow_steps()
+        for line in start:
+            self.assertRegex(line, r"\(set \+e; timeout( -k \d+)? \d+ tac_plus-ng/tests/samba-dc/start ")
+        for line in wait:
+            with self.subTest(line=line):
+                self.assertNotIn("timeout", line, "the wait step can stop before start, and then without the log")
+                for rc, env in (("124", ""), ("0", "TACTEST_SAMBA_DC=x\n")):
+                    with tempfile.TemporaryDirectory() as tmp:
+                        _, run = self.checkout(tmp, "ci")
+                        build = os.path.join(tmp, "ci", "build")
+                        os.mkdir(build)
+                        for name, text in (("samba-dc.rc", rc + "\n"), ("samba-dc.log", "the log\n"),
+                                           ("samba-dc.env", "TACTEST_SAMBA_DC=x\n"), ("github.env", "")):
+                            with open(os.path.join(build, name), "w") as f:
+                                f.write(text)
+                        # -e: a run step of GitHub Actions stops at the first failed command
+                        p = run(f"GITHUB_ENV=build/github.env sh -e -c {shlex.quote(line)}")
+                        self.assertEqual((p.returncode == 0, p.stdout.startswith("the log\n")), (rc == "0", True), p)
+                        with open(os.path.join(build, "github.env")) as f:
+                            self.assertEqual(f.read(), env)
+
+    def test_ci_publishes_the_dc_status_in_one_step(self):
+        """The wait step must never read an empty samba-dc.rc: the status goes to another file, then mv."""
+        start, _ = self.workflow_steps()
+        for line in start:
+            with self.subTest(line=line):
+                self.assertRegex(line, r"echo \$\? > (build/samba-dc\.rc\.\w+); mv \1 build/samba-dc\.rc\)")
+                with tempfile.TemporaryDirectory() as tmp:
+                    _, run = self.checkout(tmp, "ci", docker="exit 3")
+                    run(line.rstrip("&").rstrip())
+                    self.assertEqual(sorted(os.listdir(os.path.join(tmp, "ci", "build"))),
+                                     ["samba-dc", "samba-dc.env", "samba-dc.log", "samba-dc.rc"])
+                    with open(os.path.join(tmp, "ci", "build", "samba-dc.rc")) as f:
+                        self.assertEqual(f.read(), "3\n")
 
 if __name__ == "__main__":
     unittest.main()
