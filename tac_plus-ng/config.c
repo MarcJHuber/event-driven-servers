@@ -628,7 +628,7 @@ void init_host(tac_host *host, tac_host *parent, tac_realm *r, int top)
 	host->user_messages[UM_BACKEND_FAILED] = "Authentication backend failure.";
 	host->user_messages[UM_CHANGE_PASSWORD] = "Please change your password.";
 	host->user_messages[UM_ACCOUNT_EXPIRES] = "This account will expire soon.";
-	host->user_messages[UM_PASSWORD_EXPIRED] = "Pasword has expired.";
+	host->user_messages[UM_PASSWORD_EXPIRED] = "Password has expired.";
 	host->user_messages[UM_PASSWORD_EXPIRES] = "Password will expire on %c.";
 	host->user_messages[UM_PASSWORD_INCORRECT] = "Password incorrect.";
 	host->user_messages[UM_RESPONSE_INCORRECT] = "Response incorrect.";
@@ -637,7 +637,7 @@ void init_host(tac_host *host, tac_host *parent, tac_realm *r, int top)
 	host->user_messages[UM_DENIED_BY_ACL] = "Denied by ACL";
 	host->user_messages[UM_MAVIS_PARSE_ERROR] = "\n\
 \n\
-An error occured while parsing your user profile. Please ask your TACACS+\n\
+An error occurred while parsing your user profile. Please ask your TACACS+\n\
 administrator to have a look at the TACACS+ logs, providing the following\n\
 information:\n\
 \n\
@@ -4251,6 +4251,12 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 	    case S_ACCOUNT_EXPIRES:
 		um = UM_ACCOUNT_EXPIRES;
 		break;
+	    case S_PASSWORD_EXPIRED:
+		um = UM_PASSWORD_EXPIRED;
+		break;
+	    case S_PASSWORD_EXPIRES:
+		um = UM_PASSWORD_EXPIRES;
+		break;
 	    case S_PASSWORD_INCORRECT:
 		um = UM_PASSWORD_INCORRECT;
 		break;
@@ -4273,7 +4279,7 @@ static void parse_host_attr(struct sym *sym, tac_realm *r, tac_host *host)
 				   S_PASSWORD_MINREQ, S_PERMISSION_DENIED,
 				   S_ENABLE_PASSWORD, S_PASSWORD_CHANGE_DIALOG, S_PASSWORD_CHANGED,
 				   S_BACKEND_FAILED, S_CHANGE_PASSWORD,
-				   S_ACCOUNT_EXPIRES, S_PASSWORD_INCORRECT,
+				   S_ACCOUNT_EXPIRES, S_PASSWORD_EXPIRED, S_PASSWORD_EXPIRES, S_PASSWORD_INCORRECT,
 				   S_RESPONSE_INCORRECT, S_USERNAME, S_USER_ACCESS_VERIFICATION, S_DENIED_BY_ACL, S_unknown);
 	    }
 	    sym_get(sym);

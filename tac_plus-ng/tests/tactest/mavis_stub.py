@@ -48,7 +48,8 @@ State, all keys optional:
                         "memberof": [LDAP group DNs] or a string as it is,
                         "sshkey": str, "mustchange": bool,
                         "new_password": str,
-                        "profile": the user profile (AV_A_TACPROFILE) as it is}}
+                        "profile": the user profile (AV_A_TACPROFILE) as it is,
+                        "expiry": the password expiry, seconds since the epoch}}
   hosts         {address: the host profile (AV_A_TACPROFILE) as it is}
   result        {key: "ACK" | "NAK" | "NOTFOUND" | "ERROR"}; the first of
                 "<user>:<TYPE>", "<user>", "<TYPE>", "*" decides, TYPE
@@ -235,6 +236,8 @@ def serve(libdir):
             if known.get("profile"):
                 d.set_tacprofile(known["profile"])
             d.password_mustchange(bool(known.get("mustchange")))
+            if "expiry" in known:
+                d.set_expiry(known["expiry"])
         verdict, code = answers[result]
         d.write(verdict, code, state.get("message"))
         if state.get("double_write"):
