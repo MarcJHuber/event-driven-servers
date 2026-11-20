@@ -252,7 +252,7 @@ void *mem_destroy(mem_t * m)
     return NULL;
 }
 
-void *mem_free(mem_t * m, void *ptr)
+void *(mem_free)(mem_t * m, void *ptr)
 {
     void **p = ptr;
     if (*p) {
