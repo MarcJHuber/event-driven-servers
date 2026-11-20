@@ -30,7 +30,8 @@
 
 import unittest
 
-from tactest import DaemonTestCase
+from tactest import DaemonTestCase, config
+from tactest.daemon import parse_only
 
 POLICY = """
 	device edgecore {
@@ -119,6 +120,57 @@ class Accounting(DaemonTestCase):
         log = self.wait_log("accounting", "\tstop\t")
         self.assertIn("\tstart\tshell\tshow version <cr>", log)
 
+
+
+ATTRIBUTE_DEFAULT = """
+	profile pdeny { script { if (service == shell) { set priv-lvl = 15 attribute default = deny permit } } }
+	profile ppermit { script { if (service == shell) { set priv-lvl = 15 attribute default = permit permit } } }
+	user denier { password login = clear pw }
+	user permitter { password login = clear pw }
+	ruleset {
+		rule { script { if (user == denier) { profile = pdeny permit } profile = ppermit permit } }
+	}
+"""
+
+
+class AttributeDefault(DaemonTestCase):
+    """"attribute default" decides about a NAS pair that the profile does not set."""
+
+    CONFIG = ATTRIBUTE_DEFAULT
+
+    def test_deny_refuses_a_mandatory_pair(self):
+        r = self.connect().author("denier", ["service=shell", "cmd=", "acl=5"])
+        self.assertEqual(r.status_name, "FAIL", r)
+
+    def test_deny_removes_an_optional_pair(self):
+        r = self.connect().author("denier", ["service=shell", "cmd=", "idletime*5"])
+        self.assertEqual((r.status_name, r.args), ("PASS_REPL", ["service=shell", "cmd=", "priv-lvl=15"]), r)
+
+    def test_permit_keeps_the_pairs(self):
+        r = self.connect().author("permitter", ["service=shell", "cmd=", "acl=5", "idletime*5"])
+        self.assertEqual((r.status_name, r.args), ("PASS_ADD", ["priv-lvl=15"]), r)
+
+    def test_other_value_is_a_parse_error(self):
+        body = ATTRIBUTE_DEFAULT.replace("default = permit", "default = foo")
+        code, out = parse_only(self.scratch_file("foo.cfg", config.render(body=body)))
+        self.assertGreater(code, 0, out)
+        self.assertIn("Expected 'deny', 'false', 'no', 'permit', 'true' or 'yes', but got 'foo'", out)
+
+
+class QuotedAttributeDefault(DaemonTestCase):
+    """A quoted "permit" or "deny" has the same effect as the keyword."""
+
+    CONFIG = ATTRIBUTE_DEFAULT.replace("default = deny", 'default = "deny"').replace(
+        "default = permit", 'default = "permit"'
+    )
+
+    def test_quoted_deny_refuses_a_mandatory_pair(self):
+        r = self.connect().author("denier", ["service=shell", "cmd=", "acl=5"])
+        self.assertEqual(r.status_name, "FAIL", r)
+
+    def test_quoted_permit_keeps_the_pairs(self):
+        r = self.connect().author("permitter", ["service=shell", "cmd=", "acl=5", "idletime*5"])
+        self.assertEqual((r.status_name, r.args), ("PASS_ADD", ["priv-lvl=15"]), r)
 
 
 class QuotedBoolean(DaemonTestCase):
