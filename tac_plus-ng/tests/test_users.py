@@ -57,6 +57,10 @@ HASHES = """
 		password login = clear loginpw
 		enable 15 = 8 $$8$$dsYGNam3K1SIJO$$7nv/35M/qr6t.dVc7UY9zrJDWRVqncHub1PE9UlMQFs
 	}
+	user enableasa {
+		password login = clear loginpw
+		enable 15 = asa 2KFQnbNIdI.2KYOU
+	}
 	device asaenable {
 		address = 127.0.0.21
 		key = tactest
@@ -131,9 +135,15 @@ class PasswordTypes(DaemonTestCase):
 
     @unittest.skipUnless(LINUX, "127.0.0.0/8 local addresses")
     def test_enable_asa_on_the_device(self):
-        """The ASA enable hash has no user name in it, so this is the enable request without a user."""
-        self.assertEqual(self.connect(source="127.0.0.21").enable("cisco").status_name, "PASS")
-        self.assertEqual(self.connect(source="127.0.0.21").enable("wrong").status_name, "FAIL")
+        """The ASA enable hash has no user name in it, so the user of the enable request must not go into it."""
+        for user in ("", "md5crypt"):
+            with self.subTest(user=user):
+                self.assertEqual(self.connect(source="127.0.0.21").enable("cisco", user=user).status_name, "PASS")
+                self.assertEqual(self.connect(source="127.0.0.21").enable("wrong", user=user).status_name, "FAIL")
+
+    def test_enable_asa_of_a_user(self):
+        self.assertEqual(self.connect().enable("cisco", user="enableasa").status_name, "PASS")
+        self.assertEqual(self.connect().enable("loginpw", user="enableasa").status_name, "FAIL")
 
     @unittest.skipUnless(LINUX, "127.0.0.0/8 local addresses")
     def test_type6_device_key_and_enable(self):

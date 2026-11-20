@@ -1257,8 +1257,8 @@ static void do_enable(tac_session *session)
 	    return;
 	}
 
-	if (session->enable)
-	    res = compare_pwdat(session->enable, session->username.txt, session->authen_data->msg, &hint);
+	if (session->enable)	// no user name: an ASA "enable password" hash has none in it
+	    res = compare_pwdat(session->enable, NULL, session->authen_data->msg, &hint);
     }
 
     char *resp = (res == S_permit) ? NULL : eval_log_format(session, session->ctx, NULL, li_permission_denied, io_now.tv_sec, NULL);
