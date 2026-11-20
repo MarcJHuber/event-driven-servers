@@ -238,7 +238,8 @@ enum token parse_permission(struct sym *sym)
 
 u_int parse_bool(struct sym *sym)
 {
-    enum token sc = sym->code;
+    // a quoted keyword is an S_string
+    enum token sc = (sym->code == S_string) ? keycode(sym->buf) : sym->code;
 
     switch (sc) {
     default:

@@ -120,5 +120,23 @@ class Accounting(DaemonTestCase):
         self.assertIn("\tstart\tshell\tshow version <cr>", log)
 
 
+
+class QuotedBoolean(DaemonTestCase):
+    """parse_bool() takes a quoted keyword, as "yes" in place of yes."""
+
+    CONFIG = """
+	device trusting {
+		address = 127.0.0.4
+		key = tactest
+		permit if-authenticated = "yes"
+	}
+"""
+
+    def test_quoted_yes(self):
+        # LOCAL (5) / ASCII: "permit if-authenticated" permits a user that the daemon does not know
+        r = self.connect(source="127.0.0.4").author("nobody", ["service=shell", "cmd="], authen_method=5)
+        self.assertEqual(r.status_name, "PASS_ADD", r)
+
+
 if __name__ == "__main__":
     unittest.main()
