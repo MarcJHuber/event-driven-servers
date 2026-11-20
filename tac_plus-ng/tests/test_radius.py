@@ -30,10 +30,12 @@
 
 import hashlib
 import os
+import select
 import socket
 import struct
 import subprocess
 import tempfile
+import time
 import unittest
 
 from tactest import LINUX, SOURCE, DaemonTestCase, Stub, config, features, radius, tacacs
@@ -250,6 +252,134 @@ class MessageAuthenticatorRequired(DaemonTestCase):
         c = self.radius(SECRET, source="127.0.0.6")
         c.send_raw(head + auth + attrs)
         self.assertEqual(radius.Packet.decode(c.recv_raw()).code_name, "Accounting-Response")
+
+
+class DroppedDatagram(DaemonTestCase):
+    """The worker drops a UDP datagram that is not RADIUS; it must close the socket that spawnd passed with it.
+
+    spawnd passes each new source address and port with a socket connected
+    to it. A socket the worker kept open after a drop got the later
+    datagrams of that source, and nobody read them.
+    """
+
+    CONFIG = POLICY
+    UDP = True
+
+    def bad(self, client):
+        """A datagram whose RADIUS length field is not its size."""
+        req = radius.Packet(radius.ACCESS_REQUEST, attributes=[(radius.USER_NAME, b"alice")])
+        client.send_raw(req.encode(length=200))
+
+    def fds(self, daemon=None):
+        (worker,) = (daemon or self.daemon).workers()
+        return len(os.listdir("/proc/%d/fd" % worker))
+
+    def assertFdsBack(self, before, daemon=None):
+        deadline = time.monotonic() + 5.0
+        while self.fds(daemon) > before and time.monotonic() < deadline:
+            select.select([], [], [], 0.05)
+        self.assertLessEqual(self.fds(daemon), before, "the worker keeps the sockets of dropped datagrams")
+
+    def wait_fds_above(self, before, daemon=None):
+        deadline = time.monotonic() + 5.0
+        while self.fds(daemon) <= before and time.monotonic() < deadline:
+            select.select([], [], [], 0.05)
+        self.assertGreater(self.fds(daemon), before, "the worker did not get the TACACS+ connection")
+
+    def udp_sockets(self, daemon):
+        """(remote address, receive queue) of each socket on the UDP port; the remote address of the listener is None."""
+        port = ":%04X" % daemon.udp_port
+        found = []
+        for name in ("/proc/net/udp", "/proc/net/udp6"):
+            if os.path.exists(name):
+                with open(name) as f:
+                    rows = [line.split() for line in f.readlines()[1:]]
+                # a reply socket of spawnd is connected to its client, the listener is not (remote port 0)
+                found += [(None if r[2].endswith(":0000") else r[2], int(r[4].split(":")[1], 16)) for r in rows if r[1].endswith(port)]
+        self.assertIn(None, [remote for remote, _ in found], "no UDP listener on port %d" % daemon.udp_port)
+        return found
+
+    def reply_sockets(self, daemon):
+        return {remote for remote, _ in self.udp_sockets(daemon) if remote}
+
+    def wait_udp_listener_read(self, daemon):
+        """Wait until spawnd has read every datagram that waits on its UDP listener."""
+        deadline = time.monotonic() + 5.0
+        while any(q for remote, q in self.udp_sockets(daemon) if remote is None) and time.monotonic() < deadline:
+            select.select([], [], [], 0.05)
+        self.assertFalse(any(q for remote, q in self.udp_sockets(daemon) if remote is None), "spawnd did not read the datagrams")
+
+    def assertReplySocketsClosed(self, before, daemon):
+        """spawnd read every datagram, and of the reply sockets only those in before are left."""
+        self.wait_udp_listener_read(daemon)
+        deadline = time.monotonic() + 5.0
+        while self.reply_sockets(daemon) - before and time.monotonic() < deadline:
+            select.select([], [], [], 0.05)
+        self.assertEqual(self.reply_sockets(daemon) - before, set(), "the worker keeps the sockets of dropped datagrams")
+
+    def assertLruConnectionKept(self, body, datagram):
+        """users_inc() at "last-recently-used limit" evicts the oldest context; a dropped datagram must not."""
+        d = self.start_daemon(body + "\tlast-recently-used limit = 1\n", udp=True)
+        before = self.fds(d)
+        c = self.connect(daemon=d)
+        self.wait_fds_above(before, d)
+        self.radius(SECRET, daemon=d, source=NAS).send_raw(datagram)
+        self.assertFalse(c.closed(timeout=2.0), "a dropped datagram evicted the TACACS+ connection")
+        return c
+
+    def test_same_source_port_is_answered_after_a_bad_datagram(self):
+        c = self.radius(SECRET, source=NAS, timeout=1.0)
+        self.bad(c)
+        with self.assertRaises(TimeoutError):
+            c.recv_raw()
+        c.timeout = 5.0
+        c.sock.settimeout(5.0)
+        r = c.access_request("alice", "alicepw", message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Accept", r)
+
+    @unittest.skipUnless(LINUX, "sockets through /proc")
+    def test_bad_datagrams_leave_no_socket_open(self):
+        before = self.reply_sockets(self.daemon)
+        for _ in range(10):
+            self.bad(self.radius(SECRET, source=NAS))
+        self.assertReplySocketsClosed(before, self.daemon)
+
+    @unittest.skipUnless(LINUX, "file descriptors through /proc")
+    def test_datagrams_without_a_dictionary_leave_no_socket_open(self):
+        d = self.start_daemon("", udp=True)
+        with d.connect() as c:
+            self.assertFalse(c.pap("nobody", "x").ok)  # opens authentication.log before the count
+        before = self.fds(d)
+        for _ in range(10):
+            req = radius.Packet(radius.ACCESS_REQUEST, attributes=[(radius.USER_NAME, b"alice")])
+            self.radius(SECRET, daemon=d, source=NAS).send_raw(req.encode())
+        # spawnd passes a datagram in the handler that reads it, so after this the datagrams are before the connection
+        self.wait_udp_listener_read(d)
+        # no RADIUS answer without a dictionary: a TACACS+ answer shows that the worker read its control socket
+        with d.connect() as c:
+            self.assertFalse(c.pap("nobody", "x").ok)
+        self.assertFdsBack(before, d)
+
+    @unittest.skipUnless(LINUX, "file descriptors through /proc")
+    def test_bad_datagram_keeps_the_least_recently_used_connection(self):
+        c = self.assertLruConnectionKept(POLICY, radius.Packet(radius.ACCESS_REQUEST).encode(length=200))
+        self.assertTrue(c.pap("alice", "alicepw").ok)
+
+    @unittest.skipUnless(LINUX, "file descriptors through /proc")
+    def test_datagram_without_a_dictionary_keeps_the_least_recently_used_connection(self):
+        self.assertLruConnectionKept("", radius.Packet(radius.ACCESS_REQUEST).encode())
+
+    @unittest.skipUnless(LINUX, "sockets through /proc")
+    def test_bad_datagrams_do_not_use_up_the_user_limit(self):
+        """spawnd counts each passed datagram as a user until the worker reports it done."""
+        d = self.start_daemon(POLICY, udp=True, spawnd="\tspawn { users max = 4 }\n")
+        before = self.reply_sockets(d)
+        for _ in range(6):
+            self.bad(self.radius(SECRET, daemon=d, source=NAS))
+        # a datagram that comes while spawnd binds a reply socket goes to that socket: wait until they are gone
+        self.assertReplySocketsClosed(before, d)
+        r = self.radius(SECRET, daemon=d, source=NAS).access_request("alice", "alicepw", message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Accept", r)
 
 
 class ConditionTypes(DaemonTestCase):
