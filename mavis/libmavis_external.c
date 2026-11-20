@@ -283,7 +283,7 @@ static int mavis_parse_in(mavis_ctx *mcx, struct sym *sym)
 		sym_get(sym);
 		if (sym->code == S_equal)
 		    sym_get(sym);
-		mavis_setenv_add(&mcx->setenv, &mcx->envcount, sym, env_name, mysym.buf);
+		mavis_setenv_add(&mcx->setenv, &mcx->envcount, sym, env_name, &mysym);
 		sym->noescape = 0;
 		sym_get(sym);
 		continue;

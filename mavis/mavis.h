@@ -499,7 +499,7 @@ void mavis_detach(void);
 
 void mavis_module_parse_action(mavis_ctx *, struct sym *);
 
-/* a "setenv" value of a module: "NAME=value" as the parser read it, the value as written, and where */
+/* a "setenv" value of a module: "NAME=value" as the parser read it, the value as written (or NULL), and where */
 struct mavis_setenv {
     char *parsed;
     char *raw;
@@ -509,7 +509,7 @@ struct mavis_setenv {
 /* not_decrypted gets each setenv value that does not decrypt; key_set tells if a key applied */
 void mavis_set_type6(char *(*fun)(const char *, const char *), void (*not_decrypted)(struct mavis_setenv *, int key_set), char *master_key);
 int mavis_type6_decrypts(char *);
-void mavis_setenv_add(struct mavis_setenv **in, int *count, struct sym *sym, char *name, char *raw);
+void mavis_setenv_add(struct mavis_setenv **in, int *count, struct sym *sym, char *name, struct sym *as_written);
 void mavis_setenv_init(char ***env, struct mavis_setenv *in, int count);
 void mavis_setenv_free(struct mavis_setenv *in, int count);
 

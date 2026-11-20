@@ -3020,15 +3020,15 @@ int mavis_type6_decrypts(char *in)
     return 1;
 }
 
-void mavis_setenv_add(struct mavis_setenv **in, int *count, struct sym *sym, char *name, char *raw)
+void mavis_setenv_add(struct mavis_setenv **in, int *count, struct sym *sym, char *name, struct sym *as_written)
 {
     size_t len = strlen(name) + strlen(sym->buf) + 2;
     *in = Xrealloc(*in, (*count + 1) * sizeof(struct mavis_setenv));
     struct mavis_setenv *e = &(*in)[(*count)++];
     e->parsed = Xcalloc(1, len);
     snprintf(e->parsed, len, "%s=%s", name, sym->buf);
-    // mavis_setenv_init() decrypts it, when the type 6 key is final
-    e->raw = Xstrdup(raw);
+    // mavis_setenv_init() decrypts it with the final key; a read that ends at an escaped quote is no type 6 value
+    e->raw = as_written->tin == sym->tin ? Xstrdup(as_written->buf) : NULL;
     e->file = Xstrdup(sym->filename ? sym->filename : "");
     e->line = sym->line;
 }
@@ -3042,7 +3042,7 @@ void mavis_setenv_init(char ***env, struct mavis_setenv *in, int count)
     for (int i = 0; i < count; i++) {
 	free((*env)[i]);
 	int name_len = (int) (strchr(in[i].parsed, '=') - in[i].parsed);
-	char *d = mavis_decrypt_type6(in[i].raw);
+	char *d = in[i].raw ? mavis_decrypt_type6(in[i].raw) : NULL;
 	if (d) {
 	    size_t len = name_len + strlen(d) + 2;
 	    (*env)[i] = Xcalloc(1, len);
@@ -3050,7 +3050,7 @@ void mavis_setenv_init(char ***env, struct mavis_setenv *in, int count)
 	    free(d);
 	    continue;
 	}
-	if (type6_not_decrypted)
+	if (in[i].raw && type6_not_decrypted)
 	    type6_not_decrypted(&in[i], type6_masterkey != NULL);
 	(*env)[i] = Xstrdup(in[i].parsed);
     }

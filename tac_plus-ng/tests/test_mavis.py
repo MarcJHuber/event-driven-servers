@@ -1102,6 +1102,11 @@ class SetenvType6(DaemonTestCase):
         d = self.start_daemon("\ttype6-key = demo\n" + self.module(r"AA\bAA"))
         self.assertEqual(self.child_value(d), "AA\bAA")
 
+    def test_key_after_the_module_and_a_value_that_continues_after_an_escaped_quote(self):
+        """Without escape processing, the value would end at the quote, with a valid type 6 value before it."""
+        d = self.start_daemon(self.module(TYPE6_ALICEPW_BACKSLASH + "'C", "next") + "\ttype6-key = demo\n")
+        self.assertEqual(self.child_env(d), {"TACTEST_SECRET": TYPE6_ALICEPW_BACKSLASH[:-1] + "'C", "TACTEST_PLAIN": "next"})
+
 
 @unittest.skipUnless("openssl" in features(), "type 6 needs a build with OpenSSL")
 @unittest.skipUnless(os.path.exists(os.path.join(prefix(), "lib", "mavis", "libmavis_external-mt.so")),
@@ -1142,6 +1147,10 @@ class SetenvType6Mt(DaemonTestCase):
 
     def test_short_value_of_type6_letters_with_an_escaped_quote(self):
         self.assertEqual(self.child_env(r"AB\'C"), {"TACTEST_SECRET": "AB'C", "TACTEST_PLAIN": "next"})
+
+    def test_key_after_the_module_and_a_value_that_continues_after_an_escaped_quote(self):
+        self.assertEqual(self.child_env(TYPE6_ALICEPW_BACKSLASH + "'C"),
+                         {"TACTEST_SECRET": TYPE6_ALICEPW_BACKSLASH[:-1] + "'C", "TACTEST_PLAIN": "next"})
 
     def test_type6_value_with_a_wrong_key_is_reported(self):
         self.assertEqual(self.child_env(TYPE6_ALICEPW, key="other"), {"TACTEST_SECRET": TYPE6_ALICEPW, "TACTEST_PLAIN": "next"})
