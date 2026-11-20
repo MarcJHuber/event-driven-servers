@@ -2,19 +2,36 @@
 
 The backend sends an Access-Request with PAP to B and maps the Class
 attribute of the Access-Accept to TACMEMBER ("group_attribute=Class").
+For the answers B does not give -- none at all, an Access-Challenge --
+a RADIUS responder of the test takes the place of B. The tests of a
+timeout and a challenge that must not open the fallback run with
+radmavis (one request at a time, module "external") as well.
+
+A backend error opens the fallback of the realm ("authentication
+fallback period"): the fallback-only user rescue can log in. As
+"authentication fallback = permit" turns an error into a deny for the
+user under test, rescue is what tells a failed login from a backend
+error.
 """
 
+import hashlib
 import os
+import select
+import socket
 import string
+import threading
 import unittest
 
-from tactest import SOURCE, DaemonTestCase, prefix
+from tactest import SOURCE, DaemonTestCase, prefix, radius
 
-RADMAVIS = os.path.join(prefix(), "sbin", "radmavis-mt")
+RADMAVIS_MT = os.path.join(prefix(), "sbin", "radmavis-mt")
+RADMAVIS = os.path.join(prefix(), "sbin", "radmavis")
 DICTIONARY = os.path.join(SOURCE, "tac_plus-ng", "sample", "radius-dict.cfg")
 SECRET = "radsecret"
 NAS = "127.0.0.6"
 RADCLI_DICTIONARY = "/etc/radcli/dictionary"
+ACCESS_CHALLENGE = 11
+STATE = 24
 
 # radcli 1.2 and 1.3 send no Message-Authenticator: B must not require it (bug compatibility 32)
 SERVER = string.Template("""
@@ -57,10 +74,14 @@ serv-type udp
 
 NETADMINS_MOTD = "Member of netadmins.\n"
 
-CLIENT = string.Template("""
-	mavis module = external-mt {
-		exec = "$radmavis" "radmavis-mt" "-c" "$conf" "group_attribute=Class"
+# "mavis module = external-mt { exec = ... }" with radmavis-mt, or "external" with radmavis
+MODULE = string.Template("""
+	mavis module = $module {
+		exec = "$path" "$name" "-c" "$conf" $args
 	}
+""")
+
+CLIENT = string.Template("""$module
 	user backend = mavis
 	login backend = mavis
 	pap backend = mavis
@@ -78,22 +99,120 @@ CLIENT = string.Template("""
 	}
 """)
 
+# the first factor is local, the second (TACTYPE MFA) goes to the backend
+MFA_CLIENT = string.Template("""$module
+	authentication fallback = permit
+	user alice {
+		password login = clear alicepw
+		mfa = yes
+	}
+	user rescue {
+		fallback-only
+		password pap = clear rescuepw
+	}
+	ruleset { rule { script { permit } } }
+""")
 
-@unittest.skipUnless(os.path.exists(RADMAVIS), "the build has no radmavis-mt (radcli or pthreads missing)")
-class RadiusServer(DaemonTestCase):
-    """Each test starts B first, then A with a radcli configuration that points at the RADIUS port of B."""
+
+class Responder:
+    """A RADIUS server on a free UDP port that answers every request with reply = (code, attributes).
+
+    reply None: it never answers. requests counts what it got.
+    """
+
+    def __init__(self, reply=None):
+        self.reply, self.requests = reply, 0
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(("127.0.0.1", 0))
+        self.port = self.sock.getsockname()[1]
+        self.stop = threading.Event()
+        self.thread = threading.Thread(target=self.serve, daemon=True)
+        self.thread.start()
+
+    def serve(self):
+        while not self.stop.is_set():
+            if select.select([self.sock], [], [], 0.1)[0]:
+                data, peer = self.sock.recvfrom(4096)
+                request = radius.Packet.decode(data)
+                self.requests += 1
+                if self.reply:
+                    code, attributes = self.reply
+                    raw = radius.Packet(code, request.identifier, request.authenticator, attributes).encode()
+                    # Response Authenticator, RFC 2865 3
+                    raw = raw[:4] + hashlib.md5(raw + SECRET.encode()).digest() + raw[20:]
+                    self.sock.sendto(raw, peer)
+
+    def close(self):
+        self.stop.set()
+        self.thread.join()
+        self.sock.close()
+
+
+class RadmavisTestCase(DaemonTestCase):
+    """Daemon A per test, with BACKEND in its MAVIS module."""
 
     CONFIG = None
+    BACKEND = RADMAVIS_MT
 
-    def start_pair(self, check_server=True, dictionary=RADCLI_DICTIONARY):
-        server = self.start_daemon(SERVER, udp=True, name=self.id().split(".")[-1] + "-server", check=check_server)
-        port = server.udp_port
+    def start_client(self, port, template=CLIENT, dictionary=RADCLI_DICTIONARY):
+        """Daemon A, with the backend asking the RADIUS server on port."""
         seqfile = self.scratch_file("radius.seq", "")
         conf = self.scratch_file("radiusclient.conf",
                                  RADIUSCLIENT_CONF.format(port=port, secret=SECRET, nas=NAS, seqfile=seqfile,
                                                           dictionary=dictionary))
-        client = self.start_daemon(CLIENT.substitute(radmavis=RADMAVIS, conf=conf))
-        return server, client
+        name = os.path.basename(self.BACKEND)
+        module = MODULE.substitute(module="external-mt" if name == "radmavis-mt" else "external",
+                                   path=self.BACKEND, name=name, conf=conf,
+                                   args='"group_attribute=Class"' if template is CLIENT else "")
+        return self.start_daemon(template.substitute(module=module))
+
+    def responder(self, reply=None):
+        r = Responder(reply)
+        self.addCleanup(r.close)
+        return r
+
+
+class FailedLogin:
+    """Answers of the RADIUS server that are a failed login, not a backend error that opens the fallback."""
+
+    def test_mfa_timeout_is_a_failed_login(self):
+        """No answer to the second factor is a push nobody approved, not a backend error: no fallback."""
+        r = self.responder()
+        a = self.start_client(r.port, template=MFA_CLIENT)
+        with a.connect(timeout=10.0) as c:
+            self.assertEqual(c.ascii_login("alice", "alicepw").status_name, "FAIL")
+        self.assertGreater(r.requests, 0)
+        with a.connect() as c:
+            self.assertEqual(c.pap("rescue", "rescuepw").status_name, "FAIL")
+
+    def test_access_challenge_is_a_failed_login(self):
+        """The backend can't pass a challenge on: an Access-Challenge is a failed login, not a backend error."""
+        r = self.responder((ACCESS_CHALLENGE, [(STATE, "otp"), (radius.REPLY_MESSAGE, "Enter OTP")]))
+        a = self.start_client(r.port)
+        with a.connect() as c:
+            self.assertEqual(c.pap("alice", "alicepw").status_name, "FAIL")
+        self.assertGreater(r.requests, 0)
+        with a.connect() as c:
+            self.assertEqual(c.pap("rescue", "rescuepw").status_name, "FAIL")
+
+    def test_mfa_challenge_is_a_failed_login(self):
+        """An Access-Challenge to the second factor: a failed login, not a backend error."""
+        r = self.responder((ACCESS_CHALLENGE, [(STATE, "otp"), (radius.REPLY_MESSAGE, "Enter OTP")]))
+        a = self.start_client(r.port, template=MFA_CLIENT)
+        with a.connect() as c:
+            self.assertEqual(c.ascii_login("alice", "alicepw").status_name, "FAIL")
+        self.assertGreater(r.requests, 0)
+        with a.connect() as c:
+            self.assertEqual(c.pap("rescue", "rescuepw").status_name, "FAIL")
+
+
+@unittest.skipUnless(os.path.exists(RADMAVIS_MT), "the build has no radmavis-mt (radcli or pthreads missing)")
+class RadiusServer(FailedLogin, RadmavisTestCase):
+    """Each test starts B first, then A with a radcli configuration that points at the RADIUS port of B."""
+
+    def start_pair(self, check_server=True, dictionary=RADCLI_DICTIONARY):
+        server = self.start_daemon(SERVER, udp=True, name=self.id().split(".")[-1] + "-server", check=check_server)
+        return server, self.start_client(server.udp_port, dictionary=dictionary)
 
     def test_pap(self):
         _, a = self.start_pair()
@@ -144,6 +263,26 @@ class RadiusServer(DaemonTestCase):
             self.assertEqual(c.pap("alice", "alicepw").status_name, "FAIL")
         with a.connect() as c:
             self.assertEqual(c.pap("rescue", "rescuepw").status_name, "PASS")
+
+    def test_password_timeout_is_a_backend_error(self):
+        """The RADIUS server gets the Access-Request and never answers: the fallback opens.
+
+        radmavis answers MAVIS_TIMEOUT instead, which records no backend failure.
+        """
+        r = self.responder()
+        a = self.start_client(r.port)
+        with a.connect(timeout=10.0) as c:
+            self.assertEqual(c.pap("alice", "alicepw").status_name, "FAIL")
+        with a.connect() as c:
+            self.assertEqual(c.pap("rescue", "rescuepw").status_name, "PASS")
+        self.assertGreater(r.requests, 0)
+
+
+@unittest.skipUnless(os.path.exists(RADMAVIS), "the build has no radmavis (radcli missing)")
+class Radmavis(FailedLogin, RadmavisTestCase):
+    """The same with radmavis, in "mavis module = external"."""
+
+    BACKEND = RADMAVIS
 
 
 if __name__ == "__main__":
