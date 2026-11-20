@@ -53,6 +53,10 @@ typedef struct {
 #define RADIUS_DATA(A) (((u_char *)(A)) + RADIUS_HDR_SIZE)
 #define RADIUS_DATA_LEN(A) (ntohs(((rad_pak_hdr *)A)->length) - RADIUS_HDR_SIZE)
 
+/* Room to reserve for the Message-Authenticator attribute (RFC 3579 3.2)
+   when appending attributes to a reply. */
+#define RADIUS_MA_RESERVE 18
+
 // various #defines, mostly derived from RFC2856/RFC2866. 
 
 #define RADIUS_CODE_ACCESS_REQUEST		1

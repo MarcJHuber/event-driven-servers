@@ -141,6 +141,57 @@ class Pap(DaemonTestCase):
                     c.recv_raw()
 
 
+class ReplyAttributes(DaemonTestCase):
+    """A Reply-Message is appended after the profile attributes, not written over them.
+
+    A profile that sets an attribute and then denies makes
+    rad_send_authen_reply() send an Access-Reject with the profile attribute
+    and the "Denied by ACL" Reply-Message. The Reply-Message used to start at
+    offset 0 of the attribute buffer, overwriting the first profile attribute
+    and leaving a malformed attribute list. Both attributes must be sent.
+    """
+
+    CONFIG = """
+	include = "%s"
+	device radius-nas {
+		address = 127.0.0.6
+		key = tactest
+		radius.key = %s
+	}
+	user alice {
+		password login = clear alicepw
+		password pap = login
+	}
+	profile admin {
+		script {
+			if (aaa.protocol == radius) {
+				set radius[Framed-IP-Address] = 192.0.2.1
+				deny
+			}
+			if (service == shell) permit
+		}
+	}
+	ruleset {
+		rule { script { profile = admin permit } }
+	}
+""" % (DICTIONARY, SECRET)
+    UDP = True
+
+    def radius(self, secret, **kw):
+        kw.setdefault("source", NAS)
+        return super().radius(secret, **kw)
+
+    def test_reply_message_follows_profile_attributes(self):
+        r = self.radius(SECRET).access_request("alice", "alicepw", message_authenticator=True)
+        self.assertEqual(r.code_name, "Access-Reject", r)
+        self.assertEqual(r.get(radius.FRAMED_IP_ADDRESS), [socket.inet_aton("192.0.2.1")])
+        messages = r.get(radius.REPLY_MESSAGE)
+        self.assertEqual(len(messages), 1, r)
+        self.assertTrue(messages[0], r)
+        if "openssl" in features():
+            self.assertIs(r.message_authenticator, True, "Message-Authenticator missing or wrong")
+
+
 @unittest.skipUnless("openssl" in features(), "the Message-Authenticator needs a build with OpenSSL")
 class MessageAuthenticator(DaemonTestCase):
     """Message-Authenticator (RFC 3579 3.2): checked in requests, always set in replies."""
