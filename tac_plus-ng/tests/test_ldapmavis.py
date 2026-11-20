@@ -10,6 +10,7 @@ frank have the tacacs schema of mavis/perl; the password of frank expired.
 
 import glob
 import os
+import re
 import select
 import shutil
 import socket
@@ -446,6 +447,24 @@ member: cn=xylophone,ou=groups,$base
         with d.connect() as c:
             r = c.ascii_login("nell", "nellpw")
         self.assertEqual((r.status_name, r.server_msg), ("PASS", "l3\n"), r)
+
+    def test_memberof_searches_once(self):
+        """Depth 10, mos-1 in mos-2 ... in mos-9, the user is in all nine: the walk searches each group once."""
+        chain = [f"mos-{i}" for i in range(1, 10)]
+        ldif = person("mos", "objectClass: extensibleObject\n" + "".join(f"memberOf: cn={g},ou=groups,{BASE}\n"
+                                                                         for g in chain))
+        for name, parent in zip(chain, chain[1:] + [None]):
+            ldif += f"\ndn: cn={name},ou=groups,{BASE}\nobjectClass: groupOfNames\nobjectClass: extensibleObject\n"
+            ldif += f"cn: {name}\nmember: cn=nobody,{BASE}\n"
+            ldif += f"memberOf: cn={parent},ou=groups,{BASE}\n" if parent else ""
+        slapd, d = self.start(ldif=ldif, LDAP_NESTED_GROUP_DEPTH="10")
+        with d.connect() as c:
+            self.assertEqual(c.pap("mos", "mospw").status_name, "PASS")
+        with open(slapd.log, errors="replace") as f:
+            log = f.read()
+        for name in chain:
+            searches = re.findall(rf'SRCH base="cn={name},ou=groups,{BASE}" scope=0 ', log, re.IGNORECASE)
+            self.assertEqual(len(searches), 1, name)
 
     def test_password_change(self):
         """An empty password at an ASCII login starts the password change dialog ("login backend = mavis chpass")."""
