@@ -41,11 +41,13 @@ show that a configuration -P accepts is also the one that runs.
 import glob
 import os
 import re
+import subprocess
+import sys
 import tempfile
 import unittest
 
 from tactest import DaemonTestCase, config, features
-from tactest.daemon import parse_only
+from tactest.daemon import binary, parse_only, sanitizer_env, sanitizers
 
 TESTS = os.path.dirname(os.path.abspath(__file__))
 COMPONENT = os.path.dirname(TESTS)
@@ -296,6 +298,45 @@ class DeviceNameInHostsFile(unittest.TestCase):
     def test_hosts_entry_of_another_name_adds_nothing(self):
         code, out = self.parse("\tdevice a { key = k }\n\tdevice b { key = k }\n", "10.0.0.1 c\n")
         self.assertEqual(code, 0, out)
+
+
+# runs a program, prints the peak RSS of its children in KB
+PEAK_RSS = "import resource, subprocess, sys; subprocess.run(sys.argv[1:], stdout=subprocess.DEVNULL, " \
+           "stderr=subprocess.DEVNULL); print(resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss)"
+
+
+class ConditionMemory(unittest.TestCase):
+    """sym_normalize_cond_end() passed the struct sym itself to mem_free(), not the address of the pointer.
+
+    mem_free() read the first field of the struct, the file name, which was
+    NULL by then, and freed nothing: every "if (...)" in the configuration
+    kept a struct sym of about 64 KB until the process exited.
+    """
+
+    CONDITIONS = 2000
+
+    def peak_kb(self, conditions):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "cond.cfg")
+            ifs = "".join("\t\t\tif (user == u%d) permit\n" % i for i in range(conditions))
+            with open(path, "w") as f:
+                f.write("id = spawnd { listen = { port = 4949 } }\nid = tac_plus-ng {\n"
+                        "\tprofile p {\n\t\tscript {\n%s\t\t\tdeny\n\t\t}\n\t}\n}\n" % ifs)
+            code, out = parse_only(path)
+            self.assertEqual(code, 0, out)
+            env = sanitizer_env()
+            # ASan keeps freed memory in quarantine; reuse it, as the C library does
+            env["ASAN_OPTIONS"] += ":quarantine_size_mb=0"
+            p = subprocess.run([sys.executable, "-c", PEAK_RSS, binary(), "-P", path], stdout=subprocess.PIPE,
+                               stdin=subprocess.DEVNULL, env=env, timeout=60, check=True)
+            return int(p.stdout)
+
+    def test_conditions_are_freed_after_parsing(self):
+        # KB per condition, fixed / lost: glibc 0 / 47, musl 0 / 8 (it touches less of a fresh
+        # calloc()), ASan 8 / 82 (redzones and shadow)
+        limit = 40 if "address" in sanitizers() else 4
+        per_condition = (self.peak_kb(self.CONDITIONS) - self.peak_kb(0)) / self.CONDITIONS
+        self.assertLess(per_condition, limit, "%.1f KB of peak memory per condition" % per_condition)
 
 
 class OwnConfigs(unittest.TestCase):
