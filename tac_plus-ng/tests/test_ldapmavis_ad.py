@@ -377,11 +377,6 @@ class AdMt(AdTests, DaemonTestCase):
         return {"LDAP_OPT_X_TLS_CACERTFILE": settings()["TACTEST_SAMBA_CA"],
                 "LDAP_OPT_X_TLS_REQUIRE_CERT": "LDAP_OPT_X_TLS_DEMAND"}
 
-    @unittest.expectedFailure
-    def test_filter_characters(self):
-        """ldapmavis-mt puts the user name into the filter without escapes: the name with "*" finds alice."""
-        super().test_filter_characters()
-
 
 @unittest.skipUnless(URL, SKIP_REASON)
 @unittest.skipUnless(perl_ldap(), "no Net::LDAP or IO::Socket::SSL for Perl")
