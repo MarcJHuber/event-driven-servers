@@ -11,7 +11,13 @@ endif
 OSs	:= $(shell uname -s | env -i $(TR) "[:upper:]/ " "[:lower:]--")
 OSr	:= $(shell uname -r | sed "s/(.*)//" | env -i $(TR) "[:upper:]/ " "[:lower:]--")
 OSm	:= $(shell uname -m | env -i $(TR) "[:upper:]/ " "[:lower:]--")
+GITBRANCH	:= $(shell git branch --show-current 2>/dev/null | sed  "s/\//--/g" )
 OS	:= $(OSs)-$(OSr)-$(OSm)
+GITBRANCH_EXT :=
+
+ifneq ($(GITBRANCH),)
+  GITBRANCH_EXT := -$(GITBRANCH)
+endif
 
 all: misc/version.h dirs install_fakeroot_doc
 
@@ -21,11 +27,11 @@ misc/version.h: LAST_COMMIT
 build:
 	mkdir -p -m 0755 $@
 
-ifneq ($(wildcard build/Makefile.inc.$(OS)),)
+ifneq ($(wildcard build/Makefile.inc.$(OS)$(GITBRANCH_EXT)),)
 include Makefile.inc
 
 install_fakeroot_doc:
-	@$(MAKE) -r BASE=$(BASE) INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install_doc
+	@$(MAKE) -r BASE=$(BASE) INSTALLROOT=$(BASE)/build/$(OS)$(GITBRANCH_EXT)/fakeroot install_doc
 
 dirs:
 	@for D in $(DIRS) ; do $(MAKE) -r -C $$D BASE=$(BASE) || [ ! -d $$D ] || exit 1; done
@@ -50,10 +56,10 @@ endif
 
 else
 
-build/Makefile.inc.$(OS): build configure
+build/Makefile.inc.$(OS)$(GITBRANCH_EXT): build configure
 	./configure
 
-dirs: build/Makefile.inc.$(OS)
+dirs: build/Makefile.inc.$(OS)$(GITBRANCH_EXT)
 	@$(MAKE) -r $@
 
 install: dirs
@@ -65,7 +71,7 @@ install_fakeroot_doc: dirs
 endif
 
 clean:
-	@-rm -rf build/$(OS) */Makefile */*/Makefile
+	@-rm -rf build/$(OS)$(GITBRANCH_EXT) */Makefile */*/Makefile
 
 distclean: clean
 	@rm -rf *~ */*~ */*/*~ build ; mkdir -m 0755 build

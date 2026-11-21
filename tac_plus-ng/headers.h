@@ -303,7 +303,7 @@ struct ssh_key_id;
 struct tac_alias;
 typedef struct tac_alias tac_alias;
 
-/* A user definition. */
+/* An user definition. */
 typedef struct {
     TAC_NAME_ATTRIBUTES;
     char *msg;			/* message for this user */

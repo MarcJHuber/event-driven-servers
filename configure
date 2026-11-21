@@ -68,6 +68,10 @@ if (eval("require POSIX")) {
 	chomp ($sysname, $release, $machine, $cwd);
 }
 
+my $GITBRANCH = `git branch --show-current 2>/dev/null`;
+chomp $GITBRANCH;
+$GITBRANCH =~ s/\//--/g;
+
 $sysname =~ tr/ \//--/;
 $machine =~ tr/ \//--/;
 $release =~ s/\([^)]+\)//; # cygwin ...
@@ -454,12 +458,19 @@ Please correct the command line options, then call ./configure again. \"./config
 	exit(-1);
 }
 
+my $GITBRANCH_EXT = "";
+if ($GITBRANCH ne "") {
+	$DEFS{"GITBRANCH"} = $GITBRANCH;
+	$GITBRANCH_EXT = "-$GITBRANCH";
+	$DEFS{"GITBRANCH_EXT"} = $GITBRANCH_EXT;
+}
+
 my @OSLEVEL_ARR = split(/[^\d]+/, $release);
 push(@OSLEVEL_ARR, 0, 0, 0);
 $DEFS{"OSLEVEL"} = sprintf ("0x%.2x%.2x%.4x", @OSLEVEL_ARR);
 $DEFS{"OSTYPE"} = $sysname;
 $DEFS{"OS"} = "$sysname-$release-$machine";
-$DEFS{'DEF'} .= " -DOSTYPE=$DEFS{'OSTYPE'} -DOSLEVEL=$DEFS{'OSLEVEL'} -DOS=" . '"\\"' . $DEFS{'OS'} . '\\""';
+$DEFS{'DEF'} .= " -DGITBRANCH=$DEFS{'GITBRANCH'} -DOSTYPE=$DEFS{'OSTYPE'} -DOSLEVEL=$DEFS{'OSLEVEL'} -DOS=" . '"\\"' . $DEFS{'OS'} . '\\""';
 
 if ($cctest =~ /clang/) {
 	$DEFS{"CC"} = "clang";
@@ -554,7 +565,7 @@ if (exists $DEFS{"GGDB"}) {
 }
 
 $DEFS{"DIR_MAVIS"} = "$cwd/mavis";
-$DEFS{"LIB_MAVIS"} .= " -L$cwd/build/$DEFS{'OS'}/mavis $DEFS{'LDOPT_R'}$DEFS{'LIBARCHDIR_DEST'} -lmavis";
+$DEFS{"LIB_MAVIS"} .= " -L$cwd/build/$DEFS{'OS'}$GITBRANCH_EXT/mavis $DEFS{'LDOPT_R'}$DEFS{'LIBARCHDIR_DEST'} -lmavis";
 $DEFS{"DIR_MISC"} = "$cwd/misc";
 $DEFS{"INC"} .= " -I$cwd";
 
@@ -757,7 +768,8 @@ my $what = "just created";
 
 mkdir "build", 0755;
 
-my $out = "build/Makefile.inc." . $DEFS{"OS"};
+my $out = "build/Makefile.inc." . $DEFS{"OS"} . $GITBRANCH_EXT;
+
 my $oldcontent = "";
 if (-f $out) {
 	my $IN;
@@ -792,7 +804,7 @@ wprint "The file
 
 was $what. You may run \"make\" now. After that, you may wish to do a \"make install\". Alternatively, you'll find the compiled binaries (plus some ancillary scripts) in the
 
-    build/$DEFS{'OS'}/fakeroot/
+    build/$DEFS{'OS'}$GITBRANCH_EXT/fakeroot/
 
 directory structure. It's probably advisable to have a look there in any case, as you may or may not like the particular file system layout, and this will give you a chance to see it before installing.
 

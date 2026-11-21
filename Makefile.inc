@@ -16,16 +16,21 @@ OSs	:= $(shell uname -s | env -i $(TR) "[:upper:]/ " "[:lower:]--")
 OSr	:= $(shell uname -r | sed "s/(.*)//" | env -i $(TR) "[:upper:]/ " "[:lower:]--")
 OSm	:= $(shell uname -m | env -i $(TR) "[:upper:]/ " "[:lower:]--")
 OS	:= $(OSs)-$(OSr)-$(OSm)
+GITBRANCH	:= $(shell git branch --show-current 2>/dev/null | sed  "s/\//--/g" )
+GITBRANCH_EXT :=
+ifneq ($(GITBRANCH),)
+  GITBRANCH_EXT := -$(GITBRANCH)
+endif
 
-MF_OBJ=build/Makefile.inc.$(OS)
+MF_OBJ=build/Makefile.inc.$(OS)$(GITBRANCH_EXT)
 ifeq ($(wildcard $(MF_OBJ)),)
-	MF_OBJ=../build/Makefile.inc.$(OS)
+	MF_OBJ=../build/Makefile.inc.$(OS)$(GITBRANCH_EXT)
 	ifeq ($(wildcard $(MF_OBJ)),)
-		MF_OBJ=../../build/Makefile.inc.$(OS)
+		MF_OBJ=../../build/Makefile.inc.$(OS)$(GITBRANCH_EXT)
 		ifeq ($(wildcard $(MF_OBJ)),)
-			MF_OBJ=../../../build/Makefile.inc.$(OS)
+			MF_OBJ=../../../build/Makefile.inc.$(OS)$(GITBRANCH_EXT)
 			ifeq ($(wildcard $(MF_OBJ)),)
-$(error Please run the configure script to create Makefile.inc.$(OS))
+$(error Please run the configure script to create Makefile.inc.$(OS))$(GITBRANCH_EXT)
 			endif
 		endif
 	endif
@@ -45,7 +50,9 @@ include $(MF_OBJ)
 
 %:: %.pl
 
-%.o: %.c $(DIR_MAVIS)/token.h
+CFLAGS := -I$(BASE)/build/$(OS)$(GITBRANCH_EXT)/mavis -I$(BASE)/build/$(OS)$(GITBRANCH_EXT) $(CFLAGS)
+
+%.o: %.c $(BASE)/build/$(OS)$(GITBRANCH_EXT)/mavis/token.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 %:: %.h
