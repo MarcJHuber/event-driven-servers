@@ -67,6 +67,9 @@ State, all keys optional:
                 sets it. Until then the child waits, so the test decides when
                 the child acts -- after the client got the first answer --
                 instead of a pause that a loaded host may stretch.
+  env           names of environment variables that the stub writes into
+                each journal entry as "env": {name: value or null}; for
+                test-only variables (Stub.module(setenv=...)), never a password
 
 Without a forced result: an unknown user is NOTFOUND; INFO is ACK with
 the user's attributes; AUTH and CHPW are ACK if the password matches,
@@ -103,12 +106,13 @@ class Stub:
         self.log_path = os.path.join(daemon.tmp, "stub.log")
 
     @staticmethod
-    def module(childs=None, script=""):
+    def module(childs=None, script="", setenv=None):
         """A "mavis module = external" block running the stub, for a policy body.
 
         childs: (min, max) of MAVIS children; scenarios that count per
         child or kill a child need (1, 1). script: "script in/out" lines
-        as they go into the body (a literal "$" written "$$").
+        as they go into the body (a literal "$" written "$$"). setenv:
+        {name: value as written in the configuration}, more "setenv" lines.
         """
         from .daemon import prefix
         lines = ["\tmavis module = external {",
@@ -116,6 +120,7 @@ class Stub:
                                                          os.path.join(prefix(), "lib", "mavis")),
                  '\t\tsetenv TACTEST_STUB_STATE = "$tmp/stub.json"',
                  '\t\tsetenv TACTEST_STUB_LOG = "$tmp/stub.log"']
+        lines += ["\t\tsetenv %s = %s" % item for item in (setenv or {}).items()]
         if childs:
             lines.append("\t\tchilds min = %d\n\t\tchilds max = %d" % childs)
         if script:
@@ -217,6 +222,8 @@ def serve(libdir):
         entry = {"pid": os.getpid(), "n": n, "type": tactype, "user": user, "result": "exit" if dying else result}
         if new_ok is not None:
             entry["new_password"] = new_ok
+        if state.get("env"):
+            entry["env"] = {name: os.environ.get(name) for name in state["env"]}
         os.write(journal, (json.dumps(entry) + "\n").encode())
         if dying:
             os._exit(0)

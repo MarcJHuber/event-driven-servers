@@ -312,7 +312,7 @@ def alive(pid, starttime=None):
 class Daemon:
     def __init__(self, body="", name="daemon", key=config.KEY, address="127.0.0.1",
                  spawnd="", top="", template=config.BASE, suppressions=SUPPRESSIONS, udp=False, listen=None,
-                 program="tac_plus-ng"):
+                 program="tac_plus-ng", debug=None):
         """program: the daemon in sbin, tac_plus-ng or tac_plus (with template=config.TAC_PLUS).
 
         udp: also listen for RADIUS on a UDP port (udp_port) of the same address.
@@ -321,8 +321,12 @@ class Daemon:
         {"tls": "tls = yes", "radius": "protocol = UDP realm = r"}; each
         gets a port of its own, ports[name]. The first listener stays plain
         TACACS+, because the crash detectors probe it.
+
+        debug: a debug mask for this daemon, as TACTEST_DEBUG gives one for all;
+        the debug output, and the messages of the start, go to stderr_path.
         """
         self.body, self.key, self.address = body, key, address
+        self.debug = debug
         self.udp = udp
         self.udp_port = None
         self.listen = dict(listen or {})
@@ -388,8 +392,9 @@ class Daemon:
             self.write_config()
             stderr = open(self.stderr_path, "ab")
             argv = [binary(self.program)]
-            if os.environ.get("TACTEST_DEBUG"):
-                argv += ["-d", os.environ["TACTEST_DEBUG"], "-D"]
+            debug = self.debug or os.environ.get("TACTEST_DEBUG")
+            if debug:
+                argv += ["-d", str(debug), "-D"]
             self.proc = subprocess.Popen(argv + ["-f", self.cfg], stderr=stderr, stdout=stderr,
                                          stdin=subprocess.DEVNULL,
                                          env=sanitizer_env(self.tmp, self.suppressions))

@@ -51,6 +51,7 @@ static const char rcsid[] __attribute__((used)) = "$Id$";
   rb_tree_t *by_app_ctx;			\
   int envcount;					\
   char **env;					\
+  struct mavis_setenv *setenv;			\
   int reapcur;					\
   time_t reaphist[REAPMAX];
 
@@ -126,6 +127,8 @@ static int mavis_init_in(mavis_ctx *mcx)
 	mcx->argv[1] = NULL;
     }
 
+    mavis_setenv_init(&mcx->env, mcx->setenv, mcx->envcount);
+
     if (!mcx->io_context_parent)
 	mcx->io_context_local = mcx->io = io_init();
     mcx->by_serial = RB_tree_new(compare_serial, NULL);
@@ -142,7 +145,6 @@ setenv a = b
 #define HAVE_mavis_parse_in
 static int mavis_parse_in(mavis_ctx *mcx, struct sym *sym)
 {
-    size_t len;
     struct stat st;
 
     while (1) {
@@ -161,19 +163,13 @@ static int mavis_parse_in(mavis_ctx *mcx, struct sym *sym)
 		sym_get(&mysym);
 		if (mysym.code == S_equal)
 		    sym_get(&mysym);
-		char *d = mavis_decrypt_type6(mysym.buf);
-		if (d)
+		/* a type 6 value can end with a backslash, so read it without escape processing */
+		if (mavis_type6_decrypts(mysym.buf))
 		    sym->noescape = 1;
 		sym_get(sym);
 		if (sym->code == S_equal)
 		    sym_get(sym);
-		len = strlen(env_name) + strlen(d ? d : sym->buf) + 2;
-		mcx->env = Xrealloc(mcx->env, (mcx->envcount + 2) * sizeof(char *));
-		mcx->env[mcx->envcount] = Xcalloc(1, len);
-		snprintf(mcx->env[mcx->envcount++], len, "%s=%s", env_name, d ? d : sym->buf);
-		if (d)
-		    free(d);
-		mcx->env[mcx->envcount] = NULL;
+		mavis_setenv_add(&mcx->setenv, &mcx->envcount, sym, env_name, &mysym);
 		sym->noescape = 0;
 		sym_get(sym);
 		continue;
@@ -270,6 +266,8 @@ static void mavis_drop_in(mavis_ctx *mcx)
 	    Xfree(&mcx->env[i]);
 	Xfree(&mcx->env);
     }
+    mavis_setenv_free(mcx->setenv, mcx->envcount);
+    mcx->setenv = NULL;
 
 
     io_destroy(mcx->io_context_local, NULL);
