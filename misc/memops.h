@@ -43,7 +43,12 @@ char *mem_strdup(mem_t * m, char *s);
 char *mem_strndup(mem_t * m, u_char * s, size_t len);
 void *mem_realloc(mem_t * m, void *p, size_t len);
 void *mem_copy(mem_t * m, void *p, size_t len);
-void *mem_free(mem_t * m, void *p);
+void *(mem_free)(mem_t * m, void *p);
+/*
+ * p is the address of the pointer to free, which is then set to NULL.
+ * sizeof(**(p)) doesn't compile if p isn't a pointer to a pointer.
+ */
+#define mem_free(m, p) ((void) sizeof(**(p)), (mem_free)((m), (p)))
 void *mem_attach(mem_t *, void *);
 void *mem_detach(mem_t * m, void *p);
 void mem_add_free(mem_t * m, void *, void *);

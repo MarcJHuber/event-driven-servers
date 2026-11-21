@@ -1711,8 +1711,8 @@ static void add_member(struct sym *sym, radixtree_t * rt, tac_user * user, char 
 	ams->hash = groups_hash_compute(ams);
 	radix_add_members(sym, rt, range, ams, r);
     } else {
-	mem_free(user->mem, ams->g);
-	mem_free(user->mem, ams);
+	mem_free(user->mem, &ams->g);
+	mem_free(user->mem, &ams);
     }
 }
 
@@ -3816,7 +3816,7 @@ static enum tac_acl_type parse_regex(struct sym *sym, tac_user * user, void **rp
 	char e[160];
 	regerror(errcode, (regex_t *) * rptr, e, sizeof(e));
 	parse_error(sym, "In regular expression '%s': %s", sym->buf, e);
-	mem_free(user->mem, (regex_t *) * rptr);
+	mem_free(user->mem, rptr);
     } else
 	mem_add_free(user->mem, regfree, *rptr);
     tac_sym_get(sym);
@@ -4927,7 +4927,7 @@ static struct mavis_cond *tac_script_cond_add(tac_user * u, struct mavis_cond
 	    if (a) {
 		if (a->m.n)
 		    memcpy(n, a, len - 8);
-		mem_free(u->mem, a);
+		mem_free(u->mem, &a);
 	    }
 	    a = n;
 	} else
