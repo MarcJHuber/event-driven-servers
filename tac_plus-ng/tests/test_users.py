@@ -438,6 +438,13 @@ ATTRIBUTES = """
 		key = tactest
 		password max-attempts = 2
 	}
+	profile priv15 { script { set priv-lvl=15 permit } }
+	device trustingprofile {
+		address = 127.0.0.70
+		key = tactest
+		permit if-authenticated = yes
+		script { profile = priv15 permit }
+	}
 	profile quiet { hushlogin = yes script { permit } }
 	user alice { password login = clear pw password pap = login }
 	user hushed { password login = clear pw hushlogin = yes }
@@ -475,12 +482,16 @@ class UserAttributes(DaemonTestCase):
         self.assertEqual(results, ["PASS", "FAIL", "FAIL", "PASS", "FAIL"])
 
     def test_permit_if_authenticated(self):
-        """An unknown user that the NAS authenticated itself (method "local") is authorized."""
+        """An unknown CLI user is authorized."""
         args = ["service=shell", "cmd="]
         trusting = self.connect(source="127.0.0.64")
-        self.assertEqual(trusting.author("nobody", args, authen_method=METH_LOCAL).status_name, "PASS_ADD")
+        self.assertEqual(trusting.author("nobody", args).status_name, "PASS_ADD")
+        trustingprofile = self.connect(source="127.0.0.70")
+        r = trustingprofile.author("nobody", args)
+        self.assertEqual(r.status_name, "PASS_ADD")
+        self.assertEqual(r.args, ["priv-lvl=15"])
+        args = ["ppp"]
         self.assertEqual(trusting.author("nobody", args).status_name, "FAIL")
-        self.assertEqual(self.connect().author("nobody", args, authen_method=METH_LOCAL).status_name, "FAIL")
 
     def test_max_attempts(self):
         r = self.connect(source="127.0.0.66").ascii_login("alice", ["bad", "pw"])

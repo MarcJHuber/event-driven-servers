@@ -2547,7 +2547,7 @@ static void do_radius_login(tac_session *session)
 
     if (res == S_permit && session->profile) {
 	session->debug |= session->profile->debug;
-	res = author_eval_profile(session, session->profile, session->ctx->realm->script_profile_parent_first);
+	res = session->user ? author_eval_profile(session, session->profile, session->ctx->realm->script_profile_parent_first) : S_deny;
 
 	if (res != S_permit) {
 	    report(session, LOG_DEBUG, DEBUG_AUTHOR_FLAG, "user %s realm %s denied by ACL", session->username.txt, session->ctx->realm->name.txt);
