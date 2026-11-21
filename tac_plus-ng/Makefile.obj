@@ -54,12 +54,12 @@ $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/$(PROG)-simple.cfg: sample/$(PROG)-sim
 install:  $(INSTALLROOT)$(SBINDIR_DEST) $(INSTALLROOT)$(SBINDIR_DEST)/$(PROG)$(EXEC_EXT) $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/ $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/$(PROG).cfg $(INSTALLROOT)$(ETCDIR_DEST)/mavis/sample/$(PROG)-simple.cfg install_extra
 
 install_extra:
-	@$(MAKE) -C $(BASE)/$(PROG)/extra INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+	@$(MAKE) -C $(BASE)/$(PROG)/extra INSTALLROOT=$(BASE)/build/$(OS)$(GITBRANCH_EXT)/fakeroot install
 
 install_doc:
-	@$(MAKE) -C $(BASE)/$(PROG)/doc INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+	@$(MAKE) -C $(BASE)/$(PROG)/doc INSTALLROOT=$(BASE)/build/$(OS)$(GITBRANCH_EXT)/fakeroot install
 
 install_stage:
-	@$(MAKE) -f $(BASE)/$(PROG)/Makefile.obj INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+	@$(MAKE) -f $(BASE)/$(PROG)/Makefile.obj INSTALLROOT=$(BASE)/build/$(OS)$(GITBRANCH_EXT)/fakeroot install
 
 

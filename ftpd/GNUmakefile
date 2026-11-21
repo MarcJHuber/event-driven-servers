@@ -5,7 +5,7 @@
 
 include ../Makefile.inc
 PROG	= ftpd
-OD	= $(BASE)/build/$(OS)/$(PROG)
+OD	= $(BASE)/build/$(OS)$(GITBRANCH_EXT)/$(PROG)
 
 all: build
 

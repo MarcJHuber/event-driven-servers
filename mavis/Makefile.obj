@@ -122,6 +122,9 @@ pammavis-mt$(EXEC_EXT): pammavis-mt.o $(MAVIS_LIB)
 
 spawnd_main.o: $(BASE)/misc/version.h
 
+token.o: $(BASE)/build/$(OS)$(GITBRANCH_EXT)/mavis/token.c $(BASE)/build/$(OS)$(GITBRANCH_EXT)/mavis/token.h
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
 LIBMAVISOBJS	+= libmavis.o log.o debug.o blowfish.o radix.o
 LIBMAVISOBJS	+= net.o scm.o groups.o rbtree.o crc32.o tokenize.o base64.o
 LIBMAVISOBJS	+= memops.o ostype.o io_sched.o mavis_parse.o token.o
@@ -342,9 +345,9 @@ install_python_stage:
 	@$(MAKE) -C $(BASE)/mavis/python install_stage
 
 install_stage: install_perl_stage install_python_stage
-	@$(MAKE) -f $(BASE)/$(PROG)/Makefile.obj INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+	@$(MAKE) -f $(BASE)/$(PROG)/Makefile.obj INSTALLROOT=$(BASE)/build/$(OS)$(GITBRANCH_EXT)/fakeroot install
 
 install_doc:
-	@$(MAKE) -f $(BASE)/$(PROG)/Makefile.obj -C $(BASE)/mavis/doc INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+	@$(MAKE) -f $(BASE)/$(PROG)/Makefile.obj -C $(BASE)/mavis/doc INSTALLROOT=$(BASE)/build/$(OS)$(GITBRANCH_EXT)/fakeroot install
 
 

@@ -42,5 +42,5 @@ $(EI): $(ME)/%: %
 install: $(M) $(ME) $(BI) $(M)/$(P) $(EI)
 
 install_stage:
-	@$(MAKE) INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+	@$(MAKE) INSTALLROOT=$(BASE)/build/$(OS)$(GITBRANCH_EXT)/fakeroot install
 

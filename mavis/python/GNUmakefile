@@ -31,5 +31,5 @@ install: $(M) $(ME) $(BI) $(M)/$(P)
 	@python3 --version >/dev/null 2>/dev/null || exit 0; python3 -m compileall $(M)
 
 install_stage:
-	@$(MAKE) INSTALLROOT=$(BASE)/build/$(OS)/fakeroot install
+	@$(MAKE) INSTALLROOT=$(BASE)/build/$(OS)$(GITBRANCH_EXT)/fakeroot install
 

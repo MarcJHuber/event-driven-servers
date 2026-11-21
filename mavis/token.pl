@@ -4,6 +4,15 @@
 use strict;
 use Digest::MD5 qw(md5_hex);
 
+my $PREFIX = "";
+if ($#ARGV == 0) {
+	$PREFIX = "$ARGV[0]/";
+	if (!-d $ARGV[0]) {
+		use File::Path qw(make_path);
+		make_path($ARGV[0]);
+	}
+}
+
 my @enum = ("S_unknown = 0");
 my @array = ('{.txt="<unknown>", .len=9 }');
 
@@ -25,7 +34,7 @@ for my $w (sort { $K{$a} cmp $K{$b} } keys %K){
 }
 push @array, '{ 0 }';
 
-open F, "> token.h" or die;
+open F, "> ${PREFIX}token.h" or die;
 print F <<EOF
 /* automatically generated, do not edit */
 #ifndef __MAVIS_TOKEN_H__
@@ -39,10 +48,10 @@ print F $out;
 print F "#define MAVIS_TOKEN_VERSION \"" .  md5_hex($out) . "\"\n#endif\n";
 close F;
 
-open F, "> token.c" or die;
+open F, "> ${PREFIX}token.c" or die;
 print F <<EOF
 /* automatically generated, do not edit */
-#include "mavis/token.h"
+#include "token.h"
 EOF
 ;
 print F "str_t codestring[] = {\n\t" . join(",\n\t", @array), ",\n};\n";
@@ -327,6 +336,7 @@ use-sendfile			S_usesendfile
 user				S_user
 user.original			S_user_original
 user.tag			S_usertag
+user.valid			S_user_valid
 userid				S_userid
 users				S_users
 valid				S_valid
