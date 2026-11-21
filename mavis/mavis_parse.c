@@ -2075,7 +2075,7 @@ void sym_normalize_cond_end(struct sym **mysym, mem_t *mem)
 	    mem_free(mem, &((*mysym)->filename));
 	if ((*mysym)->in)
 	    mem_free(mem, &((*mysym)->in));
-	mem_free(mem, *mysym);
+	mem_free(mem, mysym);
     }
 }
 
