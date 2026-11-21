@@ -28,6 +28,9 @@
 
 """Log destinations: what gets written, and where."""
 
+import os
+import re
+import time
 import unittest
 
 from tactest import DaemonTestCase
@@ -163,6 +166,88 @@ class Prefix(DaemonTestCase):
         with d.connect() as c:
             self.assertTrue(c.pap("alice", "pw").ok)
         self.assertEqual(d.wait_log("plain", "PLAIN alice"), "PLAIN alice login\n")
+
+
+class BufferLimit(DaemonTestCase):
+    """The reader of a pipe destination doesn't read for a while.
+
+    What doesn't fit into the pipe and the buffer limit is dropped, whole
+    records only. The records queued first reach the reader in order, the
+    records sent after it is back arrive too, and no line is torn: no
+    prefix without its record, no postfix alone.
+    """
+
+    LIMIT = 8000
+    RECORDS = 1200            # about 330 KB, far more than the pipe and LIMIT hold
+    CMD = "x" * 240
+    LINE = re.compile(r"\S+ \S+ \S+ (\d+)\t(x*)")
+
+    CONFIG = """
+	log stalled {
+		destination = "|exec sh -c 'while [ ! -e $tmp/go ]; do sleep 0.1; done; exec cat >> $tmp/stalled.log'"
+		buffer limit = %d
+		accounting format = "$${log-sequence}$${FS}$${cmd}"
+	}
+	accounting log = stalled
+	ruleset { rule { script { permit } } }
+""" % LIMIT
+
+    def send(self, n):
+        c = self.connect()
+        for _ in range(n):
+            self.assertTrue(c.acct("alice", ["service=shell", "cmd=" + self.CMD]).ok)
+        c.close()
+
+    def test_a_stalled_reader_gets_the_oldest_records_whole_then_the_new_ones(self):
+        self.send(self.RECORDS)
+        open(os.path.join(self.daemon.tmp, "go"), "w").close()
+        self.wait_log("stalled", " 0\t", timeout=10)
+        size = -1
+        while size != len(self.daemon.read_log("stalled")):   # the queue drained
+            size = len(self.daemon.read_log("stalled"))
+            time.sleep(0.3)
+        self.send(5)
+        text = self.wait_log("stalled", " %d\t%s\n" % (self.RECORDS + 4, self.CMD), timeout=10)
+        seq = []
+        for line in text.split("\n")[:-1]:
+            m = self.LINE.fullmatch(line)
+            self.assertTrue(m and m.group(2) == self.CMD, "torn line: %r" % line[:80])
+            seq.append(int(m.group(1)))
+        gaps = [(a, b) for a, b in zip(seq, seq[1:]) if b != a + 1]
+        self.assertEqual(seq[0], 0)
+        self.assertEqual(len(gaps), 1, gaps)
+        self.assertEqual(gaps[0][1], self.RECORDS)
+        self.assertEqual(seq[-5:], list(range(self.RECORDS, self.RECORDS + 5)))
+
+
+class SyncDestinationNotOpen(DaemonTestCase):
+    """A ">" destination whose file can't be opened.
+
+    The worker answered nothing and died on the first record. Now the
+    records are dropped until the file can be opened, then written again.
+    """
+
+    CONFIG = """
+	log sync {
+		destination = ">$tmp/notadir/sync.log"
+		accounting format = "SYNC $${user} $${cmd}"
+	}
+	accounting log = sync
+	ruleset { rule { script { permit } } }
+"""
+
+    def test_records_are_dropped_until_the_file_can_be_opened(self):
+        notadir = os.path.join(self.daemon.tmp, "notadir")
+        with open(notadir, "w"):       # a file where the directory should be: ENOTDIR
+            pass
+        c = self.connect()
+        for i in range(3):
+            self.assertTrue(c.acct("alice", ["service=shell", "cmd=lost%d" % i]).ok)
+        os.unlink(notadir)
+        os.mkdir(notadir)
+        self.assertTrue(c.acct("alice", ["service=shell", "cmd=kept"]).ok)
+        text = self.wait_log("notadir/sync", "SYNC alice kept\n")
+        self.assertNotIn("lost", text)
 
 
 if __name__ == "__main__":
