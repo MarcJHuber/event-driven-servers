@@ -104,6 +104,10 @@ struct logfile {
      BISTATE(warned);
     enum token timestamp_format;
     size_t buf_limit;
+    unsigned long long drop_records;	/* dropped in the current episode */
+    unsigned long long drop_bytes;
+    time_t drop_since;		/* start of the current episode, 0: none */
+    time_t drop_reported;
     struct mavis_action *filter;
 #ifdef WITH_PCRE2
     tac_rewrite *rewrite;
@@ -425,8 +429,6 @@ static void log_start(struct logfile *lf, struct context_logfile *deadctx)
 static void log_write_async(struct logfile *lf, char *buf, size_t len)
 {
     if (lf->ctx) {
-	if (lf->buf_limit > 0 && buffer_getlen(lf->ctx->buf) > lf->buf_limit)
-	    lf->ctx->buf = buffer_free_all(lf->ctx->buf);
 	lf->ctx->buf = buffer_write(lf->ctx->buf, buf, len);
 	io_set_o(common_data.io, lf->ctx->fd);
     }
@@ -434,11 +436,61 @@ static void log_write_async(struct logfile *lf, char *buf, size_t len)
 
 static void log_write_common(struct logfile *lf, char *buf, size_t len)
 {
-    if (lf->ctx) {
-	if (lf->buf_limit > 0 && buffer_getlen(lf->ctx->buf) > lf->buf_limit)
-	    lf->ctx->buf = buffer_free_all(lf->ctx->buf);
+    if (lf->ctx)
 	lf->ctx->buf = buffer_write(lf->ctx->buf, buf, len);
+}
+
+#define LOG_DROP_REPORT_INTERVAL 60
+
+/*
+ * Decide whether a record of len bytes may be queued for lf. A record
+ * that doesn't fit into the buffer limit is dropped as a whole, and the
+ * records already queued are kept: they were accepted first, and the
+ * head of the queue may be partly written already, so discarding it
+ * would leave half a record at the destination. An empty queue always
+ * takes the record, whatever its size. A record for a destination that
+ * isn't open is dropped, too.
+ *
+ * Drops are counted and reported: when they start, at most once per
+ * LOG_DROP_REPORT_INTERVAL seconds while they go on, and with the totals
+ * when a record is queued again.
+ */
+static int log_admit(struct logfile *lf, size_t len)
+{
+    if (lf->ctx) {
+	/* What an earlier write of a synchronous destination left behind
+	   is retried with the next record only: retry it before deciding. */
+	if (lf->flag_sync && lf->ctx->buf)
+	    lf->log_flush(lf);
+	size_t queued = buffer_getlen(lf->ctx->buf);
+	if (!lf->buf_limit || !queued || queued + len <= lf->buf_limit) {
+	    if (lf->drop_since) {
+		report(NULL, LOG_WARNING, ~0,
+		       "log destination '%s': %llu records (%llu bytes) dropped in %lld s, logging resumed",
+		       lf->name.txt, lf->drop_records, lf->drop_bytes, (long long) (io_now.tv_sec - lf->drop_since));
+		lf->drop_records = 0;
+		lf->drop_bytes = 0;
+		lf->drop_since = 0;
+	    }
+	    return -1;
+	}
     }
+
+    lf->drop_records++;
+    lf->drop_bytes += len;
+    if (!lf->drop_since) {
+	lf->drop_since = lf->drop_reported = io_now.tv_sec;
+	if (lf->ctx)
+	    report(NULL, LOG_WARNING, ~0, "log destination '%s': buffer limit (%zu bytes) reached, dropping records", lf->name.txt,
+		   lf->buf_limit);
+	else
+	    report(NULL, LOG_WARNING, ~0, "log destination '%s': not open, dropping records", lf->name.txt);
+    } else if (io_now.tv_sec - lf->drop_reported >= LOG_DROP_REPORT_INTERVAL) {
+	lf->drop_reported = io_now.tv_sec;
+	report(NULL, LOG_WARNING, ~0, "log destination '%s': %llu records (%llu bytes) dropped so far", lf->name.txt, lf->drop_records,
+	       lf->drop_bytes);
+    }
+    return 0;
 }
 
 static int is_print(char *text, size_t len, size_t *wlen)
@@ -2262,6 +2314,12 @@ void log_exec(tac_session *session, struct context *ctx, enum token token, time_
 		    continue;
 #endif
 		log_start(lf, NULL);
+		if (!pre || !*pre)
+		    pre_len = 0;
+		if (!post || !*post)
+		    post_len = 0;
+		if (!log_admit(lf, pre_len + len + post_len))
+		    continue;
 		if (pre && *pre)
 		    log_write_common(lf, pre, pre_len);
 		if (post && *post) {
