@@ -259,7 +259,7 @@ libmavis_error.so: libmavis_error.o $(MAVIS_LIB)
 	$(LD_SHARED) -o $@ $^ $(LD_SHARED_APPEND)
 
 clean:
-	rm -f *.o *.so $(MAVIS_LIB).$(LIBVER_MAJOR) $(MAVIS_LIB).$(LIBVER_MAJOR).$(LIBVER_MINOR) cyg*.dll *~ *.a core mavistest
+	rm -f *.o *.so $(MAVIS_LIB).$(LIBVER_MAJOR) $(MAVIS_LIB).$(LIBVER_MAJOR).$(LIBVER_MINOR) cyg*.dll *~ *.a core mavistest token.c token.h
 
 install: install_lib install_libs install_prg install_perl install_python
 
