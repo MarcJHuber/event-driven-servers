@@ -16,7 +16,7 @@ OSs	:= $(shell uname -s | env -i $(TR) "[:upper:]/ " "[:lower:]--")
 OSr	:= $(shell uname -r | sed "s/(.*)//" | env -i $(TR) "[:upper:]/ " "[:lower:]--")
 OSm	:= $(shell uname -m | env -i $(TR) "[:upper:]/ " "[:lower:]--")
 OS	:= $(OSs)-$(OSr)-$(OSm)
-GITBRANCH	:= $(shell git branch --show-current 2>/dev/null)
+GITBRANCH	:= $(shell git branch --show-current 2>/dev/null | sed  "s/\//--/g" )
 GITBRANCH_EXT :=
 ifneq ($(GITBRANCH),)
   GITBRANCH_EXT := -$(GITBRANCH)

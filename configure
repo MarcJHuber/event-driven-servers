@@ -70,6 +70,7 @@ if (eval("require POSIX")) {
 
 my $GITBRANCH = `git branch --show-current 2>/dev/null`;
 chomp $GITBRANCH;
+$GITBRANCH =~ s/\//--/g;
 
 $sysname =~ tr/ \//--/;
 $machine =~ tr/ \//--/;
