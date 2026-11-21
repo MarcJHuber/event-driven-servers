@@ -14,13 +14,11 @@ OSm	:= $(shell uname -m | env -i $(TR) "[:upper:]/ " "[:lower:]--")
 GITBRANCH	:= $(shell git branch --show-current 2>/dev/null)
 
 OS	:= $(OSs)-$(OSr)-$(OSm)
-GITBRANCH_EXT := ""
+GITBRANCH_EXT :=
 
 ifneq ($(GITBRANCH),)
   GITBRANCH_EXT := -$(GITBRANCH)
 endif
-#$(info $$BRANCH is [${BRANCH}]) ### REMOVE
-#$(info $$GITBRANCH_EXT is [${GITBRANCH_EXT}]) ### REMOVE
 
 all: misc/version.h dirs install_fakeroot_doc
 
